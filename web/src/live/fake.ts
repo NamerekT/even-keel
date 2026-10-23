@@ -207,7 +207,7 @@ function fakeState(
       : {
           'ABC-5': [
             { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, answers: 0, account: 'john.doe@example.com' },
-            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, answers: 2, account: 'jane.roe@example.com' },
+            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, answers: 2, compactions: 1, account: 'jane.roe@example.com' },
           ],
           'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
@@ -492,7 +492,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.taskSessions[task] = [
       { sessionId: sessionId ?? crypto.randomUUID(), at: ago(20), how: 'checkpoint', resumed: 0, answers: 0 },
       { sessionId: crypto.randomUUID(), at: ago(70), how: 'checkpoint', resumed: 0, answers: 0, replaced: { at: ago(20), how: 'checkpoint' } },
-      { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, answers: 0, replaced: { at: ago(70), how: 'checkpoint' } },
+      { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, answers: 0, compactions: 1, replaced: { at: ago(70), how: 'checkpoint' } },
     ]
   }
   const notify = () => {

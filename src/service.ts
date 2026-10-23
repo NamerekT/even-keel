@@ -1390,7 +1390,7 @@ const getState = (): EvenKeelState => ({
     }),
   ),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS, (project) => configStore.current.keys[project] !== undefined),
-  taskSessions: taskSessions(launches, sessions, sessionAccount),
+  taskSessions: taskSessions(launches, sessions, sessionAccount, (sessionId) => monitor.compactionsOf(sessionId)),
   fixes: fixEpisodes(launches).episodes,
   context: configStore.current.context,
   configError: configStore.error ?? listenError,

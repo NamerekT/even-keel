@@ -71,21 +71,22 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 59 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
 | 60 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 62 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 63 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 64 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
-| 65 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | a paused chain does not go on once the remote is added; press Resume |
-| 66 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 67 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
-| 68 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
-| 69 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
-| 70 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
-| 71 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
-| 72 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
-| 73 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
-| 74 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
-| 75 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
-| 76 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
+| 62 | [Codex compactions on the chain's row](#codex-compactions-on-the-chains-row-btn-299) | Codex | the row's resets counter misses a compaction or counts it twice |
+| 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 64 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
+| 65 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 66 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | a paused chain does not go on once the remote is added; press Resume |
+| 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
+| 68 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
+| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
+| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
+| 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
+| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
+| 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
+| 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
+| 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
+| 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
+| 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
 
 ## Platforms
 
@@ -282,6 +283,10 @@ Only an `add` with the file's `content` was seen in a rollout (2026-10-18). A `d
 ### Codex stats (BTN-170)
 
 Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones. Never seen: a non-zero `cache_write_input_tokens` — it is assumed to be inside `input_tokens` and is subtracted from it; a rollout in `archived_sessions/`; a 0.162 rollout that has `token_count` lines without a matching `token_usage_record` (the fallback was run only on 0.148 files). If one of these differs, a Codex response is counted twice or its input is off. **Workaround:** none needed for the chain; compare `/stats` with the `usage` in the rollout and fix `src/rollout.ts` (`tally/CLAUDE.md`).
+
+### Codex compactions on the chain's row (BTN-299)
+
+The resets counter of a chain row counts a Codex compaction by the rollout's own `compacted` line (`RolloutFold`), the summary Codex keeps to resume from; the `context_compacted` event that may come with it is not counted. No rollout on disk had a compaction (checked on 2026-10-23), so neither line was ever seen. If 0.162 writes only the event, or a `compacted` line per part of one compaction, the counter misses Codex compactions or counts one more than once. **Workaround:** none needed: the counter is only shown; Tally's stats do not read it.
 
 ### Plugin hooks that block (BTN-180)
 

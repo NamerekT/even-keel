@@ -15,6 +15,12 @@ export function accountSlot(view: AccountView | undefined, email: string): numbe
   return (keys.indexOf(owner.key) % SERIES) + 1
 }
 
+/** Whether a session ran on an account other than the one its project runs on: only then the chain's row names it. */
+export function foreignAccount(view: AccountView | undefined, project: string, email: string | null | undefined): boolean {
+  if (email == null) return false
+  return !(view?.accounts.some((entry) => entry.status?.email === email && entry.projects.includes(project)) ?? false)
+}
+
 /** The series colour of an account folder: by its e-mail, so sessions and cards agree; by its key when it has none. */
 export function entrySlot(view: AccountView, entry: AccountEntry): number {
   const email = entry.status?.email ?? null

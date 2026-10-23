@@ -1,4 +1,5 @@
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
+import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
 import { plural } from './plural.js'
 
@@ -1386,7 +1387,8 @@ export const ru = {
     limitRelay: (at: string) =>
       `После сброса лимита в ${at} (или сразу после смены аккаунта) диспетчер запустит новую сессию в той же рабочей папке.`,
     list: 'Сессии по задаче',
-    handoffs: (count: number) => ` · передач по контрольной точке: ${count}`,
+    resets: (count: number, breakdown: string) => ` · сбросов контекста: ${count} (${breakdown})`,
+    compacted: (count: number) => ` · компакций: ${count}`,
     resumed: (count: number) => ` · продолжена после лимита${count > 1 ? ` ×${count}` : ''}`,
     answered: (count: number) => ` · получила ответ${count > 1 ? ` ×${count}` : ''}`,
     current: 'сейчас',
@@ -1569,8 +1571,19 @@ export const ru = {
     blocker: 'блокирует',
     dependent: 'ждёт её',
     ghost: 'встанет сюда',
-    handoffsTitle: 'Сколько раз сессии по задаче передали дела по контрольной точке',
-    handoffs: (count: number) => `передач ×${count}`,
+    resets: (count: number) => `сбросов контекста: ${count}`,
+    resetsOf: (resets: ContextResets) => {
+      const sessions = [
+        resets.checkpoint > 0 ? `${resets.checkpoint} по контрольной точке` : '',
+        resets.limit > 0 ? `${resets.limit} после лимита` : '',
+        resets.relay > 0 ? `${resets.relay} по другой причине` : '',
+        resets.restart > 0 ? `${resets.restart} вручную` : '',
+      ].filter((part) => part !== '')
+      const compactions = resets.compactions > 0 ? `компакций: ${resets.compactions}` : ''
+      return [sessions.join(', '), compactions].filter((part) => part !== '').join('; ')
+    },
+    resetsTitle: 'Сбросы контекста: новые сессии с передачей дел и компакции',
+    accountMark: (email: string) => `Не аккаунт проекта: ${email}`,
     starting: {
       launch: 'запуск',
       handover: 'передача',

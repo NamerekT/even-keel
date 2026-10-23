@@ -1,5 +1,6 @@
 import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
+import type { ContextResets } from '../state.js'
 import type { Messages, ToolCounts } from './ru.js'
 
 const forms = (one: string, other: string) => (count: number) => plural('en', count, { one, other })
@@ -1372,7 +1373,8 @@ export const en: Messages = {
     limitRelay: (at: string) =>
       `After the limit resets at ${at} (or right after an account switch) the dispatcher starts a new session in the same working folder.`,
     list: 'Sessions of the task',
-    handoffs: (count: number) => ` · checkpoint handoffs: ${count}`,
+    resets: (count: number, breakdown: string) => ` · context resets: ${count} (${breakdown})`,
+    compacted: (count: number) => ` · compactions: ${count}`,
     resumed: (count: number) => ` · resumed after the limit${count > 1 ? ` ×${count}` : ''}`,
     answered: (count: number) => ` · answered${count > 1 ? ` ×${count}` : ''}`,
     current: 'now',
@@ -1555,8 +1557,19 @@ export const en: Messages = {
     blocker: 'blocks',
     dependent: 'waits for it',
     ghost: 'will stand here',
-    handoffsTitle: 'How many times sessions of the task handed off at a checkpoint',
-    handoffs: (count: number) => `handoffs ×${count}`,
+    resets: (count: number) => `context resets: ${count}`,
+    resetsOf: (resets: ContextResets) => {
+      const sessions = [
+        resets.checkpoint > 0 ? `${resets.checkpoint} at a checkpoint` : '',
+        resets.limit > 0 ? `${resets.limit} after the limit` : '',
+        resets.relay > 0 ? `${resets.relay} for another reason` : '',
+        resets.restart > 0 ? `${resets.restart} by hand` : '',
+      ].filter((part) => part !== '')
+      const compactions = resets.compactions > 0 ? `compactions: ${resets.compactions}` : ''
+      return [sessions.join(', '), compactions].filter((part) => part !== '').join('; ')
+    },
+    resetsTitle: 'Context resets: new sessions with a handoff and compactions',
+    accountMark: (email: string) => `Not the project's account: ${email}`,
     starting: {
       launch: 'starting',
       handover: 'handing over',

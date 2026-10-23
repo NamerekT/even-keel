@@ -88,6 +88,8 @@ export interface TranscriptSummary {
   contextTokens: number
   /** The model's context window as the transcript gives it (Codex); `null` — it does not, the agent is asked (`docs/sessions.md`). */
   contextWindow: number | null
+  /** How many times the session's context was compacted: Claude's `compact_boundary`, Codex's `compacted` line. */
+  compactions: number
   cache: CacheWindow | null
   tokens: TokenTotals
   turn: Turn | null
@@ -137,6 +139,7 @@ export class TranscriptFold {
   private lastAnswerId: string | null = null
   private lastRequestAt: string | null = null
   private cacheTtl: CacheTtl | null = null
+  private compactions = 0
   private feed: FeedLine[] = []
   private action: FeedLine | null = null
   private stage: Stage | null = null
@@ -186,6 +189,10 @@ export class TranscriptFold {
       this.remoteLost = false
       return
     }
+    if (entry.type === 'system' && entry.subtype === 'compact_boundary') {
+      this.compactions++
+      return
+    }
     if (entry.type === 'system' && typeof entry.content === 'string' && entry.content.startsWith(REMOTE_DROPPED)) {
       this.remoteLost = true
       return
@@ -224,6 +231,7 @@ export class TranscriptFold {
       contextTokens:
         (last?.input_tokens ?? 0) + (last?.cache_read_input_tokens ?? 0) + (last?.cache_creation_input_tokens ?? 0),
       contextWindow: null,
+      compactions: this.compactions,
       cache,
       tokens,
       turn:

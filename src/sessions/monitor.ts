@@ -40,6 +40,8 @@ export class SessionMonitor {
   readonly holds = new ResumeHolds()
   /** By account; `null` when its agent has no Remote Control. */
   private readonly remoteEnabled = new Map<string, boolean | null>()
+  /** The compactions seen in each transcript followed since the start, kept after its session leaves the agents' list. */
+  private readonly compactions = new Map<string, number>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
@@ -73,6 +75,10 @@ export class SessionMonitor {
   /** The context of a live session as of the last poll; `undefined` — its transcript is not followed. */
   contextOf(sessionId: string): number | undefined {
     return this.tails.get(sessionId)?.summary().contextTokens
+  }
+
+  compactionsOf(sessionId: string): number {
+    return this.compactions.get(sessionId) ?? 0
   }
 
   handoff(task: string): HandoffSession | undefined {
@@ -137,6 +143,10 @@ export class SessionMonitor {
       for (const id of this.tails.keys()) if (!live.has(id) && !tracked.has(id)) this.tails.delete(id)
       const reads = await Promise.allSettled([...this.tails.values()].map((tail) => tail.read()))
       for (const read of reads) if (read.status === 'rejected') this.options.onError(read.reason)
+      for (const [id, tail] of this.tails) {
+        const compactions = tail.summary().compactions
+        if (compactions > 0) this.compactions.set(id, compactions)
+      }
 
       for (const home of homes) {
         const remote = this.options.agentOf(home).remote
@@ -153,7 +163,7 @@ export class SessionMonitor {
       for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 
       const views = this.views()
-      const snapshot = JSON.stringify(views)
+      const snapshot = JSON.stringify([views, [...this.compactions]])
       if (snapshot !== this.lastSnapshot) {
         this.lastSnapshot = snapshot
         this.options.onChange(views)

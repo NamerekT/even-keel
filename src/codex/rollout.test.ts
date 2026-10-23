@@ -63,6 +63,13 @@ describe('RolloutFold', () => {
     expect(summary.cache).toBeNull()
   })
 
+  it('counts the compactions by their rollout lines, not by the event that announces one', () => {
+    const compacted = () => line('compacted', { message: 'Summary of the work so far' })
+    const announced = () => event({ type: 'context_compacted' })
+    expect(fold([meta(), started(), user('BTN-1')]).summary().compactions).toBe(0)
+    expect(fold([meta(), started(), compacted(), announced(), agent('Going on.'), compacted(), announced()]).summary().compactions).toBe(2)
+  })
+
   it('names the model of the last turn', () => {
     const context = (model: string) => line('turn_context', { cwd: CWD, model, effort: 'medium' })
     expect(fold([meta(), context('gpt-6-luna'), started(), context('gpt-6.1-sol')]).summary().model).toBe('gpt-6.1-sol')

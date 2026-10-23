@@ -12,7 +12,7 @@ import { agentLabel } from '../layout/accountParts.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
-import { cacheTone, checkpointHandoffs, contextFill, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { cacheTone, contextFill, contextResets, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -454,12 +454,12 @@ interface SessionListProps {
 }
 
 function SessionList({ rows, current, onOpen }: SessionListProps) {
-  const handoffs = checkpointHandoffs(rows)
+  const resets = contextResets(rows)
   return (
     <section className="panel__sessions" aria-label={t.session.list}>
       <h3 className="panel__feed-title">
         {t.session.list}
-        {handoffs > 0 && t.session.handoffs(handoffs)}
+        {resets.total > 0 && t.session.resets(resets.total, t.chain.resetsOf(resets))}
       </h3>
       <ul className="sessions">
         {rows.map((row) => (
@@ -472,6 +472,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {launchText(row)}
                 {row.resumed > 0 && t.session.resumed(row.resumed)}
                 {row.answers > 0 && t.session.answered(row.answers)}
+                {row.compactions !== undefined && t.session.compacted(row.compactions)}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
                 {row.replaced !== undefined && ` · ${replacedText(row.replaced)}`}
               </span>
