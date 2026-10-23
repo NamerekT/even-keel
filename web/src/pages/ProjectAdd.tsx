@@ -30,7 +30,8 @@ import { FieldHead } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { providerOptions } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
-import { Status, TrackerStep } from './WizardTracker.js'
+import { Status } from './TrackerFields.js'
+import { TrackerStep } from './WizardTracker.js'
 import './accounts.css'
 import './settings.css'
 import './projectAdd.css'
@@ -254,7 +255,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
           {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
         </Step>
         <Step title={t.wizard.stepTracker}>
-          <TrackerStep state={state} fields={fields} shape={shape} choice={choice} check={check} onChange={setFields} />
+          <TrackerStep state={state} fields={fields} shape={shape} check={check} onChange={setFields} />
         </Step>
         <Step title={t.wizard.stepProject}>
           <div className="settings__row">

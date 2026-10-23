@@ -7,6 +7,8 @@ import {
   keyOfTyped,
   missingOf,
   pickProject,
+  placeFields,
+  placeOf,
   readyToAdd,
   shapeOf,
   suggestOfRepo,
@@ -183,6 +185,34 @@ describe('suggestOfRepo', () => {
     expect(suggestOfRepo(fields({}), 'key', repo)).toMatchObject({ branch: 'trunk', key: '', name: '' })
     const typed = typedIn(fields({ tracker: 'github', branch: 'dev' }), 'trackerProject', 'octo-org/other')
     expect(suggestOfRepo(typed, 'place', repo)).toMatchObject({ branch: 'dev', trackerProject: 'octo-org/other', key: 'OTH', name: 'other' })
+  })
+})
+
+describe('placeFields', () => {
+  it("splits a within tracker's value into its team and project, the team blank while it is the key's", () => {
+    expect(placeFields('within', 'WEB', 'ENG/Web app')).toEqual({ team: 'ENG', trackerProject: 'Web app' })
+    expect(placeFields('within', 'WEB', 'ENG/')).toEqual({ team: 'ENG', trackerProject: '' })
+    expect(placeFields('within', 'WEB', 'Web app')).toEqual({ team: '', trackerProject: 'Web app' })
+  })
+
+  it('takes the whole value as the tracker project on other shapes', () => {
+    expect(placeFields('alias', 'ABC', 'XYZ')).toEqual({ team: '', trackerProject: 'XYZ' })
+    expect(placeFields('place', 'SHOP', 'octo-org/shop')).toEqual({ team: '', trackerProject: 'octo-org/shop' })
+  })
+
+  it('gives back the value it split', () => {
+    for (const value of ['ENG/Web app', 'ENG/', 'Web app', '']) expect(placeOf(fields({ key: 'WEB', ...placeFields('within', 'WEB', value) }))).toBe(value)
+  })
+})
+
+describe('placeOf', () => {
+  it('leaves the team out once it is the key', () => {
+    expect(placeOf(fields({ key: 'WEB', team: 'WEB', trackerProject: 'Web app' }))).toBe('Web app')
+    expect(placeOf(fields({ key: 'WEB', team: ' ENG ', trackerProject: 'Web app' }))).toBe('ENG/Web app')
+  })
+
+  it('keeps the project as typed, a space being typed included', () => {
+    expect(placeOf(fields({ key: 'WEB', team: 'ENG', trackerProject: 'Web ' }))).toBe('ENG/Web ')
   })
 })
 

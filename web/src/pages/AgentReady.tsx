@@ -6,7 +6,7 @@ import { accountName } from '../layout/accountParts.js'
 import { useCommand } from '../live/useCommand.js'
 import { CLI_MISSING } from './AccountAdd.js'
 import { providerName } from './settingsRun.js'
-import { Status } from './WizardTracker.js'
+import { Status } from './TrackerFields.js'
 
 /**
  * Whether the provider can run sessions now (BTN-310): its CLI, the account folder of its shared pool entry and that

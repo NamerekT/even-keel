@@ -1,0 +1,50 @@
+.tracker-fields__status {
+  color: var(--lamp-error);
+  font-size: 13px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.tracker-fields__status--ok {
+  color: var(--fg-muted);
+}
+
+.tracker-fields__status--ok::before {
+  content: '✓ ';
+  color: var(--lamp-done);
+}
+
+/* The profile's state sits under the list, a line tall whatever it says. */
+.tracker-fields__profile-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.tracker-fields__input-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.tracker-fields__aside {
+  color: var(--fg-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* The tracker's answer has a line of its own even while empty: a new answer does not move the fields below. */
+.tracker-fields__slot {
+  min-height: 1lh;
+}
+
+/* The profile list and the fields share one width, whatever the kind asks for. */
+.tracker-fields__wide {
+  width: 280px;
+  max-width: 100%;
+}
+
+.tracker-fields__upper {
+  text-transform: uppercase;
+}

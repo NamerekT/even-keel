@@ -40,50 +40,6 @@
   content: counter(step) '. ';
 }
 
-.project-add__status {
-  color: var(--lamp-error);
-  font-size: 13px;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-}
-
-.project-add__status--ok {
-  color: var(--fg-muted);
-}
-
-.project-add__status--ok::before {
-  content: '✓ ';
-  color: var(--lamp-done);
-}
-
-.project-add__profile {
-  width: 280px;
-}
-
-/* The profile's state sits under the list, a line tall whatever it says. */
-.project-add__profile-state {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-}
-
-.project-add__input-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.project-add__aside {
-  color: var(--fg-muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-/* The tracker's answer has a line of its own even while empty: a new answer does not move the steps below. */
-.project-add__slot {
-  min-height: 1lh;
-}
-
 .project-add__open {
   margin: 0;
   padding: 8px 12px;
@@ -130,16 +86,6 @@
   min-width: 0;
   overflow-wrap: anywhere;
   user-select: all;
-}
-
-/* The tracker step's fields share the profile list's width, whatever the kind asks for. */
-.project-add__wide {
-  width: 280px;
-  max-width: 100%;
-}
-
-.project-add__upper {
-  text-transform: uppercase;
 }
 
 .project-add__key {

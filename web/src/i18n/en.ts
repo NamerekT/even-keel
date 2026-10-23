@@ -802,8 +802,8 @@ export const en: Messages = {
     tracker: 'Tracker',
     trackerProject: (kind: string, title: string) => PLACE_LABELS[kind] ?? `Project in ${title}`,
     trackerProjectOptional: "May be left empty: then all of the team's issues.",
-    trackerProjectWithin:
-      "A project of the team by name; empty — all of the team's issues. TEAM/Project, or TEAM/ for the whole team, reads a team other than the key: so two projects share one team, their tasks keeping the team's ids.",
+    trackerTeam:
+      "Empty — the project's key. Another team's key lets two projects share one team, their tasks keeping the team's ids.",
     trackerProjectAlias:
       "Empty — the project's key. Another project lets two projects of Even Keel share one tracker project, each with its own milestones (chain rules).",
     trackerSoon: 'v0.2',
