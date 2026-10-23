@@ -125,6 +125,18 @@ export function previousOf(record: UpdateRecord | null, current: string, storage
   return { version: record.from.version, blocked: !sameStorage(record.from.storage, storage) ? 'storage' : block }
 }
 
+/**
+ * Whether the record ends on the running version: a run that went through left its target, a failed one the version
+ * it came from, a failed rollback either. A record on another version is stale — `even-keel update` from a terminal or
+ * a `git pull` by hand moved the install since (BTN-315).
+ */
+export function leftRunning(record: UpdateRecord, current: string): boolean {
+  if (record.mode === 'rebuild') return true
+  const on = (version: string | undefined) => version !== undefined && compareVersions(version, current) === 0
+  if (record.failed === null) return on(record.to?.version)
+  return on(record.from.version) || (record.rollback?.failed != null && on(record.to?.version))
+}
+
 export function resultView(record: UpdateRecord | null): UpdateResultView | null {
   if (record === null || record.seen || record.mode === 'rebuild') return null
   const { failed, rollback } = record

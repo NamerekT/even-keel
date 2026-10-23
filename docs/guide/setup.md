@@ -135,7 +135,7 @@ If any step fails, including no answer, it checks out the commit it started from
 
 The button is there only when Even Keel runs as a service and its folder is a clean git checkout on the tag of the installed version — a clone that you update with `git pull` on the main branch is one — or a global npm install. Otherwise the window says why and you update by hand. A checkout that was on a branch stays on it (moved to the new tag), so a later `git pull` still works.
 
-After an update the window and the gear menu also offer **Revert to <previous version>**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format.
+After an update the window and the gear menu also offer **Revert to <previous version>**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format. After a revert the newer release is offered again; nothing updates by itself. Once the version is changed by hand (below), the window no longer shows how the last update from the page went, nor offers to revert it.
 
 **By hand:**
 

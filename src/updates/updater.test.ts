@@ -211,6 +211,26 @@ describe('Updater', () => {
     expect(lines.filter((line) => line.startsWith('updates: the last update'))).toHaveLength(1)
   })
 
+  it('leaves out a record of a version that no longer runs: one updated from a terminal', async () => {
+    const record: UpdateRecord = {
+      mode: 'revert',
+      from: { version: '0.1.1', commit: '', branch: null, tag: 'v0.1.1', storage: STORAGE },
+      to: { version: '0.1.0', tag: 'v0.1.0' },
+      startedAt: '2026-10-22T08:00:00.000Z',
+      finishedAt: '2026-10-22T08:03:00.000Z',
+      failed: null,
+      rollback: null,
+      seen: false,
+    }
+    mkdirSync(join(root, 'logs'))
+    writeFileSync(join(root, 'logs', 'update.json'), JSON.stringify(record))
+    const lines: string[] = []
+    const { updater: subject } = updater({ current: '0.1.1', checkout: async () => ({ ...ON_TAG, tags: ['v0.1.1'] }), log: (line) => lines.push(line) })
+    await subject.start()
+    expect(subject.view()).toMatchObject({ blocked: null, previous: null, result: null })
+    expect(lines).toContain('updates: the last revert from 0.1.1 to 0.1.0 left another version than 0.1.1 running, it was updated by other means; its result is not shown')
+  })
+
   it('refuses a revert across a storage change', async () => {
     const record = {
       mode: 'update',
