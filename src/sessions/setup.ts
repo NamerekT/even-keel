@@ -1,4 +1,5 @@
 import { exec } from 'node:child_process'
+import type { AccountHome } from '../account/homes.js'
 import type { CheckFailure } from '../chain/model.js'
 import { fail } from '../notice/notice.js'
 
@@ -45,6 +46,20 @@ async function runUntilFailure(stage: string, commands: string[], { task, cwd, s
     return { command, code, output: out }
   }
   return null
+}
+
+/**
+ * The environment of a project's commands: that of the account the task's session runs on, through that account's
+ * agent, or the service's own `own` while the account has no folder — a Codex-only install has no Claude one (EKR-26).
+ */
+export function accountEnv(
+  account: string,
+  find: (key: string) => AccountHome | undefined,
+  envOf: (home: AccountHome) => NodeJS.ProcessEnv,
+  own: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const home = find(account)
+  return home === undefined ? own : envOf(home)
 }
 
 /** Runs a command through the system shell (`cmd.exe` on Windows), output and errors together. */
