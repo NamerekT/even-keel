@@ -13,7 +13,7 @@ import {
   startPrompt,
   warmCacheMs,
   withBrief,
-  withProjectPrompt,
+  withPrompts,
   withReport,
   withReset,
   withTracker,
@@ -293,18 +293,27 @@ describe('withReport', () => {
   })
 })
 
-describe('withProjectPrompt', () => {
+describe('withPrompts', () => {
   const prompt = 'ABC-1\n\n- Ветка: abc-1/task — не меняй её.\n'
 
   it('appends the project prompt under its heading', () => {
-    expect(withProjectPrompt(prompt, 'Run npm test before merging.', 'ru')).toBe(
+    expect(withPrompts(prompt, { shared: null, project: 'Run npm test before merging.' }, 'ru')).toBe(
       `${prompt}\nУказания для этого проекта:\nRun npm test before merging.\n`,
     )
-    expect(withProjectPrompt(prompt, 'Mind Library.', 'en')).toBe(`${prompt}\nInstructions for this project:\nMind Library.\n`)
+    expect(withPrompts(prompt, { shared: null, project: 'Mind Library.' }, 'en')).toBe(`${prompt}\nInstructions for this project:\nMind Library.\n`)
   })
 
-  it('keeps the prompt as it is without a project prompt', () => {
-    expect(withProjectPrompt(prompt, null, 'ru')).toBe(prompt)
+  it("appends Even Keel's prompt under its heading, before the project's", () => {
+    expect(withPrompts(prompt, { shared: '# Rules\n\n- Answer in English.', project: null }, 'en')).toBe(
+      `${prompt}\nInstructions for every project:\n# Rules\n\n- Answer in English.\n`,
+    )
+    expect(withPrompts(prompt, { shared: 'Пиши тесты.', project: 'Run npm test.' }, 'ru')).toBe(
+      `${prompt}\nУказания для всех проектов:\nПиши тесты.\n\nУказания для этого проекта:\nRun npm test.\n`,
+    )
+  })
+
+  it('keeps the prompt as it is without either prompt', () => {
+    expect(withPrompts(prompt, { shared: null, project: null }, 'ru')).toBe(prompt)
   })
 })
 

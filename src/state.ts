@@ -90,7 +90,7 @@ export interface TrackerUrls {
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
   branch: string
-  /** Added to the prompt of every new session of the project; `null` — none. */
+  /** Added to the prompt of every new session of the project, after Even Keel's own; `null` — none. Only the project's own: the levels add up. */
   prompt: string | null
   /** Run in order in the task's folder before a new session starts. */
   beforeStart: string[]
@@ -230,6 +230,8 @@ export interface SharedForm {
   modelLabels: boolean
   /** By the model's name as the CLI gets it. */
   modelPrompts: Record<string, string>
+  /** Added to the prompt of every new session of every project, before the project's own; `null` — none. */
+  prompt: string | null
   language: Language | null
   promptLanguage: Language
   hiddenSkills: string[]

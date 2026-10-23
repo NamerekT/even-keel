@@ -68,8 +68,10 @@ export function withTracker(prompt: string, tracker: TrackerPlace | null, langua
   return tracker === null ? prompt : `${prompt}\n${PROMPTS[language].tracker(tracker.title, tracker.project)}\n`
 }
 
-export function withProjectPrompt(prompt: string, text: string | null, language: Language): string {
-  return text === null ? prompt : `${prompt}\n${PROMPTS[language].project(text)}\n`
+/** The `prompt` settings of a new session: Even Keel's first, then the project's; an empty project one does not cancel Even Keel's. */
+export function withPrompts(prompt: string, texts: { shared: string | null; project: string | null }, language: Language): string {
+  const shared = texts.shared === null ? prompt : `${prompt}\n${PROMPTS[language].shared(texts.shared)}\n`
+  return texts.project === null ? shared : `${shared}\n${PROMPTS[language].project(texts.project)}\n`
 }
 
 export function withUnattended(prompt: string, on: boolean, language: Language): string {

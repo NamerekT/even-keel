@@ -50,12 +50,12 @@ describe('the file as rows', () => {
   })
 
   it('reads a key only at the levels it takes', () => {
-    const { rows } = fileRows({ prompt: 'Shared.', projects: [project({ parallel: 3, prompt: 'Own.' })] }, keys)
-    expect(rows).toEqual([{ key: 'prompt', project: ABC, qualifier: '', value: 'Own.' }])
+    const { rows } = fileRows({ changelog: 'NEWS.md', projects: [project({ parallel: 3, changelog: 'HISTORY.md' })] }, keys)
+    expect(rows).toEqual([{ key: 'changelog', project: ABC, qualifier: '', value: 'HISTORY.md' }])
   })
 
   it('refuses a row at a level its key does not take', () => {
-    expect(() => checkRows([{ key: 'prompt', project: null, qualifier: '', value: 'x' }], [], { trackers })).toThrow(/prompt/)
+    expect(() => checkRows([{ key: 'changelog', project: null, qualifier: '', value: 'x' }], [], { trackers })).toThrow(/changelog/)
     expect(() => checkRows([{ key: 'models', project: null, qualifier: '', value: 'x' }], [], { trackers })).toThrow(/models/)
   })
 })

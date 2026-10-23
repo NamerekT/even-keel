@@ -26,7 +26,7 @@ import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './chain/launches.js'
 import { fixNameOf, fixStem, isFixName, projectOfFix } from './chain/fix.js'
 import { chainQuiet, ForwardMerger } from './chain/forward.js'
-import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
+import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -946,9 +946,12 @@ const briefed = async (task: string, given: string, project = projectOf(task)): 
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage(project))
 }
 
-/** The project's own prompt, for a new session only: a resumed one already has it. */
-const withProject = (prompt: string, project: string | undefined): string =>
-  withProjectPrompt(prompt, project === undefined ? null : (configStore.current.settings[project]?.prompt ?? null), promptLanguage(project))
+/** Even Keel's prompt and the project's own, for a new session only: a resumed one already has them. */
+const withProject = (prompt: string, project: string | undefined): string => {
+  const config = configStore.current
+  const own = project === undefined ? null : (config.settings[project]?.prompt ?? null)
+  return withPrompts(prompt, { shared: config.prompt, project: own }, promptLanguage(project))
+}
 
 /** The settings files whose `enabledPlugins` a chain session would read. */
 const pluginSettings = (repo: string) =>

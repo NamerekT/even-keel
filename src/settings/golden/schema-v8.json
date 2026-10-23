@@ -165,6 +165,7 @@
   },
   "modelLabels": true,
   "modelPrompts": {},
+  "prompt": null,
   "stats": {
     "compare": {
       "minTasks": 5,

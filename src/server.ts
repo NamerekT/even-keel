@@ -876,8 +876,9 @@ function ownOf(raw: unknown): OwnValues {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates } = body
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
+  if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
     parallel: numberOf(parallel, 'parallel'),
@@ -891,6 +892,8 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     cli: mapOf(cli, 'cli', (value) => typeof value === 'string'),
     modelLabels: switchOf(modelLabels, 'modelLabels'),
     modelPrompts: mapOf(modelPrompts, 'modelPrompts', (value) => typeof value === 'string'),
+    // A page from before the shared prompt sends none: form and base then agree and nothing is written.
+    prompt: (prompt ?? null) as string | null,
     language: language as Language | null,
     promptLanguage: textOf(promptLanguage, 'promptLanguage') as Language,
     hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),

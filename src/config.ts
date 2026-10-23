@@ -77,6 +77,8 @@ export interface EvenKeelConfig {
   modelLabels: boolean
   /** Appended to the prompt of a new session by the name of its model, as the CLI gets it. */
   modelPrompts: Record<string, string>
+  /** Appended to the prompt of every new session of every project, before the project's own `prompt`; null — none. */
+  prompt: string | null
   stats: StatsConfig
   language: Language | null
   promptLanguage: Language
@@ -287,6 +289,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     cli: shared.cli as Record<string, string>,
     modelLabels: shared.modelLabels as boolean,
     modelPrompts: shared.modelPrompts as Record<string, string>,
+    prompt: shared.prompt as string | null,
     stats: {
       compare: { minTasks: shared['stats.compare.minTasks'], minSessions: shared['stats.compare.minSessions'], days: shared['stats.compare.days'] },
       moves: shared['stats.moves'],
@@ -329,7 +332,7 @@ function sharesOf(values: Values, project: string | null): CheckpointShares {
 function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<ProjectSettings, 'promptLanguage'> {
   return {
     branch: record.branch,
-    prompt: values.prompt as string | null,
+    prompt: (own.prompt as string | undefined) ?? null,
     beforeStart: values['commands.beforeStart'] as string[],
     check: values['commands.check'] as string[],
     afterGreen: values['commands.afterGreen'] as string[],

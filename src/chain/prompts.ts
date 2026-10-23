@@ -48,6 +48,7 @@ export interface PromptTexts {
   branch: (branch: string) => string
   brief: (title: string) => string
   tracker: (title: string, project: string) => string
+  shared: (text: string) => string
   project: (text: string) => string
   why: Record<HandoffReason, string>
   workdir: (path: string) => string
@@ -105,6 +106,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
     brief: (title) => fill`Задача из трекера: ${title}`,
     tracker: (title, project) => fill`Трекер: ${title}, проект ${project}.`,
+    shared: (text) => fill`Указания для всех проектов:\n${text}`,
     project: (text) => fill`Указания для этого проекта:\n${text}`,
     why: {
       limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
@@ -186,6 +188,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
     brief: (title) => fill`Task from the tracker: ${title}`,
     tracker: (title, project) => fill`Tracker: ${title}, project ${project}.`,
+    shared: (text) => fill`Instructions for every project:\n${text}`,
     project: (text) => fill`Instructions for this project:\n${text}`,
     why: {
       limit: 'Continuation: the previous session on this task hit the usage limit and was stopped; you finish the task.',

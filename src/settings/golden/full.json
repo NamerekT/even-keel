@@ -340,6 +340,7 @@
   "modelPrompts": {
     "haiku": "Be brief."
   },
+  "prompt": "# Rules\n\n- Answer in English.",
   "stats": {
     "compare": {
       "minTasks": 5,
