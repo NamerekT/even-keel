@@ -3,7 +3,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { TALLY_MODES, type TallyMode } from '../../../src/stats/mode.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { FieldHead } from './settingsParts.js'
+import { Section } from './settingsParts.js'
 import './accounts.css'
 import './tally.css'
 
@@ -43,8 +43,7 @@ export function TallySettings({ state }: { state: EvenKeelState }) {
   }
 
   return (
-    <div className="settings__field tally-settings">
-      <FieldHead label={t.tally.where} hint={t.tally.whereHint} />
+    <Section title={t.tally.where} hint={t.tally.whereHint}>
       <TallyModes chosen={chosen} current={state.tally} disabled={sending} onPick={setPicked} />
       {chosen === 'server' ? (
         <TallyServerFields key={state.tally ?? 'none'} state={state} onDone={() => setPicked(null)} />
@@ -62,7 +61,7 @@ export function TallySettings({ state }: { state: EvenKeelState }) {
         )
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-    </div>
+    </Section>
   )
 }
 

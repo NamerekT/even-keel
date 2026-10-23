@@ -46,16 +46,13 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
 
   return (
     <form
-      className="settings__form settings-page__form"
-      aria-labelledby="settings-group"
+      className="settings__form"
+      aria-label={t.profiles.rulesOf(profile.name)}
       onSubmit={(event) => {
         event.preventDefault()
         void send('profiles/rules', { id: profile.id, rules: rulesOf(draft.edit) })
       }}
     >
-      <h2 id="settings-group" className="settings-page__group">
-        {t.profiles.rulesOf(profile.name)}
-      </h2>
       <p className="settings__hint">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
       <RuleForm
         level="profile"

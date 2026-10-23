@@ -20,7 +20,7 @@ import {
   type StatusPlace,
   type StatusRow,
 } from './ruleRows.js'
-import { FieldHead, FieldNote, HelpTip, Section, type Marks, type RuleKey } from './settingsParts.js'
+import { FieldHead, FieldNote, HelpTip, Inherit, Section, type Marks, type RuleKey } from './settingsParts.js'
 import { withoutListed } from './settingsRows.js'
 import { ListTable } from './settingsTable.js'
 import './ruleForm.css'
@@ -308,7 +308,6 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
   )
   return (
     <div className={marks.box(['requiredMilestones', 'excludedMilestones'])}>
-      {level === 'project' && <FieldHead label={t.settings.milestones} hint={t.settings.milestonesHint} />}
       <div className={own || level === 'shared' ? 'rule-take' : 'rule-take rule-table__inherited'} role="radiogroup" aria-label={t.settings.milestones}>
         {MODES.map((each) => (
           <label key={each} className="settings__check">
@@ -317,23 +316,14 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
           </label>
         ))}
         {level === 'project' && (
-          <span className="rule-table__origin-line">
-            <span className="rule-table__from">{own ? t.settings.origin.project : t.settings.origin.shared}</span>
-            {own && (
-              <button
-                type="button"
-                className="rule-table__reset"
-                title={t.settings.ruleReset(t.settings.milestones)}
-                aria-label={t.settings.ruleReset(t.settings.milestones)}
-                onClick={() => {
-                  setPicked(null)
-                  put(inherited)
-                }}
-              >
-                <UndoIcon />
-              </button>
-            )}
-          </span>
+          <Inherit
+            own={own}
+            shared={t.settings.milestoneMode[milestoneModeOf(inherited)]}
+            onReset={() => {
+              setPicked(null)
+              put(inherited)
+            }}
+          />
         )}
       </div>
       {mode === 'only' && list('requiredMilestones', 'excludedMilestones')}

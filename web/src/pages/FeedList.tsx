@@ -5,7 +5,7 @@ import { useCommand } from '../live/useCommand.js'
 import { PlusIcon } from '../ui/icons.js'
 import { linkedProfile, trackedFields } from './ProjectTracker.js'
 import { EMPTY_FIELDS, keyTyped, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
-import { FieldHead, fieldId, FieldNote } from './settingsParts.js'
+import { FieldHead, fieldId, FieldNote, Section } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
 
 /**
@@ -19,19 +19,21 @@ export function FeedList({ state, project }: { state: EvenKeelState; project: st
   const tracker = state.config.projects[project]?.tracker
   const title = state.config.trackers.find((each) => each.name === tracker)?.title ?? tracker ?? ''
   return (
-    <section className="settings__field feeds">
-      <div className="feeds__head">
-        <FieldHead label={t.settings.feeds} hint={t.settings.feedsHint} />
-        {!adding && (
+    <Section
+      title={t.settings.feeds}
+      hint={t.settings.feedsHint}
+      aside={
+        !adding && (
           <button type="button" className="button button--small" onClick={() => setAdding(true)}>
             <PlusIcon />
             {t.settings.feedAdd}
           </button>
-        )}
-      </div>
+        )
+      }
+    >
       {feeds.length === 0 ? <p className="settings__hint">{t.settings.feedsNone(title)}</p> : feeds.map((feed) => <FeedRow key={feed.id} state={state} project={project} feed={feed} />)}
       {adding && <FeedAdd state={state} project={project} onClose={() => setAdding(false)} />}
-    </section>
+    </Section>
   )
 }
 

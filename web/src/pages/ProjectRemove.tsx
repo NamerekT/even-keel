@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
-import { FieldHead } from './settingsParts.js'
+import { Section } from './settingsParts.js'
 
-/** "Remove project" behind a confirmation; the service refuses while the chain, a session or a kept folder still holds it. */
+/** "Remove project" behind a confirmation, a red card of its own; the service refuses while the chain, a session or a kept folder still holds it. */
 export function ProjectRemove({ project }: { project: string }) {
   const [confirming, setConfirming] = useState(false)
   const label = useProjectLabel()
@@ -17,8 +17,7 @@ export function ProjectRemove({ project }: { project: string }) {
   }
 
   return (
-    <section className="settings__field project-remove">
-      <FieldHead label={t.wizard.remove} hint={t.wizard.removeHint} />
+    <Section title={t.wizard.remove} hint={t.wizard.removeHint} danger>
       <div className="account__actions">
         {confirming ? (
           <>
@@ -37,6 +36,6 @@ export function ProjectRemove({ project }: { project: string }) {
         )}
       </div>
       {failure !== null && <p className="notice notice--error project-remove__failure">{say(failure)}</p>}
-    </section>
+    </Section>
   )
 }

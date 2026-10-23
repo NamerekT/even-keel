@@ -12,15 +12,16 @@ import { useToolsViews } from '../tools/useToolsViews.js'
 import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import {
-  CheckField,
   FieldHead,
   FieldNote,
   fieldId,
+  GroupTabs,
   HelpTip,
   linesOf,
   marksOf,
   minutesOf,
   ProviderGrid,
+  Row,
   RULE_KEYS,
   rulesOf,
   rulesText,
@@ -32,11 +33,13 @@ import {
   sharesOf,
   sharesText,
   shown,
+  SwitchField,
   unplaced,
   useFieldErrors,
   wholeOf,
   type RuleKey,
 } from './settingsParts.js'
+import { TrackerIcon } from '../ui/icons.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
@@ -57,7 +60,9 @@ const SCOPE = SHARED_SCOPE
 const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
-  { id: 'chain', keys: ['parallel', 'tracker', 'brief', 'fillMilestone', ...RULE_KEYS] },
+  { id: 'chain', keys: ['parallel', 'tracker', 'brief', 'fillMilestone'] },
+  // The shared rules, together with a switch to the rules of each tracker profile, which are saved apart (BTN-66).
+  { id: 'rules', keys: [...RULE_KEYS] },
   {
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
@@ -177,10 +182,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
   const [tab, setOpen] = useTab<string>(SCOPE, 'chain')
-  // A tracker profile's rules are a group of their own below Access (BTN-66), one per profile.
+  // A tracker profile's rules are a tab of the rules group (BTN-66), one per profile; a removed profile's tab falls back to the shared rules.
   const ruled = state.profiles.profiles.filter((profile) => state.profiles.kinds.some((kind) => kind.kind === profile.kind && kind.tracker))
   const ruledOpen = ruled.find((profile) => profileGroup(profile.id) === tab)
-  const open: GroupId = GROUPS.some((group) => group.id === tab) ? (tab as GroupId) : ruledOpen === undefined ? 'chain' : 'secrets'
+  const open: GroupId = GROUPS.some((group) => group.id === tab) ? (tab as GroupId) : tab.startsWith(profileGroup('')) ? 'rules' : 'chain'
   const [params] = useSearchParams()
   const addsProfile = profileAddOf(params) !== null
   // A link asking for a profile (PR mode, EKR-7) lands on the tab its dialog opens in.
@@ -216,27 +221,43 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     if (next === undefined || base === undefined) return
     await send('settings', { ...next, base } as unknown as Record<string, unknown>)
   }
-  const number = (key: string, label: string, invalid: boolean, hint?: string) => (
+  const numberInput = (key: string, invalid: boolean, extra: { placeholder?: string; disabled?: boolean } = {}) => (
+    <input
+      id={fieldId(key)}
+      className="settings__text settings__number"
+      inputMode="numeric"
+      value={text(key)}
+      placeholder={extra.placeholder}
+      disabled={extra.disabled}
+      aria-invalid={invalid}
+      onChange={(event) => edit(key, event.target.value)}
+    />
+  )
+  // A number among others of one setting: its name above it.
+  const number = (key: string, label: string, invalid: boolean) => (
     <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
-      <input
-        id={fieldId(key)}
-        className="settings__text settings__number"
-        inputMode="numeric"
-        value={text(key)}
-        aria-invalid={invalid}
-        onChange={(event) => edit(key, event.target.value)}
-      />
+      <FieldHead label={label} htmlFor={fieldId(key)} />
+      {numberInput(key, invalid)}
       {marks.note(key)}
     </div>
   )
+  const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
+    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} control={numberInput(key, invalid)}>
+      {marks.note(key)}
+      <FieldNote error={errorOf(key)} />
+    </Row>
+  )
   const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
-    <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
-      <Select id={fieldId(key)} className="settings__text settings__short" value={text(key)} options={options} onChange={(value) => edit(key, value)} />
+    <Row
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      control={<Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />}
+    >
       {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
-    </div>
+    </Row>
   )
   // A model and a pick in a cell of the provider table: its column names it. The model is typed freely, the account's list only offered.
   const model = (key: string, label: string, offers: readonly string[]) => (
@@ -264,10 +285,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldNote error={errorOf(key)} />
     </div>
   )
-  const check = (key: string, label: string, hint: string, disabled = false) => (
-    <CheckField className={marks.box(key)} label={label} hint={hint} checked={draft.edit[key] as boolean} disabled={disabled} onChange={(on) => edit(key, on)}>
+  const check = (key: string, label: string, hint: string, disabled = false, error = key) => (
+    <SwitchField className={marks.box(key)} label={label} hint={hint} checked={draft.edit[key] as boolean} disabled={disabled} onChange={(on) => edit(key, on)}>
       {marks.note(key)}
-    </CheckField>
+      <FieldNote error={errorOf(error)} />
+    </SwitchField>
   )
   const kinds = draft.edit.kinds as readonly CiKind[]
   const unguarded = !(draft.edit.guard as boolean)
@@ -278,48 +300,41 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const groups: Record<GroupId, () => ReactNode> = {
     chain: () => (
       <>
-        <CheckField
-          className="settings__field"
-          label={t.status.unattended}
-          hint={t.status.unattendedHint}
-          checked={state.unattended}
-          disabled={modes.sending}
-          onChange={(on) => void modes.send('chain/unattended', { on })}
-        />
-        {modesFailure}
-        <div className={marks.box('parallel')}>
-          <FieldHead label={t.shared.parallel} hint={t.shared.parallelHint} htmlFor={fieldId('parallel')} />
-          <input
-            id={fieldId('parallel')}
-            className="settings__text settings__number"
-            type="number"
-            min={1}
-            step={1}
-            inputMode="numeric"
-            value={text('parallel')}
-            aria-invalid={wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null}
-            onChange={(event) => edit('parallel', event.target.value)}
+        <Section title={t.shared.sections.run}>
+          <SwitchField
+            className="settings__field"
+            label={t.status.unattended}
+            hint={t.status.unattendedHint}
+            checked={state.unattended}
+            disabled={modes.sending}
+            onChange={(on) => void modes.send('chain/unattended', { on })}
           />
-          {marks.note('parallel')}
-          <FieldNote error={errorOf('parallel')} />
-        </div>
-        {select(
-          'tracker',
-          t.shared.tracker,
-          config.trackers.map((each) => ({ value: each.name, label: each.name })),
-          t.shared.trackerHint,
-        )}
-        {select(
-          'brief',
-          t.settings.brief,
-          [
-            { value: '', label: t.settings.briefAuto },
-            { value: 'true', label: t.settings.on },
-            { value: 'false', label: t.settings.off },
-          ],
-          t.settings.briefHint,
-        )}
-        {check('fillMilestone', t.settings.fillMilestone, `${t.settings.fillMilestoneHint} ${t.shared.forProjects}`)}
+          {modesFailure}
+          {numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)}
+        </Section>
+        <Section title={t.shared.sections.tasks}>
+          {select(
+            'tracker',
+            t.shared.tracker,
+            config.trackers.map((each) => ({ value: each.name, label: each.name })),
+            t.shared.trackerHint,
+          )}
+          {select(
+            'brief',
+            t.settings.brief,
+            [
+              { value: '', label: t.settings.briefAuto },
+              { value: 'true', label: t.settings.on },
+              { value: 'false', label: t.settings.off },
+            ],
+            t.settings.briefHint,
+          )}
+          {check('fillMilestone', t.settings.fillMilestone, `${t.settings.fillMilestoneHint} ${t.shared.forProjects}`)}
+        </Section>
+      </>
+    ),
+    rules: () => (
+      <>
         <RuleForm
           level="shared"
           rules={chain}
@@ -354,105 +369,101 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     models: () => (
       <>
-        {select('provider', t.settings.provider, providerOptions(offered), t.shared.providerHint)}
-        <ProviderGrid
-          columns={[
-            { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
-            { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
-            { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
-            { key: 'cli', label: t.shared.cli, hint: t.shared.cliHint },
-          ]}
-          providers={offered}
-          cell={(column, provider) => {
-            const name = providerName(provider)
-            if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), modelOffers[text(`accounts.${provider}`)] ?? [])
-            if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
-            if (column === 'cli')
-              return pick(
-                `cli.${provider}`,
-                t.shared.cliOf(name),
-                CLI_SOURCES.map((source) => ({ value: source, label: t.shared.cliSources[source] ?? source })),
-              )
-            const modes = EXECUTION_MODES[provider]
-            return modes === undefined
-              ? null
-              : pick(
-                  `execution.${provider}`,
-                  t.shared.executionOf(name),
-                  modes.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
+        <Section title={t.shared.sections.agent}>
+          {select('provider', t.settings.provider, providerOptions(offered), t.shared.providerHint)}
+          <ProviderGrid
+            columns={[
+              { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
+              { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
+              { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
+              { key: 'cli', label: t.shared.cli, hint: t.shared.cliHint },
+            ]}
+            providers={offered}
+            cell={(column, provider) => {
+              const name = providerName(provider)
+              if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), modelOffers[text(`accounts.${provider}`)] ?? [])
+              if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
+              if (column === 'cli')
+                return pick(
+                  `cli.${provider}`,
+                  t.shared.cliOf(name),
+                  CLI_SOURCES.map((source) => ({ value: source, label: t.shared.cliSources[source] ?? source })),
                 )
-          }}
-        />
-        <CheckField
-          className={marks.box('modelLabels')}
-          label={t.settings.modelLabels}
-          hint={t.shared.modelLabelsHint}
-          checked={draft.edit.modelLabels as boolean}
-          onChange={(on) => edit('modelLabels', on)}
-        >
-          {marks.note('modelLabels')}
-          <FieldNote error={errorOf('modelLabels')} />
-        </CheckField>
-        <div className={marks.box('modelPrompts')}>
-          <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
-          <ModelPrompts value={text('modelPrompts')} onChange={(value) => edit('modelPrompts', value)} />
-          {marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)}
-          <FieldNote error={errorOf('modelPrompts')} />
-        </div>
-        {select('promptLanguage', t.shared.promptLanguage, languages)}
+              const modes = EXECUTION_MODES[provider]
+              return modes === undefined
+                ? null
+                : pick(
+                    `execution.${provider}`,
+                    t.shared.executionOf(name),
+                    modes.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
+                  )
+            }}
+          />
+        </Section>
+        <Section title={t.shared.sections.prompts}>
+          {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}
+          <div className={marks.box('modelPrompts')}>
+            <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
+            <ModelPrompts value={text('modelPrompts')} onChange={(value) => edit('modelPrompts', value)} />
+            {marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)}
+            <FieldNote error={errorOf('modelPrompts')} />
+          </div>
+          {select('promptLanguage', t.shared.promptLanguage, languages)}
+        </Section>
       </>
     ),
     sessions: () => (
       <>
-        <CheckField
-          className="settings__field"
-          label={t.status.trim}
-          hint={t.status.trimHint}
-          checked={state.trimTools}
-          disabled={modes.sending}
-          onChange={(on) => void modes.send('chain/trim', { on })}
-        />
-        {modesFailure}
-        <div className={marks.box('hiddenSkills')}>
-          <FieldHead label={t.shared.hiddenSkills} hint={t.shared.hiddenSkillsHint} />
-          <HiddenSkills state={state} value={text('hiddenSkills')} onChange={(value) => edit('hiddenSkills', value)} />
-          {marks.note('hiddenSkills')}
-          <FieldNote error={errorOf('hiddenSkills')} />
-        </div>
-        <div className="settings__field">
-          <FieldHead label={t.shared.context} hint={t.shared.contextHint} />
-          <div className="settings__row">
-            {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined)}
-            {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}
-            {number('danger', t.shared.contextDanger, amountOf(text('danger')) === undefined)}
-          </div>
-          <FieldNote error={errorOf('context')} />
-        </div>
-        <div className={marks.box('checkpointTokens')}>
-          <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
-          <input
-            id={fieldId('checkpointTokens')}
-            className="settings__text settings__number"
-            inputMode="numeric"
-            value={text('checkpointTokens')}
-            placeholder={t.shared.checkpointTokensPlaceholder}
-            aria-invalid={text('checkpointTokens').trim() !== '' && wholeOf(text('checkpointTokens'), 0) === undefined}
-            onChange={(event) => edit('checkpointTokens', event.target.value)}
+        <Section title={t.shared.sections.tools}>
+          <SwitchField
+            className="settings__field"
+            label={t.status.trim}
+            hint={t.status.trimHint}
+            checked={state.trimTools}
+            disabled={modes.sending}
+            onChange={(on) => void modes.send('chain/trim', { on })}
           />
-          {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
-          <FieldNote error={errorOf('checkpointTokens')} />
-        </div>
-        <div className="settings__field">
-          <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
-          <div className="settings__row">
-            {SHARE_KEYS.map((key) => (
-              <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined)}</Fragment>
-            ))}
+          {modesFailure}
+          <div className={marks.box('hiddenSkills')}>
+            <FieldHead label={t.shared.hiddenSkills} hint={t.shared.hiddenSkillsHint} />
+            <HiddenSkills state={state} value={text('hiddenSkills')} onChange={(value) => edit('hiddenSkills', value)} />
+            {marks.note('hiddenSkills')}
+            <FieldNote error={errorOf('hiddenSkills')} />
           </div>
-          <FieldNote error={errorOf('checkpointShares')} />
-        </div>
-        <fieldset className="settings__field settings__group">
-          <legend className="settings__subgroup">{t.shared.claude}</legend>
+        </Section>
+        <Section title={t.shared.sections.context}>
+          <div className="settings__field">
+            <FieldHead label={t.shared.context} hint={t.shared.contextHint} />
+            <div className="settings__row">
+              {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined)}
+              {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}
+              {number('danger', t.shared.contextDanger, amountOf(text('danger')) === undefined)}
+            </div>
+            <FieldNote error={errorOf('context')} />
+          </div>
+          <Row
+            className={marks.box('checkpointTokens')}
+            label={t.shared.checkpointTokens}
+            hint={t.shared.checkpointTokensHint}
+            htmlFor={fieldId('checkpointTokens')}
+            control={numberInput('checkpointTokens', text('checkpointTokens').trim() !== '' && wholeOf(text('checkpointTokens'), 0) === undefined, {
+              placeholder: t.shared.checkpointTokensPlaceholder,
+            })}
+          >
+            {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
+            <FieldNote error={errorOf('checkpointTokens')} />
+          </Row>
+          <div className="settings__field">
+            <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
+            <div className="settings__row">
+              {SHARE_KEYS.map((key) => (
+                <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined)}</Fragment>
+              ))}
+            </div>
+            <FieldNote error={errorOf('checkpointShares')} />
+          </div>
+        </Section>
+        <Section title={t.shared.claude}>
           {select(
             'cacheTtl',
             t.shared.cacheTtl,
@@ -463,11 +474,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             ],
             t.shared.cacheTtlHint,
           )}
-        </fieldset>
+        </Section>
       </>
     ),
     ci: () => (
-      <>
+      <Section title={t.settings.sections.guard}>
         {check('guard', t.settings.guard, t.settings.guardHint)}
         <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
           <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
@@ -490,91 +501,71 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
             <FieldNote error={errorOf('ci')} />
           </fieldset>
-          <div className={marks.box('wait')}>
-            <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
-            <input
-              id={fieldId('wait')}
-              className="settings__text settings__number"
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              value={text('wait')}
-              placeholder={t.settings.ciWaitPlaceholder}
-              disabled={unguarded}
-              aria-invalid={minutesOf(text('wait')) === undefined}
-              onChange={(event) => edit('wait', event.target.value)}
-            />
+          <Row
+            className={marks.box('wait')}
+            label={t.settings.ciWait}
+            hint={t.settings.ciWaitHint}
+            htmlFor={fieldId('wait')}
+            control={numberInput('wait', minutesOf(text('wait')) === undefined, { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded })}
+          >
             {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
-          </div>
+          </Row>
           {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, unguarded)}
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, unguarded)}
         </div>
-      </>
+      </Section>
     ),
     page: () => (
       <>
-        {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
-        <div className={marks.box('allowedHosts')}>
-          <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} />
-          <ListTable
-            label={t.shared.allowedHosts}
-            value={text('allowedHosts')}
-            add={t.shared.allowedHostsAdd}
-            empty={t.shared.allowedHostsEmpty}
-            mono
-            onChange={(value) => edit('allowedHosts', value)}
-          />
-          {marks.note('allowedHosts')}
-          <FieldNote error={errorOf('allowedHosts')} />
-        </div>
-        <CheckField
-          className={marks.box('updatesCheck')}
-          label={t.shared.updatesCheck}
-          hint={t.shared.updatesCheckHint}
-          checked={draft.edit.updatesCheck as boolean}
-          onChange={(on) => edit('updatesCheck', on)}
-        >
-          {marks.note('updatesCheck')}
-          <FieldNote error={errorOf('updates')} />
-        </CheckField>
-        <CheckField
-          className={marks.box('updatesNotify')}
-          label={t.shared.updatesNotify}
-          hint={t.shared.updatesNotifyHint}
-          checked={draft.edit.updatesNotify as boolean}
-          onChange={(on) => edit('updatesNotify', on)}
-        >
-          {marks.note('updatesNotify')}
-        </CheckField>
+        <Section title={t.shared.sections.interface}>
+          {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
+          {check('updatesCheck', t.shared.updatesCheck, t.shared.updatesCheckHint, false, 'updates')}
+          {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
+        </Section>
+        <Section title={t.shared.sections.hosts}>
+          <div className={marks.box('allowedHosts')}>
+            <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} />
+            <ListTable
+              label={t.shared.allowedHosts}
+              value={text('allowedHosts')}
+              add={t.shared.allowedHostsAdd}
+              empty={t.shared.allowedHostsEmpty}
+              mono
+              onChange={(value) => edit('allowedHosts', value)}
+            />
+            {marks.note('allowedHosts')}
+            <FieldNote error={errorOf('allowedHosts')} />
+          </div>
+        </Section>
       </>
     ),
     stats: () => (
       <>
-        <div className="settings__field">
-          <FieldHead label={t.shared.compare} hint={t.shared.compareHint} />
+        <Section title={t.shared.compare} hint={t.shared.compareHint}>
           <div className="settings__row">
             {number('minTasks', t.shared.minTasks, wholeOf(text('minTasks'), 1) === undefined)}
             {number('minSessions', t.shared.minSessions, wholeOf(text('minSessions'), 1) === undefined)}
             {number('days', t.shared.days, wholeOf(text('days'), 1) === undefined)}
           </div>
-        </div>
-        {number('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
-        <div className={marks.box('moves')}>
-          <FieldHead label={t.shared.moves} hint={t.shared.movesHint} />
-          <RowsTable
-            label={t.shared.moves}
-            columns={[
-              { title: t.shared.movesFrom, placeholder: 'D:/old/abc', mono: true },
-              { title: t.shared.movesTo, placeholder: 'D:/Projects/abc', mono: true },
-            ]}
-            rows={rowsOf(text('moves')).map(pairOf)}
-            empty={t.shared.none}
-            onChange={(rows) => edit('moves', linesText(rows.map(lineOf)))}
-          />
-          {marks.note('moves')}
-        </div>
-        <FieldNote error={errorOf('stats')} />
+        </Section>
+        <Section title={t.shared.sections.other}>
+          {numberRow('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
+          <div className={marks.box('moves')}>
+            <FieldHead label={t.shared.moves} hint={t.shared.movesHint} />
+            <RowsTable
+              label={t.shared.moves}
+              columns={[
+                { title: t.shared.movesFrom, placeholder: 'D:/old/abc', mono: true },
+                { title: t.shared.movesTo, placeholder: 'D:/Projects/abc', mono: true },
+              ]}
+              rows={rowsOf(text('moves')).map(pairOf)}
+              empty={t.shared.none}
+              onChange={(rows) => edit('moves', linesText(rows.map(lineOf)))}
+            />
+            {marks.note('moves')}
+          </div>
+          <FieldNote error={errorOf('stats')} />
+        </Section>
       </>
     ),
     secrets: () => <SettingsSecrets state={state} />,
@@ -606,14 +597,33 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         </h1>
       </header>
       <div className="settings-page__body">
-        <SettingsNav
-          groups={[...GROUPS.map(({ id }): { id: string; title: string } => ({ id, title: titleOf(id) })), ...ruled.map((profile) => ({ id: profileGroup(profile.id), title: t.profiles.rulesOf(profile.name) }))]}
-          open={ruledOpen === undefined ? open : tab}
-          dirty={(id) => GROUPS.some((group) => group.id === id) && dirty(id as GroupId)}
-          onOpen={setOpen}
-        />
-        {ruledOpen !== undefined ? (
-          <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} />
+        <SettingsNav groups={GROUPS.map(({ id }) => ({ id, title: titleOf(id) }))} open={open} dirty={(id) => dirty(id as GroupId)} onOpen={setOpen} />
+        {open === 'rules' ? (
+          // The shared rules and each tracker profile's, under one switcher; a profile's rules are a form of their own.
+          <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
+            {groupTitle(open)}
+            {ruled.length > 0 && (
+              <GroupTabs
+                label={t.shared.ruleScopes}
+                groups={[
+                  { id: 'rules', title: t.shared.allTrackers },
+                  ...ruled.map((profile) => ({
+                    id: profileGroup(profile.id),
+                    title: (
+                      <>
+                        <TrackerIcon kind={profile.kind} />
+                        {profile.name}
+                      </>
+                    ),
+                  })),
+                ]}
+                open={ruledOpen === undefined ? 'rules' : tab}
+                dirty={(id) => id === 'rules' && dirty('rules')}
+                onOpen={setOpen}
+              />
+            )}
+            {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
+          </section>
         ) : open === 'secrets' || open === 'stats' ? (
           // Every row is a form of its own, so the tab is not one; Tally's place is applied on its own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
