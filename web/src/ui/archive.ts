@@ -3,7 +3,10 @@ import { isClosedLamp, type BlockLamp } from '../state.js'
 export const ARCHIVE_PAGE = 16
 
 export interface ArchiveView<T> {
+  /** The chain outside the archive. */
   visible: T[]
+  /** The unfolded pages of the archive, oldest first: they show under the archive line, not in the chain. */
+  archived: T[]
   shown: number
   hidden: number
   next: number
@@ -25,10 +28,11 @@ export function archiveView<T extends { id: string; lamp: BlockLamp; work?: unkn
   const needed = target >= 0 ? Math.ceil((archived - target) / ARCHIVE_PAGE) : 0
   const shown = Math.min(archived, Math.max(pages, needed) * ARCHIVE_PAGE)
   const hidden = archived - shown
-  const gone = new Set(archivable.slice(0, hidden))
+  const gone = new Set(archivable)
   const fixes = (part: T[]) => part.filter((block) => block.lamp === 'fixed').length
   return {
     visible: blocks.filter((block) => !gone.has(block)),
+    archived: archivable.slice(hidden),
     shown,
     hidden,
     next: Math.min(ARCHIVE_PAGE, hidden),

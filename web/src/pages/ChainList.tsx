@@ -78,7 +78,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
   const view = milestoneView(archive.visible, revealed, target)
   const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus).sections.length
   const blocks = view.sections.flatMap((section) => section.blocks)
-  const shown = new Set(blocks.map((block) => block.id))
+  const shown = new Set([...archive.archived, ...blocks].map((block) => block.id))
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
   const open = new Set(linkedIds(ordered))
   const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
@@ -139,30 +139,52 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
 
   return (
     <div className="chain" style={{ '--key-chars': keyChars(ordered) } as CSSProperties}>
-      {(archive.hidden > 0 || archive.shown > 0) && (
-        <div className="chain__archive">
-          {archive.hidden > 0 && (
+      {archive.shown === 0
+        ? archive.hidden > 0 && (
             <Divider
               name={t.chain.archive}
-              count={t.chain.hidden(t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes))}
+              count={t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes)}
               hidden
               bump={motion.bump ?? undefined}
-              toggle={{
-                expanded: false,
-                title: t.chain.loadMore(archive.next, archive.hidden),
-                run: () => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1),
-              }}
+              toggle={{ expanded: false, title: t.chain.openArchive, run: () => setPages(1) }}
             />
+          )
+        : (
+            <section className="chain__archive">
+              <Divider
+                name={t.chain.archive}
+                count={
+                  archive.hidden > 0
+                    ? t.chain.archiveShown(archive.shown, archive.shown + archive.hidden)
+                    : t.chain.archived(archive.shown - archive.shownFixes, archive.shownFixes)
+                }
+                bump={motion.bump ?? undefined}
+                toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
+                action={
+                  archive.hidden > 0 && (
+                    <button
+                      type="button"
+                      className="chain__more"
+                      title={t.chain.loadMore(archive.next, archive.hidden)}
+                      onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
+                    >
+                      {t.chain.archiveMore(archive.next)}
+                    </button>
+                  )
+                }
+              />
+              <ol className="chain__archived">
+                {archive.archived.map((block, index) => (
+                  <ArchivedRow
+                    key={block.id}
+                    block={block}
+                    milestone={block.milestone !== archive.archived[index - 1]?.milestone ? block.milestone : null}
+                    focused={block.id === focus}
+                  />
+                ))}
+              </ol>
+            </section>
           )}
-          {archive.shown > 0 && (
-            <Divider
-              name={t.chain.archive}
-              count={t.chain.archived(archive.shown - archive.shownFixes, archive.shownFixes)}
-              toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
-            />
-          )}
-        </div>
-      )}
       {motion.quiet && (
         <p className="chain__away" role="status">
           {t.chain.away(motion.quiet)}
@@ -342,6 +364,24 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">{block.title}</p>
       <div className="block__side">{shownStatus(block) !== null && <span className="block__status">{shownStatus(block)}</span>}</div>
+    </li>
+  )
+}
+
+/** A row of the unfolded archive: one quiet line, its milestone named only where the milestone changes. */
+function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milestone: string | null; focused: boolean }) {
+  return (
+    <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
+      <span className="archived__head">
+        {isFixName(block.id) ? <Forge lamp={block.lamp} /> : <Lamp lamp={block.lamp} />}
+        <Link to={{ hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
+          {block.id}
+        </Link>
+      </span>
+      <span className="archived__title" title={block.title ?? undefined}>
+        {block.title}
+      </span>
+      {milestone !== null && <span className="archived__milestone">{milestone}</span>}
     </li>
   )
 }
