@@ -3,7 +3,7 @@ import { notice } from '../../../src/notice/notice.js'
 import type { CiView } from '../../../src/ci/model.js'
 import { freshEvents, pageEvents, type EventsInput } from './pageEvents.js'
 
-const none: EventsInput = { chain: { active: [], projects: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
+const none: EventsInput = { chain: { active: [], projects: {}, leftovers: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
 const view = (status: 'failure' | 'success'): CiView =>
   ({
@@ -50,7 +50,7 @@ describe('pageEvents', () => {
     const work = (files: number, ahead: number) => ({ path: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/task', files, ahead })
     const order = { order: ['ABC-2'], waiting: ['ABC-3'], backlog: ['ABC-1'], error: null }
     const input = (works: EventsInput['works'], extra: object = {}) =>
-      ({ ...none, chain: { active: [], projects: { p1: { ...order, ...extra } } }, works }) as EventsInput
+      ({ ...none, chain: { ...none.chain, projects: { p1: { ...order, ...extra } } }, works }) as EventsInput
     expect(pageEvents(input({ p1: { 'ABC-1': work(49, 0) } }))).toEqual([
       { key: 'work|p1|ABC-1', kind: 'work', project: 'p1', task: 'ABC-1', path: work(0, 0).path, files: 49, ahead: 0, backlog: true },
     ])
@@ -61,6 +61,18 @@ describe('pageEvents', () => {
     const reviews = [{ task: 'ABC-9', number: 7, url: 'https://example.com/pull/7', feedback: false }]
     expect(pageEvents(input({ p1: { 'ABC-9': work(0, 2) } }, { reviews }))).toEqual([])
     expect(pageEvents(input({ p1: { 'ABC-1': work(1, 0) } }, { error: notice('chain.unknownProject', { project: 'p1' }) }))).toEqual([])
+  })
+
+  it('sees the work of a closed task only once its cleanup left it, and none while a session works in the folder', () => {
+    const work = { path: 'D:/work/abc/.claude/worktrees/abc-9', branch: 'abc-9/task', files: 3, ahead: 1 }
+    const done = { id: 'ABC-9', project: 'p1', title: 'Done', status: { name: 'Done', category: 'Won' } }
+    const leftover = { task: 'ABC-9', at: '2026-10-23T18:00:00Z', notice: notice('cleanup.worktreeKept', { path: work.path }) }
+    const projects = { p1: { order: [], waiting: [], backlog: [], error: null } }
+    const input = (extra: object, leftovers: object = {}) =>
+      ({ ...none, chain: { active: [], projects, leftovers }, works: { p1: { 'ABC-9': work } }, ...extra }) as unknown as EventsInput
+    expect(pageEvents(input({ tasks: [done] }))).toEqual([])
+    expect(pageEvents(input({ tasks: [done] }, { p1: [leftover] })).map((each) => each.key)).toEqual(['work|p1|ABC-9'])
+    expect(pageEvents(input({ sessions: [{ task: 'ABC-9', sessionId: 's1', asking: false, lamp: 'working' }] }))).toEqual([])
   })
 })
 
