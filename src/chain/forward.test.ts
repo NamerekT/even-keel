@@ -125,6 +125,15 @@ describe('ForwardMerger', () => {
     expect(merger.view().EKR).toMatchObject({ behind: 0, held: false, hold: null })
   })
 
+  it('holds a merge that failed with no conflicted file as a failure, not a conflict, with git\'s message', async () => {
+    const identity = 'Committer identity unknown\n\n*** Please tell me who you are.'
+    const { merger, calls, state } = setup({ [count]: { out: '1\n' }, ...onDev, [merge]: { code: 128, out: identity } })
+    await merger.tick()
+    expect(calls.slice(-2)).toEqual(['diff --name-only --diff-filter=U', 'merge --abort'])
+    expect(state.syncs).toBe(0)
+    expect(merger.view().EKR).toMatchObject({ behind: 1, held: true, hold: notice('forward.failed', { from: 'EKR', into: 'BTN' }, { detail: identity }) })
+  })
+
   it('keeps the failed push of a carry for the page', async () => {
     const failed = notice('sync.push', { remote: 'origin', main: 'dev' })
     const { merger } = setup({ [count]: { out: '1\n' }, ...onDev }, { push: failed })
