@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
-import type { CacheTtl, ConfigView, EvenKeelState, OwnKey, OwnValues, ProjectForm, SharedForm } from '../../../src/state.js'
+import type { CacheTtl, ConfigView, ProjectForm } from '../../../src/state.js'
 import { LANGUAGES } from '../../../src/language.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { offeredProviders } from '../accounts.js'
@@ -14,14 +14,13 @@ import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
-import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerName, providerOptions } from './settingsRun.js'
 import {
   CheckField,
   FieldHead,
   fieldId,
   FieldNote,
   GroupTabs,
-  linesOf,
   marksOf,
   minutesOf,
   ProviderGrid,
@@ -29,12 +28,10 @@ import {
   HelpTip,
   type RuleKey,
   rulesOf,
-  rulesText,
   sameBy,
   SaveBar,
   SHARE_KEYS,
   shareOf,
-  sharesOf,
   sharesText,
   shown,
   unplaced,
@@ -45,7 +42,8 @@ import {
 import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
-import { linkedProfile, ProjectTracker } from './ProjectTracker.js'
+import { CLI_TTL, formOf, profileOf, remoteKey, switchOf, tokensOf, valuesOf } from './projectForm.js'
+import { ProjectTracker } from './ProjectTracker.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { FeedList } from './FeedList.js'
@@ -77,8 +75,6 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
   )
 }
 
-const remoteKey = (kind: CiKind) => `remote.${kind}`
-
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'slot', 'changelog', 'color'] },
@@ -94,141 +90,7 @@ const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
 const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
 
-/** The rules of the tracker profile the project runs on: between the shared ones and the project's own (BTN-334). */
-const profileOf = (state: EvenKeelState | null, project: string, tracker: string) =>
-  state === null ? undefined : linkedProfile(state.profiles.profiles.filter((profile) => profile.kind === tracker), project)
-
-/** `form.chain` holds no profile: a key the project leaves unset shows the profile's value, the one in force. */
-const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): Values => ({
-  repo: form.repo,
-  branch: form.branch,
-  tracker: form.tracker,
-  trackerProject: form.trackerProject ?? '',
-  slot: String(form.slot),
-  color: form.color === null ? '' : String(form.color),
-  brief: form.brief === null ? '' : String(form.brief),
-  ...rulesText(effectiveRules(form.chain, form.ownRules, profileRules)),
-  prompt: form.prompt ?? '',
-  beforeStart: form.beforeStart.join('\n'),
-  check: form.check.join('\n'),
-  afterGreen: form.afterGreen.join('\n'),
-  // A switch the project may leave to the shared settings: '' — as shared, 'true' or 'false' — its own.
-  guard: switchText(form.own['ci.guard']),
-  ownKinds: form.own['ci.kinds'] !== undefined,
-  kinds: form.ci.kinds,
-  ownWait: form.own['ci.waitMinutes'] !== undefined,
-  wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
-  recheck: switchText(form.own['ci.recheckMain']),
-  fixTask: switchText(form.own['ci.fixTask']),
-  pullRequests: form.pullRequests,
-  intakeLabel: form.intakeLabel ?? '',
-  mergeInto: form.mergeInto ?? '',
-  ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
-  fillMilestone: switchText(form.own.fillMilestone),
-  changelog: form.changelog,
-  provider: form.provider ?? '',
-  ...providerValues('models', form.models),
-  ...providerValues('accounts', form.accounts),
-  modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
-  promptLanguage: form.own.promptLanguage ?? '',
-  cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
-  ownCheckpoint: form.own['stats.checkpointTokens'] !== undefined,
-  checkpointTokens: form.checkpointTokens === null ? '' : String(form.checkpointTokens),
-  // The panel sets the three shares together: any of them the project's own makes all three its own.
-  ownShares: OWN_SHARES.some((key) => form.own[key] !== undefined),
-  ...sharesText(form.checkpointShares),
-})
-const OWN_SHARES = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
-const switchText = (value: boolean | undefined) => (value === undefined ? '' : String(value))
-const switchOf = (text: string) => (text === '' ? undefined : text === 'true')
-/** The choice of the cache lifetime that leaves it to Claude Code, as against '' — as shared. */
-const CLI_TTL = 'cli'
 const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
-/** Empty — calibrated; `undefined` — not a whole number. */
-const tokensOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
-
-/** The project's own values of the keys Even Keel sets too; `undefined` while an own number field holds something else. */
-function ownOf(values: Values): OwnValues | undefined {
-  const text = (key: string) => values[key] as string
-  const on = (key: string) => values[key] as boolean
-  const waitMinutes = on('ownWait') ? minutesOf(text('wait')) : null
-  const checkpointTokens = on('ownCheckpoint') ? tokensOf(text('checkpointTokens')) : null
-  const shares = on('ownShares') ? sharesOf(values) : null
-  if (waitMinutes === undefined || checkpointTokens === undefined || shares === undefined) return undefined
-  const kinds = values.kinds as readonly string[]
-  const ttl = text('cacheTtl')
-  const entries: [OwnKey, unknown][] = [
-    ['ci.guard', switchOf(text('guard'))],
-    ['ci.kinds', on('ownKinds') ? CI_KINDS.filter((kind) => kinds.includes(kind)) : undefined],
-    ['ci.waitMinutes', on('ownWait') ? waitMinutes : undefined],
-    ['ci.recheckMain', switchOf(text('recheck'))],
-    ['ci.fixTask', switchOf(text('fixTask'))],
-    ['fillMilestone', switchOf(text('fillMilestone'))],
-    ['promptLanguage', text('promptLanguage') === '' ? undefined : text('promptLanguage')],
-    ['cacheTtl', ttl === '' ? undefined : ttl === CLI_TTL ? null : ttl],
-    ['stats.checkpointTokens', on('ownCheckpoint') ? checkpointTokens : undefined],
-    ['stats.checkpointShares.first', shares?.first],
-    ['stats.checkpointShares.late', shares?.late],
-    ['stats.checkpointShares.hard', shares?.hard],
-  ]
-  return Object.fromEntries(entries.filter(([, value]) => value !== undefined)) as OwnValues
-}
-
-/** The project's own value of a key, else the shared one. */
-const ownOr = <K extends OwnKey>(own: OwnValues, key: K, shared: Exclude<OwnValues[K], undefined>) => (key in own ? (own[key] as typeof shared) : shared)
-
-/** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
-function formOf(values: Values, name: string | null, shared: SharedForm): ProjectForm | undefined {
-  const text = (key: string) => values[key] as string
-  const on = (key: string) => values[key] as boolean
-  const slot = wholeOf(text('slot'), 0)
-  const own = ownOf(values)
-  if (own === undefined || slot === undefined) return undefined
-  const trackerProject = text('trackerProject').trim()
-  const labels = text('modelLabels')
-  return {
-    name,
-    repo: text('repo').trim(),
-    branch: text('branch').trim(),
-    tracker: text('tracker'),
-    trackerProject: trackerProject === '' ? null : trackerProject,
-    slot,
-    color: text('color') === '' ? null : Number(text('color')),
-    brief: text('brief') === '' ? null : text('brief') === 'true',
-    chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
-    ownRules: [],
-    prompt: text('prompt').trim(),
-    beforeStart: linesOf(text('beforeStart')),
-    check: linesOf(text('check')),
-    afterGreen: linesOf(text('afterGreen')),
-    ci: {
-      guard: ownOr(own, 'ci.guard', shared.ci.guard),
-      kinds: ownOr(own, 'ci.kinds', shared.ci.kinds),
-      waitMinutes: ownOr(own, 'ci.waitMinutes', shared.ci.waitMinutes),
-      recheckMain: ownOr(own, 'ci.recheckMain', shared.ci.recheckMain),
-      fixTask: ownOr(own, 'ci.fixTask', shared.ci.fixTask),
-    },
-    remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
-    pullRequests: on('pullRequests'),
-    intakeLabel: text('intakeLabel').trim() === '' ? null : text('intakeLabel').trim(),
-    mergeInto: text('mergeInto') === '' ? null : text('mergeInto'),
-    fillMilestone: ownOr(own, 'fillMilestone', shared.fillMilestone),
-    changelog: text('changelog').trim(),
-    provider: text('provider') === '' ? null : text('provider'),
-    models: providerMap('models', values),
-    accounts: providerMap('accounts', values),
-    modelLabels: labels === '' ? null : labels === 'true',
-    promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
-    cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
-    checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),
-    checkpointShares: {
-      first: ownOr(own, 'stats.checkpointShares.first', shared.stats.checkpointShares.first),
-      late: ownOr(own, 'stats.checkpointShares.late', shared.stats.checkpointShares.late),
-      hard: ownOr(own, 'stats.checkpointShares.hard', shared.stats.checkpointShares.hard),
-    },
-    own,
-  }
-}
 
 /** Whether a group of the project's settings holds changes nobody saved yet: the Settings tab shows it even with the panel closed. */
 export function useSettingsDirty(project: string, form: ProjectForm | undefined): boolean {
