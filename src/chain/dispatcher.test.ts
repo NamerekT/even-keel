@@ -415,11 +415,7 @@ describe('Dispatcher', () => {
     const options: SetupOptions = { blocked: notReady }
     const { dispatcher, launched } = setup(options)
     dispatcher.setTasks('ABC', [task('ABC-1')])
-    await expect(dispatcher.start('ABC')).rejects.toThrow('nowhere to open pull requests')
-
-    options.blocked = undefined
-    dispatcher.start('ABC')
-    options.blocked = notReady
+    await dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: notReady })
@@ -439,6 +435,25 @@ describe('Dispatcher', () => {
     dispatcher.check()
     await dispatcher.idle()
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
+  })
+
+  it('resumes into the PR mode pause rather than refusing, and goes on once PR mode has a target', async () => {
+    const notReady = notice('review.notReady', { project: 'ABC' }, { cause: notice('review.noRemote', { project: 'ABC' }) })
+    const options: SetupOptions = {}
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    pause(dispatcher, 'ABC')
+    options.blocked = notReady
+    dispatcher.resume('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: notReady })
+
+    options.blocked = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
   })
 
   it('holds the next launch while the limit is used up and launches it after the reset', async () => {

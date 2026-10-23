@@ -171,8 +171,9 @@ export class Dispatcher {
     }
     const { active, queue } = this.state
     if (active.length < this.deps.parallel()) {
-      this.requireLaunches(project)
-      active.push(newChain(project))
+      const chain = newChain(project)
+      this.admit(chain)
+      active.push(chain)
     } else queue.push(project)
     this.changed()
   }
@@ -180,9 +181,7 @@ export class Dispatcher {
   resume(project: string): void {
     const chain = this.chainOf(project)
     if (chain === undefined) return
-    this.requireLaunches(project)
-    chain.paused = false
-    chain.error = null
+    this.admit(chain)
     this.changed()
   }
 
@@ -576,6 +575,18 @@ export class Dispatcher {
     this.deps.log(`chain: ${chain.project} goes on: PR mode has where to open pull requests`)
     this.deps.save(this.state)
     return true
+  }
+
+  /**
+   * Start and Resume refuse while launches are blocked, except by PR mode with nowhere to go: then the chain waits
+   * paused on `review.notReady`, which `cleared` lifts by itself (BTN-316).
+   */
+  private admit(chain: ActiveChain): void {
+    const reason = this.deps.blocked(chain.project)
+    if (reason !== undefined && reason.code !== 'review.notReady') throw new NoticeError(reason)
+    chain.paused = reason !== undefined
+    chain.error = reason ?? null
+    if (reason !== undefined) this.deps.log(`chain: ${chain.project} paused: ${englishOf(reason)}`)
   }
 
   private requireLaunches(project: string, task?: string): void {
