@@ -336,6 +336,8 @@ export const en = {
   'packages.installInClaude': (p: { plugin: string }) =>
     `packages: ${p.plugin} comes from outside its marketplace's folder; install it in Claude Code first (claude plugin install ${p.plugin}), then here`,
   'packages.copyFailed': (p: { name: string }) => `packages: could not copy the plugin ${p.name}`,
+  'packages.noSkills': () => 'packages: choose at least one skill',
+  'packages.unknownSkill': (p: { name: string }) => `packages: there is no skill ${p.name} in ~/.claude/skills or the Codex skills folder`,
   'packages.npmFailed': (p: { spec: string }) => `packages: npm could not install ${p.spec}`,
   'packages.marketplaceUpdate': (p: { marketplace: string }) => `packages: claude plugin marketplace update ${p.marketplace} failed`,
   'packages.marketplaceAdd': (p: { marketplace: string }) => `packages: claude plugin marketplace add could not add ${p.marketplace}`,

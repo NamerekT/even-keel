@@ -119,6 +119,8 @@ Plugins and MCP servers are a set per project, kept by Even Keel and given to ch
 
 Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks, unless the plugin brings OpenCode plugins of its own in an `opencode/` folder, as the checkpoint plugin does. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
 
+Your own skills (`~/.claude/skills`, Codex's skills folder) reach only their own agent; **Add a package → My skills** on `/tools` wraps the ones you tick into one plugin package, so Codex, OpenCode and Copilot sessions get them too, and an edit of a skill shows as an update of the package. A skill that leans on Claude Code's own tools (Edit, `/rewind`, subagents) works poorly on another agent.
+
 ## Accounts
 
 Your own Claude and Codex subscriptions — a personal and a work one, say — one config folder each. At most one Codex account may be on the free plan: OpenAI's terms do not allow several free accounts to get round the limits, so Even Keel refuses a second one ([docs/accounts.md](../accounts.md#the-codex-folders-btn-168-btn-176)).

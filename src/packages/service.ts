@@ -12,6 +12,7 @@ import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, s
 import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
 import { isNewer } from './version.js'
 
@@ -35,6 +36,10 @@ export interface PackagesDeps {
   globalDir: string
   /** Even Keel's checkout: its `.claude-plugin/marketplace.json` offers its own plugins. */
   ownDir: string
+  /** `state/skills`: the marketplace of the user's own skills, wrapped into one plugin (BTN-339). */
+  skillsDir: string
+  /** The user's skills folders, Claude Code's first: what the page offers to wrap. */
+  skillRoots: () => SkillRoot[]
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
@@ -67,7 +72,7 @@ export class Packages {
   private readonly probes: Probes
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
-  private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace'] } | undefined
+  private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
 
   constructor(private readonly deps: PackagesDeps) {
@@ -113,7 +118,7 @@ export class Packages {
         kind: record.kind,
         installed: install !== undefined,
         version: install?.version ?? null,
-        latest: install !== undefined && offer !== undefined && isNewer(offer.version, install.version) ? offer.version : null,
+        latest: install !== undefined && offer !== undefined && (name === SKILLS_PACKAGE ? skillsChanged : isNewer)(offer.version, install.version) ? offer.version : null,
         fetched: offer?.fetched ?? null,
         installing: this.installing.has(name),
         error: this.errors.get(name) ?? null,
@@ -126,25 +131,80 @@ export class Packages {
       }
     })
     const projects = Object.fromEntries(Object.keys(this.deps.repos).map((project) => [project, this.check(project)]))
-    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), marketplace: this.marketplaces().marketplace, imports: this.imports }
+    const { marketplace, skills } = this.marketplaces()
+    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), marketplace, imports: this.imports, skills: { package: SKILLS_PACKAGE, list: skills } }
   }
 
-  /** The marketplaces' plugins not in the catalog. */
+  /** The marketplaces' plugins not in the catalog; the user's skills are added by their own step. */
   private available(): PackagesView['available'] {
     return this.marketplaces().list.filter((each) => {
       const known = this.file.packages[pluginKey(each.plugin, each.marketplace)]
-      return known === undefined || known.removed === true
+      return each.marketplace !== SKILLS_MARKETPLACE && (known === undefined || known.removed === true)
     })
   }
 
-  /** The marketplaces' plugins and whether Claude Code knows Even Keel's own; the files are read again at most once a minute. */
+  /** Even Keel's checkout, then the user's wrapped skills. */
+  private get local(): string[] {
+    return [this.deps.ownDir, this.deps.skillsDir]
+  }
+
+  /**
+   * The marketplaces' plugins, whether Claude Code knows Even Keel's own, and the user's skills; the files are read
+   * again at most once a minute, and the wrapped skills copied again then, so an edit of one shows as an update.
+   */
   private marketplaces(): NonNullable<Packages['plugins']> {
     if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) {
+      if (this.wrapsSkills()) this.rewrap()
       const name = ownMarketplace(this.deps.ownDir)
       const marketplace = name === undefined ? null : { name, dir: this.deps.ownDir, known: knowsMarketplace(this.deps.globalDir, name) }
-      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.deps.ownDir), marketplace }
+      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.local), marketplace, skills: this.ownSkills() }
     }
     return this.plugins
+  }
+
+  /** The catalog has the package of the user's skills. */
+  private wrapsSkills(): boolean {
+    const record = this.file.packages[SKILLS_PACKAGE]
+    return record !== undefined && record.removed !== true
+  }
+
+  private ownSkills(): PackagesView['skills']['list'] {
+    const wrapped = new Set(this.wrapsSkills() ? wrappedSkills(this.deps.skillsDir) : [])
+    const found = listSkills(this.deps.skillRoots())
+    const gone = [...wrapped].filter((name) => !found.some((skill) => skill.name === name)).map((name) => ({ name, from: null, wrapped: true }))
+    return [...found.map(({ name, from }) => ({ name, from, wrapped: wrapped.has(name) })), ...gone]
+  }
+
+  /** The wrapped skills from their folders again; a failure leaves the last copy and is logged. */
+  private rewrap(): void {
+    try {
+      rewrapSkills(this.deps.skillsDir, this.deps.skillRoots())
+    } catch (error) {
+      this.deps.log(`packages: the skills of ${SKILLS_PACKAGE} not copied again: ${(error as Error).message}`)
+    }
+  }
+
+  /**
+   * The chosen skills become the plugin `my-skills` of the marketplace in `state/skills/`: a new package, on in every
+   * project or in `project`, or a new install of the one in the catalog, whose projects stay as they are.
+   */
+  async wrapSkills(names: string[], project?: string): Promise<void> {
+    this.projectKnown(project)
+    const unique = [...new Set(names)]
+    if (unique.length === 0) throw fail('packages.noSkills', {})
+    const chosen = chosenSkills(this.deps.skillsDir, this.deps.skillRoots(), unique)
+    const missing = unique.find((name) => !chosen.some((skill) => skill.name === name))
+    if (missing !== undefined) throw fail('packages.unknownSkill', { name: missing })
+    try {
+      wrapSkills(this.deps.skillsDir, chosen)
+    } catch (error) {
+      throw fail('packages.copyFailed', { name: SKILLS_PACKAGE }, { detail: (error as Error).message }, { cause: error })
+    }
+    this.deps.log(`packages: ${SKILLS_PACKAGE} wraps ${unique.join(', ')}`)
+    this.plugins = undefined
+    this.offers = undefined
+    if (this.wrapsSkills()) await this.update(SKILLS_PACKAGE)
+    else this.addPlugin(SKILLS_PLUGIN, SKILLS_MARKETPLACE, project)
   }
 
   /** Even Keel's own marketplace into Claude Code, for the sessions started by hand; chain sessions do without it. */
@@ -165,7 +225,7 @@ export class Packages {
   /** What the plugin's marketplace holds now; read again at most once a minute, or after an update fetched it. */
   private offerOf(name: string, plugin: { name: string; marketplace: string }): Offer {
     if (this.offers === undefined || Date.now() - this.offers.at > AVAILABLE_MS) this.offers = { at: Date.now(), byName: new Map() }
-    if (!this.offers.byName.has(name)) this.offers.byName.set(name, pluginOffer(this.deps.globalDir, plugin.name, plugin.marketplace, this.deps.ownDir))
+    if (!this.offers.byName.has(name)) this.offers.byName.set(name, pluginOffer(this.deps.globalDir, plugin.name, plugin.marketplace, this.local))
     return this.offers.byName.get(name)
   }
 
@@ -184,8 +244,11 @@ export class Packages {
     return this.gatewayError !== null || this.check(project).blocked
   }
 
-  /** What a session of the task gets; the first one pins the task to the installs it starts on. */
-  startOf(project: string, task: string): Pick<SessionStart, 'mcp' | 'plugins'> {
+  /**
+   * What a session of the task gets on the agent; the first one pins the task to the installs it starts on. Claude Code
+   * goes without the user's wrapped skills: it reads them from its account folder.
+   */
+  startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project }
     const found = sessionPackages(this.file, project, task, places)
     if (this.file.pins[project]?.[task] === undefined && Object.keys(found.installs).length > 0) {
@@ -196,7 +259,8 @@ export class Packages {
       const plugin = this.file.packages[name]?.plugin
       if (plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, plugin.name)
     }
-    return { mcp: found.mcp, plugins: found.plugins }
+    const skip = readsOwnSkills(agent) ? pluginDir(this.deps.cache, SKILLS_PACKAGE, found.installs[SKILLS_PACKAGE] ?? '') : undefined
+    return { mcp: found.mcp, plugins: found.plugins.filter((each) => each.dir !== skip) }
   }
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */
@@ -233,8 +297,9 @@ export class Packages {
   /** A new install next to the current one when the plugin's or a server's version changed; the page shows which. */
   async update(name: string): Promise<void> {
     const record = this.recordOf(name)
+    if (name === SKILLS_PACKAGE) this.rewrap()
     if (record.plugin !== undefined) {
-      const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.deps.ownDir)
+      const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
       if (FETCHED.has(place.kind)) {
         try {
           await this.deps.updateMarketplace(record.plugin.marketplace)
@@ -266,7 +331,7 @@ export class Packages {
     const name = pluginKey(plugin, marketplace)
     const known = this.file.packages[name]
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
-    locatePlugin(this.deps.globalDir, plugin, marketplace, this.deps.ownDir)
+    locatePlugin(this.deps.globalDir, plugin, marketplace, this.local)
     this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: project === undefined, settings: {}, installs: known?.installs ?? [] }
     this.installAdded(name, project)
   }
@@ -402,7 +467,7 @@ export class Packages {
       let version: string | null = null
       let extras = false
       if (record.plugin !== undefined) {
-        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.deps.ownDir)
+        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
         const dir = pluginDir(this.deps.cache, name, id)
         try {
           cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })

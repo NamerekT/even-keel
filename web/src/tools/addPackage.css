@@ -55,7 +55,7 @@
 
 .add-package__kinds {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   padding: 6px 20px 20px;
 }
@@ -242,6 +242,65 @@
   margin: 0;
   color: var(--fg-muted);
   font-size: 14px;
+}
+
+/* The user's skills: a checkbox per skill, the folder's agent on the right. */
+.add-package__skills {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.add-package__skill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.add-package__skill + .add-package__skill {
+  border-top: 1px solid var(--border);
+}
+
+.add-package__skill:hover {
+  background: var(--surface-muted);
+}
+
+.add-package__skill input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.add-package__skill-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+
+.add-package__skill-from {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.add-package__note {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.add-package__note--warn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
 .add-package__question {

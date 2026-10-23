@@ -17,7 +17,12 @@ interface Catalog {
   marketplace: boolean
   /** The servers have not answered since the service started. */
   probing: boolean
+  /** The user's own skills: name and the agent whose folder holds it; `wrapped` — those the skills package holds. */
+  skills: Record<string, string>
+  wrapped: string[]
 }
+
+const SKILLS_PACKAGE = 'my-skills@even-keel-skills'
 
 const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
 const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
@@ -42,6 +47,8 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     gateway: mode !== 'gateway',
     marketplace: mode !== 'marketplace',
     probing: mode === 'probing',
+    skills: { 'code-review': 'claude', 'release-notes': 'claude', 'test-first': 'claude', deploy: 'codex' },
+    wrapped: [],
   }
   if (mode === 'empty') catalog.packages = []
   if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
@@ -70,6 +77,7 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
     ].filter((each) => !catalog.packages.some((known) => known.name === `${each.plugin}@${each.marketplace}`)),
     marketplace: { name: 'even-keel', dir: 'C:\\even-keel', known: catalog.marketplace },
     imports: catalog.imports,
+    skills: { package: SKILLS_PACKAGE, list: Object.entries(catalog.skills).map(([name, from]) => ({ name, from, wrapped: catalog.wrapped.includes(name) })) },
   }
   return view
 }
@@ -117,6 +125,19 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   } else if (name === 'packages/server') {
     catalog.packages.push({ ...base, name: String(body.name), kind: 'mcp', installed: false, version: null, installing: true, default: project === undefined, settings: {}, servers: [String(body.name)], extras: false, keys: [] })
     if (project !== undefined) (catalog.choices[project] ??= {})[String(body.name)] = 'on'
+  } else if (name === 'packages/skills') {
+    const skills = Array.isArray(body.skills) ? body.skills.map(String) : []
+    if (skills.length === 0) throw fail('packages.noSkills', {})
+    catalog.wrapped = skills
+    const version = `1.0.0+${skills.join('').length.toString(16).padStart(8, '0')}`
+    const known = catalog.packages.find((each) => each.name === SKILLS_PACKAGE)
+    if (known !== undefined) {
+      known.note = notice('packages.updated', { name: SKILLS_PACKAGE, version })
+      known.version = version
+    } else {
+      catalog.packages.push({ ...base, name: SKILLS_PACKAGE, kind: 'plugin', version, default: project === undefined, settings: {}, servers: [], extras: true, keys: [] })
+      if (project !== undefined) (catalog.choices[project] ??= {})[SKILLS_PACKAGE] = 'on'
+    }
   } else if (name === 'packages/import' && project !== undefined) {
     for (const server of catalog.imports[project] ?? []) {
       catalog.packages.push({ ...base, name: server, kind: 'mcp', version: null, default: false, settings: {}, servers: [server], extras: false, keys: [] })
