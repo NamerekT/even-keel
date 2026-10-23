@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import type { LaunchDay } from '../../../src/chain/launches.js'
 import { localized, t } from '../i18n/index.js'
+import { projectPath } from '../state.js'
 import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 
@@ -40,7 +42,13 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
           {shown.map((project) => (
             <li key={project} className="chart__key" style={style(project)}>
               <span className="chart__swatch" aria-hidden="true" />
-              <ProjectLabel project={project} />
+              {Object.hasOwn(slots, project) ? (
+                <Link to={projectPath(project)} className="chart__key-link">
+                  <ProjectLabel project={project} />
+                </Link>
+              ) : (
+                <ProjectLabel project={project} />
+              )}
               <span className="chart__key-count">{totals.get(project)}</span>
             </li>
           ))}

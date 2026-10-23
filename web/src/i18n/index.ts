@@ -30,6 +30,11 @@ export function say(notice: Notice): string {
   return withLabels(renderNotice(notice, t.notice), labels)
 }
 
+// The same, its projects still by their ids, for `ProjectLinks` to make links of them (BTN-319).
+export function sayIds(notice: Notice): string {
+  return renderNotice(notice, t.notice)
+}
+
 const FIELDS: Record<Language, FieldTexts> = { en: fieldsEn, ru: fieldsRu }
 
 // A refused setting as its field says it: by the value, without the path of the config the server's text names (BTN-297).

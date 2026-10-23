@@ -7,7 +7,7 @@ import type { ReleaseNote, UpdatesView } from '../../../src/updates/release.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { projectLabel } from '../state.js'
+import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast } from '../ui/Toast.js'
 import '../tools/addPackage.css'
 import '../ui/markdown.css'
@@ -110,13 +110,11 @@ export function UpdateProgressToast() {
       source="Even Keel"
       icon="/favicon.svg"
       title={
-        progress.phase === 'settling' && progress.waiting.length > 0
-          ? t.updates.progressSettling(
-              progress.mode,
-              progress.target,
-              progress.waiting.map((project) => projectLabel(state, project)),
-            )
-          : t.updates.progressRunning(progress.mode, progress.target)
+        progress.phase === 'settling' && progress.waiting.length > 0 ? (
+          <ProjectLinks text={t.updates.progressSettling(progress.mode, progress.target, progress.waiting)} />
+        ) : (
+          t.updates.progressRunning(progress.mode, progress.target)
+        )
       }
       body={t.updates.progressBody}
       actions={[]}
