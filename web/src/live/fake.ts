@@ -438,6 +438,12 @@ export function createFakeSource(search: string): LiveSource {
         { task: 'ABC-2', at: ago(120), notice: textNotice('ABC-2: the worktree was kept (an entry saved before BTN-62)') },
       ],
     }
+    // ABC-4's cleanup left its files: its row stays in view; the current task's are its session's and show nothing.
+    current.state.works.ABC = {
+      ...current.state.works.ABC,
+      'ABC-4': { path: 'D:/work/abc/.claude/worktrees/abc-4', branch: 'abc-4/task', files: 2, ahead: 0 },
+      ...(active?.current != null && { [active.current.task]: { path: 'D:/work/abc/.claude/worktrees/abc-5', branch: 'abc-5/task', files: 7, ahead: 1 } }),
+    }
   }
   if (params.get('chain') === 'restart' && current.state !== null && active) {
     const stalled: SessionView = {

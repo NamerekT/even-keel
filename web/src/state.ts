@@ -1,5 +1,5 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask, Leftover, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isFixName, liveFixId, projectOfFix } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
@@ -132,8 +132,13 @@ export interface ChainBlock {
   fix?: FixEpisode
   /** The task is out of the chain, waiting on its pull request. */
   review?: ReviewView
-  /** Work in the task's folder that is in no commit of main, while no session of the task is at work on it (BTN-298). */
+  /**
+   * Work in the task's folder that is in no commit of main (BTN-298), once the task is out of the chain and no session of
+   * it works: skipped, waiting on its pull request with files left out of a commit, or closed and cleaned up after (BTN-332).
+   */
   work?: TaskWork
+  /** What the cleanup after the closed task said; the row keeps it in view until the user dismisses it. */
+  leftovers?: Notice[]
 }
 
 /**
@@ -232,10 +237,19 @@ export function backlogWork(state: EvenKeelState, project: string): Record<strin
   return Object.fromEntries((state.chain.projects[project]?.backlog ?? []).flatMap((id) => (works[id] === undefined ? [] : [[id, works[id]]])))
 }
 
-/** A session mid-turn is at work on what its folder holds; a task's commits are its pull request's to show. */
-function shownWork(work: TaskWork | undefined, session: SessionView | null, review: boolean): { work: TaskWork } | undefined {
-  if (work === undefined || session?.lamp === 'working' || (review && work.files === 0)) return undefined
-  return { work }
+/**
+ * A task the chain still leads, or one whose cleanup is under way, has its folder as its session's to change; a task's
+ * commits are its pull request's to show. A closed task shows its work only once the cleanup said what it left (BTN-332).
+ */
+function shownWork(
+  work: TaskWork | undefined,
+  task: { lamp: BlockLamp; session: SessionView | null; skipped: boolean; review: boolean },
+  leftovers: Leftover[],
+): Pick<ChainBlock, 'work' | 'leftovers'> | undefined {
+  if (work === undefined || task.session?.lamp === 'working') return undefined
+  if (isClosedLamp(task.lamp)) return leftovers.length === 0 ? undefined : { work, leftovers: leftovers.map((each) => each.notice) }
+  if (task.skipped || (task.review && work.files > 0)) return { work }
+  return undefined
 }
 
 export interface LinkedTask {
@@ -544,12 +558,14 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     // Delivering an answer stops the session for a few seconds; to the page it is already at work on it.
     const session = seen !== null && running?.task === id && running.answering ? { ...seen, lamp: 'working' as const, ask: null } : seen
     const sessions = state.taskSessions[id] ?? []
+    const lamp = taskLamp(task, session)
+    const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     return {
       id,
       title: task?.title ?? null,
       status: task?.status.name ?? null,
       stage: task?.status.category ?? null,
-      lamp: taskLamp(task, session),
+      lamp,
       open: task !== undefined && isOpen(task.status) && !waiting.has(id) && !pulls.includes(id),
       locked: waiting.has(id),
       blockedBy: task?.blockedBy ?? [],
@@ -572,7 +588,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
       ...(reviews.has(id) && { review: reviews.get(id)! }),
-      ...shownWork(state.works[project]?.[id], session, reviews.has(id)),
+      ...shownWork(state.works[project]?.[id], { lamp, session, skipped: skipped.has(id), review: reviews.has(id) }, left),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {

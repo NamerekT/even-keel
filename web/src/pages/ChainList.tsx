@@ -215,6 +215,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                     onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
+                    onDismiss={sending ? undefined : () => void send('chain/dismiss', { project, task: block.id })}
                     ready={block.locked ? ready(block) : null}
                     onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
                     onCard={onCard}
@@ -408,13 +409,14 @@ interface BlockProps {
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
+  onDismiss: (() => void) | undefined
   ready: ReadyButton | null
   onReady: (() => void) | undefined
   onCard: (task: string) => void
 }
 
 function Block(props: BlockProps) {
-  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
+  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onDismiss, ready, onReady, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -547,7 +549,7 @@ function Block(props: BlockProps) {
             {t.chain.question}
           </span>
         )}
-        {block.work !== undefined && <WorkChip work={block.work} />}
+        {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
@@ -558,6 +560,11 @@ function Block(props: BlockProps) {
         {block.skipped && (
           <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
             {t.common.restore}
+          </button>
+        )}
+        {block.leftovers !== undefined && (
+          <button type="button" className="button block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
+            {t.project.dismiss}
           </button>
         )}
         <Links links={links} onCard={onCard} />

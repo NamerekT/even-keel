@@ -60,6 +60,17 @@ describe('archiveView', () => {
     expect(ids(archiveView(blocks, 0, '').visible)).toEqual(['T-2', 'T-3'])
   })
 
+  it('keeps in view a closed task whose cleanup left work in its folder, and does not count it as archived', () => {
+    const work = { path: 'D:/work/t-3', branch: 't-3/task', files: 2, ahead: 0 }
+    const blocks = chain(20, 1).map((block) => (block.id === 'T-3' ? { ...block, work } : block))
+    const view = archiveView(blocks, 0, '')
+    expect(ids(view.visible)).toEqual(['T-3', 'T-20', 'T-21'])
+    expect([view.shown, view.hidden]).toEqual([0, 18])
+    const opened = archiveView(blocks, 1, '')
+    expect(ids(opened.visible)).toEqual(['T-3', ...ids(chain(21, 0).slice(3))])
+    expect([opened.shown, opened.hidden]).toEqual([16, 2])
+  })
+
   it('hides nothing when at most one block is closed', () => {
     expect(archiveView(chain(1, 3), 0, '').hidden).toBe(0)
     expect(archiveView(chain(0, 3), 0, '').visible).toHaveLength(3)

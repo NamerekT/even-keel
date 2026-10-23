@@ -1116,6 +1116,8 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
+    // The task's row shows what the cleanup left as soon as the cleanup is over, not the folder it has just removed.
+    await works.refresh(project)
     return outcome
   },
   sync: syncProject,

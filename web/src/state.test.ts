@@ -344,19 +344,40 @@ describe('the work left in a task folder', () => {
   const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: ['ABC-4'], error: null } }
   const tasks = [task('ABC-2', 'Active'), task('ABC-3', 'ToDo'), task('ABC-4', 'UnStarted')]
 
-  it('marks a chain row unless the task session is mid-turn: then the work is its own', () => {
+  it('leaves the work of a task the chain still has to its session, mid-turn, between turns or asking', () => {
     const works = { ABC: { 'ABC-2': work(49, 0), 'ABC-3': work(0, 3) } }
     const blocks = chainBlocks(stateOf({ tasks, works, chain: chain({ projects: order }) }), 'ABC')
-    expect(blocks.map((block) => block.work)).toEqual([work(49, 0), work(0, 3)])
-
-    const busy = stateOf({ tasks, works, sessions: [view('ABC-2', 'working', null)], chain: chain({ projects: order }) })
-    expect(chainBlocks(busy, 'ABC').map((block) => block.work)).toEqual([undefined, work(0, 3)])
+    expect(blocks.map((block) => block.work)).toEqual([undefined, undefined])
 
     const asking = stateOf({ tasks, works, sessions: [view('ABC-2', 'waiting', null)], chain: chain({ projects: order }) })
-    expect(chainBlocks(asking, 'ABC')[0]?.work).toEqual(work(49, 0))
+    expect(chainBlocks(asking, 'ABC')[0]?.work).toBeUndefined()
   })
 
-  it('leaves the commits of a task with a pull request to its pull request', () => {
+  it('marks a skipped task, out of the chain while its session does not work', () => {
+    const works = { ABC: { 'ABC-2': work(2, 0) } }
+    const skipped = chain({ projects: order, skipped: { ABC: ['ABC-2'] } })
+    expect(chainBlocks(stateOf({ tasks, works, chain: skipped }), 'ABC')[0]?.work).toEqual(work(2, 0))
+    const busy = stateOf({ tasks, works, sessions: [view('ABC-2', 'working', null)], chain: skipped })
+    expect(chainBlocks(busy, 'ABC')[0]?.work).toBeUndefined()
+  })
+
+  it('marks a done task only once its cleanup is over and left the work, with what the cleanup said', () => {
+    const done = [task('ABC-1', 'Won'), ...tasks]
+    const works = { ABC: { 'ABC-1': work(2, 0) } }
+    const kept = { task: 'ABC-1', at: '2026-10-23T10:00:00.000Z', notice: { code: 'cleanup.worktreeKept' as const, params: { path: 'D:/work/abc-1' } } }
+    const closing = chainBlocks(stateOf({ tasks: done, works, chain: chain({ projects: order }) }), 'ABC')[0]!
+    expect(closing.work).toBeUndefined()
+
+    const left = chainBlocks(stateOf({ tasks: done, works, chain: chain({ projects: order, leftovers: { ABC: [kept] } }) }), 'ABC')[0]!
+    expect(left.work).toEqual(work(2, 0))
+    expect(left.leftovers).toEqual([kept.notice])
+
+    const clean = chainBlocks(stateOf({ tasks: done, works: {}, chain: chain({ projects: order, leftovers: { ABC: [kept] } }) }), 'ABC')[0]!
+    expect(clean.work).toBeUndefined()
+    expect(clean.leftovers).toBeUndefined()
+  })
+
+  it('leaves the commits of a task with a pull request to its pull request, not the files a commit left out', () => {
     const review = { task: 'ABC-2', number: 7, url: 'https://example.com/pull/7', feedback: false }
     const reviewed = { ABC: { ...order.ABC, reviews: [review] } }
     const blocks = (works: EvenKeelState['works']) => chainBlocks(stateOf({ tasks, works, chain: chain({ projects: reviewed }) }), 'ABC')

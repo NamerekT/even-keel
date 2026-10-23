@@ -1570,6 +1570,7 @@ export const en: Messages = {
       commits: (count: number) => `${count} ${forms('commit', 'commits')(count)} not in the main branch`,
       branch: (branch: string) => `branch ${branch}`,
       fix: 'Answer the task’s question and move it back to Todo: a new session goes on with a handoff. Or commit and merge it by hand.',
+      closed: 'The task is closed and the cleanup left this behind. Commit and merge it, or delete the folder, and the task goes to the archive; “Done” sends it there at once.',
       backlog: 'A backlog task has work that is not committed',
     },
     blocker: 'blocks',
