@@ -1,6 +1,7 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import { PROVIDERS as RUN_PROVIDERS } from '../../src/agent/providers.js'
 import { CODEX } from '../../src/codex/name.js'
+import { limitSpans, type LimitSpan, type LimitWindow, type RateLimits } from '../../src/limits/model.js'
 import { OPENCODE } from '../../src/opencode/name.js'
 import { accountOrder } from './state.js'
 
@@ -91,6 +92,41 @@ export function accountGroups(view: AccountView, now: Date): AccountGroup[] {
   return agents
     .map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))
     .filter((group) => group.entries.length > 0 || known.includes(group.agent))
+}
+
+/** Whether anything works on the account: the Even Keel role, an app, a project's pool entry or a running session. */
+export function atWork(view: AccountView, entry: AccountEntry): boolean {
+  return (
+    view.active === entry.key ||
+    view.apps.some((app) => app.account === entry.key) ||
+    entry.projects.length > 0 ||
+    entry.sessions.length > 0
+  )
+}
+
+/** The accounts drawer's two parts, each in the order of `accountGroups`: the accounts at work in full, the rest a line each. */
+export function panelSections(view: AccountView, now: Date): { working: AccountEntry[]; rest: AccountEntry[] } {
+  const ordered = accountGroups(view, now).flatMap((group) => group.entries)
+  return { working: ordered.filter((entry) => atWork(view, entry)), rest: ordered.filter((entry) => !atWork(view, entry)) }
+}
+
+export interface Tightest {
+  span: LimitSpan
+  /** What is left of the window, a whole percent within 0–100. */
+  free: number
+  window: LimitWindow
+}
+
+/** The window with the least left: what an account can still take, as one number; null without a window with data. */
+export function tightestWindow(limits: RateLimits | null): Tightest | null {
+  let tightest: Tightest | null = null
+  for (const span of limitSpans(limits)) {
+    const window = limits?.[span] ?? null
+    if (window === null) continue
+    const free = Math.round(100 - Math.min(Math.max(window.usedPercentage, 0), 100))
+    if (tightest === null || free < tightest.free) tightest = { span, free, window }
+  }
+  return tightest
 }
 
 export interface AddStep {
