@@ -9,6 +9,8 @@ const STALE_MS = 10_000
 const GRACE_MS = 10_000
 /** A hook gives up after 29 minutes: a closed call is remembered as long as its hook may still ask. */
 const CLOSED_MS = 30 * 60_000
+/** Its dialog is the question itself, read and answered as one: a hook of a plugin before 0.11.2 still asks about it. */
+const ASK_TOOL = 'AskUserQuestion'
 
 /** What the `PermissionRequest` hook returns to the CLI. */
 export type ApprovalDecision = { behavior: 'allow' } | { behavior: 'deny'; message: string }
@@ -48,6 +50,7 @@ export class Approvals {
    * call was closed after that hook began, so the dialog it was asked for is gone.
    */
   poll(sessionId: string, tool: string, input: Record<string, unknown>, since: number): ApprovalDecision | null | undefined {
+    if (tool === ASK_TOOL) return undefined
     const key = createHash('sha1').update(JSON.stringify([tool, input])).digest('hex').slice(0, 12)
     if ((this.closed.get(sessionId)?.get(key) ?? -Infinity) >= since) return undefined
     const calls = this.live(sessionId)

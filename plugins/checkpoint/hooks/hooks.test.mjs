@@ -172,6 +172,14 @@ describe("the permission hook", () => {
     expect(await run("permission.mjs", request(session, { turn_id: "turn-1" }))).toEqual({ code: 0, stdout: "" });
     expect(await run("permission.mjs", request(session), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
   });
+
+  it("leaves the dialog of AskUserQuestion to the question, without asking Even Keel", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/permission`, { decision: { behavior: "allow" } });
+    const ask = { tool_name: "AskUserQuestion", tool_input: { questions: [{ question: "Which one?", options: [{ label: "A" }, { label: "B" }] }] } };
+    expect(await run("permission.mjs", request(session, ask))).toEqual({ code: 0, stdout: "" });
+    expect(posted.get(`/api/sessions/${session}/permission`)).toBeUndefined();
+  });
 });
 
 // OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the

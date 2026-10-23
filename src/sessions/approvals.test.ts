@@ -28,6 +28,15 @@ describe('Approvals', () => {
     expect(registry.ask('session-2')).toBeNull()
   })
 
+  it('leaves the dialog of AskUserQuestion to the question it asks, attended or not', () => {
+    const input = { questions: [{ question: 'Which one?', header: 'Pick', multiSelect: false, options: [{ label: 'A' }, { label: 'B' }] }] }
+    for (const unattended of [false, true]) {
+      const { registry } = approvals(unattended)
+      expect(registry.poll(SESSION, 'AskUserQuestion', input, 0)).toBeUndefined()
+      expect(registry.ask(SESSION)).toBeNull()
+    }
+  })
+
   it('hands the decision to the next poll of the same call, once', () => {
     const { registry } = approvals()
     registry.poll(SESSION, 'Bash', PUBLISH, 0)
