@@ -31,6 +31,75 @@
   text-align: right;
 }
 
+/* The row's context goes blue, amber and red, the same on one line as on the action's field. */
+.block__metrics .context-meter--ok {
+  --context-meter: var(--lamp-working);
+}
+
+@property --fill {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* A clear edge at the level, not a gradient: the level reads at a glance, and the pale fill keeps the action legible at any level. */
+.block__now {
+  --now: var(--lamp-working);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--now) 32%, var(--border));
+  border-radius: 6px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--now) 22%, transparent) var(--fill),
+    color-mix(in srgb, var(--fg) 3%, transparent) var(--fill)
+  );
+  transition:
+    --fill 0.6s ease,
+    border-color 0.3s ease;
+}
+
+.block__now--warn {
+  --now: var(--lamp-waiting);
+}
+
+.block__now--danger {
+  --now: var(--lamp-error);
+}
+
+.block__now-side {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.block__now-side > .tipped {
+  display: flex;
+  align-items: center;
+}
+
+.block__now-value {
+  min-width: 4ch;
+  color: color-mix(in srgb, var(--now) 85%, var(--fg));
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block__now {
+    transition: none;
+  }
+}
+
 .cache-ring {
   flex: none;
   fill: none;

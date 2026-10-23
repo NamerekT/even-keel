@@ -31,10 +31,13 @@ export function tiersOf(blocks: { id: string; lamp: BlockLamp; current: boolean;
   return tiers
 }
 
-/** Whether a block shows its session's current action: the lead's until the session finishes, any other only mid-turn, as when the chain is stopped under it. */
+/**
+ * Whether a block opens its second line, the session's action filled to its context level: the lead's also while an error or a limit holds it,
+ * any other only mid-turn, as when the chain is stopped under it. A session waiting for a reply or finished keeps the row on one line.
+ */
 export function showsAction(tier: Tier, lamp: SessionLamp | null): boolean {
   if (lamp === null || tier === 'past') return false
-  return tier === 'lead' ? lamp !== 'finished' : lamp === 'working'
+  return lamp === 'working' || (tier === 'lead' && (lamp === 'error' || lamp === 'limit'))
 }
 
 /** The length of the estimate bar: estimates double from step to step, so the bar grows on a log scale. */

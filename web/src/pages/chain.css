@@ -32,11 +32,11 @@
 
 /* Tiers */
 
-.chain .block--lead,
+/* The title takes the whole first line; the action with the context is one field under it, as wide as the title and the side. */
 .chain .block--acting {
   grid-template-areas:
     'number head title side'
-    'number head action side';
+    '. . action action';
 }
 
 .chain .block--lead {
@@ -50,23 +50,25 @@
   font-weight: 600;
 }
 
-/* The current action: a small terminal screen whose line is replaced as the session works */
+/* The current action: a line on the context field (`ActionMeter`), replaced as the session works; it opens with its field in one go */
+
+.chain .block__now {
+  grid-area: action;
+  margin-top: 6px;
+  overflow: hidden;
+  animation: action-open 0.3s ease-out var(--beat-take, 0s) both;
+}
 
 .chain .block__action {
-  --screen-fg: #c9d4e0;
-  --screen-glyph: color-mix(in srgb, var(--lamp-working) 70%, #fff);
+  --screen-glyph: var(--lamp-working);
   position: relative;
   display: grid;
-  grid-area: action;
+  flex: 1;
   min-width: 0;
-  margin-top: 6px;
-  padding: 3px 10px 3px 24px;
+  min-height: 18px;
+  padding-left: 14px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--lamp-working) 35%, var(--border));
-  border-radius: 6px;
-  background: #0f1216;
-  box-shadow: inset 0 1px 6px rgb(0 0 0 / 0.55);
-  color: var(--screen-fg);
+  color: var(--fg);
   font-family: var(--mono);
   font-size: 12px;
   line-height: 18px;
@@ -75,18 +77,10 @@
 .chain .block__action::before {
   content: '❯';
   position: absolute;
-  top: 3px;
-  left: 10px;
+  top: 0;
+  left: 0;
   color: var(--screen-glyph);
   font-weight: 700;
-}
-
-.chain .block__action::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(255 255 255 / 0.03) 2px 3px);
-  pointer-events: none;
 }
 
 .chain .screen--tool::before {
@@ -95,12 +89,12 @@
 
 .chain .screen--prompt::before {
   content: '›';
-  color: var(--screen-fg);
+  color: var(--fg);
 }
 
 .chain .screen--error {
   --screen-glyph: var(--lamp-error);
-  color: color-mix(in srgb, var(--lamp-error) 55%, var(--screen-fg));
+  color: color-mix(in srgb, var(--lamp-error) 55%, var(--fg));
 }
 
 .chain .screen--error::before {
@@ -306,6 +300,13 @@
   fill: currentColor;
 }
 
+/* The cache ring in the number's place: the current row's, or one with no number */
+.chain .block__number > .tipped {
+  position: relative;
+  z-index: 1;
+  display: flex;
+}
+
 .chain .block--priority-urgent {
   border-color: color-mix(in srgb, var(--lamp-error) 55%, var(--border));
 }
@@ -434,7 +435,6 @@
     left: calc(1px + var(--lane) * 4px);
   }
 
-  .chain .block--lead,
   .chain .block--acting {
     grid-template-areas: 'number head' '. title' '. action' '. side';
   }
@@ -510,7 +510,8 @@
     frame-glow 0.8s ease-out calc(var(--beat-take) + 0.7s) both;
 }
 
-.chain .block--take .block__play {
+.chain .block--take .block__play,
+.chain .block--take .block__number .cache-ring {
   animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--beat-take) + 0.5s) both;
 }
 
@@ -527,10 +528,6 @@
   transition:
     font-size 0.3s ease var(--beat-take),
     font-weight 0.3s ease var(--beat-take);
-}
-
-.chain .block--take .block__action {
-  animation: action-open 0.3s ease-out var(--beat-take) both;
 }
 
 /* A copy leaving for the archive rides up behind the milestone line, not over its text. */
@@ -752,9 +749,10 @@
   .chain .block__stamp,
   .chain .block__frame,
   .chain .block--take .block__play,
+  .chain .block--take .block__number .cache-ring,
   .chain .block--take .lamp,
   .chain .block--take .block__title,
-  .chain .block--take .block__action,
+  .chain .block__now,
   .chain .block__hazard,
   .chain .block__number--urgent,
   .chain .block__number--urgent::before,

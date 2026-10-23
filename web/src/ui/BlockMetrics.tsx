@@ -1,3 +1,4 @@
+import type { CSSProperties, ReactNode } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { CacheWindow } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
@@ -18,21 +19,69 @@ interface BlockMetricsProps {
   session: SessionView
   sessions: TaskSession[]
   scale: ContextScale
+  /** The cache ring goes here only when the number's place does not hold it. */
+  ring: boolean
 }
 
-/** The chain row's metrics in one line: the cache ring, the context bar, an account other than the project's, the context resets. */
-export function BlockMetrics({ project, session, sessions, scale }: BlockMetricsProps) {
-  const { state } = useLive()
-  const resets = contextResets(sessions)
+/** The metrics of a one-line chain row: the cache ring, the context bar, an account other than the project's, the context resets. */
+export function BlockMetrics({ project, session, sessions, scale, ring }: BlockMetricsProps) {
   const { percent } = contextFill(session.contextTokens, scale, session.contextWindow)
-  const window = session.contextWindow ?? scale.window
 
   return (
     <div className="block__metrics">
-      {session.cache !== null && <CacheRing cache={session.cache} />}
-      <Tipped tip={t.context.of(formatTokens(session.contextTokens), formatTokens(window), Math.round(percent))} align="start">
+      {ring && session.cache !== null && <CacheRing cache={session.cache} />}
+      <Tipped tip={contextTip(session, scale, percent)} align="start">
         <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} brief />
       </Tipped>
+      <Extras project={project} session={session} sessions={sessions} />
+    </div>
+  )
+}
+
+interface ActionMeterProps {
+  project: string
+  session: SessionView
+  sessions: TaskSession[]
+  scale: ContextScale
+  /** The session's current action, or an empty line while it has none. */
+  children: ReactNode
+}
+
+/** The second line of a row whose session works: its current action on a field filled up to the context level, the percent at the end. */
+export function ActionMeter({ project, session, sessions, scale, children }: ActionMeterProps) {
+  const { percent, level } = contextFill(session.contextTokens, scale, session.contextWindow)
+
+  return (
+    <div className={`block__now block__now--${level}`} style={{ '--fill': `${percent}%` } as CSSProperties}>
+      {children}
+      <div className="block__now-side">
+        <Extras project={project} session={session} sessions={sessions} />
+        <Tipped tip={contextTip(session, scale, percent)}>
+          <span
+            className="block__now-value"
+            role="meter"
+            aria-label={t.context.label}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(percent)}
+          >
+            {Math.round(percent)}%
+          </span>
+        </Tipped>
+      </div>
+    </div>
+  )
+}
+
+function contextTip(session: SessionView, scale: ContextScale, percent: number): string {
+  return t.context.of(formatTokens(session.contextTokens), formatTokens(session.contextWindow ?? scale.window), Math.round(percent))
+}
+
+function Extras({ project, session, sessions }: { project: string; session: SessionView; sessions: TaskSession[] }) {
+  const { state } = useLive()
+  const resets = contextResets(sessions)
+  return (
+    <>
       {foreignAccount(state?.account, project, session.account) && <AccountMark email={session.account!} />}
       {resets.total > 0 && (
         <Tipped tip={[<span key="title">{t.chain.resetsTitle}</span>, <span key="of">{t.chain.resetsOf(resets)}</span>]}>
@@ -42,13 +91,13 @@ export function BlockMetrics({ project, session, sessions, scale }: BlockMetrics
           </span>
         </Tipped>
       )}
-    </div>
+    </>
   )
 }
 
 const RING_RADIUS = 5
 
-function CacheRing({ cache }: { cache: CacheWindow }) {
+export function CacheRing({ cache }: { cache: CacheWindow }) {
   const now = useNow(1_000)
   const { left, level } = cacheFreshness(cache, now)
   const at = formatMoment(cache.until, now)
