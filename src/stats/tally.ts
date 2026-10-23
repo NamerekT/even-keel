@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
+import { releaseOwn } from '../storage/claim.js'
 import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyHealth, type TallyMode } from './mode.js'
 import { readerSettings, type ReaderSettings } from './model.js'
 import { HALTED } from './tally-schema.js'
@@ -117,10 +118,16 @@ export class TallyService {
       host.postMessage({ type: 'close' } satisfies HostRequest)
     })
     await host.terminate()
+    // A thread terminated mid-open leaves its claim without a port, which would hold the folder from the next one.
+    releaseOwn(this.hostDir)
+  }
+
+  private get hostDir(): string {
+    return join(this.options.stateDir, 'tally')
   }
 
   private openHost(): Promise<ReaderSettings> {
-    const host = new Worker(workerFile('host-worker'), { workerData: { dir: join(this.options.stateDir, 'tally') } })
+    const host = new Worker(workerFile('host-worker'), { workerData: { dir: this.hostDir } })
     this.host = host
     return new Promise((resolve, reject) => {
       host.on('message', (message: HostMessage) => {
