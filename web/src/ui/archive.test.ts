@@ -19,7 +19,8 @@ describe('archiveView', () => {
   it('archives a fix of main that is over like a closed task, and counts the fixes apart', () => {
     const blocks = chain(4, 1).toSpliced(2, 0, { id: 'T-FIX.1', lamp: 'fixed' })
     const view = archiveView(blocks, 1, '')
-    expect(ids(view.visible)).toEqual(['T-1', 'T-2', 'T-FIX.1', 'T-3', 'T-4', 'T-5'])
+    expect(ids(view.archived)).toEqual(['T-1', 'T-2', 'T-FIX.1', 'T-3'])
+    expect(ids(view.visible)).toEqual(['T-4', 'T-5'])
     expect([view.shown, view.shownFixes]).toEqual([4, 1])
     const folded = archiveView(blocks, 0, '')
     expect([folded.hidden, folded.hiddenFixes, folded.shownFixes]).toEqual([4, 1, 0])
@@ -28,15 +29,17 @@ describe('archiveView', () => {
   it('keeps only the last closed block in front of the open ones', () => {
     const view = archiveView(chain(40, 2), 0, '')
     expect(ids(view.visible)).toEqual(['T-40', 'T-41', 'T-42'])
+    expect(view.archived).toEqual([])
     expect(view.shown).toBe(0)
     expect(view.hidden).toBe(39)
     expect(view.next).toBe(16)
   })
 
-  it('reveals sixteen more closed blocks per page', () => {
+  it('reveals sixteen more closed blocks per page, apart from the chain', () => {
     const view = archiveView(chain(40, 1), 1, '')
-    expect(ids(view.visible)[0]).toBe('T-24')
-    expect(view.visible).toHaveLength(18)
+    expect(ids(view.archived)[0]).toBe('T-24')
+    expect(view.archived).toHaveLength(16)
+    expect(ids(view.visible)).toEqual(['T-40', 'T-41'])
     expect(view.hidden).toBe(23)
     expect(view.next).toBe(16)
   })
@@ -46,7 +49,8 @@ describe('archiveView', () => {
     expect(view.hidden).toBe(7)
     expect(view.next).toBe(7)
     const all = archiveView(chain(40, 1), 3, '')
-    expect(all.visible).toHaveLength(41)
+    expect(all.archived).toHaveLength(39)
+    expect(all.visible).toHaveLength(2)
     expect(all.hidden).toBe(0)
     expect(all.next).toBe(0)
   })
@@ -67,7 +71,8 @@ describe('archiveView', () => {
     expect(ids(view.visible)).toEqual(['T-3', 'T-20', 'T-21'])
     expect([view.shown, view.hidden]).toEqual([0, 18])
     const opened = archiveView(blocks, 1, '')
-    expect(ids(opened.visible)).toEqual(['T-3', ...ids(chain(21, 0).slice(3))])
+    expect(ids(opened.visible)).toEqual(['T-3', 'T-20', 'T-21'])
+    expect(ids(opened.archived)).toEqual(ids(chain(19, 0).slice(3)))
     expect([opened.shown, opened.hidden]).toEqual([16, 2])
   })
 
@@ -79,7 +84,7 @@ describe('archiveView', () => {
 
   it('opens enough pages to show a focused archived block', () => {
     const view = archiveView(chain(40, 1), 0, 'T-10')
-    expect(ids(view.visible)).toContain('T-10')
+    expect(ids(view.archived)).toContain('T-10')
     expect(view.shown).toBe(32)
     expect(view.hidden).toBe(7)
     expect(view.next).toBe(7)
