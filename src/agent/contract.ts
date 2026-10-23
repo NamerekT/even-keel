@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
+import type { Language } from '../language.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { TranscriptImage } from '../sessions/entry.js'
@@ -47,6 +48,13 @@ export interface AgentOptions {
    * `sdk` or `bg`, BTN-239); `null` — the agent's default for the account.
    */
   transport?: (home: AccountHome) => string | null
+  /**
+   * Optional. Read at each call: whether the chain runs unattended, for an agent that can ask the user to approve a
+   * tool call (Claude through the SDK, BTN-303); without it nobody approves one.
+   */
+  unattended?: () => boolean
+  /** Optional. Read at each call: the language the page speaks, for what an agent asks the user itself. */
+  language?: () => Language
 }
 
 /** What a session is started or resumed with. */

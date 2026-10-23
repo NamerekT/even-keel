@@ -6,6 +6,7 @@ import type { AgentAdapter } from '../agent/contract.js'
 import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { parseUsage } from '../limits/usage.js'
 import { findBinary } from '../paths.js'
+import { DEFAULT_LANGUAGE } from '../settings/defaults.js'
 import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from '../sessions/history.js'
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
@@ -29,7 +30,7 @@ const SDK_TRANSPORT: Transport = 'sdk'
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport, unattended, language }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
       version,
@@ -58,7 +59,16 @@ export const claude: AgentAdapter = {
             onReady: onCliChange,
             retryMs: PIN_RETRY_MS,
           })
-    const sdk = new SdkSessions({ dir: join(workDir, CLAUDE_SDK), module: () => sdkCopy?.path(), bin, envOf, remote: remoteAt, log })
+    const sdk = new SdkSessions({
+      dir: join(workDir, CLAUDE_SDK),
+      module: () => sdkCopy?.path(),
+      bin,
+      envOf,
+      remote: remoteAt,
+      unattended: () => unattended?.() ?? true,
+      language: () => language?.() ?? DEFAULT_LANGUAGE,
+      log,
+    })
     /** The SDK talks the protocol of its own CLI version, so a session goes through it only on Even Keel's copy of that version. */
     const viaSdk = (home: AccountHome) => {
       if ((transport?.(home) ?? null) !== SDK_TRANSPORT || pinned() === undefined) return false
