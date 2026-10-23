@@ -1,7 +1,8 @@
 import type { EvenKeelState } from '../../../src/state.js'
+import type { Task } from '../../../src/tracker/model.js'
 
 export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'sessions' | 'tasks' | 'forwards' | 'works'> & {
-  chain: Pick<EvenKeelState['chain'], 'active' | 'projects'>
+  chain: Pick<EvenKeelState['chain'], 'active' | 'projects' | 'leftovers'>
 }
 
 /**
@@ -17,6 +18,7 @@ export type PageEvent =
   | { key: string; kind: 'work'; project: string; task: string; path: string; files: number; ahead: number; backlog: boolean }
 
 const short = (commit: string) => commit.slice(0, 7)
+const isClosed = (task: Task | undefined) => task?.status.category === 'Won' || task?.status.category === 'Lost'
 
 export function pageEvents(state: EventsInput): PageEvent[] {
   const events: PageEvent[] = []
@@ -45,13 +47,17 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   for (const [project, forward] of Object.entries(state.forwards)) {
     if (forward.hold?.code === 'forward.conflict') events.push({ key: `conflict|${project}|${forward.into}`, kind: 'conflict', project, into: forward.into })
   }
+  const working = new Set(state.sessions.filter((session) => session.lamp === 'working').map((session) => session.task))
   for (const [project, works] of Object.entries(state.works)) {
     const order = state.chain.projects[project]
     if (order === undefined || order.error !== null) continue
     const chained = new Set([...order.order, ...order.waiting])
     const pulls = new Set((order.reviews ?? []).map((review) => review.task))
+    const left = new Set((state.chain.leftovers[project] ?? []).map((each) => each.task))
     for (const [task, { path, files, ahead }] of Object.entries(works)) {
-      if (chained.has(task) || (pulls.has(task) && files === 0)) continue
+      if (chained.has(task) || (pulls.has(task) && files === 0) || working.has(task)) continue
+      // A closed task's folder is the cleanup's until it says what it left: before that the work read may be its last commit (BTN-332).
+      if (isClosed(state.tasks.find((each) => each.id === task)) && !left.has(task)) continue
       events.push({ key: `work|${project}|${task}`, kind: 'work', project, task, path, files, ahead, backlog: order.backlog.includes(task) })
     }
   }
