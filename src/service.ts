@@ -523,6 +523,7 @@ const limits = new LimitsWatcher({
     const { accessExpiresAt } = homes.times(home)
     return accessExpiresAt !== null && accessExpiresAt <= Date.now()
   },
+  ready: (): boolean => account.ready,
   apiKey: (key): boolean => account.apiKey(key),
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
@@ -705,7 +706,7 @@ const account = new AccountWatcher({
       saveAccounts(noted)
       changed = true
     }
-    if (changed) limits.refresh()
+    if (changed || limits.deferred) limits.refresh()
     hub.broadcast('state', getState())
     dispatcher.check()
   },

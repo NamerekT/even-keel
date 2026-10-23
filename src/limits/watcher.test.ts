@@ -9,7 +9,11 @@ const LIMITS: UsageAnswer = {
   limits: { fiveHour: { usedPercentage: 16, resetsAt: 2_000_000_000 }, sevenDay: { usedPercentage: 36, resetsAt: 2_000_000_000 } },
 } as unknown as UsageAnswer
 
-function watcherOf(answers: (() => UsageAnswer)[], online: () => boolean = () => true) {
+function watcherOf(
+  answers: (() => UsageAnswer)[],
+  online: () => boolean = () => true,
+  accounts: { ready: () => boolean; apiKey: () => boolean } = { ready: () => true, apiKey: () => false },
+) {
   const errors: string[] = []
   const asked: string[] = []
   const watcher = new LimitsWatcher({
@@ -26,7 +30,8 @@ function watcherOf(answers: (() => UsageAnswer)[], online: () => boolean = () =>
     offlineRetryMs: 30_000,
     notBefore: () => null,
     accessExpired: () => false,
-    apiKey: () => false,
+    ready: accounts.ready,
+    apiKey: accounts.apiKey,
     onChange: () => {},
     onError: (error) => errors.push(String(error)),
   })
@@ -76,5 +81,20 @@ describe('LimitsWatcher', () => {
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
     expect(asked).toEqual(['global'])
     expect(watcher.usage('global').state).toBe('ok')
+  })
+
+  it('does not ask /usage before the accounts are read, so an API account is not asked at the start', async () => {
+    let ready = false
+    const { watcher, errors, asked, poll } = watcherOf([], () => true, { ready: () => ready, apiKey: () => ready })
+    await poll()
+    expect(asked).toEqual([])
+    expect(watcher.deferred).toBe(true)
+    vi.advanceTimersByTime(300_000)
+    expect(asked).toEqual([])
+    ready = true
+    await poll()
+    expect(watcher.deferred).toBe(false)
+    expect(asked).toEqual([])
+    expect(errors).toEqual([])
   })
 })

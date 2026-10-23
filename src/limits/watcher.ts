@@ -18,6 +18,8 @@ export interface LimitsWatcherOptions {
   offlineRetryMs: number
   notBefore: (account: string) => string | null
   accessExpired: (home: AccountHome) => boolean
+  /** The accounts' statuses have been read: until then `apiKey` cannot tell, and /usage is not asked. */
+  ready: () => boolean
   /** An API account has no usage windows: it is not polled and shows no limits. */
   apiKey: (account: string) => boolean
   onChange: () => void
@@ -43,6 +45,7 @@ export class LimitsWatcher {
   private usageRunning = false
   private usageAgain = false
   private usageOff: UsageHealth | undefined
+  private waitsForAccounts = false
 
   constructor(private readonly options: LimitsWatcherOptions) {}
 
@@ -67,8 +70,15 @@ export class LimitsWatcher {
     this.refresh()
   }
 
+  /** A poll waits for the accounts to be read: the caller refreshes once they are. */
+  get deferred(): boolean {
+    return this.waitsForAccounts
+  }
+
   refresh(): void {
     if (this.usageOff !== undefined) return
+    this.waitsForAccounts = !this.options.ready()
+    if (this.waitsForAccounts) return
     if (this.usageRunning) {
       this.usageAgain = true
       return
