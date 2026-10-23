@@ -1,0 +1,73 @@
+.gets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gets__list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.gets__fact {
+  display: contents;
+}
+
+.gets__fact dt {
+  color: var(--fg-muted);
+}
+
+.gets__fact dd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+}
+
+.gets__mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.gets__note {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.gets__all summary {
+  width: fit-content;
+  color: var(--fg-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gets__scroll {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.gets__all table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.gets__all th,
+.gets__all td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--surface-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gets__all th {
+  font-weight: 400;
+}
+
+.gets__all thead th {
+  color: var(--fg-muted);
+}

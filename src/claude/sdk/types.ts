@@ -57,7 +57,7 @@ export interface SdkOptions {
   sessionId?: string
   resume?: string
   /** Omitted, the SDK starts the CLI with an empty system prompt, not Claude Code's own. */
-  systemPrompt?: { type: 'preset'; preset: 'claude_code' }
+  systemPrompt?: { type: 'preset'; preset: 'claude_code'; append?: string }
   /** The CLI's `--settings`: a file or a JSON text. */
   settings?: string
   mcpServers?: Record<string, { type: 'http'; url: string }>

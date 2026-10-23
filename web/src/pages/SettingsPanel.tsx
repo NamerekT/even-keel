@@ -49,6 +49,7 @@ import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
 import { useModels } from './useModels.js'
 import { ProjectRemove } from './ProjectRemove.js'
+import { SessionGets } from './SessionGets.js'
 import { CLI_TTL, formOf, profileOf, remoteKey, switchOf, tokensOf, valuesOf } from './projectForm.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
@@ -503,6 +504,15 @@ export function SettingsPanel({
             LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
             { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
           )}
+        </Section>
+        <Section title={t.settings.gets.title} hint={t.settings.gets.hint(providerName(text('provider') || shared.provider))}>
+          <SessionGets
+            project={project}
+            agent={text('provider') || shared.provider}
+            prompts={{ shared: (shared.prompt ?? '').trim() !== '', project: text('prompt').trim() !== '' }}
+            packages={state?.packages ?? null}
+            trim={state?.trimTools ?? false}
+          />
         </Section>
         <Section title={t.settings.sections.context}>
           <Row

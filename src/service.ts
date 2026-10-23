@@ -1724,6 +1724,8 @@ let server = createEvenKeelServer({
     const used = projectsByAccount(configStore.current, Object.keys(configStore.current.projects))
     const view = await readToolsView(project, {
       repo,
+      branch: branchOf(project),
+      git: runGit,
       globalDir: homes.global.dir,
       configs: claudeConfigs(),
       accounts: list.filter((home) => !home.global).map(({ key, dir, agent }) => ({ key, dir, agent, used: used[key] !== undefined })),

@@ -31,6 +31,8 @@ Each project needs:
 
 The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
 
+A session gets the project's `CLAUDE.md`, `AGENTS.md` and skills as they are committed on the main branch: its worktree is checked out from there, so a file you have not committed yet does not reach it. Which of them each agent reads is in [the project's instructions and skills](features.md#the-projects-instructions-and-skills).
+
 A project is removed at the bottom of its **Settings** → **Repository**; the page refuses while its chain runs or waits in the queue, a session works for it or in its folders, or a task still holds a place, and says which. Removal does not touch the repository, its worktrees or branches.
 
 ## Trackers and plugins

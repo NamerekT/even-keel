@@ -1,6 +1,9 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { replyPrompt, type Ask } from '../../sessions/ask.js'
-import { replyMove } from './host.js'
+import { replyMove, sessionOptions } from './host.js'
 
 const ask: Ask = {
   id: 'toolu_01',
@@ -28,5 +31,18 @@ describe('replyMove', () => {
 
   it('sends the reply as the next message to a session that waits on no call', () => {
     expect(replyMove('Go on with the task.', null)).toEqual({ kind: 'message' })
+  })
+})
+
+describe('sessionOptions', () => {
+  it("appends the project's lone AGENTS.md to Claude Code's system prompt", () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'ek-sdk-'))
+    try {
+      expect(sessionOptions({ name: 'ABC-1', cwd, prompt: 'ABC-1', model: null }).systemPrompt).toBeUndefined()
+      writeFileSync(join(cwd, 'AGENTS.md'), 'Run the checks.')
+      expect(sessionOptions({ name: 'ABC-1', cwd, prompt: 'ABC-1', model: null }).systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: 'Run the checks.' })
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
   })
 })

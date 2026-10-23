@@ -7,7 +7,7 @@ function row(kind: SettingRow['kind'], name: string, values: SettingRow['values'
 }
 
 function view(project: string, settings: SettingRow[], more: Partial<ToolsView> = {}): ToolsView {
-  return { project, repo: `D:\\work\\${project}`, trim: true, settings, accounts: [], received: null, ...more }
+  return { project, repo: `D:\\work\\${project}`, trim: true, settings, accounts: [], received: null, rules: null, ...more }
 }
 
 describe('settingMatrix', () => {

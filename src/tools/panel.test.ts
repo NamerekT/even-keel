@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readToolsView, type ToolsPlaces } from './panel.js'
+import { runGit } from '../git/run.js'
+import { readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
 
 describe('readToolsView', () => {
   let root: string
@@ -15,7 +16,8 @@ describe('readToolsView', () => {
     writeFileSync(join(globalDir, 'settings.json'), JSON.stringify({ theme: 'dark', env: { TOKEN: 'a' } }))
     const repo = join(root, 'repo')
     mkdirSync(repo)
-    places = { repo, globalDir, configs: [], accounts: [], homes: [], trim: false, hidden: [], mode: 'auto', reach: { plugins: [], servers: [] } }
+    const git: ToolsPlaces['git'] = async () => ({ code: 128, out: 'not a git repository' })
+    places = { repo, branch: 'main', git, globalDir, configs: [], accounts: [], homes: [], trim: false, hidden: [], mode: 'auto', reach: { plugins: [], servers: [] } }
   })
 
   afterEach(() => rmSync(root, { recursive: true, force: true }))
@@ -49,5 +51,30 @@ describe('readToolsView', () => {
   it('reports every key for a Claude account without settings.json', async () => {
     const view = await readToolsView('ABC', { ...places, accounts: [account('john', 'claude')] })
     expect(view.accounts).toEqual([{ account: 'john', keys: ['env', 'theme'] }])
+  })
+
+  it('has no rules when git cannot read the branch', async () => {
+    expect((await readToolsView('ABC', places)).rules).toBeNull()
+  })
+})
+
+describe('readRepoRules', () => {
+  let repo: string
+  beforeEach(() => {
+    repo = mkdtempSync(join(tmpdir(), 'repo-rules-'))
+  })
+  afterEach(() => rmSync(repo, { recursive: true, force: true }))
+
+  it("reads the branch's committed instruction files and skills, not the uncommitted ones", async () => {
+    const git = (...args: string[]) => runGit(repo, args)
+    await git('init', '-q', '-b', 'trunk')
+    writeFileSync(join(repo, 'AGENTS.md'), 'rules')
+    mkdirSync(join(repo, '.claude', 'skills', 'review'), { recursive: true })
+    writeFileSync(join(repo, '.claude', 'skills', 'review', 'SKILL.md'), 'skill')
+    await git('add', '-A')
+    await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-qm', 'rules')
+    writeFileSync(join(repo, 'CLAUDE.md'), 'not committed')
+    expect(await readRepoRules(runGit, repo, 'trunk')).toEqual({ files: ['AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['review'] }] })
+    expect(await readRepoRules(runGit, repo, 'missing')).toBeNull()
   })
 })

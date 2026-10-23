@@ -43,6 +43,12 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
         ]
       : [],
     received: mode === 'empty' ? null : received(repo, project, bloated),
+    rules:
+      mode === 'empty'
+        ? { files: [], skills: [] }
+        : odd
+          ? { files: ['AGENTS.md'], skills: [{ folder: '.agents/skills', names: ['release'] }] }
+          : { files: ['CLAUDE.md', 'AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['migrate', 'review'] }] },
   }
 }
 

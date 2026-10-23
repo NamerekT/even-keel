@@ -109,6 +109,10 @@ describe('sessionArgs', () => {
   it('passes no --model without a chosen model, so the CLI takes its configured one', () => {
     expect(sessionArgs('ABC-1', null)).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1'])
   })
+
+  it("appends the project's lone AGENTS.md to the system prompt", () => {
+    expect(sessionArgs('ABC-1', null, { instructions: 'C:\\work\\AGENTS.md' }).slice(-2)).toEqual(['--append-system-prompt-file', 'C:\\work\\AGENTS.md'])
+  })
 })
 
 describe('resumeArgs', () => {

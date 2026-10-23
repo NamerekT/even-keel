@@ -14,6 +14,7 @@ import { TranscriptTail } from '../sessions/tail.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
 import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
+import { agentsFallback } from './instructions.js'
 import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
 import { SdkSessions } from './sdk/host.js'
@@ -85,12 +86,12 @@ export const claude: AgentAdapter = {
       launch: async (home, start) => {
         if (viaSdk(home)) return sdk.launch(home, start)
         const { name, cwd, prompt, model, settings, mcp, plugins } = start
-        return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId
+        return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
       },
       resume: async (home, { agentId, sessionId }, start) => {
         if (await sdk.knows(sessionId)) return sdk.resume(home, sessionId, start)
         const { name, cwd, prompt, model, settings, mcp, plugins } = start
-        return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId
+        return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
       },
       reply: async (home, { sessionId }, start) => ((await sdk.knows(sessionId)) ? sdk.reply(home, sessionId, start.prompt) : null),
       stop: async (home, { agentId, sessionId }) => ((await sdk.knows(sessionId)) ? sdk.stop(sessionId) : cli.stop(home, agentId, sessionId)),

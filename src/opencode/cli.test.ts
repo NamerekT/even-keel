@@ -12,6 +12,7 @@ import {
   pluginFiles,
   sessionConfig,
   sessionOf,
+  skillDirs,
   turnArgs,
   turnEnded,
   turnError,
@@ -38,6 +39,24 @@ describe('turnArgs', () => {
 
   it('keeps a prompt that starts with a dash, as a reply does, from being read as an option', () => {
     expect(turnArgs({ name: 'DEMO-1', model: null }, '- "Q" → yes', 'ses_abc').slice(-2)).toEqual(['--', '- "Q" → yes'])
+  })
+})
+
+describe('skillDirs', () => {
+  it("passes the plugins' skills and the project's .claude/skills and .agents/skills that exist", () => {
+    const root = mkdtempSync(join(tmpdir(), 'ek-opencode-skills-'))
+    try {
+      const plugin = join(root, 'plugin')
+      const cwd = join(root, 'work')
+      mkdirSync(join(plugin, 'skills'), { recursive: true })
+      mkdirSync(join(cwd, '.claude', 'skills'), { recursive: true })
+      const plugins = [{ dir: plugin, name: 'p', marketplace: 'ek-a', marketplaceFile: join(root, 'm.json'), servers: [] }]
+      expect(skillDirs({ plugins }, cwd)).toEqual([join(plugin, 'skills'), join(cwd, '.claude', 'skills')])
+      mkdirSync(join(cwd, '.agents', 'skills'), { recursive: true })
+      expect(skillDirs({}, cwd)).toEqual([join(cwd, '.claude', 'skills'), join(cwd, '.agents', 'skills')])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 
