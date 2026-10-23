@@ -168,6 +168,7 @@ export const en = {
   'claude.stillRunning': (p: { agent: string }) => `claude: ${p.agent} was told to stop but is still running`,
   'claude.signOutFailed': (p: { account: string }) => `claude: could not sign out of ${p.account}`,
   'claude.daemonStopFailed': (p: { account: string }) => `claude: could not stop the daemon of ${p.account}`,
+  'claude.daemonStatusFailed': (p: { account: string }) => `claude: could not read the daemon version of ${p.account}`,
   'claude.statusNotJson': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status is not JSON)',
   'claude.statusNotObject': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status is not an object)',
   'claude.statusNoFlag': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status has no loggedIn flag)',

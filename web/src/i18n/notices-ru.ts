@@ -158,6 +158,7 @@ export const noticesRu: NoticeTexts = {
   'claude.stillRunning': (p) => `${p.agent} попросили остановиться, но она ещё работает`,
   'claude.signOutFailed': (p) => `не удалось выйти из ${p.account}`,
   'claude.daemonStopFailed': (p) => `не удалось остановить демон ${p.account}`,
+  'claude.daemonStatusFailed': (p) => `не удалось узнать версию демона ${p.account}`,
   'claude.statusNotJson': () => 'CLI ответил на проверку входа не так, как ждали (auth status — не JSON)',
   'claude.statusNotObject': () => 'CLI ответил на проверку входа не так, как ждали (auth status — не объект)',
   'claude.statusNoFlag': () => 'CLI ответил на проверку входа не так, как ждали (в auth status нет признака loggedIn)',
