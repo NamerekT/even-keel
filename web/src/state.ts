@@ -483,12 +483,22 @@ export function projectTracker(state: EvenKeelState, project: string): { kind: s
   return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
 }
 
-/** The project's page in its tracker, where new tasks are filed, and the tracker's own name (`Huly`) for the button. */
-export function projectPage(state: EvenKeelState, project: string): { url: string; tracker: string | null } | null {
-  const url = state.trackerUrls.pages[project] ?? null
-  if (url === null) return null
-  const kind = state.trackers.find((each) => each.projects.includes(project))?.kind
-  return { url, tracker: state.config.trackers.find((each) => each.name === kind)?.title ?? null }
+/**
+ * The pages where the project's new tasks are filed: its own in its tracker, then each feed's (BTN-329), with the tracker's
+ * own name (`Huly`) for the button; two pages of one tracker add their keys to it.
+ */
+export function projectPages(state: EvenKeelState, project: string): { url: string; tracker: string | null }[] {
+  const titleOf = (kind: string | undefined) => state.config.trackers.find((each) => each.name === kind)?.title ?? null
+  const own = { id: project, key: state.projectKeys[project] ?? project, tracker: titleOf(state.trackers.find((each) => each.projects.includes(project))?.kind) }
+  const feeds = (state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key, tracker: titleOf(feed.tracker) }))
+  const pages = [own, ...feeds].flatMap(({ id, ...page }) => {
+    const url = state.trackerUrls.pages[id] ?? null
+    return url === null ? [] : [{ url, ...page }]
+  })
+  return pages.map(({ url, key, tracker }) => {
+    const shared = pages.filter((other) => other.tracker === tracker).length > 1
+    return { url, tracker: !shared ? tracker : tracker === null ? key : `${tracker} · ${key}` }
+  })
 }
 
 /** The palette slot of a project: its `color` setting (BTN-207); `null` — none, or not a project of the config. */

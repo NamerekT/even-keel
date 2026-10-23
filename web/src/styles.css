@@ -2623,7 +2623,9 @@ a.button.pull-button__link {
 
 .card__foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: auto;
 }
 

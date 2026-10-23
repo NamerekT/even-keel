@@ -32,7 +32,7 @@ import {
   projectSlot,
   projectSlots,
   projectTracker,
-  projectPage,
+  projectPages,
   projectOfPath,
   projectPath,
   questionPath,
@@ -709,23 +709,54 @@ describe('projectTracker', () => {
   })
 })
 
-describe('projectPage', () => {
+describe('projectPages', () => {
   const urls = { default: null, projects: {}, pages: { ABC: 'https://huly.example.com/workbench/example/tracker/abc-id/issues', XYZ: null } }
-  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], feeds: {}, trackerLocked: [] }
+  const trackers = [
+    { name: 'huly', title: 'Huly', projectKey: null },
+    { name: 'github', title: 'GitHub', projectKey: null },
+  ]
+  const config = { shared: FAKE_SHARED, projects: {}, trackers, feeds: {}, trackerLocked: [] }
 
   it('gives the page with the name of the tracker it is in, not of the profile', () => {
     const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'Huly · example' }] })
-    expect(projectPage(state, 'ABC')).toEqual({ url: urls.pages.ABC, tracker: 'Huly' })
+    expect(projectPages(state, 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: 'Huly' }])
   })
 
-  it('is null without a page', () => {
+  it('is empty without a page', () => {
     const state = stateOf({ config, trackerUrls: urls })
-    expect(projectPage(state, 'XYZ')).toBeNull()
-    expect(projectPage(state, 'OPS')).toBeNull()
+    expect(projectPages(state, 'XYZ')).toEqual([])
+    expect(projectPages(state, 'OPS')).toEqual([])
   })
 
   it('names no tracker it does not know', () => {
-    expect(projectPage(stateOf({ trackerUrls: urls }), 'ABC')).toEqual({ url: urls.pages.ABC, tracker: null })
+    expect(projectPages(stateOf({ trackerUrls: urls }), 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: null }])
+  })
+
+  it("adds the page of each feed after the project's own, named by the feed's tracker", () => {
+    const feeds = { ABC: [{ id: 'feed-gh', tracker: 'github', key: 'ABCGH', place: 'octo-org/ideas' }, { id: 'feed-none', tracker: 'linear', key: 'ENG' }] }
+    const pages = { ...urls.pages, 'feed-gh': 'https://github.com/octo-org/ideas/issues', 'feed-none': null }
+    const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
+    expect(projectPages(state, 'ABC')).toEqual([
+      { url: urls.pages.ABC, tracker: 'Huly' },
+      { url: pages['feed-gh'], tracker: 'GitHub' },
+    ])
+  })
+
+  it('gives a feed only where the project has no page of its own', () => {
+    const feeds = { XYZ: [{ id: 'feed-gh', tracker: 'github', key: 'XYZGH' }] }
+    const pages = { ...urls.pages, 'feed-gh': 'https://github.com/octo-org/xyz/issues' }
+    const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
+    expect(projectPages(state, 'XYZ')).toEqual([{ url: pages['feed-gh'], tracker: 'GitHub' }])
+  })
+
+  it('tells pages of one tracker apart by their keys', () => {
+    const feeds = { ABC: [{ id: 'feed-huly', tracker: 'huly', key: 'OPS' }] }
+    const pages = { ...urls.pages, 'feed-huly': 'https://huly.example.com/workbench/other/tracker/ops-id/issues' }
+    const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
+    expect(projectPages(state, 'ABC')).toEqual([
+      { url: urls.pages.ABC, tracker: 'Huly · ABC' },
+      { url: pages['feed-huly'], tracker: 'Huly · OPS' },
+    ])
   })
 })
 

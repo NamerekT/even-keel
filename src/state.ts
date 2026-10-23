@@ -79,7 +79,7 @@ export interface TrackerUrls {
   default: string | null
   /** By the prefix of the task ids (`idPrefixOf`): projects with one prefix are on one tracker project. */
   projects: Record<string, string | null>
-  /** The page of each project in its tracker (`TrackerSetup.projectUrl`); `null` — none. */
+  /** The page of each project and each feed in its tracker (`TrackerSetup.projectUrl`), by the project's or the feed's id; `null` — none. */
   pages: Record<string, string | null>
 }
 

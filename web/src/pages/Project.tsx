@@ -22,7 +22,7 @@ import {
   limitWaitText,
   openQuestions,
   projectLabel,
-  projectPage,
+  projectPages,
   projectSlot,
   projectTasks,
   questionPath,
@@ -271,19 +271,18 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
   )
 }
 
-/** A project with nothing to run says where the tasks come from and opens the project in its tracker. */
+/** A project with nothing to run says where the tasks come from and opens the project and its feeds in their trackers. */
 function EmptyCall({ state, project }: { state: EvenKeelState; project: string }) {
   const call = emptyCall(state, project)
   if (call === null) return null
-  const page = projectPage(state, project)
   return (
     <p className="project__call">
       {call}
-      {page !== null && (
-        <a className="button button--small" href={page.url} target="_blank" rel="noreferrer">
+      {projectPages(state, project).map((page) => (
+        <a key={page.url} className="button button--small" href={page.url} target="_blank" rel="noreferrer">
           {t.project.openIn(page.tracker)}
         </a>
-      )}
+      ))}
     </p>
   )
 }

@@ -10,7 +10,7 @@ import {
   ciWaitText,
   limitWaitText,
   openQuestions,
-  projectPage,
+  projectPages,
   projectPath,
   projectSlot,
   projectTasks,
@@ -42,7 +42,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const tracker = projectTracker(state, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const call = emptyCall(state, project)
-  const page = call === null ? null : projectPage(state, project)
+  const pages = call === null ? [] : projectPages(state, project)
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
 
   return (
@@ -132,11 +132,13 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           </button>
         </footer>
       )}
-      {page !== null && (
+      {pages.length > 0 && (
         <footer className="card__foot">
-          <a className="button" href={page.url} target="_blank" rel="noreferrer">
-            {t.project.openIn(page.tracker)}
-          </a>
+          {pages.map((page) => (
+            <a key={page.url} className="button" href={page.url} target="_blank" rel="noreferrer">
+              {t.project.openIn(page.tracker)}
+            </a>
+          ))}
         </footer>
       )}
     </article>
