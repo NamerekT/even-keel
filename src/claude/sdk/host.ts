@@ -4,11 +4,13 @@ import { pathToFileURL } from 'node:url'
 import type { AccountHome } from '../../account/homes.js'
 import { gatewayName, type SessionStart } from '../../agent/contract.js'
 import { isAlive, killTree } from '../../agent/process.js'
+import type { Language } from '../../language.js'
 import { fail, notice, NoticeError } from '../../notice/notice.js'
 import type { AgentEntry } from '../../sessions/agents.js'
 import { questionsOf, replyParts, type Ask, type AskAnswers } from '../../sessions/ask.js'
 import { SESSION_MODE } from '../cli.js'
 import type { ExecutorHello } from './executor.js'
+import { permissionAsk, permissionMove } from './permission.js'
 import { ExecutorProcess, newPipe, probe, startExecutor, type ExecutorRequest } from './pipe.js'
 import { sdkEntryOf, SdkRegistry, type SdkSession, type SdkTurn } from './registry.js'
 import type { SdkModule, SdkOptions, SdkPermission, SdkQuery, SdkUserMessage } from './types.js'
@@ -19,7 +21,7 @@ const REMOTE_TIMEOUT_MS = 15_000
 const EXIT_TIMEOUT_MS = 30_000
 const EXIT_POLL_MS = 100
 const ASK_TOOL = 'AskUserQuestion'
-/** The answer to any other tool the CLI wants approved: a chain session has nobody at the terminal (`permissionMode` decides the rest). */
+/** The answer to any other tool the CLI wants approved while the chain runs unattended: nobody is at the page (`permissionMode` decides the rest). */
 const NO_APPROVAL = 'Nobody approves tool calls in this session: do without this call, or ask the user with AskUserQuestion.'
 
 export interface SdkHostOptions {
@@ -32,6 +34,10 @@ export interface SdkHostOptions {
   envOf: (home: AccountHome) => NodeJS.ProcessEnv
   /** Whether the account starts sessions with Remote Control. */
   remote: (home: AccountHome) => Promise<boolean>
+  /** Read at each approval and each poll: the chain runs unattended, and nobody approves a tool call. */
+  unattended: () => boolean
+  /** The language a tool approval is asked in. */
+  language: () => Language
   log: (line: string) => void
 }
 
@@ -51,6 +57,8 @@ export function replyMove(prompt: string, ask: Ask | null): ReplyMove {
 }
 
 interface PendingAsk {
+  /** `AskUserQuestion`, or the tool whose call waits for approval. */
+  tool: string
   ask: Ask
   input: Record<string, unknown>
   answer: Promise<SdkPermission>
@@ -131,12 +139,29 @@ export class SdkSessions {
     const connection = await this.connected(home, session)
     if (connection === null) return null
     const pending = [...connection.asks.values()].at(-1)
+    const kind = pending !== undefined && pending.tool !== ASK_TOOL ? this.approve(connection, pending, prompt) : this.answer(connection, pending, prompt)
+    this.options.log(`sessions: ${session.name}: the reply went into the live SDK session ${sessionId} (${kind})`)
+    return sessionId
+  }
+
+  private answer(connection: Connection, pending: PendingAsk | undefined, prompt: string): string {
     const move = replyMove(prompt, pending?.ask ?? null)
     if (pending === undefined || move.kind === 'message') connection.push(prompt)
     else if (move.kind === 'answer') pending.settle({ behavior: 'allow', updatedInput: { ...pending.input, answers: move.answers } })
     else pending.settle({ behavior: 'deny', message: move.message })
-    this.options.log(`sessions: ${session.name}: the reply went into the live SDK session ${sessionId} (${pending === undefined ? 'message' : move.kind})`)
-    return sessionId
+    return pending === undefined ? 'message' : move.kind
+  }
+
+  /** The words that came with an allowed call follow it as the next message, which the session takes in the same turn. */
+  private approve(connection: Connection, pending: PendingAsk, prompt: string): string {
+    const move = permissionMove(prompt, pending.ask)
+    if (move.kind === 'deny') {
+      pending.settle({ behavior: 'deny', message: move.message })
+      return `${pending.tool} denied`
+    }
+    pending.settle({ behavior: 'allow', updatedInput: pending.input })
+    if (move.message !== null) connection.push(move.message)
+    return `${pending.tool} allowed`
   }
 
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
@@ -159,6 +184,7 @@ export class SdkSessions {
       sessions.map(async (session) => {
         if (session.stopped === true) return sdkEntryOf(session, false, null)
         const connection = await this.connected(home, session)
+        if (connection !== null && this.options.unattended()) this.refuseApprovals(session, connection)
         const alive = connection !== null || (await this.alive(session))
         return sdkEntryOf(session, alive, connection?.turn ?? null)
       }),
@@ -291,16 +317,29 @@ export class SdkSessions {
     }
   }
 
-  /** A question waits for the user's reply, or for an answer from Remote Control, which the CLI reports by aborting the call. */
+  /** Approvals that waited when the chain went unattended are refused at once, or the chain would stand on them all night. */
+  private refuseApprovals(session: SdkSession, connection: Connection): void {
+    for (const pending of [...connection.asks.values()]) {
+      if (pending.tool === ASK_TOOL) continue
+      pending.settle({ behavior: 'deny', message: NO_APPROVAL })
+      this.options.log(`sessions: ${session.name}: the chain is unattended, the waiting approval of ${pending.tool} is refused`)
+    }
+  }
+
+  /**
+   * A question, or a tool call to approve, waits for the user's reply, or for an answer from Remote Control, which the
+   * CLI reports by aborting the call. An unattended chain has nobody to approve a call, so it is refused.
+   */
   private permission(connection: Connection, tool: string, input: Record<string, unknown>, signal: AbortSignal, toolUseID: string | undefined): Promise<SdkPermission> {
-    if (tool !== ASK_TOOL) return Promise.resolve({ behavior: 'deny', message: NO_APPROVAL })
+    if (tool !== ASK_TOOL && this.options.unattended()) return Promise.resolve({ behavior: 'deny', message: NO_APPROVAL })
     const id = toolUseID ?? randomUUID()
     const known = connection.asks.get(id)
     if (known !== undefined) return known.answer
     let settle: (result: SdkPermission) => void = () => {}
     const answer = new Promise<SdkPermission>((resolve) => (settle = resolve))
     const pending: PendingAsk = {
-      ask: { id, questions: questionsOf(input) },
+      tool,
+      ask: tool === ASK_TOOL ? { id, questions: questionsOf(input) } : permissionAsk(id, tool, input, this.options.language()),
       input,
       answer,
       settle: (result) => {

@@ -86,6 +86,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
+| 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
 
 ## Platforms
 
@@ -178,6 +179,10 @@ The CLI was seen to take a key from the account folder's `settings.json` (`claud
 ### Sessions through the Agent SDK (BTN-239)
 
 Run live from the service on Windows (CLI 2.1.308, SDK 0.3.308, Haiku, 2026-10-22): a session outlived `Restart-Service EvenKeel` while it waited on its question and the answer from the page went into it without a resume; another outlived three restarts mid-turn, one of them a 28 s stop over the end of a long command, and finished the turn (`docs/sessions.md`). Not run: a night of the chain on the SDK against `--bg`; the service down long enough for the CLI's output to pass 1 MB and go to the spill file; an answer through Remote Control from the phone and the reattach to the same chat after a resume; the Unix socket on Linux and macOS; a chat message from the page straight into a working session (BTN-291 — the same push was seen taken mid-turn only from a terminal). If that message is dropped, the chat keeps it as sent and the session never answers it: send it again once the turn ends. If a long run fails where `--bg` would not, the card shows the session busy and replies do not reach it; if the reattach fails, a resumed session opens a new Remote Control chat. **Workaround:** "New session" on the task; switch the account to `CLI --bg` on the Accounts page, which new sessions follow.
+
+### A tool approval in an SDK session (BTN-303)
+
+Out of unattended mode, a tool call the CLI puts to `canUseTool` waits as a question with "Allow" and "Deny", and an answer allows it with its own input or refuses it (`docs/sessions.md`). Covered by tests only: no live session has asked for an approval yet. Assumed: that the CLI in `auto` mode asks for one at all and only for calls its classifier leaves to a human; that `allow` with the unchanged input runs the call; that an approval already waiting is refused within a poll once unattended mode goes on. If the CLI never asks, nothing changes against before; if an allowed call does not run, the session gets an error for it and goes on without it; if a waiting one is not refused, the chain stands on it. **Workaround:** answer "Deny" from the page, or "New session" on the task.
 
 ### The 1-hour cache on a key
 

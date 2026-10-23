@@ -350,6 +350,8 @@ const runtimes = new Map<string, Agent>(
       log: (line) => console.log(line),
       onCliChange: () => void cliVersions.check(),
       transport: (home): string | null => transportOf(home.agent, ledger.accounts[home.key]?.transport, account.apiKey(home.key)),
+      unattended: () => configStore.current.unattended,
+      language: () => configStore.current.language ?? promptLanguage(),
     }),
   ]),
 )
