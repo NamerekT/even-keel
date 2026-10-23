@@ -91,6 +91,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 79 | [The OpenCode model check](#the-opencode-model-check-btn-336) | OpenCode on ChatGPT, Copilot or an API key | a model that works is refused at launch; leave the model field empty |
 | 80 | [OpenCode's ChatGPT and Copilot limits](#opencodes-chatgpt-and-copilot-limits-btn-341) | OpenCode on ChatGPT or Copilot | the card has no bars and a limit waits with no reset time, as before |
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
+| 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 
 ## Platforms
 
@@ -183,6 +184,10 @@ Run live from the service on Windows (CLI 2.1.308, SDK 0.3.308, Haiku, 2026-10-2
 ### A tool approval in an SDK session (BTN-303)
 
 Out of unattended mode, a tool call the CLI puts to `canUseTool` waits as a question with "Allow" and "Deny", and an answer allows it with its own input or refuses it (`docs/sessions.md`). Covered by tests only: no live session has asked for an approval yet. Assumed: that the CLI in `auto` mode asks for one at all and only for calls its classifier leaves to a human; that `allow` with the unchanged input runs the call; that an approval already waiting is refused within a poll once unattended mode goes on. If the CLI never asks, nothing changes against before; if an allowed call does not run, the session gets an error for it and goes on without it; if a waiting one is not refused, the chain stands on it. **Workaround:** answer "Deny" from the page, or "New session" on the task.
+
+### A lone AGENTS.md in a resumed or SDK Claude session (BTN-340)
+
+Claude Code does not read an `AGENTS.md` by itself, so in a project with no `CLAUDE.md` Even Keel appends the file to a Claude session's system prompt (`docs/sessions.md`, "Project rules for every agent"). Seen live only for a fresh `claude -p` and `claude --bg` launch (CLI 2.1.309). Assumed: that a reply or a limit resume of a saved `--bg` job, which passes no flags and keeps the job's own options, keeps `--append-system-prompt-file` among them; and that an Agent SDK session takes the file from the preset's `systemPrompt.append` (covered by a test only). If either is wrong, that session works without the project's rules. **Workaround:** write a `CLAUDE.md` with the one line `@AGENTS.md`, which Claude Code reads by itself.
 
 ### A permission dialog answered from the page (BTN-269)
 

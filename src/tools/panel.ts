@@ -2,7 +2,9 @@ import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
+import { INSTRUCTION_FILES, repoRulesOf, SKILL_FOLDERS, type RepoRules } from '../agent/projectRules.js'
 import { CLAUDE } from '../claude/name.js'
+import type { Git } from '../git/types.js'
 import type { SessionReach } from '../packages/model.js'
 import { samePath } from '../paths.js'
 import type { CacheTtl } from '../state.js'
@@ -21,6 +23,9 @@ const RECENT = 8
 
 export interface ToolsPlaces {
   repo: string
+  /** The project's branch, whose instruction files and skills its sessions get. */
+  branch: string
+  git: Git
   globalDir: string
   /** `.claude.json` files whose MCP servers and project entries sessions read. */
   configs: string[]
@@ -78,7 +83,7 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 
-  const received = await readNewest(places.homes, repo)
+  const [received, rules] = await Promise.all([readNewest(places.homes, repo), readRepoRules(places.git, repo, places.branch)])
   const known = { user: new Set(dirNames(join(places.globalDir, 'skills'))), project: new Set(dirNames(join(repo, '.claude', 'skills'))) }
 
   return {
@@ -90,7 +95,14 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     ),
     accounts,
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
+    rules,
   }
+}
+
+/** What the branch a task worktree starts from holds: an uncommitted file never reaches a session. */
+export async function readRepoRules(git: Git, repo: string, branch: string): Promise<RepoRules | null> {
+  const result = await git(repo, ['ls-tree', '-r', '--name-only', branch, '--', ...INSTRUCTION_FILES, ...SKILL_FOLDERS])
+  return result.code === 0 ? repoRulesOf(result.out.split('\n')) : null
 }
 
 function projectSettings(repo: string): { project: Json | undefined; local: Json | undefined } {

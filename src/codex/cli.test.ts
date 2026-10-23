@@ -86,13 +86,15 @@ describe('parseLoginStatus', () => {
 })
 
 describe('turnArgs', () => {
-  it('starts a session in the chain mode with the JSON stream', () => {
-    expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', 'BTN-1'])
+  const fallback = ['-c', 'project_doc_fallback_filenames=["CLAUDE.md"]']
+
+  it("starts a session in the chain mode with the JSON stream, reading the project's CLAUDE.md without an AGENTS.md", () => {
+    expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'BTN-1'])
   })
 
   it('runs without the sandbox and the reviewer when the execution mode bypasses them', () => {
-    expect(turnArgs({ model: null, bypassSandbox: true }, 'BTN-1')).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', 'BTN-1'])
-    expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', 'resume', 'thread-1', 'BTN-1'])
+    expect(turnArgs({ model: null, bypassSandbox: true }, 'BTN-1')).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', ...fallback, 'BTN-1'])
+    expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'resume', 'thread-1', 'BTN-1'])
   })
 
   it('puts the model, the gateway servers and every other flag before resume', () => {
@@ -101,6 +103,7 @@ describe('turnArgs', () => {
       'exec',
       '--json',
       '--approve-for-me',
+      ...fallback,
       '-m',
       'gpt-5.6-luna',
       '-c',
@@ -113,6 +116,6 @@ describe('turnArgs', () => {
 
   it('puts the plugin flags after the servers and before resume', () => {
     const plugins = ['-c', 'plugins.huly@ek-b.enabled=true']
-    expect(turnArgs({ model: null }, 'go on', 'thread-1', plugins)).toEqual(['exec', '--json', '--approve-for-me', ...plugins, 'resume', 'thread-1', 'go on'])
+    expect(turnArgs({ model: null }, 'go on', 'thread-1', plugins)).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...plugins, 'resume', 'thread-1', 'go on'])
   })
 })

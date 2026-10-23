@@ -9,6 +9,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
+import { passedSkillFolders } from '../agent/projectRules.js'
 import { isAlive, killTree } from '../agent/process.js'
 import { entryOf, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
@@ -354,7 +355,7 @@ export class OpenCodeCli {
    */
   private async turn(home: AccountHome, start: SessionStart, args: string[], cwd: string, failure: Notice): Promise<{ session: string; pid: number; out: string; at: number }> {
     keepOwnInstructions(home.dir)
-    const config = sessionConfig(start, projectServers(cwd), skillDirs(start), pluginFiles(start))
+    const config = sessionConfig(start, projectServers(cwd), skillDirs(start, cwd), pluginFiles(start))
     const at = Date.now()
     const out = this.registry.turnFile(start.name, at)
     const fd = openSync(out, 'a')
@@ -416,6 +417,11 @@ async function lastChange(home: AccountHome, session: CodexSession): Promise<num
   return rows === undefined ? undefined : Math.max(rows, out?.mtimeMs ?? 0)
 }
 
-function skillDirs(start: Pick<SessionStart, 'plugins'>): string[] {
-  return (start.plugins ?? []).map((plugin) => join(plugin.dir, 'skills')).filter((dir) => existsSync(dir))
+/**
+ * The plugin packages' `skills/` and the project's own skill folders `OPENCODE_DISABLE_EXTERNAL_SKILLS` drops along with
+ * `~/.claude/skills` and `~/.agents/skills` (OpenCode 1.18.25, BTN-340).
+ */
+export function skillDirs(start: Pick<SessionStart, 'plugins'>, cwd: string): string[] {
+  const own = passedSkillFolders(OPENCODE).map((folder) => join(cwd, ...folder.split('/')))
+  return [...(start.plugins ?? []).map((plugin) => join(plugin.dir, 'skills')), ...own].filter((dir) => existsSync(dir))
 }

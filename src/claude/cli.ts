@@ -216,7 +216,10 @@ export class ClaudeCli {
 export const SESSION_MODE = 'auto'
 
 /** What a chain session gets besides its name, model and prompt. */
-export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
+export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'> & {
+  /** A file appended to the system prompt: the project's lone `AGENTS.md` (`agentsFallback`). */
+  instructions?: string
+}
 
 /**
  * `Agent.write`: `claude -p` with the prompt on stdin — one read-only turn with no one to answer it, so no tool to ask,
@@ -273,7 +276,7 @@ export function parseWriteAnswer(stdout: string): OneTurnAnswer {
  * would swallow it. A server goes under its `gatewayName`.
  */
 export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
-  const { settings, mcp, plugins = [] } = extras
+  const { settings, mcp, plugins = [], instructions } = extras
   const servers = Object.fromEntries((mcp ?? []).map((each) => [gatewayName(each), { type: 'http', url: each.url }]))
   return [
     '--bg',
@@ -285,6 +288,7 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
     task,
     ...(model === null ? [] : ['--model', model]),
     ...(settings === undefined ? [] : ['--settings', settings]),
+    ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
   ]
 }
 

@@ -1,3 +1,5 @@
+import type { RepoRules } from '../agent/projectRules.js'
+
 /** Where a setting of a session comes from: `chain` — what Even Keel passes with `--settings` and `--permission-mode`. */
 export type ToolScope = 'user' | 'project' | 'local' | 'chain'
 
@@ -56,4 +58,6 @@ export interface ToolsView {
   settings: SettingRow[]
   accounts: AccountDrift[]
   received: ReceivedView | null
+  /** The instruction files and skills committed on the project's branch; `null` — git could not read it. */
+  rules: RepoRules | null
 }
