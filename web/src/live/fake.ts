@@ -11,7 +11,7 @@ import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
-import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
+import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
@@ -640,6 +640,7 @@ export function createFakeSource(search: string): LiveSource {
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
+      if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       const result = fakeProfilesQuery(current.state, name, body)

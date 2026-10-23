@@ -4,7 +4,21 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { hungEntry, parseJsonc, parseWriteAnswer, pluginFiles, sessionConfig, sessionOf, turnArgs, turnEnded, TURN_HANG_MS, writeArgs, writeConfig } from './cli.js'
+import {
+  hungEntry,
+  parseJsonc,
+  parseModels,
+  parseWriteAnswer,
+  pluginFiles,
+  sessionConfig,
+  sessionOf,
+  turnArgs,
+  turnEnded,
+  turnError,
+  TURN_HANG_MS,
+  writeArgs,
+  writeConfig,
+} from './cli.js'
 
 describe('turnArgs', () => {
   it('titles a new session with its task and resumes one by its id', () => {
@@ -135,6 +149,22 @@ describe('the output of opencode run', () => {
     expect(turnEnded(`${event({ type: 'step_finish', part: { reason: 'stop' } })}\n`)).toBe(true)
     expect(turnEnded(`${event({ type: 'error', error: { name: 'APIError' } })}\n`)).toBe(true)
     expect(turnEnded(`${event({ type: 'tool_use' })}\n`)).toBe(false)
+  })
+
+  it("gives the error that ended the session's turn, with its time", () => {
+    const error = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
+    const failed = `${event({ type: 'step_start' })}\n${event({ type: 'error', timestamp: 1792776798957, error })}\n`
+    expect(turnError(failed, 'ses_abc')).toEqual({ at: 1792776798957, error })
+    expect(turnError(failed, 'ses_other')).toBeUndefined()
+    expect(turnError(`${event({ type: 'step_finish', part: { reason: 'stop' } })}\n`, 'ses_abc')).toBeUndefined()
+    expect(turnError('', 'ses_abc')).toBeUndefined()
+  })
+})
+
+describe('opencode models', () => {
+  it('lists the models one per line as `-m` takes them', () => {
+    const stdout = 'opencode/big-pickle\r\nopencode/deepseek-v4.1-flash-free\n\nsome warning line\n'
+    expect(parseModels(stdout)).toEqual(['opencode/big-pickle', 'opencode/deepseek-v4.1-flash-free'])
   })
 })
 

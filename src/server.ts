@@ -4,6 +4,7 @@ import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { isTransport, type Transport } from './account/transport.js'
+import type { ModelList } from './agent/contract.js'
 import { formatEvent, type EventHub } from './events.js'
 import { guard, tokenForm, type GuardSettings } from './guard.js'
 import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
@@ -243,6 +244,8 @@ export interface ServerDeps {
   tools: (project: string) => Promise<unknown>
   /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
   vocabulary: (projectId: string) => Promise<TrackerVocabulary | undefined>
+  /** The models of the account folder `key` for the model fields (`Agent.models`); `null` — none known. */
+  models: (key: string) => Promise<ModelList | null>
   tasks: TaskControl
   /** An operation on the milestone's changelog draft; its newest version (`src/changelog/drafts.ts`). */
   changelog: (project: string, milestone: string, op: ChangelogOp) => Promise<ChangelogView>
@@ -336,6 +339,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
   'changelog/edit': ({ changelog }, body) =>
     changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'edit', instruction: textOf(body.instruction, 'instruction') }),
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
+  'models/list': ({ models }, body) => models(textOf(body.account, 'account')),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
 }
 

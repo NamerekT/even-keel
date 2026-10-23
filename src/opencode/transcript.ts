@@ -13,6 +13,7 @@ import {
   type TokenTotals,
   type TranscriptSummary,
 } from '../sessions/transcript.js'
+import type { TurnError } from './cli.js'
 
 /**
  * An OpenCode session's transcript: the rows of tables `message` and `part` of `opencode.db` (OpenCode 1.18.25), each
@@ -59,16 +60,28 @@ const EDITS = new Set(['edit', 'write', 'patch', 'multiedit'])
 
 type Json = Record<string, unknown>
 
-/** `whole` keeps texts and prompts as written and adds the call facts and the failed lines to the feed. */
-export function foldSession(messages: MessageRow[], parts: PartRow[], feedSize = FEED_SIZE, whole = false): TranscriptSummary {
+/**
+ * `whole` keeps texts and prompts as written and adds the call facts and the failed lines to the feed. `errors` — those
+ * the turns ended on (`OpenCodeCli.turnErrors`), each in its place by time; one a step of the session holds is not repeated.
+ */
+export function foldSession(messages: MessageRow[], parts: PartRow[], feedSize = FEED_SIZE, whole = false, errors: TurnError[] = []): TranscriptSummary {
   const fold = new SessionFold(feedSize, whole)
   const byMessage = new Map<string, PartRow[]>()
   for (const part of parts) byMessage.set(part.message, [...(byMessage.get(part.message) ?? []), part])
   const ordered = [...messages].sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
+  const held = new Set(
+    ordered.flatMap((message) => {
+      const error = record(parse(message.data)?.error)
+      return error === undefined ? [] : [errorText(error)]
+    }),
+  )
+  const left = errors.filter(({ error }) => !held.has(errorText(error))).sort((a, b) => a.at - b.at)
   ordered.forEach((message, index) => {
+    while (left.length > 0 && left[0]!.at < message.at) fold.pushTurnError(left.shift()!)
     const own = (byMessage.get(message.id) ?? []).sort((a, b) => a.id.localeCompare(b.id))
     fold.push(message, own, index === ordered.length - 1)
   })
+  for (const error of left) fold.pushTurnError(error)
   return fold.summary()
 }
 
@@ -225,6 +238,12 @@ class SessionFold {
     if (this.whole && state.status === 'error') {
       this.addFeed({ at, kind: 'failed', text: failureText(typeof state.error === 'string' ? state.error : ''), ...(typeof part.callID === 'string' ? { tool: part.callID } : {}) })
     }
+  }
+
+  pushTurnError({ at, error }: TurnError): void {
+    const when = iso(at)
+    this.touch(when)
+    this.pushError(when, errorText(error))
   }
 
   private pushError(at: string, text: string): void {

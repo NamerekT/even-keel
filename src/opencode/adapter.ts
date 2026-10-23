@@ -34,11 +34,11 @@ export const opencode: AgentAdapter = {
       resume: (home, { sessionId }, start) => cli.resume(home, sessionId, start),
       stop: (_home, { sessionId }) => cli.stop(sessionId),
       sessions: (home) => cli.sessions(home),
-      tail: (home, agent) => new OpenCodeTail(home.dir, agent),
+      tail: (home, agent) => new OpenCodeTail(home.dir, agent, (sessionId) => cli.turnErrors(sessionId)),
       record: async (home, sessionId) => {
         const rows = await sessionRows(home.dir, sessionId)
         if (rows === undefined) return undefined
-        const summary = foldSession(rows.messages, rows.parts, HISTORY_FEED)
+        const summary = foldSession(rows.messages, rows.parts, HISTORY_FEED, false, await cli.turnErrors(sessionId))
         return {
           sessionId,
           startedAt: summary.firstActivityAt,
@@ -57,7 +57,7 @@ export const opencode: AgentAdapter = {
       feed: async (home, sessionId, after) => {
         const rows = await sessionRows(home.dir, sessionId)
         if (rows === undefined) return undefined
-        const summary = foldSession(rows.messages, rows.parts, Infinity, true)
+        const summary = foldSession(rows.messages, rows.parts, Infinity, true, await cli.turnErrors(sessionId))
         return { lines: summary.feed.slice(after), turn: summary.turn }
       },
       transcripts: async (home) => (await sessionList(home.dir)).map((session) => session.id),
@@ -67,6 +67,11 @@ export const opencode: AgentAdapter = {
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
       write: (home, turn) => cli.write(home, turn),
+      // `run -m` takes nothing but `<provider>/<model>` of a provider the account is signed in to; an empty list says nothing.
+      models: async (home) => {
+        const models = await cli.models(home)
+        return { models, complete: models.length > 0 }
+      },
       contextWindow: async (home, model) => windowOf(await readFile(join(home.dir, 'cache', 'opencode', 'models.json'), 'utf8').catch(() => ''), model),
     }
   },

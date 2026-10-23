@@ -20,6 +20,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'chain.emptyLabels': { to: 'project', tab: 'tracker' },
   'chain.emptyStatus': { to: 'project', tab: 'tracker' },
   'prompt.empty': { to: 'project', tab: 'sessions' },
+  'chain.unknownModel': { to: 'project', tab: 'sessions' },
   'chain.limitSpent': ACCOUNTS,
   'account.signedOut': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,

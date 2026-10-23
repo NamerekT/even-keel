@@ -57,6 +57,24 @@ export class TurnRegistry {
     mkdirSync(this.turnsDir, { recursive: true })
     return join(this.turnsDir, `${name}-${at}.jsonl`)
   }
+
+  /** The output files of the turns of `session`, oldest first: those of its name since it started (`turnFile`). */
+  async turnFiles(session: Pick<CodexSession, 'name' | 'startedAt'>): Promise<string[]> {
+    const names = await readdir(this.turnsDir).catch(() => [])
+    return turnsOf(names, session).map((name) => join(this.turnsDir, name))
+  }
+}
+
+/** The file names of `turnFiles`, oldest first. */
+export function turnsOf(names: string[], { name, startedAt }: Pick<CodexSession, 'name' | 'startedAt'>): string[] {
+  const own = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)\\.jsonl$`)
+  return names
+    .flatMap((file) => {
+      const at = Number(own.exec(file)?.[1])
+      return Number.isNaN(at) || at < startedAt ? [] : [{ file, at }]
+    })
+    .sort((a, b) => a.at - b.at)
+    .map(({ file }) => file)
 }
 
 export function parseSession(raw: string): CodexSession | undefined {

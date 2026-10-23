@@ -41,6 +41,8 @@ export const noticesRu: NoticeTexts = {
   'chain.limitSpent': (p) => `лимит исчерпан до ${p.until} — смените аккаунт или подождите`,
   'chain.noSession': (p) => `у ${p.task} нет известной сессии`,
   'chain.noAccountFor': (p) => `у ${p.task} ярлык ${p.label}, но аккаунта этого провайдера в пуле нет — задача идёт на ${p.provider}, как проект`,
+  'chain.unknownModel': (p) =>
+    `${p.task} должна идти на модели ${p.model}, но у аккаунта ${p.account} (${p.agent}) её нет — есть ${list(p.known.slice(0, 8)) || 'никаких'}. Выберите модель в поле «Модель» настроек сессий и снимите с паузы`,
   'answer.moved': (p) => `сессия ${p.task} уже пошла дальше — ответ не отправлен`,
   'answer.busy': (p) => `сессия ${p.task} работает — ответить можно, когда она остановится`,
   'answer.empty': () => 'пустой ответ',

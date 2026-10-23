@@ -72,6 +72,18 @@ const FAKE_OPENCODE_LOGIN: AccountLogin = {
 
 const FAKE_LOGINS: Record<string, AccountLogin> = { [CODEX]: FAKE_DEVICE_LOGIN, [OPENCODE]: FAKE_OPENCODE_LOGIN }
 
+const FAKE_MODELS: Record<string, { models: string[]; complete: boolean }> = {
+  [CLAUDE]: { models: ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'], complete: false },
+  [CODEX]: { models: ['gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.6-terra'], complete: false },
+  [OPENCODE]: { models: ['opencode/big-pickle', 'opencode/deepseek-v4.1-flash-free'], complete: true },
+}
+
+/** `models/list` of the account folder `key`, by its agent. */
+export function fakeModels(account: AccountView, key: string): { models: string[]; complete: boolean } | null {
+  const agent = account.accounts.find((entry) => entry.key === key)?.agent
+  return agent === undefined ? null : (FAKE_MODELS[agent] ?? null)
+}
+
 export function fakeUsage(mode: string | null): UsageHealth {
   if (mode === 'unread') return { state: 'unread', reason: notice('usage.noWeek', {}), since: ago(12) }
   if (mode === 'off') return { state: 'off', reason: notice('usage.turns', { value: '1' }), since: ago(3) }

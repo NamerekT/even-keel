@@ -203,6 +203,28 @@ export function turnEnded(stdout: string): boolean {
   return event?.type === 'step_finish' && part?.reason !== 'tool-calls'
 }
 
+/** An error that ended a turn: OpenCode leaves no row of it in `opencode.db` (a model it does not know). */
+export interface TurnError {
+  at: number
+  error: Record<string, unknown>
+}
+
+/** The error event a turn of the session ended on, read from the end of its output: an error is always the last event. */
+export function turnError(tail: string, sessionId: string): TurnError | undefined {
+  const event = parse(tail.trimEnd().split('\n').at(-1) ?? '')
+  if (event?.type !== 'error' || event.sessionID !== sessionId || typeof event.timestamp !== 'number') return undefined
+  const error = event.error
+  return { at: event.timestamp, error: typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : {} }
+}
+
+/** `opencode models`: one `<provider>/<model>` a line, the models of the providers the account is signed in to. */
+export function parseModels(stdout: string): string[] {
+  return stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^[^\s/]+\/\S+$/.test(line))
+}
+
 function parse(line: string): Record<string, unknown> | undefined {
   try {
     const value: unknown = JSON.parse(line)
@@ -269,6 +291,19 @@ export class OpenCodeCli {
     const session = sessionOf(stdout)
     if (session !== undefined) await run(this.bin(), ['session', 'delete', session], { cwd, env, timeout: this.timeoutMs, windowsHide: true }).catch(() => {})
     return parseWriteAnswer(stdout, model, Date.now() - started)
+  }
+
+  /** `opencode models` in the account's folders: only the providers it is signed in to. */
+  async models(home: AccountHome): Promise<string[]> {
+    return parseModels((await run(this.bin(), ['models'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })).stdout)
+  }
+
+  /** The errors the session's turns ended on, oldest first (`turnError`). */
+  async turnErrors(sessionId: string): Promise<TurnError[]> {
+    const session = await this.registry.get(sessionId)
+    if (session === undefined) return []
+    const tails = await Promise.all((await this.registry.turnFiles(session)).map(outputTail))
+    return tails.flatMap((tail) => turnError(tail, sessionId) ?? [])
   }
 
   /** `opencode --version`: `1.18.25`. */

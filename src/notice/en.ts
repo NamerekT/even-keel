@@ -43,6 +43,8 @@ export const en = {
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
   'chain.noAccountFor': (p: { task: string; label: string; provider: string }) =>
     `chain: ${p.task} is labelled ${p.label}, but no account of that provider is in the pool; it runs on ${p.provider}, as its project does`,
+  'chain.unknownModel': (p: { task: string; model: string; agent: string; account: string; known: string[] }) =>
+    `chain: ${p.task} is to run on ${p.model}, which the ${p.agent} account ${p.account} does not have (it has ${list(p.known.slice(0, 8)) || 'none'}); pick a model in the Model field of the session settings, then resume`,
   'answer.moved': (p: { task: string }) => `answer: the session of ${p.task} has moved on since the question; the answer was not sent`,
   'answer.busy': (p: { task: string }) => `answer: the session of ${p.task} is working; answer once it waits`,
   'answer.empty': () => 'answer: the reply is empty',
