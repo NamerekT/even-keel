@@ -99,7 +99,7 @@ describe('connectionOf', () => {
 })
 
 describe('deviceLogin', () => {
-  const login = (agent: string, target: string | null) => ({ agent, target, startedAt: '', urls: [], output: '', error: null, codeSent: false })
+  const login = (agent: string, target: string | null) => ({ agent, target, startedAt: '', urls: [], deviceCode: null, output: '', error: null, codeSent: false })
   const accounts = [entry('global', 'john@example.com'), { ...entry('codex', 'john@example.com'), agent: 'codex' }]
 
   it("is Codex's sign-in, into a folder or a new account, where the code goes on the sign-in page, not here", () => {

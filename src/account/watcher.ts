@@ -13,6 +13,7 @@ import {
   cleanOutput,
   isApiKey,
   loginBlockNotice,
+  loginCode,
   loginUrls,
   missingNotice,
   needsLogin,
@@ -373,6 +374,7 @@ export class AccountWatcher {
       target: adding ? null : home.key,
       startedAt: this.options.now().toISOString(),
       urls: [],
+      deviceCode: null,
       output: '',
       error: null,
       codeSent: false,
@@ -386,7 +388,8 @@ export class AccountWatcher {
       if (this.running !== running || this.current === null) return
       this.output = (this.output + chunk.toString('utf8')).slice(-MAX_OUTPUT_CHARS)
       const urls = [...new Set([...this.current.urls, ...loginUrls(this.output)])]
-      this.current = { ...this.current, urls, output: cleanOutput(this.output).trim().slice(-SHOWN_OUTPUT_CHARS) }
+      const deviceCode = loginCode(this.output) ?? this.current.deviceCode
+      this.current = { ...this.current, urls, deviceCode, output: cleanOutput(this.output).trim().slice(-SHOWN_OUTPUT_CHARS) }
       this.options.onChange()
     }
     child.stdout.on('data', read)

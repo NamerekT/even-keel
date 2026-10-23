@@ -60,6 +60,8 @@ export interface AccountLogin {
   target: string | null
   startedAt: string
   urls: string[]
+  /** The one-time code a device sign-in printed (`loginCode`), for the user to enter on the sign-in page. */
+  deviceCode: string | null
   output: string
   error: Notice | null
   codeSent: boolean
@@ -99,6 +101,8 @@ export interface LoginBlock {
 const ANSI = /\u001b\[[0-9;?]*[A-Za-z]|\u001b\][^\u0007]*\u0007/g
 const URL_PATTERN = /https:\/\/[^\s"'<>\u001b]+/g
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/
+/** Codex's code is the line under "Enter this one-time code", OpenCode's follows "Enter code:"; a code counts once its line ends. */
+const DEVICE_CODE = /(?:one-time code[^\n]*\n[ \t]*|Enter code:[ \t]*)([A-Z0-9]+(?:-[A-Z0-9]+)*)[ \t]*\n/g
 
 export function parseAuthStatus(text: string): AccountStatus {
   let body: unknown
@@ -136,6 +140,11 @@ export function cleanOutput(raw: string): string {
 export function loginUrls(output: string): string[] {
   const found = cleanOutput(output).match(URL_PATTERN) ?? []
   return [...new Set(found.map((url) => url.replace(TRAILING_PUNCTUATION, '')))]
+}
+
+/** The one-time code a device sign-in printed, Codex's or OpenCode's: the last one, `null` when there is none yet. */
+export function loginCode(output: string): string | null {
+  return [...cleanOutput(output).matchAll(DEVICE_CODE)].at(-1)?.[1] ?? null
 }
 
 export function parseCredentialTimes(text: string | undefined): CredentialTimes {

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { TRANSPORTS, type Transport } from '../../../src/account/transport.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -58,6 +58,7 @@ export function agentLabel(agent: string): string {
 }
 
 const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, sdk: BracesIcon, apiKey: KeyIcon }
+const COPIED_MS = 2000
 
 /**
  * Whose account it is and how it signs in, as two icons before the name: the agent's in the account's colour, so two
@@ -305,7 +306,7 @@ export function loginHeading({ login, accounts }: AccountView): string {
 
 interface StepsProps {
   login: AccountLogin
-  /** Codex's device-auth: the code is in the CLI output and goes on the sign-in page, so no code field. */
+  /** A device sign-in, Codex's or OpenCode's: its one-time code goes on the sign-in page, so no code field. */
   device: boolean
   sending: boolean
   send: Send
@@ -314,6 +315,8 @@ interface StepsProps {
 /** The sign-in through an agent's CLI: the link it printed, the code field, the way out. */
 export function LoginSteps({ login, device, sending, send }: StepsProps) {
   const [code, setCode] = useState('')
+  // A device sign-in whose code was not read keeps its output open: the code is only there.
+  const outputOpen = device && login.deviceCode === null
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -354,7 +357,11 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
         </ul>
       )}
       {device ? (
-        <p className="queue__hint">{t.account.deviceHint}</p>
+        login.deviceCode === null ? (
+          <p className="queue__hint">{t.account.deviceHint}</p>
+        ) : (
+          <DeviceCode key={login.deviceCode} code={login.deviceCode} />
+        )
       ) : (
         <>
           <form className="account__code" onSubmit={(event) => void submit(event)}>
@@ -374,14 +381,54 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
           <p className="queue__hint">{login.codeSent ? t.account.codeSent : t.account.codeHint}</p>
         </>
       )}
-      {device && login.output !== '' && <Output text={login.output} open />}
+      {outputOpen && login.output !== '' && <Output text={login.output} open />}
       <div className="account__actions">
         <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
           {t.account.cancelLogin}
         </button>
       </div>
-      {!device && login.output !== '' && <Output text={login.output} />}
+      {!outputOpen && login.output !== '' && <Output text={login.output} />}
     </>
+  )
+}
+
+/** A device sign-in's one-time code, large and apart from the CLI output, with a button that copies it. */
+function DeviceCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  const copy = async (event: MouseEvent<HTMLButtonElement>) => {
+    const place = event.currentTarget.parentElement
+    try {
+      await navigator.clipboard.writeText(code)
+    } catch {
+      // Plain HTTP from another host has no clipboard API: copy the old way, from a field next to the button.
+      const area = document.createElement('textarea')
+      area.value = code
+      place?.append(area)
+      area.select()
+      document.execCommand('copy')
+      area.remove()
+    }
+    setCopied(true)
+  }
+
+  return (
+    <div className="account__device">
+      <span className="account__device-label">{t.account.deviceCode}</span>
+      <div className="account__device-row">
+        <code className="account__device-code">{code}</code>
+        <button type="button" className="button" onClick={(event) => void copy(event)}>
+          {copied ? t.account.codeCopied : t.account.copyCode}
+        </button>
+      </div>
+      <p className="queue__hint">{t.account.deviceCodeHint}</p>
+    </div>
   )
 }
 

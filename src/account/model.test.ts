@@ -10,6 +10,7 @@ import {
   liveSessions,
   loginBlock,
   loginBlockNotice,
+  loginCode,
   loginUrls,
   needsLogin,
   parseAuthStatus,
@@ -140,6 +141,43 @@ describe('loginUrls', () => {
   })
 })
 
+describe('loginCode', () => {
+  // `codex login --device-auth` of codex-cli 0.162.1, its format strings and colours as the binary has them.
+  const codex = [
+    '\u001b[94mWelcome to Codex [v\u001b[90m0.162.1\u001b[0m\u001b[94m]\u001b[0m',
+    "\u001b[90mOpenAI's command-line coding agent\u001b[0m",
+    '',
+    'Follow these steps to sign in with ChatGPT using device code authorization:',
+    '',
+    '1. Open this link in your browser and sign in to your account',
+    '   \u001b[94mhttps://auth.openai.com/codex/device\u001b[0m',
+    '',
+    '2. Enter this one-time code \u001b[90m(expires in 15 minutes)\u001b[0m',
+    '   \u001b[94mK7QZ-4MXPT\u001b[0m',
+    '',
+    '\u001b[90mContinue only if you started this login in Codex. If a website or another person gave you this code, cancel.\u001b[0m',
+    '',
+  ].join('\n')
+
+  it("takes Codex's one-time code from the line under its step", () => {
+    expect(loginCode(codex)).toBe('K7QZ-4MXPT')
+  })
+
+  it("takes OpenCode's code from its Enter code line, ChatGPT's and Copilot's alike", () => {
+    const output = ['┌  Add credential', '│', '●  Go to: https://github.com/login/device', '│', '●  Enter code: WDJB-MJHT', '│', '◒  Waiting for authorization...', ''].join('\r\n')
+    expect(loginCode(output)).toBe('WDJB-MJHT')
+  })
+
+  it('waits for the line to end, so a code cut by a chunk is not taken', () => {
+    expect(loginCode(codex.slice(0, codex.indexOf('4MXPT') + 2))).toBeNull()
+  })
+
+  it('finds nothing in output without a code', () => {
+    expect(loginCode("Browser didn't open? Use the url below to sign in:\n\nhttps://claude.ai/oauth/authorize?code=true\n")).toBeNull()
+    expect(loginCode(codex.slice(0, codex.indexOf('2. Enter')))).toBeNull()
+  })
+})
+
 const agent = (patch: Partial<AgentEntry>): AgentEntry => ({
   cwd: 'C:\\repos\\example',
   kind: 'interactive',
@@ -245,7 +283,7 @@ describe('loginBlockNotice', () => {
 })
 
 describe('launchBlock', () => {
-  const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+  const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false }
 
   it('lets sessions start when the active account is signed in or not known yet', () => {
     expect(launchBlock(view({}))).toBeUndefined()
@@ -438,7 +476,7 @@ describe('removeProblem', () => {
   it('keeps the active and the global folder', () => {
     expect(say(removeProblem(view({ active: 'work' }), 'work'))).toMatch(/active/)
     expect(say(removeProblem(view({ active: 'work' }), 'global'))).toMatch(/global/)
-    const login = { agent: 'claude', target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+    const login = { agent: 'claude', target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false }
     expect(say(removeProblem(view({ login }), 'work'))).toMatch(/sign-in/)
   })
 
