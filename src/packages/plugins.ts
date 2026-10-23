@@ -9,6 +9,9 @@ type Json = Record<string, unknown>
 /** What a plugin brings besides MCP servers. */
 const EXTRAS = ['skills', 'hooks', 'commands', 'agents']
 
+/** Even Keel's own marketplace folders, read before the CLI's: one or several, the first winning a name. */
+type Local = string | readonly string[]
+
 /** Where a plugin's files are copied from, and the kind of its marketplace's source (`directory`, `github`, `git`, …). */
 export interface PluginPlace {
   dir: string
@@ -38,14 +41,16 @@ function knownMarketplaces(globalDir: string): Json {
 }
 
 /**
- * The marketplaces of the global configuration (`plugins/known_marketplaces.json`), with Even Keel's own folder first
- * when given: chain sessions get copies, so its plugins need no `claude plugin marketplace add`, and the checkout's
- * version wins over a marketplace of the same name the CLI keeps elsewhere.
+ * The marketplaces of the global configuration (`plugins/known_marketplaces.json`), with Even Keel's own folders first
+ * when given (its checkout, the user's wrapped skills): chain sessions get copies, so their plugins need no
+ * `claude plugin marketplace add`, and the checkout's version wins over a marketplace of the same name the CLI keeps elsewhere.
  */
-function marketplaces(globalDir: string, own?: string): Map<string, Marketplace> {
+function marketplaces(globalDir: string, own?: Local): Map<string, Marketplace> {
   const found = new Map<string, Marketplace>()
-  const ownName = own === undefined ? undefined : ownMarketplace(own)
-  if (ownName !== undefined) found.set(ownName, { location: own!, kind: 'directory', fetched: undefined })
+  for (const folder of own === undefined ? [] : typeof own === 'string' ? [own] : own) {
+    const name = ownMarketplace(folder)
+    if (name !== undefined && !found.has(name)) found.set(name, { location: folder, kind: 'directory', fetched: undefined })
+  }
   for (const [name, value] of Object.entries(knownMarketplaces(globalDir))) {
     const known = objectOf(value)
     if (found.has(name) || typeof known.installLocation !== 'string') continue
@@ -58,7 +63,7 @@ function marketplaces(globalDir: string, own?: string): Map<string, Marketplace>
  * A plugin of Even Keel's own marketplace or of one the global configuration knows: a path inside the marketplace is
  * its folder there, any other source is the copy the CLI installed (`plugins/installed_plugins.json`).
  */
-export function locatePlugin(globalDir: string, plugin: string, marketplace: string, own?: string): PluginPlace {
+export function locatePlugin(globalDir: string, plugin: string, marketplace: string, own?: Local): PluginPlace {
   const found = marketplaces(globalDir, own).get(marketplace)
   if (found === undefined) throw fail('packages.noMarketplace', { marketplace })
   const { location, kind } = found
@@ -78,7 +83,7 @@ export const FETCHED = new Set(['github', 'git', 'url'])
  * The version an update would install now, and when the CLI last fetched the marketplace that version comes from
  * (`null` for a folder, which is always current); `undefined` when the plugin cannot be found.
  */
-export function pluginOffer(globalDir: string, plugin: string, marketplace: string, own?: string): { version: string | null; fetched: string | null } | undefined {
+export function pluginOffer(globalDir: string, plugin: string, marketplace: string, own?: Local): { version: string | null; fetched: string | null } | undefined {
   let place: PluginPlace
   try {
     place = locatePlugin(globalDir, plugin, marketplace, own)
@@ -90,7 +95,7 @@ export function pluginOffer(globalDir: string, plugin: string, marketplace: stri
 }
 
 /** Every plugin of Even Keel's own marketplace and of every one the global configuration knows: the page offers them to add. */
-export function availablePlugins(globalDir: string, own?: string): { plugin: string; marketplace: string }[] {
+export function availablePlugins(globalDir: string, own?: Local): { plugin: string; marketplace: string }[] {
   return [...marketplaces(globalDir, own)].flatMap(([marketplace, { location }]) => pluginsOf(location).map((each) => ({ plugin: each.name, marketplace })))
 }
 

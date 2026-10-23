@@ -5,13 +5,14 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { PlugIcon, PlusIcon, ServerIcon } from '../ui/icons.js'
+import { agentLabel } from '../accountName.js'
+import { PlugIcon, PlusIcon, ServerIcon, StackIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Select } from '../ui/Select.js'
 import { serverEntry, serverPairs, type Transport } from './packageView.js'
 import './addPackage.css'
 
-type Kind = 'plugin' | 'mcp'
+type Kind = 'plugin' | 'mcp' | 'skills'
 
 const EXAMPLES: Record<Transport, string> = { http: 'Authorization: Bearer ${API_TOKEN}', stdio: 'API_URL=https://api.example.com' }
 
@@ -83,6 +84,7 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
             {kind === null && <KindStep onPick={setKind} />}
             {kind === 'plugin' && <PluginStep {...steps} />}
             {kind === 'mcp' && <ServerStep {...steps} />}
+            {kind === 'skills' && <SkillsStep {...steps} />}
           </>
         )}
       </div>
@@ -91,10 +93,10 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
 }
 
 function KindStep({ onPick }: { onPick: (kind: Kind) => void }) {
-  const icons: Record<Kind, ReactNode> = { plugin: <PlugIcon />, mcp: <ServerIcon /> }
+  const icons: Record<Kind, ReactNode> = { plugin: <PlugIcon />, mcp: <ServerIcon />, skills: <StackIcon /> }
   return (
     <div className="add-package__kinds">
-      {(['plugin', 'mcp'] as const).map((kind) => (
+      {(['plugin', 'mcp', 'skills'] as const).map((kind) => (
         <button key={kind} type="button" className="add-package__kind" onClick={() => onPick(kind)}>
           <span className="add-package__kind-icon">{icons[kind]}</span>
           <span className="add-package__kind-title">{t.packages.addKind[kind].title}</span>
@@ -244,6 +246,54 @@ function ServerStep({ projects, onBack, onClose }: StepProps) {
   )
 }
 
+/**
+ * The user's own skills by checkboxes, wrapped into one plugin package. Once the catalog has it, saving makes a new
+ * version and leaves where it is on to the table.
+ */
+function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
+  const { send, sending, failure } = useCommand()
+  const { list, package: name } = view.skills
+  const kept = view.packages.some((each) => each.name === name && !each.removed)
+  const [picked, setPicked] = useState(() => new Set(kept ? list.filter((each) => each.wrapped).map((each) => each.name) : []))
+  const [where, setWhere] = useState('')
+  const toggle = (skill: string) =>
+    setPicked((now) => {
+      const next = new Set(now)
+      if (!next.delete(skill)) next.add(skill)
+      return next
+    })
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (await send('packages/skills', { skills: [...picked], project: kept ? undefined : where || undefined })) onClose()
+  }
+
+  return (
+    <StepForm failure={failure} ready={picked.size > 0 && !sending} submit={kept ? t.packages.skillsSave : undefined} onSubmit={submit} onBack={onBack} onClose={onClose}>
+      {list.length === 0 ? (
+        <p className="add-package__empty">{t.packages.skillsNone}</p>
+      ) : (
+        <>
+          <fieldset className="add-package__field">
+            <legend className="add-package__label add-package__legend">{t.packages.skills}</legend>
+            <div className="add-package__skills">
+              {list.map((skill) => (
+                <label key={skill.name} className="add-package__skill">
+                  <input type="checkbox" checked={picked.has(skill.name)} onChange={() => toggle(skill.name)} />
+                  <span className="add-package__skill-name">{skill.name}</span>
+                  <span className="add-package__skill-from">{skill.from === null ? t.packages.skillsGone : agentLabel(skill.from)}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <p className="add-package__note add-package__note--warn">{t.packages.skillsTools}</p>
+          <p className="add-package__note">{t.packages.skillsClaude}</p>
+          {kept ? <p className="add-package__note">{t.packages.skillsKept(name)}</p> : <WhereField projects={projects} value={where} onChange={setWhere} />}
+        </>
+      )}
+    </StepForm>
+  )
+}
+
 function WhereField({ projects, value, onChange }: { projects: string[]; value: string; onChange: (value: string) => void }) {
   const name = useProjectLabel()
   const options = [{ value: '', label: t.packages.whereAll }, ...projects.map((project) => ({ value: project, label: t.packages.whereOne(name(project)) }))]
@@ -274,6 +324,8 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
 interface StepFormProps {
   failure: ReturnType<typeof useCommand>['failure']
   ready: boolean
+  /** The primary button's label; Add by default. */
+  submit?: string
   onSubmit: (event: FormEvent) => Promise<void>
   onBack: () => void
   onClose: () => void
@@ -281,7 +333,7 @@ interface StepFormProps {
 }
 
 /** The fields of a kind, the failure of the last try, and Back · Cancel · Add level at the bottom. */
-function StepForm({ failure, ready, onSubmit, onBack, onClose, children }: StepFormProps) {
+function StepForm({ failure, ready, submit = t.packages.add, onSubmit, onBack, onClose, children }: StepFormProps) {
   return (
     <form className="add-package__form" onSubmit={(event) => void onSubmit(event)}>
       <div className="add-package__body">
@@ -297,7 +349,7 @@ function StepForm({ failure, ready, onSubmit, onBack, onClose, children }: StepF
           {t.packages.cancel}
         </button>
         <button type="submit" className="button button--primary" disabled={!ready}>
-          {t.packages.add}
+          {submit}
         </button>
       </footer>
     </form>

@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, mkdirSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { userInfo } from 'node:os'
+import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/credit.js'
@@ -22,6 +22,7 @@ import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
+import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './chain/launches.js'
 import { fixNameOf, fixStem, isFixName, projectOfFix } from './chain/fix.js'
@@ -318,6 +319,12 @@ const packages: Packages = new Packages({
   },
   globalDir: homes.global.dir,
   ownDir: root,
+  skillsDir: join(stateDir, 'skills'),
+  skillRoots: () => [
+    { dir: join(homes.global.dir, 'skills'), from: CLAUDE },
+    { dir: join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'skills'), from: CODEX },
+    { dir: join(homedir(), '.agents', 'skills'), from: CODEX },
+  ],
   claudeConfigs,
   rules: trackerKeyRules(),
   tracker: (project) => {
@@ -876,7 +883,7 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
 const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
   ...(home.agent !== CLAUDE && configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
-  ...(project === undefined ? {} : packages.startOf(project, task)),
+  ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
 })
 
 const noAccountFor = (task: string, fallback: string, provider: string) =>

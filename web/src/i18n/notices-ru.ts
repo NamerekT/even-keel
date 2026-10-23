@@ -317,6 +317,8 @@ export const noticesRu: NoticeTexts = {
   'packages.installInClaude': (p) =>
     `${p.plugin} лежит вне папки своего маркетплейса — сначала установите его в Claude Code (claude plugin install ${p.plugin}), потом здесь`,
   'packages.copyFailed': (p) => `не удалось скопировать плагин ${p.name}`,
+  'packages.noSkills': () => 'выберите хотя бы один навык',
+  'packages.unknownSkill': (p) => `навыка ${p.name} нет ни в ~/.claude/skills, ни в папке навыков Codex`,
   'packages.npmFailed': (p) => `npm не смог установить ${p.spec}`,
   'packages.marketplaceUpdate': (p) => `claude plugin marketplace update ${p.marketplace} не удался`,
   'packages.marketplaceAdd': (p) => `claude plugin marketplace add не смог добавить ${p.marketplace}`,

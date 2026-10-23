@@ -561,6 +561,16 @@ export interface PackagesView {
   marketplace: { name: string; dir: string; known: boolean } | null
   /** By project key: the servers of the repository's committed `.mcp.json` that are not in the catalog. */
   imports: Record<string, string[]>
+  /** The user's own skills the page wraps into one plugin package, `package` (BTN-339). */
+  skills: { package: string; list: OwnSkillView[] }
+}
+
+/** A skill of `~/.claude/skills` or Codex's skills folder; `from` is `null` for a wrapped one whose folder is gone. */
+export interface OwnSkillView {
+  name: string
+  from: string | null
+  /** The package holds it now. */
+  wrapped: boolean
 }
 
 export interface PackageView {

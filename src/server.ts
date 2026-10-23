@@ -170,6 +170,7 @@ export interface PackagesControl {
   addMarketplace(): Promise<void>
   addPlugin(plugin: string, marketplace: string, project?: string): void
   addServer(name: string, entry: Record<string, unknown>, project?: string): void
+  wrapSkills(names: string[], project?: string): Promise<void>
   importRepo(project: string): void
   choose(project: string, name: string, choice: 'on' | 'off' | null): void
   setDefault(name: string, on: boolean): void
@@ -318,6 +319,7 @@ const COMMANDS: Record<string, Command> = {
   'packages/marketplace': ({ packages }) => packages.addMarketplace(),
   'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace'), optionalProjectOf(body)),
   'packages/server': ({ packages }, body) => packages.addServer(nameOf(body), serverOf(body.server), optionalProjectOf(body)),
+  'packages/skills': ({ packages }, body) => packages.wrapSkills(skillsOf(body), optionalProjectOf(body)),
   'packages/import': ({ packages }, body) => packages.importRepo(projectOf(body)),
   'packages/project': ({ packages }, body) => packages.choose(projectOf(body), nameOf(body), choiceOf(body.choice)),
   'packages/default': ({ packages }, body) => packages.setDefault(nameOf(body), flagOf(body)),
@@ -1054,6 +1056,12 @@ function codeOf(body: Record<string, unknown>): string {
   const code = typeof body.code === 'string' ? body.code.trim() : ''
   if (code === '') throw fail('request.required', { field: 'code' })
   return code
+}
+
+function skillsOf(body: Record<string, unknown>): string[] {
+  const { skills } = body
+  if (!Array.isArray(skills) || !skills.every((item) => typeof item === 'string')) throw fail('packages.noSkills', {})
+  return skills
 }
 
 function listOf(body: Record<string, unknown>, code: Extract<NoticeCode, 'request.taskList' | 'request.projectList'>): string[] {
