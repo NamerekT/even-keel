@@ -185,7 +185,7 @@ export const ru = {
     weekTitle: 'Недельный лимит',
     month: 'Месяц',
     monthTitle: 'Лимит на 30 дней',
-    sources: { usage: 'по /usage', statusline: 'по statusline' },
+    sources: { usage: 'по /usage', statusline: 'по statusline', sdk: 'по SDK-сессии' },
     noData: 'нет данных',
     empty: (title: string, source: string) => `${title}: нет данных${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: сброс через ${resetIn}${source}`,

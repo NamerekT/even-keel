@@ -72,6 +72,8 @@ export interface SdkMessage {
   type: string
   subtype?: string
   session_id?: string
+  /** Of a `rate_limit_event` (`limitsOfRateLimitInfo`). */
+  rate_limit_info?: unknown
 }
 
 export interface SdkInitialized {

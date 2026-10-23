@@ -98,3 +98,35 @@ describe('LimitsWatcher', () => {
     expect(errors).toEqual([])
   })
 })
+
+describe('LimitsWatcher.report', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  const window = (usedPercentage: number) => ({ usedPercentage, resetsAt: '2099-01-01T00:00:00.000Z' })
+  const polled: UsageAnswer = {
+    kind: 'limits',
+    limits: { fiveHour: window(16), sevenDay: window(36), updatedAt: '2026-01-01T12:00:00.000Z', source: 'usage' },
+  }
+
+  it('shows a session\'s windows over the last poll until a newer poll', async () => {
+    const answers = [() => polled, () => ({ ...polled, limits: { ...polled.limits, updatedAt: '2026-01-01T12:10:00.000Z' } }) as UsageAnswer]
+    const { watcher, poll } = watcherOf(answers)
+    await poll()
+    watcher.report('global', { fiveHour: window(18) }, '2026-01-01T12:01:00.000Z')
+    expect(watcher.limits('global')).toEqual({ fiveHour: window(18), sevenDay: window(36), updatedAt: '2026-01-01T12:01:00.000Z', source: 'sdk' })
+    watcher.report('global', { sevenDay: window(37) }, '2026-01-01T12:02:00.000Z')
+    expect(watcher.limits('global')).toMatchObject({ fiveHour: window(18), sevenDay: window(37), source: 'sdk' })
+    await poll()
+    expect(watcher.limits('global')).toMatchObject({ fiveHour: window(16), source: 'usage' })
+  })
+
+  it('shows nothing for an API account', () => {
+    const { watcher } = watcherOf([], () => true, { ready: () => true, apiKey: () => true })
+    watcher.report('global', { fiveHour: window(18) }, '2026-01-01T12:01:00.000Z')
+    expect(watcher.limits('global')).toBeNull()
+  })
+})

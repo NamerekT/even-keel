@@ -180,7 +180,7 @@ export const en: Messages = {
     weekTitle: 'Weekly limit',
     month: 'Month',
     monthTitle: '30-day limit',
-    sources: { usage: 'from /usage', statusline: 'from the statusline' },
+    sources: { usage: 'from /usage', statusline: 'from the statusline', sdk: 'from an SDK session' },
     noData: 'no data',
     empty: (title: string, source: string) => `${title}: no data${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: resets in ${resetIn}${source}`,
