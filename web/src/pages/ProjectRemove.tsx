@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
+import { FieldHead } from './settingsParts.js'
 
 /** "Remove project" behind a confirmation; the service refuses while the chain, a session or a kept folder still holds it. */
 export function ProjectRemove({ project }: { project: string }) {
@@ -17,8 +18,7 @@ export function ProjectRemove({ project }: { project: string }) {
 
   return (
     <section className="settings__field project-remove">
-      <span className="settings__label">{t.wizard.remove}</span>
-      <p className="settings__hint">{t.wizard.removeHint}</p>
+      <FieldHead label={t.wizard.remove} hint={t.wizard.removeHint} />
       <div className="account__actions">
         {confirming ? (
           <>

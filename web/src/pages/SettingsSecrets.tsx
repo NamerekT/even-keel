@@ -13,7 +13,6 @@ import './secrets.css'
 export function SettingsSecrets({ state }: { state: EvenKeelState }) {
   return (
     <>
-      <p className="settings__hint secrets__hint">{t.secrets.hint}</p>
       {state.secrets.sessionsPending && <p className="notice notice--warn">{t.secrets.pending}</p>}
       <SettingsProfiles state={state} />
       {secretGroups(state.secrets.variables).map(({ group, variables }) => (
