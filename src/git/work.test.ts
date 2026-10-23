@@ -86,6 +86,8 @@ describe('TaskWorks', () => {
     let reads = 0
     const changes: number[] = []
     const logged: string[] = []
+    const activity = new Map<string, number>()
+    const busy = new Set<string>()
     const works = new TaskWorks({
       read: async () => {
         const answer = answers[Math.min(reads++, answers.length - 1)]!
@@ -94,11 +96,38 @@ describe('TaskWorks', () => {
       },
       ttlMs: 60_000,
       now: () => now,
+      activity: (task) => activity.get(task) ?? null,
+      busy: (task) => busy.has(task),
       onChange: () => changes.push(now),
       log: (line) => logged.push(line),
     })
-    return { works, changes, logged, reads: () => reads, at: (ms: number) => (now = ms) }
+    return { works, changes, logged, activity, busy, reads: () => reads, at: (ms: number) => (now = ms) }
   }
+
+  it('keeps out the work read before the last activity of its task, and reads it again once the task is quiet', async () => {
+    const context = setup([{ 'ABC-1': work }, {}])
+    await context.works.poll('abc')
+    context.at(10_000)
+    context.activity.set('ABC-1', 5_000)
+    context.busy.add('ABC-1')
+    expect(context.works.view()).toEqual({})
+
+    await context.works.poll('abc')
+    expect(context.reads()).toBe(1)
+
+    context.busy.delete('ABC-1')
+    await context.works.poll('abc')
+    expect(context.reads()).toBe(2)
+    expect(context.works.view()).toEqual({})
+  })
+
+  it('shows the work read after the last activity of its task', async () => {
+    const context = setup([{ 'ABC-1': work }])
+    context.activity.set('ABC-1', 0)
+    context.at(1_000)
+    await context.works.poll('abc')
+    expect(context.works.view()).toEqual({ abc: { 'ABC-1': work } })
+  })
 
   it('reads a project once a minute and tells only of a change', async () => {
     const context = setup([{ 'ABC-1': work }, { 'ABC-1': work }, {}])
@@ -144,6 +173,8 @@ describe('TaskWorks', () => {
       },
       ttlMs: 60_000,
       now: () => 0,
+      activity: () => null,
+      busy: () => false,
       onChange: () => {},
       log: () => {},
     })
