@@ -313,8 +313,10 @@ export class TranscriptFold {
           if (block.name === 'Read' && typeof input.file_path === 'string') this.readFiles.set(block.id, input.file_path.split(/[\\/]/).pop()!)
         }
         if (this.whole && block.name === SHARE_TOOL) line.share = shareOf(input, entry.cwd ?? '')
-        if (block.name === ASK_TOOL) {
-          this.openAsk = { id: block.id ?? ASK_TOOL, questions: questionsOf(input) }
+        // A call without a single question (input the CLI could not parse, BTN-304) is no question: an ordinary tool and its error.
+        const questions = block.name === ASK_TOOL ? questionsOf(input) : []
+        if (questions.length > 0) {
+          this.openAsk = { id: block.id ?? ASK_TOOL, questions }
           this.strayAsk = null
           if (this.whole) line.ask = this.openAsk
         }

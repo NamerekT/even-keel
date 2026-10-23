@@ -617,20 +617,25 @@ describe('TranscriptFold', () => {
         timestamp: at(),
         message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${name}`, content: 'answered' }] },
       })
+    const question = () => tool('AskUserQuestion', { questions: [{ question: 'Q?', options: [{ label: 'A' }] }] })
 
     it('is raised while an AskUserQuestion has no result', () => {
-      expect(fold([assistant('m1', [tool('AskUserQuestion', { questions: [] })])]).summary().asking).toBe(true)
+      expect(fold([assistant('m1', [question()])]).summary().asking).toBe(true)
     })
 
     it('drops once the answer comes as a tool result', () => {
-      const summary = fold([assistant('m1', [tool('AskUserQuestion', { questions: [] })]), answer('AskUserQuestion')]).summary()
+      const summary = fold([assistant('m1', [question()]), answer('AskUserQuestion')]).summary()
       expect(summary.asking).toBe(false)
     })
 
     it('stays down for other tools and stays up through an answer to another tool', () => {
       expect(fold([assistant('m1', [tool('Read', { file_path: 'a.ts' })])]).summary().asking).toBe(false)
-      const open = fold([assistant('m1', [tool('AskUserQuestion', { questions: [] }), tool('Read', { file_path: 'a.ts' })]), answer('Read')])
+      const open = fold([assistant('m1', [question(), tool('Read', { file_path: 'a.ts' })]), answer('Read')])
       expect(open.summary().asking).toBe(true)
+    })
+
+    it('stays down for an AskUserQuestion without a single question', () => {
+      expect(fold([assistant('m1', [tool('AskUserQuestion', { questions: [] })])]).summary().asking).toBe(false)
     })
   })
 
@@ -738,6 +743,24 @@ describe('TranscriptFold', () => {
       const summary = whole([ask(), result({ answers: { 'Which color?': 'Blue' } }), prompt('next')]).summary()
       expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'next' })
     })
+
+    it('shows a call the CLI could not parse as a failed tool, not as a question', () => {
+      const unparsed = assistant('m1', [tool('AskUserQuestion', { __unparsedToolInput: { questions: '[{"question": "Which' } })])
+      const refused = JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'toolu_AskUserQuestion', content: '<tool_use_error>InputValidationError</tool_use_error>', is_error: true }],
+        },
+        toolUseResult: 'InputValidationError',
+      })
+      const summary = whole([unparsed, refused, prompt('next')]).summary()
+      expect(summary.ask).toBeNull()
+      expect(summary.feed.some((line) => line.ask !== undefined)).toBe(false)
+      expect(summary.feed.map((line) => line.kind)).toEqual(['tool', 'failed', 'prompt'])
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'next' })
+    })
   })
 
   describe('chat mailbox', () => {
@@ -795,7 +818,8 @@ describe('TranscriptFold', () => {
           content: [{ type: 'tool_result', tool_use_id: 'toolu_AskUserQuestion', content: mailMessage([mail(10, 'Not now.')], 'AskUserQuestion', 'en'), is_error: true }],
         },
       })
-      const summary = whole([assistant('m1', [tool('AskUserQuestion', { questions: [] })]), denied, JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'later' } })])
+      const question = tool('AskUserQuestion', { questions: [{ question: 'Q?', options: [{ label: 'A' }] }] })
+      const summary = whole([assistant('m1', [question]), denied, JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'later' } })])
       expect(summary.summary().ask).toBeNull()
       expect(prompts(summary).map((line) => line.text)).toEqual(['Not now.', 'later'])
     })
