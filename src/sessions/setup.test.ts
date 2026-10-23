@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { runAfterGreen, runBeforeStart, type Shell } from './setup.js'
+import type { AccountHome } from '../account/homes.js'
+import { accountEnv, runAfterGreen, runBeforeStart, type Shell } from './setup.js'
 
 function shell(results: Record<string, { code: number; out: string }>) {
   const calls: { command: string; cwd: string }[] = []
@@ -55,5 +56,19 @@ describe('runAfterGreen', () => {
     expect(calls.map((call) => call.command)).toEqual(['npm ci', 'npm run build'])
     expect(failure).toEqual({ command: 'npm run build', code: 2, output: 'error TS2304' })
     expect(log).toEqual(['afterGreen: ABC: npm ci in D:/repo', 'afterGreen: ABC: npm run build in D:/repo', 'afterGreen: ABC: | error TS2304'])
+  })
+})
+
+describe('accountEnv', () => {
+  const codex: AccountHome = { key: 'codex', dir: 'C:/Users/john/.codex', global: true, agent: 'codex' }
+  const homes = new Map([[codex.key, codex]])
+  const envOf = (home: AccountHome) => ({ PATH: 'C:/bin', [home.agent === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR']: home.dir })
+
+  it('is the environment of the account the task runs on, with no Claude folder needed', () => {
+    expect(accountEnv('codex', (key) => homes.get(key), envOf, { PATH: 'C:/bin' })).toEqual({ PATH: 'C:/bin', CODEX_HOME: 'C:/Users/john/.codex' })
+  })
+
+  it("is the service's own environment while the account has no folder", () => {
+    expect(accountEnv('global', (key) => homes.get(key), envOf, { PATH: 'C:/bin' })).toEqual({ PATH: 'C:/bin' })
   })
 })

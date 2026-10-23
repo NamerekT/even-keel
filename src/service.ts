@@ -96,7 +96,7 @@ import { Mailbox } from './sessions/mailbox.js'
 import { mailFor, settleMail, type MailRelay } from './sessions/mailRelay.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
-import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
+import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { noteAtEnd } from './sessions/note.js'
 import { TranscriptOwners } from './sessions/owners.js'
@@ -966,7 +966,7 @@ const places = new TaskPlaces({
     const pool = { count, span, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
     return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
   },
-  setUp: (project, task, path) => runBeforeStart(configStore.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
+  setUp: (project, task, path) => runBeforeStart(configStore.current.settings[project]?.beforeStart ?? [], taskRun(task, path, choiceFor(project, task).account)),
 })
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
@@ -999,8 +999,10 @@ function taskSource(project: string, task: string): { tracker: string; profile: 
   }
 }
 
-function taskRun(task: string, cwd: string): SetupRun {
-  return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
+/** A run of the project's commands for `task` (the project itself for `afterGreen`), in the environment of the account its sessions run on. */
+function taskRun(task: string, cwd: string, account: string): SetupRun {
+  const env = () => accountEnv(account, (key) => homes.find(key), envOf, sessionBase(process.env, packages.keyNames()))
+  return { task, cwd, shell: systemShell(env), log: (line) => console.log(line) }
 }
 
 /** Syncs the project's main with its remotes the way the cleanup after Done does. */
@@ -1164,9 +1166,9 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     },
     prepare: (project, task) => places.prepare(project, task),
     place: async (project, task) => (await places.readyAhead(project, task)).path,
-    runCheck: (project, task, cwd) => runCheck(configStore.current.settings[project]?.check ?? [], taskRun(task, cwd)),
+    runCheck: (project, task, cwd) => runCheck(configStore.current.settings[project]?.check ?? [], taskRun(task, cwd, choiceFor(project, task).account)),
     afterGreen: (project) => configStore.current.settings[project]?.afterGreen ?? [],
-    runAfterGreen: (project, cwd) => runAfterGreen(configStore.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
+    runAfterGreen: (project, cwd) => runAfterGreen(configStore.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd, choiceFor(project).account)),
     fixName: (project) => fixNameOf(configStore.current.keys, project),
     now: () => new Date(),
   }),
