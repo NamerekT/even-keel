@@ -1,16 +1,28 @@
 export interface LimitWindow {
   usedPercentage: number
   resetsAt: string
+  /** What is left of a counted allowance (Copilot's monthly requests): the page shows it instead of the percentage. */
+  left?: number
+  /** What a counted allowance of unknown size has spent so far (Copilot's billing, BTN-341). */
+  used?: number
 }
 
 export interface RateLimits {
   fiveHour: LimitWindow | null
   sevenDay: LimitWindow | null
-  /** The 30-day window of Codex's free plan: absent for a plan without one, `null` when it has one with no data. */
+  /**
+   * The monthly window — Codex's free plan's 30 days, Copilot's allowance to the 1st: absent for a plan without one,
+   * `null` when it has one with no data.
+   */
   month?: LimitWindow | null
   updatedAt: string
-  /** `sdk` — a `rate_limit_event` of a Claude session run through the SDK (`limitsOfRateLimitInfo`). */
-  source: 'usage' | 'statusline' | 'sdk'
+  /**
+   * `sdk` — a `rate_limit_event` of a Claude session run through the SDK (`limitsOfRateLimitInfo`); `api` — asked of the
+   * provider's own API (ChatGPT's usage, GitHub's Copilot allowance, BTN-341).
+   */
+  source: 'usage' | 'statusline' | 'sdk' | 'api'
+  /** The subscription the limits are of (`chatgpt:<account id>`): two folders with the same one share their limits. */
+  pool?: string
 }
 
 /** The windows a session reported: one it did not name stays as it was known. */
@@ -113,8 +125,12 @@ export function limitResetAfter(limits: RateLimits | null, at: string): string |
   const exhausted = exhaustedReset(limits)
   if (exhausted !== null) return exhausted
   if (limits === null || Date.parse(limits.updatedAt) <= Date.parse(at)) return null
-  // A monthly plan with no five-hour window waits for the month: under 100% only means the snapshot lags behind.
-  if (limits.month !== undefined && limits.fiveHour === null) return limits.month?.resetsAt ?? null
+  // A monthly plan with no five-hour window waits for the month: under 100% only means the snapshot lags behind, unless
+  // the allowance is counted — then something left is something left.
+  if (limits.month !== undefined && limits.fiveHour === null) {
+    if (limits.month?.left !== undefined && limits.month.left > 0) return limits.updatedAt
+    return limits.month?.resetsAt ?? null
+  }
   const window = limits.fiveHour
   if (window === null) return limits.source === 'usage' ? limits.updatedAt : null
   const start = Date.parse(window.resetsAt) - FIVE_HOURS_MS

@@ -8,9 +8,9 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { accountBadge, entryBadge, headerAccounts, loginLeft, projectLabel } from '../state.js'
 import { AccountPanel } from './Account.js'
-import { spendText, useSpend, type Spend } from './accountParts.js'
+import { limitsNote, sharedLimitText, spendsByKey, spendText, useSpend, type Spend } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
-import { FULL_PERCENT, spanNames, WARM_PERCENT } from './Limits.js'
+import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 import { usePopover } from './usePopover.js'
 
 const RING_RADIUS = 8
@@ -71,10 +71,18 @@ function activeStyle(view: AccountView): CSSProperties {
 }
 
 function BlockLimits({ entry, limits, now, spend }: { entry: AccountEntry | undefined; limits: RateLimits | null; now: Date; spend: Spend }) {
-  if (entry?.apiKey === true) {
+  if (entry !== undefined && spendsByKey(entry)) {
     return (
       <span className="hblock__seg limit limit--spend" title={t.account.todayTitle}>
         <span className="limit__value">{spendText(spend, entry.key)}</span>
+      </span>
+    )
+  }
+  const note = entry === undefined ? null : limitsNote(entry)
+  if (note !== null) {
+    return (
+      <span className="hblock__seg limit limit--empty" aria-label={note}>
+        <span className="limit__value">—</span>
       </span>
     )
   }
@@ -134,7 +142,7 @@ function LimitSegment({ window, title, now }: { window: LimitWindow | null; titl
   return (
     <span className={`hblock__seg limit${heatOf(percent)}`}>
       <Ring percent={percent} />
-      <span className="limit__value">{percent}%</span>
+      <span className="limit__value">{windowValue(window, percent)}</span>
       <span className="limit__reset">{formatSpan(window.resetsAt, now)}</span>
     </span>
   )
@@ -236,7 +244,7 @@ function CardBody({ entry, limits, now, spend }: BodyProps) {
       {entry.projects.length === 0 ? t.account.projectsNone : t.account.projectsOn(entry.projects.map((project) => projectLabel(state, project)))}
     </p>
   )
-  if (entry?.apiKey === true) {
+  if (entry !== undefined && spendsByKey(entry)) {
     return (
       <>
         {projects}
@@ -246,12 +254,18 @@ function CardBody({ entry, limits, now, spend }: BodyProps) {
       </>
     )
   }
+  // OpenCode and Copilot without a window from their provider: one line with why, not empty rows (BTN-341).
+  const note = entry === undefined ? null : limitsNote(entry)
+  const shared = entry === undefined ? null : sharedLimitText(entry, state?.account.accounts ?? [])
   return (
     <>
       {projects}
-      {limitSpans(limits).map((span) => (
-        <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />
-      ))}
+      {note === null ? (
+        limitSpans(limits).map((span) => <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />)
+      ) : (
+        <p className="account-card__note">{note}</p>
+      )}
+      {shared !== null && <p className="account-card__note">{shared}</p>}
       <div className="account-card__foot">
         <span>{limits === null ? t.limits.noData : t.limits.updated(t.limits.sources[limits.source], formatAgo(limits.updatedAt, now))}</span>
         {entry !== undefined && <span>{t.account.expiry(loginLeft(entry.loginExpiresAt, now).text)}</span>}
@@ -268,7 +282,7 @@ function CardWindow({ label, window, now }: { label: string; window: LimitWindow
       <span className="meter__bar">
         <span className="meter__fill" style={{ width: `${percent}%` }} />
       </span>
-      <span className="limit__value">{window === null ? '—' : `${percent}%`}</span>
+      <span className="limit__value">{window === null ? '—' : windowValue(window, percent)}</span>
       <span className="account-card__when">
         {window === null ? t.limits.noData : t.limits.resetAt(formatSpan(window.resetsAt, now), formatMoment(window.resetsAt, now))}
       </span>

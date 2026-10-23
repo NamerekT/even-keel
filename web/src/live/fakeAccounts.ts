@@ -116,6 +116,11 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
 
 const OPENCODE_STATUS = { loggedIn: true, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
 
+/** No limits, with why (`UsageAnswer` of kind `missing`). */
+function stale(reason: ReturnType<typeof notice>): UsageHealth {
+  return { state: 'stale', reason, since: ago(3) }
+}
+
 function codexEntry(key: string, email: string, plan: string, patch: Partial<AccountEntry> = {}): AccountEntry {
   return fakeEntry({
     key,
@@ -247,19 +252,51 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     return { ...signedIn, accounts: [own, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra], pool }
   }
   if (mode === 'opencode') {
-    // OPS runs on OpenCode's free models; a second folder signs in with ChatGPT. Neither has limits.
-    const free = fakeEntry({ key: 'opencode', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'] })
-    const chatgpt = fakeEntry({ key: 'opencode-2', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'oauth', subscriptionType: 'openai' }, loginExpiresAt: null })
-    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
-    const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }]
-    return { ...signedIn, accounts: [own, work, free, chatgpt], pool }
+    // OPS runs on OpenCode's free models, which have no limits; a second folder signs in with the ChatGPT account the
+    // Codex folder is on, and shows their one limit.
+    const none = stale(notice('usage.openCodeNone', {}))
+    const free = fakeEntry({ key: 'opencode', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'], usage: none })
+    const shared = { ...limits, source: 'api' as const, pool: 'chatgpt:acc-1' }
+    const chatgpt = fakeEntry({
+      key: 'opencode-2',
+      global: false,
+      agent: OPENCODE,
+      status: { ...OPENCODE_STATUS, authMethod: 'oauth', subscriptionType: 'openai' },
+      loginExpiresAt: null,
+      limits: shared,
+      projects: ['DEMO'],
+    })
+    const codex = codexEntry('codex', 'john.doe@example.com', 'plus', { limits: { ...shared, source: 'usage' } })
+    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS' && project !== 'DEMO') }
+    const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }, { project: 'DEMO', provider: OPENCODE, account: 'opencode-2' }]
+    return { ...signedIn, accounts: [own, work, free, chatgpt, codex], pool }
   }
   if (mode === 'copilot') {
-    // OPS runs on the machine's own Copilot sign-in; a second folder has a token of its own. Neither has limits.
-    const machine = fakeEntry({ key: 'copilot', global: false, agent: COPILOT, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'] })
-    const token = fakeEntry({ key: 'github', global: false, agent: COPILOT, status: { ...OPENCODE_STATUS, authMethod: 'api_key' }, apiKey: true, loginExpiresAt: null })
-    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
-    const pool = [...SHARED_POOL, { project: 'OPS', provider: COPILOT, account: 'copilot' }]
+    // OPS runs on the machine's own Copilot sign-in, which has no allowance to read; a second folder has a token of its
+    // own and shows what is left of its month.
+    const machine = fakeEntry({
+      key: 'copilot',
+      global: false,
+      agent: COPILOT,
+      status: { ...OPENCODE_STATUS, authMethod: 'none' },
+      loginExpiresAt: null,
+      projects: ['OPS'],
+      usage: stale(notice('usage.copilotMachine', {})),
+    })
+    const month = { usedPercentage: 60, resetsAt: new Date(Date.now() + 9 * 86_400_000).toISOString(), left: 120 }
+    const allowance = { fiveHour: null, sevenDay: null, month, updatedAt: ago(2), source: 'api' as const }
+    const token = fakeEntry({
+      key: 'github',
+      global: false,
+      agent: COPILOT,
+      status: { ...OPENCODE_STATUS, authMethod: 'api_key' },
+      apiKey: true,
+      loginExpiresAt: null,
+      limits: allowance,
+      projects: ['DEMO'],
+    })
+    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS' && project !== 'DEMO') }
+    const pool = [...SHARED_POOL, { project: 'OPS', provider: COPILOT, account: 'copilot' }, { project: 'DEMO', provider: COPILOT, account: 'github' }]
     return { ...signedIn, accounts: [own, work, machine, token], pool }
   }
   if (mode === 'vscode-broken') {

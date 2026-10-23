@@ -14,6 +14,8 @@ import {
   AccountNotes,
   NoteActions,
   RemoveAction,
+  sharedLimitText,
+  spendsByKey,
   spendText,
   limitsNote,
   staleText,
@@ -105,7 +107,7 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
       </div>
       {limitsNote(entry) !== null ? (
         <p className="accounts__note">{limitsNote(entry)}</p>
-      ) : entry.apiKey ? (
+      ) : spendsByKey(entry) ? (
         <p className="accounts__note" title={t.account.todayTitle}>
           {spendText(spend, entry.key)}
         </p>
@@ -125,6 +127,7 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
           )}
         </>
       )}
+      {sharedLimitText(entry, view.accounts) !== null && <p className="accounts__note">{sharedLimitText(entry, view.accounts)}</p>}
       <AccountWork entry={entry} view={view} />
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} bare />
       <div className="account-card-item__foot">

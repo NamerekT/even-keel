@@ -119,12 +119,15 @@ export interface Tightest {
   window: LimitWindow
 }
 
-/** The window with the least left: what an account can still take, as one number; null without a window with data. */
+/**
+ * The window with the least left: what an account can still take, as one number; null without a window with data. A
+ * window that only counts what was spent (`used`) has no share left to compare.
+ */
 export function tightestWindow(limits: RateLimits | null): Tightest | null {
   let tightest: Tightest | null = null
   for (const span of limitSpans(limits)) {
     const window = limits?.[span] ?? null
-    if (window === null) continue
+    if (window === null || window.used !== undefined) continue
     const free = Math.round(100 - Math.min(Math.max(window.usedPercentage, 0), 100))
     if (tightest === null || free < tightest.free) tightest = { span, free, window }
   }
