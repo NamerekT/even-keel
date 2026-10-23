@@ -69,7 +69,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |
 | `branch` | P | — | page, hand | `main` |
 | `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
-| `prompt` | P | — | page, hand | `null` |
+| `prompt` | G, P | adds up, not over (BTN-338): a new session gets G, then P (`withPrompts`); a project's empty one leaves G in place. `ProjectSettings.prompt` is only the project's own row, G is `EvenKeelConfig.prompt` | page, hand | `null` on both |
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
@@ -142,7 +142,9 @@ entries stay as the reason for the levels.
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project, so
 there a command runs only by escalation or with `bypass`, `docs/sessions.md`), `cli` (an account folder has one daemon, on one
 version, whatever project its sessions are for), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
-`updates.*` — Even Keel only; `prompt`, `commands.*`, `slot` — project only.
+`updates.*` — Even Keel only; `commands.*`, `slot` — project only. `prompt` was project only until BTN-338 gave it an Even
+Keel level too: one instruction for every project and agent, which no agent's own global rules file (`~/.claude/CLAUDE.md`,
+Codex's `AGENTS.md`) carries to the others.
 
 A task level makes sense only for what runs the session: `provider`, `models` (the run label), `effort` (BTN-146). Not
 for anything about the repository (`commands`, `ci`, `slot`, the tracker), the chain (`brief`, `chain.*`, `parallel`) or

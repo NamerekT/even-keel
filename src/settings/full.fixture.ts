@@ -16,6 +16,7 @@ export const FULL = {
   cli: { codex: 'system' },
   modelLabels: true,
   modelPrompts: { haiku: ' Be brief. ' },
+  prompt: ' # Rules\n\n- Answer in English. ',
   language: 'ru',
   promptLanguage: 'en',
   hiddenSkills: ['loop', ' simplify '],

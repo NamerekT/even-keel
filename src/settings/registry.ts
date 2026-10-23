@@ -283,7 +283,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!isColor(value)) throw fail('config.color', { key: project ?? '' })
     return value
   } },
-  { key: 'prompt', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {
+  // The levels add up rather than override (BTN-338): a project's `settings.prompt` is only its own row, Even Keel's is `prompt`.
+  { key: 'prompt', kind: 'string', scopes: ['global', 'project'], lands: ['prompt', 'settings'], default: null, check: (value, place) => {
     if (typeof value !== 'string') throw fail('config.projectPrompt', { where: at(place, 'prompt') })
     return value.trim() === '' ? null : value.trim()
   } },

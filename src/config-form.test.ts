@@ -194,6 +194,14 @@ describe('withSharedForm', () => {
     })
   })
 
+  it("writes Even Keel's prompt trimmed, removes a blank one and keeps a project's own", () => {
+    const raw = { projects: [abc({ prompt: 'Own.' })] }
+    const set = withSharedForm(raw, { ...sharedOf(raw), prompt: ' # Rules\n\n- Be brief. ' }, sharedOf(raw))
+    expect(set).toEqual({ projects: [abc({ prompt: 'Own.' })], prompt: '# Rules\n\n- Be brief.' })
+    expect(formsOf(parseConfig(set)).projects['id-abc']?.prompt).toBe('Own.')
+    expect(withSharedForm(set, { ...sharedOf(set), prompt: ' ' }, sharedOf(set))).toEqual(raw)
+  })
+
   it('keeps shared keys the form leaves as they were', () => {
     const raw = { projects: [], models: { claude: 'opus' }, parallel: 1, promptLanguage: 'en' }
     expect(withSharedForm(raw, sharedOf(raw), sharedOf(raw))).toEqual(raw)

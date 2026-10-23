@@ -315,6 +315,7 @@ describe('Even Keel HTTP server', () => {
       cli: { claude: 'checked', codex: 'system' },
       modelLabels: false,
       modelPrompts: { haiku: 'Be brief.' },
+      prompt: '# Rules\n\n- Answer in English.',
       language: null,
       promptLanguage: 'en',
       hiddenSkills: ['dataviz'],
@@ -334,6 +335,7 @@ describe('Even Keel HTTP server', () => {
     const refusals = [
       ['parallel', { parallel: '2' }],
       ['modelPrompts', { modelPrompts: { haiku: 1 } }],
+      ['prompt', { prompt: 1 }],
       ['execution', { execution: { codex: true } }],
       ['cli', { cli: 'checked' }],
       ['modelLabels', { modelLabels: null }],

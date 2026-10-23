@@ -131,6 +131,7 @@ describe('parseConfig', () => {
       cli: { claude: 'checked', codex: 'checked' },
       modelLabels: false,
       modelPrompts: {},
+      prompt: null,
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: SHARES },
       language: null,
       promptLanguage: 'en',
@@ -458,6 +459,16 @@ describe('parseConfig', () => {
 
   it('reads an empty project prompt as no prompt', () => {
     expect(parse({ projects: { ABC: { repo: 'C:\\abc', prompt: '  ' } } }).settings.ABC?.prompt).toBeNull()
+  })
+
+  it("keeps Even Keel's prompt apart from the project's: the project has only its own, the two add up in a session", () => {
+    const config = parse({ prompt: ' Shared rules. ', projects: { ABC: { repo: 'C:\\abc' }, XYZ: { repo: 'C:\\xyz', prompt: 'Own rules.' } } })
+    expect(config.prompt).toBe('Shared rules.')
+    expect(config.settings.ABC?.prompt).toBeNull()
+    expect(config.settings.XYZ?.prompt).toBe('Own rules.')
+    expect(parse({ projects: {} }).prompt).toBeNull()
+    expect(parse({ prompt: ' ', projects: {} }).prompt).toBeNull()
+    expect(() => parse({ prompt: 1, projects: {} })).toThrow(/prompt/)
   })
 
   it('rejects a project prompt that is not text and commands that are not a list of strings', () => {

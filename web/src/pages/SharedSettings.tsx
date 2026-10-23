@@ -65,7 +65,7 @@ const GROUPS = [
   { id: 'rules', keys: [...RULE_KEYS] },
   {
     id: 'models',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
@@ -96,6 +96,7 @@ const valuesOf = (form: SharedForm): Values => ({
   ...providerValues('cli', form.cli),
   modelLabels: form.modelLabels,
   modelPrompts: JSON.stringify(Object.entries(form.modelPrompts)),
+  prompt: form.prompt ?? '',
   language: form.language ?? '',
   promptLanguage: form.promptLanguage,
   hiddenSkills: form.hiddenSkills.join('\n'),
@@ -149,6 +150,7 @@ function formOf(values: Values): SharedForm | undefined {
     cli: providerMap('cli', values),
     modelLabels: values.modelLabels as boolean,
     modelPrompts: Object.fromEntries(promptsOf(text('modelPrompts'))),
+    prompt: text('prompt').trim() === '' ? null : text('prompt'),
     language: language === '' ? null : (language as Language),
     promptLanguage: text('promptLanguage') as Language,
     hiddenSkills: linesOf(text('hiddenSkills')),
@@ -402,6 +404,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         </Section>
         <Section title={t.shared.sections.prompts}>
           {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}
+          <div className={marks.box('prompt')}>
+            <FieldHead label={t.settings.prompt} hint={t.shared.promptHint} htmlFor={fieldId('prompt')} />
+            <textarea
+              id={fieldId('prompt')}
+              className="settings__text"
+              rows={5}
+              value={text('prompt')}
+              placeholder={t.shared.promptPlaceholder}
+              onChange={(event) => edit('prompt', event.target.value)}
+            />
+            {marks.note('prompt', (value) => ((value as string).trim() === '' ? t.shared.none : (value as string)))}
+            <FieldNote error={errorOf('prompt')} />
+          </div>
           <div className={marks.box('modelPrompts')}>
             <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
             <ModelPrompts value={text('modelPrompts')} onChange={(value) => edit('modelPrompts', value)} />

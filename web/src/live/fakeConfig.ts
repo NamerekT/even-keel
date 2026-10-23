@@ -66,6 +66,7 @@ export const FAKE_SHARED: SharedForm = {
   cli: { claude: 'checked', codex: 'checked' },
   modelLabels: false,
   modelPrompts: {},
+  prompt: null,
   language: null,
   promptLanguage: 'en',
   hiddenSkills: ['update-config', 'keybindings-help', 'loop', 'schedule', 'init'],

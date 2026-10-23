@@ -43,10 +43,10 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
-    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts },
+    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
@@ -249,6 +249,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     ),
     value('modelLabels', 'modelLabels', form.modelLabels),
     value('modelPrompts', 'modelPrompts', Object.fromEntries(prompts)),
+    value('prompt', 'prompt', form.prompt?.trim() || undefined),
     value('language', 'language', form.language),
     { group: 'promptLanguage', key: 'promptLanguage', qualifier: '', value: form.promptLanguage, fallback: form.language ?? DEFAULT_LANGUAGE },
     value('hiddenSkills', 'hiddenSkills', names(form.hiddenSkills)),

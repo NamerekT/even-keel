@@ -723,7 +723,7 @@ export const en: Messages = {
     title: 'Project settings',
     hint: 'Kept in the database of Even Keel; npm run storage -- config-export and config-import edit them as a file. They apply at once, no restart of the service: the next session of the project gets them, a changed tracker connects anew and the slots follow — a busy slot stays until it is free.',
     prompt: 'Prompt',
-    promptHint: 'Added to the prompt of every new session of the project.',
+    promptHint: "Added to the prompt of every new session of the project, after the prompt of Settings. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",
     promptPlaceholder: 'Run npm test before merging.',
     beforeStart: 'Commands before start',
     beforeStartHint:
@@ -960,6 +960,9 @@ export const en: Messages = {
       "Checked — Even Keel downloads the version it was last checked against into its own folder and runs sessions on it; until the download ends they run on the installed CLI. Installed — the CLI on this machine, on whatever version it updated itself to. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. For every project.",
     cliSources: { checked: 'Checked', system: 'Installed' } as Record<string, string>,
     modelLabelsHint: "For projects that don't set it. On — a task's label Claude | sonnet, Codex | gpt-6.1-sol or a bare Codex picks its session.",
+    promptHint:
+      "Added to the prompt of every new session of every project and agent, before the project's own prompt, which adds to it rather than replaces it. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",
+    promptPlaceholder: 'Answer in English. Run the tests before every commit.',
     modelPrompts: 'Model prompts',
     modelPromptsHint: 'Added to the prompt of sessions on its model, by the name as it goes to the CLI.',
     promptModel: 'Model',
