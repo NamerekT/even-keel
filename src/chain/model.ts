@@ -284,6 +284,8 @@ export interface DispatcherDeps {
   stop: (session: HandoffSession) => Promise<void>
   /** Cleans up after the task; `pull` — after a task whose pull request was closed. */
   finish: (project: string, task: string, pull?: PullCleanup) => Promise<FinishOutcome>
+  /** Syncs the project's main the way the cleanup does (`syncMain`): the next try of a sync that could not reach a remote. */
+  sync: (project: string) => Promise<Notice | null>
   /** Reads the project's tasks from its tracker anew and hands them over (`setTasks`); resolves once done or failed. */
   refresh: (project: string) => Promise<void>
   log: (message: string) => void

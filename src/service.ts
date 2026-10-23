@@ -996,6 +996,13 @@ function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
+/** Syncs the project's main with its remotes the way the cleanup after Done does. */
+async function syncProject(project: string): Promise<Notice | null> {
+  const repo = configStore.current.projects[project]!
+  const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
+  return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, branchOf(project))
+}
+
 const dispatcher = new Dispatcher(await loadChainState(db), {
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
@@ -1102,6 +1109,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
     return outcome
   },
+  sync: syncProject,
   refresh: async (project) => void (await refreshProject(project)),
   log: (message) => console.log(message),
   reviews: reviewDeps({
@@ -1197,11 +1205,7 @@ const forwards = new ForwardMerger({
     return chainQuiet(dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
   },
   git: runGit,
-  sync: async (project) => {
-    const repo = configStore.current.projects[project]!
-    const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
-    return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, branchOf(project))
-  },
+  sync: syncProject,
   now: () => new Date(),
   changed: () => hub.broadcast('state', getState()),
   log: (message) => console.log(message),

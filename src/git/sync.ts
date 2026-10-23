@@ -4,6 +4,15 @@ import type { Git } from './types.js'
 /** A push refused because the remote got commits after the fetch: another clone of it pushed meanwhile. */
 const REJECTED = /\[rejected\]/
 
+/** What git (curl or ssh under it) says when it never reached the remote; a refusal of the remote is not among it. */
+const UNREACHABLE =
+  /Failed to connect|Could not resolve host|Could not resolve hostname|Temporary failure in name resolution|Operation timed out|Connection timed out|Connection reset|Connection refused|Network is unreachable|No route to host/i
+
+/** Whether a sync failed only because a remote could not be reached, so a later try may go through (BTN-267). */
+export function isNetworkFailure(failure: Notice): boolean {
+  return (failure.code === 'sync.fetch' || failure.code === 'sync.push' || failure.code === 'sync.alias') && UNREACHABLE.test(failure.detail ?? '')
+}
+
 // A `git sync` alias wins: the repository's own one always, the user's global one only for a branch named main,
 // since such an alias is written for main. Without it the main branch is merged from every remote and pushed
 // back to each, the same as the alias the project was built with. A push rejected because another clone of the

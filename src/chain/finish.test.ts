@@ -198,6 +198,94 @@ describe('Dispatcher finishing a done task', () => {
     })
   })
 
+  describe('a sync of main that could not reach the remote', () => {
+    const offline = notice('sync.fetch', { remote: 'github' }, { detail: 'fatal: Failed to connect to github.com port 443 after 21096 ms' })
+    const later = (clock: { now: Date }, ms: number) => (clock.now = new Date(clock.now.getTime() + ms))
+
+    async function closeAbc1(options: Parameters<typeof setup>[0]) {
+      const fixture = setup({ finish: () => ({ warnings: [], syncError: offline }), ...options })
+      fixture.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+      fixture.dispatcher.start('ABC')
+      await fixture.dispatcher.idle()
+      fixture.dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+      await fixture.dispatcher.idle()
+      return fixture
+    }
+
+    it('is tried again 30 s later while the chain goes on, and leaves no warning once it goes through', async () => {
+      const { dispatcher, launched, synced, clock, log } = await closeAbc1({})
+      expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+      expect(dispatcher.state.leftovers).toEqual({})
+      expect(synced).toEqual([])
+
+      later(clock, 29_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual([])
+
+      later(clock, 1_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC'])
+      expect(dispatcher.state.leftovers).toEqual({})
+      expect(log.filter((line) => line.startsWith('git: sync of ABC after ABC-1'))).toHaveLength(2)
+    })
+
+    it('becomes a warning after the third failed try, 2 min after the second', async () => {
+      const { dispatcher, synced, clock, log } = await closeAbc1({ sync: () => offline })
+      later(clock, 30_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC'])
+      expect(dispatcher.state.leftovers).toEqual({})
+
+      later(clock, 119_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC'])
+
+      later(clock, 1_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC', 'ABC'])
+      expect(dispatcher.state.leftovers).toEqual({
+        ABC: [{ task: 'ABC-1', at: clock.now.toISOString(), notice: notice('cleanup.syncFailed', {}, { cause: offline }) }],
+      })
+
+      later(clock, 600_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC', 'ABC'])
+      expect(log.filter((line) => line.startsWith('git: sync of ABC after ABC-1'))).toHaveLength(3)
+    })
+
+    it('becomes a warning at once when the remote refuses on a later try', async () => {
+      const refused = notice('sync.push', { remote: 'github', main: 'main' }, { detail: 'remote: Permission denied' })
+      const { dispatcher, synced, clock } = await closeAbc1({ sync: () => refused })
+      later(clock, 30_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual(['ABC'])
+      expect(dispatcher.state.leftovers).toEqual({
+        ABC: [{ task: 'ABC-1', at: clock.now.toISOString(), notice: notice('cleanup.syncFailed', {}, { cause: refused }) }],
+      })
+    })
+
+    it('is not tried again once the cleanup after the next task syncs main', async () => {
+      let syncError: typeof offline | null = offline
+      const { dispatcher, synced, clock } = await closeAbc1({ finish: () => ({ warnings: [], syncError }) })
+      syncError = null
+      dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2', done)])
+      await dispatcher.idle()
+
+      later(clock, 30_000)
+      dispatcher.check()
+      await dispatcher.idle()
+      expect(synced).toEqual([])
+      expect(dispatcher.state.leftovers).toEqual({})
+    })
+  })
+
   it('picks up an unfinished cleanup after a restart', async () => {
     const state = { ...emptyChainState(), active: [{ project: 'ABC', current: null, paused: false, error: null, closing: 'ABC-1' }] }
     const { dispatcher, finished, launched } = setup({ state })

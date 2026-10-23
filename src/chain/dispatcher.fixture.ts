@@ -55,6 +55,8 @@ export interface SetupOptions {
   unattended?: boolean
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
+  /** What a sync of main out of a cleanup gives, by project; absent — it goes through. */
+  sync?: (project: string) => Notice | null
   /** By project, or by the id prefix of a feed's tasks. */
   rules?: Record<string, ChainRules>
   main?: MainCheckDeps
@@ -79,6 +81,7 @@ export function setup(options: SetupOptions = {}) {
   const refuse = options.refuse ?? {}
   const log: string[] = []
   const finished: string[] = []
+  const synced: string[] = []
   /** The cleanups after tasks with a pull request, by task. */
   const pulled: Record<string, PullCleanup> = {}
   /** The text each launch carried at the end of its prompt, by task. */
@@ -152,6 +155,10 @@ export function setup(options: SetupOptions = {}) {
       if (pull !== undefined) pulled[id] = pull
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
+    sync: async (project) => {
+      synced.push(project)
+      return options.sync?.(project) ?? null
+    },
     refresh: async (project) => {
       refreshed.push(project)
       const tasks = tracker[project]
@@ -172,6 +179,7 @@ export function setup(options: SetupOptions = {}) {
     refuse,
     log,
     finished,
+    synced,
     pulled,
     extras,
     saved,

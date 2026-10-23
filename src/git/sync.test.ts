@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from './types.js'
-import { fastForwardMain, syncMain } from './sync.js'
+import { fastForwardMain, isNetworkFailure, syncMain } from './sync.js'
 import { notice } from '../notice/notice.js'
 
 const repo = '/home/john/repo'
@@ -135,6 +135,24 @@ describe('syncMain', () => {
     const { git, calls } = fakeGit({ 'config --get alias.sync': { out: '!sh sync.sh' }, sync: { code: 1, out: 'sync: origin/main does not merge cleanly' } })
     expect((await syncMain(git, repo, ['origin']))?.code).toBe('sync.alias')
     expect(calls.filter((call) => call === 'sync')).toHaveLength(1)
+  })
+})
+
+describe('isNetworkFailure', () => {
+  const unreachable = "fatal: unable to access 'https://github.com/john/repo.git/': Failed to connect to github.com port 443 after 21096 ms: Couldn't connect to server"
+
+  it('takes a fetch, a push or the alias that could not reach the remote', () => {
+    expect(isNetworkFailure(notice('sync.fetch', { remote: 'github' }, { detail: unreachable }))).toBe(true)
+    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'fatal: unable to access: Could not resolve host: git.example.com' }))).toBe(true)
+    expect(isNetworkFailure(notice('sync.alias', { exit: 1 }, { detail: 'ssh: connect to host git.example.com port 22: Connection timed out' }))).toBe(true)
+    expect(isNetworkFailure(notice('sync.fetch', { remote: 'origin' }, { detail: 'error: RPC failed; curl 56 Recv failure: Connection reset by peer' }))).toBe(true)
+  })
+
+  it('leaves a refusal of the remote and anything but a fetch or a push', () => {
+    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: rejected.out }))).toBe(false)
+    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'remote: Permission denied\nfatal: unable to access: The requested URL returned error: 403' }))).toBe(false)
+    expect(isNetworkFailure(notice('sync.merge', { remote: 'origin', main: 'main' }, { detail: 'Failed to connect' }))).toBe(false)
+    expect(isNetworkFailure(notice('sync.notMain', { repo, branch: 'abc-7/task', main: 'main' }))).toBe(false)
   })
 })
 
