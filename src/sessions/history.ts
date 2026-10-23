@@ -5,6 +5,8 @@ import { blocksOf, imagesOf, parseEntry, type TranscriptImage } from './entry.js
 import { TranscriptFold, type Feed, type TranscriptSummary } from './transcript.js'
 
 const SESSION_ID = /^[0-9a-f][0-9a-f-]{7,63}$/i
+/** Any agent's session id: Codex's are UUIDs as Claude's, OpenCode's `ses_<base62>`; anything else is refused. */
+const ANY_SESSION_ID = /^[\w-]{1,128}$/
 const HISTORY_FEED = 5_000
 
 export async function readSessionRecord(projectsDir: string, sessionId: string): Promise<SessionRecord | undefined> {
@@ -34,7 +36,7 @@ export async function readTranscript(projectsDir: string, sessionId: string, aft
 
 /** The path of the session's transcript; `undefined` — the folder has none. */
 export async function transcriptFile(projectsDir: string, sessionId: string): Promise<string | undefined> {
-  if (!SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
+  if (!isClaudeId(sessionId)) return undefined
   for (const dir of await readdir(projectsDir).catch(() => [])) {
     const file = join(projectsDir, dir, `${sessionId}.jsonl`)
     if (await stat(file).then((info) => info.isFile(), () => false)) return file
@@ -63,8 +65,13 @@ async function foldTranscript(projectsDir: string, sessionId: string, fold: Tran
 }
 
 async function readSessionFile(projectsDir: string, sessionId: string): Promise<string | undefined> {
-  if (!SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
-  return findTranscript(projectsDir, `${sessionId}.jsonl`)
+  return isClaudeId(sessionId) ? findTranscript(projectsDir, `${sessionId}.jsonl`) : undefined
+}
+
+/** Whether the id can be a Claude session's; another agent's id is `false`, so the service asks the next account folder. */
+function isClaudeId(sessionId: string): boolean {
+  if (!ANY_SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
+  return SESSION_ID.test(sessionId)
 }
 
 async function findTranscript(projectsDir: string, name: string): Promise<string | undefined> {

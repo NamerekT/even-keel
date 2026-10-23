@@ -57,6 +57,14 @@ describe('readSessionRecord', () => {
     await expect(transcriptFile(projects, '../secrets')).rejects.toThrow('not a session id')
   })
 
+  it("returns nothing for another agent's session id, so the next account folder is asked", async () => {
+    const other = 'ses_e962cff7affeVmf39ML5qd4PD7'
+    expect(await readSessionRecord(projects, other)).toBeUndefined()
+    expect(await readTranscript(projects, other)).toBeUndefined()
+    expect(await transcriptFile(projects, other)).toBeUndefined()
+    expect(await readTranscriptImage(projects, other, 'toolu_1', 0)).toBeUndefined()
+  })
+
   it('reads the whole transcript with the first prompt and texts uncut', async () => {
     const dir = join(projects, 'C--repos-example')
     mkdirSync(dir)
