@@ -160,7 +160,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             <Said notice={order.error} />
           </p>
         )}
-        <Leftovers state={state} project={key} />
+        <Leftovers state={state} project={key} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
         <Forward state={state} project={key} />
         <EmptyCall state={state} project={key} />
         {blocks.length === 0 ? (
@@ -326,9 +326,10 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
   )
 }
 
-function Leftovers({ state, project }: { state: EvenKeelState; project: string }) {
+/** A task whose chain row shows what its cleanup left, `rows`, is told of there, with its own "Done" (BTN-332). */
+function Leftovers({ state, project, rows }: { state: EvenKeelState; project: string; rows: string[] }) {
   const { send, sending, failure } = useCommand()
-  const leftovers = state.chain.leftovers[project] ?? []
+  const leftovers = (state.chain.leftovers[project] ?? []).filter((each) => !rows.includes(each.task))
   if (leftovers.length === 0) return null
   const tasks = [...new Set(leftovers.map((each) => each.task))]
 

@@ -12,24 +12,27 @@ export interface ArchiveView<T> {
   hiddenFixes: number
 }
 
-export function archiveView<T extends { id: string; lamp: BlockLamp }>(
+/** A closed task whose cleanup left work in its folder stays in view, out of the archive's count (BTN-332). */
+export function archiveView<T extends { id: string; lamp: BlockLamp; work?: unknown }>(
   blocks: T[],
   pages: number,
   focus: string,
 ): ArchiveView<T> {
   const closed = blocks.findIndex((block) => !isClosedLamp(block.lamp))
-  const archived = Math.max(0, (closed < 0 ? blocks.length : closed) - 1)
-  const target = blocks.findIndex((block) => block.id === focus)
-  const needed = target >= 0 && target < archived ? Math.ceil((archived - target) / ARCHIVE_PAGE) : 0
+  const archivable = blocks.slice(0, Math.max(0, (closed < 0 ? blocks.length : closed) - 1)).filter((block) => block.work === undefined)
+  const archived = archivable.length
+  const target = archivable.findIndex((block) => block.id === focus)
+  const needed = target >= 0 ? Math.ceil((archived - target) / ARCHIVE_PAGE) : 0
   const shown = Math.min(archived, Math.max(pages, needed) * ARCHIVE_PAGE)
   const hidden = archived - shown
+  const gone = new Set(archivable.slice(0, hidden))
   const fixes = (part: T[]) => part.filter((block) => block.lamp === 'fixed').length
   return {
-    visible: blocks.slice(hidden),
+    visible: blocks.filter((block) => !gone.has(block)),
     shown,
     hidden,
     next: Math.min(ARCHIVE_PAGE, hidden),
-    shownFixes: fixes(blocks.slice(hidden, archived)),
-    hiddenFixes: fixes(blocks.slice(0, hidden)),
+    shownFixes: fixes(archivable.slice(hidden)),
+    hiddenFixes: fixes(archivable.slice(0, hidden)),
   }
 }

@@ -38,14 +38,31 @@ export class TaskWorks {
   private readonly found = new Map<string, Record<string, TaskWork>>()
   private readonly readAt = new Map<string, number>()
   private readonly failures = new Map<string, string>()
-  private readonly reading = new Set<string>()
+  private readonly reading = new Map<string, Promise<void>>()
 
   constructor(private readonly deps: TaskWorksDeps) {}
 
   async poll(project: string): Promise<void> {
     const at = this.readAt.get(project)
     if (this.reading.has(project) || (at !== undefined && this.deps.now() - at < this.deps.ttlMs)) return
-    this.reading.add(project)
+    await this.read(project)
+  }
+
+  /** Reads the project now, after a read under way: a cleanup has just changed its folders (BTN-332). */
+  async refresh(project: string): Promise<void> {
+    await this.reading.get(project)
+    await this.read(project)
+  }
+
+  private read(project: string): Promise<void> {
+    const reading: Promise<void> = this.readNow(project).finally(() => {
+      if (this.reading.get(project) === reading) this.reading.delete(project)
+    })
+    this.reading.set(project, reading)
+    return reading
+  }
+
+  private async readNow(project: string): Promise<void> {
     this.readAt.set(project, this.deps.now())
     try {
       const works = await this.deps.read(project)
@@ -59,8 +76,6 @@ export class TaskWorks {
       const message = englishOf(noticeOf(error))
       if (this.failures.get(project) !== message) this.deps.log(`work: ${project}: the task worktrees were not read: ${message}`)
       this.failures.set(project, message)
-    } finally {
-      this.reading.delete(project)
     }
   }
 

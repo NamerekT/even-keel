@@ -132,6 +132,29 @@ describe('TaskWorks', () => {
     expect(context.logged).toEqual(['work: abc: the task worktrees were not read: no repo'])
   })
 
+  it('reads again at once after a cleanup, past the minute and after a read already under way', async () => {
+    let release = () => {}
+    const answers = [{ 'ABC-1': work }, {}]
+    let reads = 0
+    const works = new TaskWorks({
+      read: async () => {
+        const answer = answers[Math.min(reads++, answers.length - 1)]!
+        if (reads === 1) await new Promise<void>((resolve) => (release = resolve))
+        return answer
+      },
+      ttlMs: 60_000,
+      now: () => 0,
+      onChange: () => {},
+      log: () => {},
+    })
+    const first = works.poll('abc')
+    const fresh = works.refresh('abc')
+    release()
+    await Promise.all([first, fresh])
+    expect(reads).toBe(2)
+    expect(works.view()).toEqual({})
+  })
+
   it('drops the projects no longer configured', async () => {
     const context = setup([{ 'ABC-1': work }])
     await context.works.poll('abc')

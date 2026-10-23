@@ -93,7 +93,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           {block.status}
           {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
-          {block.work !== undefined && <WorkChip work={block.work} />}
+          {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
       )}
       <Actions block={block} scale={scale} ci={ci} />
