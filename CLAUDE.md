@@ -78,10 +78,11 @@ Branches (`docs/releases.md`): `main` is the latest release and gets no commits 
 Work on this repository is tracked in Huly: project `BTN` for the next version, `EKR` for fixes of the released one (the same rules, with the key `EKR`/`ekr`).
 The rules, statuses and order of actions are in the `huly-tracker` skill; read it before creating a task or starting work on one.
 
-- Code is written under an active task, in its worktree. A direct request without a task is a commit to the branch of the checkout it is made in — `dev` or `release/v<x.y>`, never `main` (this overrides the global CLAUDE.md).
+- A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code — a checkout of `btn-<n>/…` already moves the task by the hooks. Code by hand only when the user says to do it here (this overrides the global CLAUDE.md's "without a task — commit at once").
+- Code is written under an active task, in its worktree. Work the user asked to do here without a task is a commit to the branch of the checkout it is made in — `dev` or `release/v<x.y>`, never `main`.
 - Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`.
 - The content of tasks (titles, descriptions, comments) is in Russian.
-- A session brings a task to the project's branch itself: after the reviewer's approval it merges the branch (`git merge --no-edit` in the main working copy). The user gets a report of what was done, not a merge command. After the merge, a session from the chain leaves the worktree, the branch and the push alone — Even Keel does that and closes the task. A session started by hand cleans up after itself per the skill and pushes through `git sync`.
+- A session brings a task to the project's branch itself: it merges the branch (`git merge --no-edit` in the main working copy). The user gets a report of what was done, not a merge command. After the merge, a session from the chain leaves the worktree, the branch and the push alone — Even Keel does that and closes the task. A session started by hand cleans up after itself per the skill and pushes through `git sync`.
 
 An exception to the skill: working with the Huly API directly is allowed here — it is the point of the project.
 
