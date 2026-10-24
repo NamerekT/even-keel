@@ -1,15 +1,3 @@
-.accounts-page__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.accounts-page__head .page__title {
-  margin: 0;
-}
-
 .add-window {
   display: flex;
   flex-direction: column;
@@ -21,59 +9,88 @@
   background: var(--surface);
 }
 
-/* One section per provider: its name and its own "Add", the way is picked in the add dialog. */
+/*
+ * One card per provider. A section grows by its number of cards (`--cards`, set inline): sections of one or two cards
+ * share a row, a long one takes a row of its own, and on a narrow screen each is a row.
+ */
+.account-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
 .account-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex: var(--cards) 1 calc(var(--cards) * 340px);
 }
 
-.account-group__head {
-  display: flex;
+/* The head is a band across the card's top, as a settings card's (BTN-343): the provider's icon, its name, "Add". */
+.account-group > .ui-card__head {
   align-items: center;
-  gap: 12px;
   min-height: 30px;
+  margin: -14px calc(-1 * var(--space-16)) 0;
+  padding: var(--space-6) var(--space-16);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 
-.account-group__title {
+.account-group .ui-card__title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
+}
+
+.account-group .ui-card__title .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.account-group__empty {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-13);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
-.account-group__title .icon {
-  width: 15px;
-  height: 15px;
-}
-
-.account-group > .queue__empty {
-  margin: 0;
-}
-
+/* Grown to the section's height, so the cards of sections side by side keep their feet on one line. */
 .account-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+  flex: 1;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-12);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* The account's colour is a stripe mixed down to the card, so it tells accounts apart without looking like a state. */
 .account-card-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: var(--space-8);
+  min-width: 0;
+  padding: var(--space-12) 14px;
   border: 1px solid var(--border);
-  border-top: 3px solid var(--series);
+  border-top: 3px solid color-mix(in srgb, var(--series) 45%, var(--surface));
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+/* The account the chains run on: a pill at the head's right, the one state the card shows by colour. */
+.account-card-item__chain {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.account-card-item__chain .icon {
+  width: 12px;
+  height: 12px;
 }
 
 /* The card's name renames on a click, as the project's name does: a frame only on pointing or focus. */
@@ -108,14 +125,14 @@
   color: var(--fg);
 }
 
-/* What the card changes stays in one row at its bottom, level across a row of cards: Remove, Renew, then the roles field. */
+/* The frequent actions in one row at the card's bottom, level across a row of cards, and ⋯ at its right. */
 /* Never wraps: a second row would lift the buttons above their neighbours' in the row of cards. */
 .account-card-item__foot {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  align-items: center;
+  gap: var(--space-8);
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: var(--space-4);
 }
 
 .account-card-item__foot:empty {
@@ -133,8 +150,8 @@
   flex: none;
 }
 
-.account-card-item__foot > .roles {
-  flex: 1 1 0;
+.account-card-item__foot > .more-menu {
+  margin-left: auto;
 }
 
 /* `block-glow` comes from chain.css: the card the add dialog has just added. */

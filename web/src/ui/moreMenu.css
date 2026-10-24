@@ -1,0 +1,68 @@
+/* A ⋯ button and the list of a card's rare actions under it. */
+.more-menu {
+  display: flex;
+}
+
+.more-menu__button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  padding-inline: var(--space-6);
+}
+
+.more-menu__button[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.more-menu__list {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  min-width: 160px;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  font: var(--text-14)/1.45 var(--font);
+  list-style: none;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+.more-menu__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: var(--space-6) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.more-menu__item:hover,
+.more-menu__item:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.more-menu__item--danger {
+  color: var(--error-fg);
+}
+
+.more-menu__item[aria-disabled='true'] {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.more-menu__why {
+  color: var(--warn-fg);
+  font-size: var(--text-12);
+}

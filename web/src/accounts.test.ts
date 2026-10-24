@@ -138,13 +138,21 @@ describe('accountGroups', () => {
     ])
   })
 
+  it('puts the empty groups after those with accounts, so on the page two of them share a row', () => {
+    expect(groups([of('zen', 'opencode'), of('global', 'claude')])).toEqual([
+      ['claude', ['global']],
+      ['opencode', ['zen']],
+      ['codex', []],
+    ])
+  })
+
   it('lists an addable provider with no account as an empty group, and an agent it does not know after the rest', () => {
-    expect(accountGroups({ ...view([of('global', 'claude'), of('other', 'gemini')]) }, now).map((group) => group.agent)).toEqual([
+    expect(accountGroups({ ...view([of('global', 'claude'), of('other', 'gemini'), of('zen', 'opencode')]) }, now).map((group) => group.agent)).toEqual([
       'claude',
-      'codex',
       'opencode',
-      'copilot',
       'gemini',
+      'codex',
+      'copilot',
     ])
   })
 

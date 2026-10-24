@@ -9,7 +9,7 @@ import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
-import { connectionOf, type Connection } from '../accounts.js'
+import { connectionOf } from '../accounts.js'
 import { formatAgo, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -17,7 +17,9 @@ import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
+import { HelpTip } from '../pages/settingsParts.js'
+import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
+import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
 import './accountAdd.css'
 
@@ -48,8 +50,8 @@ export function useTokens(account: AccountView): Tokens {
 /**
  * What an account whose limit nothing tells shows instead of windows (BTN-342): why there are none, the tokens it carried
  * by Tally, and when it last hit its limit, so one that keeps hitting it shows even with no ceiling known. `why`: `line`
- * — on a line of its own; `tip` — the drawer's way, in the tip of the tokens; `plain` — on a line, inside a card that is
- * itself a tip, so no tip of its own.
+ * — the card's way, a short line with the reason behind its "?"; `tip` — the drawer's way, in the tip of the tokens;
+ * `plain` — on a line, inside a card that is itself a tip, so no tip of its own.
  */
 export function UnknownLimit({ entry, tokens, now, className, why }: { entry: AccountEntry; tokens: Tokens; now: Date; className: string; why: 'line' | 'tip' | 'plain' }) {
   const counted = tokens === null ? null : (tokens[entry.key] ?? { day: 0, month: 0 })
@@ -64,7 +66,13 @@ export function UnknownLimit({ entry, tokens, now, className, why }: { entry: Ac
   )
   return (
     <>
-      {why !== 'tip' && <p className={className}>{limitsNote(entry)}</p>}
+      {why === 'plain' && <p className={className}>{limitsNote(entry)}</p>}
+      {why === 'line' && (
+        <p className={className}>
+          {t.account.noLimitsShort}
+          <HelpTip text={entry.usage.reason === null ? t.account.noLimitsWhy : say(entry.usage.reason)} align="start" />
+        </p>
+      )}
       {why === 'plain' ? (
         <p className={className}>{text}</p>
       ) : (
@@ -114,18 +122,16 @@ export function globalFolder(agent: string): string {
   return agent === CODEX ? '~/.codex' : '~/.claude'
 }
 
-const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, apiKey: KeyIcon }
 const COPIED_MS = 2000
 
 /**
- * Whose account it is and how it signs in, as two icons before the name: the agent's in the account's colour, so two
- * folders of one e-mail (Claude and Codex) or of look-alike names still read apart. Pointed at, it names both and
- * gives the account's quiet details: the sign-in left, the folder, a configuration still on its way. `dot` — the drawer's
- * way: the colour as a dot before a plain agent icon, the connection only in the tip.
+ * Whose account it is, as the agent's icon before the name in the account's colour, so two folders of one e-mail
+ * (Claude and Codex) or of look-alike names still read apart. Pointed at, it names the agent and how the account signs
+ * in, and gives its quiet details: the sign-in left, the folder, a configuration still on its way. `dot` — the drawer's
+ * way: the colour as a dot before a plain agent icon.
  */
 export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; now: Date; dot?: boolean }) {
   const connection = connectionOf(entry)
-  const Connected = CONNECTION_ICONS[connection]
   const left = loginLeft(entry.loginExpiresAt, now)
   const tip = (
     <>
@@ -143,9 +149,14 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
       <span className="account-mark__agent">
         <AgentIcon agent={entry.agent} />
       </span>
-      {!dot && <Connected />}
     </Tipped>
   )
+}
+
+/** The word of the card's head after the name: the plan of a subscription (`pro`, `free`), "API key" for a key, else none. */
+export function planText(entry: AccountEntry): string | null {
+  if (entry.apiKey) return t.account.connections.apiKey
+  return entry.status?.subscriptionType ?? null
 }
 
 export function AgentIcon({ agent }: { agent: string }) {
@@ -378,26 +389,22 @@ interface RemoveProps {
   send: Send
 }
 
-/** "Remove" behind a confirmation; a folder that is kept has it greyed, with why on pointing or focus. */
-export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
+/**
+ * The card's rare actions behind ⋯: "Remove", behind a confirmation; a folder that is kept has it greyed with why
+ * under it. A folder already being removed has none.
+ */
+export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
   const [confirming, setConfirming] = useState(false)
   const kept = removeProblem(view, entry.key)
 
   if (entry.removing) return null
-  if (kept !== undefined) {
-    return (
-      <Tipped className="account__actions" tip={say(kept)} align="start">
-        <button type="button" className="button button--small" aria-disabled="true">
-          {t.common.remove}
-        </button>
-      </Tipped>
-    )
-  }
   return (
-    <div className="account__actions">
-      <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(true)}>
-        {t.common.remove}
-      </button>
+    <>
+      <MoreMenu
+        label={t.account.more(accountName(entry, view.accounts))}
+        disabled={sending}
+        items={[{ label: t.common.remove, danger: true, problem: kept === undefined ? undefined : say(kept), pick: () => setConfirming(true) }]}
+      />
       {confirming && (
         <ConfirmDialog
           title={accountName(entry, view.accounts)}
@@ -409,7 +416,7 @@ export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
           onClose={() => setConfirming(false)}
         />
       )}
-    </div>
+    </>
   )
 }
 
