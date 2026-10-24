@@ -373,13 +373,14 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
       <span className="archived__head">
-        {isFixName(block.id) ? <Forge lamp={block.lamp} /> : <Lamp lamp={block.lamp} />}
+        {!isFixName(block.id) && <Lamp lamp={block.lamp} />}
         <Link to={{ hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
           {block.id}
         </Link>
       </span>
       <span className="archived__title" title={block.title ?? undefined}>
         {block.title}
+        {isFixName(block.id) && <Forge lamp={block.lamp} />}
       </span>
       {milestone !== null && <span className="archived__milestone">{milestone}</span>}
     </li>
@@ -530,7 +531,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {fix ? <Forge lamp={block.lamp} /> : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
+        {fix ? null : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
         {block.locked ? (
           link === null ? (
             <span className="block__key">{block.id}</span>
@@ -561,6 +562,7 @@ function Block(props: BlockProps) {
             // Plain text: a press anywhere on the row lands on the key's link and opens the session panel, the card (or a fix's CI) is in its head.
             block.title
           ))}
+        {fix && <Forge lamp={block.lamp} />}
       </p>
       {acting && (
         <ActionMeter project={project} session={metered} sessions={block.sessions} scale={scale}>
