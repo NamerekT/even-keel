@@ -46,6 +46,13 @@ export function ruleFileOf(path: string, home: string): RuleFile | null {
     const slash = rest.indexOf('/')
     return slash <= 0 ? null : configRule(rest.slice(slash + 1), rest.slice(0, slash))
   }
+  // The stores behind the links of ~/.claude (src/account/share.ts) take the keys their linked paths have.
+  if (lower.startsWith(`${lowerBase}/.claude-skills/`)) return configRule(`skills/${file.slice(base.length + '/.claude-skills/'.length)}`, null)
+  if (lower.startsWith(`${lowerBase}/.claude-memory/`)) {
+    const rest = file.slice(base.length + '/.claude-memory/'.length)
+    const slash = rest.indexOf('/')
+    return slash <= 0 ? null : configRule(`projects/${rest.slice(0, slash)}/memory/${rest.slice(slash + 1)}`, null)
+  }
   return projectRule(file.replace(WORKTREE, ''))
 }
 

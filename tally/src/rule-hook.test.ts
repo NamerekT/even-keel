@@ -35,11 +35,14 @@ describe('hookRuleFile', () => {
     expect(hookRuleFile('C:/Users/Jane/.claude/agents/scout.md', home)).toMatchObject({ kind: 'agent' })
     expect(hookRuleFile('D:\\Work\\app\\.claude\\worktrees\\abc-1\\docs\\CLAUDE.md', home)).toMatchObject({ kind: 'claude_md', display: 'D:/Work/app/docs/CLAUDE.md' })
     expect(hookRuleFile('D:/Work/app/.claude/settings.local.json', home)).toMatchObject({ kind: 'settings' })
+    expect(hookRuleFile('C:\\Users\\Jane\\.claude-skills\\coding\\SKILL.md', home)).toMatchObject({ kind: 'skill', display: '~/.claude/skills/coding/SKILL.md' })
+    expect(hookRuleFile('C:/Users/Jane/.claude-skills/coding/SKILL.md', home)).toMatchObject({ kind: 'skill', display: '~/.claude/skills/coding/SKILL.md' })
   })
 
   it('leaves out memory and files that are no rules', () => {
     expect(hookRuleFile('C:/Users/Jane/.claude/projects/D--Work-app/memory/note.md', home)).toBeNull()
     expect(hookRuleFile('C:/Users/Jane/.claude-memory/D--Work-app/MEMORY.md', home)).toBeNull()
+    expect(hookRuleFile('C:\\Users\\Jane\\.claude-memory\\D--Work-app\\MEMORY.md', home)).toBeNull()
     expect(hookRuleFile('D:/Work/app/src/main.ts', home)).toBeNull()
     expect(hookRuleFile('D:/Work/app/README.md', home)).toBeNull()
     expect(hookRuleFile('C:/Users/Jane/.githooks/hook.log', home)).toBeNull()
@@ -82,10 +85,15 @@ describe('afterEdit', () => {
     const other = afterEdit(edit('C:/Users/Jane/.claude/skills/coding/SKILL.md'), first.state, place)
     expect(other.state.files).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/coding/SKILL.md'])
     expect(other.context).toContain('~/.claude/skills/coding/SKILL.md')
+
+    const stored = afterEdit(edit('C:\\Users\\Jane\\.claude-skills\\coding\\SKILL.md'), other.state, place)
+    expect(stored).toEqual({ state: other.state, context: null })
+    expect(afterEdit(edit('C:/Users/Jane/.claude-skills/coding/SKILL.md'), EMPTY_STATE, place).state.files).toEqual(['~/.claude/skills/coding/SKILL.md'])
   })
 
   it('stays silent on other files and other tools', () => {
     expect(afterEdit(edit('C:/Users/Jane/.claude/projects/x/memory/a.md'), EMPTY_STATE, place)).toEqual({ state: EMPTY_STATE, context: null })
+    expect(afterEdit(edit('C:/Users/Jane/.claude-memory/x/a.md'), EMPTY_STATE, place)).toEqual({ state: EMPTY_STATE, context: null })
     expect(afterEdit({ ...edit('C:/Users/Jane/.claude/CLAUDE.md'), tool_name: 'Read' }, EMPTY_STATE, place).context).toBeNull()
   })
 })
