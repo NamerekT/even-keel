@@ -55,9 +55,8 @@ export interface AccountWatcherOptions {
   forget: (key: string) => void
   nameOf: (key: string) => string | null
   name: (key: string, name: string) => void
-  /** How the account's new sessions run, by the agent, the user's choice and whether it signs in with a key. */
+  /** How the account's new sessions run, by the agent, `execution` and whether it signs in with a key. */
   transportOf: (home: AccountHome, apiKey: boolean) => Transport | null
-  chooseTransport: (key: string, transport: Transport | null) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => string[]
   /** The projects whose sessions run in the folder, by the pool. */
@@ -215,8 +214,7 @@ export class AccountWatcher {
     void this.refresh().catch((error: unknown) => this.options.onError(error))
   }
 
-  /** `transport` — how a Claude account's sessions run, chosen with the key; ignored for another agent's. */
-  async addApiKey(name: string, key: string, agent: string, transport?: Transport): Promise<void> {
+  async addApiKey(name: string, key: string, agent: string): Promise<void> {
     const value = assertApiKey(key, agent)
     const verdict = await this.options.checkKey(agent, value)
     const provider = keyProvider(agent, value)
@@ -225,7 +223,6 @@ export class AccountWatcher {
     const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
-    if (transport !== undefined && this.options.transportOf(home, true) !== null) this.options.chooseTransport(home.key, transport)
     this.claimShared(home)
     await this.refresh()
   }
@@ -277,15 +274,6 @@ export class AccountWatcher {
   rename(key: string, name: string): void {
     if (this.options.homes.find(key) === undefined) throw fail('account.unknown', { key })
     this.options.name(key, name)
-    this.options.onChange()
-  }
-
-  /** Takes effect at the account's next launch: a running session keeps the way it started. */
-  setTransport(key: string, transport: Transport | null): void {
-    const home = this.options.homes.find(key)
-    if (home === undefined) throw fail('account.unknown', { key })
-    if (this.options.transportOf(home, false) === null) throw fail('account.noTransport', { key })
-    this.options.chooseTransport(key, transport)
     this.options.onChange()
   }
 

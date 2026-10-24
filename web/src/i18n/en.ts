@@ -430,10 +430,9 @@ export const en: Messages = {
     removeNow: 'Sign out and remove the folder?',
     keep: "Don't remove",
     transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
-    transportNow: (name: string) => `Sessions run through ${name}. Press to switch: the change applies to new sessions.`,
-    transportPick: 'How sessions run',
-    transportChoice:
-      "Agent SDK: a session outlives a restart of the service with its question open, and an answer or a chat message goes straight into it. CLI --bg: the CLI's own background sessions. You can switch it later on the account card; the change applies to new sessions.",
+    transportVia: (name: string) => `Sessions through ${name}`,
+    transportWhere:
+      "Set by Claude Code's Execution in the Even Keel settings → Providers and models. The Agent SDK runs only on the Checked CLI version, otherwise sessions go on CLI --bg. A session already running stays on what it started on.",
     transportTerms:
       "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
     waitingLink: 'Waiting for the sign-in link…',
@@ -980,8 +979,8 @@ export const en: Messages = {
     execution: 'Execution',
     executionOf: (provider: string) => `Execution on ${provider}`,
     executionHint:
-      'In the sandbox — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; without it, a session does everything without limits on this machine. For every project.',
-    modes: { sandbox: 'In the sandbox', bypass: 'Without the sandbox' } as Record<string, string>,
+      "Claude Code: how its sessions run. Auto — an API key account through the Agent SDK, a subscription on CLI --bg. With the Agent SDK a session outlives a restart of the service with its question open, and an answer or a chat message goes straight into it; it runs only on the Checked CLI version without EVEN_KEEL_CLAUDE_BIN, otherwise sessions go on CLI --bg. Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription it is your own call. Codex: in the sandbox — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; without it, a session does everything without limits on this machine. For every project; a change applies to new sessions.",
+    modes: { auto: 'Auto', bg: 'CLI --bg', sdk: 'Agent SDK', sandbox: 'In the sandbox', bypass: 'Without the sandbox' } as Record<string, string>,
     cli: 'CLI version',
     cliOf: (provider: string) => `CLI version of ${provider}`,
     cliHint:

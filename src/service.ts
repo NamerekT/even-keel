@@ -8,8 +8,8 @@ import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/cr
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkGitHubToken, checkOpenAiKey } from './account/keycheck.js'
-import { accountAt, chooseTransport, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
-import { transportOf } from './account/transport.js'
+import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { executionOfChoices, transportOf } from './account/transport.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
@@ -370,7 +370,7 @@ const runtimes = new Map<string, Agent>(
       checkedCli: () => configStore.current.cli[name] !== 'system',
       log: (line) => console.log(line),
       onCliChange: () => void cliVersions.check(),
-      transport: (home): string | null => transportOf(home.agent, ledger.accounts[home.key]?.transport, account.apiKey(home.key)),
+      transport: (home): string | null => transportOf(home.agent, configStore.current.execution[CLAUDE], account.apiKey(home.key)),
       unattended: () => configStore.current.unattended,
       language: () => configStore.current.language ?? promptLanguage(),
       onLimits: (key, reported) => limits.report(key, reported),
@@ -717,11 +717,7 @@ const account = new AccountWatcher({
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   nameOf: (key) => ledger.accounts[key]?.name ?? null,
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
-  transportOf: (home, apiKey) => transportOf(home.agent, ledger.accounts[home.key]?.transport, apiKey),
-  chooseTransport: (key, transport) => {
-    saveAccounts(chooseTransport(ledger, key, transport))
-    console.log(`account: ${key} starts its sessions on ${transportOf(CLAUDE, transport ?? undefined, account.apiKey(key))}${transport === null ? ' by default' : ''}`)
-  },
+  transportOf: (home, apiKey) => transportOf(home.agent, configStore.current.execution[CLAUDE], apiKey),
   loginBlock:(): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
   projectsOn: (key) => projectsByAccount(configStore.current, Object.keys(configStore.current.projects))[key] ?? [],
@@ -1949,6 +1945,23 @@ function projectsChanged(before: EvenKeelConfig): void {
   }
   const remoteProfiles = (config: EvenKeelConfig) => JSON.stringify(Object.entries(config.settings).map(([key, settings]) => [key, settings.remoteProfiles]))
   if (remoteProfiles(before) !== remoteProfiles(after)) ciWatches.tokensChanged()
+}
+
+// The accounts' own transports of schema v11 become `execution.claude` before the first launch (BTN-353), a folder gone
+// or no Claude one left out; the file drops them once the setting is written.
+if (ledger.transports !== undefined) {
+  const choices = Object.entries(ledger.transports).flatMap(([key, transport]) => {
+    const home = homes.find(key)
+    return home?.agent === CLAUDE ? [{ key, transport, apiKey: homes.apiKeyOf(home) !== null }] : []
+  })
+  const { execution, moved } = executionOfChoices(choices)
+  if (execution !== configStore.current.execution[CLAUDE]) configStore.saveExecution(CLAUDE, execution)
+  console.log(`accounts: Claude sessions run by execution.claude ${execution}, from the transports the accounts had`)
+  for (const each of moved) console.log(`accounts: ${each.key} ran its sessions on ${each.transport}, now on ${transportOf(CLAUDE, execution, each.apiKey)}`)
+  void writes.settled().then(() => {
+    const { transports: _, ...rest } = ledger
+    saveAccounts(rest)
+  })
 }
 
 monitor.start()

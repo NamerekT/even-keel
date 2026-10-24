@@ -24,8 +24,11 @@ export function isProvider(name: string): boolean {
 export const SIGN_INS: Readonly<Record<string, readonly string[]>> = { [OPENCODE]: ['chatgpt', 'copilot', 'none'], [COPILOT]: ['none'] }
 export const NO_SIGN_IN = 'none'
 
-/** The modes of `execution` by provider, the default first; a provider not listed has none. */
-export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [CODEX]: ['sandbox', 'bypass'] }
+/**
+ * The modes of `execution` by provider, the default first; a provider not listed has none. Claude Code's is how its
+ * sessions run (BTN-353, `transportOf`): `auto` by the account's kind, or `claude --bg` or the Agent SDK for every one.
+ */
+export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['auto', 'bg', 'sdk'], [CODEX]: ['sandbox', 'bypass'] }
 
 /**
  * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `checked` — Even Keel's own copy of the

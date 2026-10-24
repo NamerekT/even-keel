@@ -3,7 +3,6 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { isTransport, type Transport } from './account/transport.js'
 import type { ModelList } from './agent/contract.js'
 import { formatEvent, type EventHub } from './events.js'
 import { guard, tokenForm, type GuardSettings } from './guard.js'
@@ -90,14 +89,12 @@ export interface AccountControl {
   /** `method` — the agent's way to sign in, for an agent with several (`Agent.login`). */
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
-  addApiKey(name: string, key: string, agent: string, transport?: Transport): Promise<void>
+  addApiKey(name: string, key: string, agent: string): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
   remove(account: string): Promise<void>
   keep(account: string): void
-  /** How the account's new Claude sessions run; `null` — by the default of its kind (`transportOf`). */
-  setTransport(account: string, transport: Transport | null): void
   /** The name the page shows for the account; blank — its default. */
   rename(account: string, name: string): void
   code(code: string): void
@@ -302,14 +299,12 @@ const COMMANDS: Record<string, Command> = {
       typeof body.name === 'string' ? body.name : '',
       textOf(body.key, 'key'),
       body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
-      body.transport === undefined ? undefined : (transportOfBody(body) ?? undefined),
     ),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
-  'account/transport': ({ account }, body) => account.setTransport(accountOf(body), transportOfBody(body)),
   'account/name': ({ account }, body) => account.rename(accountOf(body), typeof body.name === 'string' ? body.name : ''),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
@@ -1006,12 +1001,6 @@ function ciOf(raw: unknown): CiSettings {
 function accountOf(body: Record<string, unknown>): string {
   if (typeof body.account !== 'string' || body.account === '') throw fail('request.required', { field: 'account' })
   return body.account
-}
-
-function transportOfBody(body: Record<string, unknown>): Transport | null {
-  if (body.transport === null) return null
-  if (!isTransport(body.transport)) throw fail('request.required', { field: 'transport' })
-  return body.transport
 }
 
 function appOf(body: Record<string, unknown>): string {
