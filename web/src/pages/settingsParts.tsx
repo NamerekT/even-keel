@@ -242,6 +242,7 @@ export function FieldNote({ error }: { error: Notice | null }) {
 /**
  * The settings kept per provider as a table: a row per provider, a column per setting, so one setting lines up across providers.
  * A cell holds its control without a visible name — the column heads name them; `cell` gives it an accessible one.
+ * Too narrow for the columns (a phone), every cell takes its column's name over its control instead.
  */
 export function ProviderGrid({
   columns,
@@ -266,9 +267,15 @@ export function ProviderGrid({
         {providers.map((provider) => (
           <Fragment key={provider}>
             <span className="provider-grid__name">{providerName(provider)}</span>
-            {columns.map((column) => (
-              <Fragment key={column.key}>{cell(column.key, provider) ?? <span className="provider-grid__none">—</span>}</Fragment>
-            ))}
+            {columns.map((column) => {
+              const control = cell(column.key, provider)
+              return (
+                <div key={column.key} className={control === null ? 'provider-grid__cell provider-grid__cell--none' : 'provider-grid__cell'}>
+                  <FieldHead label={column.label} hint={column.hint} />
+                  {control ?? <span className="provider-grid__none">—</span>}
+                </div>
+              )
+            })}
           </Fragment>
         ))}
       </div>
