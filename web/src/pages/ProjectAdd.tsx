@@ -143,6 +143,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   // A tracker project another project has opens the milestones, and they stay open while they are typed (BTN-306).
   const trackerShared = check?.entry?.code === 'wizard.trackerShared'
+  // The key is red only with its reason under it: an empty key is said once, by what is missing at the bottom.
+  const keyRefused = check?.entry != null && fields.key.trim() !== '' && !trackerShared
   useEffect(() => {
     if (trackerShared) setMilestonesOpen(true)
   }, [trackerShared])
@@ -287,12 +289,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     maxLength={5}
                     value={fields.key}
                     placeholder="ABC"
-                    aria-invalid={check?.entry != null}
+                    aria-invalid={keyRefused || undefined}
                     onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
                   />
                 }
               >
-                {check?.entry != null && fields.key.trim() !== '' && !trackerShared && <Status>{say(check.entry)}</Status>}
+                {keyRefused && <Status>{say(check!.entry!)}</Status>}
               </Row>
             )}
             <Row

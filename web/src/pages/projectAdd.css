@@ -101,4 +101,14 @@
   .project-summary__wide {
     grid-column: auto;
   }
+
+  /* One field a row on a phone: the tracker's take the card's width as the others do. */
+  .project-add .tracker-fields__row > * {
+    flex-basis: 100%;
+  }
+
+  .project-add .tracker-fields__wide,
+  .project-add .tracker-fields__add {
+    width: 100%;
+  }
 }
