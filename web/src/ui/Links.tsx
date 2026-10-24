@@ -26,7 +26,7 @@ interface CountProps {
 
 function Count({ kind, title, icon, items, onCard }: CountProps) {
   const any = items.length > 0
-  const { shown, anchor, tip, show, hide, close } = useTip<HTMLSpanElement, HTMLSpanElement>(any)
+  const { shown, anchor, tip, show, point, hide, close } = useTip<HTMLSpanElement, HTMLSpanElement>(any)
 
   return (
     <span
@@ -34,10 +34,11 @@ function Count({ kind, title, icon, items, onCard }: CountProps) {
       className={`links__count links__count--${kind}${any ? '' : ' links__count--none'}`}
       tabIndex={any ? 0 : undefined}
       aria-label={`${title}: ${any ? items.map((item) => item.id).join(', ') : 0}`}
-      onMouseEnter={show}
+      onMouseEnter={point}
       onMouseLeave={hide}
       onFocus={show}
       onBlur={hide}
+      onClick={show}
       onKeyDown={(event) => event.key === 'Escape' && close()}
     >
       {icon}
