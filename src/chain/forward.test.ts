@@ -13,7 +13,7 @@ const merge = `merge --no-edit -m Merge branch 'release/v0.1' of EKR (release) i
 const onDev = { 'symbolic-ref --quiet --short HEAD': { out: 'dev\n' } }
 
 /** An answer given as a list is used up in order, the last one repeating. */
-function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null } = {}) {
+function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null; auto?: boolean } = {}) {
   const calls: string[] = []
   const state = {
     quiet: options.quiet ?? true,
@@ -48,6 +48,7 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
     },
     log: () => {},
     carrying: () => state.agent,
+    auto: () => options.auto ?? false,
     resolve: async (from, ask) => {
       state.asked.push([from, ask])
       state.agent = 'EKR-CARRY'
@@ -218,6 +219,45 @@ describe('ForwardMerger', () => {
       await quiet.merger.tick()
       await expect(quiet.merger.resolve('EKR')).rejects.toThrow(/EKR/)
       expect([...failed.state.asked, ...quiet.state.asked]).toEqual([])
+    })
+  })
+
+  describe('a conflict given to the agent by itself (BTN-370)', () => {
+    const conflict = { code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' }
+    const conflicted = (commits: string[]) => ({
+      [count]: { out: '2\n' },
+      ...onDev,
+      [merge]: conflict,
+      'diff --name-only --diff-filter=U': { out: 'src/a.ts\n' },
+      [`rev-parse --verify --quiet ${ref}^{commit}`]: commits.map((out) => ({ out: `${out}\n` })),
+    })
+
+    it('asks for the carry session as soon as the merge conflicts', async () => {
+      const { merger, state } = setup(conflicted(['abc1234def']), { auto: true })
+      await merger.tick()
+      expect(state.asked).toEqual([['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: conflict.out }]])
+      expect(merger.view().EKR).toMatchObject({ held: true, agent: 'EKR-CARRY' })
+    })
+
+    it('leaves the conflict for the button while the setting is off, and a failure that is no conflict always', async () => {
+      const off = setup(conflicted(['abc1234def']))
+      await off.merger.tick()
+      const failed = setup({ [count]: { out: '1\n' }, ...onDev, [merge]: { code: 128, out: 'fatal: no identity' } }, { auto: true })
+      await failed.merger.tick()
+      expect([...off.state.asked, ...failed.state.asked]).toEqual([])
+    })
+
+    it('asks no second session for the same release commit, and tries again once the release branch moved', async () => {
+      const { merger, calls, state } = setup(conflicted(['abc1234def', 'abc1234def', 'abc1234def', 'fed4321cba']), { auto: true })
+      await merger.tick()
+      state.agent = null
+      calls.length = 0
+      await merger.tick()
+      expect(calls).not.toContain(merge)
+      await merger.carry('EKR')
+      expect(state.asked).toHaveLength(1)
+      await merger.tick()
+      expect(state.asked.map(([, ask]) => ask.commit)).toEqual(['abc1234def', 'fed4321cba'])
     })
   })
 })

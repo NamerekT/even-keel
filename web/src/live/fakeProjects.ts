@@ -165,6 +165,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     pullRequests: false,
     intakeLabel: null,
     mergeInto: null,
+    carryAgent: false,
     fillMilestone: state.config.shared.fillMilestone,
     changelog: 'CHANGELOG.md',
     standards: [],

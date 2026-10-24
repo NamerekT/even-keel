@@ -48,7 +48,7 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
 }
 
 const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
-  repo: ['repo', 'branch', 'mergeInto', 'slot', 'changelog', 'color'],
+  repo: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'],
   tracker: ['tracker', 'trackerProject', 'fillMilestone', 'chain'],
   sessions: ['provider', 'models', 'accounts', 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'checkpointTokens', 'checkpointShares'],
   ci: ['check', 'afterGreen', 'ci', 'pullRequests'],

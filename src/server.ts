@@ -830,7 +830,7 @@ function feedDraftOf(body: Record<string, unknown>): FeedDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, fillMilestone, changelog, standards, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, carryAgent, fillMilestone, changelog, standards, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -845,6 +845,8 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
   // A page open since before release projects sends none.
   if (mergeInto !== undefined && mergeInto !== null && typeof mergeInto !== 'string') throw fail('request.required', { field: 'mergeInto' })
+  // And one open since before the carry by itself (BTN-370).
+  if (carryAgent !== undefined && typeof carryAgent !== 'boolean') throw fail('request.required', { field: 'carryAgent' })
   // So does one open since before the intake (BTN-262).
   if (intakeLabel !== undefined && intakeLabel !== null && typeof intakeLabel !== 'string') throw fail('request.required', { field: 'intakeLabel' })
   if (typeof changelog !== 'string') throw fail('request.required', { field: 'changelog' })
@@ -861,6 +863,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     pullRequests,
     intakeLabel: intakeLabel?.trim() || null,
     mergeInto: mergeInto?.trim() || null,
+    carryAgent: carryAgent ?? false,
     fillMilestone,
     changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
     standards: (standards ?? []) as Standard[],

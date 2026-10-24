@@ -60,6 +60,7 @@ export const FULL = {
       tracker: 'huly',
       huly: 'ABC',
       mergeInto: ' ABC ',
+      carryAgent: true,
       chain: { requiredMilestones: ['v1.0.1'], excludedMilestones: [] },
     },
   ],

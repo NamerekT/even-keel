@@ -979,6 +979,9 @@ export const en: Messages = {
     mergeIntoHint:
       'A release project: its main branch goes into the main branch of the project chosen here, in that project’s folder, once its chain is quiet (stopped, empty or paused). A conflict is aborted and waits for a merge by hand or "Resolve with the agent" on this project’s page: its session resolves it in the chain of the project chosen here.',
     mergeIntoNone: 'Nothing — a main project',
+    carryAgent: 'Resolve a conflict with the agent by itself',
+    carryAgentHint:
+      'A carry that conflicts goes to the agent’s session at once, without "Resolve with the agent". Unattended mode does this with the switch off too. A session that did not land the carry gets no successor until this project’s branch moves.',
     tracker: 'Tracker',
     trackerProject: (kind: string, title: string) => PLACE_LABELS[kind] ?? `Project in ${title}`,
     trackerProjectOptional: "May be left empty: then all of the team's issues.",

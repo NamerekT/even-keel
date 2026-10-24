@@ -73,13 +73,13 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
     const form = (project: string) => config.view().projects[project]!
 
-    const settings = { ...form('id-abc'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], remoteProfiles: { github: 'org' } }
+    const settings = { ...form('id-abc'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], remoteProfiles: { github: 'org' }, carryAgent: true }
     config.saveProject('id-abc', { ...settings, own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true } }, form('id-abc'))
     config.saveProject('id-xyz', { ...form('id-xyz'), prompt: 'Run tests.' }, form('id-xyz'))
     expect(await read()).toEqual(
       stored({
         projects: [
-          abc({ branch: 'master', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, remoteProfiles: { github: 'org' }, fillMilestone: true }),
+          abc({ branch: 'master', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, remoteProfiles: { github: 'org' }, carryAgent: true, fillMilestone: true }),
           xyz({ slot: 2, prompt: 'Run tests.' }),
         ],
       }),
@@ -94,6 +94,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       remoteProfiles: { github: 'org' },
       standards: [],
       mergeInto: null,
+      carryAgent: true,
       pullRequests: false,
       intakeLabel: null,
       fillMilestone: true,
