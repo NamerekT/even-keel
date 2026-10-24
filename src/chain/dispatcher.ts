@@ -7,7 +7,6 @@ import {
   type CurrentTask,
   type DispatcherDeps,
   type LaunchEntry,
-  type MainPush,
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
@@ -17,7 +16,9 @@ import { Handovers } from './handover.js'
 import { TaskLists } from './lists.js'
 import { MainCheck } from './maincheck.js'
 import { MainFix } from './mainfix.js'
+import { MainWait } from './mainwait.js'
 import { Reviews } from './reviews.js'
+import { returned as returnedSession, shelve } from './shelved.js'
 import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead, waitingBlockers } from './order.js'
@@ -49,6 +50,7 @@ export class Dispatcher {
   private readonly unchanged: Unchanged
   private readonly lists: TaskLists
   private readonly cleanups: Cleanups
+  private readonly waits: MainWait
 
   constructor(
     readonly state: ChainState,
@@ -78,8 +80,13 @@ export class Dispatcher {
             release: (project, task) => this.remember(project, task),
             closeUp: (project, task) => this.cleanups.closeUp(project, task),
             handOver: (task, session, reason, extra) => this.handovers.handOver(task, session, reason, extra),
-            heldByMain: (chain, task) => this.heldByMain(chain, task, (this.lists.tasks.get(chain.project) ?? []).map((open) => open.id), false),
+            heldByMain: (chain, task) => this.waits.heldByMain(chain, task, (this.lists.tasks.get(chain.project) ?? []).map((open) => open.id), false),
           })
+    this.waits = new MainWait(state, deps, this.main, this.lists, {
+      chainOf: (project) => this.chainOf(project),
+      halt: (chain, error) => this.halt(chain, error),
+      giveBack: (chain) => this.fixes!.giveBack(chain),
+    })
   }
 
   setTasks(project: string, tasks: Task[]): void {
@@ -482,89 +489,10 @@ export class Dispatcher {
     if (!released.includes(task)) released.push(task)
   }
 
-  /**
-   * The current task left the chain for an inactive status (BTN-245) with no question of its own session open: most
-   * likely the session asked in the tracker, so once the task is back a new session takes it (`returned`). A busy
-   * session keeps its task in the chain (`enters`), so the task leaves only once the turn has ended.
-   */
-  private shelve(project: string, current: CurrentTask): void {
-    const { task, sessionId } = current
-    if (sessionId === null || this.deps.asked(task) !== null) return
-    const shelved = (this.state.shelved[project] ?? []).filter((each) => each.task !== task)
-    this.state.shelved[project] = [...shelved, { task, sessionId, at: this.deps.now().toISOString() }]
-  }
-
-  /**
-   * The session a shelved task left behind, to be replaced now the task is back (invariant 1, exception 9): only while
-   * it is not mid-turn, waits on no question of its own and got no prompt or answer since — then someone talked to it.
-   */
-  private returned(project: string, task: string, live: string): HandoffSession | undefined {
-    const shelved = this.state.shelved[project]?.find((each) => each.task === task)
-    if (shelved?.sessionId !== live || this.deps.midTurn(task) || this.deps.asked(task) !== null) return undefined
-    const session = this.deps.handoff(task)
-    if (session?.sessionId !== live) return undefined
-    const since = Date.parse(shelved.at)
-    const talked = session.recent.some((line) => (line.kind === 'prompt' || line.kind === 'answer') && Date.parse(line.at) > since)
-    return talked ? undefined : session
-  }
-
   private take(chain: ActiveChain, current: CurrentTask): void {
     chain.current = current
     const released = this.released(chain.project)
     if (released.includes(current.task)) this.cleanups.keepReleased(chain.project, released.filter((id) => id !== current.task))
-  }
-
-  private async settleMain(): Promise<void> {
-    if (this.main === null) return
-    const { changed, stops, fixes } = await this.main.settle(this.lists.listedOpen)
-    for (const { project, notice } of stops) {
-      let chain = this.chainOf(project)
-      if (chain === undefined) {
-        this.state.queue = this.state.queue.filter((key) => key !== project)
-        chain = newChain(project)
-        this.state.active.push(chain)
-      }
-      this.halt(chain, notice)
-      this.fixes!.giveBack(chain)
-    }
-    for (const project of fixes) {
-      if (this.chainOf(project) === undefined && !this.state.queue.includes(project)) this.state.active.push({ ...newChain(project), fixOnly: true })
-    }
-    if (changed) this.deps.save(this.state)
-  }
-
-  /**
-   * Whether the launch of `task` waits for the CI's verdict on main or for the project's `commands.afterGreen`;
-   * with `ahead` the task's place is prepared meanwhile.
-   */
-  private heldByMain(chain: ActiveChain, task: string, listed: string[], ahead = true): boolean {
-    const after = this.main?.afterGreenRun(chain.project)
-    const hold = this.main?.holds(chain.project, listed, this.lists.listedOpen) ?? null
-    const wait: ActiveChain['ciWait'] =
-      after !== undefined
-        ? { ...after, after: true }
-        : hold === null || hold === 'fix'
-          ? undefined
-          : { commit: hold.commit, since: hold.at, ...('by' in hold ? { by: hold.by } : {}) }
-    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after || chain.ciWait?.by !== wait?.by) {
-      if (wait === undefined) delete chain.ciWait
-      else chain.ciWait = wait
-      this.deps.save(this.state)
-    }
-    if (wait !== undefined && ahead) this.main!.ahead(chain.project, task)
-    return after !== undefined || hold !== null
-  }
-
-  /** Runs the project's check on a push of main no CI judged, in the place of `task`; false — the chain is stopped. */
-  private async checkMain(chain: ActiveChain, task: string, push: MainPush): Promise<boolean> {
-    chain.ciWait = { commit: push.commit, since: this.deps.now().toISOString(), local: true }
-    this.deps.save(this.state)
-    const stop = await this.main!.checkLocally(chain.project, task, this.lists.listedOpen)
-    delete chain.ciWait
-    this.deps.save(this.state)
-    if (stop === null) return true
-    this.halt(chain, stop)
-    return false
   }
 
   /** A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12). */
@@ -607,7 +535,7 @@ export class Dispatcher {
     if (!this.deps.accountsRead()) return
     await this.cleanups.sweep()
     await this.reviews.sweep()
-    await this.settleMain()
+    await this.waits.settle()
     const seen = new Set<ActiveChain>()
     for (;;) {
       this.fill()
@@ -653,7 +581,7 @@ export class Dispatcher {
             this.deps.save(this.state)
             continue
           }
-          this.shelve(chain.project, chain.current)
+          shelve(this.state, this.deps, chain.project, chain.current)
           this.letGo(chain)
           this.deps.save(this.state)
         } else {
@@ -707,7 +635,7 @@ export class Dispatcher {
 
       const since = this.deps.now().toISOString()
       const live = this.deps.liveSession(task)
-      const returned = fix === undefined && live !== undefined ? this.returned(chain.project, task, live) : undefined
+      const returned = fix === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
       if (live !== undefined && returned === undefined) {
         delete chain.limitUntil
         delete chain.slotWait
@@ -720,7 +648,7 @@ export class Dispatcher {
       }
 
       // A handover keeps the task's place and branch: like a relay after a limit, it does not wait for main.
-      if (fix === undefined && returned === undefined && this.heldByMain(chain, task, listed)) return
+      if (fix === undefined && returned === undefined && this.waits.heldByMain(chain, task, listed)) return
 
       const blocked = this.deps.blocked(chain.project, task)
       if (blocked !== undefined) {
@@ -756,7 +684,7 @@ export class Dispatcher {
 
       const unjudged = fix === undefined ? this.main?.due(chain.project) : undefined
       if (unjudged !== undefined) {
-        if (!(await this.checkMain(chain, task, unjudged))) return
+        if (!(await this.waits.checkMain(chain, task, unjudged))) return
         continue
       }
 
