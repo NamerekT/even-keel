@@ -645,13 +645,16 @@ export class TallyDb implements Store {
     const found = new Set(records.map((record) => record.task))
     const missing = asked
       .filter((task) => !found.has(task))
-      .map((task) => ({ task, title: null, status: null, labels: [], related: [], priority: null, estimateH: null, component: null, milestone: null, done: null }))
+      .map((task) => ({
+        task, title: null, status: null, labels: [], related: [], priority: null, estimateH: null, component: null, milestone: null, done: null, createdAt: null,
+      }))
     await this.upsert(
-      `insert into tasks (task, title, status, labels, related, priority, estimate_h, component, milestone, done, fetched_at)
+      `insert into tasks (task, title, status, labels, related, priority, estimate_h, component, milestone, done, created_at, fetched_at)
        select task, title, status, array(select jsonb_array_elements_text(labels)), array(select jsonb_array_elements_text(related)),
-         priority, estimate_h, component, milestone, done, now()
+         priority, estimate_h, component, milestone, done, created_at, now()
        from jsonb_to_recordset($1::jsonb) as x(
-         task text, title text, status text, labels jsonb, related jsonb, priority text, estimate_h numeric, component text, milestone text, done boolean)
+         task text, title text, status text, labels jsonb, related jsonb, priority text, estimate_h numeric, component text, milestone text, done boolean,
+         created_at timestamptz)
        on conflict (task) do update set
          title = coalesce(excluded.title, tasks.title), status = coalesce(excluded.status, tasks.status),
          labels = case when excluded.title is null then tasks.labels else excluded.labels end,
@@ -661,6 +664,7 @@ export class TallyDb implements Store {
          component = case when excluded.title is null then tasks.component else excluded.component end,
          milestone = case when excluded.title is null then tasks.milestone else excluded.milestone end,
          done = case when excluded.title is null then tasks.done else excluded.done end,
+         created_at = coalesce(excluded.created_at, tasks.created_at),
          fetched_at = excluded.fetched_at`,
       [...records, ...missing],
     )

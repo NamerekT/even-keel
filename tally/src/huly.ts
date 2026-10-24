@@ -13,6 +13,8 @@ export interface TaskRecord {
   component: string | null
   milestone: string | null
   done: boolean | null
+  /** ISO time the task was created in Huly. */
+  createdAt: string | null
 }
 
 interface IssueDoc {
@@ -25,6 +27,7 @@ interface IssueDoc {
   estimation?: number
   component?: string | null
   milestone?: string | null
+  createdOn?: number
 }
 
 interface StatusDoc {
@@ -82,6 +85,9 @@ const require = createRequire(import.meta.url)
 const TAG_REFERENCE = 'tags:class:TagReference'
 const WON = 'task:statusCategory:Won'
 const PRIORITIES = ['no-priority', 'urgent', 'high', 'medium', 'low']
+const ISSUE_FIELDS = {
+  identifier: 1, title: 1, status: 1, relations: 1, priority: 1, estimation: 1, component: 1, milestone: 1, createdOn: 1,
+} as const
 export const REPORT_DESCRIPTION = 'Tally: активное время агента по ходам транскриптов'
 
 export async function fetchTasks(credentials: HulyCredentials, identifiers: string[], timeoutMs: number): Promise<TaskRecord[]> {
@@ -90,11 +96,10 @@ export async function fetchTasks(credentials: HulyCredentials, identifiers: stri
   const ISSUE_STATUS = tracker.class.IssueStatus
   const client = await connect(credentials, timeoutMs)
   try {
-    const issues = await client.findAll<IssueDoc>(
-      ISSUE,
-      { identifier: { $in: identifiers } },
-      { projection: { identifier: 1, title: 1, status: 1, relations: 1, priority: 1, estimation: 1, component: 1, milestone: 1 } },
-    )
+    const asked = await client.findAll<IssueDoc>(ISSUE, { identifier: { $in: identifiers } }, { projection: ISSUE_FIELDS })
+    // A related task without sessions of its own (a follow-up filed later, BTN-362) is read whole too, for its labels and date.
+    const neighbours = unknownRelations(asked)
+    const issues = neighbours.length === 0 ? asked : [...asked, ...(await client.findAll<IssueDoc>(ISSUE, { _id: { $in: neighbours } }, { projection: ISSUE_FIELDS }))]
     const ids = issues.map((issue) => issue._id)
     const unknown = unknownRelations(issues)
     const componentIds = [...new Set(issues.flatMap((issue) => issue.component ?? []))]
@@ -204,5 +209,6 @@ export function taskRecords(
     component: issue.component == null ? null : (componentById.get(issue.component) ?? null),
     milestone: issue.milestone == null ? null : (milestoneById.get(issue.milestone) ?? null),
     done: statusById.has(issue.status) ? statusById.get(issue.status)!.category === WON : null,
+    createdAt: issue.createdOn === undefined ? null : new Date(issue.createdOn).toISOString(),
   }))
 }
