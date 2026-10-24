@@ -4,7 +4,7 @@ import { taskRecords, unknownRelations } from './huly.js'
 const issues = [
   {
     _id: 'i1', identifier: 'GAME-458', title: 'Redo the menu', status: 's1', relations: [{ _id: 'i2' }, { _id: 'i9' }],
-    priority: 2, estimation: 1.5, component: 'c1', milestone: 'm1',
+    priority: 2, estimation: 1.5, component: 'c1', milestone: 'm1', createdOn: Date.parse('2026-10-01T10:00:00Z'),
   },
   { _id: 'i2', identifier: 'GAME-426', title: 'Menu', status: 's2', priority: 0, estimation: 0, component: null, milestone: null },
 ]
@@ -26,11 +26,11 @@ describe('taskRecords', () => {
     expect(taskRecords(issues, statuses, labels, new Map([['i9', 'GAME-12']]), components, milestones)).toEqual([
       {
         task: 'GAME-458', title: 'Redo the menu', status: 'In Progress', labels: ['Переделка', 'Opus'], related: ['GAME-426', 'GAME-12'],
-        priority: 'high', estimateH: 1.5, component: 'Меню', milestone: 'v1.0', done: false,
+        priority: 'high', estimateH: 1.5, component: 'Меню', milestone: 'v1.0', done: false, createdAt: '2026-10-01T10:00:00.000Z',
       },
       {
         task: 'GAME-426', title: 'Menu', status: 'Done', labels: [], related: ['GAME-458'],
-        priority: 'no-priority', estimateH: null, component: null, milestone: null, done: true,
+        priority: 'no-priority', estimateH: null, component: null, milestone: null, done: true, createdAt: null,
       },
     ])
   })

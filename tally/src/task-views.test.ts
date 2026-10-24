@@ -125,6 +125,53 @@ describe('cost by milestone', () => {
   })
 })
 
+type Followed = [task: string, labels: string[], related: string[], createdAt: string | null]
+
+describe('follow-ups over a task', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await PGlite.create()
+    await db.exec(`set timezone = 'UTC'`)
+    await migrate(pgliteDb(db))
+    const tasks: Followed[] = [
+      ['ABC-1', ['Bug'], ['ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'ABC-6'], '2026-09-30T10:00:00Z'],
+      ['ABC-2', ['Bug'], ['ABC-1'], '2026-10-02T10:00:00Z'],
+      ['ABC-3', ['Переделка'], ['ABC-1'], '2026-10-03T10:00:00Z'],
+      ['ABC-4', ['Bug'], ['ABC-1'], '2026-10-01T11:00:00Z'],
+      ['ABC-5', ['Opus'], ['ABC-1'], '2026-10-04T10:00:00Z'],
+      ['ABC-6', ['Bug'], ['ABC-1'], null],
+    ]
+    for (const [task, labels, related, createdAt] of tasks) {
+      await db.query(`insert into tasks (task, title, labels, related, created_at) values ($1, $1, $2, $3, $4)`, [task, labels, related, createdAt])
+    }
+    const sessions = [
+      ['s1', 'ABC-1', '2026-10-01T12:00:00Z'],
+      ['s1-early', 'ABC-1', '2026-10-01T09:00:00Z'],
+      ['s2', 'ABC-2', '2026-10-02T15:00:00Z'],
+      ['s7', 'ABC-7', '2026-10-05T10:00:00Z'],
+    ] as const
+    for (const [session, task, lastAt] of sessions) {
+      await db.query(`insert into sessions (session_id, account, launch_task, last_at) values ($1, 'a', $2, $3)`, [session, task, lastAt])
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await db?.close()
+  })
+
+  it('counts the related Bug and Переделка tasks created after the last session, the later one being the follow-up', async () => {
+    const { rows } = await db.query<{ task: string; last_at: string; followups: number; followup_tasks: string[] }>(
+      'select task, last_at::text, followups::int, followup_tasks from task_followups order by task',
+    )
+    expect(rows).toEqual([
+      { task: 'ABC-1', last_at: '2026-10-01 12:00:00+00', followups: 2, followup_tasks: ['ABC-2', 'ABC-3'] },
+      { task: 'ABC-2', last_at: '2026-10-02 15:00:00+00', followups: 0, followup_tasks: [] },
+      { task: 'ABC-7', last_at: '2026-10-05 10:00:00+00', followups: 0, followup_tasks: [] },
+    ])
+  })
+})
+
 type Named = [session: string, branchTask: string | null, custom: string | null, ai: string | null, prompt: string | null, launch?: string]
 
 describe('task named by the session itself', () => {
