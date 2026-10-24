@@ -49,6 +49,15 @@
   max-width: 100%;
 }
 
+/* "Add profile" in the list's place: its width, so the fields beside it do not move once a profile is there. */
+.tracker-fields__add {
+  justify-content: center;
+  margin-top: var(--space-4);
+  padding-block: var(--space-8);
+  width: 240px;
+  max-width: 100%;
+}
+
 .tracker-fields__upper {
   text-transform: uppercase;
 }

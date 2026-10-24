@@ -94,7 +94,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
         <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined} list={lookup.list} exact={exact} />
       </div>
       <div className="tracker-fields__slot">
-        <ProfileLine {...props} profile={profile} onAdd={() => setAdding(true)} />
+        <ProfileLine {...props} profile={profile} />
         {shown}
       </div>
       {adding &&
@@ -113,6 +113,18 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
     if (next === undefined) onAdd()
     else onChange((before) => switchProfile(before, next))
   }
+  // Nothing to pick from: the field is the button that adds one, not a list holding only "Add profile".
+  if (profiles.length === 0)
+    return (
+      <div className="settings__field">
+        <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} />
+        <button type="button" id={ids('profile')} className="button tracker-fields__add" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
+          <PlusIcon />
+          {t.wizard.addProfile}
+        </button>
+        {profileNote}
+      </div>
+    )
   return (
     <div className="settings__field">
       <FieldHead label={t.profiles.field} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} />
@@ -123,17 +135,9 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
 }
 
 /** The line under the fields: whom the profile signs in as, or what to do without one. */
-function ProfileLine({ profiles, profile, keyFixed = false, profileLocked = false, onAdd }: TrackerFieldsProps & { profile: ProfileView | undefined; onAdd: () => void }) {
+function ProfileLine({ profiles, profile, keyFixed = false }: TrackerFieldsProps & { profile: ProfileView | undefined }) {
   if (profiles.length > 0) return profile === undefined ? <span className="settings__hint">{t.wizard.pickProfile}</span> : <ProfileState profile={profile} />
-  return (
-    <>
-      {!keyFixed && <span className="settings__hint">{t.wizard.noProfiles}</span>}
-      <button type="button" className="button button--small" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
-        <PlusIcon />
-        {t.wizard.addProfile}
-      </button>
-    </>
-  )
+  return keyFixed ? null : <span className="settings__hint">{t.wizard.noProfiles}</span>
 }
 
 interface ProjectFieldsProps extends TrackerFieldsProps {

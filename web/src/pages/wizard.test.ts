@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filledShare, listSummary, stepMarks } from './wizard.js'
+import { checkMarks, filledShare, listSummary, stepMarks } from './wizard.js'
 
 const STEPS = ['language', 'agent', 'tracker', 'stats', 'project'] as const
 
@@ -34,5 +34,15 @@ describe('listSummary', () => {
 
   it('has no summary for no items', () => {
     expect(listSummary([])).toBeNull()
+  })
+})
+
+describe('checkMarks', () => {
+  it('rings the first step not filled in and leaves the later ones empty', () => {
+    expect(checkMarks(['passed', 'empty', 'failed', 'empty'])).toEqual(['passed', 'current', 'failed', 'future'])
+  })
+
+  it('rings nothing once every step is filled in', () => {
+    expect(checkMarks(['passed', 'failed'])).toEqual(['passed', 'failed'])
   })
 })

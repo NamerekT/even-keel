@@ -47,10 +47,6 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
     if (next !== null) void navigate(stepPath(next))
   }
 
-  const steps: WizardStep[] = [
-    ...SETUP_STEPS.map((each) => ({ id: each, label: t.setup.steps[each], summary: summaryOf(each, state), to: stepPath(each) })),
-    { id: 'project', label: t.setup.steps.project, summary: null, to: ADD_PROJECT },
-  ]
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
   // The stats step goes on by its cards; skipped, it is asked again once there is a project, so with one it is not skipped.
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
@@ -59,7 +55,7 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
 
   return (
     <div className="page setup">
-      <WizardFrame title={t.setup.title} lead={t.setup.lead} label={t.setup.stepsLabel} steps={steps} current={step}>
+      <WizardFrame title={t.setup.title} lead={t.setup.lead} steps={{ label: t.setup.stepsLabel, list: setupLine(state), current: step }}>
         <Card title={t.setup.titles[step]} className="setup__card">
           <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward()} />
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
@@ -72,6 +68,14 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
       </WizardFrame>
     </div>
   )
+}
+
+/** The first run's line of steps; its last dot is the project wizard. */
+export function setupLine(state: EvenKeelState): WizardStep[] {
+  return [
+    ...SETUP_STEPS.map((each) => ({ id: each, label: t.setup.steps[each], summary: summaryOf(each, state), to: stepPath(each) })),
+    { id: 'project', label: t.setup.steps.project, summary: null, to: ADD_PROJECT },
+  ]
 }
 
 /** What a step holds, under its dot once it is done. */

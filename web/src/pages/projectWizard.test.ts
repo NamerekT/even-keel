@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Notice } from '../../../src/notice/notice.js'
 import type { ProjectCheck } from '../../../src/state.js'
 import {
   draftOfFields,
@@ -11,8 +12,11 @@ import {
   placeOf,
   readyToAdd,
   shapeOf,
+  stepChecks,
   suggestOfRepo,
   switchProfile,
+  taskExample,
+  trackerPlace,
   trustCommand,
   trustCommandAs,
   typedIn,
@@ -121,6 +125,74 @@ describe('readyToAdd', () => {
     expect(readyToAdd({ ...passed, entry: { code: 'config.projectKey', params: { where: 'projects[1].key', value: 'x' } }, tracker: null })).toBe(false)
     expect(readyToAdd({ ...passed, tracker: null })).toBe(false)
     expect(readyToAdd({ ...passed, tracker: { ok: false, missing: ['HULY_URL'], open: null, openToAll: false, notice: null } })).toBe(false)
+  })
+})
+
+describe('taskExample', () => {
+  it('names a task by the key and its branch in lower case', () => {
+    expect(taskExample('key', fields({ key: 'ABC' }))).toBe('ABC-12 → abc-12/task')
+  })
+
+  it('starts from the issue number where the key is a free prefix', () => {
+    expect(taskExample('place', fields({ key: 'SHOP', trackerProject: 'octo-org/shop' }))).toBe('#12 → SHOP-12 → shop-12/task')
+  })
+
+  it('keeps the tracker\'s ids where they are not the key', () => {
+    expect(taskExample('within', fields({ key: 'WEB', team: 'ENG' }))).toBe('ENG-12 → eng-12/task')
+  })
+
+  it('has no example without a key', () => {
+    expect(taskExample('key', fields({}))).toBeNull()
+  })
+})
+
+describe('trackerPlace', () => {
+  it('names the tracker\'s project as each kind does', () => {
+    expect(trackerPlace('key', fields({ key: 'ABC' }))).toBe('ABC')
+    expect(trackerPlace('place', fields({ key: 'SHOP', trackerProject: ' octo-org/shop ' }))).toBe('octo-org/shop')
+    expect(trackerPlace('within', fields({ key: 'WEB', team: 'ENG', trackerProject: 'Web app' }))).toBe('ENG / Web app')
+    expect(trackerPlace('within', fields({ key: 'ENG' }))).toBe('ENG')
+    expect(trackerPlace('place', fields({}))).toBe('')
+  })
+})
+
+describe('stepChecks', () => {
+  const typed = fields({ repo: 'D:/Projects/shop', profile: 'p1', key: 'ABC' })
+  const notice: Notice = { code: 'wizard.keyTaken', params: { key: 'ABC', project: 'Shop' } }
+
+  it('passes every step once the check passed and the agent is ready', () => {
+    expect(stepChecks(typed, 'key', passed, passed, 'passed')).toEqual({ agent: 'passed', repo: 'passed', tracker: 'passed', project: 'passed', place: 'passed' })
+  })
+
+  it('leaves the steps not typed yet empty, the folder\'s too while it is checked', () => {
+    expect(stepChecks(fields({}), 'key', null, null, 'empty')).toEqual({ agent: 'empty', repo: 'empty', tracker: 'empty', project: 'empty', place: 'passed' })
+    expect(stepChecks(typed, 'key', null, null, 'passed').repo).toBe('empty')
+  })
+
+  it('fails the folder on its notice and the tracker on its answer', () => {
+    const noBranch: Notice = { code: 'wizard.noBranch', params: { branch: 'x', branches: [] } }
+    const repoRefused = { ...passed, repo: { ...passed.repo, notice: noBranch } }
+    expect(stepChecks(typed, 'key', repoRefused, repoRefused, 'passed').repo).toBe('failed')
+    const failed: Notice = { code: 'wizard.trackerFailed', params: { tracker: 'Huly' } }
+    const trackerRefused = { ...passed, tracker: { ok: false, missing: [], open: null, openToAll: false, notice: failed } }
+    expect(stepChecks(typed, 'key', trackerRefused, trackerRefused, 'passed').tracker).toBe('failed')
+  })
+
+  it('fails the step whose field the entry refused: the key typed, or the tracker\'s project that is the key', () => {
+    const refused = { ...passed, entry: notice, tracker: null }
+    expect(stepChecks(typed, 'alias', refused, refused, 'passed')).toMatchObject({ tracker: 'empty', project: 'failed' })
+    expect(stepChecks(typed, 'key', refused, refused, 'passed')).toMatchObject({ tracker: 'failed', project: 'empty' })
+  })
+
+  it('fails the project step on milestones a shared tracker project needs, whatever names the key', () => {
+    const entry: Notice = { code: 'wizard.trackerShared', params: { project: 'Shop' } }
+    const shared = { ...passed, entry, tracker: null }
+    expect(stepChecks(typed, 'key', shared, shared, 'passed').project).toBe('failed')
+  })
+
+  it('fails the folders on a pool that is not a whole number above zero', () => {
+    expect(stepChecks({ ...typed, place: 'slots', slots: '0' }, 'key', passed, passed, 'passed').place).toBe('failed')
+    expect(stepChecks({ ...typed, place: 'slots', slots: '3' }, 'key', passed, passed, 'passed').place).toBe('passed')
   })
 })
 

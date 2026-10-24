@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { CheckIcon } from '../ui/icons.js'
-import { filledShare, stepMarks } from './wizard.js'
+import { BangIcon, CheckIcon } from '../ui/icons.js'
+import { filledShare, stepMarks, type DotMark } from './wizard.js'
 import './wizard.css'
 
 export interface WizardStep {
@@ -16,52 +16,70 @@ interface FrameProps {
   title: string
   lead: string
   /** The name of the steps' line for a screen reader. */
-  label: string
-  steps: WizardStep[]
-  current: string
+  steps?: { label: string; list: WizardStep[]; current: string }
+  className?: string
   children: ReactNode
 }
 
 /**
  * A wizard's own frame (BTN-346): one column in the middle of the page with its head, the steps as dots on a line, each
- * a link, and the step itself under them. The first run walks it; the project wizard is to take it too.
+ * a link, and the step itself under them. The first run walks it; the project wizard takes it with the first run's line
+ * while there is no project, and without a line once there is one.
  */
-export function WizardFrame({ title, lead, label, steps, current, children }: FrameProps) {
-  const marks = stepMarks(
-    steps.map((step) => step.id),
-    current,
-  )
-  const style = { '--steps': steps.length, '--filled': filledShare(steps.map((step) => step.id), current) } as CSSProperties
+export function WizardFrame({ title, lead, steps, className, children }: FrameProps) {
   return (
-    <div className="wizard">
+    <div className={className === undefined ? 'wizard' : `wizard ${className}`}>
       <header className="wizard__head">
         <h1 className="page__title">{title}</h1>
         <p className="wizard__lead">{lead}</p>
       </header>
-      <nav className="wizard__nav" aria-label={label}>
-        <ol className="wizard__steps" style={style}>
-          {steps.map((step, index) => {
-            const mark = marks[index]!
-            return (
-              <li key={step.id} className={`wizard__step wizard__step--${mark}`}>
-                <Link to={step.to} className="wizard__step-link" aria-current={mark === 'current' ? 'step' : undefined}>
-                  <span className="wizard__dot">{mark === 'done' && <CheckIcon />}</span>
-                  <span className="wizard__step-label">{step.label}</span>
-                  {mark === 'done' && step.summary !== null && <span className="wizard__step-summary">{step.summary}</span>}
-                </Link>
-              </li>
-            )
-          })}
-        </ol>
-        <p className="wizard__current" aria-hidden="true">
-          {steps.find((step) => step.id === current)?.label}
-        </p>
-      </nav>
+      {steps !== undefined && <StepLine {...steps} />}
       {/* A new key per step replays the step's entrance. */}
-      <div key={current} className="wizard__body">
+      <div key={steps?.current} className="wizard__body">
         {children}
       </div>
     </div>
+  )
+}
+
+function StepLine({ label, list, current }: { label: string; list: WizardStep[]; current: string }) {
+  const ids = list.map((step) => step.id)
+  const marks = stepMarks(ids, current)
+  const style = { '--steps': list.length, '--filled': filledShare(ids, current) } as CSSProperties
+  return (
+    <nav className="wizard__nav" aria-label={label}>
+      <ol className="wizard__steps" style={style}>
+        {list.map((step, index) => {
+          const mark = marks[index]!
+          return (
+            <li key={step.id} className={`wizard__step wizard__step--${mark}`}>
+              <Link to={step.to} className="wizard__step-link" aria-current={mark === 'current' ? 'step' : undefined}>
+                <StepDot mark={mark} />
+                <span className="wizard__step-label">{step.label}</span>
+                {mark === 'done' && step.summary !== null && <span className="wizard__step-summary">{step.summary}</span>}
+              </Link>
+            </li>
+          )
+        })}
+      </ol>
+      <p className="wizard__current" aria-hidden="true">
+        {list.find((step) => step.id === current)?.label}
+      </p>
+    </nav>
+  )
+}
+
+/**
+ * A step's dot, one look for the line of steps and a step card's head: empty, a ring where the user is, filled with a
+ * check once done (the accent on the line, green when a check passed), red when a check refused it. `label` — what it
+ * says to a screen reader where no text next to it does.
+ */
+export function StepDot({ mark, label }: { mark: DotMark; label?: string }) {
+  return (
+    <span className={`wizard__dot wizard__dot--${mark}`} role={label === undefined ? undefined : 'img'} aria-label={label} aria-hidden={label === undefined || undefined}>
+      {(mark === 'done' || mark === 'passed') && <CheckIcon />}
+      {mark === 'failed' && <BangIcon />}
+    </span>
   )
 }
 
@@ -72,10 +90,12 @@ interface FootProps {
   skip?: { label: string; onSkip: () => void }
   /** The main button, named after the step it leads to; Enter presses it too. */
   next?: { label: string; onNext: () => void; disabled?: boolean }
+  /** Before the buttons: why the main one is closed, and the like. */
+  note?: ReactNode
 }
 
 /** The foot of a step: Back as a quiet link at the left, Skip and the main button at the right. */
-export function WizardFoot({ back, skip, next }: FootProps) {
+export function WizardFoot({ back, skip, next, note }: FootProps) {
   const onNext = useRef(next?.onNext)
   onNext.current = next?.disabled === true ? undefined : next?.onNext
   useEffect(() => {
@@ -97,6 +117,7 @@ export function WizardFoot({ back, skip, next }: FootProps) {
         </Link>
       )}
       <div className="wizard__onward">
+        {note}
         {skip !== undefined && (
           <button type="button" className={next === undefined ? 'button' : 'wizard__skip'} onClick={skip.onSkip}>
             {skip.label}

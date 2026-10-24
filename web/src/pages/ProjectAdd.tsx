@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft } from '../../../src/state.js'
@@ -6,38 +6,43 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
+import { Segmented } from '../stats/common.js'
 import { Select } from '../ui/Select.js'
-import { AgentReady } from './AgentReady.js'
+import { agentCheck, AgentReady } from './AgentReady.js'
 import {
   draftOfFields,
   EMPTY_FIELDS,
-  idPrefix,
   keyOfTyped,
   keyTyped,
   missingOf,
   readyToAdd,
   shapeOf,
+  stepChecks,
   suggestOfRepo,
   switchProfile,
   trustCommand,
   trustCommandAs,
   typedIn,
+  WIZARD_STEPS,
   type Missing,
-  type TrackerShape,
   type WizardFields,
+  type WizardStepId,
 } from './projectWizard.js'
-import { FieldHead } from './settingsParts.js'
+import { ProjectSummary } from './ProjectSummary.js'
+import { FieldHead, Row, Section } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { providerOptions } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
+import { setupLine } from './Setup.js'
+import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
+import { checkMarks } from './wizard.js'
+import { StepDot, WizardFoot, WizardFrame } from './WizardFrame.js'
 import { TrackerStep } from './WizardTracker.js'
-import './accounts.css'
 import './settings.css'
 import './projectAdd.css'
 
 const CHECK_DELAY_MS = 600
-const WIZARD = '/projects/add'
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: WizardFields | null = null
@@ -48,9 +53,10 @@ interface Checked {
 }
 
 /**
- * Adding a project: the repository, the tracker's profile and project, then the key and the name where the tracker
- * leaves them free, each checked by the service as it is typed; "Add" writes the project once the repository, the entry
- * and the tracker pass, and says what is missing while it cannot.
+ * Adding a project: the agent, the repository, the tracker's profile and project, the key and the name where the
+ * tracker leaves them free, and the tasks' folders, each a card whose dot says what the service's check of it answered
+ * as it is typed; "Add" writes the project once the repository, the entry and the tracker pass, and says what is
+ * missing while it cannot. Without a project yet it is the first run's last step, under the first run's line (BTN-344).
  */
 export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const { checkProject } = useLive()
@@ -159,208 +165,231 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
   const branchShown = branchOpen || noBranch || (root !== null && current === null)
-  const keyText = fields.key.trim() || 'KEY'
+  const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent))
+  const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
+  const dot = (step: WizardStepId) => {
+    const mark = marks[WIZARD_STEPS.indexOf(step)]!
+    return <StepDot mark={mark} label={t.wizard.marks[mark]} />
+  }
+  const first = state.projects.length === 0
 
   return (
-    <div className="page accounts-page project-add">
-      <header className="accounts-page__head">
-        <h1 className="page__title">{t.wizard.title}</h1>
-        {state.projects.length > 0 && (
-          <Link to="/" className="button">
-            ← {t.wizard.back}
-          </Link>
-        )}
-      </header>
-      <p className="queue__hint">{state.projects.length === 0 ? `${t.wizard.first} ${t.wizard.hint}` : t.wizard.hint}</p>
-      <form
-        className="add-window settings__form project-add__form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void add()
-        }}
+    <div className="page project-add">
+      <WizardFrame
+        title={first ? t.setup.title : t.wizard.title}
+        lead={first ? t.setup.lead : t.wizard.hint}
+        steps={first ? { label: t.setup.stepsLabel, list: setupLine(state), current: 'project' } : undefined}
+        className="project-add__frame"
       >
-        <Step title={t.wizard.stepAgent}>
-          <div className="settings__field">
-            <FieldHead label={t.wizard.agent} hint={t.wizard.agentHint} htmlFor="wizard-agent" />
-            <Select
-              id="wizard-agent"
-              className="settings__text settings__short"
-              value={agent}
-              options={providerOptions().map((option) => (option.value === shared ? { ...option, label: t.wizard.sharedAgent(option.label) } : option))}
-              onChange={(value) => set({ provider: value === shared ? '' : value })}
-            />
-          </div>
-          <AgentReady state={state} provider={agent} />
-        </Step>
-        <Step title={t.wizard.stepRepo}>
-          <div className="settings__field">
-            <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
-            <input
-              id="wizard-repo"
-              className="settings__text settings__text--mono"
-              spellCheck={false}
-              autoFocus
-              value={fields.repo}
-              placeholder={t.wizard.repoPlaceholder}
-              aria-invalid={repoCheck?.repo.notice != null}
-              onChange={(event) => set({ repo: event.target.value })}
-            />
-            {repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null && (
-              <Status ok>
-                {t.wizard.repoFound(repoCheck.repo.root)}
-                {!branchShown && (
-                  <>
-                    {' · '}
-                    {t.wizard.mainBranch(fields.branch || current || 'main')}{' '}
-                    <button type="button" className="link-button" onClick={() => setBranchOpen(true)}>
-                      [{t.wizard.changeBranch}]
-                    </button>
-                  </>
-                )}
-              </Status>
-            )}
-            {repoCheck?.repo.notice != null && (
-              <Status>
-                {say(repoCheck.repo.notice)}
-                {repoCheck.repo.notice.code === 'wizard.repoTaken' && (
-                  <>
-                    {' '}
-                    <Link to={projectPath(repoCheck.repo.notice.params.project)}>{t.wizard.openProject}</Link>
-                  </>
-                )}
-              </Status>
-            )}
-          </div>
-          {branchShown && (
+        {first && <p className="project-add__lead">{t.wizard.hint}</p>}
+        <div className="settings__form project-add__steps">
+          <Section title={t.wizard.stepAgent} mark={dot('agent')} className="project-add__step">
+            <Row
+              className="settings__field"
+              label={t.wizard.agent}
+              hint={t.wizard.agentHint}
+              htmlFor="wizard-agent"
+              control={
+                <Select
+                  id="wizard-agent"
+                  className="settings__text"
+                  value={agent}
+                  options={providerOptions().map((option) => (option.value === shared ? { ...option, label: t.wizard.sharedAgent(option.label) } : option))}
+                  onChange={(value) => set({ provider: value === shared ? '' : value })}
+                />
+              }
+            >
+              <AgentReady state={state} provider={agent} />
+            </Row>
+          </Section>
+          <Section title={t.wizard.stepRepo} mark={dot('repo')} className="project-add__step">
             <div className="settings__field">
-              <FieldHead label={t.settings.branch} hint={t.settings.branchHint} htmlFor="wizard-branch" />
+              <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
               <input
-                id="wizard-branch"
-                className="settings__text settings__text--mono settings__short"
+                id="wizard-repo"
+                className="settings__text settings__text--mono"
                 spellCheck={false}
-                value={fields.branch}
-                placeholder={current ?? 'main'}
-                onChange={(event) => set({ branch: event.target.value })}
+                autoFocus
+                value={fields.repo}
+                placeholder={t.wizard.repoPlaceholder}
+                aria-invalid={repoCheck?.repo.notice != null}
+                onChange={(event) => set({ repo: event.target.value })}
               />
+              {repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null && (
+                <Status ok>
+                  {t.wizard.repoFound(repoCheck.repo.root)}
+                  {!branchShown && (
+                    <>
+                      {' · '}
+                      {t.wizard.mainBranch(fields.branch || current || 'main')}{' '}
+                      <button type="button" className="link-button" onClick={() => setBranchOpen(true)}>
+                        [{t.wizard.changeBranch}]
+                      </button>
+                    </>
+                  )}
+                </Status>
+              )}
+              {repoCheck?.repo.notice != null && (
+                <Status>
+                  {say(repoCheck.repo.notice)}
+                  {repoCheck.repo.notice.code === 'wizard.repoTaken' && (
+                    <>
+                      {' '}
+                      <Link to={projectPath(repoCheck.repo.notice.params.project)}>{t.wizard.openProject}</Link>
+                    </>
+                  )}
+                </Status>
+              )}
             </div>
-          )}
-          {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
-            <div className="notice notice--warn project-add__trust">
-              <p>{t.wizard.untrusted}</p>
-              <TrustCommand command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
-              <p>{t.wizard.trustUser(repoCheck.user)}</p>
-              <TrustCommand command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
-            </div>
-          )}
-          {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
-        </Step>
-        <Step title={t.wizard.stepTracker}>
-          <TrackerStep state={state} fields={fields} shape={shape} check={check} onChange={setFields} />
-        </Step>
-        <Step title={t.wizard.stepProject}>
-          <div className="settings__row">
-            {keyTyped(shape) && (
-              <div className="settings__field">
-                <FieldHead
-                  label={shape === 'place' ? t.wizard.prefix : t.wizard.ownKey}
-                  hint={shape === 'place' ? t.wizard.prefixHint : t.wizard.ownKeyHint}
-                  htmlFor="wizard-key"
-                />
-                <input
-                  id="wizard-key"
-                  className="settings__text settings__text--mono project-add__key"
-                  spellCheck={false}
-                  maxLength={5}
-                  value={fields.key}
-                  placeholder="ABC"
-                  aria-invalid={check?.entry != null}
-                  onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
-                />
+            {branchShown && (
+              <Row
+                className="settings__field"
+                label={t.settings.branch}
+                hint={t.settings.branchHint}
+                htmlFor="wizard-branch"
+                control={
+                  <input
+                    id="wizard-branch"
+                    className="settings__text settings__text--mono"
+                    spellCheck={false}
+                    value={fields.branch}
+                    placeholder={current ?? 'main'}
+                    onChange={(event) => set({ branch: event.target.value })}
+                  />
+                }
+              />
+            )}
+            {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
+              <div className="notice notice--warn project-add__trust">
+                <p>{t.wizard.untrusted}</p>
+                <TrustCommand command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
+                <p>{t.wizard.trustUser(repoCheck.user)}</p>
+                <TrustCommand command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
               </div>
             )}
-            <div className="settings__field settings__grow">
-              <FieldHead label={t.wizard.name} hint={t.wizard.nameHint} htmlFor="wizard-name" />
-              <input
-                id="wizard-name"
-                className="settings__text"
-                value={fields.name}
-                placeholder={fields.key || t.wizard.namePlaceholder}
-                onChange={(event) => setFields((before) => typedIn(before, 'name', event.target.value))}
+            {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
+          </Section>
+          <Section title={t.wizard.stepTracker} mark={dot('tracker')} className="project-add__step">
+            <TrackerStep state={state} fields={fields} shape={shape} check={check} onChange={setFields} />
+          </Section>
+          <Section title={t.wizard.stepProject} mark={dot('project')} className="project-add__step">
+            {keyTyped(shape) && (
+              <Row
+                className="settings__field"
+                label={shape === 'place' ? t.wizard.prefix : t.wizard.ownKey}
+                hint={shape === 'place' ? t.wizard.prefixHint : t.wizard.ownKeyHint}
+                htmlFor="wizard-key"
+                control={
+                  <input
+                    id="wizard-key"
+                    className="settings__text settings__text--mono project-add__key"
+                    spellCheck={false}
+                    maxLength={5}
+                    value={fields.key}
+                    placeholder="ABC"
+                    aria-invalid={check?.entry != null}
+                    onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
+                  />
+                }
+              >
+                {check?.entry != null && fields.key.trim() !== '' && !trackerShared && <Status>{say(check.entry)}</Status>}
+              </Row>
+            )}
+            <Row
+              className="settings__field"
+              label={t.wizard.name}
+              hint={t.wizard.nameHint}
+              htmlFor="wizard-name"
+              control={
+                <input
+                  id="wizard-name"
+                  className="settings__text"
+                  value={fields.name}
+                  placeholder={fields.key || t.wizard.namePlaceholder}
+                  onChange={(event) => setFields((before) => typedIn(before, 'name', event.target.value))}
+                />
+              }
+            />
+            {(milestonesOpen || trackerShared || fields.milestones.trim() !== '') && (
+              <div className="settings__field">
+                <FieldHead label={t.settings.rule.requiredMilestones} hint={t.wizard.milestonesHint} />
+                <ListTable
+                  label={t.settings.rule.requiredMilestones}
+                  value={fields.milestones}
+                  add={t.settings.ruleAdd.requiredMilestones}
+                  empty={t.settings.rulePlaceholder.requiredMilestones}
+                  suggest={ruleChoicesOf(state.tasks).milestones}
+                  onChange={(milestones) => set({ milestones })}
+                />
+                {trackerShared && <Status>{say(check.entry!)}</Status>}
+                {check !== null && check.yields.length > 0 && <Status ok>{t.wizard.yields(check.yields.join(', '))}</Status>}
+              </div>
+            )}
+          </Section>
+          <Section title={t.wizard.stepPlace} mark={dot('place')} className="project-add__step">
+            <Row
+              className="settings__field project-add__pick"
+              label={t.wizard.place}
+              control={
+                <Segmented
+                  label={t.wizard.place}
+                  options={[
+                    ['worktree', t.wizard.placeWorktree],
+                    ['slots', t.wizard.placeSlots],
+                  ]}
+                  value={fields.place}
+                  onChange={(place) => set({ place })}
+                />
+              }
+            >
+              <span className="settings__hint">{t.wizard.placeHints[fields.place]}</span>
+            </Row>
+            {fields.place === 'slots' && (
+              <Row
+                className="settings__field"
+                label={t.wizard.placeCount}
+                htmlFor="wizard-slots"
+                control={
+                  <input
+                    id="wizard-slots"
+                    className="settings__text"
+                    type="number"
+                    min={1}
+                    step={1}
+                    inputMode="numeric"
+                    value={fields.slots}
+                    aria-invalid={draft === undefined}
+                    onChange={(event) => set({ slots: event.target.value })}
+                  />
+                }
               />
-            </div>
-          </div>
-          <span className="settings__hint">{t.wizard.example(idPrefix(shape, fields) || keyText, shape === 'place', keptIds(shape, fields))}</span>
-          {keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' && <Status>{say(check.entry)}</Status>}
-          {(milestonesOpen || trackerShared || fields.milestones.trim() !== '') && (
-            <div className="settings__field">
-              <FieldHead label={t.settings.rule.requiredMilestones} hint={t.wizard.milestonesHint} />
-              <ListTable
-                label={t.settings.rule.requiredMilestones}
-                value={fields.milestones}
-                add={t.settings.ruleAdd.requiredMilestones}
-                empty={t.settings.rulePlaceholder.requiredMilestones}
-                suggest={ruleChoicesOf(state.tasks).milestones}
-                onChange={(milestones) => set({ milestones })}
-              />
-              {check !== null && check.yields.length > 0 && <Status ok>{t.wizard.yields(check.yields.join(', '))}</Status>}
-            </div>
-          )}
-        </Step>
-        <details className="project-add__advanced">
-          <summary>
-            {t.wizard.advanced} <span className="settings__hint">({t.wizard.placeNow(draft?.slot ?? 0)})</span>
-          </summary>
-          <div className="project-add__places" role="radiogroup" aria-label={t.wizard.stepPlace}>
-            <label className="settings__check">
-              <input type="radio" name="wizard-place" checked={fields.place === 'worktree'} onChange={() => set({ place: 'worktree' })} />
-              {t.wizard.placeWorktree}
-            </label>
-            <label className="settings__check">
-              <input type="radio" name="wizard-place" checked={fields.place === 'slots'} onChange={() => set({ place: 'slots' })} />
-              {t.wizard.placeSlots}
-              <input
-                className="settings__text project-add__slots"
-                type="number"
-                min={1}
-                step={1}
-                inputMode="numeric"
-                aria-label={t.settings.slot}
-                value={fields.slots}
-                disabled={fields.place !== 'slots'}
-                aria-invalid={fields.place === 'slots' && draft === undefined}
-                onChange={(event) => set({ slots: event.target.value })}
-              />
-            </label>
-          </div>
-          <p className="settings__hint">{t.wizard.placeHint}</p>
-        </details>
+            )}
+          </Section>
+        </div>
+        <ProjectSummary state={state} fields={fields} shape={shape} draft={draft} root={root} current={current} />
         {checkFailure !== null && <p className="notice notice--error">{say(checkFailure)}</p>}
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-        <div className="account__actions project-add__actions">
-          <button type="submit" className="button button--primary" disabled={sending || added !== null || !ready}>
-            {t.wizard.add}
-          </button>
-          {draft !== undefined && draft.repo !== '' && (
-            <button type="button" className="button" disabled={checking} onClick={() => setRound((count) => count + 1)}>
-              {t.wizard.checkAgain}
-            </button>
-          )}
-          {checking || missing === 'checking' ? (
-            <span className="settings__hint">{t.wizard.checking}</span>
-          ) : (
-            missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
-          )}
-        </div>
-      </form>
+        <WizardFoot
+          back={first ? { to: stepPath('stats'), label: t.setup.back } : { to: '/', label: t.wizard.back }}
+          next={{ label: t.wizard.add, onNext: () => void add(), disabled: sending || added !== null || !ready }}
+          note={
+            <span className="project-add__note">
+              {checking || missing === 'checking' ? (
+                <span className="settings__hint">{t.wizard.checking}</span>
+              ) : (
+                missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
+              )}
+              {draft !== undefined && draft.repo !== '' && (
+                <button type="button" className="wizard__skip" disabled={checking} onClick={() => setRound((count) => count + 1)}>
+                  {t.wizard.checkAgain}
+                </button>
+              )}
+            </span>
+          }
+        />
+      </WizardFrame>
     </div>
   )
-}
-
-/** The key typed where the task ids stay the tracker's, when it is not their prefix: the example says it does not change them. */
-function keptIds(shape: TrackerShape, fields: WizardFields): string | null {
-  const key = fields.key.trim()
-  const prefix = idPrefix(shape, fields)
-  return prefix === '' || key === '' || key === prefix ? null : key
 }
 
 /** The only tracker profile is chosen at once; with several the user picks. */
@@ -398,14 +427,5 @@ function TrustCommand({ command }: { command: string }) {
         </button>
       )}
     </div>
-  )
-}
-
-function Step({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <fieldset className="project-add__step">
-      <legend className="project-add__legend">{title}</legend>
-      {children}
-    </fieldset>
   )
 }
