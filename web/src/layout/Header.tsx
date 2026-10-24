@@ -46,9 +46,12 @@ export function Header() {
             </>
           )}
           {!narrow && !setup && (
-            <NavLink to="/stats" className="header__link">
-              {t.header.stats}
-            </NavLink>
+            <>
+              <span className="header__divider" aria-hidden="true" />
+              <NavLink to="/stats" className="header__link">
+                {t.header.stats}
+              </NavLink>
+            </>
           )}
         </nav>
         {narrow ? (
