@@ -11,6 +11,7 @@ export function launchLine(entry: LaunchEntry): string {
   }
   if (reason === 'landed') return `chain: ${task} landed, main is at ${entry.commit === undefined ? 'unknown' : shortCommit(entry.commit)}`
   if (reason === 'dropped') return `chain: ${task} dropped, main stays as it was`
+  if (reason === 'carried') return `chain: ${task} carried ${entry.commits ?? 'its'} commit(s) of the release`
   if (reason === 'answer') return `chain: ${task} resumed with the user's answer in the session ${sessionId}`
   // An entry of a pull request opened, or of a launch with its feedback, has no session before it.
   if (previous === undefined) return `chain: ${task} goes on by ${reason} in the session ${sessionId}`

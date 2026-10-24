@@ -1,6 +1,6 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
-import { fixEpisodeId, fixTaskOf, isFixName, liveFixId } from './fix.js'
+import { fixEpisodeId, fixTaskOf, isOwnName, liveFixId } from './fix.js'
 import type { FixOutcome, RelayCause } from './model.js'
 
 export interface LaunchDay {
@@ -48,7 +48,7 @@ export interface TaskSession {
 
 type HandOver = 'restart' | 'checkpoint'
 
-/** A fix of a red main from its first launch to its outcome (BTN-153). */
+/** A fix of a red main (BTN-153) or a carry of a release (BTN-369) from its first launch to its outcome. */
 export interface FixEpisode {
   /** `ABC-FIX.<n>`, the row of the episode on the page. */
   id: string
@@ -65,28 +65,33 @@ export interface FixEnd {
   how: FixOutcome | 'lost'
   /** The commit main went out at when the fix landed. */
   commit: string | null
+  /** The release commits a carry brought (BTN-369). */
+  commits?: number
 }
 
 /**
- * The fixes of each project's red main in the launch log, oldest first, and the episode of each fix entry. An episode
- * is a launch with its handovers, resumes and answers up to its outcome; a launch for the same red commit is part of it.
+ * The fixes of each project's red main and the carries of releases into it (BTN-369) in the launch log, oldest first,
+ * and the episode of each of their entries; each name is numbered on its own. An episode is a launch with its handovers,
+ * resumes and answers up to its outcome; a launch for the same commit (red, or the release's) is part of it.
  */
 export function fixEpisodes(entries: LaunchEntry[]): { episodes: Record<string, FixEpisode[]>; of: Map<LaunchEntry, string> } {
   const episodes: Record<string, FixEpisode[]> = {}
   const of = new Map<LaunchEntry, string>()
   for (const entry of entries) {
-    if (!isFixName(entry.task)) continue
+    if (!isOwnName(entry.task)) continue
+    const name = fixTaskOf(entry.task)
     const list = (episodes[entry.project] ??= [])
-    let open = list.at(-1)
+    const own = list.filter((episode) => fixTaskOf(episode.id) === name)
+    let open = own.at(-1)
     if (open?.end !== null) open = undefined
     const start = () => {
-      const episode: FixEpisode = { id: fixEpisodeId(fixTaskOf(entry.task), list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
+      const episode: FixEpisode = { id: fixEpisodeId(name, own.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
       list.push(episode)
       return episode
     }
     if (isOutcome(entry)) {
       if (open === undefined) continue
-      open.end = { at: entry.at, how: entry.reason, commit: entry.commit ?? null }
+      open.end = { at: entry.at, how: entry.reason, commit: entry.commit ?? null, ...(entry.commits !== undefined && { commits: entry.commits }) }
       of.set(entry, open.id)
       continue
     }
@@ -140,7 +145,7 @@ export function taskSessions(
     }
   }
   for (const view of live) {
-    const fix = isFixName(view.task) ? fixTaskOf(view.task) : null
+    const fix = isOwnName(view.task) ? fixTaskOf(view.task) : null
     const project = fix === null ? undefined : entries.findLast((entry) => fixTaskOf(entry.task) === fix)?.project
     const rows = rowsOf(fix === null ? view.task : liveFixId(fix, (project === undefined ? undefined : fixes.episodes[project]) ?? []))
     if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0, answers: 0 })
@@ -189,7 +194,7 @@ export function handoffsOf(entries: LaunchEntry[], sessionId: string): TaskRun |
 export function ranSince(entries: LaunchEntry[], project: string, since: Date): string[] {
   const ran = new Set<string>()
   for (const entry of entries) {
-    if (entry.project !== project || isRelease(entry) || isFixName(entry.task) || !(Date.parse(entry.at) >= since.getTime())) continue
+    if (entry.project !== project || isRelease(entry) || isOwnName(entry.task) || !(Date.parse(entry.at) >= since.getTime())) continue
     ran.add(entry.task)
   }
   return [...ran]
@@ -200,7 +205,7 @@ export function ranSince(entries: LaunchEntry[], project: string, since: Date): 
  * would no longer reach their records. `readerOf` gives the project, or its feed by the task's prefix (BTN-66).
  */
 export function launchedProjects(entries: LaunchEntry[], readerOf: (project: string, task: string) => string = (project) => project): string[] {
-  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => readerOf(entry.project, entry.task)))]
+  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isOwnName(entry.task)).map((entry) => readerOf(entry.project, entry.task)))]
 }
 
 /** The launches since `since` whose run label named a provider without an account in the pool, newest first: the page's toast. */
@@ -238,7 +243,7 @@ function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: Release
 }
 
 function isOutcome(entry: LaunchEntry): entry is LaunchEntry & { reason: FixOutcome } {
-  return entry.reason === 'landed' || entry.reason === 'dropped'
+  return entry.reason === 'landed' || entry.reason === 'dropped' || entry.reason === 'carried'
 }
 
 function localDay(date: Date): string {

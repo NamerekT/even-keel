@@ -1,6 +1,6 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
-import { fixNameOf, fixTaskOf, isFixName, liveFixId, projectOfFix } from '../../src/chain/fix.js'
+import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -171,7 +171,7 @@ export function waitingSessions(sessions: SessionView[], tasks: Task[]): Session
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions
-    .filter((view) => view.lamp === 'waiting' && !view.checkpoint && (open.has(view.task) || isFixName(view.task)))
+    .filter((view) => view.lamp === 'waiting' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
     .sort((a, b) => since(a) - since(b))
 }
 
@@ -206,20 +206,37 @@ export function contextResets(rows: TaskSession[]): ContextResets {
 
 /** The prefix of a task id or fix name: `ABC` of `ABC-12`. */
 export function taskPrefix(task: string): string {
-  return task.replace(/-(\d+|FIX)$/, '')
+  return task.replace(/-(\d+|FIX|CARRY)$/, '')
 }
 
+type ProjectSource = Pick<EvenKeelState, 'tasks' | 'projectKeys' | 'taskPrefixes'> & Partial<Pick<EvenKeelState, 'forwards' | 'fixes'>>
+
 /**
- * The project of a task or of a fix episode, by id (BTN-271): the one its fix name is of, the one listing the task,
- * else the first with its prefix; the prefix itself when no project has it.
+ * The project of a task or of a fix episode, by id (BTN-271): the one its fix name is of, the one a carry runs in, the
+ * one listing the task, else the first with its prefix; the prefix itself when no project has it.
  */
-export function taskProject(state: Pick<EvenKeelState, 'tasks' | 'projectKeys' | 'taskPrefixes'> | null, task: string): string {
+export function taskProject(state: ProjectSource | null, task: string): string {
   if (state === null) return taskPrefix(fixTaskOf(task))
   if (isFixName(task)) return projectOfFix(state.projectKeys, task) ?? taskPrefix(fixTaskOf(task))
+  if (isCarryName(task)) return carryProject(state, task) ?? taskPrefix(fixTaskOf(task))
   const listed = state.tasks.find((each) => each.id === task)?.project
   if (listed !== undefined) return listed
   const prefix = taskPrefix(task)
   return Object.keys(state.taskPrefixes).find((project) => state.taskPrefixes[project] === prefix) ?? prefix
+}
+
+/** The project a carry runs in (BTN-369): the one its release merges into, else the one its past episodes ran in. */
+function carryProject(state: ProjectSource, task: string): string | undefined {
+  const from = releaseOfCarry(state.projectKeys, task)
+  const into = from === undefined ? undefined : state.forwards?.[from]?.into
+  const name = fixTaskOf(task)
+  return into ?? Object.keys(state.fixes ?? {}).find((project) => state.fixes![project]!.some((episode) => fixTaskOf(episode.id) === name))
+}
+
+/** The release project a carry is of, as the page names it. */
+function carryLabel(state: Pick<EvenKeelState, 'projectKeys' | 'projectLabels'>, task: string): string {
+  const from = releaseOfCarry(state.projectKeys, task)
+  return from === undefined ? taskPrefix(fixTaskOf(task)) : projectLabel(state, from)
 }
 
 export function chainProgress(tasks: Task[], order: ProjectOrder | undefined): { done: number; total: number; backlog: number } {
@@ -436,7 +453,7 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   const task = state.tasks.find((each) => each.id === id)
   return {
     id,
-    title: isFixName(id) ? t.chain.fix : (task?.title ?? null),
+    title: isFixName(id) ? t.chain.fix : isCarryName(id) ? t.chain.carry(carryLabel(state, id)) : (task?.title ?? null),
     lamp: taskLamp(task, taskSession(state.sessions, id) ?? null),
     next: current === undefined && next !== undefined,
     ...(next === undefined && { held: skipped.includes(id) ? 'skipped' : 'blocked' }),
@@ -552,7 +569,8 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const next = current === fix && !broken && active?.interrupted === undefined ? nextTask(tasks, order.order, [...skipped, ...order.waiting]) : undefined
   const episodes = state.fixes[project] ?? []
   const ended = new Map(episodes.flatMap((episode) => (episode.end === null ? [] : [[episode.id, episode]])))
-  const fixSession = taskSession(state.sessions, fix) ?? null
+  const ownSession = (name: string) => taskSession(state.sessions, name) ?? null
+  const fixSession = ownSession(fix)
   const reviews = new Map((order?.reviews ?? []).map((review) => [review.task, review]))
   const shut = closedOrder(closed, state.taskSessions, [...ended.values()])
   // A task waiting on its pull request is out of the chain: its row stands between the closed tasks and the open ones.
@@ -562,8 +580,10 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     const episode = ended.get(id)
     if (episode !== undefined) {
       const sessions = state.taskSessions[id] ?? []
-      const session = fixSession !== null && sessions.some((run) => run.sessionId === fixSession.sessionId) ? fixSession : null
-      return { ...fixRow(id, fixTitle(episode), 'fixed', null, session, sessions), fix: episode }
+      const own = ownSession(fixTaskOf(id))
+      const session = own !== null && sessions.some((run) => run.sessionId === own.sessionId) ? own : null
+      const row = isCarryName(id) ? fixRow(id, carryTitle(state, episode), 'done', null, session, sessions) : fixRow(id, fixTitle(episode), 'fixed', null, session, sessions)
+      return { ...row, fix: episode }
     }
     const task = byId.get(id)
     const seen = taskSession(state.sessions, id) ?? null
@@ -611,28 +631,48 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   for (const [index, block] of blocks.entries()) {
     if (block.fix !== undefined) block.milestone = blocks[index - 1]?.milestone ?? blocks.slice(index + 1).find((each) => each.fix === undefined)?.milestone ?? null
   }
-  const lingers = fixSession !== null && fixSession.lamp !== 'finished' && episodes.at(-1)?.end == null
-  if (current !== fix && !lingers) return blocks
-  // The fix session of a red main is not a tracker task: it leads the chain as a block of its own, ahead of the open tasks.
-  const at = blocks.findIndex((block) => block.open || block.locked)
-  const ahead = at < 0 ? blocks.length : at
-  const id = liveFixId(fix, episodes)
-  const fixSessions = state.taskSessions[id] ?? []
-  const fixBlock: ChainBlock = {
-    ...fixRow(id, t.chain.fix, taskLamp(undefined, fixSession), blocks[ahead]?.milestone ?? null, fixSession, fixSessions),
-    open: true,
-    current: fix === current,
-    limit: fix === current ? pending : null,
-    start: running?.task === fix ? sessionStart(running, fixSession, fixSessions, now) : null,
-    ...(running?.task === fix && answeringSince(running)),
+  // A session without a tracker task leads the chain as a block of its own, ahead of the open tasks.
+  const ahead = (rows: ChainBlock[]) => {
+    const at = rows.findIndex((block) => block.open || block.locked)
+    return at < 0 ? rows.length : at
   }
-  return blocks.toSpliced(ahead, 0, fixBlock)
+  const liveBlock = (name: string, title: string, at: number, rows: ChainBlock[]): ChainBlock => {
+    const id = liveFixId(name, episodes)
+    const session = ownSession(name)
+    const sessions = state.taskSessions[id] ?? []
+    return {
+      ...fixRow(id, title, taskLamp(undefined, session), rows[at]?.milestone ?? null, session, sessions),
+      open: true,
+      current: name === current,
+      limit: name === current ? pending : null,
+      start: running?.task === name ? sessionStart(running, session, sessions, now) : null,
+      ...(running?.task === name && answeringSince(running)),
+    }
+  }
+  let rows = blocks
+  const lingers = fixSession !== null && fixSession.lamp !== 'finished' && episodes.filter((episode) => isFixName(episode.id)).at(-1)?.end == null
+  if (current === fix || lingers) rows = rows.toSpliced(ahead(rows), 0, liveBlock(fix, t.chain.fix, ahead(rows), rows))
+  // The carry an agent resolves (BTN-369): asked for, it waits right after the current task; then it leads the chain.
+  const carries = new Set(Object.values(state.forwards).flatMap((view) => (view.into === project && view.agent !== undefined ? [view.agent] : [])))
+  if (current !== undefined && isCarryName(current)) carries.add(current)
+  for (const name of carries) {
+    const label = carryLabel(state, name)
+    if (name === current) {
+      rows = rows.toSpliced(ahead(rows), 0, liveBlock(name, t.chain.carry(label), ahead(rows), rows))
+      continue
+    }
+    const anchor = active?.interrupted?.task ?? (current === fix ? liveFixId(fix, episodes) : current)
+    const after = rows.findIndex((block) => block.id === anchor)
+    const at = after < 0 ? ahead(rows) : after + 1
+    rows = rows.toSpliced(at, 0, liveBlock(name, t.chain.carryAsked(label), at, rows))
+  }
+  return rows
 }
 
-/** The row a link to a fix by its name (`ABC-FIX`) means: the fix running now, otherwise the one its session is on. */
+/** The row a link to a fix or a carry by its name (`ABC-FIX`) means: the one running now, otherwise the one its session is on. */
 export function fixBlockOf(blocks: ChainBlock[], hash: string): string | null {
-  if (!isFixName(hash) || blocks.some((block) => block.id === hash)) return null
-  const rows = blocks.filter((block) => isFixName(block.id))
+  if (!isOwnName(hash) || blocks.some((block) => block.id === hash)) return null
+  const rows = blocks.filter((block) => fixTaskOf(block.id) === hash)
   return (rows.find((block) => block.fix === undefined) ?? rows.findLast((block) => block.session?.task === hash))?.id ?? null
 }
 
@@ -668,6 +708,11 @@ const SHORT_COMMIT = 7
 function fixTitle(episode: FixEpisode): string {
   const short = (commit: string | null) => commit?.slice(0, SHORT_COMMIT) ?? null
   return episode.end?.how === 'landed' ? t.chain.fixLanded(short(episode.red), short(episode.end.commit)) : t.chain.fixDropped(short(episode.red))
+}
+
+function carryTitle(state: Pick<EvenKeelState, 'projectKeys' | 'projectLabels'>, episode: FixEpisode): string {
+  const label = carryLabel(state, episode.id)
+  return episode.end?.how === 'carried' ? t.chain.carried(label, episode.end.commits ?? 0) : t.chain.carryDropped(label)
 }
 
 /** `window` is the session's own, as its agent gave it; `null` — the setting's `scale.window` stands in. */
@@ -715,7 +760,7 @@ export function tokenTotal(tokens: TokenTotals): number {
 }
 
 export function issueLink(urls: TrackerUrls, task: string): string | null {
-  if (isFixName(task)) return null
+  if (isOwnName(task)) return null
   const prefix = taskPrefix(task)
   const template = Object.hasOwn(urls.projects, prefix) ? urls.projects[prefix]! : urls.default
   return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(prefix.length + 1))

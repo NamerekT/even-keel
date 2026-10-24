@@ -16,6 +16,7 @@ import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
+import { withCarry } from './fakeCarry.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -509,6 +510,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? hung : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: hung.sessionId, since: ago(80) } }]
   }
+  if (params.has('forward') && current.state !== null) current.state = withCarry(current.state, params.get('forward')!, session('XYZ-CARRY', 24_000), ago(4))
   if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
   if (params.get('chain') === 'aside' && current.state !== null) {
     const asking = session('ABC-5', contextTokens, 'waiting')

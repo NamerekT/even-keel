@@ -255,6 +255,8 @@ export interface ServerDeps {
   changelog: (project: string, milestone: string, op: ChangelogOp) => Promise<ChangelogView>
   /** "Carry now": the release project's branch into the branch of the project it merges into (BTN-172). */
   carry: (project: string) => Promise<void>
+  /** "Resolve with the agent": a session resolves the release project's held conflict (BTN-369). */
+  resolveCarry: (project: string) => Promise<void>
   stats: StatsSource
   /** Read per request: `allowedHosts` is live. */
   guard: () => GuardSettings
@@ -346,6 +348,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
   'models/list': ({ models }, body) => models(textOf(body.account, 'account')),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
+  'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
 }
 
 const MAX_BODY_BYTES = 64 * 1024

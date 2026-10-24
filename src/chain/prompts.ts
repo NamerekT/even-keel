@@ -62,7 +62,29 @@ export interface PromptTexts {
   fixRules: (main: string) => string
   /** What a session stopped for a red main is told when it goes on; `fixed` — main after the fix, `null` — the fix was skipped. */
   mainFixed: (red: string, fixed: string | null, main: string) => string
+  /** What the session resolving a release project's carry (BTN-369) merges and what conflicted. */
+  carryReport: (facts: CarryFacts) => string
+  /** The rules of the session that resolves a carry. */
+  carryRules: (main: string) => string
 }
+
+/** A release project's carry git could not merge, as its session is told (BTN-369). */
+export interface CarryFacts {
+  /** The release project by `projectLabel`, its branch, and the project it merges into with that project's branch. */
+  release: string
+  branch: string
+  into: string
+  main: string
+  /** The ref the carry fetched the release branch into, in the repository the session works in. */
+  ref: string
+  commit: string
+  commits: number
+  files: string[]
+  /** What git said of the merge; empty when it said nothing. */
+  output: string
+}
+
+const carryOutput = (output: string): string[] => (output.trim() === '' ? [] : ['```', output.trim(), '```'])
 
 export const PROMPTS: Record<Language, PromptTexts> = {
   ru: {
@@ -146,6 +168,23 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       fixed === null
         ? fill`Even Keel остановил тебя посреди хода: проверка ${main} упала на коммите ${red}. Починка не подтверждена — ${main} может быть ещё сломан. Подтяни ${main} в свою ветку, разреши конфликты, если будут, и продолжай задачу.`
         : fill`Even Keel остановил тебя посреди хода: проверка ${main} упала на коммите ${red}. Она починена, ${main} теперь на коммите ${fixed}. Подтяни ${main} в свою ветку, разреши конфликты, если будут, и продолжай задачу.`,
+    carryReport: ({ release, branch, into, main, ref, commit, commits, files, output }) =>
+      [
+        fill`Перенос релиза: ветка ${branch} проекта ${release} не слилась в ${main} проекта ${into} — у git конфликты. Разреши их и влей перенос.`,
+        '',
+        fill`- Что сливать: коммит ${commit} — ветка ${branch}, как её забрал Even Keel (ref ${ref} в этом репозитории). Коммитов релиза, которых нет в ${main}: ${String(commits)}.`,
+        fill`- Влей его в свою ветку: \`git merge --no-edit -m "Merge branch '${branch}' of ${release} into ${main}" ${commit}\`.`,
+        fill`- Файлы с конфликтом: ${files.join(', ')}.`,
+        fill`- Правило разрешения: устройство и тексты ветки ${main} главнее — смысл фикса из релиза переносится поверх них, а не наоборот.`,
+        ...(output.trim() === '' ? [] : ['- Вывод git:', ...carryOutput(output)]),
+      ].join('\n'),
+    carryRules: (main) =>
+      [
+        '- Задачи в трекере на этот перенос нет: не заводи её и статусы не трогай, в сообщениях своих коммитов ID задач не пиши.',
+        '- Прогони проверки проекта (тесты, сборку), как перед слиянием задачи.',
+        fill`- Влей ветку в ${main} основного чекаута (git merge --no-edit в основной рабочей копии): перенос сделан, когда в ${main} есть коммит релиза. Worktree и ветку после этого не трогай и ${main} не пушь — уборку и пуш сделает Even Keel.`,
+        '- Перед концом хода останови свои фоновые команды: пока они работают, Even Keel считает тебя занятым.',
+      ].join('\n'),
   },
   en: {
     resume: 'The usage limit has reset — carry on from where you stopped.',
@@ -228,5 +267,22 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       fixed === null
         ? fill`Even Keel stopped you mid-turn: the check of ${main} failed on commit ${red}. The fix is not confirmed — ${main} may still be broken. Merge ${main} into your branch, resolve conflicts if there are any, and carry on with the task.`
         : fill`Even Keel stopped you mid-turn: the check of ${main} failed on commit ${red}. It is fixed, ${main} is now at commit ${fixed}. Merge ${main} into your branch, resolve conflicts if there are any, and carry on with the task.`,
+    carryReport: ({ release, branch, into, main, ref, commit, commits, files, output }) =>
+      [
+        fill`Carrying a release: the branch ${branch} of ${release} did not merge into ${main} of ${into} — git found conflicts. Resolve them and merge the carry.`,
+        '',
+        fill`- What to merge: commit ${commit} — the branch ${branch} as Even Keel fetched it (the ref ${ref} in this repository). Release commits ${main} lacks: ${String(commits)}.`,
+        fill`- Merge it into your branch: \`git merge --no-edit -m "Merge branch '${branch}' of ${release} into ${main}" ${commit}\`.`,
+        fill`- Conflicted files: ${files.join(', ')}.`,
+        fill`- How to resolve: the structure and the texts of ${main} win — the meaning of the release's fix goes on top of them, not the other way round.`,
+        ...(output.trim() === '' ? [] : ["- What git said:", ...carryOutput(output)]),
+      ].join('\n'),
+    carryRules: (main) =>
+      [
+        '- There is no tracker task for this carry: do not create one or move statuses, and put no task id into your commit messages.',
+        "- Run the project's checks (tests, build) as before merging a task.",
+        fill`- Merge the branch into ${main} of the main checkout (git merge --no-edit in the main working copy): the carry is done once ${main} has the release commit. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up and pushes.`,
+        '- Before you end the turn, stop your background commands: while they run, Even Keel takes you for busy.',
+      ].join('\n'),
   },
 }

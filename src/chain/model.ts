@@ -44,7 +44,7 @@ export interface ActiveChain {
   closing?: string
   /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
   interrupted?: Interrupted
-  /** The chain exists only for the fix session of a red main and ends with it. */
+  /** The chain exists only for the fix session of a red main or a carry session (BTN-369) and ends with them. */
   fixOnly?: true
   /** "Stop after this task" (BTN-230): the chain sees its current task through Done and the cleanup, then stops instead of taking the next one. */
   stopAfter?: true
@@ -112,6 +112,24 @@ export interface MainGate {
   fix?: { task: string; at: string; commit: string; report?: string }
   /** The last green commit the project's `commands.afterGreen` were started on, written before they start. */
   afterGreen?: string
+  /** On a release project's gate: the carry of its branch a session resolves, from "Resolve with the agent" until it lands or is skipped. */
+  carry?: CarrySession
+}
+
+/**
+ * A release project's carry git could not merge, resolved by a session without a task (BTN-369) in the project it
+ * merges into (`into`). It is done once `into`'s branch has `commit`, the release branch when the user asked.
+ */
+export interface CarrySession {
+  /** The session's name, `EKR-CARRY` (`carryNameOf`). */
+  task: string
+  into: string
+  at: string
+  commit: string
+  /** The commits of the release branch `into`'s branch lacked when asked. */
+  commits: number
+  /** The session's prompt in `into`'s `promptLanguage`: what to merge and what conflicted. */
+  report: string
 }
 
 /** The fix of a red main a session without a task does or is about to do. */
@@ -130,8 +148,11 @@ export interface Shelved {
 
 export type ReleaseReason = 'postpone' | 'skip'
 
-/** How the fix of a red main ended (BTN-153): its branch landed in main, or the user gave it up and main stayed as it was. */
-export type FixOutcome = 'landed' | 'dropped'
+/**
+ * How the fix of a red main ended (BTN-153): its branch landed in main, or the user gave it up and main stayed as it
+ * was; how a carry ended (BTN-369): the release commits are in the branch, or it was given up.
+ */
+export type FixOutcome = 'landed' | 'dropped' | 'carried'
 
 /** Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. */
 export type RelayCause = 'limit' | 'mainFixed' | 'review' | 'returned'
@@ -147,8 +168,13 @@ export interface LaunchEntry {
   cause?: RelayCause
   previous?: string
   blockers?: string[]
-  /** The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed. */
+  /**
+   * The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed; of a
+   * carry's launch — the release commit it carries.
+   */
   commit?: string
+  /** The release commits a carry brought, on its `carried` entry. */
+  commits?: number
   /** The provider of the task's run label the pool had no account for: the session started on the project's (schema v8). */
   fallback?: string
   /**
@@ -280,6 +306,10 @@ export interface DispatcherDeps {
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
   /** Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke. */
   launchFix: (project: string, name: string, report: string) => Promise<string>
+  /** Starts the session that resolves a release project's carry (BTN-369) in a place of its own; `report` says what conflicted. */
+  launchCarry: (project: string, name: string, report: string) => Promise<string>
+  /** Whether the project's main branch has the commit: the carry's release commit is in. */
+  carried: (project: string, commit: string) => Promise<boolean>
   /** Stops a session, mid-turn too (`claude stop`): only for a red main, invariant 1's exception 7. */
   stop: (session: HandoffSession) => Promise<void>
   /** Cleans up after the task; `pull` — after a task whose pull request was closed. */

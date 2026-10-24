@@ -3,6 +3,7 @@ import { isOpen, type Task } from '../tracker/model.js'
 import {
   newChain,
   type ActiveChain,
+  type CarrySession,
   type ChainState,
   type CurrentTask,
   type DispatcherDeps,
@@ -11,7 +12,8 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { Cleanups } from './cleanup.js'
-import { isFixName } from './fix.js'
+import { MainCarry } from './carry.js'
+import { isCarryName, isFixName, isOwnName } from './fix.js'
 import { Handovers } from './handover.js'
 import { TaskLists } from './lists.js'
 import { MainCheck } from './maincheck.js'
@@ -45,6 +47,7 @@ export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
   private readonly main: MainCheck | null
   private readonly fixes: MainFix | null
+  private readonly carries: MainCarry
   private readonly handovers: Handovers
   private readonly reviews: Reviews
   private readonly unchanged: Unchanged
@@ -82,6 +85,7 @@ export class Dispatcher {
             handOver: (task, session, reason, extra) => this.handovers.handOver(task, session, reason, extra),
             heldByMain: (chain, task) => this.waits.heldByMain(chain, task, (this.lists.tasks.get(chain.project) ?? []).map((open) => open.id), false),
           })
+    this.carries = new MainCarry(state, deps, { closeUp: (project, task) => this.cleanups.closeUp(project, task) })
     this.waits = new MainWait(state, deps, this.main, this.lists, {
       chainOf: (project) => this.chainOf(project),
       halt: (chain, error) => this.halt(chain, error),
@@ -119,7 +123,7 @@ export class Dispatcher {
 
   held(project: string): string[] {
     const current = this.chainOf(project)?.current
-    const holds = current?.sessionId && !isFixName(current.task) ? [current.task] : []
+    const holds = current?.sessionId && !isOwnName(current.task) ? [current.task] : []
     return [...holds, ...this.released(project).filter((id) => !holds.includes(id))]
   }
 
@@ -237,6 +241,11 @@ export class Dispatcher {
       this.changed()
       return
     }
+    if (isCarryName(task)) {
+      this.carries.skip(this.chainOf(project), task)
+      this.changed()
+      return
+    }
     if (!(this.lists.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
     const chain = this.chainOf(project)
     const holder = chain !== undefined && chain.current?.task === task ? chain : null
@@ -246,6 +255,22 @@ export class Dispatcher {
     if (!skipped.includes(task)) skipped.push(task)
     if (holder !== null) this.release(holder, 'skip', [])
     this.changed()
+  }
+
+  /**
+   * "Resolve with the agent" (BTN-369): a session resolves the release project's held carry after the current task of
+   * the project it merges into; a project without a chain gets one for the carry alone. A carry asked already stays.
+   */
+  carry(from: string, carry: CarrySession): void {
+    this.requireProject(carry.into)
+    if (!this.carries.ask(from, carry)) return
+    if (this.chainOf(carry.into) === undefined && !this.state.queue.includes(carry.into)) this.state.active.push({ ...newChain(carry.into), fixOnly: true })
+    this.changed()
+  }
+
+  /** The release project's carry a session resolves or is about to (BTN-369). */
+  carrying(from: string): CarrySession | undefined {
+    return this.carries.of(from)
   }
 
   restart(project: string, task: string): void {
@@ -401,7 +426,7 @@ export class Dispatcher {
   private hasWork(project: string): boolean {
     const tasks = this.lists.tasks.get(project)
     if (tasks === undefined) return false
-    if (this.main?.sessionFix(project) !== undefined) return true
+    if (this.main?.sessionFix(project) !== undefined || this.carries.due(project) !== undefined) return true
     try {
       return this.nextOf(project, tasks) !== undefined
     } catch {
@@ -434,7 +459,7 @@ export class Dispatcher {
   private currentOf(project: string): string | undefined {
     const chain = this.chainOf(project)
     const task = chain?.current?.task
-    return task === undefined || isFixName(task) ? chain?.interrupted?.task : task
+    return task === undefined || isOwnName(task) ? chain?.interrupted?.task : task
   }
 
   private drop(chain: ActiveChain): void {
@@ -480,7 +505,7 @@ export class Dispatcher {
 
   private letGo(chain: ActiveChain): void {
     if (chain.current === null) return
-    if (!isFixName(chain.current.task)) this.remember(chain.project, chain.current.task)
+    if (!isOwnName(chain.current.task)) this.remember(chain.project, chain.current.task)
     chain.current = null
   }
 
@@ -574,6 +599,13 @@ export class Dispatcher {
           }
           continue
         }
+        if (isCarryName(task)) {
+          if (!(await this.carries.follow(chain, chain.current))) {
+            await this.handovers.follow(chain, chain.current)
+            return
+          }
+          continue
+        }
         if (!tasks.some((open) => open.id === task)) {
           if (this.lists.done.get(chain.project)?.has(task)) {
             chain.current = null
@@ -606,7 +638,10 @@ export class Dispatcher {
       }
 
       const fix = this.main?.sessionFix(chain.project)
-      if (fix === undefined && chain.fixOnly) {
+      // A carry goes after the current task and the one a fix interrupted, before the next by the chain's order (BTN-369).
+      const carry = fix === undefined && chain.interrupted === undefined ? this.carries.due(chain.project) : undefined
+      const own = fix ?? carry
+      if (own === undefined && chain.fixOnly) {
         this.drop(chain)
         this.deps.save(this.state)
         return
@@ -625,7 +660,7 @@ export class Dispatcher {
       }
 
       const listed = tasks.map((open) => open.id)
-      const task = fix?.task ?? next
+      const task = own?.task ?? next
       if (task === undefined) {
         this.deps.log(`chain: ${chain.project} ended, no task left to run`)
         this.drop(chain)
@@ -635,7 +670,7 @@ export class Dispatcher {
 
       const since = this.deps.now().toISOString()
       const live = this.deps.liveSession(task)
-      const returned = fix === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
+      const returned = own === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
       if (live !== undefined && returned === undefined) {
         delete chain.limitUntil
         delete chain.slotWait
@@ -643,7 +678,7 @@ export class Dispatcher {
         this.take(chain, { task, sessionId: live, since })
         this.deps.save(this.state)
         // The feedback on the task's pull request goes to the session at once.
-        if (fix === undefined && this.reviews.feedbackOf(chain.project, task) !== undefined) continue
+        if (own === undefined && this.reviews.feedbackOf(chain.project, task) !== undefined) continue
         return
       }
 
@@ -692,12 +727,14 @@ export class Dispatcher {
       const current: CurrentTask = { task, sessionId: null, since, starting: since }
       this.take(chain, current)
       this.deps.save(this.state)
-      const feedback = fix === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
+      const feedback = own === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
       try {
         const { sessionId, fallback } =
           fix !== undefined
             ? { sessionId: await this.deps.launchFix(chain.project, task, fix.report) }
-            : feedback !== undefined
+            : carry !== undefined
+              ? { sessionId: await this.deps.launchCarry(chain.project, task, carry.report) }
+              : feedback !== undefined
               ? await this.deps.launch(chain.project, task, feedback)
               : await this.deps.launch(chain.project, task)
         if (feedback !== undefined) this.reviews.delivered(chain.project, task)
@@ -706,7 +743,7 @@ export class Dispatcher {
           project: chain.project,
           task,
           sessionId,
-          ...(fix !== undefined && { commit: fix.commit }),
+          ...(own !== undefined && { commit: own.commit }),
           ...(feedback !== undefined && { reason: 'review' as const }),
           ...(fallback !== undefined && { fallback }),
         })

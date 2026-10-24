@@ -106,7 +106,9 @@ export const en = {
   'forward.dirty': (p: { repo: string }) => `forward: ${p.repo} has uncommitted changes; the release branch waits`,
   'forward.fetch': (p: { from: string }) => `forward: could not fetch the branch of ${p.from}`,
   'forward.conflict': (p: { from: string; into: string; files: string[] }) =>
-    `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Carry now"`,
+    `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Resolve with the agent"`,
+  'forward.noConflict': (p: { from: string }) => `forward: the branch of ${p.from} holds no conflict for an agent to resolve`,
+  'forward.agent': (p: { from: string; task: string }) => `forward: ${p.task} resolves the carry of ${p.from}; the release branch waits for it`,
   'forward.failed': (p: { from: string; into: string }) =>
     `forward: git could not merge the branch of ${p.from} into ${p.into}, though no file conflicts; fix what git's message names, then press "Carry now"`,
   'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,

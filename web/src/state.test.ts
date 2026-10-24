@@ -1004,6 +1004,57 @@ describe('chainBlocks', () => {
     })
   })
 
+  describe('the carry of a release project resolved by an agent (BTN-369)', () => {
+    const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
+    const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]
+    const forward = { into: 'ABC', behind: 2, hold: null, held: true, agent: 'XYZ-CARRY' }
+
+    it('waits as a row of its own right after the current task, and leads the chain once it runs', () => {
+      const asked = stateOf({ tasks, forwards: { XYZ: forward }, chain: chain({ active: running('ABC-2'), projects: order }) })
+      expect(chainBlocks(asked, 'ABC').map((block) => [block.id, block.current, block.open])).toEqual([
+        ['ABC-1', false, false],
+        ['ABC-2', true, true],
+        ['XYZ-CARRY.1', false, true],
+        ['ABC-3', false, true],
+      ])
+      expect(chainBlocks(asked, 'ABC')[2]).toMatchObject({ title: 'Перенос XYZ: агент разрешит конфликт', lamp: 'ahead' })
+
+      const session = view('XYZ-CARRY', 'working', null)
+      const live = stateOf({ tasks, sessions: [session], forwards: { XYZ: forward }, chain: chain({ active: running('XYZ-CARRY'), projects: order }) })
+      expect(chainBlocks(live, 'ABC').map((block) => [block.id, block.current])).toEqual([
+        ['ABC-1', false],
+        ['XYZ-CARRY.1', true],
+        ['ABC-2', false],
+        ['ABC-3', false],
+      ])
+      expect(chainBlocks(live, 'ABC')[1]).toMatchObject({ lamp: 'working', session })
+      expect(fixBlockOf(chainBlocks(live, 'ABC'), 'XYZ-CARRY')).toBe('XYZ-CARRY.1')
+    })
+
+    it('stands among the closed tasks once over, named by the commits it carried', () => {
+      const carried = { id: 'XYZ-CARRY.1', red: 'abc1234', at: '2026-01-01T09:30:00.000Z', end: { at: '2026-01-01T10:00:00.000Z', how: 'carried' as const, commit: null, commits: 2 } }
+      const dropped = { id: 'XYZ-CARRY.2', red: 'abc1234', at: '2026-01-01T11:30:00.000Z', end: { at: '2026-01-01T12:00:00.000Z', how: 'dropped' as const, commit: null } }
+      const state = stateOf({ tasks, fixes: { ABC: [carried, dropped] }, chain: chain({ active: running('ABC-2'), projects: order }) })
+      const blocks = chainBlocks(state, 'ABC')
+      expect(blocks.map((block) => [block.id, block.title])).toEqual([
+        ['ABC-1', expect.anything()],
+        ['XYZ-CARRY.1', 'Перенос XYZ: 2 коммита'],
+        ['XYZ-CARRY.2', 'Перенос XYZ: пропущен, конфликт ждёт'],
+        ['ABC-2', expect.anything()],
+        ['ABC-3', expect.anything()],
+      ])
+    })
+
+    it('belongs to the project the release merges into', () => {
+      const state = stateOf({ forwards: { XYZ: forward } })
+      expect(taskProject(state, 'XYZ-CARRY')).toBe('ABC')
+      expect(taskProject(state, 'XYZ-CARRY.2')).toBe('ABC')
+      expect(cardTask(stateOf({ tasks, forwards: { XYZ: forward }, chain: chain({ active: running('XYZ-CARRY'), projects: order }) }), 'ABC')?.title).toBe(
+        'Перенос XYZ: агент разрешает конфликт',
+      )
+    })
+  })
+
   it('shows a waiting blocker from another project locked, with its title, before the task it holds', () => {
     const foreign = { ...task('XYZ-7', 'ToDo'), title: 'Foreign blocker' }
     const state = stateOf({

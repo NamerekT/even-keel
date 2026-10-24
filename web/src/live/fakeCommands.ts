@@ -1,6 +1,6 @@
 import { fail } from '../../../src/notice/notice.js'
 import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
-import { isFixName } from '../../../src/chain/fix.js'
+import { isOwnName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder, startsAhead } from '../../../src/chain/order.js'
 import type { EvenKeelState, ProjectTask, SessionView } from '../../../src/state.js'
@@ -8,6 +8,7 @@ import { accountCommand, withAccount } from './fakeAccounts.js'
 import { fakeUpdatesCommand } from './fakeUpdates.js'
 import { fakeSettingsCommand } from './fakeConfig.js'
 import { fakeMoveMilestone, fakeReady } from './fakeCards.js'
+import { fakeResolve } from './fakeCarry.js'
 import { fakeAnswer, fakeDismissMail } from './fakeChat.js'
 import { fakePackagesCommand } from './fakePackages.js'
 import { fakeSecretsCommand, fakeTally } from './fakeSecrets.js'
@@ -169,7 +170,7 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   const current = chainIn(state, project)?.current?.task
   const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
   const holding = [...(state.chain.skipped[project] ?? []), ...kept.waiting]
-  if (current !== undefined && !isFixName(current) && startsAhead(tasks, order, current, holding)) throw fail('chain.currentFirst', { task: current })
+  if (current !== undefined && !isOwnName(current) && startsAhead(tasks, order, current, holding)) throw fail('chain.currentFirst', { task: current })
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
 }
 
@@ -182,7 +183,7 @@ function skip(state: EvenKeelState, project: string, task: string): EvenKeelStat
   }
   const skipped = state.chain.skipped[project] ?? []
   const released = holder === undefined ? state : withChain(state, holder, { ...holder, current: null })
-  if (isFixName(task)) return released
+  if (isOwnName(task)) return released
   return {
     ...state,
     chain: {
@@ -251,6 +252,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'task/ready') return fakeReady(state, String(body.task))
   if (name === 'task/milestone') return fakeMoveMilestone(state, String(body.task), body.milestone === null ? null : String(body.milestone))
   if (name === 'chain/refresh') return fakeRefresh(state, String(body.project))
+  if (name === 'forward/resolve') return fakeResolve(state, String(body.project))
   const settings =
     fakeSettingsCommand(state, name, body) ??
     fakeProjectCommand(state, name, body) ??

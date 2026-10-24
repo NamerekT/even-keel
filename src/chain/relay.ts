@@ -40,7 +40,16 @@ export function fixPrompt(report: string, place: TaskPlace, language: Language, 
   return lines.join('\n') + '\n'
 }
 
-/** A handoff of the fix session carries the report again: there is no task to read it from, so without it nothing starts. */
+/** The prompt of the session that resolves a release project's carry (BTN-369): the report, then its place and rules. */
+export function carryPrompt(report: string, place: TaskPlace, language: Language, main = 'main'): string {
+  const text = PROMPTS[language]
+  const lines = [fill`${report.trim()}`, '', text.worktree(place.path)]
+  if (place.branch !== null) lines.push(text.branch(place.branch))
+  lines.push(text.carryRules(main))
+  return lines.join('\n') + '\n'
+}
+
+/** A handoff of the fix or carry session carries the report again: there is no task to read it from, so without it nothing starts. */
 export function withReport(task: string, prompt: string, report: string | undefined): string {
   if (report === undefined || report.trim() === '') throw fail('chain.fixReportMissing', { task })
   return `${prompt}\n${report.trim()}\n`

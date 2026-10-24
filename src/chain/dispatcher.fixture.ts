@@ -76,6 +76,9 @@ export function setup(options: SetupOptions = {}) {
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string }[] = []
   const launched: string[] = []
   const fixes: { project: string; name: string; report: string }[] = []
+  const carries: { project: string; name: string; report: string }[] = []
+  /** The release commits each project's branch has, `<project>/<commit>`. */
+  const carried = new Set<string>()
   const stopped: string[] = []
   const tried: string[] = []
   const refuse = options.refuse ?? {}
@@ -146,6 +149,12 @@ export function setup(options: SetupOptions = {}) {
       fixes.push({ project, name, report })
       return `session-${++counter}`
     },
+    launchCarry: async (project, name, report) => {
+      launched.push(`${project}/${name}`)
+      carries.push({ project, name, report })
+      return `session-${++counter}`
+    },
+    carried: async (project, commit) => carried.has(`${project}/${commit}`),
     stop: async (session) => {
       if (options.failStop) throw new Error(`claude: could not stop ${session.agentId}`)
       stopped.push(session.sessionId)
@@ -173,6 +182,8 @@ export function setup(options: SetupOptions = {}) {
     dispatcher,
     launched,
     fixes,
+    carries,
+    carried,
     stopped,
     live,
     tried,

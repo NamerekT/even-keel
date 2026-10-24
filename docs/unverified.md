@@ -49,6 +49,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
 | 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a carry whose push fails; push by hand |
+| 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
 | 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
@@ -470,6 +471,10 @@ The git side is checked on real clones of one remote (`docs/chain.md`, "Projects
 ### Carrying a release project forward (BTN-172)
 
 The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers. Seen on the author's Windows service (2026-10-22): the fetch from the release clone's folder and a conflict, aborted and held with its file on the page until the merge by hand, after which the hold cleared. Seen in Windows Sandbox (2026-10-23) from a service in session 0 under its own account: a carry as a fast-forward and one as a merge commit, both pushed to the remote; with the account lacking a git name and email the merge failed, was aborted and held with git's message on the page, and "Carry now" went through once the account had them. Such a hold is now `forward.failed`, not a conflict (BTN-314; tests only). Not seen: a push that fails — the page should say so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
+
+### A conflict resolved by an agent (BTN-369)
+
+The carry session (`docs/chain.md`, "The carry session") is covered by tests of the forward tick, the dispatcher's order, the skip and the page's rows; the page was checked on fake data only. Never run live: a session `<KEY>-CARRY` started on a real conflict, its merge into the main branch, the check `merge-base --is-ancestor` closing it, the cleanup of its worktree, the forward tick lifting the hold after it, and the record surviving a restart of the service. Assumed: that the session merges the commit the prompt names (the ref `refs/even-keel/forward/<KEY>` lives in the main checkout, which the task worktree shares) and that a red main of the main project meanwhile waits behind the carry rather than stopping it. If wrong, the carry row stays open after the merge, or the hold stays on the release project's page. **Workaround:** "Skip" on the carry row and merge by hand, as above; the hold clears by itself once the branch has the commits.
 
 ### GitHub issues taken into the tracker (BTN-262)
 

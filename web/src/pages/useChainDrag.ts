@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import { isFixName } from '../../../src/chain/fix.js'
+import { isOwnName } from '../../../src/chain/fix.js'
 import type { ChainBlock } from '../state.js'
 import { moveItem } from '../ui/drag.js'
 import { stillMotion } from '../ui/landing.js'
@@ -310,9 +310,9 @@ export function reorderable(block: ChainBlock): boolean {
   return inOrder(block) && !block.current
 }
 
-/** An open task of the chain's order; the fix session of main is open and has no place in it. */
+/** An open task of the chain's order; the fix and carry sessions are open and have no place in it. */
 export function inOrder(block: ChainBlock): boolean {
-  return block.open && !isFixName(block.id)
+  return block.open && !isOwnName(block.id)
 }
 
 function positions(list: HTMLElement): Map<string, Point> {
