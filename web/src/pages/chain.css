@@ -690,56 +690,6 @@
   }
 }
 
-/* The legend of shapes */
-
-.chain .chain__shape {
-  display: inline-block;
-  width: 14px;
-  height: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--surface);
-}
-
-.chain .chain__shape--urgent {
-  border-color: var(--lamp-error);
-  background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 3px, var(--hazard-dark) 3px 6px);
-}
-
-.chain .chain__shape--high,
-.chain .chain__shape--low {
-  width: 10px;
-  border-radius: 50%;
-}
-
-.chain .chain__shape--high {
-  border-color: var(--series-2);
-  background: var(--series-2);
-}
-
-.chain .chain__shape--low {
-  border-color: var(--fg-muted);
-  background: none;
-  opacity: 0.6;
-}
-
-.chain .chain__shape--rework {
-  background-image: repeating-linear-gradient(135deg, transparent 0 2px, var(--fg-muted) 2px 3px);
-}
-
-.chain .chain__shape--family {
-  width: 2px;
-  height: 12px;
-  border: 0;
-  background: var(--family-0);
-}
-
-.chain .chain__shape--estimate {
-  height: 2px;
-  border: 0;
-  background: var(--fg-muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .chain .block,
   .chain .block--enter,

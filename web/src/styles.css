@@ -2108,60 +2108,6 @@ a.button.pull-button__link {
   z-index: 1;
 }
 
-.chain__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--fg-muted);
-  font-size: var(--text-13);
-}
-
-.chain__legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.chain__help,
-.chain__help-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chain__help-toggle {
-  position: relative;
-  flex: none;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: none;
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: var(--text-12);
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-}
-
-/* A finger needs more than the 20px circle. */
-.chain__help-toggle::before {
-  content: '';
-  position: absolute;
-  inset: -10px;
-}
-
-.chain__help-toggle:hover,
-.chain__help-toggle[aria-expanded='true'] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 .block {
   position: relative;
   display: grid;

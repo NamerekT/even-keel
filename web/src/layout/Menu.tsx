@@ -56,7 +56,7 @@ function withAccount(system: Level, account: string): Level {
   return system
 }
 
-function BurgerIcon() {
+export function BurgerIcon() {
   return (
     <svg className="system-toggle__gear" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
       <path d="M4 7h16M4 12h16M4 17h16" />

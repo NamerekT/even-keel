@@ -93,7 +93,6 @@ export function IdlePanel({ scene }: { scene: Scene }) {
           <TypedLine text={parts.join('')} shown={shown} className="idle__meme" />
         )}
       </div>
-      <p className="idle__hint">{t.project.idle.hint}</p>
     </aside>
   )
 }

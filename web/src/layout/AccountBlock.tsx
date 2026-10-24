@@ -149,7 +149,7 @@ function LimitSegment({ window, title, now }: { window: LimitWindow | null; titl
   )
 }
 
-function Ring({ percent }: { percent: number }) {
+export function Ring({ percent }: { percent: number }) {
   return (
     <svg className="limit__ring" viewBox="0 0 22 22" width="20" height="20" aria-hidden="true">
       <circle className="limit__track" cx="11" cy="11" r={RING_RADIUS} />

@@ -107,7 +107,7 @@ export function GearMenu({ now }: { now: Date }) {
   )
 }
 
-function GearIcon() {
+export function GearIcon() {
   return (
     <svg className="system-toggle__gear" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />

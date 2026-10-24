@@ -47,6 +47,7 @@ import { ChainList } from './ChainList.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
+import { HELP_HASH, HelpChip, HelpPanel } from './HelpPanel.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
 import { emptyCall } from './ProjectCard.js'
@@ -109,14 +110,15 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const ci = state.ci[key]
   const ciAt = ciFocus(focus)
   const ciOpen = ciAt.open && ci !== undefined
-  const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen
+  const helpOpen = focus === HELP_HASH
+  const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen || helpOpen
   const column = side || wide
-  // Over the side column the CI badge, Backlog and Settings are tabs on its card; with no column they end the head row,
-  // and on a narrow screen they are one block of segments at the end of the title row.
+  // Over the side column the CI badge, Backlog, Settings and the help are tabs on its card; with no column they end the
+  // head row, and on a narrow screen they are one block of segments at the end of the title row.
   const tabs = column && !narrow
   const look: ChipLook = tabs ? 'tab' : narrow ? 'seg' : 'tag'
   const toggle = (hash: string, open: boolean) => () => navigate({ search: location.search, hash: open ? '' : hash })
-  const tools = (ci !== undefined || backlog.length > 0 || settings !== undefined) && (
+  const tools = (
     <>
       {ci !== undefined && <CiChip views={ci} open={ciOpen} look={look} onToggle={toggle(CI_HASH, ciOpen)} />}
       <BacklogChip
@@ -127,6 +129,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         onToggle={toggle(BACKLOG_HASH, backlogOpen)}
       />
       {settings !== undefined && <SettingsChip open={settingsOpen} look={look} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
+      <HelpChip open={helpOpen} look={look} onToggle={toggle(HELP_HASH, helpOpen)} />
     </>
   )
   const question = questionPath(state, [key])
@@ -153,7 +156,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           {settings !== undefined && <ProjectName project={key} form={settings} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
-          {narrow && tools !== false && <div className="hblock project__tools">{tools}</div>}
+          {narrow && <div className="hblock project__tools">{tools}</div>}
           <ChainControls state={state} project={key} narrow={narrow}>
             {look === 'tag' && tools}
           </ChainControls>
@@ -175,7 +178,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             chain={blocks}
             scale={state.context}
             trackerUrls={state.trackerUrls}
-            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || ciAt.open ? '' : focus}
+            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
@@ -188,8 +191,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
       </div>
       {column && (
-        <div className={tabs && tools !== false ? 'project__side project__side--tabs' : 'project__side'}>
-          {tabs && tools !== false && <div className="side-tabs">{tools}</div>}
+        <div className={tabs ? 'project__side project__side--tabs' : 'project__side'}>
+          {tabs && <div className="side-tabs">{tools}</div>}
           {selected !== undefined && (
             <SessionPanel key={selected.id} block={selected} scale={state.context} ci={ci !== undefined} onCard={openCard} onClose={close} />
           )}
@@ -211,6 +214,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           )}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}
           {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} fixes={state.fixes[key] ?? []} fix={ciAt.fix} onClose={close} />}
+          {helpOpen && <HelpPanel blocks={blocks} ci={ci !== undefined} narrow={narrow} onClose={close} />}
           {!side && (
             <IdlePanel
               key={key}
