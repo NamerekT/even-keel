@@ -29,6 +29,7 @@ import {
   contextFill,
   fixBlockOf,
   issueLink,
+  keySlots,
   projectSlot,
   projectSlots,
   projectTracker,
@@ -688,6 +689,28 @@ describe('projectSlot', () => {
     expect(projectSlot(state, 'XYZ')).toBeNull()
     expect(projectSlot(state, 'ZZZ')).toBeNull()
     expect(projectSlots(state)).toEqual({ ABC: 5, XYZ: null })
+  })
+})
+
+describe('keySlots', () => {
+  it('names each slot by the project key, as Tally labels the projects', () => {
+    const state = stateOf({})
+    state.config.projects = {
+      'guid-1': { ...fakeConfig().projects.ABC!, color: 5 },
+      'guid-2': { ...fakeConfig().projects.XYZ!, color: null },
+    }
+    state.projectKeys = { 'guid-1': 'ABC', 'guid-2': 'XYZ' }
+    expect(keySlots(state)).toEqual({ ABC: 5, XYZ: null })
+  })
+
+  it('gives a key shared by several projects the slot of the first in the config order', () => {
+    const state = stateOf({})
+    state.config.projects = {
+      'guid-2': { ...fakeConfig().projects.ABC!, color: 3 },
+      'guid-1': { ...fakeConfig().projects.ABC!, color: 7 },
+    }
+    state.projectKeys = { 'guid-1': 'ABC', 'guid-2': 'ABC' }
+    expect(keySlots(state)).toEqual({ ABC: 3 })
   })
 })
 

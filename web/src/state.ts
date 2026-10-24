@@ -508,9 +508,19 @@ export function projectSlot(state: Pick<EvenKeelState, 'config'>, project: strin
   return state.config.projects[project]?.color ?? null
 }
 
-/** The slot of every project of the config by its key. */
+/** The slot of every project of the config by its id. */
 export function projectSlots(state: Pick<EvenKeelState, 'config'>): Record<string, number | null> {
   return Object.fromEntries(Object.keys(state.config.projects).map((project) => [project, projectSlot(state, project)]))
+}
+
+/** The slots by project key, as Tally labels the projects; a key shared by several projects (BTN-271) takes the first one's in the config order. */
+export function keySlots(state: Pick<EvenKeelState, 'config' | 'projectKeys'>): Record<string, number | null> {
+  const slots: Record<string, number | null> = {}
+  for (const project of Object.keys(state.config.projects)) {
+    const key = state.projectKeys[project] ?? project
+    if (!Object.hasOwn(slots, key)) slots[key] = projectSlot(state, project)
+  }
+  return slots
 }
 
 export function sessionStart(current: CurrentTask, session: SessionView | null, runs: TaskSession[], now: Date): SessionStart | null {
