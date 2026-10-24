@@ -66,15 +66,18 @@ export class Secrets {
     this.writeEnv((text) => upsertEnv(text, name, value))
   }
 
-  /** Several `.env`-only variables in one write, so their readers restart once: the stats' own Postgres (BTN-247). */
-  setAll(values: Record<string, string>): void {
+  /**
+   * Several `.env`-only variables in one write, so their readers restart once: the stats' own Postgres (BTN-247) and
+   * its classifier (BTN-355). `null` removes one; the page token has its own guard and is never among them.
+   */
+  update(values: Record<string, string | null>): void {
     const entries = Object.entries(values)
     for (const [name, value] of entries) {
-      if (this.writable(name).places.includes('sessions')) throw fail('secrets.unknown', { name })
+      if (this.writable(name).places.includes('sessions') || name === PAGE_TOKEN) throw fail('secrets.unknown', { name })
       if (value === '') throw fail('secrets.empty', { name })
-      envLine(name, value)
+      if (value !== null) envLine(name, value)
     }
-    this.writeEnv((text) => entries.reduce((next, [name, value]) => upsertEnv(next, name, value), text))
+    this.writeEnv((text) => entries.reduce((next, [name, value]) => (value === null ? removeEnv(next, name) : upsertEnv(next, name, value)), text))
   }
 
   remove(name: string): void {

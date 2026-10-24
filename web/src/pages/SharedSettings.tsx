@@ -51,7 +51,8 @@ import { useModels } from './useModels.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
-import { SettingsSecrets } from './SettingsSecrets.js'
+import { SettingsProfiles } from './SettingsProfiles.js'
+import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
 import { TallySettings } from './TallyChoice.js'
 import { useVocabularies } from './useVocabularies.js'
 import './settings.css'
@@ -61,6 +62,8 @@ const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
   { id: 'chain', keys: ['parallel', 'brief', 'fillMilestone'] },
+  // The connections before the rules over them (BTN-355); a profile is applied on its own and never kept in a draft.
+  { id: 'trackers', keys: [] },
   // The shared rules, together with a switch to the rules of each tracker profile, which are saved apart (BTN-66).
   { id: 'rules', keys: [...RULE_KEYS] },
   {
@@ -71,8 +74,6 @@ const GROUPS = [
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
-  // Each credential is applied on its own and never kept in a draft.
-  { id: 'secrets', keys: [] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
@@ -185,12 +186,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   // A tracker profile's rules are a tab of the rules group (BTN-66), one per profile; a removed profile's tab falls back to the shared rules.
   const ruled = state.profiles.profiles.filter((profile) => state.profiles.kinds.some((kind) => kind.kind === profile.kind && kind.tracker))
   const ruledOpen = ruled.find((profile) => profileGroup(profile.id) === tab)
-  const open: GroupId = GROUPS.some((group) => group.id === tab) ? (tab as GroupId) : tab.startsWith(profileGroup('')) ? 'rules' : 'chain'
+  // The profiles were on the "Access" tab (`secrets`) until BTN-355: a link or a kept tab of it lands on their new one.
+  const open: GroupId = GROUPS.some((group) => group.id === tab)
+    ? (tab as GroupId)
+    : tab === 'secrets'
+      ? 'trackers'
+      : tab.startsWith(profileGroup(''))
+        ? 'rules'
+        : 'chain'
   const [params] = useSearchParams()
   const addsProfile = profileAddOf(params) !== null
   // A link asking for a profile (PR mode, EKR-7) lands on the tab its dialog opens in.
   useEffect(() => {
-    if (addsProfile) openTab(SCOPE, 'secrets')
+    if (addsProfile) openTab(SCOPE, 'trackers')
   }, [addsProfile])
   const vocabularies = useVocabularies(state.projects)
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
@@ -205,7 +213,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
   const modelOffers = useModels(offered.map((provider) => text(`accounts.${provider}`)))
   const titleOf = (id: GroupId) => t.shared[id]
-  const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote, secrets: t.secrets.hint }
+  const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote }
   const groupTitle = (id: GroupId) => (
     <h2 id="settings-group" className="settings-page__group">
       {titleOf(id)}
@@ -529,7 +537,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {check('updatesCheck', t.shared.updatesCheck, t.shared.updatesCheckHint, false, 'updates')}
           {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
         </Section>
-        <Section title={t.shared.sections.hosts}>
+        <Section title={t.shared.sections.access}>
+          <PageToken state={state} />
           <div className={marks.box('allowedHosts')}>
             <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} />
             <ListTable
@@ -575,7 +584,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         </Section>
       </>
     ),
-    secrets: () => <SettingsSecrets state={state} />,
+    trackers: () => <SettingsProfiles state={state} onRules={(id) => setOpen(profileGroup(id))} />,
   }
 
   const draftForm = (titled: boolean) => (
@@ -631,13 +640,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             )}
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
           </section>
-        ) : open === 'secrets' || open === 'stats' ? (
-          // Every row is a form of its own, so the tab is not one; Tally's place is applied on its own, ahead of the draft.
+        ) : open === 'trackers' || open === 'stats' ? (
+          // Every profile is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}
-            {open === 'secrets' ? groups[open]() : (
+            {open === 'trackers' ? (
+              groups[open]()
+            ) : (
               <>
                 <TallySettings state={state} />
+                <ClassifierSettings state={state} />
                 {draftForm(false)}
               </>
             )}

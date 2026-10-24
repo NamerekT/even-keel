@@ -44,7 +44,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 32 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
 | 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
-| 35 | [A tracker profile changed on the Access page](#a-tracker-profile-changed-on-the-access-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
+| 35 | [A tracker profile changed on the page](#a-tracker-profile-changed-on-the-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
@@ -403,9 +403,9 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ## Trackers
 
-### A tracker profile changed on the Access page (BTN-200)
+### A tracker profile changed on the page (BTN-200)
 
-A profile changed on `/settings` → **Access** is covered by tests, not run live (it would change the real keys): that the tracker of the profile's projects connects again with the new values, and that a new session finds the default profile's values in the `env` of the global `settings.json`. If the tracker does not connect again, its chips stay "does not answer". **Workaround:** restart the service.
+A profile changed on `/settings` → **Trackers and CI** is covered by tests, not run live (it would change the real keys): that the tracker of the profile's projects connects again with the new values, and that a new session finds the default profile's values in the `env` of the global `settings.json`. If the tracker does not connect again, its chips stay "does not answer". **Workaround:** restart the service.
 
 ### Two profiles of one tracker (BTN-200)
 
@@ -423,7 +423,7 @@ Not seen live: a feed on a second Huly workspace (whether a session reads it thr
 
 ### A project's own CI profile (BTN-231)
 
-That a project's chosen GitHub or Forgejo profile (`remoteProfiles`) reads its CI and opens its pull requests is covered by tests; it never ran live, the author has one profile of each. If the CI or a pull request keeps the old profile after the choice, **workaround:** set the wanted profile as the default of its kind on Access.
+That a project's chosen GitHub or Forgejo profile (`remoteProfiles`) reads its CI and opens its pull requests is covered by tests; it never ran live, the author has one profile of each. If the CI or a pull request keeps the old profile after the choice, **workaround:** set the wanted profile as the default of its kind on Trackers and CI.
 
 ### The expiry of a fine-grained GitHub token
 
@@ -461,7 +461,7 @@ A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_M
 
 ### The first start with Forgejo profiles (BTN-201)
 
-Checked live, read-only: a profile built from `FORGEJO_TOKEN` the way `importForgejo` builds it, on the host of this repository's Forgejo remote, signs in through `/api/v1/user` and is the one `ciToken` gives that remote, and the runs come with it; another host gets no token. The import itself, by the service on its own database after an update, is covered only by tests. If the Forgejo CI disappears from the page after the update, the import made no profile for that host (the log says why). **Workaround:** add a Forgejo profile on `/settings` → **Access** with the server's address and the token.
+Checked live, read-only: a profile built from `FORGEJO_TOKEN` the way `importForgejo` builds it, on the host of this repository's Forgejo remote, signs in through `/api/v1/user` and is the one `ciToken` gives that remote, and the runs come with it; another host gets no token. The import itself, by the service on its own database after an update, is covered only by tests. If the Forgejo CI disappears from the page after the update, the import made no profile for that host (the log says why). **Workaround:** add a Forgejo profile on `/settings` → **Trackers and CI** with the server's address and the token.
 
 ### Chains of several projects on one remote (BTN-210)
 

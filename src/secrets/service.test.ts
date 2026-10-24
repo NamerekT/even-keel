@@ -117,14 +117,23 @@ describe('Secrets', () => {
 
   it('writes several variables of .env at once and applies them once', () => {
     writeFileSync(envFile, 'TALLY_DB_HOST=old.example.com\n')
-    open().setAll({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally', TALLY_READER_PASSWORD: 'secret' })
+    open().update({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally', TALLY_READER_PASSWORD: 'secret' })
     expect(readFileSync(envFile, 'utf8')).toBe('TALLY_DB_HOST=db.example.com\nTALLY_DB_NAME=tally\nTALLY_READER_PASSWORD=secret\n')
     expect(applied).toBe(1)
   })
 
+  it('removes the ones given as null in the same write', () => {
+    writeFileSync(envFile, 'TALLY_LLM_URL=https://llm.example.com\nTALLY_LLM_MODEL=old\nZ=1\n')
+    open().update({ TALLY_LLM_URL: 'https://other.example.com', TALLY_LLM_MODEL: null })
+    expect(readFileSync(envFile, 'utf8')).toBe('TALLY_LLM_URL=https://other.example.com\nZ=1\n')
+    expect(applied).toBe(1)
+  })
+
   it('writes none of them when one is refused', () => {
-    expect(() => open(['TALLY_DB_NAME']).setAll({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally' })).toThrow()
-    expect(() => open().setAll({ TALLY_DB_HOST: 'db.example.com', HULY_URL: 'https://huly.example.com' })).toThrow()
+    expect(() => open(['TALLY_DB_NAME']).update({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally' })).toThrow()
+    expect(() => open().update({ TALLY_DB_HOST: 'db.example.com', HULY_URL: 'https://huly.example.com' })).toThrow()
+    expect(() => open().update({ TALLY_LLM_URL: 'https://llm.example.com', TALLY_LLM_KEY: '' })).toThrow()
+    expect(() => open().update({ TALLY_LLM_URL: 'https://llm.example.com', EVEN_KEEL_TOKEN: 'abcdefghijklmnop0123' })).toThrow()
     expect(applied).toBe(0)
   })
 

@@ -365,10 +365,16 @@
   margin-left: auto;
 }
 
+/* A form of its own inside a section (a credential is applied apart from the draft): its rows lay out as the section's. */
+.settings__fields {
+  display: contents;
+}
+
 /* Fields of a section are parted by thin lines; a block under a switch counts its own fields. */
 .settings__section > :not(.settings__heading) + .settings__field,
 .settings__section > :not(.settings__heading) + .settings__guarded,
-.settings__guarded > .settings__field + .settings__field {
+.settings__guarded > .settings__field + .settings__field,
+.settings__fields > .settings__field + .settings__field {
   padding-top: 12px;
   border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
@@ -398,8 +404,8 @@
   margin-top: 0;
 }
 
-/* Too narrow for both: the control goes under its name. */
-@container (max-width: 340px) {
+/* Too narrow for both: the control goes under its name. The container is the form, a section's padding is taken from it: a phone's 358 px left a name of 100 px. */
+@container (max-width: 380px) {
   .settings__line-main {
     grid-template-columns: minmax(0, 1fr);
   }

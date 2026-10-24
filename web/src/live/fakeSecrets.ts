@@ -3,21 +3,22 @@ import { secretCatalog } from '../../../src/secrets/catalog.js'
 import type { EvenKeelState, SecretsView } from '../../../src/state.js'
 import type { TallyMode } from '../../../src/stats/mode.js'
 
-const SET = new Set(['TALLY_DB_HOST', 'TALLY_WRITER_PASSWORD'])
+const SET: Record<string, string> = { TALLY_DB_HOST: '100.64.0.1', TALLY_WRITER_PASSWORD: '', TALLY_LLM_URL: 'https://llm.example.com', TALLY_LLM_KEY: '' }
 
 /**
- * The "Access" tab's keys besides the profiles: Tally's host and writer password set, the rest not.
- * `?secrets=` adds `outer` — `TALLY_DB_HOST` from the service's environment, `pending` — a removal waits.
+ * The `.env` keys of the stats and the page token: Tally's host, writer password and classifier address and key set,
+ * the rest not. `?secrets=` adds `outer` — `TALLY_LLM_URL` from the service's environment (Settings → Stats), `pending`
+ * — a removed profile key waits (Settings → Trackers and CI).
  */
 export function fakeSecrets(mode: string | null): SecretsView {
   return {
     variables: secretCatalog().map((spec) => {
-      const outer = mode === 'outer' && spec.name === 'TALLY_DB_HOST'
-      const set = SET.has(spec.name)
+      const outer = mode === 'outer' && spec.name === 'TALLY_LLM_URL'
+      const set = spec.name in SET
       return {
         ...spec,
         set,
-        value: spec.secret || !set ? null : '100.64.0.1',
+        value: spec.secret || !set ? null : SET[spec.name]!,
         outer,
         sessions: spec.places.includes('sessions') ? (set ? 'same' : 'none') : null,
         required: false,
@@ -50,6 +51,13 @@ export function fakeTally(state: EvenKeelState, body: Record<string, unknown>): 
 
 export function fakeSecretsCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (!name.startsWith('secrets/')) return null
+  if (name === 'secrets/update') {
+    const values = body.values as Record<string, string | null>
+    const variables = state.secrets.variables.map((each) =>
+      !(each.name in values) ? each : { ...each, set: values[each.name] !== null, value: each.secret ? null : values[each.name]! },
+    )
+    return { ...state, secrets: { ...state.secrets, variables } }
+  }
   const variable = String(body.name)
   if (variable === 'EVEN_KEEL_TOKEN' && name === 'secrets/set' && String(body.value).length < 16) throw fail('config.tokenShape', {})
   const set = name === 'secrets/set'

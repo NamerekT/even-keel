@@ -103,7 +103,7 @@ describe('Even Keel HTTP server', () => {
         setSetting: record('setting'),
         setKey: record('key'),
       },
-      secrets: { set: record('secretSet'), remove: record('secretRemove') },
+      secrets: { set: record('secretSet'), remove: record('secretRemove'), update: record('secretUpdate') },
       tally: { set: async (mode, server) => record('tally')(mode, server) },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
@@ -688,6 +688,13 @@ describe('Even Keel HTTP server', () => {
     ])
     expect((await post('/api/secrets/set', { name: 'HULY_PASSWORD' })).status).toBe(400)
     expect((await post('/api/secrets/remove', {})).status).toBe(400)
+  })
+
+  it('writes several credentials at once, null removing one', async () => {
+    await post('/api/secrets/update', { values: { TALLY_LLM_URL: 'https://llm.example.com', TALLY_LLM_MODEL: null } })
+    expect(calls).toEqual([['secretUpdate', { TALLY_LLM_URL: 'https://llm.example.com', TALLY_LLM_MODEL: null }]])
+    expect((await post('/api/secrets/update', {})).status).toBe(400)
+    expect((await post('/api/secrets/update', { values: { TALLY_LLM_URL: 1 } })).status).toBe(400)
   })
 
   it('sets where the stats go, with the fields of the own Postgres or without', async () => {

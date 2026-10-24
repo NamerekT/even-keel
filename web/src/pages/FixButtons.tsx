@@ -18,7 +18,7 @@ export function FixButton({ project, fix, className = 'button button--small noti
   if (fix.to === 'project' && target === null) return null
   return (
     <button type="button" className={className} onClick={() => go(fix, target)}>
-      {fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'secrets' ? t.fix.access : t.fix.shared}
+      {fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared}
     </button>
   )
 }

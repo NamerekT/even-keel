@@ -175,10 +175,12 @@ export interface PackagesControl {
   setKey(name: string, value: string): void
 }
 
-/** The page's "Access" tab (`src/secrets/`): each variable is written or removed alone. */
+/** The `.env` credentials the page writes (`src/secrets/`): the page token alone, the stats classifier's together. */
 export interface SecretsControl {
   set(name: string, value: string): void
   remove(name: string): void
+  /** `null` removes the variable. */
+  update(values: Record<string, string | null>): void
 }
 
 /** Where Tally writes (BTN-247): the page's stats setup and the stats settings. */
@@ -323,6 +325,7 @@ const COMMANDS: Record<string, Command> = {
   'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),
   'secrets/set': ({ secrets }, body) => secrets.set(nameOf(body), textOf(body.value, 'value')),
   'secrets/remove': ({ secrets }, body) => secrets.remove(nameOf(body)),
+  'secrets/update': ({ secrets }, body) => secrets.update(secretValuesOf(body.values)),
   'stats/tally': ({ tally }, body) => tally.set(tallyModeOf(body.mode), tallyDraftOf(body.server)),
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
@@ -1021,6 +1024,12 @@ function appOf(body: Record<string, unknown>): string {
 function nameOf(body: Record<string, unknown>): string {
   if (typeof body.name !== 'string' || body.name === '') throw fail('request.required', { field: 'name' })
   return body.name
+}
+
+function secretValuesOf(raw: unknown): Record<string, string | null> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('request.required', { field: 'values' })
+  for (const [name, value] of Object.entries(raw)) if (value !== null && typeof value !== 'string') throw fail('request.required', { field: name })
+  return raw as Record<string, string | null>
 }
 
 function optionalProjectOf(body: Record<string, unknown>): string | undefined {

@@ -17,7 +17,7 @@ export function pullFixOf(notice: Notice | null | undefined): PullFix | null {
 const PROFILE = 'profile'
 const HOST = 'host'
 
-/** /settings on the Access tab with the dialog of a new profile of the kind, its server's address filled in. */
+/** /settings on the Trackers and CI tab with the dialog of a new profile of the kind, its server's address filled in. */
 export const profileAddPath = (kind: string, host: string): string => `/settings?${new URLSearchParams({ [PROFILE]: kind, [HOST]: host }).toString()}`
 
 /** The profile `profileAddPath` asks to add; `null` — none. */

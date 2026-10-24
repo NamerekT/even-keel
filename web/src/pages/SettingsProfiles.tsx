@@ -4,11 +4,12 @@ import { useSearchParams } from 'react-router'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { Band } from '../ui/blocks.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ProfileDialog } from './ProfileDialog.js'
-import { HelpTip } from './settingsParts.js'
+import { Section } from './settingsParts.js'
 import { daysLeft } from './profileForm.js'
 import { profileAddOf, withoutProfileAdd } from './pullFix.js'
 import './profiles.css'
@@ -21,25 +22,26 @@ const remotesOf = (remotes: ProfileView['ci'], label: (project: string) => strin
 /** Which dialog is up: a new profile, or the profile of that id. */
 type Editing = { id: string | null } | null
 
-/** The trackers' profiles of the "Access" tab: a row each, the details on pointing, and "Add profile". */
-export function SettingsProfiles({ state }: { state: EvenKeelState }) {
+/**
+ * The "Trackers and CI" tab: a row per profile, the details on pointing, and "Add profile". A tracker's profile links to
+ * its own tab of the chain rules (`onRules`).
+ */
+export function SettingsProfiles({ state, onRules }: { state: EvenKeelState; onRules: (id: string) => void }) {
   const [editing, setEditing] = useState<Editing>(null)
   const [params, setParams] = useSearchParams()
   const { profiles, kinds } = state.profiles
   const asked = profileAddOf(params)
   const adding = asked !== null && kinds.some((each) => each.kind === asked.kind) ? asked : null
+  const add = (
+    <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setEditing({ id: null })}>
+      <PlusIcon />
+      {t.profiles.add}
+    </button>
+  )
   return (
-    <section className="secrets__group profiles">
-      <div className="profiles__head">
-        <h3 className="secrets__title">
-          {t.profiles.title}
-          <HelpTip text={t.profiles.hint} align="start" />
-        </h3>
-        <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setEditing({ id: null })}>
-          <PlusIcon />
-          {t.profiles.add}
-        </button>
-      </div>
+    <Section title={t.profiles.title} hint={t.profiles.hint} aside={add}>
+      {/* A profile's tracker keys also go into the global settings.json: a removed one reaches new sessions until that folder's daemon restarts. */}
+      {state.secrets.sessionsPending && <Band tone="warn">{t.secrets.pending}</Band>}
       {profiles.length === 0 ? (
         <p className="notice notice--warn">{t.profiles.none}</p>
       ) : (
@@ -50,6 +52,7 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
               profile={profile}
               tracker={kinds.find((each) => each.kind === profile.kind)?.tracker ?? true}
               onEdit={() => setEditing({ id: profile.id })}
+              onRules={() => onRules(profile.id)}
             />
           ))}
         </ul>
@@ -70,7 +73,7 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
           />,
           document.body,
         )}
-    </section>
+    </Section>
   )
 }
 
@@ -87,7 +90,7 @@ const LAMPS: Record<ProfileView['check']['state'], string> = {
  * a refusal, a near expiry, hidden CI, a refused pull request. Whom it signs in as and its projects open on pointing at
  * the name — a CI's profile (`tracker` off) names the remotes whose CI takes it instead.
  */
-function ProfileRow({ profile, tracker, onEdit }: { profile: ProfileView; tracker: boolean; onEdit: () => void }) {
+function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileView; tracker: boolean; onEdit: () => void; onRules: () => void }) {
   const { send, sending, failure } = useCommand()
   const label = useProjectLabel()
   const { state, error } = profile.check
@@ -138,6 +141,11 @@ function ProfileRow({ profile, tracker, onEdit }: { profile: ProfileView; tracke
         <button type="button" className="profile-row__action" aria-haspopup="dialog" disabled={sending} onClick={onEdit}>
           {t.profiles.edit}
         </button>
+        {tracker && (
+          <button type="button" className="profile-row__action" onClick={onRules}>
+            {t.profiles.rules}
+          </button>
+        )}
         {!profile.isDefault && (
           <button type="button" className="profile-row__action" disabled={sending} onClick={() => void send('profiles/default', { id: profile.id })}>
             {t.profiles.makeDefault}

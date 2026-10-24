@@ -2,7 +2,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import type { FieldError } from './settingsField.js'
 
 type ProjectTab = 'repo' | 'tracker' | 'sessions' | 'ci'
-type SharedTab = 'chain' | 'models' | 'sessions' | 'ci' | 'page' | 'stats' | 'secrets'
+type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'stats'
 
 /**
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
@@ -10,7 +10,8 @@ type SharedTab = 'chain' | 'models' | 'sessions' | 'ci' | 'page' | 'stats' | 'se
  */
 export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' }
 
-const ACCESS: NoticeFix = { to: 'shared', tab: 'secrets' }
+const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
+const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
 const ACCOUNTS: NoticeFix = { to: 'accounts' }
 
 const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
@@ -25,10 +26,12 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'account.signedOut': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,
   'account.activeGone': ACCOUNTS,
-  'profiles.paused': ACCESS,
-  'ci.noToken': ACCESS,
-  'ci.denied': ACCESS,
-  'review.denied': ACCESS,
+  'profiles.paused': PROFILES,
+  'ci.noToken': PROFILES,
+  'ci.denied': PROFILES,
+  'review.denied': PROFILES,
+  'config.token': PAGE,
+  'config.tokenShape': PAGE,
 }
 
 /** The place a notice is fixed at: its own, or that of its first reason (the items, then the cause); `null` — none on the page. */
@@ -50,7 +53,7 @@ const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
   ci: ['check', 'afterGreen', 'ci', 'pullRequests'],
 }
 
-const SHARED_TABS: Record<Exclude<SharedTab, 'secrets'>, readonly string[]> = {
+const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   chain: ['parallel', 'brief', 'fillMilestone', 'chain'],
   models: ['provider', 'models', 'accounts', 'execution', 'cli', 'modelLabels', 'modelPrompts', 'promptLanguage'],
   sessions: ['hiddenSkills', 'context', 'checkpointTokens', 'checkpointShares', 'cacheTtl'],

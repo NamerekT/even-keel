@@ -1623,6 +1623,10 @@ let server = createEvenKeelServer({
       secrets.remove(name)
       console.log(`page: ${name} is removed`)
     },
+    update: (values) => {
+      secrets.update(values)
+      console.log(`page: ${Object.keys(values).join(', ')} are written`)
+    },
   },
   tally: {
     set: async (mode, draft) => {
@@ -1630,7 +1634,7 @@ let server = createEvenKeelServer({
         const values = serverValues(draft, process.env)
         await checkServer(values, process.env)
         const changed = Object.fromEntries(Object.entries(values).filter(([name, value]) => process.env[name] !== value))
-        if (Object.keys(changed).length > 0) secrets.setAll(changed)
+        if (Object.keys(changed).length > 0) secrets.update(changed)
       }
       configStore.saveTally(mode)
       console.log(`page: stats are ${mode === 'off' ? 'off' : `on, ${mode}`}`)
