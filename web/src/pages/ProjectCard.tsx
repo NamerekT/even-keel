@@ -102,7 +102,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
             </Tipped>
           )}
           <span className="card__task-id">{task.id}</span>
-          {task.title !== null && <TaskTitle title={task.title} />}
+          {task.title !== null && <TaskTitle title={task.title} to={projectPath(project)} />}
         </p>
       )}
 
@@ -145,9 +145,12 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   )
 }
 
-/** The task's title in two lines; one cut short gives the whole of it in a tip. */
-function TaskTitle({ title }: { title: string }) {
-  const text = useRef<HTMLSpanElement>(null)
+/**
+ * The task's title in two lines; one cut short gives the whole of it in a tip. A cut one stands above the card's
+ * stretched link for its tip, so it is a link to the project itself: a press on it opens the project as anywhere on the card.
+ */
+function TaskTitle({ title, to }: { title: string; to: string }) {
+  const text = useRef<HTMLAnchorElement>(null)
   const [cut, setCut] = useState(false)
   useLayoutEffect(() => {
     const element = text.current
@@ -160,9 +163,9 @@ function TaskTitle({ title }: { title: string }) {
   }, [title])
   return (
     <Tipped className={cut ? 'card__task-title card__task-title--cut' : 'card__task-title'} tip={title} align="start" inline off={!cut}>
-      <span ref={text} className="card__task-clamp">
+      <Link ref={text} to={to} className="card__task-clamp" tabIndex={-1}>
         {title}
-      </span>
+      </Link>
     </Tipped>
   )
 }

@@ -144,7 +144,7 @@ function fakeState(
     task('ABC-19', 'Импорт задач из CSV', 'Backlog', 'UnStarted', [], 'v0.3 — служба'),
     task('ABC-20', 'Подсказки по горячим клавишам', 'Backlog', 'UnStarted'),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
-    { ...task('DEMO-7', 'Вопрос: какие настройки переносить при импорте', 'Todo', 'ToDo'), question: true },
+    { ...task('DEMO-7', 'Вопрос: какие настройки переносить при импорте старого конфига, а какие спрашивать у пользователя заново', 'Todo', 'ToDo'), question: true },
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Todo', 'ToDo', ['DEMO-7']),
     task('DEMO-9', 'Фильтр отчёта по датам', 'In Review', 'Active'),
     task('OPS-1', 'Резервное копирование', 'Done', 'Won'),

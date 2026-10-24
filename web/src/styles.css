@@ -2409,6 +2409,8 @@ a.button.pull-button__link {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  /* The whole card is a link to its project: a drag over it selects nothing. */
+  user-select: none;
 }
 
 .card:hover {
@@ -2663,6 +2665,8 @@ a.button.pull-button__link {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  color: inherit;
+  text-decoration: none;
 }
 
 .card__task-title--cut {
