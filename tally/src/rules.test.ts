@@ -36,6 +36,23 @@ describe('ruleFileOf', () => {
     })
   })
 
+  it('folds the skill and memory stores onto the keys of ~/.claude', () => {
+    const linked = ruleFileOf('C:/Users/Jane/.claude/skills/coding/SKILL.md', home)
+    expect(ruleFileOf('C:\\Users\\Jane\\.claude-skills\\coding\\SKILL.md', home)).toEqual(linked)
+    expect(ruleFileOf('c:/users/jane/.claude-skills/coding/SKILL.md', home)?.key).toBe(linked!.key)
+    expect(ruleFileOf('C:/Users/Jane/.claude-skills/coding/refs/api.md', home)).toMatchObject({ kind: 'skill', key: '~/.claude/skills/coding/refs/api.md' })
+
+    const memory = ruleFileOf('C:\\Users\\Jane\\.claude-accounts\\a\\projects\\D--Projects-EvenKeel\\memory\\MEMORY.md', home)
+    expect(ruleFileOf('C:\\Users\\Jane\\.claude-memory\\D--Projects-EvenKeel\\MEMORY.md', home)).toEqual(memory)
+    expect(ruleFileOf('C:/Users/Jane/.claude-memory/D--Projects-EvenKeel/MEMORY.md', home)).toEqual(memory)
+  })
+
+  it('takes no store folder for a file', () => {
+    expect(ruleFileOf('C:/Users/Jane/.claude-skills/coding', home)).toBeNull()
+    expect(ruleFileOf('C:/Users/Jane/.claude-memory/D--Projects-EvenKeel', home)).toBeNull()
+    expect(ruleFileOf('C:/Users/Jane/.claude-memory/D--Projects-EvenKeel/notes.txt', home)).toBeNull()
+  })
+
   it('ignores the rest of the config folder', () => {
     expect(ruleFileOf('C:/Users/Jane/.claude/projects/x/session.jsonl', home)).toBeNull()
     expect(ruleFileOf('C:/Users/Jane/.claude/plugins/cache/p/skills/a/SKILL.md', home)).toBeNull()

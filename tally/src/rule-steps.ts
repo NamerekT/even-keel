@@ -12,7 +12,7 @@ import { infoOf, ruleText, type RuleScan } from './rule-scan.js'
 import { hashOf } from './rules.js'
 
 // Bump to re-read every transcript for rule rows after the rule parsing changes.
-export const RULES_VERSION = '4'
+export const RULES_VERSION = '5'
 const BACKFILL = 'rules_backfill'
 const BOOTSTRAP = 'rules_bootstrap'
 const SCANNED = 'rules_scanned'
