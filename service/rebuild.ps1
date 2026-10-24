@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Builds the checkout this script lives in and restarts the Even Keel service, once a pushed commit of main is green.
+# Builds the checkout this script lives in and restarts the Even Keel service or its autostart, once a pushed commit of main is green.
 # Called by the CI's last step over SSH: the key's authorized_keys entry forces this script, and the commit comes
 # in SSH_ORIGINAL_COMMAND. By hand: pwsh service/rebuild.ps1 -Commit <sha>.
 param(
@@ -29,9 +29,19 @@ try {
         Write-Host "The checkout is on $head, not on ${Commit}: nothing is built"
         return
     }
+    # The service, or else the autostart at sign-in that `even-keel install` writes to the Run key (its host's exe comes first).
+    $control = @('--service', $Name)
+    $what = $Name
+    if (-not (Get-Service -Name $Name -ErrorAction SilentlyContinue)) {
+        $run = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name EvenKeel -ErrorAction SilentlyContinue).EvenKeel
+        if ($run -match '^"([^"]+)"') {
+            $control = @('--autostart', $Matches[1])
+            $what = 'the autostart'
+        }
+    }
     Invoke-Native npx tsc -p tsconfig.json
-    Invoke-Native node dist/src/updates/run.js rebuild --root $root --state $State --service $Name --wait $WaitSeconds
-    Write-Host "Built $Commit and restarted $Name"
+    Invoke-Native node dist/src/updates/run.js rebuild --root $root --state $State @control --wait $WaitSeconds
+    Write-Host "Built $Commit and restarted $what"
 } finally {
     Pop-Location
 }

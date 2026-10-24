@@ -101,7 +101,7 @@ export class Updater {
       // A missing file is reported too: a launch failure kept only in memory stays.
       if (now.mtimeMs > 0 && this.readRecord()) this.options.onChange()
     })
-    this.control = await (this.options.control ?? serviceControl)()
+    this.control = await (this.options.control ?? (() => serviceControl(this.options.root)))()
     if (this.control === null) this.options.log('updates: no service manager runs Even Keel here, the page offers no update')
     await this.refresh()
     setInterval(() => void this.refresh(), REFRESH_MS).unref()

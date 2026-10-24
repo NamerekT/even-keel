@@ -12,6 +12,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# One Even Keel per machine: the autostart of `even-keel install` would take the same port.
+if (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name EvenKeel -ErrorAction SilentlyContinue) {
+    throw 'Even Keel already starts at sign-in (even-keel install): remove that first with even-keel uninstall'
+}
+
 $root = Split-Path $PSScriptRoot -Parent
 $package = -not (Test-Path (Join-Path $root 'src\main.ts'))
 if ($package -and -not $Data) {
@@ -57,7 +62,9 @@ if (-not $package) {
 }
 
 New-Item -ItemType Directory -Force $bin | Out-Null
-& $csc -nologo -target:exe "-out:$exe" -reference:System.ServiceProcess.dll (Join-Path $PSScriptRoot 'EvenKeelService.cs')
+$references = 'System.ServiceProcess.dll', 'System.Windows.Forms.dll', 'System.Drawing.dll', 'System.Web.Extensions.dll' | ForEach-Object { "-reference:$_" }
+$sources = 'EvenKeelService.cs', 'EvenKeelHost.cs', 'EvenKeelTray.cs' | ForEach-Object { Join-Path $PSScriptRoot $_ }
+& $csc -nologo -target:exe "-out:$exe" @references @sources
 if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 
 $command = "`"$exe`" `"$root`" `"$node`""

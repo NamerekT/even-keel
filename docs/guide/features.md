@@ -190,6 +190,10 @@ The gear in the header has a dot when something is wrong and a **Status** row le
 
 What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict, a task that left the chain with its work not committed or not merged — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
 
+## In the tray (Windows)
+
+On Windows `even-keel install` makes Even Keel start at your sign-in, with no administrator, and puts its icon in the tray: a dot says whether it runs, a chain is paused or a session waits for your answer, and the menu opens the page, restarts Even Keel or quits it. It runs while you are signed in; for a machine nobody signs in to, a clone can still be a Windows service. In full — [As a service](setup.md#as-a-service).
+
 ## Updating from the page
 
 A newer release gets a mark next to the version in the gear menu and a notification. Both open the update window: the notes of every release since yours, a mark on a release that takes back part of an earlier one, and **Update**. Even Keel waits for the chains to settle, checks out the release, builds it and restarts the service; if the new version does not come up, the old one comes back, and the page says what failed. After an update, **Revert** goes back to the previous version the same way, unless the update changed the format of the stored state. The button needs Even Keel running as a service from a clean clone; otherwise the window says why and you update by hand. Even Keel asks GitHub for releases only once you allow it: the first start's setup asks, and **Settings** → **Interface** changes it. In full — [Updating](setup.md#updating).

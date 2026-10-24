@@ -114,7 +114,7 @@ Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`
 
 ## Service
 
-Without the service: `npm install`, `npm run build`, `npm start`. On Windows — the service `EvenKeel`, installed with `service/install.ps1` from PowerShell 7 as administrator, the log is `logs/even-keel.log`; on Linux and macOS — `service/install.sh`. In detail — `docs/service.md`.
+Without the service: `npm install`, `npm run build`, `npm start`. On Windows — the start at sign-in with a tray icon (`even-keel install`, the host `EvenKeel.exe`, BTN-372) or the service `EvenKeel`, installed with `service/install.ps1` from PowerShell 7 as administrator, one of the two per machine; the log is `logs/even-keel.log`; on Linux and macOS — `service/install.sh`. In detail — `docs/service.md`.
 
 ## Tests
 
