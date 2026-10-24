@@ -2,12 +2,15 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
+import { isMuslLinux } from '../agent/npm.js'
+import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { findBinary } from '../paths.js'
 import { OpenCodeCli, resolveOpenCodeBinary, SESSION_MODE } from './cli.js'
 import { sessionList, sessionRows } from './db.js'
 import { openCodeEnv, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
+import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
 import { openCodeUsage } from './usage.js'
@@ -19,15 +22,27 @@ const CHECKED = '1.18.25'
 /**
  * OpenCode through `opencode run --format json`: a turn is a detached process, as Codex's is; a session lives between
  * turns in Even Keel's registry and the account's `opencode.db` (`docs/sessions.md`). The account is a folder of the
- * four XDG folders. Its limits are its sign-in's, asked of ChatGPT or GitHub (`openCodeUsage`); there is no copy of its
- * own: sessions run on the installed CLI.
+ * four XDG folders. Its limits are its sign-in's, asked of ChatGPT or GitHub (`openCodeUsage`). Sessions run on Even
+ * Keel's own copy of the checked version, the platform's npm package, as Codex's do (BTN-347).
  */
 export const opencode: AgentAdapter = {
   title: 'OpenCode',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+    const copy =
+      openCodePackage(process.platform, process.arch, isMuslLinux()) === null
+        ? undefined
+        : new PinnedCli({
+            dir: join(workDir, 'cli', OPENCODE),
+            version,
+            binary: (folder) => openCodeBinaryIn(folder),
+            fetch: (into) => fetchOpenCode(version, into),
+            log,
+            onReady: onCliChange,
+            retryMs: PIN_RETRY_MS,
+          })
     const envOf = (home: AccountHome) => openCodeEnv(env(), home.dir)
-    const bin = () => resolveOpenCodeBinary(env())
+    const bin = () => resolveOpenCodeBinary(env(), env().EVEN_KEEL_OPENCODE_BIN || !checkedCli() ? undefined : copy?.path())
     const cli = new OpenCodeCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, OPENCODE)))
     return {
       mode: SESSION_MODE,

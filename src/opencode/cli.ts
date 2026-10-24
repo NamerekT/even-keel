@@ -44,11 +44,12 @@ export const LOGIN_METHODS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * `EVEN_KEEL_OPENCODE_BIN`, else on Windows the native `opencode.exe` of the global npm package (its `opencode` on
- * the PATH is an npm wrapper), else `opencode` on the PATH.
+ * `EVEN_KEEL_OPENCODE_BIN`, else Even Keel's own copy of the checked version (`pinned`, BTN-347), else on Windows the
+ * native `opencode.exe` of the global npm package (its `opencode` on the PATH is an npm wrapper), else `opencode` on the PATH.
  */
-export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv): string {
+export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
   if (env.EVEN_KEEL_OPENCODE_BIN) return env.EVEN_KEEL_OPENCODE_BIN
+  if (pinned !== undefined) return pinned
   if (process.platform !== 'win32' || env.APPDATA === undefined) return 'opencode'
   const native = join(env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'node_modules', `opencode-windows-${process.arch}`, 'bin', 'opencode.exe')
   return existsSync(native) ? native : 'opencode'

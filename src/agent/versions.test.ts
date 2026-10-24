@@ -2,12 +2,16 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { claude } from '../claude/adapter.js'
 import { codex } from '../codex/adapter.js'
+import { copilot } from '../copilot/adapter.js'
+import { opencode } from '../opencode/adapter.js'
 import { cliVersionOf, outdatedDaemonView, VersionWatcher, type VersionedAgent } from './versions.js'
 
 describe('the checked versions', () => {
   it('are the ones the README names under "Before you run it"', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8')
-    expect(readme).toContain(`Last checked against **Claude Code ${claude.checked}** and **codex-cli ${codex.checked}**`)
+    expect(readme).toContain(
+      `Last checked against **Claude Code ${claude.checked}**, **codex-cli ${codex.checked}**, **OpenCode ${opencode.checked}** and **Copilot CLI ${copilot.checked}**`,
+    )
   })
 })
 
