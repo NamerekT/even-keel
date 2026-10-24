@@ -1,4 +1,5 @@
 import type { EvenKeelState } from '../../../src/state.js'
+import { isCarryName } from '../../../src/chain/fix.js'
 import { shownWork, type WorkInput } from '../work.js'
 
 export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
@@ -35,9 +36,9 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   for (const [project, views] of Object.entries(state.ci)) {
     for (const view of views) if (view.current?.run.status === 'failure') red(project, view.current.run.commit)
   }
-  for (const [project, fixes] of Object.entries(state.fixes)) {
-    const open = fixes.at(-1)
-    if (open !== undefined && open.end === null && open.red !== null) red(project, open.red)
+  for (const [project, episodes] of Object.entries(state.fixes)) {
+    // A carry's `red` is the head of the release it brings, not a red main (BTN-371).
+    for (const open of episodes) if (open.end === null && open.red !== null && !isCarryName(open.id)) red(project, open.red)
   }
   for (const session of state.sessions) {
     if (!session.asking) continue

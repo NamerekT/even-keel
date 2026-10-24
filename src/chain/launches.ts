@@ -52,7 +52,7 @@ type HandOver = 'restart' | 'checkpoint'
 export interface FixEpisode {
   /** `ABC-FIX.<n>`, the row of the episode on the page. */
   id: string
-  /** The red commit the fix was started for; `null` in a log from before the commit was kept. */
+  /** The red commit the fix was started for, of a carry the release's head; `null` in a log from before the commit was kept. */
   red: string | null
   at: string
   /** `null` while the fix is not over. */

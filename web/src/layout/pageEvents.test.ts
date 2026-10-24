@@ -35,6 +35,13 @@ describe('pageEvents', () => {
     expect(pageEvents({ ...none, fixes: { p1: [{ ...fix, end: { at: '2026-10-22T19:30:00Z', how: 'landed', commit: null } }] } })).toEqual([])
   })
 
+  it('takes an open carry of a release for no red main, and still sees a fix open before it', () => {
+    const carry = { id: 'EKR-CARRY.1', red: 'fed4321abc', at: '2026-10-24T14:46:00Z', end: null }
+    expect(pageEvents({ ...none, fixes: { p1: [carry] } })).toEqual([])
+    const fix = { id: 'ABC-FIX.1', red: 'abc1234def', at: '2026-10-24T14:40:00Z', end: null }
+    expect(pageEvents({ ...none, fixes: { p1: [fix, carry] } })).toEqual([{ key: 'red|p1|abc1234', kind: 'red', project: 'p1', commit: 'abc1234' }])
+  })
+
   it('sees a session that asks, under the project of its task', () => {
     const input = { ...none, sessions: [{ task: 'ABC-1', sessionId: 's1', asking: true }], tasks: [{ id: 'ABC-1', project: 'p1', title: 'Fix it' }] } as unknown as EventsInput
     expect(pageEvents(input)).toEqual([{ key: 'ask|s1', kind: 'ask', project: 'p1', task: 'ABC-1' }])
