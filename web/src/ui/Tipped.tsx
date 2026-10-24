@@ -15,9 +15,12 @@ interface TippedProps {
   children: ReactNode
 }
 
-/** Its children with a tip under them: shown at once on pointing, focus or a press, closed by Escape — not the browser's slow `title`. */
+/**
+ * Its children with a tip under them, closed by Escape — not the browser's `title`.
+ * Pointing opens it once the pointer rests (`OPEN_DELAY_MS`), at once right after another tip; focus or a press opens it at once.
+ */
 export function Tipped({ tip, focusable = false, align = 'end', inline = false, off = false, className, children }: TippedProps) {
-  const { shown, anchor, tip: tipRef, show, hide, close } = useTip<HTMLElement, HTMLElement>(!off, align)
+  const { shown, anchor, tip: tipRef, show, point, hide, close } = useTip<HTMLElement, HTMLElement>(!off, align)
   const id = useId()
   const tag = inline ? 'span' : 'div'
   return createElement(
@@ -27,7 +30,7 @@ export function Tipped({ tip, focusable = false, align = 'end', inline = false, 
       className: className === undefined ? 'tipped' : `tipped ${className}`,
       tabIndex: focusable ? 0 : undefined,
       'aria-describedby': id,
-      onMouseEnter: show,
+      onMouseEnter: point,
       onMouseLeave: hide,
       onFocus: show,
       onBlur: hide,

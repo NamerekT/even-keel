@@ -375,7 +375,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 
 /** A fact's value whose details are a tip under it, opened by pointing at the value or pressing it. */
 function TipValue({ value, children }: { value: string; children: ReactNode }) {
-  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
+  const { shown, anchor, tip, show, point, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   return (
     <dd className="panel__value">
       <button
@@ -383,7 +383,7 @@ function TipValue({ value, children }: { value: string; children: ReactNode }) {
         type="button"
         className="panel__total"
         aria-expanded={shown}
-        onMouseEnter={show}
+        onMouseEnter={point}
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
