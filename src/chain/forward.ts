@@ -27,6 +27,20 @@ export interface ForwardDeps {
   now: () => Date
   changed: () => void
   log: (message: string) => void
+  /** The session that resolves the release project's carry or is about to (BTN-369); `null` — none. */
+  carrying: (from: string) => string | null
+  /** Asks for that session after the current task of the project the release branch merges into. */
+  resolve: (from: string, ask: CarryAsk) => Promise<void>
+}
+
+/** What the carry session is told: the release commit to merge and how git failed it. */
+export interface CarryAsk {
+  into: string
+  ref: string
+  commit: string
+  commits: number
+  files: string[]
+  output: string
 }
 
 /**
@@ -43,8 +57,9 @@ export function chainQuiet(chain: ActiveChain | undefined, busy: (task: string) 
 /**
  * Carries the branch of each release project into the branch of the project it merges into (BTN-172), in that
  * project's main checkout: by `merge --no-edit` once its chain is quiet, or at once on "Carry now". A failed merge
- * (a conflict, or git refusing with no conflicted file, BTN-314) is aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now" or until the branch
+ * (a conflict, or git refusing with no conflicted file, BTN-314) is aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now", an agent's session or until the branch
  * has the commits by a merge by hand. The hold lives in memory: after a restart the carry is tried once more.
+ * A held conflict may be resolved by an agent (BTN-369); while its session is asked for, nothing is merged here.
  */
 export class ForwardMerger {
   private readonly views = new Map<string, ForwardView>()
@@ -53,7 +68,12 @@ export class ForwardMerger {
   constructor(private readonly deps: ForwardDeps) {}
 
   view(): Record<string, ForwardView> {
-    return Object.fromEntries(this.views)
+    return Object.fromEntries(
+      [...this.views].map(([from, view]) => {
+        const agent = this.deps.carrying(from)
+        return [from, agent === null ? view : { ...view, agent }]
+      }),
+    )
   }
 
   tick(): Promise<void> {
@@ -68,7 +88,25 @@ export class ForwardMerger {
   carry(from: string): Promise<void> {
     const pair = this.deps.pairs().find((each) => each.from === from)
     if (pair === undefined) return Promise.reject(fail('forward.notRelease', { project: from }))
+    const agent = this.deps.carrying(from)
+    if (agent !== null) return Promise.reject(fail('forward.agent', { from, task: agent }))
     return this.queue(() => this.step(pair, true))
+  }
+
+  /** "Resolve with the agent": only a held conflict, told with the release commit it is to bring in. */
+  resolve(from: string): Promise<void> {
+    return this.queue(async () => {
+      const view = this.views.get(from)
+      const hold = view?.held === true ? view.hold : null
+      if (view === undefined || hold?.code !== 'forward.conflict' || view.behind === null) throw fail('forward.noConflict', { from })
+      const ref = `refs/even-keel/forward/${from}`
+      const read = await this.deps.git(this.deps.repo(view.into), ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])
+      const commit = read.out.trim()
+      if (read.code !== 0 || commit === '') throw fail('forward.fetch', { from }, { detail: read.out })
+      const files = (hold.params as { files: string[] }).files
+      await this.deps.resolve(from, { into: view.into, ref, commit, commits: view.behind, files, output: hold.detail ?? '' })
+      this.deps.changed()
+    })
   }
 
   private queue(run: () => Promise<void>): Promise<void> {
@@ -107,7 +145,7 @@ export class ForwardMerger {
       Object.assign(view, { hold: null, held: false })
       return
     }
-    if (view.held && !now) return
+    if ((view.held && !now) || this.deps.carrying(from) !== null) return
     if (!now && !this.deps.quiet(into)) return wait(view, notice('forward.busy', { into }))
 
     const current = (await git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out.trim()

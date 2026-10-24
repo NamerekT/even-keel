@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { isFixName } from '../../../src/chain/fix.js'
+import { isOwnName } from '../../../src/chain/fix.js'
 import type { FixEpisode } from '../../../src/chain/launches.js'
 import { runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
@@ -143,7 +143,7 @@ function formatAgoSpan(at: string, now: Date): string {
 function Current({ current, median, now, urls, fixes }: { current: CurrentRun; median: number | null; now: Date; urls: TrackerUrls; fixes: Fixes }) {
   const { run, jobs } = current
   const fix = fixes.episodes.find((episode) => episode.end?.how === 'landed' && episode.end.commit === run.commit)
-  const tasks = current.tasks.filter((task) => !isFixName(task))
+  const tasks = current.tasks.filter((task) => !isOwnName(task))
   const fixed = fix !== undefined || tasks.length < current.tasks.length
   return (
     <div className="ci__block">

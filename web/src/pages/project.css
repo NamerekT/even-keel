@@ -422,3 +422,39 @@
   margin: 0;
   font-size: var(--text-13);
 }
+
+/* The carry of a release project held by a conflict (BTN-369): one line, the files and git's output folded under it. */
+.forward__more {
+  font-size: var(--text-13);
+}
+
+.forward__more > summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.forward__files {
+  margin: var(--space-6) 0 0;
+  padding-left: var(--space-16);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  overflow-wrap: anywhere;
+}
+
+.forward__output {
+  max-height: 16em;
+  margin: var(--space-6) 0 0;
+  padding: var(--space-8);
+  overflow: auto;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  white-space: pre-wrap;
+}
+
+/* The agent at work on it: a note band marked with the colour of work going on. */
+.forward__agent {
+  box-shadow: inset 3px 0 0 var(--lamp-working);
+}

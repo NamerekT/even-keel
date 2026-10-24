@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { isFixName } from '../../../src/chain/fix.js'
+import { isOwnName } from '../../../src/chain/fix.js'
 import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -268,7 +268,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
 }
 
 function openCount(section: Section<ChainBlock>, ghost: Ghost | null): number {
-  return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id && !isFixName(block.id)).length
+  return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id && !isOwnName(block.id)).length
 }
 
 /** The chain with a stand-in for the ghost at its landing place, unless the task is in the chain already. */
@@ -373,14 +373,14 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
       <span className="archived__head">
-        {!isFixName(block.id) && <Lamp lamp={block.lamp} />}
+        {!isOwnName(block.id) && <Lamp lamp={block.lamp} />}
         <Link to={{ hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
           {block.id}
         </Link>
       </span>
       <span className="archived__title" title={block.title ?? undefined}>
         {block.title}
-        {isFixName(block.id) && <Forge lamp={block.lamp} />}
+        {isOwnName(block.id) && <Forge lamp={block.lamp} />}
       </span>
       {milestone !== null && <span className="archived__milestone">{milestone}</span>}
     </li>
@@ -482,7 +482,7 @@ function Block(props: BlockProps) {
   const ring = metered?.cache != null && (block.current || number === undefined) ? metered.cache : null
   const share = tier === 'past' ? null : estimateShare(block.estimate)
   const status = shownStatus(block)
-  const fix = isFixName(block.id)
+  const fix = isOwnName(block.id)
   const style = {
     ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
     ...(share !== null && { '--estimate': share.toFixed(2) }),

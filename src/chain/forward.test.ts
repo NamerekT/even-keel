@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../git/types.js'
 import { notice, type Notice } from '../notice/notice.js'
-import { chainQuiet, ForwardMerger, type ForwardPair } from './forward.js'
+import { chainQuiet, ForwardMerger, type CarryAsk, type ForwardPair } from './forward.js'
 import { newChain, type ActiveChain } from './model.js'
 
 const dev = '/home/john/even-keel'
@@ -15,7 +15,15 @@ const onDev = { 'symbolic-ref --quiet --short HEAD': { out: 'dev\n' } }
 /** An answer given as a list is used up in order, the last one repeating. */
 function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null } = {}) {
   const calls: string[] = []
-  const state = { quiet: options.quiet ?? true, pairs: [{ from: 'EKR', into: 'BTN' }] as ForwardPair[], changes: 0, syncs: 0, same: true as boolean | undefined }
+  const state = {
+    quiet: options.quiet ?? true,
+    pairs: [{ from: 'EKR', into: 'BTN' }] as ForwardPair[],
+    changes: 0,
+    syncs: 0,
+    same: true as boolean | undefined,
+    agent: null as string | null,
+    asked: [] as [string, CarryAsk][],
+  }
   const merger = new ForwardMerger({
     pairs: () => state.pairs,
     sameRepository: () => state.same,
@@ -39,6 +47,11 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
       state.changes += 1
     },
     log: () => {},
+    carrying: () => state.agent,
+    resolve: async (from, ask) => {
+      state.asked.push([from, ask])
+      state.agent = 'EKR-CARRY'
+    },
   })
   return { merger, calls, state }
 }
@@ -164,5 +177,47 @@ describe('ForwardMerger', () => {
   it('refuses carry now for a project that merges into none', async () => {
     const { merger } = setup()
     await expect(merger.carry('BTN')).rejects.toThrow(/BTN/)
+  })
+
+  describe('a conflict resolved by an agent (BTN-369)', () => {
+    const conflicted = {
+      [count]: [{ out: '2\n' }],
+      ...onDev,
+      [merge]: { code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' },
+      'diff --name-only --diff-filter=U': { out: 'src/a.ts\n' },
+      [`rev-parse --verify --quiet ${ref}^{commit}`]: { out: 'abc1234def\n' },
+    }
+
+    it('asks for the carry session with what conflicts and what to merge, and shows the agent at work', async () => {
+      const { merger, state } = setup(conflicted)
+      await merger.tick()
+      await merger.resolve('EKR')
+      expect(state.asked).toEqual([
+        ['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: 'CONFLICT (content): Merge conflict in src/a.ts' }],
+      ])
+      expect(merger.view().EKR).toMatchObject({ held: true, agent: 'EKR-CARRY' })
+    })
+
+    it('merges nothing itself while the agent works, carry now included, and lets the hold go once the branch has the commits', async () => {
+      const { merger, calls, state } = setup({ ...conflicted, [count]: [{ out: '2\n' }, { out: '2\n' }, { out: '0\n' }] })
+      await merger.tick()
+      state.agent = 'EKR-CARRY'
+      calls.length = 0
+      await merger.tick()
+      expect(calls).toEqual([fetch, count])
+      await expect(merger.carry('EKR')).rejects.toThrow(/EKR-CARRY/)
+      await merger.tick()
+      expect(merger.view().EKR).toMatchObject({ behind: 0, held: false, hold: null })
+    })
+
+    it('is asked for only on a held conflict', async () => {
+      const failed = setup({ [count]: { out: '1\n' }, ...onDev, [merge]: { code: 128, out: 'fatal: no identity' } })
+      await failed.merger.tick()
+      await expect(failed.merger.resolve('EKR')).rejects.toThrow(/EKR/)
+      const quiet = setup({ [count]: { out: '0\n' } })
+      await quiet.merger.tick()
+      await expect(quiet.merger.resolve('EKR')).rejects.toThrow(/EKR/)
+      expect([...failed.state.asked, ...quiet.state.asked]).toEqual([])
+    })
   })
 })

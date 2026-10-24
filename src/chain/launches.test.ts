@@ -387,6 +387,24 @@ describe('fixEpisodes', () => {
     })
   })
 
+  it('numbers the carries of a release into the project apart from its fixes (BTN-369)', () => {
+    const carry = (at: string, sessionId: string, extra: Partial<LaunchEntry> = {}) => entry(at, 'EKR-CARRY', sessionId, extra)
+    const { episodes } = fixEpisodes([
+      fix('2026-10-16T06:30:00.000Z', 'f1', { commit: 'red1' }),
+      carry('2026-10-16T06:40:00.000Z', 'c1', { commit: 'rel1' }),
+      fix('2026-10-16T07:00:00.000Z', 'f1', { reason: 'landed', commit: 'green1' }),
+      carry('2026-10-16T08:00:00.000Z', 'c1', { reason: 'carried', commits: 2 }),
+      carry('2026-10-16T09:00:00.000Z', 'c2', { commit: 'rel2' }),
+    ])
+    expect(episodes).toEqual({
+      ABC: [
+        { id: 'ABC-FIX.1', red: 'red1', at: '2026-10-16T06:30:00.000Z', end: { at: '2026-10-16T07:00:00.000Z', how: 'landed', commit: 'green1' } },
+        { id: 'EKR-CARRY.1', red: 'rel1', at: '2026-10-16T06:40:00.000Z', end: { at: '2026-10-16T08:00:00.000Z', how: 'carried', commit: null, commits: 2 } },
+        { id: 'EKR-CARRY.2', red: 'rel2', at: '2026-10-16T09:00:00.000Z', end: null },
+      ],
+    })
+  })
+
   it('keeps a launch of the same red commit in the open episode', () => {
     const { episodes } = fixEpisodes([fix('2026-10-16T06:30:00.000Z', 'f1', { commit: 'red1' }), fix('2026-10-16T06:45:00.000Z', 'f2', { commit: 'red1' })])
     expect(episodes.ABC).toEqual([{ id: 'ABC-FIX.1', red: 'red1', at: '2026-10-16T06:30:00.000Z', end: null }])

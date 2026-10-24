@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { fixTaskOf, isFixName } from '../../../src/chain/fix.js'
+import { fixTaskOf, isCarryName, isFixName, isOwnName } from '../../../src/chain/fix.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
@@ -68,7 +68,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
       <header className="panel__head">
         <Lamp lamp={block.lamp} />
         <h2 className="panel__task">
-          {isFixName(block.id) ? (
+          {isOwnName(block.id) ? (
             <>
               <span className="panel__key">{block.id}</span>
               <span className="panel__title">{block.title}</span>
@@ -130,8 +130,8 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const [chatting, setChatting] = useState(false)
-  const fix = isFixName(block.id)
-  // The row of a fix is one of its episodes; the service knows the fix by its name.
+  const fix = isOwnName(block.id)
+  // The row of a fix or a carry is one of its episodes; the service knows it by its name.
   const body = { project: taskProject(state, block.id), task: fix ? fixTaskOf(block.id) : block.id }
   const session = block.session
   const live = block.current ? session : null
@@ -162,7 +162,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
     (block.skipped ? t.session.held.skipped : !block.current ? t.session.held.notCurrent : live === null ? t.session.held.noSession : null)
 
   // The runs of the commits a fix of main went from and landed, beside its chat.
-  const runs = fix && ci && block.fix !== undefined
+  const runs = isFixName(block.id) && ci && block.fix !== undefined
 
   // "Skip" on the fix of main is only for the session the chain waits on.
   if (chatSession === null && (!block.open || fix) && block.review === undefined && !runs) return null
@@ -212,7 +212,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
             </button>
           ) : (
             <PanelButton
-              tip={fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}
+              tip={isCarryName(block.id) ? t.session.skipCarry : fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}
               held={wait}
               sending={sending}
               onClick={() => void send('chain/skip', body)}

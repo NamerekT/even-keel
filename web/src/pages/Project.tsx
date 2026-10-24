@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
 import { formatAgo } from '../format.js'
@@ -24,6 +24,7 @@ import {
   openQuestions,
   projectLabel,
   projectPages,
+  projectPath,
   projectSlot,
   projectTasks,
   questionPath,
@@ -34,6 +35,7 @@ import {
   taskProject,
   type ChainControl,
 } from '../state.js'
+import { Band } from '../ui/blocks.js'
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
@@ -288,13 +290,69 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
   )
 }
 
-/** A release project's commits that wait to go into the project it merges into, why, and "Carry now" (BTN-172). */
+/**
+ * A release project's commits that wait to go into the project it merges into, why, and "Carry now" (BTN-172); a
+ * conflict is one line with "Resolve with the agent" and its files and git's output folded, and while the agent's
+ * session is asked for, a line that leads to its row (BTN-369).
+ */
 function Forward({ state, project }: { state: EvenKeelState; project: string }) {
   const { send, sending, failure } = useCommand()
   const forward = state.forwards[project]
   const push = forward?.last?.push ?? null
   if (forward === undefined || ((forward.behind ?? 0) === 0 && push === null)) return null
   const waiting = (forward.behind ?? 0) > 0
+  const conflict = waiting && forward.held && forward.hold?.code === 'forward.conflict' ? forward.hold : null
+
+  if (waiting && forward.agent !== undefined) {
+    const running = activeChain(state.chain, forward.into)?.current?.task === forward.agent
+    return (
+      <div className="leftovers">
+        <Band
+          tone="note"
+          className="forward__agent"
+          action={
+            <Link to={{ pathname: projectPath(forward.into), hash: forward.agent }} className="button button--small">
+              {t.project.forwardAgentOpen}
+            </Link>
+          }
+        >
+          <span>
+            <ProjectLinks text={running ? t.project.forwardAgent(forward.into) : t.project.forwardAgentAsked(forward.into)} />
+          </span>
+        </Band>
+      </div>
+    )
+  }
+
+  if (conflict !== null) {
+    const { files } = conflict.params
+    return (
+      <div className="leftovers">
+        <Band
+          tone="error"
+          action={
+            <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('forward/resolve', { project })}>
+              {t.project.forwardResolve}
+            </button>
+          }
+        >
+          <strong>
+            <ProjectLinks text={t.project.forwardConflict(forward.behind ?? 0, project, forward.into, files.length)} />
+          </strong>
+          <details className="forward__more">
+            <summary>{t.project.forwardMore}</summary>
+            <ul className="forward__files">
+              {files.map((file) => (
+                <li key={file}>{file}</li>
+              ))}
+            </ul>
+            {conflict.detail !== undefined && conflict.detail.trim() !== '' && <pre className="forward__output">{conflict.detail.trim()}</pre>}
+          </details>
+        </Band>
+        {failure !== null && <p className="project__error">{say(failure)}</p>}
+      </div>
+    )
+  }
 
   return (
     <div className="leftovers">

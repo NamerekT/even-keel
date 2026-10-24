@@ -334,10 +334,12 @@ export interface ForwardView {
   behind: number | null
   /** Why they wait; `null` — nothing waits. */
   hold: Notice | null
-  /** A conflict holds them until "Carry now" or a merge by hand. */
+  /** A conflict holds them until "Carry now", the agent's session or a merge by hand. */
   held: boolean
   /** The last carry: when, how many commits, and its push that failed. */
   last?: { at: string; commits: number; push: Notice | null }
+  /** The session that resolves the held conflict or is about to (BTN-369), a session of the chain of `into`. */
+  agent?: string
 }
 
 /** The config file as the settings show it: the saved values, all applied on the fly. */

@@ -25,9 +25,10 @@ import { CLAUDE } from './claude/name.js'
 import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './chain/launches.js'
-import { fixNameOf, fixStem, isFixName, projectOfFix } from './chain/fix.js'
+import { carryNameOf, fixNameOf, fixStem, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from './chain/fix.js'
 import { chainQuiet, ForwardMerger } from './chain/forward.js'
-import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
+import { PROMPTS } from './chain/prompts.js'
+import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -983,7 +984,12 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  const fixed = isFixName(task) ? projectOfFix(configStore.current.keys, task) : undefined
+  const { keys, settings } = configStore.current
+  const fixed = isFixName(task)
+    ? projectOfFix(keys, task)
+    : isCarryName(task)
+      ? projectOfCarry(keys, (from) => settings[from]?.mergeInto ?? undefined, task)
+      : undefined
   return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
@@ -1008,7 +1014,7 @@ const places = new TaskPlaces({
     if (!ahead) await fastForwardMain(runGit, repo, main)
     const count = configStore.current.slots[project]
     const span = slotSpan(project)
-    if (isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
+    if (isOwnName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
     if (count === undefined) return (span > 0 ? await heldSlot(runGit, repo, task, span) : undefined) ?? prepareWorktree(runGit, repo, task, main, ahead)
     const pool = { count, span, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
     return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
@@ -1027,9 +1033,9 @@ function archiveClosed(project: string, task: string): void {
   archive.push(closed)
 }
 
-/** The launch with where its task is read from (BTN-66); a fix session has no tracker task. */
+/** The launch with where its task is read from (BTN-66); a fix or carry session has no tracker task. */
 function withSource(entry: LaunchEntry): LaunchEntry {
-  if (isFixName(entry.task) || configStore.current.projects[entry.project] === undefined) return entry
+  if (isOwnName(entry.task) || configStore.current.projects[entry.project] === undefined) return entry
   const { profile, url } = taskSource(entry.project, entry.task)
   const title = tasksByProject.get(entry.project)?.find((each) => each.id === entry.task)?.title
   return { ...entry, ...(profile === null ? {} : { profile }), ...(url === null ? {} : { url }), ...(title === undefined ? {} : { title }) }
@@ -1124,7 +1130,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const project = projectOf(task)
     const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)
-    const told = isFixName(task) ? handoff : await briefed(task, handoff)
+    const told = isOwnName(task) ? handoff : await briefed(task, handoff)
     const { prompt, model } = planFor(task, withProject(told, project), project)
     const notePath = noteOf(session)
     const note = await readNote(notePath)
@@ -1143,11 +1149,21 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const extras = agentExtras(home, project, name)
     return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
   },
+  launchCarry: async (project, name, report) => {
+    const home = homeOf(choiceFor(project).account)
+    await daemons.prepare(home)
+    const place = await places.ready(project, name)
+    const { prompt, model } = planFor(name, withProject(carryPrompt(report, place, promptLanguage(project), branchOf(project)), project), project)
+    const extras = agentExtras(home, project, name)
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
+  },
+  carried: async (project, commit) =>
+    (await runGit(configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${branchOf(project)}`])).code === 0,
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task, pull) => {
-    if (!isFixName(task) && pull?.unmerged !== true) archiveClosed(project, task)
+    if (!isOwnName(task) && pull?.unmerged !== true) archiveClosed(project, task)
     const repo = configStore.current.projects[project]!
-    const span = isFixName(task) ? 0 : slotSpan(project)
+    const span = isOwnName(task) ? 0 : slotSpan(project)
     let stopped: Notice[]
     let finished: Awaited<ReturnType<typeof finishWorktree>>
     try {
@@ -1272,6 +1288,23 @@ const forwards = new ForwardMerger({
   now: () => new Date(),
   changed: () => hub.broadcast('state', getState()),
   log: (message) => console.log(message),
+  carrying: (from) => dispatcher.carrying(from)?.task ?? null,
+  resolve: async (from, ask) => {
+    const config = configStore.current
+    const report = PROMPTS[promptLanguage(ask.into)].carryReport({
+      release: projectLabel(config, from),
+      branch: branchOf(from),
+      into: projectLabel(config, ask.into),
+      main: branchOf(ask.into),
+      ref: ask.ref,
+      commit: ask.commit,
+      commits: ask.commits,
+      files: ask.files,
+      output: ask.output,
+    })
+    const at = new Date().toISOString()
+    dispatcher.carry(from, { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report })
+  },
 })
 
 /**
@@ -1805,6 +1838,7 @@ let server = createEvenKeelServer({
     return view
   },
   carry: (project) => forwards.carry(project),
+  resolveCarry: (project) => forwards.resolve(project),
   stats,
   guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),
 })
@@ -1837,7 +1871,7 @@ const questions = new TrackerQuestions({
     const current = dispatcher.state.active.flatMap((chain): AskingSession[] => {
       const sessionId = chain.current?.sessionId
       const view = sessionId == null ? undefined : liveView(chain.current!.task)
-      if (view === undefined || view.sessionId !== sessionId || isFixName(view.task)) return []
+      if (view === undefined || view.sessionId !== sessionId || isOwnName(view.task)) return []
       return [{ project: chain.project, task: view.task, sessionId, ask: view.ask, current: true }]
     })
     const aside = sessions.flatMap((view): AskingSession[] => {

@@ -4,6 +4,7 @@ import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS } from './prompts.js'
 import {
+  carryPrompt,
   fixPrompt,
   handoffPrompt,
   holdOf,
@@ -364,6 +365,21 @@ describe('prompts in English', () => {
     expect(fixPrompt('Broken.', place, 'en', 'trunk')).toContain('Merge the fix into trunk of the main checkout')
     expect(fixPrompt('Broken.', place, 'en', 'trunk')).toContain('stop your background commands')
     expect(mainFixedPrompt('c1c1c1c1c1', 'c2c2c2c2c2', 'en', 'trunk')).toContain('Merge trunk into your branch')
+  })
+
+  it('tells the carry session what to merge, what conflicted, which side wins and how it ends (BTN-369)', () => {
+    const facts = { release: 'EKR', branch: 'release/v0.1', into: 'BTN', main: 'dev', ref: 'refs/even-keel/forward/f00d', commit: 'r1r1r1r1r1', commits: 2, files: ['a.ts', 'b.md'] }
+    for (const language of ['en', 'ru'] as const) {
+      const prompt = carryPrompt(PROMPTS[language].carryReport({ ...facts, output: 'CONFLICT (content): a.ts' }), place, language, 'dev')
+      expect(prompt).toContain(`git merge --no-edit -m "Merge branch 'release/v0.1' of EKR into dev" r1r1r1r1r1`)
+      expect(prompt).toContain('refs/even-keel/forward/f00d')
+      expect(prompt).toContain('a.ts, b.md')
+      expect(prompt).toContain('CONFLICT (content): a.ts')
+      expect(prompt).toContain('git merge --no-edit')
+    }
+    expect(carryPrompt(PROMPTS.en.carryReport({ ...facts, output: '' }), place, 'en', 'dev')).toContain('the structure and the texts of dev win')
+    expect(carryPrompt(PROMPTS.en.carryReport({ ...facts, output: '' }), place, 'en', 'dev')).not.toMatch(/What git said|[а-я]/i)
+    expect(() => carryPrompt(' ', place, 'en', 'dev')).toThrow()
   })
 
   it('builds the handoff prompt for each reason without a Russian word', () => {
