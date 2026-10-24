@@ -140,10 +140,7 @@ describe('Probes', () => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     expect(probes.result('p-1', 'huly', 'i1', 'huly')).toBeUndefined()
     mode = 'ok'
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    probes.result('p-1', 'huly', 'i1', 'huly')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    expect(probes.result('p-1', 'huly', 'i1', 'huly')).toBe(true)
+    await expect.poll(() => probes.result('p-1', 'huly', 'i1', 'huly'), { timeout: 5_000, interval: 25 }).toBe(true)
   })
 
   it('counts a server silent until its first answer as starting, and silence after an answer as a failure', async () => {
@@ -156,22 +153,25 @@ describe('Probes', () => {
     const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
     let now = 0
     const probes = new Probes({ urlOf: () => url, now: () => now, onChange: () => {}, timeoutMs: 50 })
+    const result = () => probes.result('p-1', 'huly', 'i1', 'huly')
     const settle = async () => {
-      probes.result('p-1', 'huly', 'i1', 'huly')
+      result()
       await new Promise((resolve) => setTimeout(resolve, 250))
-      return probes.result('p-1', 'huly', 'i1', 'huly')
+      return result()
     }
+    // On a loaded runner a probe may time out before its connection opens: polling asks again until the answer lands.
+    const reaches = (value: boolean) => expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(value)
     expect(await settle()).toBeUndefined()
     now += 31_000
     mode = 'ok'
-    expect(await settle()).toBe(true)
+    await reaches(true)
     now += 6 * 60_000
     mode = 'hang'
-    expect(await settle()).toBe(false)
+    await reaches(false)
     probes.forget('huly')
     expect(await settle()).toBeUndefined()
     now += 31_000
     mode = 'fail'
-    expect(await settle()).toBe(false)
+    await reaches(false)
   })
 })
