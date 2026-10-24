@@ -211,7 +211,7 @@ export function sessionsByTask(
   for (const agent of agents) {
     const named = taskOfName(agent.name)
     const task = named ?? taskOfBranch(branchOf(agent))
-    if (task === undefined || !keys.has(task.replace(/-(\d+|FIX)$/, ''))) continue
+    if (task === undefined || !keys.has(task.replace(/-(\d+|FIX|CARRY)$/, ''))) continue
     const candidate = { agent, named: named !== undefined }
     const known = byTask.get(task)
     if (known === undefined || outranks(candidate, known)) byTask.set(task, candidate)
@@ -234,11 +234,11 @@ function outranks(candidate: Candidate, known: Candidate): boolean {
 }
 
 function taskOfName(name: string | undefined): string | undefined {
-  return /^[A-Z][A-Z0-9_]*-(\d+|FIX)$/.exec(name ?? '')?.[0]
+  return /^[A-Z][A-Z0-9_]*-(\d+|FIX|CARRY)$/.exec(name ?? '')?.[0]
 }
 
 function taskOfBranch(branch: string | null): string | undefined {
-  return /^[a-z][a-z0-9_]*-(\d+|fix)(?=\/|$)/.exec(branch ?? '')?.[0].toUpperCase()
+  return /^[a-z][a-z0-9_]*-(\d+|fix|carry)(?=\/|$)/.exec(branch ?? '')?.[0].toUpperCase()
 }
 
 /** How long a fresh background job may go without a live process before its `state` stops being trusted. */
