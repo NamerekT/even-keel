@@ -330,6 +330,7 @@
     "codex": "codex"
   },
   "execution": {
+    "claude": "bg",
     "codex": "bypass"
   },
   "cli": {

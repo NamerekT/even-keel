@@ -157,6 +157,7 @@
     "codex": "codex"
   },
   "execution": {
+    "claude": "auto",
     "codex": "bypass"
   },
   "cli": {

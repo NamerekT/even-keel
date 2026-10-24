@@ -331,7 +331,7 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (value.includes('offline')) throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: 'fetch failed' })
     const name = String(body.name ?? '').trim()
     const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
-    const entry = apiEntry(key, { name: name || null, ...(codex ? { agent: CODEX } : body.transport === 'bg' ? { transport: 'bg' as const } : {}) })
+    const entry = apiEntry(key, { name: name || null, ...(codex && { agent: CODEX }) })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {
@@ -353,10 +353,6 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   }
   if (name === 'account/keep') {
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: false } : entry)) }
-  }
-  if (name === 'account/transport') {
-    const transport = body.transport === 'sdk' ? 'sdk' : 'bg'
-    return { ...account, accounts: account.accounts.map((entry) => (entry.key === key && entry.transport !== undefined ? { ...entry, transport } : entry)) }
   }
   if (name === 'account/name') {
     const given = String(body.name ?? '').trim()

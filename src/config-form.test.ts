@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -354,5 +354,15 @@ describe('withSharedAccount', () => {
     const next = withSharedAccount(raw, 'codex', 'john')
     expect(next).toEqual({ ...raw, accounts: { claude: 'work', codex: 'john' } })
     expect(parseConfig(next).provider).toBe('claude')
+  })
+})
+
+describe('withExecution', () => {
+  it("sets the provider's execution mode alone, and drops it back to the default", () => {
+    const raw = { projects: [abc()], execution: { codex: 'bypass' } }
+    const next = withExecution(raw, 'claude', 'sdk')
+    expect(next).toEqual({ ...raw, execution: { codex: 'bypass', claude: 'sdk' } })
+    expect(parseConfig(next).execution).toEqual({ claude: 'sdk', codex: 'bypass' })
+    expect(withExecution(next, 'claude', 'auto')).toEqual(raw)
   })
 })

@@ -311,6 +311,11 @@ export function withSharedAccount(raw: unknown, provider: string, key: string): 
   return withRows(raw, changesOf(null, [value('accounts', 'accounts', key.trim() || undefined, provider)], () => true))
 }
 
+/** The raw config with only the provider's `execution` set: what the start writes from the accounts' old transports. */
+export function withExecution(raw: unknown, provider: string, mode: string): Record<string, unknown> {
+  return withRows(raw, changesOf(null, [value('execution', 'execution', mode, provider)], () => true))
+}
+
 /** Names trimmed, blanks dropped; an empty `active` or `terminal` goes by the categories of the statuses. */
 function rulesOf(rules: ChainRules): ChainRules {
   const statuses = (list: string[] | null) => (list === null || names(list).length === 0 ? null : names(list))

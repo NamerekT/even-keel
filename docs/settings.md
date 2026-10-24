@@ -48,7 +48,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
-| `execution.<provider>` | G | — | page, hand | the first mode of each provider |
+| `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`) |
 | `cli.<provider>` | G | — | page, hand | `checked` for every provider: `claude`, `codex`, and `opencode` and `copilot` since BTN-347 (BTN-250, `docs/sessions.md`) |
 | `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<model>` | G | — | page, hand | `{}` |

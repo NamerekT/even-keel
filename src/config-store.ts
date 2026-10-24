@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
@@ -131,6 +131,11 @@ export class ConfigStore {
   /** Writes the shared pool's account of the provider alone, by the same rule as `saveProject`. */
   saveSharedAccount(provider: string, key: string): void {
     this.write(withSharedAccount(this.raw(), provider, key))
+  }
+
+  /** Writes the provider's execution mode alone, by the same rule as `saveProject`. */
+  saveExecution(provider: string, mode: string): void {
+    this.write(withExecution(this.raw(), provider, mode))
   }
 
   /** Writes the given switches of `updates`, by the same rule as `saveProject`. */

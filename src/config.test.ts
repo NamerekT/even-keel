@@ -127,7 +127,7 @@ describe('parseConfig', () => {
       provider: 'claude',
       models: { claude: 'opus' },
       accounts: { claude: 'global', codex: 'codex' },
-      execution: { codex: 'sandbox' },
+      execution: { claude: 'auto', codex: 'sandbox' },
       cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' },
       modelLabels: false,
       modelPrompts: {},
@@ -391,17 +391,19 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', modelLabels: 'yes' } } })).toThrow(/ABC.modelLabels/)
   })
 
-  it('reads the shared run settings over the defaults: Claude on opus in the global folder, Codex in its own, the sandbox on', () => {
+  it('reads the shared run settings over the defaults: Claude on opus in the global folder by its kind, Codex in its own, the sandbox on', () => {
     const config = parse({ projects: {}, provider: 'codex', models: { codex: 'gpt-5.6-sol' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true })
     expect(config).toMatchObject({
       provider: 'codex',
       models: { claude: 'opus', codex: 'gpt-5.6-sol' },
       accounts: { claude: 'team-api', codex: 'codex' },
-      execution: { codex: 'bypass' },
+      execution: { claude: 'auto', codex: 'bypass' },
       modelLabels: true,
     })
+    expect(parse({ projects: {}, execution: { claude: 'sdk' } }).execution).toEqual({ claude: 'sdk', codex: 'sandbox' })
     expect(() => parse({ projects: {}, execution: { codex: 'yolo' } })).toThrow(/execution.codex.*yolo.*sandbox, bypass/)
-    expect(() => parse({ projects: {}, execution: { claude: 'bypass' } })).toThrow(/execution.claude is not a provider/)
+    expect(() => parse({ projects: {}, execution: { claude: 'bypass' } })).toThrow(/execution.claude.*bypass.*auto, bg, sdk/)
+    expect(() => parse({ projects: {}, execution: { opencode: 'bg' } })).toThrow(/execution.opencode is not a provider/)
   })
 
   it('runs every provider on the checked CLI unless the config says system', () => {
