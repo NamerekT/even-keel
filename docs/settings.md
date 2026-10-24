@@ -69,6 +69,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |
 | `branch` | P | — | page, hand | `main` |
 | `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
+| `standards` | P | — | page, hand | `[]` — the project's standards, `{ doc, files, except, shots }` each: a document inside the repository, at least one mask, a document once, else `config.standards` (BTN-359, `docs/sessions.md`, "Project standards") |
 | `prompt` | G, P | adds up, not over (BTN-338): a new session gets G, then P (`withPrompts`); a project's empty one leaves G in place. `ProjectSettings.prompt` is only the project's own row, G is `EvenKeelConfig.prompt` | page, hand | `null` on both |
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |

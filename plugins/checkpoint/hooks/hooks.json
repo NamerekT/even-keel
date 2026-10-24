@@ -12,6 +12,16 @@
         ]
       },
       {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|apply_patch|edit|create|write|str_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/standard-gate.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "*",
         "hooks": [
           {
@@ -23,6 +33,16 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "Read|view|read_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/standard-gate.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
       {
         "matcher": "*",
         "hooks": [
@@ -62,6 +82,23 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/mailbox.mjs\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/standard-gate.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/standard-gate.mjs\"",
             "timeout": 10
           }
         ]

@@ -6,6 +6,7 @@ import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
+import { standardsOf } from '../projects/standards.js'
 import { placeholderIn } from '../sessions/prompt.js'
 import type { CheckpointShares, OwnKey } from '../state.js'
 import { DEFAULT_SHARES } from '../stats/checkpoint.js'
@@ -328,6 +329,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     const path = typeof value === 'string' ? changelogPath(value) : null
     if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })
     return path
+  } },
+  // The project's standards (BTN-359): a document of the repository and the files it guards; read by the `checkpoint` plugin's hooks.
+  { key: 'standards', kind: 'json', scopes: ['project'], lands: ['settings'], default: [], check: (value, place) => {
+    const found = standardsOf(value)
+    if (found === null) throw fail('config.standards', { where: at(place, 'standards') })
+    return found
   } },
 ]
 

@@ -1718,7 +1718,7 @@ let server = createEvenKeelServer({
     const settings = configStore.current.settings[run.project]
     const views = ciWatches.shown(run.project).map((watch) => watch.view)
     const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
-    return { commands, branch: branchOf(run.project) }
+    return { commands, branch: branchOf(run.project), standards: settings?.standards ?? [] }
   },
   tools: async (project) => {
     const repo = configStore.current.projects[project]

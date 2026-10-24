@@ -177,6 +177,19 @@
       "mergeInto": null,
       "fillMilestone": true,
       "changelog": "docs/CHANGELOG.md",
+      "standards": [
+        {
+          "doc": "docs/design.md",
+          "files": [
+            "web/**/*.tsx",
+            "web/**/*.css"
+          ],
+          "except": [
+            "**/*.test.*"
+          ],
+          "shots": true
+        }
+      ],
       "provider": "claude",
       "models": {
         "claude": "haiku"
@@ -228,6 +241,7 @@
       "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
+      "standards": [],
       "provider": null,
       "models": {},
       "accounts": {},
@@ -264,6 +278,7 @@
       "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
+      "standards": [],
       "provider": null,
       "models": {},
       "accounts": {},
@@ -300,6 +315,7 @@
       "mergeInto": "11111111-1111-4111-8111-111111111111",
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
+      "standards": [],
       "provider": null,
       "models": {},
       "accounts": {},

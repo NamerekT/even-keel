@@ -55,6 +55,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 43 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
+| 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, Copilot, OpenCode | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
 | 47 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
 | 48 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | PR mode on public GitHub repositories | your own review is skipped, or an outsider's reaches a session |
@@ -305,6 +306,10 @@ The resets counter of a chain row counts a Codex compaction by the rollout's own
 ### Plugin hooks that block (BTN-180)
 
 All five hook events of a plugin were seen running in Codex, and `additionalContext` reaching the model, but never a hook stopping anything: a `PreToolUse` exit code 2 refusing the call (`merge-check` holding a merge until the project's check, `check-marks` refusing a Huly description with bad marks), `permissionDecision: deny` (`show-calibration`), `decision: block` of a `Stop` hook (`checkpoint-mark`). If Codex ignores one, the call goes through: a merge before the check is green, a description with bad marks, a turn that wrote the handoff note without the `CHECKPOINT:` line waits for a reply. **Workaround:** for the last one, reply `CHECKPOINT: .temp/handoff.md` in the chat window or press "New session"; the others show in the tracker and on the CI.
+
+### Project standards on each agent (BTN-359)
+
+The hooks of a project's standards (`docs/sessions.md`, "Project standards") were run only by their tests, with the inputs Claude Code documents; no chain session has met a standard yet. Assumed, per agent: Codex sends its edit as `apply_patch` with the patch text in `tool_input` and honours a `PreToolUse` deny (see the entry above), and its compaction fires `SessionStart` with `compact`; Codex reads files by shell commands, so its session gets the document only from the refused edit, never from a read. Copilot runs the plugin's Claude-format hooks with its own tool names (`view`, `edit`, `create`, `str_replace`) and the path in `path`. OpenCode fires `session.compacted` after a compaction; its PR mode mark is not held, as its turn's end cannot be blocked. If a name or a field differs, that agent's session edits a guarded file without the document, or gets it only once per session; if a compaction is missed, the document is not given again after it. The merge's check is plain files and git and does not depend on the agent. **Workaround:** name the document in the task's text; the merge still waits for the shots and the answers.
 
 ### Chat mail at a Codex Stop (BTN-181)
 

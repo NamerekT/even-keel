@@ -49,6 +49,8 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
         : odd
           ? { files: ['AGENTS.md'], skills: [{ folder: '.agents/skills', names: ['release'] }] }
           : { files: ['CLAUDE.md', 'AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['migrate', 'review'] }] },
+    // `docs/api-style.md`, a standard of ABC, is not among them: the editor warns about it.
+    docs: mode === 'empty' ? [] : ['AGENTS.md', 'CLAUDE.md', 'README.md', 'docs/design.md', 'docs/setup.md'],
   }
 }
 

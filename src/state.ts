@@ -84,8 +84,23 @@ export interface TrackerUrls {
 }
 
 /**
+ * A project's standard (BTN-359): a document of its repository and the files it guards. A session gets the document
+ * at its first read of such a file and cannot edit one before; with `shots`, the merge of a branch that changed them
+ * waits for shots and the answers to the document's "The check" (`plugins/checkpoint/hooks/standards.mjs`).
+ */
+export interface Standard {
+  /** The document, relative to the repository's root. */
+  doc: string
+  /** Glob masks relative to the repository's root: `**` any folders, `*` any name part. */
+  files: string[]
+  /** Masks of files left out of `files`. */
+  except: string[]
+  shots: boolean
+}
+
+/**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `standards`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -111,6 +126,8 @@ export interface ProjectSettings {
   fillMilestone: boolean
   /** The changelog file, relative to the repository's root (BTN-209). */
   changelog: string
+  /** The documents of the repository that guard some of its files, handed to the sessions by the `checkpoint` hooks (BTN-359). */
+  standards: Standard[]
   /** The provider the project's sessions run on (`claude`, `codex`); `null` — the shared one. A task's run label may override it. */
   provider: string | null
   /** The project's own model by provider, over the shared `models`. */

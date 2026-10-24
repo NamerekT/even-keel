@@ -83,7 +83,11 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 
-  const [received, rules] = await Promise.all([readNewest(places.homes, repo), readRepoRules(places.git, repo, places.branch)])
+  const [received, rules, docs] = await Promise.all([
+    readNewest(places.homes, repo),
+    readRepoRules(places.git, repo, places.branch),
+    readBranchDocs(places.git, repo, places.branch),
+  ])
   const known = { user: new Set(dirNames(join(places.globalDir, 'skills'))), project: new Set(dirNames(join(repo, '.claude', 'skills'))) }
 
   return {
@@ -96,7 +100,15 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     accounts,
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
     rules,
+    docs,
   }
+}
+
+/** The Markdown files committed on the branch, sorted. */
+export async function readBranchDocs(git: Git, repo: string, branch: string): Promise<string[] | null> {
+  // `ls-tree` takes no glob in its paths: the whole tree, filtered here.
+  const result = await git(repo, ['ls-tree', '-r', '--name-only', branch])
+  return result.code === 0 ? result.out.split('\n').map((line) => line.trim()).filter((line) => /\.md$/i.test(line)).sort() : null
 }
 
 /** What the branch a task worktree starts from holds: an uncommitted file never reaches a session. */

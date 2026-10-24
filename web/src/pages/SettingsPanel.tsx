@@ -50,7 +50,8 @@ import { ModelOffers } from './ModelOffers.js'
 import { useModels } from './useModels.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
-import { CLI_TTL, formOf, profileOf, remoteKey, switchOf, tokensOf, valuesOf } from './projectForm.js'
+import { CLI_TTL, formOf, profileOf, remoteKey, standardRows, switchOf, tokensOf, valuesOf } from './projectForm.js'
+import { ProjectStandards } from './ProjectStandards.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
@@ -89,7 +90,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -100,6 +101,7 @@ const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
 
 const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
 const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
+const standardsShown = (value: Value) => shown(standardRows(value as string).map((row) => row.doc || '—'))
 type Option = { value: string; label: string }
 const labelOf = (options: readonly Option[]) => (value: Value) => options.find((option) => option.value === value)?.label ?? String(value)
 
@@ -505,6 +507,18 @@ export function SettingsPanel({
             { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
           )}
         </Section>
+        <Section title={t.settings.standards.title} hint={t.settings.standards.hint}>
+          <ProjectStandards
+            className={marks.box('standards')}
+            project={project}
+            branch={text('branch').trim() || form.branch}
+            trim={state?.trimTools ?? false}
+            value={text('standards')}
+            onChange={(value) => edit('standards', value)}
+          >
+            {notes('standards', standardsShown)}
+          </ProjectStandards>
+        </Section>
         <Section title={t.settings.gets.title} hint={t.settings.gets.hint(providerName(text('provider') || shared.provider))}>
           <SessionGets
             project={project}
@@ -512,6 +526,7 @@ export function SettingsPanel({
             prompts={{ shared: (shared.prompt ?? '').trim() !== '', project: text('prompt').trim() !== '' }}
             packages={state?.packages ?? null}
             trim={state?.trimTools ?? false}
+            standards={standardRows(text('standards')).map((row) => row.doc).filter((doc) => doc !== '')}
           />
         </Section>
         <Section title={t.settings.sections.context}>

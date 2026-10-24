@@ -1,0 +1,56 @@
+.standards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* A standard: a box a tone deeper than its section, its fields one under another. */
+.standard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.standard__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.standard__field .settings__text {
+  width: 100%;
+  margin-top: 0;
+}
+
+/* As tall as the masks it holds: a narrow panel wraps the preset's list onto three lines. */
+.standard__masks {
+  field-sizing: content;
+  resize: none;
+}
+
+/* The document's pick and the trash that removes the standard, on one line. */
+.standard__doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.standard__doc > .settings__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.standard__gone {
+  font-size: 13px;
+}
+
+.standard__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

@@ -1,5 +1,6 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { notice } from '../../../src/notice/notice.js'
+import { DEFAULT_EXCEPT, INTERFACE_FILES } from '../../../src/projects/standards.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
 import { DEFAULT_SHARES } from '../../../src/stats/checkpoint.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
@@ -101,6 +102,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   mergeInto: null,
   fillMilestone: false,
   changelog: 'CHANGELOG.md',
+  standards: [],
   provider: null,
   models: {},
   accounts: {},
@@ -117,7 +119,8 @@ export function fakeConfig(): ConfigView {
   return {
     shared: { ...FAKE_SHARED, brief: false, modelPrompts: { haiku: 'Keep answers short.' } },
     projects: {
-      ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true, own: { fillMilestone: true } }),
+      ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true, own: { fillMilestone: true },
+        standards: [{ doc: 'docs/design.md', files: INTERFACE_FILES, except: DEFAULT_EXCEPT, shots: true }, { doc: 'docs/api-style.md', files: ['src/api/**/*.ts'], except: [], shots: false }] }),
       DEMO: project('D:/Projects/demo', {
         color: 2,
         branch: 'master',

@@ -7,7 +7,7 @@ import { fail } from './notice/notice.js'
 import { colorsOf } from './projects/colors.js'
 import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
-import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, OwnKey, OwnValues, ProjectSettings, StatsConfig } from './state.js'
+import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, OwnKey, OwnValues, ProjectSettings, Standard, StatsConfig } from './state.js'
 import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
@@ -343,6 +343,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     mergeInto: values.mergeInto as string | null,
     fillMilestone: values.fillMilestone as boolean,
     changelog: values.changelog as string,
+    standards: values.standards as Standard[],
     provider: (own.provider as string | undefined) ?? null,
     models: (own.models as Record<string, string> | undefined) ?? {},
     accounts: (own.accounts as Record<string, string> | undefined) ?? {},
@@ -583,6 +584,7 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     value('intakeLabel', 'intakeLabel', settings.intakeLabel?.trim() || undefined),
     value('mergeInto', 'mergeInto', settings.mergeInto?.trim() || undefined),
     value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),
+    value('standards', 'standards', settings.standards, []),
     value('provider', 'provider', settings.provider ?? undefined),
     ...byProvider('models'),
     ...byProvider('accounts'),

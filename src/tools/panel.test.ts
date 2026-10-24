@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
-import { readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
+import { readBranchDocs, readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
 
 describe('readToolsView', () => {
   let root: string
@@ -76,5 +76,19 @@ describe('readRepoRules', () => {
     writeFileSync(join(repo, 'CLAUDE.md'), 'not committed')
     expect(await readRepoRules(runGit, repo, 'trunk')).toEqual({ files: ['AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['review'] }] })
     expect(await readRepoRules(runGit, repo, 'missing')).toBeNull()
+  })
+
+  it("lists the branch's committed Markdown files as the documents a standard may name", async () => {
+    const git = (...args: string[]) => runGit(repo, args)
+    await git('init', '-q', '-b', 'trunk')
+    mkdirSync(join(repo, 'docs'), { recursive: true })
+    writeFileSync(join(repo, 'docs', 'design.md'), 'look')
+    writeFileSync(join(repo, 'README.MD'), 'readme')
+    writeFileSync(join(repo, 'index.ts'), 'code')
+    await git('add', '-A')
+    await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-qm', 'docs')
+    writeFileSync(join(repo, 'notes.md'), 'not committed')
+    expect(await readBranchDocs(runGit, repo, 'trunk')).toEqual(['README.MD', 'docs/design.md'])
+    expect(await readBranchDocs(runGit, repo, 'missing')).toBeNull()
   })
 })
