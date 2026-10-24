@@ -363,13 +363,22 @@ input[type='radio']:disabled {
   white-space: nowrap;
 }
 
+/* Sets the section links apart from the brand and the project crumb, which are as quiet and would read as one subtitle with them (BTN-348). */
+.header__divider {
+  align-self: center;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
 /* Targets of the header are at least 24px (WCAG 2.5.8), 44px on a narrow screen; the padding grows, the text does not. */
 .header__link {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
-  margin-left: 2px;
-  padding: 0 6px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
   font-size: var(--text-14);
   text-decoration: none;
@@ -381,8 +390,24 @@ input[type='radio']:disabled {
   color: var(--fg);
 }
 
+.header__link:hover {
+  background: var(--surface-muted);
+}
+
 .header__link.active {
+  position: relative;
   font-weight: 600;
+}
+
+.header__link.active::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: 2px;
+  left: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .header__aside {
