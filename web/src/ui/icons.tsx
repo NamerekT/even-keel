@@ -108,6 +108,15 @@ export function CheckIcon() {
   )
 }
 
+/** Needs a fix: an exclamation mark, for a step's red dot. */
+export function BangIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 3.5v5.5M8 12.2v.3" />
+    </svg>
+  )
+}
+
 /** A list that opens downwards: a chevron. */
 export function ChevronIcon() {
   return (

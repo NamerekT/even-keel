@@ -278,12 +278,32 @@ export function ProviderGrid({
   )
 }
 
-/** A card of related fields with its title; `aside` — at the title's right; `danger` — what cannot be undone, framed red. */
-export function Section({ title, hint, aside, danger = false, children }: { title: string; hint?: string; aside?: ReactNode; danger?: boolean; children: ReactNode }) {
+/**
+ * A card of related fields with its title; `mark` — before the title (a wizard step's dot); `aside` — at the title's
+ * right; `danger` — what cannot be undone, framed red.
+ */
+export function Section({
+  title,
+  hint,
+  mark,
+  aside,
+  danger = false,
+  className,
+  children,
+}: {
+  title: string
+  hint?: string
+  mark?: ReactNode
+  aside?: ReactNode
+  danger?: boolean
+  className?: string
+  children: ReactNode
+}) {
   const id = useId()
   return (
-    <section className={danger ? 'settings__section settings__section--danger' : 'settings__section'} aria-labelledby={id}>
+    <section className={['settings__section', danger && 'settings__section--danger', className].filter(Boolean).join(' ')} aria-labelledby={id}>
       <div className="settings__heading">
+        {mark}
         <h3 id={id} className="settings__heading-title">
           {title}
         </h3>

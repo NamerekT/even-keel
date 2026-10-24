@@ -119,14 +119,25 @@
   transform: scale(1.15);
 }
 
-.wizard__step--done .wizard__dot {
+.wizard__dot--done {
   border-color: var(--accent);
   background: var(--accent);
 }
 
-.wizard__step--current .wizard__dot {
+.wizard__dot--current {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.wizard__dot--passed {
+  border-color: var(--lamp-done);
+  background: var(--lamp-done);
+}
+
+.wizard__dot--failed {
+  border-color: var(--lamp-error);
+  background: var(--lamp-error);
+  color: var(--on-fill);
 }
 
 .wizard__step-label {

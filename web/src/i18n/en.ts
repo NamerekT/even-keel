@@ -640,31 +640,40 @@ export const en: Messages = {
     ownKey: 'Project key',
     ownKeyHint:
       "Even Keel's name of the project, a capital Latin letter, then up to 4 capitals, digits or _: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names. Two projects on one tracker project split its tasks by milestone.",
-    example: (key: string, place: boolean, ownKey: string | null) =>
-      place
-        ? `Issue #12 becomes ${key}-12, its branch ${key.toLowerCase()}-12/task.`
-        : `Task ${key}-12 runs on the branch ${key.toLowerCase()}-12/task${ownKey === null ? '.' : `: the tasks keep the tracker's ids, the key ${ownKey} does not change them.`}`,
     name: 'Name',
     nameHint: "Shown on the page; filled in from the tracker's project, can be changed.",
     namePlaceholder: 'Storefront',
     milestonesHint:
       'This project takes only the tasks of these milestones, so that no task enters two chains. The projects already on this tracker project give them up.',
     yields: (projects: string) => `The tasks of these milestones leave ${projects}: they go into its "No tasks in milestones".`,
-    advanced: "Advanced: tasks' folders",
     stepPlace: "Tasks' folders",
-    placeNow: (slots: number) => (slots === 0 ? 'a worktree per task' : `a pool of ${slots} slots`),
-    placeWorktree: 'A worktree per task',
-    placeSlots: 'A pool of slots:',
-    placeHint:
-      'A worktree is created for its task and removed after Done. Slots are permanent folders: a task switches the branch in one and only the difference is rebuilt, which pays off with heavy builds.',
+    place: 'Where a task works',
+    placeNow: (slots: number) => (slots === 0 ? 'Own folder per task' : counted('permanent folder', 'permanent folders')(slots)),
+    placeWorktree: 'Own folder per task',
+    placeSlots: 'Permanent folders',
+    placeCount: 'How many folders',
+    placeHints: {
+      worktree: 'A folder (a git worktree) is made for each task and removed after Done.',
+      slots: 'A task switches the branch in a free folder and only the difference is rebuilt: pays off with heavy builds.',
+    },
+    marks: { future: 'Not filled in yet', current: 'Fill this in next', passed: 'Checked', failed: 'Needs a fix' },
+    summary: {
+      title: 'What will be created',
+      project: 'Project',
+      folder: 'Folder',
+      branch: 'Main branch',
+      tracker: 'Tracker',
+      tasks: 'A task and its branch',
+      places: "Tasks' folders",
+    },
     missing: {
       repo: 'Choose the repository folder.',
-      repoError: 'The folder needs a fix, see step 1.',
+      repoError: 'The folder needs a fix, see "Repository".',
       profile: 'Choose the tracker profile.',
       field: (label: string) => `Fill in "${label}".`,
       checking: 'Waiting for the check.',
       entry: 'The project needs a fix, see above.',
-      tracker: 'The tracker did not give the tasks, see step 2.',
+      tracker: 'The tracker did not give the tasks, see "Tracker".',
     },
     add: 'Add project',
     checking: 'Checking…',

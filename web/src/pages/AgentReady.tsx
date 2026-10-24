@@ -6,6 +6,14 @@ import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { useCommand } from '../live/useCommand.js'
 import { providerName } from './settingsRun.js'
 import { Status } from './TrackerFields.js'
+import type { StepCheck } from './wizard.js'
+
+/** The agent step's dot: green once the account is signed in and seen, red while it cannot run, empty while it is read. */
+export function agentCheck(state: EvenKeelState, provider: string): StepCheck {
+  const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')
+  if (ready.state !== 'ready') return 'failed'
+  return ready.entry.status === null ? 'empty' : 'passed'
+}
 
 /**
  * Whether the provider can run sessions now (BTN-310): its CLI, the account folder of its shared pool entry and that

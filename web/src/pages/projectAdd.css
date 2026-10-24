@@ -1,70 +1,46 @@
-.project-add__form {
-  max-width: 720px;
-  gap: 20px;
+/* The project wizard (BTN-344) in the wizard's frame (wizard.css): a card per step, the summary, the foot. */
+.project-add__frame .wizard__body {
+  gap: var(--space-16);
 }
 
-.project-add__step {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
+.project-add__lead {
   margin: 0;
-  padding: 0;
-  border: 0;
-  counter-increment: step;
-}
-
-.project-add__step + .project-add__step {
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.project-add__form {
-  counter-reset: step;
-}
-
-/* A step's title stays quieter than its fields' labels: it names the section, the labels name what to type. */
-.project-add__legend {
-  float: left;
-  width: 100%;
-  margin-bottom: 4px;
-  padding: 0;
   color: var(--fg-muted);
-  font-size: var(--text-12);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--text-14);
 }
 
-.project-add__legend::before {
-  content: counter(step) '. ';
+.project-add__steps {
+  gap: var(--space-16);
+}
+
+/* The step's dot leads its title. */
+.project-add__step .settings__heading {
+  gap: var(--space-8);
+}
+
+/* The pick of two is as wide as its words, not the controls' one width. */
+.project-add__pick .settings__line-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* Too narrow for the name beside the pick: under it, as the settings' rows do. */
+@container (max-width: 480px) {
+  .project-add__pick .settings__line-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.project-add__key {
+  text-transform: uppercase;
 }
 
 .project-add__open {
   margin: 0;
-  padding: 8px 12px;
+  padding: var(--space-8) var(--space-12);
   border-radius: var(--radius-control);
   background: var(--warn-bg);
   color: var(--warn-fg);
   font-size: var(--text-13);
-}
-
-.project-add__advanced {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.project-add__advanced > summary {
-  color: var(--fg-muted);
-  font-size: var(--text-13);
-  cursor: pointer;
-}
-
-.project-add__advanced[open] > summary {
-  margin-bottom: 12px;
 }
 
 .project-add__trust {
@@ -72,13 +48,13 @@
 }
 
 .project-add__trust p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-8);
 }
 
 .project-add__command {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 .project-add__command code {
@@ -88,23 +64,41 @@
   user-select: all;
 }
 
-.project-add__key {
-  width: 7em;
-  text-transform: uppercase;
+/* The foot stands under the summary card, not inside one: no line of its own. */
+.project-add__frame .wizard__foot {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
-.project-add__places {
+.project-add__note {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.project-add__slots {
-  width: 5em;
-  padding-block: 2px;
-}
-
-.project-add__actions {
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-4) var(--space-12);
+}
+
+/* The summary: a task and its branch take two columns, the value is long. */
+.project-summary__wide {
+  grid-column: span 2;
+}
+
+.project-summary__mono {
+  font-family: var(--mono);
+  font-size: var(--text-13);
+  overflow-wrap: anywhere;
+}
+
+.project-summary__none {
+  color: var(--fg-muted);
+}
+
+@media (max-width: 760px) {
+  .project-summary__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-summary__wide {
+    grid-column: auto;
+  }
 }

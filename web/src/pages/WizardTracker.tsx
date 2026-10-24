@@ -17,7 +17,8 @@ export function TrackerStep({ state, fields, shape, check, onChange }: TrackerSt
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
   const profiles = state.profiles.profiles.filter((profile) => kinds.some((kind) => kind.kind === profile.kind))
   const status =
-    !keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' ? (
+    // Milestones a shared tracker project needs are said under their field, on the project step.
+    !keyTyped(shape) && check?.entry != null && check.entry.code !== 'wizard.trackerShared' && fields.key.trim() !== '' ? (
       <Status>{say(check.entry)}</Status>
     ) : check?.tracker?.notice != null ? (
       <Status>{say(check.tracker.notice)}</Status>

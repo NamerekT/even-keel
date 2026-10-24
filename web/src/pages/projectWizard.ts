@@ -1,5 +1,6 @@
 import type { ProjectCheck, ProjectDraft, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
+import type { StepCheck } from './wizard.js'
 
 /** The fields a suggestion fills while the user has not typed them. */
 type Suggested = 'key' | 'name' | 'trackerProject'
@@ -198,6 +199,43 @@ export function missingOf(fields: WizardFields, shape: TrackerShape, check: Proj
   if (check.entry !== null) return 'entry'
   if (check.tracker?.ok !== true) return check.tracker === null ? 'checking' : 'tracker'
   return null
+}
+
+/** What the project's twelfth task will be called and its branch; `null` — no key to name it by yet. */
+export function taskExample(shape: TrackerShape, fields: WizardFields): string | null {
+  const prefix = idPrefix(shape, fields) || fields.key.trim()
+  if (prefix === '') return null
+  const named = `${prefix}-12 → ${prefix.toLowerCase()}-12/task`
+  return shape === 'place' ? `#12 → ${named}` : named
+}
+
+/** The tracker's project the fields name, as a person reads it: a team and its project apart; blank — none yet. */
+export function trackerPlace(shape: TrackerShape, fields: WizardFields): string {
+  if (shape === 'key') return fields.key.trim()
+  if (shape !== 'within') return fields.trackerProject.trim()
+  return [fields.team.trim() || fields.key.trim(), fields.trackerProject.trim()].filter((part) => part !== '').join(' / ')
+}
+
+/** The wizard's steps in order, each a card with its dot. */
+export const WIZARD_STEPS = ['agent', 'repo', 'tracker', 'project', 'place'] as const
+export type WizardStepId = (typeof WIZARD_STEPS)[number]
+
+/**
+ * What each step's dot says by the check: the folder by its own lines (`repoCheck` holds while another field is checked
+ * again), the tracker by its answer, the key by the entry — on the tracker's step where the tracker's project is the key.
+ * Milestones a shared tracker project needs are the project step's: their field is there.
+ */
+export function stepChecks(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null, repoCheck: ProjectCheck | null, agent: StepCheck): Record<WizardStepId, StepCheck> {
+  const key = fields.key.trim()
+  const entry = check?.entry ?? null
+  const shared = entry?.code === 'wizard.trackerShared'
+  const keyRefused = key !== '' && entry !== null && !shared
+  const repo = fields.repo.trim() === '' ? 'empty' : repoCheck?.repo.notice != null ? 'failed' : repoCheck?.repo.root != null ? 'passed' : 'empty'
+  const trackerAnswer = check?.tracker == null ? 'empty' : check.tracker.ok ? 'passed' : 'failed'
+  const tracker = fields.profile === '' ? 'empty' : !keyTyped(shape) && keyRefused ? 'failed' : trackerAnswer
+  const project =
+    shared || (keyTyped(shape) && keyRefused) ? 'failed' : key !== '' && check !== null && entry === null ? 'passed' : 'empty'
+  return { agent, repo, tracker, project, place: draftOfFields(fields) === undefined ? 'failed' : 'passed' }
 }
 
 /** A key suggested by a folder's or a repository's name: the initials of its words, or the first letters of a single word. */
