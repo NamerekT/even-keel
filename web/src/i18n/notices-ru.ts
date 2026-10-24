@@ -379,6 +379,8 @@ export const noticesRu: NoticeTexts = {
   'config.ciKinds':(p) => `${p.where} должен быть списком CI, есть: ${list(p.known)}`,
   'config.ciWait': (p) => `${p.where} должен быть целым числом минут от 0 или null`,
   'config.remoteProfiles': (p) => `${p.where} должен сопоставлять виду remote (${list(p.known)}) id профиля`,
+  'config.standards': (p) =>
+    `${p.where} должен быть списком { doc, files, except, shots }: путь к файлу внутри репозитория, хотя бы одна маска, по одной записи на документ`,
   'config.unknownProject': (p) => `проекта ${p.key} нет`,
   'config.unknownFeed': () => 'у проекта нет такого источника задач',
   'config.writeFailed': (p) => `не удалось записать ${p.file}`,

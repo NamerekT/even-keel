@@ -167,6 +167,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     mergeInto: null,
     fillMilestone: state.config.shared.fillMilestone,
     changelog: 'CHANGELOG.md',
+    standards: [],
     provider: null,
     models: {},
     accounts: {},

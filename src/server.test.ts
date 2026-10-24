@@ -11,6 +11,7 @@ import { createEvenKeelServer, type AccountControl, type ChainControl } from './
 import { textNotice } from './notice/notice.js'
 
 const refusal = (text: string) => ({ error: text, notice: textNotice(text) })
+const STANDARD = { doc: 'docs/design.md', files: ['web/**/*.tsx'], except: ['**/*.test.*'], shots: true }
 
 describe('Even Keel HTTP server', () => {
   let hub: EventHub
@@ -127,7 +128,7 @@ describe('Even Keel HTTP server', () => {
       },
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 } : undefined,
-      mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
+      mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master', standards: [STANDARD] } : undefined),
       mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? `mail on ${event}` : null),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       vocabulary: async (id) => {
@@ -238,7 +239,7 @@ describe('Even Keel HTTP server', () => {
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
     const settings = {
-      ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form },
+      ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', standards: [STANDARD], ...form },
       ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
       own: { 'ci.guard': false, cacheTtl: '1h', 'stats.checkpointShares.first': 60 },
       ownRules: [],
@@ -419,8 +420,15 @@ describe('Even Keel HTTP server', () => {
   it('gives the merge hook the check commands and the main branch of a chain session and 404 for any other', async () => {
     const found = await fetch(base + '/api/sessions/chain-session/check')
     expect(found.status).toBe(200)
-    expect(await found.json()).toEqual({ commands: ['npm test'], branch: 'master' })
+    expect(await found.json()).toEqual({ commands: ['npm test'], branch: 'master', standards: [STANDARD] })
     expect((await fetch(base + '/api/sessions/other/check')).status).toBe(404)
+  })
+
+  it('gives the standards hook the standards of a chain session and 404 for any other', async () => {
+    const found = await fetch(base + '/api/sessions/chain-session/standards')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual({ standards: [STANDARD] })
+    expect((await fetch(base + '/api/sessions/other/standards')).status).toBe(404)
   })
 
   it('gives the mailbox hook what waits for a chain session on its event and 404 for any other', async () => {

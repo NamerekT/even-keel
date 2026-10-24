@@ -65,6 +65,16 @@ To keep one set of rules for every agent, write them in `AGENTS.md` and make `CL
 
 **Settings** → **Sessions** of a project shows what a session of its agent gets: the instruction file, the shared and the project's prompt, the project's skills (and the ones the agent misses because of their folder), and the skills of the project's packages. When none of it is there, it says the project has no rules. The same table is under it.
 
+## Standards
+
+A rule that matters only for some files — how the screens look, how the API is written — need not sit in every session's instructions. Make it a standard: **Settings** → **Sessions** → **Standards** of a project ties a document of the repository to the files it guards, as masks from the repository's root (`**/*.tsx, web/**/*.css`), with exceptions (`**/*.test.*`). The document is picked from the Markdown files on the project's main branch; one that is not committed there is flagged, since sessions would not get it. **Add "Interface"** fills in the files a screen is made of — `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.scss`, `.html`, tests excepted.
+
+A session gets the document the first time it reads a guarded file. If it goes to edit one before that, the edit is refused once with the document, and the next one goes through. After a compaction of the context the document comes again.
+
+With **Shots and answers before the merge** on, a task branch that changed the standard's files is not merged (in pull request mode, not handed to its pull request) until `.temp/shot/` holds screenshots taken after the last change and `.temp/<document>-check.md`, written after them, answers each question of the document's section "The check" — a list of questions under a heading of that name. The session is told what is missing and goes on.
+
+Standards come with the [checkpoint](../../plugins/checkpoint) plugin and reach Claude Code, Codex, Copilot and OpenCode sessions; on OpenCode the pull request is not held back. A project has none until you add them.
+
 ## Slots
 
 For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.

@@ -60,4 +60,6 @@ export interface ToolsView {
   received: ReceivedView | null
   /** The instruction files and skills committed on the project's branch; `null` — git could not read it. */
   rules: RepoRules | null
+  /** The Markdown files committed on the project's branch, the documents a standard may name (BTN-359); `null` — as above. */
+  docs: string[] | null
 }

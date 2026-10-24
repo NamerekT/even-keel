@@ -1,6 +1,7 @@
 // Whether a Bash command merges the session's task branch, which in a chain session is its merge into main,
 // the project's check run before that merge, and what the session is told when the check stops it.
 import { execFile, spawn } from "node:child_process";
+import { standardsRefusal } from "./standards.mjs";
 
 const COMMAND_TIMEOUT_MS = 20 * 60_000;
 const OUTPUT_CHARS = 1024 * 1024;
@@ -81,9 +82,9 @@ export function runCommand(command, cwd, timeoutMs = COMMAND_TIMEOUT_MS) {
 }
 
 /**
- * What stops `command` when it merges the task branch of the worktree at `cwd` and the project's check fails: the
- * refusal text, or null — no such merge, no check, or every command passed. `checkOf` asks Even Keel; when it fails,
- * the merge goes on.
+ * What stops `command` when it merges the task branch of the worktree at `cwd` and the project's check fails, or the
+ * check of a standard whose files the branch changed is not done (`standardsRefusal`): the refusal text, or null — no
+ * such merge, no check, or every command passed. `checkOf` asks Even Keel; when it fails, the merge goes on.
  */
 export async function mergeRefusal(command, cwd, checkOf) {
   if (!String(command ?? "").includes("merge")) return null;
@@ -92,6 +93,8 @@ export async function mergeRefusal(command, cwd, checkOf) {
   if (branch === "" || !mergesBranch(command, branch)) return null;
   const check = await checkOf().catch(() => null);
   if (check === null || branch === check.main) return null;
+  const standards = await standardsRefusal(root, check.main, check.standards);
+  if (standards !== null) return standards;
   for (const step of check.commands) {
     const run = await runCommand(step, root);
     if (run.code !== 0) return refusal(step, run.code, run.output);

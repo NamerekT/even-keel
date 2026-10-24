@@ -119,4 +119,4 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 
 TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. Process handling, network and layout are not covered by tests — they are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (element shots and a text report, dark by default, `docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context; the MCP only for what the script cannot do.
 
-A task that builds or changes a screen reads `docs/design.md` before the first line of it, and is merged only when its shots pass the check at the end of that document, with the answers in the closing comment.
+`docs/design.md` is the interface standard of the project's setting "Standards" (`docs/sessions.md`, "Project standards"): the checkpoint hooks hand it over before the first edit of a screen file and hold the merge until its check is done; the answers go into the closing comment too.

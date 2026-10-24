@@ -120,7 +120,7 @@ describe('parseConfig', () => {
       feeds: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -317,6 +317,7 @@ describe('parseConfig', () => {
         mergeInto: null,
         fillMilestone: false,
         changelog: 'CHANGELOG.md',
+        standards: [],
         provider: null,
         models: {},
         accounts: {},
@@ -328,7 +329,7 @@ describe('parseConfig', () => {
         own: {},
       },
       XYZ: {
-        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md' },
+        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [] },
         ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })
@@ -339,6 +340,14 @@ describe('parseConfig', () => {
     for (const changelog of ['../CHANGELOG.md', 'C:\\CHANGELOG.md', '  ', 7]) {
       expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', changelog } } })).toThrow(/ABC.changelog/)
     }
+  })
+
+  it("takes the project's standards normalized and refuses one without masks", () => {
+    const standards = [{ doc: 'docs\\design.md', files: ['web/**/*.tsx', ' '] }]
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc', standards } } }).settings.ABC?.standards).toEqual([
+      { doc: 'docs/design.md', files: ['web/**/*.tsx'], except: [], shots: false },
+    ])
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', standards: [{ doc: 'docs/design.md', files: [] }] } } })).toThrow(/ABC.standards/)
   })
 
   it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {
@@ -788,7 +797,7 @@ describe('projects of one key (BTN-271)', () => {
 describe('withProjectSettings', () => {
   const base: ProjectSettings = {
     ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false },
-    ...{ changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
+    ...{ changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
   }
 
   it('writes the main branch only when it is not main', () => {

@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -182,12 +182,58 @@ describe("the permission hook", () => {
   });
 });
 
+describe.each(Object.entries(agents))("the standards hook on %s input", (_agent, input) => {
+  const design = { doc: "docs/design.md", files: ["web/src/**/*.tsx"], except: ["**/*.test.*"], shots: true };
+  let repo;
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "standards-hook-"));
+    mkdirSync(join(repo, "docs"));
+    writeFileSync(join(repo, "docs", "design.md"), "# Design\n\nCards, not text dumps.\n");
+  });
+  afterAll(() => {
+    rmSync(repo, { recursive: true, force: true });
+    for (const id of sessions) rmSync(join(tmpdir(), "claude-context-checkpoint", `${id}.standards.json`), { force: true });
+  });
+
+  const read = (session, path) => ({ ...input(session, "PostToolUse", { tool_name: "Read", tool_input: { file_path: join(repo, path) }, tool_response: "x" }), cwd: repo });
+  const edit = (session, path) => ({ ...input(session, "PreToolUse", { tool_name: "Edit", tool_input: { file_path: join(repo, path) } }), cwd: repo });
+
+  it("gives the document after the first read of a guarded file and lets the edit through", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/standards`, { standards: [design] });
+    const given = JSON.parse((await run("standard-gate.mjs", read(session, "web/src/Panel.tsx"))).stdout);
+    expect(given.hookSpecificOutput).toMatchObject({ hookEventName: "PostToolUse", additionalContext: expect.stringContaining("Cards, not text dumps.") });
+    expect((await run("standard-gate.mjs", read(session, "web/src/Card.tsx"))).stdout).toBe("");
+    expect((await run("standard-gate.mjs", edit(session, "web/src/Card.tsx"))).stdout).toBe("");
+  });
+
+  it("refuses the first edit without the document, once, and gives it again after a compaction", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/standards`, { standards: [design] });
+    const denied = JSON.parse((await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"))).stdout);
+    expect(denied.hookSpecificOutput).toMatchObject({ permissionDecision: "deny", permissionDecisionReason: expect.stringContaining("Cards, not text dumps.") });
+    expect((await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"))).stdout).toBe("");
+    await run("standard-gate.mjs", input(session, "SessionStart", { source: "compact" }));
+    expect((await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"))).stdout).not.toBe("");
+  });
+
+  it("stays silent for other files, a session Even Keel did not start and without Even Keel", async () => {
+    const session = sessionOf();
+    expect(await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/standards`, { standards: [design] });
+    expect(await run("standard-gate.mjs", edit(session, "web/src/Panel.test.tsx"))).toEqual({ code: 0, stdout: "" });
+    expect(await run("standard-gate.mjs", edit(session, "src/server.ts"))).toEqual({ code: 0, stdout: "" });
+    expect(await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
+  });
+});
+
 // OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the
 // session's folder (a task's worktree) given once when the plugin is made.
 describe("the OpenCode plugin", () => {
   let before;
   let after;
   let complete;
+  let hooks;
   let saved;
   let repo;
   beforeAll(async () => {
@@ -196,7 +242,7 @@ describe("the OpenCode plugin", () => {
     repo = mkdtempSync(join(tmpdir(), "merge-check-"));
     execFileSync("git", ["init", "-q", "-b", "abc-12/task"], { cwd: repo });
     const { server } = await import("../opencode/checkpoint.mjs");
-    const hooks = await server({ directory: repo });
+    hooks = await server({ directory: repo });
     before = hooks["tool.execute.before"];
     after = hooks["tool.execute.after"];
     complete = hooks["experimental.text.complete"];
@@ -271,6 +317,21 @@ describe("the OpenCode plugin", () => {
     } finally {
       process.env.EVEN_KEEL_URL = url;
     }
+  });
+
+  it("gives a standard's document after a read, refuses the first edit without it, and again after a compaction", async () => {
+    const session = sessionOf();
+    mkdirSync(join(repo, "docs"), { recursive: true });
+    writeFileSync(join(repo, "docs", "design.md"), "# Design\n\nCards, not text dumps.\n");
+    answers.set(`/api/sessions/${session}/standards`, { standards: [{ doc: "docs/design.md", files: ["web/**/*.tsx"], except: [], shots: false }] });
+    const editPanel = () => before({ tool: "edit", sessionID: session, callID: "call_5" }, { args: { filePath: join(repo, "web", "Panel.tsx") } });
+    await expect(editPanel()).rejects.toThrow(/Cards, not text dumps\./);
+    await expect(editPanel()).resolves.toBeUndefined();
+    await hooks.event({ event: { type: "session.compacted", properties: { sessionID: session } } });
+    const output = { title: "Panel.tsx", output: "<file>", metadata: {} };
+    await after({ tool: "read", sessionID: session, callID: "call_6", args: { filePath: join(repo, "web", "Panel.tsx") } }, output);
+    expect(output.output).toContain("Cards, not text dumps.");
+    rmSync(join(tmpdir(), "claude-context-checkpoint", `${session}.standards.json`), { force: true });
   });
 
   /** A text part as `experimental.text.complete` gets it; the result is the text the transcript keeps. */

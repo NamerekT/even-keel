@@ -16,12 +16,15 @@ export function SessionGets({
   prompts,
   packages,
   trim,
+  standards,
 }: {
   project: string
   agent: string
   prompts: { shared: boolean; project: boolean }
   packages: PackagesView | null
   trim: boolean
+  /** The documents of the project's standards (BTN-359), as the form holds them. */
+  standards: string[]
 }) {
   const loaded = useToolsViews([project], trim).get(project)
   if (loaded === undefined || loaded.state === 'loading') return <p className="settings__hint">{t.settings.gets.loading}</p>
@@ -58,6 +61,10 @@ export function SessionGets({
             text.absent,
           )}
           {gets.packages.some((each) => !each.hooks) && <span className="gets__note">{text.noHooks}</span>}
+        </Fact>
+        <Fact label={text.standards}>
+          {names(standards, text.absent)}
+          {standards.length > 0 && <span className="gets__note">{text.standardsHow}</span>}
         </Fact>
       </dl>
       <AllAgents />

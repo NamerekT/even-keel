@@ -44,6 +44,7 @@ export const FULL = {
       intakeLabel: ' accepted ',
       fillMilestone: true,
       changelog: '\\docs\\CHANGELOG.md',
+      standards: [{ doc: 'docs\\design.md', files: ['web/**/*.tsx', ' web/**/*.css'], except: ['**/*.test.*'], shots: true }],
       provider: 'claude',
       models: { claude: 'haiku' },
       accounts: { codex: 'codex-2' },

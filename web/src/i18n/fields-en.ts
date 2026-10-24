@@ -21,6 +21,7 @@ export const fieldsEn = {
   'config.ciWait': () => 'A whole number of minutes, 0 or more, or empty',
   'config.ciKinds': (p) => `Only ${list(p.known)}`,
   'config.remoteProfiles': () => 'Pick a profile for each kind of remote',
+  'config.standards': () => 'Each standard needs a document inside the repository and at least one file mask; a document only once',
   'config.mergeIntoValue': () => 'Pick a project or none',
   'config.mergeInto': (p) => `${p.into} is not another project or merges into one itself: a project merges only into one that merges nowhere`,
   'config.mergeIntoForeign': (p) => `${p.into} is a checkout of another repository: they share no remote, and neither is a clone of the other`,

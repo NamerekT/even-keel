@@ -411,6 +411,8 @@ export const en = {
   'config.ciWait': (p: { where: string }) => `config: ${p.where} must be a whole number of minutes, 0 or more, or null`,
   'config.remoteProfiles': (p: { where: string; known: string[] }) =>
     `config: ${p.where} must map a remote's kind (${list(p.known)}) to a profile's id`,
+  'config.standards': (p: { where: string }) =>
+    `config: ${p.where} must be a list of { doc, files, except, shots }: a file path inside the repository, at least one mask, one entry per document`,
   'config.unknownProject': (p: { key: string }) => `config: there is no project ${p.key}`,
   'config.unknownFeed': () => 'config: the project has no such task feed',
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,

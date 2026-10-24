@@ -1,6 +1,6 @@
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
-import type { EvenKeelState, OwnKey, OwnValues, ProjectForm, SharedForm } from '../../../src/state.js'
+import type { EvenKeelState, OwnKey, OwnValues, ProjectForm, SharedForm, Standard } from '../../../src/state.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { effectiveRules } from './ruleRows.js'
 import type { Value, Values } from './settingsDraft.js'
@@ -43,6 +43,8 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
   fillMilestone: switchText(form.own.fillMilestone),
   changelog: form.changelog,
+  // The rows of the standards editor as JSON: the masks stay as typed, a comma between them, until they are sent.
+  standards: standardsText(form.standards),
   provider: form.provider ?? '',
   ...providerValues('models', form.models),
   ...providerValues('accounts', form.accounts),
@@ -62,6 +64,23 @@ export const switchOf = (text: string) => (text === '' ? undefined : text === 't
 export const CLI_TTL = 'cli'
 /** Empty — calibrated; `undefined` — not a whole number. */
 export const tokensOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
+
+/** A standard as the editor holds it: the masks as typed, a comma between them. */
+export interface StandardRow {
+  doc: string
+  files: string
+  except: string
+  shots: boolean
+}
+
+export const standardRows = (text: string): StandardRow[] => JSON.parse(text) as StandardRow[]
+export const rowsText = (rows: StandardRow[]) => JSON.stringify(rows)
+const standardsText = (standards: Standard[]) =>
+  rowsText(standards.map((standard) => ({ doc: standard.doc, files: standard.files.join(', '), except: standard.except.join(', '), shots: standard.shots })))
+/** The masks of a row's field: split at commas and line breaks, the empty ones dropped. */
+export const masksOf = (text: string) => text.split(/[,\n]/).map((mask) => mask.trim()).filter((mask) => mask !== '')
+const standardsOfText = (text: string): Standard[] =>
+  standardRows(text).map((row) => ({ doc: row.doc.trim(), files: masksOf(row.files), except: masksOf(row.except), shots: row.shots }))
 
 /** The project's own values of the keys Even Keel sets too; `undefined` while an own number field holds something else. */
 function ownOf(values: Values): OwnValues | undefined {
@@ -130,6 +149,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
     mergeInto: text('mergeInto') === '' ? null : text('mergeInto'),
     fillMilestone: ownOr(own, 'fillMilestone', shared.fillMilestone),
     changelog: text('changelog').trim(),
+    standards: standardsOfText(text('standards')),
     provider: text('provider') === '' ? null : text('provider'),
     models: providerMap('models', values),
     accounts: providerMap('accounts', values),

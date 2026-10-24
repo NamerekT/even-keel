@@ -37,7 +37,7 @@ import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, Standard, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -228,10 +228,10 @@ export interface ServerDeps {
   /** For the checkpoint mark hook: the turn wrote the handoff note near its end (`noteAtEnd`); `undefined` as above. */
   handoffNote: (sessionId: string) => Promise<boolean | undefined>
   /**
-   * For the merge hook: the project's check commands to run before the merge, empty — none, and its main branch;
-   * `undefined` for a session the chain did not start.
+   * For the merge hook: the project's check commands to run before the merge, empty — none, its main branch and its
+   * standards (BTN-359), which the standards hook reads too; `undefined` for a session the chain did not start.
    */
-  mergeCheck: (sessionId: string) => { commands: string[]; branch: string } | undefined
+  mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[] } | undefined
   /**
    * For the mailbox hook: the chat's messages that waited for the session, delivered now on `event`, as one text;
    * `null` — none wait; `undefined` for a session the chain did not start (BTN-181).
@@ -456,6 +456,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     const check = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
     if (check === undefined) response.writeHead(404).end()
     else sendJson(response, 200, check)
+    return
+  }
+
+  const standards = /^\/api\/sessions\/([^/]+)\/standards$/.exec(path)
+  if (request.method === 'GET' && standards !== null) {
+    const check = deps.mergeCheck(decodeURIComponent(standards[1]!))
+    if (check === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { standards: check.standards })
     return
   }
 
@@ -816,7 +824,7 @@ function feedDraftOf(body: Record<string, unknown>): FeedDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, fillMilestone, changelog, standards, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -834,6 +842,8 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
   // So does one open since before the intake (BTN-262).
   if (intakeLabel !== undefined && intakeLabel !== null && typeof intakeLabel !== 'string') throw fail('request.required', { field: 'intakeLabel' })
   if (typeof changelog !== 'string') throw fail('request.required', { field: 'changelog' })
+  // A page open since before the standards (BTN-359) sends none; the setting's own check judges the entries.
+  if (standards !== undefined && !Array.isArray(standards)) throw fail('request.required', { field: 'standards' })
   if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
   if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
@@ -847,6 +857,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     mergeInto: mergeInto?.trim() || null,
     fillMilestone,
     changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
+    standards: (standards ?? []) as Standard[],
     provider,
     models: mapOf(models, 'models', (value) => typeof value === 'string'),
     accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),

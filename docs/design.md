@@ -101,4 +101,8 @@ Before the merge, for every screen the task built or changed:
    - Is there more than one primary button in a card or a dialog?
    - Is every colour, size, weight, radius and gap one of the tokens above?
    - Does it look like it belongs next to `/stats` and the project page?
-3. Name the shots and the answers in the closing comment of the task.
+3. Write each question above with its answer into `.temp/design-check.md`, after the shots, and name the shots and the answers in the closing comment of the task.
+
+## As a standard
+
+A project makes this document binding through its setting "Standards" (Project settings → Sessions; `docs/sessions.md`, "Project standards"). The button "Add "Interface"" adds it with the masks of the interface files (`**/*.tsx`, `**/*.jsx`, `**/*.vue`, `**/*.svelte`, `**/*.css`, `**/*.scss`, `**/*.html`, except `**/*.test.*`) and "Shots and answers before the merge" on. Then a session gets the document with its first read of such a file, is refused an edit of one before it, and its merge of a branch that changed one waits until `.temp/shot/` has pictures newer than the last change and `.temp/design-check.md`, newer than the pictures, holds every question of "The check" with an answer. The questions are read from the list items of "The check" that end with "?": a new rule there is a new question, and a line that is no question must not end with one.

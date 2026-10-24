@@ -1,12 +1,12 @@
 // What the hooks ask Even Keel about a session, shared by the hook commands of Claude Code and Codex and by
 // OpenCode's plugin (../opencode/checkpoint.mjs): the checkpoint nudge due now, the chat's waiting messages, the
-// check before a merge and whether the turn wrote the handoff note at its end.
+// check before a merge, the project's standards and whether the turn wrote the handoff note at its end.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { markOf, nudge, planOf } from "./nudges.mjs";
 
-const STATE_DIR = join(tmpdir(), "claude-context-checkpoint");
+export const STATE_DIR = join(tmpdir(), "claude-context-checkpoint");
 
 const base = () => (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
 
@@ -64,15 +64,27 @@ export async function decisionOf(sessionId, tool, input, since) {
 }
 
 /**
- * The project's check before the session merges its task branch, and the project's main branch (`main` when Even Keel
- * does not name one). No commands — Even Keel did not start this session, the project has none, or a CI will judge main.
+ * The project's check before the session merges its task branch, its standards (../hooks/standards.mjs) and the
+ * project's main branch (`main` when Even Keel does not name one). No commands — Even Keel did not start this session,
+ * the project has none, or a CI will judge main.
  */
 export async function checkOf(sessionId) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/check`, { signal: AbortSignal.timeout(2000) });
-  if (!response.ok) return { commands: [], main: "main" };
+  if (!response.ok) return { commands: [], standards: [], main: "main" };
   const body = await response.json();
   const commands = Array.isArray(body?.commands) ? body.commands.filter((command) => typeof command === "string" && command.trim() !== "") : [];
-  return { commands, main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main" };
+  return { commands, standards: standardsIn(body), main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main" };
+}
+
+function standardsIn(body) {
+  if (!Array.isArray(body?.standards)) return [];
+  return body.standards.filter((standard) => typeof standard?.doc === "string" && standard.doc !== "" && Array.isArray(standard.files));
+}
+
+/** The project's standards; empty — none, or Even Keel did not start this session. */
+export async function standardsOf(sessionId) {
+  const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/standards`, { signal: AbortSignal.timeout(2000) });
+  return response.ok ? standardsIn(await response.json()) : [];
 }
 
 /** Whether the session's turn wrote `.temp/handoff.md` among its last tool calls; Even Keel reads the transcript of any agent. */
