@@ -80,6 +80,9 @@
   /* Behind every modal window: the page is dimmed and blurred the same way. */
   --scrim: rgb(0 0 0 / 0.6);
   --scrim-blur: blur(2px);
+
+  /* Under a menu or a tip that floats over the page. */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.25);
 }
 
 @media (prefers-color-scheme: dark) {

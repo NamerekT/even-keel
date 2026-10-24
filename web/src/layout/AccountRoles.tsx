@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { APP_LABELS, appSwitchProblem, type AppAccount, type AppId } from '../../../src/account/apps.js'
 import { switchProblem, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -7,6 +7,7 @@ import { say, t } from '../i18n/index.js'
 import { ChevronIcon, EditorIcon, EvenKeelIcon } from '../ui/icons.js'
 import { place } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
+import { usePopoverMenu } from '../ui/usePopoverMenu.js'
 import { accountName, agentLabel } from '../accountName.js'
 import type { Send } from './accountParts.js'
 import './roles.css'
@@ -34,75 +35,32 @@ interface RolesProps {
 }
 
 /**
- * Where an account works, as one button: the apps on it as chips. Its list offers the apps that are elsewhere, and
- * picking one moves it here, off the account it was on; an app that cannot move says why in its line.
+ * Where an account works, as one button: on the card the apps on it by name ("Used by: Even Keel, VS Code"), in the
+ * drawer as icon chips. Its list offers the apps that are elsewhere, and picking one moves it here, off the account it
+ * was on; an app that cannot move says why in its line.
  */
 export function AccountRoles({ entry, view, sending, send, compact = false }: RolesProps) {
-  const [open, setOpen] = useState(false)
-  const root = useRef<HTMLDivElement>(null)
-  const button = useRef<HTMLButtonElement>(null)
-  const menu = useRef<HTMLUListElement>(null)
+  const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(place)
   const roles = rolesOf(entry, view, send)
   const held = roles.filter((role) => role.held)
   const offers = roles.filter((role) => !role.held)
 
-  useLayoutEffect(() => {
-    const element = menu.current
-    const owner = button.current
-    if (!open || element === null || owner === null) return
-    element.showPopover()
-    place(element, owner.getBoundingClientRect())
-    element.querySelector<HTMLButtonElement>('button:not([aria-disabled="true"])')?.focus()
-    const away = (event: Event) => {
-      if (!(event.target instanceof Node && root.current?.contains(event.target))) setOpen(false)
-    }
-    const shut = () => setOpen(false)
-    document.addEventListener('pointerdown', away)
-    document.addEventListener('scroll', away, true)
-    window.addEventListener('resize', shut)
-    return () => {
-      document.removeEventListener('pointerdown', away)
-      document.removeEventListener('scroll', away, true)
-      window.removeEventListener('resize', shut)
-      if (element.matches(':popover-open')) element.hidePopover()
-    }
-  }, [open])
-
   if (roles.length === 0) return null
-  const chips =
-    held.length === 0 ? (
-      compact ? null : (
-        <span className="roles__none">{t.account.rolesNone}</span>
-      )
-    ) : (
-      held.map((role) => (
-        <Tipped key={role.label} className="roles__chip" tip={t.account.holds(role.label)} align="start" inline off={open} focusable={compact || offers.length === 0}>
-          <role.icon />
-        </Tipped>
-      ))
-    )
   const heldText = held.length === 0 ? t.account.rolesNone : held.map((role) => role.label).join(', ')
+  const chips = compact ? (
+    held.map((role) => (
+      <Tipped key={role.label} className="roles__chip" tip={t.account.holds(role.label)} align="start" inline off={open} focusable>
+        <role.icon />
+      </Tipped>
+    ))
+  ) : (
+    <span className={held.length === 0 ? 'roles__text roles__text--none' : 'roles__text'}>
+      {held.length === 0 ? t.account.rolesNone : t.account.usedBy(heldText)}
+    </span>
+  )
   if (offers.length === 0) {
     if (compact) return held.length === 0 ? null : <div className="roles roles--bare">{chips}</div>
     return <div className="roles roles--fixed">{chips}</div>
-  }
-
-  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      // The drawer around would take the same Escape as its own close.
-      event.stopPropagation()
-      setOpen(false)
-      button.current?.focus()
-    } else if (event.key === 'Tab') {
-      setOpen(false)
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
-      const at = items.findIndex((item) => item === document.activeElement)
-      const next = at + (event.key === 'ArrowDown' ? 1 : -1)
-      items[(next + items.length) % items.length]?.focus()
-    }
   }
 
   return (
@@ -122,8 +80,9 @@ export function AccountRoles({ entry, view, sending, send, compact = false }: Ro
         <ChevronIcon />
       </button>
       <ul ref={menu} popover="manual" role="menu" className="roles__menu" onKeyDown={onKeyDown}>
-        {/* The field shows the held roles as icons only; on a touch screen, with no pointing, this is where they are named. */}
+        {/* The drawer shows the held roles as icons only; on a touch screen, with no pointing, this is where they are named. */}
         {open &&
+          compact &&
           held.map((role) => (
             <li key={role.label} role="none" className="roles__here">
               <role.icon />

@@ -80,17 +80,16 @@ export interface AccountGroup {
 
 /**
  * The accounts by provider, in the order of `PROVIDERS`, an agent the page does not know after them. A provider whose
- * CLI is found has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
- * comes first, then the ones that can work now.
+ * CLI is found has its group even with no account, so the page can offer to add one there; the empty groups come last,
+ * where two of them share a row. Inside a group the chain's account comes first, then the ones that can work now.
  */
 export function accountGroups(view: AccountView, now: Date): AccountGroup[] {
   const ordered = accountOrder(view.accounts, now)
   const sorted = [...ordered.filter((entry) => entry.key === view.active), ...ordered.filter((entry) => entry.key !== view.active)]
   const known: string[] = PROVIDERS.filter((provider) => !cliMissing(view, provider))
   const agents = [...known, ...new Set(sorted.map((entry) => entry.agent).filter((agent) => !known.includes(agent)))]
-  return agents
-    .map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))
-    .filter((group) => group.entries.length > 0 || known.includes(group.agent))
+  const groups = agents.map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))
+  return [...groups.filter((group) => group.entries.length > 0), ...groups.filter((group) => group.entries.length === 0 && known.includes(group.agent))]
 }
 
 /** Whether anything works on the account: the Even Keel role, an app, a project's pool entry or a running session. */

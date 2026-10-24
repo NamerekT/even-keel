@@ -184,6 +184,17 @@ export function MenuIcon() {
   )
 }
 
+/** The rare actions of a card: three dots in a row. */
+export function MoreIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="3.5" cy="8" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="8" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="12.5" cy="8" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 /** Claude Code: a burst of rays. */
 export function ClaudeIcon() {
   return (
