@@ -1,9 +1,9 @@
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { samePath } from '../paths.js'
-import { linkType, mergeSettings, shareConfig, sharedMemory, shareProjects, skillStore } from './share.js'
+import { linkedStore, linkType, mergeSettings, shareConfig, sharedMemory, shareProjects, skillStore } from './share.js'
 
 describe('sharedMemory', () => {
   it('is the folder of the repository in the memory store next to the global folder, the one both folders link to', () => {
@@ -244,6 +244,90 @@ describe('shareConfig skills', () => {
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('SKILL.md')
     expect(linksTo(skill(folder), skill(global.dir))).toBe(true)
+  })
+})
+
+describe('shareConfig linked folders', () => {
+  let root: string
+  let global: { dir: string; config: string }
+  let folder: string
+  const warnings: string[] = []
+  const stored = (name = 'hooks') => join(root, `.claude-${name}`)
+  const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
+  const share = () => shareConfig(global, folder, (message) => warnings.push(message))
+
+  beforeEach(() => {
+    warnings.length = 0
+    root = mkdtempSync(join(tmpdir(), 'even-keel-share-'))
+    global = { dir: join(root, 'global'), config: join(root, '.claude.json') }
+    folder = join(root, 'account')
+    mkdirSync(join(global.dir, 'hooks'), { recursive: true })
+    writeFileSync(join(global.dir, 'hooks', 'guard.mjs'), '// guard')
+  })
+
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it('is a folder next to the global one, one per linked folder', () => {
+    expect(linkedStore('C:/Users/john/.claude', 'hooks')).toBe(join('C:/Users/john', '.claude-hooks'))
+    expect(linkedStore('C:/Users/john/.claude', 'output-styles')).toBe(join('C:/Users/john', '.claude-output-styles'))
+  })
+
+  it.each(['agents', 'commands', 'hooks', 'output-styles'])('moves the global %s into its store and links both folders to it', (name) => {
+    mkdirSync(join(global.dir, name), { recursive: true })
+    writeFileSync(join(global.dir, name, 'probe.md'), 'P')
+    expect(share()).toBe(true)
+    expect(readFileSync(join(stored(name), 'probe.md'), 'utf8')).toBe('P')
+    expect(linksTo(join(global.dir, name), stored(name))).toBe(true)
+    expect(linksTo(join(folder, name), stored(name))).toBe(true)
+    expect(readlinkSync(join(folder, name))).not.toContain('global')
+  })
+
+  it('keeps a path through the global folder working, as the hook commands in settings.json use it', () => {
+    share()
+    expect(readFileSync(join(global.dir, 'hooks', 'guard.mjs'), 'utf8')).toBe('// guard')
+  })
+
+  it('reports a change on the move and none on a repeat', () => {
+    expect(share()).toBe(true)
+    expect(share()).toBe(false)
+  })
+
+  it('points an account link into the global folder at the store instead', () => {
+    mkdirSync(folder, { recursive: true })
+    symlinkSync(join(global.dir, 'hooks'), join(folder, 'hooks'), linkType(process.platform))
+    expect(share()).toBe(true)
+    expect(linksTo(join(folder, 'hooks'), stored())).toBe(true)
+    expect(readFileSync(join(folder, 'hooks', 'guard.mjs'), 'utf8')).toBe('// guard')
+  })
+
+  it('links the global folder back to the store when its link is missing', () => {
+    share()
+    unlinkSync(join(global.dir, 'hooks'))
+    expect(share()).toBe(true)
+    expect(linksTo(join(global.dir, 'hooks'), stored())).toBe(true)
+  })
+
+  it('leaves a global folder that links elsewhere where it points, and the account links to it', () => {
+    const elsewhere = join(root, 'repo', 'agents')
+    mkdirSync(elsewhere, { recursive: true })
+    symlinkSync(elsewhere, join(global.dir, 'agents'), linkType(process.platform))
+    share()
+    expect(linksTo(join(global.dir, 'agents'), elsewhere)).toBe(true)
+    expect(() => lstatSync(stored('agents'))).toThrow()
+    expect(linksTo(join(folder, 'agents'), elsewhere)).toBe(true)
+  })
+
+  it('merges into a store that already holds the folder and warns about files that differ', () => {
+    mkdirSync(stored(), { recursive: true })
+    writeFileSync(join(stored(), 'guard.mjs'), '// guard, stored')
+    writeFileSync(join(global.dir, 'hooks', 'notify.mjs'), '// notify')
+    share()
+    expect(readFileSync(join(stored(), 'notify.mjs'), 'utf8')).toBe('// notify')
+    expect(readFileSync(join(stored(), 'guard.mjs'), 'utf8')).toBe('// guard, stored')
+    expect(lstatSync(join(global.dir, 'hooks')).isSymbolicLink()).toBe(false)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/^hooks: .*guard\.mjs/)
+    expect(linksTo(join(folder, 'hooks'), join(global.dir, 'hooks'))).toBe(true)
   })
 })
 
