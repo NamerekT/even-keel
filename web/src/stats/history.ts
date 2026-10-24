@@ -54,7 +54,7 @@ export function projectTotals(history: StatsHistory, range: DayRange): ProjectTo
     .sort((a, b) => b.cost - a.cost || a.project.localeCompare(b.project))
 }
 
-/** Even Keel's projects keep their own slots (`projectSlots`); the other folders of the stats take the free ones by rank. */
+/** Even Keel's projects keep their own slots by key (`keySlots`); the other folders of the stats take the free ones by rank. */
 export function projectColors(history: StatsHistory, own: Record<string, number | null>): Map<string, number | null> {
   const colors = new Map(Object.entries(own))
   const taken = new Set(Object.values(own).filter((slot) => slot !== null))

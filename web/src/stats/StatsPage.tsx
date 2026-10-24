@@ -8,7 +8,7 @@ import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
 import { useLive } from '../live/context.js'
-import { projectSlots } from '../state.js'
+import { keySlots } from '../state.js'
 import { AnswerNotice, Segmented, isStale, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { useFolds, type Fold } from './folds.js'
 import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
@@ -38,7 +38,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const [zooms, setZooms] = useState<PeriodChoice[]>([])
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const today = localDay(new Date())
-  const slots = projectSlots(state)
+  const slots = keySlots(state)
   const slotsKey = JSON.stringify(slots)
 
   const filter: StatsFilter = { scope: view.scope, account: view.account, tz }
