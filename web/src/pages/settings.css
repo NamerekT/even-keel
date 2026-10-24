@@ -60,8 +60,10 @@
   gap: 4px;
 }
 
+/* A row's name is lighter than the card's head and darker than a hint: head → name → value. */
 .settings__label {
-  font-weight: 600;
+  color: color-mix(in srgb, var(--fg) 70%, var(--fg-muted));
+  font-weight: 400;
 }
 
 .settings__hint {
@@ -331,17 +333,28 @@
   background: color-mix(in srgb, var(--lamp-error) 5%, transparent);
 }
 
+/* The card's head: a band across the card's top, a tone lighter, a line under it. */
 .settings__heading {
   display: flex;
   align-items: center;
   gap: 4px;
   min-height: 24px;
+  margin: -14px -16px 0;
+  padding: var(--space-8) var(--space-16);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
 }
 
 .settings__heading-title {
   margin: 0;
-  font-size: var(--text-14);
+  font-size: var(--text-15);
   font-weight: 600;
+}
+
+.settings__section--danger .settings__heading {
+  border-bottom-color: color-mix(in srgb, var(--lamp-error) 30%, transparent);
+  background: color-mix(in srgb, var(--lamp-error) 10%, transparent);
 }
 
 .settings__section--danger .settings__heading-title {
