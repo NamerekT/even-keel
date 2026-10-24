@@ -3,7 +3,7 @@ import { notice } from '../../../src/notice/notice.js'
 import type { CiView } from '../../../src/ci/model.js'
 import { freshEvents, pageEvents, type EventsInput } from './pageEvents.js'
 
-const none: EventsInput = { chain: { active: [], projects: {}, leftovers: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
+const none: EventsInput = { chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
 const view = (status: 'failure' | 'success'): CiView =>
   ({
@@ -69,7 +69,7 @@ describe('pageEvents', () => {
     const leftover = { task: 'ABC-9', at: '2026-10-23T18:00:00Z', notice: notice('cleanup.worktreeKept', { path: work.path }) }
     const projects = { p1: { order: [], waiting: [], backlog: [], error: null } }
     const input = (extra: object, leftovers: object = {}) =>
-      ({ ...none, chain: { active: [], projects, leftovers }, works: { p1: { 'ABC-9': work } }, ...extra }) as unknown as EventsInput
+      ({ ...none, chain: { active: [], projects, leftovers, skipped: {} }, works: { p1: { 'ABC-9': work } }, ...extra }) as unknown as EventsInput
     expect(pageEvents(input({ tasks: [done] }))).toEqual([])
     expect(pageEvents(input({ tasks: [done] }, { p1: [leftover] })).map((each) => each.key)).toEqual(['work|p1|ABC-9'])
     expect(pageEvents(input({ sessions: [{ task: 'ABC-9', sessionId: 's1', asking: false, lamp: 'working' }] }))).toEqual([])
