@@ -81,7 +81,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 65 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
 | 66 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | a paused chain does not go on once the remote is added; press Resume |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 68 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
 | 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
@@ -161,10 +160,6 @@ It counts a folder trusted when the global `~/.claude.json` or the `.claude.json
 ### Staying signed in after a reboot (EKR-15)
 
 On 21.10.2026 a reboot signed two of three subscription accounts out: the service started before the network, every account's `claude auth status` timed out at once, and a minute later two `.credentials.json` held neither an access nor a refresh token. The CLI renews with a single-use refresh token, so Even Keel assumes the sign-in was lost to a renewal cut off half-way or run twice at once, and guards against both: it asks no account and no `/usage` until the provider's API answers, runs its short calls of one folder one at a time and does not kill one on a timeout (`docs/accounts.md`). Neither the cause nor the guard has been seen live: a reboot with expired tokens and no network at the start was not repeated. If an account still asks to sign in after a reboot, the cause is elsewhere. **Workaround:** sign the account in again from the accounts drawer.
-
-### Shared skills in a store outside `~/.claude` (BTN-256)
-
-The transfer moves every skill of `~/.claude/skills` kept as a real folder into `~/.claude-skills/<name>` and links both the global folder and the account folders to it, the way memory went to `~/.claude-memory` (`docs/accounts.md`). The move was covered by tests only: the session that wrote it was not allowed to touch the real `~/.claude/skills`. Assumed, from the memory store checked on CLI 2.1.296: a session in an account folder now edits a shared `SKILL.md` without a question, a session without `CLAUDE_CONFIG_DIR` too, and the CLI loads skills through a link in `~/.claude/skills` as it already did through one in an account folder. If the first is wrong, nothing is worse than before; if the last is, the global folder's sessions lose those skills. **Workaround:** move the folders from `~/.claude-skills` back into `~/.claude/skills` in place of the links.
 
 ## Claude limits
 
