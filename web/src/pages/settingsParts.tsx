@@ -74,11 +74,12 @@ export function unplaced(project: string | null, error: Notice | null, config: C
 }
 
 /**
- * A question mark after a setting's name: pointed at or pressed, it tells what the setting does.
+ * A question mark after a setting's name: pressed, it tells what the setting does; pressed again, Escape or a press elsewhere closes it.
+ * Pointing and focus open nothing — focus would open it just before the click of the same press closed it.
  * Out of the Tab order: Tab goes from field to field in a form, not through every question mark.
  */
 export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
-  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
+  const { shown, anchor, tip, toggle, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
   const id = useId()
   return (
     <button
@@ -88,11 +89,8 @@ export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
       tabIndex={-1}
       aria-label={t.settings.help}
       aria-describedby={id}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      onClick={show}
+      aria-expanded={shown}
+      onClick={toggle}
       onKeyDown={(event) => event.key === 'Escape' && close()}
     >
       <QuestionIcon />
