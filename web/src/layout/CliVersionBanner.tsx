@@ -2,16 +2,19 @@ import { useState } from 'react'
 import type { CliVersionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { cliSummary } from './cliVersions.js'
 
 const DISMISSED_KEY = 'even-keel.cliVersions.dismissed'
 
 /**
  * A CLI on a version Even Keel was not checked against (BTN-249), or a daemon on another version than the pin (BTN-250);
- * closed, it stays hidden until that version changes.
+ * one folded line, each CLI's notice under "Details" (BTN-349, open until a reload); closed, it stays hidden until that
+ * version changes.
  */
 export function CliVersionBanner() {
   const { state } = useLive()
   const [dismissed, setDismissed] = useState(readDismissed)
+  const [open, setOpen] = useState(false)
   const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed)
   if (shown.length === 0) return null
 
@@ -26,17 +29,25 @@ export function CliVersionBanner() {
   return (
     <div className="banner banner--warn" role="alert">
       <div className="banner__inner">
-        <span>
-          {shown.map((each, index) => (
-            <span key={keyOf(each)}>
-              {index > 0 && <br />}
-              {say(each.notice)}
-            </span>
-          ))}
+        <span>{cliSummary(shown)}</span>
+        <span className="banner__actions">
+          <button type="button" className="banner__toggle" aria-expanded={open} aria-controls="cli-versions" onClick={() => setOpen(!open)}>
+            {t.banner.cliDetails}
+            <svg className="banner__chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+              <path d="M2.5 4.5 6 8l3.5-3.5" />
+            </svg>
+          </button>
+          <button type="button" className="button" onClick={dismiss}>
+            {t.common.hide}
+          </button>
         </span>
-        <button type="button" className="button" onClick={dismiss}>
-          {t.common.hide}
-        </button>
+        {open && (
+          <ul className="banner__list" id="cli-versions">
+            {shown.map((each) => (
+              <li key={keyOf(each)}>{say(each.notice)}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )
