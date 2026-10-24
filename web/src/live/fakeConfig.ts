@@ -169,7 +169,11 @@ export const fakeHandEdit = (config: ConfigView): ConfigView => {
 export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
   const { base: _base, ...sent } = body
-  if (name === 'settings') return { ...state, config: { ...state.config, shared: sent as unknown as SharedForm } }
+  if (name === 'settings') {
+    // The page's language follows the setting at once, as the service's state does.
+    const shared = sent as unknown as SharedForm
+    return { ...state, language: shared.language, config: { ...state.config, shared } }
+  }
   if (name !== 'project/settings') return null
   const { project: key, ...form } = sent as unknown as ProjectForm & { project: string }
   const prompt = form.prompt?.trim() ?? ''

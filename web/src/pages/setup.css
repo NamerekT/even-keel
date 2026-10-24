@@ -1,19 +1,38 @@
-/* The first run's setup (BTN-310): one step at a time, its fields one under another. */
-.setup__body {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  max-width: 1100px;
+/* The first run's setup (BTN-310, BTN-346) inside the wizard's frame (wizard.css): one step in one card. */
+.setup__card {
+  gap: var(--space-16);
+  padding: var(--space-24);
+  container-type: inline-size;
 }
 
-.setup__body > .queue__hint,
-.setup__body > .settings__hint {
+/* A row's control is a pick of two, as wide as its words. */
+.setup__row .settings__line-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.setup__lead,
+.setup__card > .queue__hint {
   margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-14);
+}
+
+.setup__rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.setup__row + .setup__row {
+  border-top: 1px solid var(--border);
+}
+
+.setup__row {
+  padding: var(--space-12) 0;
 }
 
 .setup__cards {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  max-width: 1100px;
+  max-width: none;
 }
 
 .setup__subtitle {
@@ -22,25 +41,262 @@
   font-weight: 600;
 }
 
-.setup__profiles {
+.setup__part {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
+}
+
+/* A choice card: it rises a little under the pointer, the one picked has the accent's edge and a check in its corner. */
+.setup .add-choice,
+.setup-agent {
+  position: relative;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.setup button.add-choice:hover:not(:disabled),
+.setup-agent:not(.setup-agent--off):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-popover);
+}
+
+.setup-choice__mark {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.setup-choice__mark .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.4;
+}
+
+.setup-choice .add-choice__title {
+  padding-right: var(--space-24);
+}
+
+/* The agents: two a row, the pick stretched over the card, the account's own button above it. */
+.setup-agents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.setup__profiles li {
+.setup-agent {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 14px var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-.setup__profile-name {
+.setup-agent[aria-current='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.setup-agent--off {
+  border-style: dashed;
+  background: transparent;
+}
+
+.setup-agent__pick {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4) var(--space-12);
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.setup-agent__pick::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.setup-agent__pick:focus-visible {
+  outline: none;
+}
+
+.setup-agent:has(.setup-agent__pick:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setup-agent__pick:disabled {
+  cursor: default;
+}
+
+.setup-agent--off .setup-agent__pick {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.setup-agent__icon {
+  display: inline-grid;
+  grid-row: span 2;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.setup-agent__icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.setup-agent__name {
+  padding-right: var(--space-24);
+  font-size: var(--text-16);
   font-weight: 600;
 }
 
-.setup__actions {
-  margin-top: 4px;
+.setup-agent__hint {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.setup-agent__account {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 28px;
+  margin-top: auto;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-14);
+}
+
+.setup-agent__who {
+  color: var(--fg-muted);
+}
+
+.setup-agent__who--ok {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--fg);
+}
+
+.setup-agent__who--ok .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--lamp-done);
+}
+
+/* The trackers: a card each, its profiles and its button at the bottom. */
+.setup-trackers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 14px var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.setup-tracker__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-16);
+  font-weight: 600;
+}
+
+.setup-tracker__profiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-14);
+}
+
+.setup-tracker__profiles li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.setup-tracker__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-tracker__profiles .tracker-fields__status {
+  font-size: var(--text-13);
+}
+
+.setup-tracker__profiles .button {
+  align-self: flex-start;
+  margin-top: var(--space-4);
+}
+
+.setup-tracker__add {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+@media (max-width: 760px) {
+  .setup__card {
+    padding: var(--space-16);
+  }
+
+  .setup-agents {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup .add-choice,
+  .setup-agent {
+    transition: none;
+  }
+
+  .setup button.add-choice:hover:not(:disabled),
+  .setup-agent:not(.setup-agent--off):hover {
+    transform: none;
+  }
 }

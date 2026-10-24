@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { setupStep, stepBeside, stepPath } from './setupSteps.js'
+import { accountShortName, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
 
 describe('setupStep', () => {
   it('reads the step of the address, the first one where it names none it knows', () => {
@@ -21,5 +21,28 @@ describe('stepBeside', () => {
 
   it('makes the address of a step', () => {
     expect(stepPath('agent')).toBe('/setup?step=agent')
+  })
+})
+
+describe('accountShortName', () => {
+  it('keeps the part of an e-mail before the at sign, for the line under a done step', () => {
+    expect(accountShortName('john.doe@example.com')).toBe('john.doe')
+  })
+
+  it('keeps a name that is no e-mail', () => {
+    expect(accountShortName('Work')).toBe('Work')
+    expect(accountShortName('@handle')).toBe('@handle')
+  })
+})
+
+describe('profileShortName', () => {
+  it('drops the tracker name a profile name starts with, inside that tracker card', () => {
+    expect(profileShortName('Huly · example', 'Huly')).toBe('example')
+    expect(profileShortName('GitHub · octo-org', 'GitHub')).toBe('octo-org')
+  })
+
+  it('keeps a name of its own whole', () => {
+    expect(profileShortName('Work tracker', 'Huly')).toBe('Work tracker')
+    expect(profileShortName('Huly', 'Huly')).toBe('Huly')
   })
 })
