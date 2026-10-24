@@ -1,0 +1,241 @@
+/* The add-account dialog (BTN-352) over the `add-package` frame, and the sign-in rows it shares with the sign-in dialog. */
+
+/* Four providers as two by two; the body already gives the side padding. */
+.add-package__kinds.account-add__providers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+}
+
+.account-add__providers .add-package__kind[aria-disabled='true'] {
+  border-style: dashed;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.account-add__providers .add-package__kind[aria-disabled='true']:hover,
+.account-add__providers .add-package__kind[aria-disabled='true']:focus-visible {
+  border-color: var(--border);
+  background: transparent;
+}
+
+.account-add__providers .add-package__kind[aria-disabled='true'] .add-package__kind-icon {
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+}
+
+.account-add__missing {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+/* The ways of signing in: cards to pick one from. */
+
+.account-add__ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-8);
+}
+
+.account-add__way {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-content: start;
+  align-items: center;
+  gap: var(--space-6) var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.account-add__way:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.account-add__way:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.account-add__way:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.account-add__way input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.account-add__way-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+}
+
+.account-add__way:has(input:checked) .account-add__way-icon {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.account-add__way-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.account-add__way-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.account-add__way-check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: transparent;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.account-add__way-check .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.account-add__way:has(input:checked) .account-add__way-check {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.account-add__way-gets {
+  grid-column: 1 / -1;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.4;
+}
+
+/* A sign-in through the CLI: numbered rows, the one to do now marked. */
+
+.login-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: login-row;
+}
+
+.login-rows__row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--fg-muted);
+  counter-increment: login-row;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.login-rows__row::before {
+  content: counter(login-row);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+
+.login-rows__row--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--fg);
+}
+
+.login-rows__row--on::before {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.login-rows__label {
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.login-rows__row > :not(.login-rows__label) {
+  grid-column: 2;
+}
+
+.login-rows__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.login-rows__wait {
+  font-size: var(--text-13);
+}
+
+.login-rows__code {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.login-rows__hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+/* Narrow, the dialog takes the whole screen. */
+@media (max-width: 760px) {
+  .add-package.account-add {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .account-add .add-package__frame,
+  .account-add .add-package__form {
+    height: 100%;
+    max-height: 100dvh;
+  }
+
+  .account-add .add-package__body {
+    flex: 1;
+  }
+
+  .add-package__kinds.account-add__providers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

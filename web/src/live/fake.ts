@@ -11,7 +11,7 @@ import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
-import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
+import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
@@ -597,7 +597,7 @@ export function createFakeSource(search: string): LiveSource {
         setTimeout(() => {
           const now = current.state
           if (now === null || now.account.login?.startedAt !== next.account.login?.startedAt) return
-          current = { ...current, state: { ...now, account: accountCommand(now.account, 'account/code', { code: 'ok' }) } }
+          current = { ...current, state: withAccount(now, accountCommand(now.account, 'account/code', { code: 'ok' })) }
           notify()
         }, DEVICE_MS)
       }

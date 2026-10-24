@@ -1,12 +1,12 @@
-import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { agentLabel } from '../accountName.js'
-import { accountGroups, canAdd, cliMissing, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
+import { accountGroups, cliMissing, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { AccountRoles, AccountWork } from '../layout/AccountRoles.js'
+import { useFreshAccounts, useOpenAdd } from '../layout/AddAccountDialog.js'
 import {
   AccountMark,
   AccountName,
@@ -42,6 +42,8 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
   const tokens = useTokens(account)
   const now = useNow(60_000)
   const { login } = account
+  const openAdd = useOpenAdd()
+  const fresh = useFreshAccounts(account.accounts.map((entry) => entry.key))
 
   return (
     <div className="page accounts-page">
@@ -61,11 +63,11 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
                 <AgentIcon agent={agent} />
                 {agentLabel(agent)}
               </h2>
-              {/* The connection is picked on the add page; the provider is the section's. */}
-              {login === null && isProvider(agent) && canAdd(agent) && !cliMissing(account, agent) && (
-                <Link to={`/accounts/add?provider=${agent}`} className="button button--small">
+              {/* The way is picked in the add dialog; the provider is the section's. */}
+              {login === null && isProvider(agent) && !cliMissing(account, agent) && (
+                <button type="button" className="button button--small" onClick={() => openAdd(agent)}>
                   + {t.account.addHere}
-                </Link>
+                </button>
               )}
             </header>
             {entries.length === 0 ? (
@@ -73,7 +75,17 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
             ) : (
               <ul className="account-cards">
                 {entries.map((entry) => (
-                  <AccountCard key={entry.key} entry={entry} view={account} now={now} spend={spend} tokens={tokens} sending={sending} send={send} />
+                  <AccountCard
+                    key={entry.key}
+                    entry={entry}
+                    view={account}
+                    now={now}
+                    spend={spend}
+                    tokens={tokens}
+                    sending={sending}
+                    send={send}
+                    fresh={fresh.includes(entry.key)}
+                  />
                 ))}
               </ul>
             )}
@@ -96,15 +108,20 @@ interface CardProps {
   tokens: Tokens
   sending: boolean
   send: Send
+  /** Added by the dialog just now: the card lights up once. */
+  fresh: boolean
 }
 
 /** What needs a look or an action stays in sight; the quiet details and the reasons open on pointing. */
-function AccountCard({ entry, view, now, spend, tokens, sending, send }: CardProps) {
+function AccountCard({ entry, view, now, spend, tokens, sending, send, fresh }: CardProps) {
   const stale = staleText(entry)
   const limits = <Limits limits={entry.limits} now={now} bare />
 
   return (
-    <li className={`account-card-item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
+    <li
+      className={`account-card-item${canWork(entry, now) ? '' : ' accounts__item--off'}${fresh ? ' account-card-item--fresh' : ''}`}
+      style={seriesStyle(entrySlot(view, entry))}
+    >
       <div className="accounts__head">
         <AccountMark entry={entry} now={now} />
         <AccountName entry={entry} accounts={view.accounts} send={send} sending={sending} />

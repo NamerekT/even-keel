@@ -59,6 +59,8 @@ export interface AccountEntry {
 export interface AccountLogin {
   /** The agent signing in: a new account's too, which has no `target` yet. */
   agent: string
+  /** The way of `SIGN_INS` it signs in by, so "Try again" starts the same one; absent for an agent with one way. */
+  method?: string
   target: string | null
   startedAt: string
   urls: string[]

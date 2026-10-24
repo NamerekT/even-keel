@@ -369,6 +369,7 @@ export class AccountWatcher {
     this.output = ''
     this.current = {
       agent: home.agent,
+      ...(method !== undefined && { method }),
       target: adding ? null : home.key,
       startedAt: this.options.now().toISOString(),
       urls: [],
