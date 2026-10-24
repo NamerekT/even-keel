@@ -53,7 +53,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`) and git with your name and email set: sessions commit and merge under them.
 - **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page. **OpenCode** (preview) only for projects or tasks on it: `npm install -g opencode-ai`, signed in from the accounts page; checked with its free `opencode/big-pickle`. **GitHub Copilot CLI** (preview) only for projects or tasks on it: `winget install GitHub.Copilot` (or `npm install -g @github/copilot`), signed in with `copilot login` or a token on the accounts page.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
-- **Windows, Linux or macOS.** Windows is where it runs every day; Linux was checked end to end; macOS is expected to work but has not been checked. On Windows the service needs **PowerShell 7**. The MSI installers of Node and PowerShell 7 can sit on "Preparing to install…" for over 10 minutes: wait it out.
+- **Windows, Linux or macOS.** Windows is where it runs every day; Linux was checked end to end; macOS is expected to work but has not been checked. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
 
@@ -69,7 +69,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 npx even-keel
 ```
 
-This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows, run it from PowerShell 7 as administrator, then enter your password in `services.msc` → EvenKeel → Properties → Log On and start the service. To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
+This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows that is a start at your sign-in with an icon in the tray — no administrator, any terminal. To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
 
 From a clone, which keeps its data in its own folder:
 
@@ -93,16 +93,16 @@ To let sessions read the task themselves, file blockers and leave comments, add 
 
 ## As a service
 
-The service starts with the system and restarts Even Keel if it fails. Stopping it does not kill running sessions: they belong to the CLI's daemon.
+The service starts by itself and restarts Even Keel if it fails. Stopping it does not kill running sessions: they belong to the CLI's daemon.
 
-**Windows.** From PowerShell 7 as administrator: in Start, right-click "PowerShell 7" (`pwsh`) → Run as administrator. The Windows PowerShell that comes with Windows (Win+X → Terminal) refuses the script with "running scripts is disabled on this system": open `pwsh` instead of changing the execution policy.
+**Windows.** As your own user, from any terminal:
 
 ```powershell
 even-keel install          # installed with npm
-.\service\install.ps1      # a clone
+node dist/src/cli.js install  # a clone, after npm run build
 ```
 
-The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, then start the service. Log: `logs\even-keel.log` in the data folder (a clone: in its own folder).
+Even Keel then starts when you sign in, with an icon in the tray: **Open the page**, **Restart**, **Quit**, and its tooltip says whether it runs, a chain is paused or a session waits for your answer. It runs only while you are signed in: after a night-time Windows Update restart it waits for you to sign in, unless Windows signs you back in itself (Settings → Accounts → Sign-in options → "Use my sign-in info to automatically finish setting up after an update"). Log: `logs\even-keel.log` in the data folder (a clone: in its own folder). The Windows service that runs without a sign-in is still there for a clone (`service\install.ps1` from PowerShell 7 as administrator): [setup](docs/guide/setup.md#as-a-service).
 
 **Linux and macOS.** As your own user, not with `sudo`:
 
@@ -119,14 +119,14 @@ The gear menu in the header shows the installed version and tells you when a new
 
 - **From the page** (as a service, installed with npm or on a clean clone) — the update window lists what changes; **Update** waits for the chains to settle, installs the release (with npm, or a checkout and a build in a clone) and restarts the service, and goes back to the version you had if anything fails. **Revert** takes you back to the previous version the same way, unless the update changed the stored state's format.
 - **Installed with npm, by hand** — `even-keel update` (stops the service, installs the latest release, starts it), or `npm install --global even-keel@<version>` with Even Keel stopped.
-- **A clone as a service, by hand** — `git pull`, then run the install script again.
+- **A clone as a service, by hand** — `git pull`, then run its install again.
 - **A clone from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`.
 
 Running sessions survive the update. Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
 
 ## Uninstall
 
-`even-keel uninstall` (a clone: `service\uninstall.ps1` or `service/uninstall.sh`) removes the service and nothing else; then `npm uninstall --global even-keel` and delete the data folder, or delete the clone. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
+`even-keel uninstall` (a clone: `node dist/src/cli.js uninstall` or `service/uninstall.sh`) removes the service and nothing else; then `npm uninstall --global even-keel` and delete the data folder, or delete the clone. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
 
 ## Configuration
 

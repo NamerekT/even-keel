@@ -23,7 +23,7 @@
     "plugins",
     "!plugins/**/*.test.mjs",
     "statusline",
-    "service/EvenKeelService.cs",
+    "service/*.cs",
     "service/install.*",
     "service/uninstall.*",
     "tally/bin",

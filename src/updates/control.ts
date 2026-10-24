@@ -1,15 +1,43 @@
 import { execFile } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
-import { join } from 'node:path'
+import { join, win32 } from 'node:path'
 import { promisify } from 'node:util'
 
 /** How the update process stops and starts the service: one command each, run without a shell. */
 export interface ServiceControl {
-  kind: 'windows' | 'systemd' | 'launchd'
+  /** `autostart` — the tray host `EvenKeel.exe` the user's sign-in starts on Windows (BTN-372). */
+  kind: 'windows' | 'systemd' | 'launchd' | 'autostart'
   name: string
   stop: string[]
   start: string[]
+}
+
+/** The tray host's file name (`service/EvenKeelTray.cs`); `src/autostart.ts` compiles it. */
+export const LAUNCHER_EXE = 'EvenKeel.exe'
+
+/**
+ * The tray host that runs this process, from `tasklist /fo csv /nh` of the parent and the `EVEN_KEEL_LAUNCHER` it sets:
+ * the variable alone is inherited by every session, the parent alone does not give the exe's path.
+ */
+export function launcherOf(csv: string, env: NodeJS.ProcessEnv): string | null {
+  const image = csv.trim().split(/\r?\n/)[0]?.match(/^"([^"]*)"/)?.[1]
+  const exe = env.EVEN_KEEL_LAUNCHER
+  if (exe === undefined || image?.toLowerCase() !== LAUNCHER_EXE.toLowerCase()) return null
+  return win32.basename(exe).toLowerCase() === LAUNCHER_EXE.toLowerCase() ? exe : null
+}
+
+/**
+ * `--stop` holds node stopped inside the host and waits for it, `--start` starts it again; with no host running,
+ * `--start` starts one with `args` (`<root> <node> [<data>]`). The host stays, so a stop and a start from SSH work too.
+ */
+export function autostartControl(exe: string, args: string[]): ServiceControl {
+  return { kind: 'autostart', name: exe, stop: [exe, '--stop'], start: [exe, ...args, '--start'] }
+}
+
+/** The arguments the host takes: the root, node and the data folder of a package (`EVEN_KEEL_DATA`), as it got them. */
+export function launcherArgsOf(root: string, node: string, env: NodeJS.ProcessEnv): string[] {
+  return env.EVEN_KEEL_DATA ? [root, node, env.EVEN_KEEL_DATA] : [root, node]
 }
 
 /** The service in `tasklist /svc /fo csv /nh` of the parent process: the Windows service host runs node itself. */
@@ -59,10 +87,12 @@ export function launchdControl(label: string, uid: number, plist: string): Servi
 }
 
 /** The service manager running this process; `null` — none it knows (`npm start` in a terminal). */
-export async function serviceControl(): Promise<ServiceControl | null> {
+export async function serviceControl(root: string): Promise<ServiceControl | null> {
   try {
     if (process.platform === 'win32') {
       const { stdout } = await promisify(execFile)('tasklist', ['/svc', '/fo', 'csv', '/nh', '/fi', `PID eq ${process.ppid}`], { windowsHide: true })
+      const launcher = launcherOf(stdout, process.env)
+      if (launcher !== null) return autostartControl(launcher, launcherArgsOf(root, process.execPath, process.env))
       const name = windowsServiceOf(stdout)
       return name === null || !WINDOWS_NAME.test(name) ? null : windowsControl(name)
     }

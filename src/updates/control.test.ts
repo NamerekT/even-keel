@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { launchdControl, launchdLabelOf, systemdControl, systemdUnitOf, windowsControl, windowsServiceOf } from './control.js'
+import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, windowsControl, windowsServiceOf } from './control.js'
+
+describe('launcherOf', () => {
+  const exe = 'C:\\Users\\jdoe\\AppData\\Local\\even-keel\\service\\EvenKeel.exe'
+
+  it('takes the tray host that started this process for its launcher', () => {
+    expect(launcherOf('"EvenKeel.exe","4242","N/A"\r\n', { EVEN_KEEL_LAUNCHER: exe })).toBe(exe)
+  })
+
+  it('finds none for another parent: a session of Even Keel inherits the variable, not the parent', () => {
+    expect(launcherOf('"node.exe","4242","N/A"\r\n', { EVEN_KEEL_LAUNCHER: exe })).toBeNull()
+    expect(launcherOf('"EvenKeel.exe","4242","N/A"\r\n', {})).toBeNull()
+    expect(launcherOf('"EvenKeel.exe","4242","N/A"\r\n', { EVEN_KEEL_LAUNCHER: 'C:\\Tools\\other.exe' })).toBeNull()
+  })
+})
 
 describe('windowsServiceOf', () => {
   it('reads the service its parent process hosts from tasklist /svc', () => {
@@ -45,6 +59,16 @@ describe('the commands', () => {
     const control = windowsControl('EvenKeel')
     expect(control.stop).toEqual(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', "Stop-Service -Name 'EvenKeel' -ErrorAction Stop"])
     expect(control.start.at(-1)).toBe("Start-Service -Name 'EvenKeel' -ErrorAction Stop")
+  })
+
+  it('holds node stopped in the tray host and starts it again, or the host with its arguments when it is gone', () => {
+    const exe = 'C:\\even-keel\\service\\bin\\EvenKeel.exe'
+    expect(autostartControl(exe, ['C:\\even-keel', 'C:\\nodejs\\node.exe'])).toEqual({
+      kind: 'autostart',
+      name: exe,
+      stop: [exe, '--stop'],
+      start: [exe, 'C:\\even-keel', 'C:\\nodejs\\node.exe', '--start'],
+    })
   })
 
   it('refuses a Windows name it would have to quote', () => {
