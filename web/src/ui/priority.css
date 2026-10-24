@@ -42,6 +42,6 @@
   background: var(--lamp-error);
   color: var(--surface);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
 }

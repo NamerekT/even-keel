@@ -10,7 +10,7 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -137,7 +137,7 @@
 
 .limit__reset {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }
 
@@ -179,7 +179,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
-  font-size: 13px;
+  font-size: var(--text-13);
   pointer-events: none;
 }
 
@@ -217,7 +217,7 @@
   margin: 0;
   overflow: hidden;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -226,7 +226,7 @@
 .account-card__note {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 1.4;
 }
 
@@ -253,7 +253,7 @@
 
 .account-card__when {
   grid-column: 2 / -1;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .account-card__foot {
@@ -263,7 +263,7 @@
   padding-top: 8px;
   border-top: 1px solid var(--border);
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .system-toggle.gear-toggle {
@@ -306,7 +306,7 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -330,7 +330,7 @@
   padding: 8px 10px 4px;
   border-top: 1px solid var(--border);
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .gear__update {
@@ -371,7 +371,7 @@
   align-items: center;
   gap: 6px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 400;
 }
 
@@ -405,7 +405,7 @@
 }
 
 .sheet__rows .gear__item {
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .sheet__rows a.gear__item::after,
@@ -441,7 +441,7 @@
   padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .sheet__work .queue-toggle {
@@ -491,7 +491,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 14px;
+  font-size: var(--text-14);
   pointer-events: auto;
 }
 
@@ -504,7 +504,7 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
   text-align: left;
   cursor: pointer;

@@ -66,23 +66,23 @@
 
 .settings__hint {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .settings__text {
   margin-top: 4px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.45 var(--font);
+  font: var(--text-14)/1.45 var(--font);
   resize: vertical;
 }
 
 .settings__text--mono {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .settings__text::placeholder {
@@ -93,7 +93,7 @@
 /* A placeholder is a phrase, not a value: it keeps the text font in a mono field. */
 .settings__text--mono::placeholder {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .settings__text:focus-visible {
@@ -188,7 +188,7 @@
 
 .settings__error {
   color: var(--lamp-error);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 
@@ -202,7 +202,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .settings__row {
@@ -340,7 +340,7 @@
 
 .settings__heading-title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
 }
 
@@ -412,7 +412,7 @@
   height: 20px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface-muted);
   cursor: pointer;
   transition:
@@ -462,7 +462,7 @@
   height: 20px;
   padding: 0 7px;
   border: 1px dashed color-mix(in srgb, var(--fg-muted) 55%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--fg-muted);
   font: 11.5px/1 var(--font);
@@ -575,7 +575,7 @@
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   color: var(--fg);
-  font: 13px/1.45 var(--font);
+  font: var(--text-13)/1.45 var(--font);
   letter-spacing: normal;
   text-align: left;
   text-transform: none;
@@ -640,11 +640,11 @@
   min-height: 36px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   text-align: left;
   cursor: pointer;
   transition:
@@ -738,15 +738,15 @@
 
 .settings-drawer__heading {
   color: var(--fg-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-12);
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .settings-drawer .settings-nav__item {
   min-height: 44px;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 @keyframes drawer-in {
@@ -767,7 +767,7 @@
   width: 100%;
   margin-top: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border-spacing: 0;
   table-layout: fixed;
   overflow: hidden;
@@ -793,7 +793,7 @@
   padding: 6px 10px;
   background: var(--surface-muted);
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   text-align: left;
 }
@@ -818,7 +818,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--fg);
-  font: 14px/1.45 var(--font);
+  font: var(--text-14)/1.45 var(--font);
   field-sizing: content;
   resize: none;
   overflow-wrap: anywhere;
@@ -826,7 +826,7 @@
 
 .rows__input--mono {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rows__input::placeholder {
@@ -854,7 +854,7 @@
 .rows__empty td {
   padding: 8px 10px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rows__button {
@@ -952,7 +952,7 @@
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -1017,7 +1017,7 @@
   align-items: center;
   gap: 2px 6px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 400;
 }
 
@@ -1097,7 +1097,7 @@
   flex: 1;
   min-width: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .settings__icon {
@@ -1108,7 +1108,7 @@
   height: 36px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;

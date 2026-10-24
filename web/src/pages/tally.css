@@ -46,7 +46,7 @@ button.add-choice:disabled {
 
 .tally-server__label {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tally-server__failure {
@@ -85,7 +85,7 @@ button.add-choice:disabled {
   margin: 0;
   padding-left: 18px;
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .stats-setup__intro {

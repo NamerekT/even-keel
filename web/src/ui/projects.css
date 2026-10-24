@@ -1,6 +1,6 @@
 .link-button {
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   padding: 0;
   border: 0;
   background: none;
@@ -41,7 +41,7 @@
 
 .projects__search {
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   width: 100%;
   padding: 5px 8px;
   border: 1px solid var(--border);
@@ -51,7 +51,7 @@
 }
 
 .projects__empty {
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .projects__list {
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 2px 6px;
   padding: 4px 0;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .projects__item input {
@@ -102,7 +102,7 @@
   background: none;
   color: var(--fg);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -1,9 +1,3 @@
-.home__tools {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .home__grouping .segmented__item {
   display: inline-flex;
   padding: 5px 8px;
@@ -40,17 +34,17 @@
 }
 
 .home__group-title {
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .home__section-title {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: var(--fg-muted);
 }
 
 .home__group-count {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 400;
 }
 
@@ -69,7 +63,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--fg);
-  font-size: 13px;
+  font-size: var(--text-13);
   text-decoration: none;
 }
 

@@ -15,6 +15,7 @@ import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metri
 import { markPlaces, pickMark } from './marks.js'
 import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
 import { PeriodPicker } from './PeriodPicker.js'
+import { PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { Select } from '../ui/Select.js'
 import { RulesSection } from './RulesSection.js'
@@ -105,8 +106,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
 
   return (
     <div className="page stats-page">
-      <header className="stats-page__head">
-        <h1 className="page__title">{t.stats.title}</h1>
+      <PageHead title={t.stats.title}>
         <PeriodPicker
           choice={view.period}
           range={range}
@@ -137,7 +137,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
             />
           </label>
         </div>
-      </header>
+      </PageHead>
 
       {history === null || derived === null ? (
         <AnswerNotice loaded={historyLoaded} shape="page" />

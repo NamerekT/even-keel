@@ -45,7 +45,8 @@
     "tally": "tsx tally/src/main.ts",
     "shot": "tsx scripts/shot.ts",
     "storage": "tsx scripts/storage.ts",
-    "cli-check": "tsx scripts/cli-check.ts"
+    "cli-check": "tsx scripts/cli-check.ts",
+    "design-baseline": "tsx scripts/design-baseline.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

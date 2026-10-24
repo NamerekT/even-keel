@@ -33,7 +33,7 @@
   background: var(--surface-muted);
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
 }
 
@@ -41,7 +41,7 @@
   align-self: flex-start;
   width: min(560px, 85%);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
   font-family: var(--font);
 }
@@ -97,7 +97,7 @@
   margin: 4px 0;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   font-family: var(--font);
 }
@@ -114,7 +114,7 @@
 
 .ask-card__head {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
 }
 
@@ -124,15 +124,15 @@
   border-radius: 4px;
   background: var(--surface-muted);
   color: var(--fg-muted);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-12);
+  font-weight: 600;
 }
 
 .ask-card__pending {
   margin-left: 8px;
   color: var(--lamp-waiting);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-12);
+  font-weight: 600;
 }
 
 .ask-card__options {
@@ -148,7 +148,7 @@
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   column-gap: 6px;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .ask-card__option .ask__description {
@@ -177,7 +177,7 @@
   margin: 0;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
   overflow: hidden;
 }
@@ -201,7 +201,7 @@
 .ask__question {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
 }
 
@@ -211,7 +211,7 @@
   align-items: center;
   gap: 4px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-variant-numeric: tabular-nums;
 }
 
@@ -270,7 +270,7 @@
   padding: 0 4px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  font: 11px/1.4 var(--font);
+  font: var(--text-11)/1.4 var(--font);
   opacity: 0.75;
 }
 
@@ -312,13 +312,13 @@
 }
 
 .ask__label {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ask__description {
   grid-column: 2;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .ask__other {
@@ -338,7 +338,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
-  font: 13px/1.4 var(--mono);
+  font: var(--text-13)/1.4 var(--mono);
   white-space: pre;
   overflow: auto;
 }

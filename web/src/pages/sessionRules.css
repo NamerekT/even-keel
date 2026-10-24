@@ -29,19 +29,19 @@
 
 .gets__mono {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
   overflow-wrap: anywhere;
 }
 
 .gets__note {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .gets__all summary {
   width: fit-content;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
 }
 
@@ -53,7 +53,7 @@
 .gets__all table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .gets__all th,

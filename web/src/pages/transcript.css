@@ -12,7 +12,7 @@
   min-width: 0;
   margin: 4px 0 0 auto;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .transcript__facts .context-meter {
@@ -53,7 +53,7 @@
   padding: 8px 0 32px;
   list-style: none;
   color: var(--fg);
-  font: 15px/1.55 var(--font);
+  font: var(--text-15)/1.55 var(--font);
 }
 
 .transcript__entry {
@@ -78,12 +78,12 @@
 .transcript__entry--error,
 .transcript__entry--failed {
   color: var(--error-fg);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .transcript__time {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -140,7 +140,7 @@
   gap: 6px;
   min-width: 0;
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .tools__head {
@@ -206,10 +206,10 @@ button.tools__toggle:hover {
   margin: 0;
   padding: 8px 10px;
   overflow: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg);
-  font: 13px/1.45 var(--mono);
+  font: var(--text-13)/1.45 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -221,7 +221,7 @@ button.tools__toggle:hover {
 .edit-size {
   display: inline-flex;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }
 
@@ -250,7 +250,7 @@ button.tools__toggle:hover {
   align-self: flex-start;
   max-width: 100%;
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
   font-variant-numeric: tabular-nums;
 }
 
@@ -297,7 +297,7 @@ button.tools__toggle:hover {
   border: 0;
   background: none;
   color: var(--fg);
-  font: 15px/1.45 var(--font);
+  font: var(--text-15)/1.45 var(--font);
   resize: none;
   field-sizing: content;
 }
@@ -407,7 +407,7 @@ button.tools__toggle:hover {
   padding: 2px 4px 2px 8px;
   border-radius: 6px;
   background: var(--surface-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .chat__unfile {
@@ -415,7 +415,7 @@ button.tools__toggle:hover {
   border: 0;
   background: none;
   color: var(--fg-muted);
-  font-size: 16px;
+  font-size: var(--text-16);
   cursor: pointer;
 }
 
@@ -434,9 +434,9 @@ button.tools__toggle:hover {
   align-items: baseline;
   gap: 4px 10px;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .chat__letter--returned {
@@ -477,7 +477,7 @@ button.tools__toggle:hover {
 
 .chat__letter-fate {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .chat__letter--returned .chat__letter-fate {
@@ -495,7 +495,7 @@ button.tools__toggle:hover {
   margin: 0;
   padding: 0 10px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 @media (max-width: 760px) {

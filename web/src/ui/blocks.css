@@ -1,0 +1,209 @@
+/* The shared blocks of docs/design.md (blocks.tsx). A page adds classes of its own to these, it does not redraw them. */
+
+/* Page head */
+
+.ui-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.ui-page-head .page__title {
+  margin: 0;
+}
+
+.ui-page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-left: auto;
+}
+
+/* Card */
+
+.ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: 14px var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ui-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-8);
+}
+
+.ui-card__title {
+  margin: 0;
+  font-size: var(--text-16);
+  font-weight: 600;
+}
+
+.ui-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+/* Section label */
+
+.ui-label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tiles */
+
+.ui-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-12);
+}
+
+.ui-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-12) 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ui-tile__label,
+.ui-tile__note {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.ui-tile__value {
+  font-size: var(--text-24);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Facts */
+
+.ui-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.ui-fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-8) 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.ui-fact--wide {
+  grid-column: 1 / -1;
+}
+
+.ui-fact dt {
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ui-fact dd {
+  margin: 0;
+  font-size: var(--text-14);
+}
+
+.ui-fact--warn {
+  --tone: var(--lamp-waiting);
+  border-color: color-mix(in srgb, var(--tone) 55%, var(--border));
+}
+
+.ui-fact--danger {
+  --tone: var(--lamp-error);
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, var(--surface-muted));
+}
+
+/* Band */
+
+.ui-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 10px var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: var(--text-14);
+}
+
+.ui-band--warn {
+  border-color: var(--warn-fg);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.ui-band--error {
+  border-color: var(--error-fg);
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.ui-band__text {
+  display: flex;
+  flex: 1 1 20em;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ui-band__action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.ui-band__action a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ui-band__action a:hover {
+  text-decoration: underline;
+}
+
+/* Empty state */
+
+.ui-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+}
+
+.ui-empty__text {
+  margin: 0;
+  color: var(--fg-muted);
+}

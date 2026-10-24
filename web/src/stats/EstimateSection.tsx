@@ -3,8 +3,8 @@ import { t } from '../i18n/index.js'
 import { accuracy, type AccuracyGroup } from './accuracy.js'
 import { Section, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
+import { Tile, TileGrid } from '../ui/blocks.js'
 import { estimateRemark, type EstimateRemark } from './remarks.js'
-import { Tile } from './Summary.js'
 
 type BreakdownKey = 'project' | 'component' | 'model'
 
@@ -34,26 +34,32 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
         </>
       }
     >
-      <div className="stats-tiles">
-        <Tile label={t.stats.estimate.median} value={formatDuration(result.medianS)}>
-          {t.stats.estimate.done(result.done)}
-        </Tile>
-        <Tile label={t.stats.estimate.within} value={formatShare(result.within)}>
-          {result.within2 !== null && `${t.stats.estimate.within2(formatShare(result.within2))} · `}
-          {t.stats.estimate.compared(result.compared)}
-          {skipped.length > 0 && ` · ${skipped.join(' · ')}`}
-        </Tile>
+      <TileGrid>
+        <Tile label={t.stats.estimate.median} value={formatDuration(result.medianS)} note={t.stats.estimate.done(result.done)} />
+        <Tile
+          label={t.stats.estimate.within}
+          value={formatShare(result.within)}
+          note={
+            <>
+              {result.within2 !== null && `${t.stats.estimate.within2(formatShare(result.within2))} · `}
+              {t.stats.estimate.compared(result.compared)}
+              {skipped.length > 0 && ` · ${skipped.join(' · ')}`}
+            </>
+          }
+        />
         {result.baseline && (
-          <Tile label={t.stats.estimate.baseline} value={formatShare(result.baseline.within)}>
-            <span title={t.stats.estimate.baselineTitle}>
-              {t.stats.estimate.baselineNote} · {t.stats.estimate.within2(formatShare(result.baseline.within2))}
-            </span>
-          </Tile>
+          <Tile
+            label={t.stats.estimate.baseline}
+            value={formatShare(result.baseline.within)}
+            note={
+              <span title={t.stats.estimate.baselineTitle}>
+                {t.stats.estimate.baselineNote} · {t.stats.estimate.within2(formatShare(result.baseline.within2))}
+              </span>
+            }
+          />
         )}
-        <Tile label={t.stats.estimate.ratio} value={formatRatio(result.ratio)}>
-          {ratioNote(result.ratio)}
-        </Tile>
-      </div>
+        <Tile label={t.stats.estimate.ratio} value={formatRatio(result.ratio)} note={ratioNote(result.ratio)} />
+      </TileGrid>
       {result.compared > 0 && (
         <div className="estimates">
           {BREAKDOWNS.map((breakdown) => (

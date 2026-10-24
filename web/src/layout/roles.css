@@ -11,7 +11,7 @@
   min-height: 30px;
   padding: 3px 6px 3px 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .roles__field {
@@ -24,7 +24,7 @@
   overflow: hidden;
   padding: 3px 6px 3px 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -85,7 +85,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .roles__menu {
@@ -96,11 +96,11 @@
   margin: 0;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   color: var(--fg);
-  font: 14px/1.45 var(--font);
+  font: var(--text-14)/1.45 var(--font);
   list-style: none;
   animation: fade-in var(--motion-fast) ease-out;
 }
@@ -111,7 +111,7 @@
   gap: 6px;
   padding: 6px 8px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .roles__here + li:not(.roles__here) {
@@ -158,7 +158,7 @@
 
 .roles__note,
 .roles__why {
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .roles__note {
@@ -179,7 +179,7 @@
   min-height: 20px;
   overflow: hidden;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   white-space: nowrap;
 }
 
@@ -256,5 +256,5 @@
   margin-left: auto;
   white-space: nowrap;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }

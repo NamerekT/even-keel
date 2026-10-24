@@ -1,8 +1,9 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { MIN_HANDOFFS, MIN_SESSIONS, type CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
+import { Tile, TileGrid } from '../ui/blocks.js'
 import { TONES, toneStyle } from '../ui/series.js'
 import { Section } from './common.js'
 import {
@@ -30,30 +31,36 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
   const stamp = stampOf(current, previous)
 
   return (
-    <div className="stats-tiles stats-tiles--stamped">
+    <TileGrid className="stats-tiles--stamped">
       {stamp !== null && <StampMark key={`${stamp.kind}:${period.query.from}:${period.query.to}`} stamp={stamp} />}
-      <Tile label={t.stats.summary.cost} value={formatUsd(current.cost)}>
-        {change === null ? (
-          t.stats.summary.noPrevious
-        ) : (
-          <span title={formatRange(previousRange(range))}>{t.stats.summary.change(change, days)}</span>
-        )}
-        {current.unpriced > 0 && t.stats.summary.unpriced(current.unpriced)}
-      </Tile>
+      <Tile
+        label={t.stats.summary.cost}
+        value={formatUsd(current.cost)}
+        note={
+          <>
+            {change === null ? (
+              t.stats.summary.noPrevious
+            ) : (
+              <span title={formatRange(previousRange(range))}>{t.stats.summary.change(change, days)}</span>
+            )}
+            {current.unpriced > 0 && t.stats.summary.unpriced(current.unpriced)}
+          </>
+        }
+      />
       <Tile
         label={t.stats.summary.limit}
         value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}
-        footer={windows.length > 0 && <LimitAccounts rows={windows} />}
+        note={limitNote(limit)}
       >
-        {limitNote(limit)}
+        {windows.length > 0 && <LimitAccounts rows={windows} />}
       </Tile>
-      <Tile label={t.stats.summary.tasks} value={`${current.tasks} / ${current.sessions}`}>
-        {current.messages.toLocaleString(language)} {t.stats.summary.answers(current.messages)}
-      </Tile>
-      <Tile label={t.stats.summary.stuck} value={`${formatUsd(current.stuckCost)} · ${formatShare(stuckShare)}`}>
-        {t.stats.summary.stuckNote}
-      </Tile>
-    </div>
+      <Tile
+        label={t.stats.summary.tasks}
+        value={`${current.tasks} / ${current.sessions}`}
+        note={`${current.messages.toLocaleString(language)} ${t.stats.summary.answers(current.messages)}`}
+      />
+      <Tile label={t.stats.summary.stuck} value={`${formatUsd(current.stuckCost)} · ${formatShare(stuckShare)}`} note={t.stats.summary.stuckNote} />
+    </TileGrid>
   )
 }
 
@@ -115,17 +122,6 @@ function LimitAccounts({ rows }: { rows: AccountWindows[] }) {
         </li>
       ))}
     </ul>
-  )
-}
-
-export function Tile({ label, value, children, footer }: { label: string; value: string; children: ReactNode; footer?: ReactNode }) {
-  return (
-    <div className="stats-tile">
-      <span className="stats-tile__label">{label}</span>
-      <span className="stats-tile__value">{value}</span>
-      <span className="stats-tile__note">{children}</span>
-      {footer}
-    </div>
   )
 }
 

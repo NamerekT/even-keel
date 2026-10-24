@@ -33,37 +33,41 @@ Only these values. A colour, size, radius or duration that is not here is either
 
 Red is only an error or a limit; amber is a warning or a wait for the user; blue is work going on or a neutral note; green is fine. A bright colour is a small mark — a dot, a bar, a 3 px stripe, a chart. A surface larger than a chip that takes a series or lamp colour is mixed down: `color-mix(in srgb, var(--series-1) 18%, var(--surface))`.
 
-**Type** — 15 px body (`body`), and this scale:
+**Type** — a size is a `--text-<px>` variable (`--text-11`, `-12`, `-13`, `-14`, `-15`, `-16`, `-22`, `-24`), `em` or `inherit`; 15 px is the body (`body`):
 
 | Size | Weight | What |
 | --- | --- | --- |
-| 22 px | 600 | the page title (`.page__title`) |
-| 24 px | 600, tabular | the big number of a tile |
-| 16 px | 600 | a card's title |
-| 14 px | 400 / 600 | controls, a row's label, the value of a fact |
-| 13 px | 400 | secondary text, a tile's label, a hint under a field |
-| 12 px | 400 / 600 | chips and tags, table heads |
-| 11 px | 600, uppercase, `letter-spacing: 0.04em` | a section label inside a card, a fact's label |
+| `--text-22` | 600 | the page title (`.page__title`) |
+| `--text-24` | 600, tabular | the big number of a tile |
+| `--text-16` | 600 | a card's title |
+| `--text-14` | 400 / 600 | controls, a row's label, the value of a fact |
+| `--text-13` | 400 | secondary text, a tile's label, a hint under a field |
+| `--text-12` | 400 / 600 | chips and tags, table heads |
+| `--text-11` | 400, uppercase, `letter-spacing: 0.04em` | a section label inside a card, a fact's label |
 
-Weights are 400 and 600 only. Mono (`--mono`) is only task keys, code, paths and the log.
+Weights are 400 and 600 only (Chromium draws 500 as 600 in Segoe UI, so a 500 became 600). Mono (`--mono`) is only task keys, code, paths and the log.
 
-**Space** — 2, 4, 6, 8, 12, 16, 24 px. Inside a card 12–16 px; between cards 12–16 px; between the page title and the content 16 px (`.page`).
+**Space** — `--space-2`, `-4`, `-6`, `-8`, `-12`, `-16`, `-24` (the pixels they name). Inside a card 12–16 px; between cards 12–16 px; between the page title and the content 16 px (`.page`).
 
-**Radius** — `--radius` (10 px) for a card, a panel, a band; 8 px for a control or a box inside a card; 999 px for a pill; 50 % for a dot.
+**Radius** — `--radius` (10 px) for a card, a panel, a band; `--radius-control` (8 px) for a control or a box inside a card; `--radius-pill` (999 px) for a pill; 50 % for a dot.
+
+**The test** — `web/src/design.test.ts` reads every `web/src/**/*.css` through `cssViolations` (`web/src/ui/cssRules.ts`) and holds four rules: no hex or `rgb()`/`hsl()`/… colour outside `:root`; `font-size` (and the size in a `font` shorthand) only a `--text-*`, `em` or `inherit`; `font-weight` only 400 or 600; `border-radius` only a `--radius*` token, 50 %, 999px, `inherit` or 0. The violations older than the rules are counted per file in `web/src/design-baseline.json`, and a count may only go down: the test fails listing the lines when a file has more than its count, and asks for `npm run design-baseline` (it rewrites the file) when it has fewer. A new stylesheet starts at zero; a value off the scale is a new token here and in `:root`, not a raise of the baseline.
 
 **Motion** — one duration per kind (BTN-112), the `--motion-*` tokens: `fast` 0.15 s (hover, small state changes, a caret or chevron turning, a reorder settling), `appear` 0.2 s ease-out (a page, dialog, panel or revealed section), `mark` 1.6 s ease-out (`block-glow` on a new or landed block), `skeleton` 1.4 s linear (`shimmer`), `blink` 1.2 s, `spin` 0.8 s. A new animation takes a token and an existing keyframe rather than a copy. Only the chain's beat choreography (`--beat-*` in `chain.css`) and one-off decorations (the basement, the stats stamp, the scanner) keep their own timings.
 
 ## Blocks
 
-Take the block that exists; until the shared components are in `web/src/ui/`, copy the class named here rather than inventing a fourth variant.
+Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx`, styled by `web/src/ui/blocks.css` (`ui-*` classes) — rather than inventing a variant. A page adds a class of its own for what is its own (`className`), it does not redraw the block.
 
-- **Card** — `--surface`, 1 px `--border`, `--radius`, padding 14–16 px, a column with 10–12 px gaps (`.stats-section`, `.panel`). Its title is 16 px 600 on a line of its own, actions at the right of the same line (`.stats-section__title`, `.chart__title`). Every group of content on a page is a card; a group is never only a caption between two lines.
-- **Section label** — 11 px uppercase muted (`.panel__feed-title`), to split one card into parts. Never the title of a card and never a whole page's structure.
-- **Tile** — one number and what it is: label 13 px muted, value 24 px 600 tabular, a note 13 px muted (`.stats-tile`). Tiles go in a grid `repeat(auto-fit, minmax(170px, 1fr))`.
-- **Fact** — a small box on `--surface-muted`, radius 8 px: an 11 px uppercase label over a 14 px value (`.panel__fact`). For two to six facts about one thing; a definition list in plain text is not used.
+- **Page head** — `PageHead`: the 22 px title, its help tip, the page's actions at the right (`/stats`, the home page).
+- **Card** — `Card` (`CardHead` alone where the card's box is the page's own, as `Section` of `/stats`): `--surface`, 1 px `--border`, `--radius`, padding 14–16 px, a column with 12 px gaps. Its title is 16 px 600 on a line of its own, actions at the right of the same line. Every group of content on a page is a card; a group is never only a caption between two lines.
+- **Section label** — `SectionLabel`: 11 px uppercase muted, to split one card into parts. Never the title of a card and never a whole page's structure.
+- **Tile** — `Tile` in a `TileGrid`: one number and what it is: label 13 px muted, value 24 px 600 tabular, a note 13 px muted; the grid is `repeat(auto-fit, minmax(170px, 1fr))`.
+- **Fact** — `Fact` in a `FactList`: a small box on `--surface-muted`, `--radius-control`: an 11 px uppercase label over a 14 px value, `tone` `warn` or `danger` for a value that needs the eye, `wide` across the list. For two to six facts about one thing; a definition list in plain text is not used.
 - **Row** — a setting: the label at the left, the control at the right, the hint in a tip (`Row` in `web/src/pages/settingsParts.tsx`).
 - **Plaques** (BTN-94) — a status is a `.chip`, a coloured fill (`running`, a question, a skipped task, a closed one in the stats table); a label is a `.tag`, a neutral outline (a model, "blocks"/"waits for it", the ghost's caption, "Backlog · N", tracker labels in the card). **Centring text in a plaque is a repeated trap:** Segoe UI puts lowercase text about 2 px below the middle of its line box (ascent 13 of 16 px at 12 px), so a pill with lowercase text ("max", "pro") looks low however `align-items` is set. `.tag` trims its box to the x-height (`text-box: trim-both ex alphabetic`, padding `calc((18px - 1ex) / 2)`); a new plaque with lowercase text does the same, one with capitals trims to `cap`. Check it on a screenshot zoomed 4–5×, at 1× it is not seen.
-- **Band** — `.notice--warn` / `.notice--error` across the card or the page, with its action at the right (the "What sessions get: 1 problem → Open" band of the project page).
+- **Band** — `Band` (`tone` `note`, `warn` or `error`) across the card or the page, with its action at the right (the "What sessions get: 1 problem → Open" band of the project page).
+- **Empty state** — `EmptyState`: what is missing, and the button that adds it (the home page without projects).
 - **Buttons** — `.button`, `.button--primary` (one per card or dialog: the thing to do next), `.button--small`, `.button--danger`. A rare or destructive action goes into a ⋯ menu, not next to the main one. A greyed button that has a reason is `aria-disabled`, not `disabled`, so the reason is reachable from the keyboard.
 - **Tip** — an explanation or a quiet detail is a tip, not a line of text: `Tipped` (`web/src/ui/Tipped.tsx`, over `useTip`) opens at once on pointing, focus or a press — the native `title` is too slow and goes unnoticed. A tip of text takes no pointer (`pointer-events: none` on `.tip`, `.help__tip`, `.panel__split`, BTN-208): its popover sits inside the anchor in the DOM, so a pointer over it would keep the anchor hovered and the tip open; it closes `CLOSE_DELAY_MS` after the pointer leaves the anchor, and its text cannot be selected. Only a tip with buttons takes the pointer — the related tasks of `Links` (`.links__tip`).
 - **Modal** (BTN-114) — the page behind every modal `<dialog>` — the task card, the session window, the transcript and the chat, the media viewer — is dimmed and blurred alike, by `--scrim` and `--scrim-blur`; only the media viewer keeps its own, darker dimming. A new modal takes both tokens. A dialog is a card: title, content, the primary button at the bottom right.

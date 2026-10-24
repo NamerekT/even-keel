@@ -3,7 +3,7 @@
   align-items: center;
   gap: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 18px;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -82,9 +82,9 @@
   gap: 8px;
   padding: 10px 12px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--bg);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .ci__head {
@@ -106,24 +106,24 @@
 .ci__remote {
   color: var(--fg-muted);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__all {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__hint,
 .ci__meta {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__notice {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-12);
   overflow-wrap: anywhere;
 }
 
@@ -156,7 +156,7 @@
   gap: 6px;
   width: fit-content;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-11);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -177,7 +177,7 @@
 .ci__chevron {
   display: inline-block;
   width: 8px;
-  font-size: 13px;
+  font-size: var(--text-13);
   line-height: 1;
   text-align: center;
   transition: transform var(--motion-fast);
@@ -229,7 +229,7 @@ details[open] > summary > .ci__chevron {
   background: none;
   color: var(--accent);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-12);
   cursor: pointer;
 }
 
@@ -262,7 +262,7 @@ details[open] > summary > .ci__chevron {
   border-radius: 999px;
   background: var(--surface-muted);
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-11);
   line-height: 18px;
 }
 
@@ -289,7 +289,7 @@ details[open] > summary > .ci__chevron {
 .ci__meta code,
 .ci__tasks code {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__tasks {
@@ -298,7 +298,7 @@ details[open] > summary > .ci__chevron {
   align-items: baseline;
   gap: 4px 8px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__label {
@@ -321,7 +321,7 @@ details[open] > summary > .ci__chevron {
   padding-left: 16px;
   border-left: 1px solid var(--border);
   margin-left: 3px;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .ci__line {
@@ -340,7 +340,7 @@ details[open] > summary > .ci__chevron {
 .ci__line-time,
 .ci__past-ago {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -361,7 +361,7 @@ details[open] > summary > .ci__chevron {
   gap: 8px;
   padding: 2px 0;
   color: var(--fg);
-  font-size: 12px;
+  font-size: var(--text-12);
   text-decoration: none;
 }
 
@@ -381,7 +381,7 @@ details[open] > summary > .ci__chevron {
 
 .ci__fix {
   color: var(--lamp-fix);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ci__past-number {

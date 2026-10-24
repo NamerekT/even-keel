@@ -41,7 +41,7 @@
   gap: 8px;
   margin: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -145,7 +145,7 @@
   padding: 0;
   list-style: none;
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
   counter-reset: step;
 }
 
@@ -195,13 +195,13 @@ a.add-choice:focus-visible {
 }
 
 .add-choice__title {
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 600;
 }
 
 .add-choice__hint {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .add-choice--off {

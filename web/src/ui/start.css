@@ -19,9 +19,9 @@
   gap: 8px;
   padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--lamp-working) 40%, var(--border));
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--lamp-working) 10%, var(--surface-muted));
-  font-size: 12px;
+  font-size: var(--text-12);
   white-space: nowrap;
 }
 
@@ -59,7 +59,7 @@
   gap: 10px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--lamp-working) 40%, var(--border));
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--lamp-working) 5%, var(--surface));
   animation: appear var(--motion-appear) ease-out;
 }
@@ -72,19 +72,19 @@
 
 .start-card__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 600;
 }
 
 .start-card__clock {
   margin-left: auto;
-  font-size: 16px;
+  font-size: var(--text-16);
 }
 
 .start-card__text {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .start-card__steps {
@@ -100,7 +100,7 @@
   padding-top: 8px;
   border-top: 3px solid var(--border);
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .start-card__step--done {
@@ -124,7 +124,7 @@
 
 .start-card__bone {
   height: 58px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: linear-gradient(100deg, var(--surface-muted) 35%, var(--surface) 50%, var(--surface-muted) 65%);
   background-size: 300% 100%;
   animation: shimmer var(--motion-skeleton) linear infinite;

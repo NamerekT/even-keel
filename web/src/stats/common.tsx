@@ -8,6 +8,7 @@ import { activity } from '../live/activity.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { stepPath } from '../pages/setupSteps.js'
 import { issueLink } from '../state.js'
+import { CardHead } from '../ui/blocks.js'
 
 const REFRESH_MS = 5 * 60_000
 
@@ -156,24 +157,26 @@ export function Section({
   const open = fold === undefined || fold.open
   const scribble = remark ? <span className="stats-remark">{remark}</span> : null
   return (
-    <section className={open ? 'stats-section' : 'stats-section stats-section--folded'} aria-busy={busy}>
+    <section className={open ? 'ui-card stats-section' : 'ui-card stats-section stats-section--folded'} aria-busy={busy}>
       {fold === undefined ? (
-        <header className="stats-section__head">
-          <h2 className="stats-section__title">{title}</h2>
+        <CardHead title={title}>
           {aside}
           {scribble}
-        </header>
+        </CardHead>
       ) : (
-        <header className="stats-section__head stats-section__head--fold" onClick={() => fold.onToggle(!open)}>
-          <h2 className="stats-section__title">
+        <CardHead
+          className="stats-section__head--fold"
+          onClick={() => fold.onToggle(!open)}
+          title={
             <button type="button" className="stats-section__fold" aria-expanded={open}>
               <span className="stats-section__caret" aria-hidden="true" />
               {title}
             </button>
-          </h2>
+          }
+        >
           {aside}
           {scribble}
-        </header>
+        </CardHead>
       )}
       {open && <div className="stats-section__body">{children}</div>}
     </section>
