@@ -3,20 +3,23 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
+import { trackersOwned } from '../storage/migrations.js'
 import { FULL } from './full.fixture.js'
 
 // The output of `parseConfig` as it was before the settings registry (BTN-186): the registry changes the way from the
-// file to `EvenKeelConfig`, not the result.
+// file to `EvenKeelConfig`, not the result. A sample older than v13 is read as its upgrade leaves it: its shared tracker
+// moved into its projects (BTN-345).
 const fixtures = join(root, 'test', 'fixtures')
 const samples = readdirSync(fixtures).filter((name) => name.startsWith('schema-v'))
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'))
+const owned = (raw: { version?: number }) => ((raw.version ?? 1) < 13 ? trackersOwned(raw) : raw)
 const golden = (name: string) => `./golden/${name}.json`
 const text = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`
 
 describe('the config of the file', () => {
   for (const name of samples) {
     it(`reads ${name}`, async () => {
-      await expect(text(parseConfig(json(join(fixtures, name, 'even-keel.config.json'))))).toMatchFileSnapshot(golden(name))
+      await expect(text(parseConfig(owned(json(join(fixtures, name, 'even-keel.config.json')))))).toMatchFileSnapshot(golden(name))
     })
   }
 

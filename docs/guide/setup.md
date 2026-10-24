@@ -70,7 +70,7 @@ The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.gi
 
 ### Several trackers
 
-Each project has its own tracker (`tracker` in the project's entry, or one for all at the top level), and they work at the same time: project A on Huly, project B on GitHub. A tracker can have several profiles — two Huly workspaces, a personal GitHub token and an organization's — and each project picks one (the **Profile** field when you add it, or in its settings until its first task runs). One profile of each tracker is the default: projects without a choice run on it, it is the one sessions started by hand get, and it gives the GitHub Actions token to projects of other trackers. A profile whose token is refused turns red on **Access**, and the chains on it pause until it is fixed.
+Each project has its own tracker (`tracker` in the project's entry, GitHub when a file you write names none), and they work at the same time: project A on Huly, project B on GitHub. A tracker can have several profiles — two Huly workspaces, a personal GitHub token and an organization's — and each project picks one (the **Profile** field when you add it, or in its settings until its first task runs). One profile of each tracker is the default: projects without a choice run on it, it is the one sessions started by hand get, and it gives the GitHub Actions token to projects of other trackers. A profile whose token is refused turns red on **Access**, and the chains on it pause until it is fixed.
 
 Git is not part of this: pushes go through your own git and its credentials (SSH, the credential manager), whatever the profiles are. A project on Huly with a remote on GitHub works as is, and its CI is found by the remote.
 

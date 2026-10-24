@@ -233,7 +233,6 @@ export interface ProjectForm extends ProjectSettings {
 /** The shared keys of the config as the settings page edits them, defaults filled in. */
 export interface SharedForm {
   parallel: number
-  tracker: string
   brief: boolean | null
   chain: ChainRules
   provider: string

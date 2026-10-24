@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { trackerKeysOf } from '../config.js'
 import { root } from '../locations.js'
+import { trackersOwned } from '../storage/migrations.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { changesOf, type RowChange } from './changes.js'
 import { fileRows, withRows } from './file.js'
@@ -11,10 +12,12 @@ import { DEFINITIONS } from './registry.js'
 import { checkRows, resolve, type SettingRow } from './resolve.js'
 
 const fixtures = join(root, 'test', 'fixtures')
+// A sample older than v13 as its upgrade leaves it: no shared tracker any more (BTN-345).
+const owned = (raw: { version?: number }) => ((raw.version ?? 1) < 13 ? trackersOwned(raw) : raw)
 const samples = [
   ...readdirSync(fixtures)
     .filter((name) => name.startsWith('schema-v'))
-    .map((name) => [name, JSON.parse(readFileSync(join(fixtures, name, 'even-keel.config.json'), 'utf8'))] as const),
+    .map((name) => [name, owned(JSON.parse(readFileSync(join(fixtures, name, 'even-keel.config.json'), 'utf8')))] as const),
   ['example', JSON.parse(readFileSync(join(root, 'even-keel.config.example.json'), 'utf8'))] as const,
   ['full', FULL] as const,
 ]

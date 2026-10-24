@@ -31,8 +31,12 @@ export function configOfFile(raw: unknown): ConfigOfFile {
     input = Object.keys(updates).length === 0 ? rest : { ...rest, updates }
   }
   const filled = withIds(input).raw
-  parseConfig(filled)
-  return { contents: fileRows(filled, trackerKeysOf(ADAPTERS)), dismissed }
+  const { trackers } = parseConfig(filled)
+  const { records, rows } = fileRows(filled, trackerKeysOf(ADAPTERS))
+  // A project's tracker is stored even when the file leaves it to the default, so that no later default moves it (BTN-345).
+  const named = new Set(rows.flatMap((row) => (row.key === 'tracker' && row.project !== null ? [row.project] : [])))
+  const added = records.filter((record) => !named.has(record.id)).map((record) => ({ key: 'tracker', project: record.id, qualifier: '', value: trackers[record.id] }))
+  return { contents: { records, rows: [...rows, ...added] }, dismissed }
 }
 
 export interface PrepareSettingsOptions {

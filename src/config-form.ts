@@ -43,10 +43,10 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
-    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
+    ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
@@ -98,7 +98,8 @@ export function withProjectForm(
   const rules = rulesOf(form.chain)
   const inherited = (key: string, own: unknown, fallback = shared[key]): FormValue => ({ group: key, key, qualifier: '', value: own, fallback })
   const values = [
-    inherited('tracker', form.tracker),
+    // Written even when it is the default, so that no change of the default moves the project (BTN-345).
+    { group: 'tracker', key: 'tracker', qualifier: '', value: form.tracker },
     inherited('brief', form.brief),
     ...RULE_KEYS.map((rule) => inherited(`chain.${rule}`, rules[rule], profile[rule] !== undefined ? profile[rule] : shared[`chain.${rule}`])),
     { group: 'slot', key: 'slot', qualifier: '', value: form.slot === 0 ? undefined : form.slot },
@@ -135,7 +136,7 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   if (name !== '') entry.name = name
   const branch = draft.branch.trim()
   if (branch !== '' && branch !== DEFAULT_BRANCH) entry.branch = branch
-  if (draft.tracker !== shared.tracker) entry.tracker = draft.tracker
+  entry.tracker = draft.tracker
   const own = adapters[draft.tracker]?.projectKey?.key
   const value = trackerValue(adapters, draft.tracker, draft.trackerProject, entry.key as string)
   if (own !== undefined && value !== undefined) entry[own] = value
@@ -238,7 +239,6 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
   const prompts = Object.entries(form.modelPrompts).flatMap(([model, text]) => (text?.trim() ? [[model, text.trim()]] : []))
   const values: FormValue[] = [
     value('parallel', 'parallel', form.parallel),
-    value('tracker', 'tracker', form.tracker),
     value('brief', 'brief', form.brief),
     ...RULE_KEYS.map((rule) => value(`chain.${rule}`, `chain.${rule}`, rules[rule])),
     value('provider', 'provider', form.provider),

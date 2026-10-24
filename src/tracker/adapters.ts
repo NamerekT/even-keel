@@ -6,7 +6,11 @@ import type { TrackerAdapter } from './source.js'
 
 export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear }
 
-export const DEFAULT_TRACKER = 'huly'
+/**
+ * The tracker of a project whose entry names none: only a file of the current schema meets it, as `config-import` reads
+ * one, since every writer names the project's tracker. What was stored before keeps its own (BTN-345).
+ */
+export const DEFAULT_TRACKER = 'github'
 
 export const trackerVariables = (): string[] => Object.values(ADAPTERS).flatMap((adapter) => adapter.variables)
 

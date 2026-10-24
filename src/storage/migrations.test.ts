@@ -40,6 +40,8 @@ describe('upgradeStorage', () => {
     return undefined
   }
 
+  const ABC_ENTRY = { id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }
+  const XYZ_ENTRY = { id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz' }
   const v1Config = { language: 'en', projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', name: 'Xyz', slot: 2 } } }
   const v1Chain = {
     active: [{ project: 'ABC', current: null, paused: false, error: null }],
@@ -78,8 +80,8 @@ describe('upgradeStorage', () => {
         version: SCHEMA_VERSION,
         language: 'en',
         projects: [
-          { id: 'guid-1', key: 'ABC', repo: 'C:\\abc' },
-          { id: 'guid-2', key: 'XYZ', repo: 'C:\\xyz', name: 'Xyz', slot: 2 },
+          { id: 'guid-1', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' },
+          { id: 'guid-2', key: 'XYZ', repo: 'C:\\xyz', name: 'Xyz', slot: 2, tracker: 'huly' },
         ],
       })
     })
@@ -133,7 +135,7 @@ describe('upgradeStorage', () => {
       put(configFile, { projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
       put(state('chain.json'), { ...v1Chain, active: [], queue: [], orders: { ABC: [] }, skipped: {}, leftovers: {}, released: {}, ci: {} })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
       expect(json(state('chain.json')).orders).toEqual({ 'id-abc': [] })
     })
 
@@ -154,8 +156,9 @@ describe('upgradeStorage', () => {
   // into maps by provider — the samples of v6 and v7 have them, see below — and the active account out of `account.json`.
   // v8 → v9 (BTN-174) adds the new file `state/packages.json` and stamps the others. v9 → v10 (BTN-239) stamps them for
   // an account's optional `transport`; v10 → v11 (BTN-302) writes `bg` to each account without one; v11 → v12 (BTN-353)
-  // moves the accounts' transports into `transports`, waiting for the service to make them `execution.claude`.
-  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10, 11])('v%i to the current version', (from) => {
+  // moves the accounts' transports into `transports`, waiting for the service to make them `execution.claude`; v12 → v13
+  // (BTN-345) moves the shared `tracker` of the config into its projects, see below.
+  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
@@ -177,6 +180,10 @@ describe('upgradeStorage', () => {
           }
           if (Object.keys(transports).length > 0) old.transports = transports
         }
+        if (name === 'even-keel.config.json') {
+          old.projects = old.projects.map((entry: Record<string, unknown>) => ({ ...entry, tracker: entry.tracker ?? old.tracker }))
+          delete old.tracker
+        }
         if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
       }
       const lines = text(state('launches.jsonl')).split('\n')
@@ -196,7 +203,7 @@ describe('upgradeStorage', () => {
       const config = json(configFile)
       expect(config).toMatchObject({ version: SCHEMA_VERSION, models: { claude: 'sonnet' }, execution: { codex: 'bypass' } })
       expect(config.model).toBeUndefined()
-      expect(config.projects[0]).toEqual(json(join(sample, 'even-keel.config.json')).projects[0])
+      expect(config.projects[0]).toEqual({ ...json(join(sample, 'even-keel.config.json')).projects[0], tracker: 'huly' })
       expect(config.projects[1]).toEqual({
         id: '22222222-2222-4222-8222-222222222222',
         key: 'XYZ',
@@ -206,6 +213,7 @@ describe('upgradeStorage', () => {
         slot: 2,
         provider: 'codex',
         models: { codex: 'gpt-5.6-luna' },
+        tracker: 'huly',
       })
     })
 
@@ -221,7 +229,7 @@ describe('upgradeStorage', () => {
       put(configFile, { version: 7, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', codexBypassSandbox: false }] })
       put(state('account.json'), { version: 7, active: 'global', accounts: {}, removing: [] })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
     })
   })
 
@@ -275,10 +283,24 @@ describe('upgradeStorage', () => {
     })
   })
 
+  describe('v12 to v13', () => {
+    it('gives each project without a tracker of its own the shared one and drops the shared key', () => {
+      put(configFile, { version: 12, tracker: 'linear', projects: [ABC_ENTRY, { ...XYZ_ENTRY, tracker: 'github', github: 'octo-org/xyz' }] })
+      upgrade()
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ ...ABC_ENTRY, tracker: 'linear' }, { ...XYZ_ENTRY, tracker: 'github', github: 'octo-org/xyz' }] })
+    })
+
+    it('gives them Huly, the default of then, when the config named no shared tracker', () => {
+      put(configFile, { version: 12, projects: [ABC_ENTRY] })
+      upgrade()
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ ...ABC_ENTRY, tracker: 'huly' }] })
+    })
+  })
+
   it('gives an id to an entry of the current version added by hand and writes nothing else', () => {
-    put(configFile, { version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }, { key: 'NEW', repo: 'C:\\new' }] })
+    put(configFile, { version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }, { key: 'NEW', repo: 'C:\\new', tracker: 'huly' }] })
     upgrade()
-    expect(json(configFile).projects[1]).toEqual({ id: 'guid-1', key: 'NEW', repo: 'C:\\new' })
+    expect(json(configFile).projects[1]).toEqual({ id: 'guid-1', key: 'NEW', repo: 'C:\\new', tracker: 'huly' })
     expect(logs).toEqual([`storage: gave an id to the projects of ${configFile} without one, the previous file is kept at ${configFile}.v${SCHEMA_VERSION}.bak`])
   })
 

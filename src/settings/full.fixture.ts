@@ -6,7 +6,6 @@ export const FULL = {
   unattended: true,
   trimTools: false,
   tally: 'server',
-  tracker: 'github',
   brief: false,
   chain: { active: ['Todo', ' In Progress '], terminal: ['Done'], requiredLabels: ['Auto'], excludedLabels: [], excludedMilestones: [' v1.0.1 '] },
   provider: 'codex',
@@ -51,7 +50,7 @@ export const FULL = {
       modelLabels: false,
       stats: { checkpointShares: { late: 80 } },
     },
-    { id: '22222222-2222-4222-8222-222222222222', key: 'XYZ', repo: 'C:\\repos\\xyz', github: 'octo-org/xyz', slot: 3 },
+    { id: '22222222-2222-4222-8222-222222222222', key: 'XYZ', repo: 'C:\\repos\\xyz', tracker: 'github', github: 'octo-org/xyz', slot: 3 },
     { id: '33333333-3333-4333-8333-333333333333', key: 'LIN', repo: 'C:\\repos\\lin', tracker: 'linear', slot: false, chain: { terminal: null } },
     {
       id: '44444444-4444-4444-8444-444444444444',
