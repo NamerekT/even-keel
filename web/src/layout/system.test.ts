@@ -22,9 +22,15 @@ describe('systemChecks', () => {
       ['Сервер Even Keel', 'ok'],
       ['Huly', 'ok'],
       ['Лимиты', 'ok'],
-      ['Конфигурация', 'ok'],
+      ['Настройки', 'ok'],
     ])
     expect(worstLevel(checks)).toBe('ok')
+  })
+
+  it('says when the limits shown were read', () => {
+    const checks = systemChecks({ ...healthy, limitsAt: '2026-10-03T11:58:00Z' }, now)
+    expect(checks[2]).toMatchObject({ text: 'прочитаны', note: '2 мин назад' })
+    expect(systemChecks(healthy, now)[2]!.note).toBeUndefined()
   })
 
   it('checks every tracker in use under its own title', () => {
@@ -35,7 +41,7 @@ describe('systemChecks', () => {
       ['Huly', 'ok'],
       ['Linear', 'warn'],
       ['Лимиты', 'ok'],
-      ['Конфигурация', 'ok'],
+      ['Настройки', 'ok'],
     ])
   })
 
@@ -45,7 +51,11 @@ describe('systemChecks', () => {
     expect(worstLevel(checks)).toBe('warn')
   })
 
-  it('explains a Huly outage with the last good poll and the error', () => {
+  it('offers to reconnect to a lost server', () => {
+    expect(systemChecks({ ...healthy, link: 'stale' }, now)[0]).toMatchObject({ level: 'error', fix: { kind: 'retry' } })
+  })
+
+  it('explains a Huly outage with the last good poll and the error, and sends to the profiles', () => {
     const down = huly({ state: 'down', lastOkAt: '2026-10-03T11:56:00Z', error: 'huly: call timed out' })
     const checks = systemChecks({ ...healthy, trackers: [down] }, now)
     expect(checks[1]).toEqual({
@@ -55,6 +65,7 @@ describe('systemChecks', () => {
       level: 'error',
       text: 'нет связи',
       details: ['последний успешный опрос 4 мин назад', 'huly: call timed out'],
+      fix: { kind: 'open', fix: { to: 'shared', tab: 'trackers' } },
     })
     expect(worstLevel(checks)).toBe('error')
   })
@@ -83,7 +94,10 @@ describe('systemChecks', () => {
 
     const configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
     const config = systemChecks({ ...healthy, configError }, now)
-    expect(config[3]).toMatchObject({ level: 'error', text: 'не применена', details: ['ABC: статус «In Review» и активный, и терминальный'] })
+    expect(config[3]).toMatchObject({ level: 'error', text: 'не применены', details: ['ABC: статус «In Review» и активный, и терминальный'] })
+
+    const fix = { to: 'project', project: 'ABC', tab: 'tracker' } as const
+    expect(systemChecks({ ...healthy, configError, configFix: fix }, now)[3]).toMatchObject({ fix: { kind: 'open', fix } })
   })
 })
 
@@ -101,7 +115,11 @@ describe('the Tally check', () => {
 
   it('is fine while waiting for the first run and after a good one', () => {
     expect(tally({ mode: 'local', health: { state: 'waiting', lastRunAt: null } })).toMatchObject({ level: 'ok', text: 'ждёт первого прохода' })
-    expect(tally({ mode: 'server', health: { state: 'ok', lastRunAt: '2026-10-03T11:58:00Z' } })).toMatchObject({ level: 'ok', text: 'собрана 2 мин назад' })
+    expect(tally({ mode: 'server', health: { state: 'ok', lastRunAt: '2026-10-03T11:58:00Z' } })).toMatchObject({ level: 'ok', text: 'собрана', note: '2 мин назад' })
+  })
+
+  it('sends a collector that fails to the stats settings', () => {
+    expect(tally({ mode: 'local', health: { state: 'halted', lastRunAt: null } })).toMatchObject({ fix: { kind: 'open', fix: { to: 'shared', tab: 'stats' } } })
   })
 
   it('warns on a failed run and fails when halted or not collecting at all', () => {

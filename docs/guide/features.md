@@ -184,7 +184,7 @@ With `pullRequests` on, a session does not merge its branch: Even Keel pushes it
 
 ## Status
 
-The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`: the service itself, the limit poll, the settings, the statistics collector, and a connection per tracker account in use — whether it answers, its last good poll, its error, and when it last read each project and task feed on it.
+The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`, one screen: a line on top that says all is well or names the problems with a button for the first, a tile each for the service itself, the reading of the limits, the settings and the statistics collector, and a card per tracker account in use — whether it answers and when it last did, its error in plain words, the projects and task feeds it reads (those not read for a while marked), a **Check** button that reads them now and **Open profile**.
 
 What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict, a task that left the chain with its work not committed or not merged — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
 
