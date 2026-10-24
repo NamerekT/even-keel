@@ -111,3 +111,10 @@
   gap: 4px 16px;
   margin-top: 8px;
 }
+
+/* The last choice and the "?" wrap together: the mark never starts a line of its own. */
+.rule-take__last {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

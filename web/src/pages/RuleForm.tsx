@@ -247,11 +247,13 @@ function LabelTable({ rules, inherited, origins, level, profileName, labels, mod
           <input type="radio" name={`${id}-take`} checked={anyLabel} onChange={() => put({ requiredLabels: [] })} />
           {t.settings.labelTake.any}
         </label>
-        <label className="settings__check">
-          <input type="radio" name={`${id}-take`} checked={!anyLabel} disabled={anyLabel} onChange={() => {}} />
-          {t.settings.labelTake.required}
-        </label>
-        <HelpTip text={t.settings.labelTakeHint} />
+        <span className="rule-take__last">
+          <label className="settings__check">
+            <input type="radio" name={`${id}-take`} checked={!anyLabel} disabled={anyLabel} onChange={() => {}} />
+            {t.settings.labelTake.required}
+          </label>
+          <HelpTip text={t.settings.labelTakeHint} />
+        </span>
       </div>
       {marks.note('requiredLabels')}
       {marks.note('excludedLabels')}

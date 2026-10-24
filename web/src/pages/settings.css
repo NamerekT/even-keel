@@ -316,6 +316,41 @@
   }
 }
 
+/* The cell's own name is for a phone; wider, the column heads name the cells. */
+.provider-grid__cell {
+  display: contents;
+}
+
+.provider-grid__cell > .settings__head-row {
+  display: none;
+}
+
+/*
+ * Too narrow even for a line of fields — a phone up to 430 px: a field under its name, one per line, as the rows of the
+ * form above it. The project panel's 383 px keeps its line.
+ */
+@container (max-width: 23em) {
+  .provider-grid__table {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
+  }
+
+  .provider-grid__table > .provider-grid__head,
+  .provider-grid__cell--none {
+    display: none;
+  }
+
+  .provider-grid__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .provider-grid__cell > .settings__head-row {
+    display: block;
+  }
+}
+
 /* A section: a card a tone lighter than the page; its padding leaves room for the stripe of a changed field. */
 .settings__section {
   display: flex;
@@ -523,13 +558,22 @@
   margin-top: 2px;
 }
 
-/* A setting's name, its question mark and the restart mark in one line, as tall without the question mark as with it. */
+/*
+ * A setting's name, its question mark and the restart mark in one line, as tall without the question mark as with it.
+ * Inline flow, not flex: a name that wraps keeps its "?" after its last word, not on a line of its own.
+ */
 .settings__head-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 4px;
+  display: block;
+  align-content: center;
   min-height: 24px;
+}
+
+.settings__head-row > * {
+  vertical-align: middle;
+}
+
+:where(.settings__head-row) > * + * {
+  margin-left: 4px;
 }
 
 /* The question mark stays pale until its row is pointed at. */
@@ -546,6 +590,7 @@
   .settings__field:hover .help,
   .settings__heading:hover .help,
   .provider-grid__head:hover .help,
+  .provider-grid__cell:hover .help,
   .help:focus-visible {
     opacity: 1;
   }
