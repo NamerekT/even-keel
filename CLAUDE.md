@@ -20,6 +20,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/packages.md` | plugins and MCP servers of a project's set, `state/packages.json`, install and update, the keys, the local MCP gateway, the launch flags, the check before a launch |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
 | `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |
+| `docs/design.md` | how the page looks: the reference screens, tokens, blocks, layout and content rules, the check of a screen before the merge |
 | `docs/settings.md` | every setting and the levels it is set at (Even Keel, project, task label), what is not a setting, the settings tables for the database and how labels become values |
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
 | `docs/service.md` | the service on Windows, Linux and macOS |
@@ -117,3 +118,5 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 ## Tests
 
 TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. Process handling, network and layout are not covered by tests — they are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (element shots and a text report, dark by default, `docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context; the MCP only for what the script cannot do.
+
+A task that builds or changes a screen reads `docs/design.md` before the first line of it, and is merged only when its shots pass the check at the end of that document, with the answers in the closing comment.
