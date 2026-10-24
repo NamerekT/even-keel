@@ -16,7 +16,7 @@
   --family-3: var(--series-7);
   --family-4: var(--series-4);
   --family-5: var(--series-6);
-  --hazard-dark: #1c1c1a;
+  --hazard-dark: var(--on-bright);
 }
 
 .chain .chain__blocks {
@@ -205,7 +205,7 @@
   height: 22px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;
@@ -257,7 +257,7 @@
 
 .chain .block__number--high {
   background: var(--series-2);
-  color: #fff;
+  color: var(--on-fill);
   font-weight: 600;
 }
 
@@ -270,7 +270,7 @@
   isolation: isolate;
   overflow: hidden;
   background: var(--lamp-error);
-  color: #fff;
+  color: var(--on-fill);
   font-weight: 600;
   animation: siren 1.2s ease-in-out infinite;
 }
@@ -280,7 +280,7 @@
   position: absolute;
   inset: -6px;
   z-index: -1;
-  background: conic-gradient(from 0deg, transparent 0 62%, rgb(255 255 255 / 0.6) 80%, transparent 96%);
+  background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, var(--on-fill) 60%, transparent) 80%, transparent 96%);
   animation: beacon 0.9s linear infinite;
 }
 
@@ -317,7 +317,7 @@
   bottom: 0;
   left: 0;
   width: 6px;
-  border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+  border-radius: var(--radius-inner) 0 0 var(--radius-inner);
   background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 4px, var(--hazard-dark) 4px 8px);
   background-size: 100% 11.3px;
   animation: hazard 1.4s linear infinite;
@@ -366,7 +366,7 @@
   left: var(--radius);
   width: calc((100% - 2 * var(--radius)) * var(--estimate));
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
 }
 
@@ -382,7 +382,7 @@
   bottom: -5px;
   left: calc(-9px - var(--lane) * 6px);
   width: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: var(--family);
   opacity: 0.55;
   transition: opacity var(--motion-fast) ease;
@@ -502,9 +502,9 @@
   position: absolute;
   inset: -2px;
   border: 2px solid var(--lamp-working);
-  border-radius: calc(var(--radius) + 1px);
+  border-radius: var(--radius-outer);
   pointer-events: none;
-  mask: conic-gradient(#000 var(--sweep), transparent 0);
+  mask: conic-gradient(black var(--sweep), transparent 0);
   animation:
     frame-draw 0.7s ease-in-out var(--beat-take) both,
     frame-glow 0.8s ease-out calc(var(--beat-take) + 0.7s) both;
@@ -697,7 +697,7 @@
   width: 14px;
   height: 10px;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-small);
   background: var(--surface);
 }
 

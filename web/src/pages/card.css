@@ -7,12 +7,10 @@ html:has(.task-card[open]) {
   max-height: calc(100dvh - 64px);
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--fg);
-  box-shadow:
-    0 24px 64px rgb(0 0 0 / 0.35),
-    0 2px 6px rgb(0 0 0 / 0.2);
+  box-shadow: var(--shadow-dialog);
 }
 
 .task-card[open] {
@@ -204,7 +202,7 @@ html:has(.task-card[open]) {
   gap: 18px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--surface-muted) 45%, var(--surface));
 }
 
@@ -287,7 +285,7 @@ html:has(.task-card[open]) {
 /* Description */
 
 .task-card__markdown {
-  font-size: 14.5px;
+  font-size: var(--text-15);
   line-height: 1.65;
 }
 
@@ -302,7 +300,7 @@ html:has(.task-card[open]) {
 
 .task-card__markdown h1,
 .task-card__markdown h2 {
-  font-size: 17px;
+  font-size: var(--text-16);
 }
 
 .task-card__markdown > :first-child {
@@ -325,7 +323,7 @@ html:has(.task-card[open]) {
   display: inline;
   padding: 0 4px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
   font: inherit;
@@ -371,7 +369,7 @@ html:has(.task-card[open]) {
   min-width: 0;
   padding: 10px 14px 12px;
   border: 1px solid var(--border);
-  border-radius: 4px 12px 12px;
+  border-radius: var(--radius-small) var(--radius) var(--radius);
   background: color-mix(in srgb, var(--surface-muted) 40%, var(--surface));
 }
 
@@ -458,7 +456,7 @@ html:has(.task-card[open]) {
   margin: -5px -8px -1px;
   padding: 4px 8px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: inherit;
   font: inherit;
@@ -551,7 +549,7 @@ html:has(.task-card[open]) {
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: inherit;
   font: inherit;
@@ -613,7 +611,7 @@ html:has(.task-card[open]) {
 
 .task-card__bone {
   height: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: linear-gradient(90deg, var(--surface-muted) 30%, color-mix(in srgb, var(--fg) 10%, var(--surface-muted)) 50%, var(--surface-muted) 70%) 0 0 / 300% 100%;
   animation: shimmer var(--motion-skeleton) linear infinite;
 }
@@ -676,6 +674,6 @@ html:has(.task-card[open]) {
   }
 
   .task-card__title {
-    font-size: 19px;
+    font-size: var(--text-16);
   }
 }

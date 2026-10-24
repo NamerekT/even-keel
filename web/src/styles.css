@@ -58,10 +58,14 @@
   --space-16: 16px;
   --space-24: 24px;
 
-  /* A card, a panel or a band; a control or a box inside a card; a pill. */
+  /* A card, a panel or a band; a control or a box inside a card; a mark inside a control (code, a key, a swatch); a pill.
+     Inner and outer: a box set inside a card's 1 px border, a ring drawn 1 px around one. */
   --radius: 10px;
   --radius-control: 8px;
+  --radius-small: 4px;
   --radius-pill: 999px;
+  --radius-inner: calc(var(--radius) - 1px);
+  --radius-outer: calc(var(--radius) + 1px);
   --gutter: 16px;
   --header-height: 52px;
   --column: min(94vw, 2400px);
@@ -81,8 +85,24 @@
   --scrim: rgb(0 0 0 / 0.6);
   --scrim-blur: blur(2px);
 
-  /* Under a menu or a tip that floats over the page. */
+  /* Under a menu or a tip that floats over the page; under a dialog; along the edge of a side drawer. */
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.25);
+  --shadow-dialog: 0 24px 64px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.2);
+  --shadow-drawer: -10px 0 30px rgb(0 0 0 / 0.14);
+
+  /* Text or a knob on a fill that keeps its depth in both themes: white on a deep one (a red badge, a green button,
+     a switch turned on), near-black on a bright one (amber). */
+  --on-fill: #ffffff;
+  --on-bright: #1c1c1a;
+
+  /* The media viewer stays dark in both themes: its dimming, text, quiet text, links, buttons over a picture, and
+     the glass of a play button on a video tile. */
+  --viewer-bg: rgb(0 0 0 / 0.88);
+  --viewer-fg: #ffffff;
+  --viewer-muted: rgb(255 255 255 / 0.6);
+  --viewer-link: #b9cbff;
+  --viewer-control: rgb(0 0 0 / 0.55);
+  --viewer-glass: rgb(255 255 255 / 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -215,7 +235,7 @@ input[type='radio'] {
   height: 16px;
   margin: 0;
   border: 1.5px solid color-mix(in srgb, var(--fg-muted) 75%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: var(--surface);
   appearance: none;
   cursor: pointer;
@@ -417,7 +437,7 @@ input[type='radio']:disabled {
   position: relative;
   width: 100%;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   overflow: hidden;
 }
@@ -478,7 +498,7 @@ input[type='radio']:disabled {
   padding: 0 5px;
   border-radius: 999px;
   background: var(--lamp-waiting);
-  color: #1c1c1a;
+  color: var(--on-bright);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -676,7 +696,7 @@ input[type='radio']:disabled {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  box-shadow: var(--shadow-popover);
 }
 
 .drawer {
@@ -694,7 +714,7 @@ input[type='radio']:disabled {
   padding: 16px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) 16px;
   background: var(--surface);
   border-left: 1px solid var(--border);
-  box-shadow: -10px 0 30px rgb(0 0 0 / 0.14);
+  box-shadow: var(--shadow-drawer);
 }
 
 .drawer__head {
@@ -770,7 +790,7 @@ input[type='radio']:disabled {
 
 .queue__row--dragged {
   z-index: 1;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+  box-shadow: var(--shadow-popover);
   transition: none;
 }
 
@@ -780,10 +800,10 @@ input[type='radio']:disabled {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg-muted);
-  font: 18px/1 var(--font);
+  font: var(--text-16)/1 var(--font);
 }
 
 .queue__handle {
@@ -1018,7 +1038,7 @@ input[type='radio']:disabled {
   min-width: var(--move-width);
   padding: 1px 4px 1px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -1215,7 +1235,7 @@ input[type='radio']:disabled {
 .account__device-code {
   padding: 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   font-family: var(--mono);
   font-size: var(--text-24);
@@ -1379,7 +1399,7 @@ input[type='radio']:disabled {
   padding: 10px max(var(--gutter), env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  box-shadow: var(--shadow-popover);
 }
 
 @media (max-width: 380px) {
@@ -1711,7 +1731,7 @@ a:focus-visible {
 .chain__milestone-line {
   flex: 1;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: var(--border);
 }
 
@@ -1790,7 +1810,7 @@ a:focus-visible {
   margin: -4px 0;
   padding: 3px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--accent);
   font: inherit;
@@ -1825,7 +1845,7 @@ a:focus-visible {
   gap: 12px;
   min-height: 28px;
   padding: 0 15px 0 calc(15px + 2.5ch + 12px);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
   /* The size of a chain row, so the `em` and `ch` of the columns come out the same; the text is smaller. */
   font-size: var(--text-14);
@@ -2251,7 +2271,7 @@ a.button.pull-button__link {
   position: relative;
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   overflow: hidden;
 }
@@ -2333,7 +2353,7 @@ a.button.pull-button__link {
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: var(--radius-small);
   background: var(--series);
 }
 
@@ -2342,7 +2362,7 @@ a.button.pull-button__link {
   min-width: 0;
   color: var(--fg);
   font-family: var(--mono);
-  font-size: 17px;
+  font-size: var(--text-16);
   font-weight: 600;
   text-decoration: none;
 }
@@ -2484,7 +2504,7 @@ a.button.pull-button__link {
   position: relative;
   flex: 1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   overflow: hidden;
 }
@@ -2740,7 +2760,7 @@ a.button.pull-button__link {
 .chart__column:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
 }
 
 .chart__track {
@@ -2773,7 +2793,7 @@ a.button.pull-button__link {
 }
 
 .chart__segment:last-child {
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
 }
 
 .chart__day {
@@ -2785,7 +2805,7 @@ a.button.pull-button__link {
 }
 
 .chart__month {
-  font-size: 10px;
+  font-size: var(--text-11);
 }
 
 .chart__tip {
@@ -2800,7 +2820,7 @@ a.button.pull-button__link {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+  box-shadow: var(--shadow-popover);
   font-size: var(--text-13);
   white-space: nowrap;
   pointer-events: none;

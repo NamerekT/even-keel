@@ -55,7 +55,7 @@
 .share__body--folded {
   max-height: 320px;
   overflow: hidden;
-  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+  mask-image: linear-gradient(to bottom, black 75%, transparent);
 }
 
 .share .thumb {

@@ -11,19 +11,6 @@
   gap: 4px 8px;
 }
 
-.tools__trim {
-  margin: 0;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--surface-muted);
-  font-size: var(--text-14);
-}
-
-.tools__trim--off {
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-}
-
 .tools-page__body {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -64,19 +51,8 @@
 
 /* Problems */
 
-.tools__ok {
+.tools__problems .tools__heading {
   margin: 0;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--lamp-done) 14%, transparent);
-}
-
-.tools__problems {
-  padding: 12px;
-  border: 1px solid var(--warn-fg);
-  border-radius: var(--radius);
-  background: var(--warn-bg);
-  color: var(--warn-fg);
 }
 
 .tools__where {
@@ -123,7 +99,7 @@
   display: inline-block;
   max-width: 100%;
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font-family: var(--mono);
   font-size: var(--text-12);
   line-height: 18px;
@@ -161,6 +137,11 @@
   color: var(--fg);
 }
 
+/* A chip that says something in words rather than naming a setting. */
+.tools__chip--words {
+  font-family: var(--font);
+}
+
 /* Settings matrix */
 
 .tools__toolbar {
@@ -176,7 +157,7 @@
   width: min(100%, 280px);
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--fg);
 }
@@ -245,11 +226,11 @@
 }
 
 .tools__matrix thead th:first-child {
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .tools__matrix thead th:last-child {
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .tools__matrix tbody th {
@@ -294,7 +275,7 @@
 .tools__scope {
   box-sizing: border-box;
   width: 24px;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   color: color-mix(in srgb, var(--fg) 72%, var(--surface));
   font-size: var(--text-11);
   font-weight: 600;
@@ -330,7 +311,7 @@
 
 .tools__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 12px;
 }
 
@@ -465,7 +446,7 @@
   display: block;
   height: 10px;
   margin: 3px 0;
-  border-radius: 5px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--fg) 11%, transparent);
   animation: tools-pulse var(--motion-skeleton) ease-in-out calc(var(--i, 0) * 90ms) infinite;
 }

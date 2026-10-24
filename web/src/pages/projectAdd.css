@@ -43,7 +43,7 @@
 .project-add__open {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--warn-bg);
   color: var(--warn-fg);
   font-size: var(--text-13);

@@ -3,12 +3,10 @@
   max-height: calc(100dvh - 64px);
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--fg);
-  box-shadow:
-    0 24px 64px rgb(0 0 0 / 0.35),
-    0 2px 6px rgb(0 0 0 / 0.2);
+  box-shadow: var(--shadow-dialog);
 }
 
 .add-package--narrow {
@@ -216,7 +214,7 @@
 
 .add-package__option {
   padding: 4px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
   font-size: var(--text-13);
   cursor: pointer;

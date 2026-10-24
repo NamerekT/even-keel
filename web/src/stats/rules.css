@@ -24,7 +24,7 @@
   left: 3px;
   width: 3px;
   height: var(--notch);
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: currentColor;
   transition: height var(--motion-fast) ease-out;
 }
@@ -458,7 +458,7 @@
   width: 100%;
   padding: 2px 6px 2px 2px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -479,7 +479,7 @@
 
 .rule-file__caret {
   color: var(--fg-muted);
-  font-size: 10px;
+  font-size: var(--text-11);
 }
 
 .rule-file__where {
@@ -519,7 +519,7 @@
   padding: 6px 0;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   font-family: var(--mono);
   font-size: var(--text-12);
 }

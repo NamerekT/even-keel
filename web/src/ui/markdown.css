@@ -46,7 +46,7 @@
 
 .markdown code {
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   font-family: var(--mono);
   font-size: 0.9em;

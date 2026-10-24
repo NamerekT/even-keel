@@ -80,6 +80,17 @@ export function marketplaceCommand(dir: string): string {
   return `claude plugin marketplace add "${dir}"`
 }
 
+const ABBREVIATIONS = new Set(['API', 'URL', 'ID', 'MCP', 'DB', 'SSH', 'CI', 'PAT'])
+
+/** A key named for a person (`docs/design.md`, "Words, not internals"): the page's own name for it, else the variable spelled in words. */
+export function keyLabel(name: string, known: Record<string, string>): string {
+  const found = known[name]
+  if (found !== undefined) return found
+  const words = name.split('_').filter(Boolean).map((word) => (ABBREVIATIONS.has(word) ? word : word.toLowerCase()))
+  const text = words.join(' ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 export type TrackerPackage =
   /** `by` — the enabled package that brings the server. */
   | { state: 'brought'; server: string; by: string | null }

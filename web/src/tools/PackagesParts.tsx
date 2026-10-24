@@ -5,7 +5,7 @@ import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
-import { importOffers, marketplaceCommand, type Dismissed } from './packageView.js'
+import { importOffers, keyLabel, marketplaceCommand, type Dismissed } from './packageView.js'
 
 const DISMISSED_KEY = 'even-keel.packages.imports'
 
@@ -108,20 +108,23 @@ function KeyRow({ entry }: { entry: KeyView }) {
     if (await send('packages/key', { name: entry.name, value })) setValue('')
   }
   const readers = entry.packages.length === 0 ? t.packages.keyTracker : entry.packages.join(', ')
+  const label = keyLabel(entry.name, t.secrets.purpose)
 
   return (
     <li className="packages__key">
-      <Tipped className="packages__key-name" tip={t.packages.keyReads(readers)} focusable inline>
-        <code>{entry.name}</code>
-      </Tipped>
-      <span className={entry.set ? 'tools__chip tools__chip--on' : 'tools__chip tools__chip--lost'}>{entry.set ? t.packages.keySet : t.packages.keyUnset}</span>
+      <span className="packages__key-head">
+        <Tipped className="packages__key-name" tip={t.packages.keyReads(entry.name, readers)} focusable inline>
+          {label}
+        </Tipped>
+        {!entry.set && <span className="tools__chip tools__chip--words tools__chip--lost">{t.packages.keyUnset}</span>}
+      </span>
       <form className="packages__key-form" onSubmit={(event) => void submit(event)}>
         <input
           className="packages__input"
           type="password"
           value={value}
-          placeholder={t.packages.keyValue(entry.name)}
-          aria-label={t.packages.keyValue(entry.name)}
+          placeholder={entry.set ? t.packages.keySaved : undefined}
+          aria-label={t.packages.keyValue(label)}
           autoComplete="off"
           spellCheck={false}
           onChange={(event) => setValue(event.target.value)}
