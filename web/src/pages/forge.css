@@ -1,9 +1,10 @@
-/* Spans the number column, the gap and the lamp's place, so the key stays in line with the other rows. */
+/* Sits at the right of the row's title, clear of the number column where the cache ring is. */
 .forge {
   flex: none;
-  width: calc(2.5ch + 22px);
+  width: 32px;
   height: 22px;
-  margin-left: calc(-2.5ch - 12px);
+  margin-left: 8px;
+  vertical-align: middle;
   overflow: visible;
   color: var(--lamp-idle);
   fill: currentColor;

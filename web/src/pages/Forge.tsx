@@ -2,7 +2,7 @@ import { t } from '../i18n/index.js'
 import type { BlockLamp } from '../state.js'
 import './forge.css'
 
-/** The mark of the fix of a red main in the chain, in place of the number and the lamp: two smiths take turns at an anvil while the session works. */
+/** The mark of the fix of a red main in the chain, set right after the row's title: two smiths take turns at an anvil while the session works. */
 export function Forge({ lamp }: { lamp: BlockLamp }) {
   return (
     <svg className={`forge forge--${lamp}`} viewBox="0 0 32 22" role="img" aria-label={t.lamp[lamp]}>
