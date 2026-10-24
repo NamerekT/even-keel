@@ -1,0 +1,271 @@
+/* A wizard's own frame (WizardFrame.tsx): one centred column, the steps as dots on a line, the step in a card. */
+.wizard {
+  --wizard-dot: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding-top: var(--space-16);
+}
+
+.wizard__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.wizard__head .page__title {
+  margin: 0;
+}
+
+.wizard__lead {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-14);
+}
+
+/* The steps: a grey line from the first dot to the last, filled up to the current one. */
+.wizard__nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.wizard__steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard__steps::before,
+.wizard__steps::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--space-4) + var(--wizard-dot) / 2 - 1px);
+  left: calc(100% / var(--steps) / 2);
+  height: 2px;
+  border-radius: var(--radius-pill);
+}
+
+.wizard__steps::before {
+  right: calc(100% / var(--steps) / 2);
+  background: var(--border);
+}
+
+.wizard__steps::after {
+  width: calc((100% - 100% / var(--steps)) * var(--filled));
+  background: var(--accent);
+  transition: width var(--motion-appear) ease-out;
+}
+
+.wizard__step {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.wizard__step-link {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-control);
+  color: var(--fg-muted);
+  text-align: center;
+  text-decoration: none;
+}
+
+.wizard__step-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.wizard__dot {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: var(--wizard-dot);
+  height: var(--wizard-dot);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--bg);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.wizard__dot .icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+
+.wizard__step-link:hover .wizard__dot {
+  transform: scale(1.15);
+}
+
+.wizard__step--done .wizard__dot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.wizard__step--current .wizard__dot {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.wizard__step-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard__step--done .wizard__step-label,
+.wizard__step-link:hover .wizard__step-label {
+  color: var(--fg);
+}
+
+.wizard__step--current .wizard__step-label {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* Two lines at most: "Claude Code · john.doe" breaks at its dot rather than losing the name. */
+.wizard__step-summary {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The current step's name, for the narrow line whose dots have no labels. */
+.wizard__current {
+  display: none;
+  margin: 0;
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+/* The step: it slides in a little as it opens. */
+.wizard__body {
+  display: flex;
+  flex-direction: column;
+  animation: wizard-step-in var(--motion-appear) ease-out;
+}
+
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wizard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-4);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--border);
+}
+
+.wizard__back {
+  color: var(--fg-muted);
+  font-size: var(--text-14);
+  text-decoration: none;
+}
+
+.wizard__back:hover,
+.wizard__back:focus-visible {
+  color: var(--fg);
+}
+
+.wizard__onward {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+  margin-left: auto;
+}
+
+.wizard__skip {
+  padding: var(--space-6) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.wizard__skip:hover,
+.wizard__skip:focus-visible {
+  color: var(--fg);
+}
+
+@media (max-width: 760px) {
+  .wizard {
+    padding-top: 0;
+  }
+
+  .wizard__step-label,
+  .wizard__step-summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* The label gone, the dot alone is the target: grown to the header's 44 px. */
+  .wizard__step-link {
+    padding: 13px;
+  }
+
+  .wizard__steps::before,
+  .wizard__steps::after {
+    top: calc(13px + var(--wizard-dot) / 2 - 1px);
+  }
+
+  .wizard__current {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard__body {
+    animation: none;
+  }
+
+  .wizard__steps::after,
+  .wizard__dot {
+    transition: none;
+  }
+}

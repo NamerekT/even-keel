@@ -23,7 +23,7 @@ export function StatsStep({ state, onDone }: { state: EvenKeelState; onDone: () 
 
   if (server)
     return (
-      <section key="server" className="add-window tally-step">
+      <section key="server" className="tally-step setup__part">
         <h2 className="setup__subtitle">
           {t.tally.stepConnection}: {t.tally.modes.server}
         </h2>
@@ -32,18 +32,16 @@ export function StatsStep({ state, onDone }: { state: EvenKeelState; onDone: () 
       </section>
     )
   return (
-    <div key="stats" className="tally-step stats-setup__intro">
+    <div key="stats" className="stats-setup__intro">
       <div className="stats-setup__about">
         <img className="stats-setup__preview" src="/stats-preview.png" alt={t.tally.preview} width={1200} height={640} />
-        <div className="stats-setup__text">
-          <p className="stats-setup__lead">{t.tally.lead}</p>
-          <ul className="stats-setup__facts">
-            {t.tally.facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-        </div>
+        <p className="stats-setup__lead">{t.tally.lead}</p>
       </div>
+      <ul className="stats-setup__facts">
+        {t.tally.facts.map((fact) => (
+          <li key={fact}>{fact}</li>
+        ))}
+      </ul>
       <TallyModes chosen={null} current={state.tally} disabled={sending} onPick={(mode) => void pick(mode)} />
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>

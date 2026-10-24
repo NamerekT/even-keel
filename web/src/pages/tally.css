@@ -53,15 +53,15 @@ button.add-choice:disabled {
   margin: 0;
 }
 
+/* The picture beside what Tally is, the facts under both. */
 .stats-setup__about {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-  max-width: 1100px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-16);
+  align-items: center;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 760px) {
   .stats-setup__about {
     grid-template-columns: 1fr;
   }
@@ -75,17 +75,17 @@ button.add-choice:disabled {
 }
 
 .stats-setup__lead {
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .stats-setup__facts {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
   margin: 0;
   padding-left: 18px;
   color: var(--fg-muted);
-  font-size: var(--text-14);
+  font-size: var(--text-13);
 }
 
 .stats-setup__intro {

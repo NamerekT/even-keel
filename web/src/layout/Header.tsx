@@ -1,6 +1,7 @@
 import { Link, NavLink, useMatch } from 'react-router'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { SETUP } from '../pages/setupSteps.js'
 import { projectOfPath } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
@@ -22,6 +23,9 @@ export function Header() {
   const now = useNow(CLOCK_MS)
   const narrow = useNarrow()
   useTabBadge(now)
+  // The first run's setup is noise-free (BTN-346): no chain, account or limits yet to look at, the logo and the gear stay.
+  const setup = useMatch(SETUP) !== null
+  const live = setup ? null : state
 
   return (
     <header className="header">
@@ -41,7 +45,7 @@ export function Header() {
               </span>
             </>
           )}
-          {!narrow && (
+          {!narrow && !setup && (
             <NavLink to="/stats" className="header__link">
               {t.header.stats}
             </NavLink>
@@ -49,26 +53,26 @@ export function Header() {
         </nav>
         {narrow ? (
           <div className="header__aside">
-            {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
+            {live !== null && <Waiting sessions={live.sessions} tasks={live.tasks} />}
             <MobileMenu now={now} />
           </div>
         ) : (
           <div className="header__aside">
-            {state !== null && (
+            {live !== null && (
               <div className="work-anchor">
                 <div className="hblock work-block">
-                  <QueueMenu state={state} />
-                  <Waiting sessions={state.sessions} tasks={state.tasks} />
+                  <QueueMenu state={live} />
+                  <Waiting sessions={live.sessions} tasks={live.tasks} />
                 </div>
               </div>
             )}
-            {state !== null && <AccountBlock account={state.account} limits={state.limits} now={now} />}
+            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} />}
             <GearMenu now={now} />
           </div>
         )}
-        {state !== null && narrow && (
+        {live !== null && narrow && (
           <div className="header__limits">
-            <Limits limits={state.limits} now={now} />
+            <Limits limits={live.limits} now={now} />
           </div>
         )}
       </div>
