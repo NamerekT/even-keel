@@ -63,6 +63,11 @@ export function skillStore(globalDir: string): string {
   return join(dirname(globalDir), '.claude-skills')
 }
 
+/** `agents`, `commands`, `hooks` and `output-styles` each live in their own store next to the global folder, as skills do. */
+export function linkedStore(globalDir: string, name: string): string {
+  return join(dirname(globalDir), `.claude-${name}`)
+}
+
 /** The repository's folder in the memory store; chain sessions also get it as `autoMemoryDirectory`. */
 export function sharedMemory(globalDir: string, repo: string): string {
   return join(memoryStore(globalDir), projectDirName(repo))
@@ -105,13 +110,18 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
   }
 
   for (const file of COPIED_FILES) changed = copyIfChanged(join(global.dir, file), join(dir, file)) || changed
-  for (const name of LINKED_DIRS) changed = link(join(global.dir, name), join(dir, name)) || changed
+  for (const name of LINKED_DIRS) {
+    const own = join(global.dir, name)
+    const stored = linkedStore(global.dir, name)
+    changed = absorbFolder(own, stored, warn, name) || changed
+    changed = link(linksTo(own, stored) ? stored : own, join(dir, name)) || changed
+  }
   const skills = skillStore(global.dir)
   for (const name of entries(join(global.dir, 'skills'))) {
     if (OWN_SKILLS.has(name)) continue
     const own = join(global.dir, 'skills', name)
     const stored = join(skills, name)
-    changed = absorbSkill(own, stored, warn) || changed
+    changed = absorbFolder(own, stored, warn, 'skills') || changed
     const path = join(dir, 'skills', name)
     const target = linksTo(own, stored) ? stored : own
     if (!linksElsewhere(path, [own, stored])) changed = link(target, path) || changed
@@ -137,12 +147,14 @@ function absorbMemory(shared: string, own: string, warn: (message: string) => vo
 }
 
 /**
- * Moves a global skill kept as a real folder into the store and leaves a link in its place; one already linked
- * (to the store or elsewhere) stays. A folder the store already has is merged as memory is; a locked one waits for the next launch.
+ * Moves a global skill or linked folder kept as a real folder into the store and leaves a link in its place; one already linked
+ * (to the store or elsewhere) stays, a missing one is linked to the store if it has it. A folder the store already has
+ * is merged as memory is; a locked one waits for the next launch.
  */
-function absorbSkill(own: string, stored: string, warn: (message: string) => void): boolean {
+function absorbFolder(own: string, stored: string, warn: (message: string) => void, what: string): boolean {
   const stat = lstatOf(own)
-  if (stat === undefined || stat.isSymbolicLink() || !stat.isDirectory()) return false
+  if (stat === undefined) return link(stored, own)
+  if (stat.isSymbolicLink() || !stat.isDirectory()) return false
   try {
     if (!existsSync(stored)) {
       mkdirSync(dirname(stored), { recursive: true })
@@ -150,10 +162,10 @@ function absorbSkill(own: string, stored: string, warn: (message: string) => voi
       symlinkSync(stored, own, linkType(process.platform))
       return true
     }
-    const moved = moveInto(own, stored, warn, 'skills')
+    const moved = moveInto(own, stored, warn, what)
     return link(stored, own) || moved
   } catch (error) {
-    warn(`skills: ${own} was not moved to ${stored} (${error instanceof Error ? error.message : String(error)}); left in place`)
+    warn(`${what}: ${own} was not moved to ${stored} (${error instanceof Error ? error.message : String(error)}); left in place`)
     return false
   }
 }

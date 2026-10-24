@@ -47,6 +47,12 @@ describe('ruleFileOf', () => {
     expect(ruleFileOf('C:/Users/Jane/.claude-memory/D--Projects-EvenKeel/MEMORY.md', home)).toEqual(memory)
   })
 
+  it('folds the hook and agent stores onto the keys of ~/.claude', () => {
+    expect(ruleFileOf('C:\\Users\\Jane\\.claude-hooks\\guard.mjs', home)).toEqual(ruleFileOf('C:/Users/Jane/.claude/hooks/guard.mjs', home))
+    expect(ruleFileOf('C:/Users/Jane/.claude-agents/review.md', home)).toMatchObject({ kind: 'agent', key: '~/.claude/agents/review.md' })
+    expect(ruleFileOf('C:/Users/Jane/.claude-commands/deploy.md', home)).toBeNull()
+  })
+
   it('takes no store folder for a file', () => {
     expect(ruleFileOf('C:/Users/Jane/.claude-skills/coding', home)).toBeNull()
     expect(ruleFileOf('C:/Users/Jane/.claude-memory/D--Projects-EvenKeel', home)).toBeNull()

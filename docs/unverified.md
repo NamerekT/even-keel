@@ -12,6 +12,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | ---: | --- | --- | --- |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
+| 2a | [Hooks and agents edited from an account folder](#hooks-and-agents-edited-from-an-account-folder-btn-373) | several Claude accounts with hooks or agents of their own | a session asks or is refused when it edits a hook or an agent, or a hook of `settings.json` stops running |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
@@ -160,6 +161,10 @@ It counts a folder trusted when the global `~/.claude.json` or the `.claude.json
 ### Staying signed in after a reboot (EKR-15)
 
 On 21.10.2026 a reboot signed two of three subscription accounts out: the service started before the network, every account's `claude auth status` timed out at once, and a minute later two `.credentials.json` held neither an access nor a refresh token. The CLI renews with a single-use refresh token, so Even Keel assumes the sign-in was lost to a renewal cut off half-way or run twice at once, and guards against both: it asks no account and no `/usage` until the provider's API answers, runs its short calls of one folder one at a time and does not kill one on a timeout (`docs/accounts.md`). Neither the cause nor the guard has been seen live: a reboot with expired tokens and no network at the start was not repeated. If an account still asks to sign in after a reboot, the cause is elsewhere. **Workaround:** sign the account in again from the accounts drawer.
+
+### Hooks and agents edited from an account folder (BTN-373)
+
+Before a launch in an account folder, `~/.claude/agents`, `commands`, `hooks` and `output-styles` move to their own stores `~/.claude-<name>` and leave a link in their place, and the account folder links to the store (`docs/accounts.md`, "Transferring the shared configuration"), as skills and memory did. Covered by tests on temporary folders only. Assumed, from the skills and memory checked live (BTN-294): a session in an account folder edits a hook or an agent through its link without a question in `auto`, the way it does from `~/.claude`; the hook commands in `settings.json` that name `~/.claude/hooks/…` still run through the link left in place; the CLI loads agents, commands and output styles through it. To check: probe files in `hooks/` and `agents/`, the transfer for an account folder, a Haiku session in `auto` with and without `CLAUDE_CONFIG_DIR`, `--output-format json`, its `permission_denials`; a probe session in a folder where Tally's rule hook acts adds a line to `state/rule-history.jsonl`, which has to be removed. **Workaround:** if an edit is refused, edit the file in `~/.claude-<name>` directly; if a hook stops running, point its command in `settings.json` at `~/.claude-hooks/…`.
 
 ## Claude limits
 
