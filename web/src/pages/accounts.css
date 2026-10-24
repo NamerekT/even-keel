@@ -21,7 +21,7 @@
   background: var(--surface);
 }
 
-/* One section per provider: its name and its own "Add", the connection is picked on the add page. */
+/* One section per provider: its name and its own "Add", the way is picked in the add dialog. */
 .account-group {
   display: flex;
   flex-direction: column;
@@ -135,6 +135,17 @@
 
 .account-card-item__foot > .roles {
   flex: 1 1 0;
+}
+
+/* `block-glow` comes from chain.css: the card the add dialog has just added. */
+.account-card-item--fresh {
+  animation: block-glow var(--motion-mark) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-card-item--fresh {
+    animation: none;
+  }
 }
 
 .add-steps {

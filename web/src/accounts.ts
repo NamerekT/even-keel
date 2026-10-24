@@ -41,9 +41,8 @@ export function folderEmail(view: AccountView | undefined, key: string): string 
 export const PROVIDERS = ['claude', 'codex', 'opencode', 'copilot'] as const
 export type Provider = (typeof PROVIDERS)[number]
 
-/** How the account signs in: through the agent's CLI, through the Agent SDK, or with an API key. */
-export const CONNECTIONS = ['cli', 'sdk', 'apiKey'] as const
-export type Connection = (typeof CONNECTIONS)[number]
+/** How the account signs in: through the agent's CLI or with an API key. */
+export type Connection = 'cli' | 'apiKey'
 
 export function connectionOf(entry: AccountEntry): Connection {
   return entry.apiKey ? 'apiKey' : 'cli'
@@ -57,15 +56,13 @@ export function deviceLogin({ login }: AccountView): boolean {
   return login?.agent === CODEX || login?.agent === OPENCODE
 }
 
-/** Whether the page can add such an account; the rest are shown as not there yet. Without a connection — the provider at all. */
-export function canAdd(provider: Provider, connection?: Connection): boolean {
-  return connection !== 'sdk'
-}
-
 /** Whether the service does not find the provider's CLI: no account of it is added, the page says where to get it. */
 export function cliMissing(view: AccountView, provider: Provider): boolean {
   return view.missing.includes(provider)
 }
+
+/** What the page says of a provider whose CLI is not found: where to get it. */
+export const CLI_MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing', copilot: 'login.copilotMissing' } as const
 
 /**
  * The providers a project's or the shared settings offer to run on: the ones with an account, and any a setting there
@@ -82,14 +79,14 @@ export interface AccountGroup {
 }
 
 /**
- * The accounts by provider, in the order of `PROVIDERS`, an agent the page does not know after them. A provider that can be
- * added and whose CLI is found has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
+ * The accounts by provider, in the order of `PROVIDERS`, an agent the page does not know after them. A provider whose
+ * CLI is found has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
  * comes first, then the ones that can work now.
  */
 export function accountGroups(view: AccountView, now: Date): AccountGroup[] {
   const ordered = accountOrder(view.accounts, now)
   const sorted = [...ordered.filter((entry) => entry.key === view.active), ...ordered.filter((entry) => entry.key !== view.active)]
-  const known: string[] = PROVIDERS.filter((provider) => canAdd(provider) && !cliMissing(view, provider))
+  const known: string[] = PROVIDERS.filter((provider) => !cliMissing(view, provider))
   const agents = [...known, ...new Set(sorted.map((entry) => entry.agent).filter((agent) => !known.includes(agent)))]
   return agents
     .map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))
@@ -134,29 +131,6 @@ export function tightestWindow(limits: RateLimits | null): Tightest | null {
   return tightest
 }
 
-export interface AddStep {
-  provider: Provider | null
-  connection: Connection | null
-}
-
-const ADD = '/accounts/add'
-
-/** The page the add page returns to once done, a path of this page only (BTN-310); `null` — the accounts list. */
-export function addBack(search: URLSearchParams): string | null {
-  const back = search.get('back')
-  return back !== null && back.startsWith('/') && !back.startsWith('//') ? back : null
-}
-
-/** The add page at a step, keeping the page it returns to. */
-export function addPath(back: string | null, provider?: Provider, connection?: Connection): string {
-  const search = new URLSearchParams()
-  if (provider !== undefined) search.set('provider', provider)
-  if (connection !== undefined) search.set('connection', connection)
-  if (back !== null) search.set('back', back)
-  const text = search.toString()
-  return text === '' ? ADD : `${ADD}?${text}`
-}
-
 /** How ready a provider is to run sessions on the account folder its pool entry names (BTN-310). */
 export type Readiness = { state: 'cliMissing' } | { state: 'noAccount' } | { state: 'signIn' | 'ready'; entry: AccountEntry }
 
@@ -165,12 +139,4 @@ export function readinessOf(view: AccountView, provider: string, key: string): R
   const entry = view.accounts.find((each) => each.key === key && each.agent === provider)
   if (entry === undefined) return { state: 'noAccount' }
   return { state: entry.needsLogin ? 'signIn' : 'ready', entry }
-}
-
-/** The step of the add page from its URL, so the browser's Back goes a step back: a provider, then a connection. */
-export function addStep(search: URLSearchParams): AddStep {
-  const provider = PROVIDERS.find((each) => each === search.get('provider')) ?? null
-  const connection = CONNECTIONS.find((each) => each === search.get('connection')) ?? null
-  if (provider === null || !canAdd(provider)) return { provider, connection: null }
-  return { provider, connection }
 }

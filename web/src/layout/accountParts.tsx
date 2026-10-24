@@ -7,18 +7,19 @@ import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountTokens } from '../../../src/stats/model.js'
+import { loginRow, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { connectionOf, type Connection } from '../accounts.js'
 import { formatAgo, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { BracesIcon, ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
+import { ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
+import './accountAdd.css'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
@@ -113,7 +114,7 @@ export function globalFolder(agent: string): string {
   return agent === CODEX ? '~/.codex' : '~/.claude'
 }
 
-const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, sdk: BracesIcon, apiKey: KeyIcon }
+const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, apiKey: KeyIcon }
 const COPIED_MS = 2000
 
 /**
@@ -425,6 +426,9 @@ export function loginHeading({ login, accounts }: AccountView): string {
   return t.account.loginTo(target === undefined ? login.target : accountName(target, accounts))
 }
 
+/** What a dialog with the sign-in focuses first: the link, else the code field, else its first button — not the ×. */
+export const LOGIN_FOCUS = '.login-rows__link, .account__input, .account__actions button'
+
 interface StepsProps {
   login: AccountLogin
   /** A device sign-in, Codex's or OpenCode's: its one-time code goes on the sign-in page, so no code field. */
@@ -433,9 +437,14 @@ interface StepsProps {
   send: Send
 }
 
-/** The sign-in through an agent's CLI: the link it printed, the code field, the way out. */
+/**
+ * The sign-in through an agent's CLI as numbered rows — open the link, sign in, the code — the current one marked; a
+ * failed one gives its error and "Try again" instead. The way out is the dialog's own.
+ */
 export function LoginSteps({ login, device, sending, send }: StepsProps) {
   const [code, setCode] = useState('')
+  const [opened, setOpened] = useState(false)
+  const [coding, setCoding] = useState(false)
   // A device sign-in whose code was not read keeps its output open: the code is only there.
   const outputOpen = device && login.deviceCode === null
 
@@ -445,12 +454,11 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   }
 
   if (login.error !== null) {
-    const retry = () => (login.target === null ? send('account/add', { agent: login.agent }) : send('account/renew', { account: login.target }))
     return (
       <>
         <p className="notice notice--error">{say(login.error)}</p>
         <div className="account__actions">
-          <button type="button" className="button button--primary" disabled={sending} onClick={() => void retry()}>
+          <button type="button" className="button button--primary" disabled={sending} onClick={() => void send(...retryBody(login))}>
             {t.common.retry}
           </button>
           <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
@@ -462,59 +470,60 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
     )
   }
 
+  const row = loginRow(login, { opened, coding })
+  const at = (each: LoginRow) => ({ className: `login-rows__row${each === row ? ' login-rows__row--on' : ''}`, 'aria-current': each === row ? ('step' as const) : undefined })
+  const hint = device ? t.addAccount.picksUp : login.codeSent ? t.account.codeSent : null
   return (
     <>
-      {login.urls.length === 0 ? (
-        <p className="queue__hint">{t.account.waitingLink}</p>
-      ) : (
-        <ul className="account__links">
-          {login.urls.map((url) => (
-            <li key={url}>
-              <a href={url} target="_blank" rel="noreferrer">
-                {login.urls.length === 1 ? t.account.openLogin : new URL(url).host}
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-      {device ? (
-        login.deviceCode === null ? (
-          <p className="queue__hint">{t.account.deviceHint}</p>
-        ) : (
-          <DeviceCode key={login.deviceCode} code={login.deviceCode} />
-        )
-      ) : (
-        <>
-          <form className="account__code" onSubmit={(event) => void submit(event)}>
-            <input
-              className="account__input"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder={t.account.code}
-              aria-label={t.account.code}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button type="submit" className="button" disabled={sending || code.trim() === ''}>
-              {t.account.send}
-            </button>
-          </form>
-          <p className="queue__hint">{login.codeSent ? t.account.codeSent : t.account.codeHint}</p>
-        </>
-      )}
-      {outputOpen && login.output !== '' && <Output text={login.output} open />}
-      <div className="account__actions">
-        <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
-          {t.account.cancelLogin}
-        </button>
-      </div>
-      {!outputOpen && login.output !== '' && <Output text={login.output} />}
+      <ol className="login-rows">
+        <li {...at('open')}>
+          <span className="login-rows__label">{t.addAccount.rows.open}</span>
+          {login.urls.length === 0 ? (
+            <span className="login-rows__wait">{t.account.waitingLink}</span>
+          ) : (
+            <span className="login-rows__links">
+              {login.urls.map((url) => (
+                <a key={url} className="button login-rows__link" href={url} target="_blank" rel="noreferrer" onClick={() => setOpened(true)}>
+                  {new URL(url).host} ↗
+                </a>
+              ))}
+            </span>
+          )}
+        </li>
+        <li {...at('signIn')}>
+          <span className="login-rows__label">{t.addAccount.rows.signIn}</span>
+        </li>
+        <li {...at('code')}>
+          <span className="login-rows__label">{device ? t.addAccount.rows.deviceCode : t.addAccount.rows.code}</span>
+          {device ? (
+            login.deviceCode !== null && <DeviceCode key={login.deviceCode} code={login.deviceCode} onCopy={() => setCoding(true)} />
+          ) : (
+            <form className="login-rows__code" onSubmit={(event) => void submit(event)}>
+              <input
+                className="account__input"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                onFocus={() => setCoding(true)}
+                placeholder={t.account.code}
+                aria-label={t.account.code}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button type="submit" className="button" disabled={sending || code.trim() === ''}>
+                {t.account.send}
+              </button>
+            </form>
+          )}
+        </li>
+      </ol>
+      {hint !== null && <p className="login-rows__hint">{hint}</p>}
+      {login.output !== '' && <Output text={login.output} open={outputOpen} />}
     </>
   )
 }
 
 /** A device sign-in's one-time code, large and apart from the CLI output, with a button that copies it. */
-function DeviceCode({ code }: { code: string }) {
+function DeviceCode({ code, onCopy }: { code: string; onCopy: () => void }) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -537,18 +546,17 @@ function DeviceCode({ code }: { code: string }) {
       area.remove()
     }
     setCopied(true)
+    onCopy()
   }
 
   return (
-    <div className="account__device">
-      <span className="account__device-label">{t.account.deviceCode}</span>
-      <div className="account__device-row">
-        <code className="account__device-code">{code}</code>
-        <button type="button" className="button" onClick={(event) => void copy(event)}>
-          {copied ? t.account.codeCopied : t.account.copyCode}
-        </button>
-      </div>
-      <p className="queue__hint">{t.account.deviceCodeHint}</p>
+    <div className="account__device-row">
+      <code className="account__device-code" aria-label={t.account.deviceCode}>
+        {code}
+      </code>
+      <button type="button" className="button" onClick={(event) => void copy(event)}>
+        {copied ? t.account.codeCopied : t.account.copyCode}
+      </button>
     </div>
   )
 }
@@ -559,63 +567,5 @@ function Output({ text, open = false }: { text: string; open?: boolean }) {
       <summary>{t.account.output}</summary>
       <pre>{text}</pre>
     </details>
-  )
-}
-
-interface ApiKeyProps {
-  /** Whose key: Anthropic's for Claude, OpenAI's for Codex. */
-  agent: string
-  hint: string
-  onDone: () => void
-  onCancel: () => void
-}
-
-/** Its own command, so a refused key shows under the form rather than elsewhere on the page. */
-export function ApiKeyFields({ agent, hint, onDone, onCancel }: ApiKeyProps) {
-  const { send, sending, failure } = useCommand()
-  const [name, setName] = useState('')
-  const [key, setKey] = useState('')
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (await send('account/api', { name, key, agent })) onDone()
-  }
-
-  return (
-    <form className="account__key" onSubmit={(event) => void submit(event)}>
-      <input
-        className="account__input"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder={t.account.keyName}
-        aria-label={t.account.keyName}
-        autoComplete="off"
-        spellCheck={false}
-      />
-      <input
-        className="account__input"
-        type="password"
-        value={key}
-        onChange={(event) => setKey(event.target.value)}
-        placeholder={t.account.keyValue}
-        aria-label={t.account.keyValue}
-        autoComplete="off"
-        spellCheck={false}
-      />
-      <div className="account__actions">
-        <button type="submit" className="button button--primary" disabled={sending || key.trim() === ''}>
-          {t.account.keyAdd}
-        </button>
-        <button type="button" className="button" disabled={sending} onClick={onCancel}>
-          {t.common.cancel}
-        </button>
-      </div>
-      {failure !== null && (
-        <p className="notice notice--error" role="alert">
-          {say(failure)}
-        </p>
-      )}
-      <p className="queue__hint">{hint}</p>
-    </form>
   )
 }

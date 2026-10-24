@@ -4,10 +4,6 @@ import type { RateLimits } from '../../src/limits/model.js'
 import {
   accountGroups,
   accountSlot,
-  addBack,
-  addPath,
-  addStep,
-  canAdd,
   cliMissing,
   connectionOf,
   deviceLogin,
@@ -118,56 +114,6 @@ describe('deviceLogin', () => {
     expect(deviceLogin({ ...view(accounts), login: login('claude', 'global') })).toBe(false)
     expect(deviceLogin({ ...view(accounts), login: login('claude', null) })).toBe(false)
     expect(deviceLogin(view(accounts))).toBe(false)
-  })
-})
-
-describe('canAdd', () => {
-  it('adds Claude, Codex, OpenCode and Copilot through the CLI or a key', () => {
-    for (const provider of ['claude', 'codex', 'opencode', 'copilot'] as const) {
-      expect(canAdd(provider)).toBe(true)
-      expect(canAdd(provider, 'cli')).toBe(true)
-      expect(canAdd(provider, 'apiKey')).toBe(true)
-    }
-  })
-
-  it('shows the Agent SDK as not there yet', () => {
-    expect(canAdd('claude', 'sdk')).toBe(false)
-    expect(canAdd('codex', 'sdk')).toBe(false)
-    expect(canAdd('opencode', 'sdk')).toBe(false)
-  })
-})
-
-describe('addStep', () => {
-  const step = (search: string) => addStep(new URLSearchParams(search))
-
-  it('starts with the provider', () => {
-    expect(step('')).toEqual({ provider: null, connection: null })
-  })
-
-  it('goes on to the connection, then to the sign-in', () => {
-    expect(step('provider=codex')).toEqual({ provider: 'codex', connection: null })
-    expect(step('provider=claude&connection=apiKey')).toEqual({ provider: 'claude', connection: 'apiKey' })
-  })
-
-  it('keeps the page to return to through its steps, only one of this page (BTN-310)', () => {
-    const search = (text: string) => new URLSearchParams(text)
-    expect(addBack(search('provider=codex&back=%2Fsetup%3Fstep%3Dagent'))).toBe('/setup?step=agent')
-    expect(addBack(search('back=https%3A%2F%2Fexample.com'))).toBeNull()
-    expect(addBack(search('back=%2F%2Fexample.com'))).toBeNull()
-    expect(addBack(search(''))).toBeNull()
-    expect(addPath('/projects/add', 'codex')).toBe('/accounts/add?provider=codex&back=%2Fprojects%2Fadd')
-    expect(addPath(null, 'claude', 'apiKey')).toBe('/accounts/add?provider=claude&connection=apiKey')
-    expect(addPath(null)).toBe('/accounts/add')
-  })
-
-  it('drops what it does not know, and a connection without a provider', () => {
-    expect(step('provider=gemini&connection=cli')).toEqual({ provider: null, connection: null })
-    expect(step('provider=claude&connection=token')).toEqual({ provider: 'claude', connection: null })
-    expect(step('connection=cli')).toEqual({ provider: null, connection: null })
-  })
-
-  it('goes on to an OpenCode sign-in', () => {
-    expect(step('provider=opencode&connection=cli')).toEqual({ provider: 'opencode', connection: 'cli' })
   })
 })
 

@@ -9,6 +9,7 @@ import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountMark, AccountName, AccountNotes, limitsNote, sharedLimitText, spendsByKey, spendText, staleText, UnknownLimit, type Send, type Spend, type Tokens } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
+import { useOpenAdd } from './AddAccountDialog.js'
 import { FULL_PERCENT, Limits, spanNames, WARM_PERCENT } from './Limits.js'
 import { useNow } from './useNow.js'
 
@@ -21,6 +22,7 @@ export function AccountPanel({ account, spend, tokens, onClose }: { account: Acc
   const now = useNow(60_000)
   const { login } = account
   const { working, rest } = panelSections(account, now)
+  const openAdd = useOpenAdd()
   const item = (entry: AccountEntry, full: boolean) => (
     <AccountItem key={entry.key} entry={entry} view={account} now={now} spend={spend} tokens={tokens} sending={sending} send={send} full={full} />
   )
@@ -58,9 +60,16 @@ export function AccountPanel({ account, spend, tokens, onClose }: { account: Acc
         )}
         <div className="accounts__add">
           {login === null && (
-            <Link to="/accounts/add" className="button">
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                onClose()
+                openAdd(null)
+              }}
+            >
               + {t.account.add}
-            </Link>
+            </button>
           )}
           <Link to="/accounts" className="accounts__all">
             {t.account.all}

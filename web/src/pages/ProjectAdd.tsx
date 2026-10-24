@@ -39,7 +39,7 @@ import './projectAdd.css'
 const CHECK_DELAY_MS = 600
 const WIZARD = '/projects/add'
 
-/** The fields typed, kept while the page leaves for an account and comes back (BTN-310); a project added clears them. */
+/** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: WizardFields | null = null
 
 interface Checked {
@@ -190,7 +190,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               onChange={(value) => set({ provider: value === shared ? '' : value })}
             />
           </div>
-          <AgentReady state={state} provider={agent} back={WIZARD} />
+          <AgentReady state={state} provider={agent} />
         </Step>
         <Step title={t.wizard.stepRepo}>
           <div className="settings__field">

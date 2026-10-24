@@ -5,11 +5,10 @@ import { CLI_SOURCES, PINNED_PROVIDERS } from '../../../src/agent/providers.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { EvenKeelState, SharedForm } from '../../../src/state.js'
-import { cliMissing, PROVIDERS } from '../accounts.js'
+import { CLI_MISSING, cliMissing, PROVIDERS } from '../accounts.js'
 import { language, say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
-import { CLI_MISSING } from './AccountAdd.js'
 import { AgentReady } from './AgentReady.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { FieldHead } from './settingsParts.js'
@@ -150,7 +149,7 @@ function AgentStep({ state, save, sending }: { state: EvenKeelState; save: Save;
       <Cards items={items} chosen={provider} disabled={sending} onPick={(value) => void save({ provider: value })} />
       <div className="settings__field">
         <FieldHead label={t.setup.account} />
-        <AgentReady state={state} provider={provider} back={stepPath('agent')} />
+        <AgentReady state={state} provider={provider} />
       </div>
       {PINNED_PROVIDERS.includes(provider) && (
         <div className="settings__field">

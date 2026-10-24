@@ -1203,41 +1203,6 @@ input[type='radio']:disabled {
   gap: 8px;
 }
 
-.account__links {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-14);
-}
-
-.account__links a {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.account__code {
-  display: flex;
-  gap: 8px;
-}
-
-.account__device {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account__device .queue__hint {
-  margin: 0;
-}
-
-.account__device-label {
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-}
-
 .account__device-row {
   display: flex;
   align-items: center;
@@ -1254,21 +1219,6 @@ input[type='radio']:disabled {
   font-weight: 600;
   letter-spacing: 0.08em;
   user-select: all;
-}
-
-.account__key {
-  display: flex;
-  flex-direction: column;
-  align-self: stretch;
-  gap: 8px;
-}
-
-.account__key .queue__hint {
-  margin: 0;
-}
-
-.account__key .segmented {
-  align-self: flex-start;
 }
 
 .account__input {

@@ -4,7 +4,7 @@ import { isFixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder, startsAhead } from '../../../src/chain/order.js'
 import type { EvenKeelState, ProjectTask, SessionView } from '../../../src/state.js'
-import { accountCommand } from './fakeAccounts.js'
+import { accountCommand, withAccount } from './fakeAccounts.js'
 import { fakeUpdatesCommand } from './fakeUpdates.js'
 import { fakeSettingsCommand } from './fakeConfig.js'
 import { fakeMoveMilestone, fakeReady } from './fakeCards.js'
@@ -259,6 +259,6 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
     fakeSecretsCommand(state, name, body) ??
     fakeProfilesCommand(state, name, body)
   if (settings !== null) return settings
-  if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
+  if (name.startsWith('account/')) return withAccount(state, accountCommand(state.account, name, body))
   throw new Error(`fake: ${name} is not supported`)
 }

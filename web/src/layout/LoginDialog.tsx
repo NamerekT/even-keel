@@ -3,7 +3,7 @@ import type { AccountView } from '../../../src/account/model.js'
 import { deviceLogin } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { LoginSteps, loginHeading } from './accountParts.js'
+import { LOGIN_FOCUS, LoginSteps, loginHeading } from './accountParts.js'
 import '../tools/addPackage.css'
 
 /**
@@ -21,7 +21,7 @@ export function LoginDialog({ account }: { account: AccountView }) {
     if (dialog.current?.open !== false) return
     dialog.current.showModal()
     // showModal focuses the first control, the ×: an Enter there would cancel the sign-in.
-    dialog.current.querySelector<HTMLElement>('.account__links a, .account__input, .account__actions button')?.focus()
+    dialog.current.querySelector<HTMLElement>(LOGIN_FOCUS)?.focus()
   })
 
   if (login === null) return null
@@ -51,6 +51,14 @@ export function LoginDialog({ account }: { account: AccountView }) {
           <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
+        {login.error === null && (
+          <footer className="add-package__foot">
+            <span className="add-package__spacer" />
+            <button type="button" className="button" disabled={sending} onClick={cancel}>
+              {t.account.cancelLogin}
+            </button>
+          </footer>
+        )}
       </div>
     </dialog>
   )

@@ -38,6 +38,17 @@ export function KeyIcon() {
   )
 }
 
+/** Free of charge: a gift box. */
+export function GiftIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2.25" y="5.5" width="11.5" height="3" rx="0.75" />
+      <path d="M3.25 8.5v5h9.5v-5M8 5.5v8" />
+      <path d="M8 5.5C7 3 4.75 2.75 4.75 4.25 4.75 5.5 8 5.5 8 5.5Zm0 0c1-2.5 3.25-2.75 3.25-1.25C11.25 5.5 8 5.5 8 5.5Z" />
+    </svg>
+  )
+}
+
 export function FlagIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">

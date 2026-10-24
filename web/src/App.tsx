@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useMatch, useParams } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
 import { pickLanguage, say, setLanguage, setProjectLabels, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
@@ -18,7 +18,8 @@ import { CliVersionBanner } from './layout/CliVersionBanner.js'
 import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
-import { AccountAddPage } from './pages/AccountAdd.js'
+import { addOf, legacyAdd } from './accountAdd.js'
+import { AddAccountDialog } from './layout/AddAccountDialog.js'
 import { AccountsPage } from './pages/Accounts.js'
 import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
@@ -35,7 +36,7 @@ import { ToolsPage } from './tools/ToolsPage.js'
 export function App() {
   const { state, link, blocked } = useLive()
   const [basement, setBasement] = useState<HTMLDivElement | null>(null)
-  const addingAccount = useMatch('/accounts/add') !== null
+  const addingAccount = addOf(new URLSearchParams(useLocation().search)) !== null
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
   setProjectLabels(state?.projectLabels ?? {})
@@ -82,15 +83,16 @@ export function App() {
               <Route path="/settings" element={<SharedSettings state={state} />} />
               <Route path="/status" element={<StatusPage state={state} />} />
               <Route path="/accounts" element={<AccountsPage state={state} />} />
-              <Route path="/accounts/add" element={<AccountAddPage state={state} />} />
+              <Route path="/accounts/add" element={<LegacyAdd />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BasementSlot.Provider>
         )}
       </main>
       <div className="app__basement" ref={setBasement} />
-      {/* The add page walks its own sign-in in place. */}
+      {/* The add dialog walks its own sign-in in place. */}
       {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
+      {state !== null && <AddAccountDialog account={state.account} />}
       <UpdateWindow />
       <ToastStack>
         <UpdateProgressToast />
@@ -101,6 +103,11 @@ export function App() {
       </ToastStack>
     </div>
   )
+}
+
+/** The add page of before BTN-352: the accounts list with the add dialog open at the same step. */
+function LegacyAdd() {
+  return <Navigate replace to={legacyAdd(new URLSearchParams(useLocation().search))} />
 }
 
 /** A link from before ids names the project by its key: it goes on to the id, keeping the task in the hash. */

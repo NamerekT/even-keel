@@ -1,19 +1,19 @@
-import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { addPath, PROVIDERS, readinessOf } from '../accounts.js'
+import { CLI_MISSING, PROVIDERS, readinessOf } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { accountName } from '../accountName.js'
+import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { useCommand } from '../live/useCommand.js'
-import { CLI_MISSING } from './AccountAdd.js'
 import { providerName } from './settingsRun.js'
 import { Status } from './TrackerFields.js'
 
 /**
  * Whether the provider can run sessions now (BTN-310): its CLI, the account folder of its shared pool entry and that
- * folder's sign-in. "Sign in" opens the page's sign-in dialog in place; "Add an account" comes back to `back`.
+ * folder's sign-in. "Sign in" opens the page's sign-in dialog in place, "Add an account" the add dialog over the page (BTN-352).
  */
-export function AgentReady({ state, provider, back }: { state: EvenKeelState; provider: string; back: string }) {
+export function AgentReady({ state, provider }: { state: EvenKeelState; provider: string }) {
   const { send, sending, failure } = useCommand()
+  const openAdd = useOpenAdd()
   const known = PROVIDERS.find((each) => each === provider)
   const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')
   if (ready.state === 'cliMissing') return <Status>{known === undefined ? provider : say({ code: CLI_MISSING[known], params: {} })}</Status>
@@ -22,9 +22,9 @@ export function AgentReady({ state, provider, back }: { state: EvenKeelState; pr
       <Status>
         {t.setup.noAccount(providerName(provider))}{' '}
         {known !== undefined && (
-          <Link to={addPath(back, known)} className="button button--small">
+          <button type="button" className="button button--small" disabled={state.account.login !== null} onClick={() => openAdd(known)}>
             {t.setup.addAccount}
-          </Link>
+          </button>
         )}
       </Status>
     )

@@ -14,6 +14,8 @@ import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
+import type { EvenKeelState } from '../../../src/state.js'
+import { NO_SIGN_IN } from '../../../src/agent/providers.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
@@ -314,6 +316,19 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   return signedIn
 }
 
+/** The state with `account`: a folder added for an agent with no account in the shared pool becomes it, as `claimShared` does. */
+export function withAccount(state: EvenKeelState, account: AccountView): EvenKeelState {
+  const before = new Set(state.account.accounts.map((entry) => entry.key))
+  let shared = state.config.shared.accounts
+  for (const entry of account.accounts) {
+    if (before.has(entry.key)) continue
+    const current = shared[entry.agent]
+    if (current !== undefined && account.accounts.some((each) => each.key === current && each.agent === entry.agent)) continue
+    shared = { ...shared, [entry.agent]: entry.key }
+  }
+  return { ...state, account, config: { ...state.config, shared: { ...state.config.shared, accounts: shared } } }
+}
+
 export function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
   const key = String(body.account)
   if (name === 'account/add' || name === 'account/renew') {
@@ -321,17 +336,25 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
     const target = name === 'account/add' ? null : key
     const agent = name === 'account/add' ? String(body.agent ?? CLAUDE) : (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE)
-    return { ...account, login: { ...(FAKE_LOGINS[agent] ?? FAKE_LOGIN), agent, target, startedAt: ago(0) } }
+    const method = typeof body.method === 'string' ? body.method : undefined
+    // OpenCode's free models and the machine's Copilot sign-in add a folder at once, as the service does.
+    if (method === NO_SIGN_IN) {
+      const key = folderName(agent, account.accounts.map((entry) => entry.key))
+      const placed = rawEntry({ key, agent, global: false, status: OPENCODE_STATUS, loginExpiresAt: null })
+      return { ...account, accounts: [...account.accounts, placed] }
+    }
+    return { ...account, login: { ...(FAKE_LOGINS[agent] ?? FAKE_LOGIN), agent, ...(method !== undefined && { method }), target, startedAt: ago(0) } }
   }
   if (name === 'account/api') {
     const value = String(body.key).trim()
-    const codex = body.agent === CODEX
-    if (!/^\S{21,}$/.test(value)) throw fail(codex ? 'account.codexKeyInvalid' : 'account.apiKeyInvalid', {})
-    if (value.includes('rejected')) throw fail(codex ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
-    if (value.includes('offline')) throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: 'fetch failed' })
+    const kind = body.agent === COPILOT ? 'copilotToken' : body.agent === CODEX ? 'codexKey' : 'apiKey'
+    const token = kind !== 'copilotToken' || /^(github_pat_|gho_|ghu_)/.test(value)
+    if (!/^\S{21,}$/.test(value) || !token) throw fail(`account.${kind}Invalid`, {})
+    if (value.includes('rejected')) throw fail(`account.${kind}Rejected`, {})
+    if (value.includes('offline')) throw fail(`account.${kind}Unchecked`, { reason: 'fetch failed' })
     const name = String(body.name ?? '').trim()
     const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
-    const entry = apiEntry(key, { name: name || null, ...(codex && { agent: CODEX }) })
+    const entry = apiEntry(key, { name: name || null, agent: String(body.agent ?? CLAUDE) })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {
@@ -370,7 +393,7 @@ export function accountCommand(account: AccountView, name: string, body: Record<
       const added =
         login.agent === CODEX
           ? codexEntry('richard.roe', 'richard.roe@example.com', 'plus')
-          : fakeEntry({ key: 'richard.roe', global: false, status: { ...FAKE_ACCOUNT, email: 'richard.roe@example.com' }, ...renewed })
+          : fakeEntry({ key: 'richard.roe', agent: login.agent, global: false, status: { ...FAKE_ACCOUNT, email: 'richard.roe@example.com' }, ...renewed })
       return { ...account, accounts: [...account.accounts, added], login: null }
     }
     const accounts = account.accounts.map((entry) =>
