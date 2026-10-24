@@ -1,5 +1,6 @@
 import type { Notice } from '../../../src/notice/notice.js'
-import type { FieldError } from './settingsField.js'
+import type { EvenKeelState } from '../../../src/state.js'
+import { fieldOf, type FieldError } from './settingsField.js'
 
 type ProjectTab = 'repo' | 'tracker' | 'sessions' | 'ci'
 type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'stats'
@@ -71,4 +72,12 @@ export function fieldFixOf({ project, field }: FieldError): NoticeFix | null {
   }
   const tab = (Object.keys(PROJECT_TABS) as ProjectTab[]).find((each) => PROJECT_TABS[each].includes(head))
   return tab === undefined ? null : { to: 'project', project, tab }
+}
+
+/** Where the page fixes the config error of the state: the tab of the field it names. */
+export function configFixOf({ config, configError }: Pick<EvenKeelState, 'config' | 'configError'>): NoticeFix | null {
+  if (configError === null) return null
+  const keys = config.trackers.flatMap((tracker) => (tracker.projectKey === null ? [] : [tracker.projectKey.key]))
+  const at = fieldOf(configError, keys)
+  return at === null ? null : fieldFixOf(at)
 }

@@ -1,127 +1,163 @@
-/* `/status` (BTN-66): the settings page's two columns, the checks and connections at the left with their dots. */
-.status-page .settings-page__body {
-  grid-template-columns: 300px minmax(0, 1fr);
+/* `/status` (BTN-357): one centred column — the summary band, the tiles of the checks, a card per tracker connection. */
+.status-page {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
 }
 
-.status-nav {
+.status-summary__line {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
 }
 
-.status-nav__title {
-  margin: 0 0 6px 12px;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
+.status-summary strong {
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
-.status-nav__empty {
-  margin: 0 12px;
+.status-check__state,
+.status-check__note {
+  margin: 0;
+}
+
+.status-check__state {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  font-size: var(--text-14);
+}
+
+/* On the first line when the state wraps. */
+.status-check__state .system__dot {
+  align-self: auto;
+  margin-top: calc((1lh - 8px) / 2);
+}
+
+.status-check__note {
+  margin-top: calc(-1 * var(--space-8));
+  padding-left: var(--space-16);
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
 
-.status-nav__item .settings-nav__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* The button at the bottom, on one line in every tile of the row. */
+.status-check__action {
+  margin-top: auto;
 }
 
-.status-nav__text {
-  flex: none;
-  max-width: 45%;
-  overflow: hidden;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.status-check .ui-card__head,
+.status-connection .ui-card__head {
+  align-items: center;
 }
 
-.status-detail {
+/* A long name wraps itself; its "?" stays next to it. */
+.status-check .ui-card__head {
+  flex-wrap: nowrap;
+}
+
+.status-connections {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
-.status-detail__head {
+.status-connections__title {
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-16);
+  font-weight: 600;
+}
+
+.status-connection__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.status-connection__name .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-muted);
+}
+
+.status-connection__state {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-6);
+  font-size: var(--text-14);
+}
+
+.status-connection__when {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.status-connection__error {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.status-detail__text {
+  gap: var(--space-4);
   margin: 0;
-  font-size: var(--text-15);
-}
-
-.status-detail__note {
-  margin: 0;
-  color: var(--fg-muted);
-  font-size: var(--text-13);
-  overflow-wrap: anywhere;
-}
-
-.status-facts {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 8px 24px;
-  margin: 0;
+  color: var(--error-fg);
   font-size: var(--text-14);
 }
 
-.status-facts dt {
-  color: var(--fg-muted);
+.status-connection__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-12);
 }
 
-.status-facts dd {
+.status-readers {
+  display: flex;
+  flex: 1 1 20em;
+  flex-wrap: wrap;
+  gap: var(--space-6);
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.status-facts__error {
-  font-family: var(--mono);
+.status-reader__name {
+  margin-left: var(--space-4);
+  color: var(--fg);
+}
+
+.status-reader--stale {
+  border-color: color-mix(in srgb, var(--lamp-waiting) 55%, var(--border));
+  color: var(--fg);
+}
+
+.status-connection__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+.status-connection__failure {
+  color: var(--error-fg);
   font-size: var(--text-13);
-  overflow-wrap: anywhere;
 }
 
-.status-projects {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-14);
+/* `block-glow` comes from chain.css: the tile or card an old `?item=` link points at. */
+.status-page__lit {
+  animation: block-glow var(--motion-mark) ease-out;
 }
 
-.status-projects caption {
-  padding-bottom: 6px;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.status-projects th {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--fg-muted);
-  font-weight: 400;
-  text-align: left;
-}
-
-.status-projects td {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.status-projects__when {
-  color: var(--fg-muted);
-  white-space: nowrap;
+@media (prefers-reduced-motion: reduce) {
+  .status-page__lit {
+    animation: none;
+  }
 }
 
 @media (max-width: 760px) {
-  .status-page .settings-page__body {
-    grid-template-columns: minmax(0, 1fr);
+  .status-checks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

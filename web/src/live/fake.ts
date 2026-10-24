@@ -84,6 +84,20 @@ function fakeFeedTrackers(): TrackerView[] {
   ]
 }
 
+/**
+ * `?trackers=problems` for `/status`: Huly has not read OPS for 12 minutes, Linear's key was refused 12 minutes ago,
+ * and a spare GitHub profile serves no project.
+ */
+function fakeTrackerProblems(trackers: TrackerView[]): TrackerView[] {
+  const changed = trackers.map((tracker): TrackerView => {
+    if (tracker.name === FAKE_HULY_PROFILE) return { ...tracker, readAt: { ...tracker.readAt, OPS: ago(12) } }
+    if (tracker.name !== LINEAR_PROFILE) return tracker
+    return { ...tracker, health: { state: 'down', lastOkAt: ago(12), error: 'linear: 401 Unauthorized' }, readAt: { 'feed-abc-lin': ago(12) } }
+  })
+  const spare: TrackerView = { name: 'github-spare', kind: 'github', title: 'GitHub · spare', projects: [], ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} }
+  return [...changed, spare]
+}
+
 const LAUNCH_PATTERN: Record<string, number[]> = {
   ABC: [2, 1, 0, 3, 2, 0, 0, 1, 4, 2, 1, 0, 2, 1],
   DEMO: [0, 1, 2, 0, 0, 0, 1, 0, 0, 1, 2, 1, 0, 1],
@@ -317,6 +331,7 @@ export function createFakeSource(search: string): LiveSource {
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
+  if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({

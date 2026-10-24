@@ -12,7 +12,7 @@ The rules are taken from the screens that work, not invented: what the stats pag
 
 Turned down, not to be copied:
 
-- **`/status`** as of 2026-10-24 — a list at the left and one item at the right with a single word "connected", the rest of a 2560 px screen empty, a table whose second column says "just now" in every row, the same fact as a dot, a word and a "Connection: connected" line.
+- **`/status`** before BTN-357 — a list at the left and one item at the right with a single word "connected", the rest of a 2560 px screen empty, a table whose second column says "just now" in every row, the same fact as a dot, a word and a "Connection: connected" line.
 - **The settings "Access" tab** before BTN-355 — environment variable names as labels, a "set" chip, a field and two buttons per row.
 - **The project wizard and the first run** before BTN-344/BTN-346 — a form in a box glued to the left edge, steps as numbered grey captions between lines.
 
