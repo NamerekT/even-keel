@@ -825,7 +825,6 @@ export const en: Messages = {
         choice: ['Options? Hmm… the first sounds good,', ' but the third is better…', " I'll pick the recommended one."],
         spend: ['Over $1,000 on Claude this month?!', ' Ever tried writing code by hand?'],
       },
-      hint: 'A task number opens its session here, its title opens the card.',
     },
   },
   settings: {
@@ -1755,7 +1754,6 @@ export const en: Messages = {
     foldArchive: 'Fold the archive',
     nextMilestone: 'Show the milestone',
     foldMilestone: 'Fold the milestone',
-    help: 'Marks and hints',
     linksHint: 'The selected task or the task under the cursor highlights its blockers and the tasks waiting for it.',
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
     lockedHint:
@@ -1835,6 +1833,27 @@ export const en: Messages = {
       rework: 'rework',
       family: 'subtasks of one parent',
       estimate: 'bottom bar — estimate',
+    },
+  },
+  help: {
+    title: 'Marks and hints',
+    chain: 'Chain',
+    head: 'Head',
+    open: 'A task number opens its session here, its title opens the card.',
+    signs: {
+      queue: 'The chains running now: blue — running, amber — paused, grey — none. +N — the projects queued after them. Opens the queue.',
+      account: 'The account Even Keel runs on, its dot in its colour; red — it needs a sign-in, blinking amber — signing in. Opens the accounts.',
+      limit: 'How much of a limit window is used, five hours or the week: amber from 80%, red at 100%; the time beside it is left until it resets.',
+      others: 'The other accounts projects run on, each filled to its fullest window. Their numbers are in the card on hover.',
+      gear: 'Settings, tools and the state of the service; its dot is amber or red when a check warns or fails.',
+      waiting: 'How many sessions wait for a reply.',
+      menu: 'Stats, the queue, the accounts, settings, tools and the state of the service; its dot is amber or red when a check warns or fails or the account needs a sign-in.',
+      bars: 'The two lines along the bottom of the header: the five-hour limit at the left, the weekly one at the right; amber from 80%, red at 100%.',
+      questions: 'Tasks labelled Question that wait for an answer; opens the session of the first one.',
+      read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Beside it — when it was last read.",
+      ci: 'The CI on the main branch: green — passed, blue — running, red — failed, amber — stuck. Opens its runs.',
+      backlog: "The tasks the chain does not take yet and their count. Opens the backlog.",
+      settings: "The project's settings.",
     },
   },
   card: {

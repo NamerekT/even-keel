@@ -418,11 +418,6 @@
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-.idle__hint {
-  margin: 0;
-  font-size: var(--text-13);
-}
-
 /* The carry of a release project held by a conflict (BTN-369): one line, the files and git's output folded under it. */
 .forward__more {
   font-size: var(--text-13);

@@ -1,0 +1,160 @@
+/* The help panel of the project page (BTN-368): the chain's marks and the head's signs. */
+
+.page-help__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.page-help__section + .page-help__section {
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--border);
+}
+
+.page-help__marks,
+.page-help__hints,
+.page-help__signs {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-13);
+}
+
+.page-help__marks {
+  flex-wrap: wrap;
+  gap: var(--space-6) var(--space-16);
+}
+
+.page-help__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.page-help__hints,
+.page-help__signs {
+  flex-direction: column;
+  gap: var(--space-8);
+  color: var(--fg-muted);
+}
+
+.page-help__sign {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: start;
+  gap: var(--space-8);
+}
+
+/* A sample stands where the text's first line is, whatever its height. */
+.page-help__sample {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  color: var(--fg-muted);
+}
+
+.page-help__sample .icon,
+.page-help__sample .system-toggle__gear {
+  width: 16px;
+  height: 16px;
+}
+
+.page-help__sample .queue-toggle__dot,
+.page-help__sample .ci-dot {
+  display: block;
+}
+
+.page-help__sample .waiting__count {
+  font-size: var(--text-12);
+}
+
+/* The narrow header's two limit bars: five hours at the left, the week at the right. */
+.page-help__bars {
+  width: 22px;
+  height: 2px;
+  background: linear-gradient(to right, var(--lamp-working) 0 7px, var(--border) 7px 10px, transparent 10px 12px, var(--lamp-working) 12px 18px, var(--border) 18px);
+}
+
+/* The shapes of a chain row */
+
+.page-help__shape {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.page-help__shape--urgent {
+  border-color: var(--lamp-error);
+  background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 3px, var(--on-bright) 3px 6px);
+}
+
+.page-help__shape--high,
+.page-help__shape--low {
+  width: 10px;
+  border-radius: 50%;
+}
+
+.page-help__shape--high {
+  border-color: var(--series-2);
+  background: var(--series-2);
+}
+
+.page-help__shape--low {
+  border-color: var(--fg-muted);
+  background: none;
+  opacity: 0.6;
+}
+
+.page-help__shape--rework {
+  background-image: repeating-linear-gradient(135deg, transparent 0 2px, var(--fg-muted) 2px 3px);
+}
+
+.page-help__shape--family {
+  width: 2px;
+  height: 12px;
+  border: 0;
+  background: var(--series-2);
+}
+
+.page-help__shape--estimate {
+  height: 2px;
+  border: 0;
+  background: var(--fg-muted);
+}
+
+/* The "?" that opens it: a tag in the head row, a narrow tab over the side column. */
+
+.tag.tag--help {
+  min-width: 24px;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.tag--help:hover,
+.tag--help[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--fg);
+}
+
+.tag--help:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.side-tab.side-tab--help {
+  padding: 0 14px;
+  font-size: var(--text-15);
+  font-weight: 600;
+}

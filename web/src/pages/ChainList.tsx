@@ -21,11 +21,10 @@ import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
-import { ChainLegend } from './ChainLegend.js'
 import { ChangelogButton } from './ChangelogDialog.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
-import { inOrder, reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
+import { inOrder, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 /** How long the ghost takes to grow open or fold shut. */
@@ -257,12 +256,6 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
         />
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      <ChainLegend
-        blocks={real}
-        families={rails.size > 0}
-        locked={blocks.some((block) => block.locked)}
-        movable={blocks.some(reorderable)}
-      />
     </div>
   )
 }
