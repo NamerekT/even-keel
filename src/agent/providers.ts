@@ -8,8 +8,8 @@ import { OPENCODE } from '../opencode/name.js'
  * `accounts` and `execution` in the config and the first part of a task's run label. A page-safe list, without the adapters.
  */
 export const PROVIDERS: readonly string[] = [CLAUDE, CODEX, OPENCODE, COPILOT]
-/** The providers Even Keel keeps a copy of the checked CLI for, the keys of `cli`; OpenCode's and Copilot's sessions run on the installed one. */
-export const PINNED_PROVIDERS: readonly string[] = [CLAUDE, CODEX]
+/** The providers Even Keel keeps a copy of the checked CLI for, the keys of `cli`: every one since BTN-347. */
+export const PINNED_PROVIDERS: readonly string[] = [CLAUDE, CODEX, OPENCODE, COPILOT]
 export const DEFAULT_PROVIDER = CLAUDE
 
 export function isProvider(name: string): boolean {

@@ -33,6 +33,13 @@ export async function fetchNpmPackage(name: string, version: string, into: strin
   await rm(file, { force: true })
 }
 
+/** A Linux without glibc (Alpine and the like) takes a package's musl build; Node's report names glibc only where it runs on it. */
+export function isMuslLinux(): boolean {
+  if (process.platform !== 'linux') return false
+  const report = process.report.getReport() as { header?: { glibcVersionRuntime?: string } }
+  return report.header?.glibcVersionRuntime === undefined
+}
+
 /** Windows' own bsdtar unpacks gzip by itself; another `tar` on the PATH (Git's) may need a `gzip` beside it. */
 function tarBinary(): string {
   if (process.platform !== 'win32') return 'tar'

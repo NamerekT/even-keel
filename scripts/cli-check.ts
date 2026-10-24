@@ -5,12 +5,12 @@
  * window, the stop.
  *
  *   npm run cli-check -- claude <account> [version] [--model <model>] [--no-usage]
- *   npm run cli-check -- codex <account> [version] [--model <model>] [--no-usage]
+ *   npm run cli-check -- codex|opencode|copilot <account> [version] [--model <model>] [--no-usage]
  *
  * The version is the adapter's `checked` by default; its copy goes into `<state>/cli-check/cli/<agent>/<version>/`.
  * The account folder must have no live session: a Claude daemon on the checked version takes the folder over, and the
  * check stops it at the end, so the next chain launch starts one on the pinned version again. `/usage` is asked once
- * (more often than once per 5 minutes it answers 429): `--no-usage` leaves it out.
+ * (more often than once per 5 minutes it answers 429): `--no-usage` leaves it out; OpenCode and Copilot skip it.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -20,14 +20,17 @@ import { AGENTS } from '../src/agent/adapters.js'
 import type { Agent, SessionHandle } from '../src/agent/contract.js'
 import { sessionBase } from '../src/agent/env.js'
 import { CLAUDE } from '../src/claude/name.js'
+import { CODEX } from '../src/codex/name.js'
+import { COPILOT } from '../src/copilot/name.js'
 import { runGit } from '../src/git/run.js'
 import { stateDirOf } from '../src/locations.js'
 import { englishOf, noticeOf } from '../src/notice/notice.js'
+import { OPENCODE } from '../src/opencode/name.js'
 import { isLive, type AgentEntry } from '../src/sessions/agents.js'
 import { replyPrompt, type Ask } from '../src/sessions/ask.js'
 import type { FeedLine } from '../src/sessions/transcript.js'
 
-const USAGE = 'usage: npm run cli-check -- claude|codex <account> [version] [--model <model>] [--no-usage]'
+const USAGE = 'usage: npm run cli-check -- claude|codex|opencode|copilot <account> [version] [--model <model>] [--no-usage]'
 const NAME = 'cli-check'
 const QUESTION = 'Which colour?'
 const ANSWER = 'Blue'
@@ -41,20 +44,30 @@ const FINISH = [
   `2. When the user answers, write the chosen colour into the file ${FILE} in the current folder: the word alone.`,
   `3. End your reply with this line, as it is: CHECKPOINT: ${FILE}`,
 ]
+/** The agents other than Claude Code ask in plain text: a session is a turn per process, with no question tool. */
+const IN_TEXT = [
+  'This is an automated check of the CLI. Do exactly this and nothing else: no other commands, no other files.',
+  `1. Reply with the line "${QUESTION} Red or ${ANSWER}?" and end your turn.`,
+  ...FINISH,
+].join('\n')
 const PROMPTS: Record<string, string> = {
   [CLAUDE]: [
     'This is an automated check of the CLI. Do exactly this and nothing else: no other tools, no other files.',
     `1. Call the AskUserQuestion tool once, with the question "${QUESTION}" and the options "Red" and "${ANSWER}".`,
     ...FINISH,
   ].join('\n'),
-  codex: [
-    'This is an automated check of the CLI. Do exactly this and nothing else: no other commands, no other files.',
-    `1. Reply with the line "${QUESTION} Red or ${ANSWER}?" and end your turn.`,
-    ...FINISH,
-  ].join('\n'),
+  [CODEX]: IN_TEXT,
+  [OPENCODE]: IN_TEXT,
+  [COPILOT]: IN_TEXT,
 }
-/** The cheapest model each takes on a subscription (Codex 0.163.0 on a ChatGPT account refuses the `mini` ones). */
-const MODELS: Record<string, string> = { [CLAUDE]: 'haiku', codex: 'gpt-5.6-luna' }
+/**
+ * The cheapest model each takes: on a subscription (Codex 0.163.0 on a ChatGPT account refuses the `mini` ones),
+ * OpenCode's free one that needs no sign-in; `null` — the CLI's own: Copilot 1.0.98 on a machine sign-in refused
+ * every model named by `--model` (`gpt-5-mini`, `claude-haiku-4.5`) and ran only on its `auto`.
+ */
+const MODELS: Record<string, string | null> = { [CLAUDE]: 'haiku', [CODEX]: 'gpt-5.6-luna', [OPENCODE]: 'opencode/big-pickle', [COPILOT]: null }
+/** The agents whose limits come from the CLI itself; OpenCode's and Copilot's are asked of ChatGPT or GitHub, not of the version checked. */
+const CLI_USAGE = [CLAUDE, CODEX]
 
 interface Options {
   agent: string
@@ -75,7 +88,7 @@ function parseArgs(args: string[]): Options {
   }
   const [agent, account, version] = positional
   if (agent === undefined || account === undefined || AGENTS[agent] === undefined) throw new Error(USAGE)
-  return { agent, account, version, model: model === undefined ? MODELS[agent]! : model, usage }
+  return { agent, account, version, model: model === undefined ? (MODELS[agent] ?? null) : model, usage }
 }
 
 let failed = false
@@ -195,7 +208,7 @@ async function run(options: Options): Promise<void> {
     }
     if (repo !== null) await dropFolder(repo, cwd)
   }
-  if (options.usage) {
+  if (options.usage && CLI_USAGE.includes(options.agent)) {
     await step('/usage', async () => {
       const answer = await agent.usage!(home, new Date().toISOString())
       if (answer.kind !== 'limits') throw new Error(`${answer.kind}: ${englishOf(answer.reason)}`)

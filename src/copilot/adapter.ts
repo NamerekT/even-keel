@@ -2,6 +2,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
+import { isMuslLinux } from '../agent/npm.js'
+import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { askCopilotToken } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
@@ -9,6 +11,7 @@ import { findBinary } from '../paths.js'
 import { CopilotCli, resolveCopilotBinary, SESSION_MODE } from './cli.js'
 import { copilotEnv, eventsFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
+import { copilotBinaryIn, copilotPackage, fetchCopilot } from './release.js'
 import { CopilotTail } from './tail.js'
 import { foldEvents } from './transcript.js'
 
@@ -20,14 +23,27 @@ const CHECKED = '1.0.98'
  * GitHub Copilot CLI through `copilot -p … --output-format json`: a turn is a detached process, as Codex's is; a session
  * lives between turns in Even Keel's registry and the account folder's `session-state/<id>/events.jsonl`
  * (`docs/sessions.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. Only a
- * token's monthly allowance can be read (`askCopilotToken`); there is no copy of its own: sessions run on the installed CLI.
+ * token's monthly allowance can be read (`askCopilotToken`). Sessions run on Even Keel's own copy of the checked
+ * version, the platform's npm package, as Codex's do (BTN-347).
  */
 export const copilot: AgentAdapter = {
   title: 'GitHub Copilot',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+    const copy =
+      copilotPackage(process.platform, process.arch, isMuslLinux()) === null
+        ? undefined
+        : new PinnedCli({
+            dir: join(workDir, 'cli', COPILOT),
+            version,
+            binary: (folder) => copilotBinaryIn(folder),
+            fetch: (into) => fetchCopilot(version, into),
+            log,
+            onReady: onCliChange,
+            retryMs: PIN_RETRY_MS,
+          })
     const envOf = (home: AccountHome) => copilotEnv(env(), home.dir)
-    const bin = () => resolveCopilotBinary(env())
+    const bin = () => resolveCopilotBinary(env(), env().EVEN_KEEL_COPILOT_BIN || !checkedCli() ? undefined : copy?.path())
     const cli = new CopilotCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, COPILOT)))
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
@@ -69,7 +85,8 @@ export const copilot: AgentAdapter = {
       login: (home) => cli.login(home),
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
-      version: () => cli.version(env()),
+      // As a session runs: without it a binary answers with the newer version it updated itself to.
+      version: () => cli.version({ ...env(), COPILOT_AUTO_UPDATE: 'false' }),
       keyUsage: true,
       usage: async (home, at) => {
         const token = tokenOf(home.dir)

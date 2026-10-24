@@ -31,11 +31,13 @@ const GIT_TIMEOUT_MS = 10_000
 export const SESSION_MODE = 'allow-all-tools'
 
 /**
- * `EVEN_KEEL_COPILOT_BIN`, else on Windows the `copilot.exe` winget installed (its folder is on the user's PATH only
- * through a link the service may not see), else `copilot` on the PATH.
+ * `EVEN_KEEL_COPILOT_BIN`, else Even Keel's own copy of the checked version (`pinned`, BTN-347), else on Windows the
+ * `copilot.exe` winget installed (its folder is on the user's PATH only through a link the service may not see), else
+ * `copilot` on the PATH.
  */
-export function resolveCopilotBinary(env: NodeJS.ProcessEnv): string {
+export function resolveCopilotBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
   if (env.EVEN_KEEL_COPILOT_BIN) return env.EVEN_KEEL_COPILOT_BIN
+  if (pinned !== undefined) return pinned
   if (process.platform !== 'win32' || env.LOCALAPPDATA === undefined) return 'copilot'
   const winget = join(env.LOCALAPPDATA, 'Microsoft', 'WinGet')
   const link = join(winget, 'Links', 'copilot.exe')

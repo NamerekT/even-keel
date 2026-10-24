@@ -17,9 +17,9 @@ The variables below can also be set on the page: `/settings` → **Access** has 
 | `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version, then the native one of the global npm package on Windows, `codex` elsewhere |
 | `CODEX_HOME` | Codex's own folder, its first account; default `~/.codex`. Read at startup |
 | `EVEN_KEEL_CODEX_ACCOUNTS_DIR` | folder of the Codex account folders added from the page; default `~/.codex-accounts` |
-| `EVEN_KEEL_OPENCODE_BIN` | path to the `opencode` binary; default the native one of the global npm package on Windows, `opencode` elsewhere |
+| `EVEN_KEEL_OPENCODE_BIN` | path to the `opencode` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version, then the native one of the global npm package on Windows, `opencode` elsewhere |
 | `EVEN_KEEL_OPENCODE_ACCOUNTS_DIR` | folder of the OpenCode account folders added from the page; default `~/.opencode-accounts` |
-| `EVEN_KEEL_COPILOT_BIN` | path to the `copilot` binary; default the `copilot.exe` winget installed on Windows, `copilot` elsewhere |
+| `EVEN_KEEL_COPILOT_BIN` | path to the `copilot` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version, then the `copilot.exe` winget installed on Windows, `copilot` elsewhere |
 | `EVEN_KEEL_COPILOT_ACCOUNTS_DIR` | folder of the GitHub Copilot account folders added from the page; default `~/.copilot-accounts` |
 | `EVEN_KEEL_CONFIG` | path to the config file of an older install, imported into the database at the first start; default `even-keel.config.json` in the data folder. Read at startup |
 | `EVEN_KEEL_DATA` | the data folder — `.env`, `state/`, `logs/` — instead of the clone's own folder or the platform's one of an npm install. Set in the environment of the service or the terminal, not in `.env`, which is in it |

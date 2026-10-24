@@ -128,7 +128,7 @@ describe('parseConfig', () => {
       models: { claude: 'opus' },
       accounts: { claude: 'global', codex: 'codex' },
       execution: { codex: 'sandbox' },
-      cli: { claude: 'checked', codex: 'checked' },
+      cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' },
       modelLabels: false,
       modelPrompts: {},
       prompt: null,
@@ -405,8 +405,8 @@ describe('parseConfig', () => {
   })
 
   it('runs every provider on the checked CLI unless the config says system', () => {
-    expect(parse({ projects: {} }).cli).toEqual({ claude: 'checked', codex: 'checked' })
-    expect(parse({ projects: {}, cli: { codex: 'system' } }).cli).toEqual({ claude: 'checked', codex: 'system' })
+    expect(parse({ projects: {} }).cli).toEqual({ claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' })
+    expect(parse({ projects: {}, cli: { copilot: 'system' } }).cli).toEqual({ claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'system' })
     expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*checked, system/)
     expect(() => parse({ projects: {}, cli: { gemini: 'system' } })).toThrow(/cli.gemini is not a provider/)
   })

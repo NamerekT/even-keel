@@ -334,7 +334,9 @@
   },
   "cli": {
     "claude": "checked",
-    "codex": "system"
+    "codex": "system",
+    "opencode": "checked",
+    "copilot": "checked"
   },
   "modelLabels": true,
   "modelPrompts": {

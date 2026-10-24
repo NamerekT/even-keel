@@ -261,7 +261,9 @@
   },
   "cli": {
     "claude": "checked",
-    "codex": "checked"
+    "codex": "checked",
+    "opencode": "checked",
+    "copilot": "checked"
   },
   "modelLabels": false,
   "modelPrompts": {
