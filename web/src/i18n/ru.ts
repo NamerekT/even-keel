@@ -178,6 +178,11 @@ export const ru = {
     gateway: (error: string) => `Цепочки ждут: шлюз MCP не работает — ${error}`,
     packagesLink: 'Пакеты →',
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
+    cliOne: (title: string, installed: string, checked: string) => `${title} ${installed} · проверен ${checked}`,
+    cliDaemon: (title: string, account: string, running: string, checked: string) =>
+      `Демон ${title} аккаунта ${account} на ${running} · проверен ${checked}`,
+    cliMany: (count: number) => `${count} CLI на версиях, на которых Even Keel не проверяли`,
+    cliDetails: 'Подробнее',
   },
   limits: {
     fiveHour: '5 часов',
