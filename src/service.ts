@@ -1289,6 +1289,7 @@ const forwards = new ForwardMerger({
   changed: () => hub.broadcast('state', getState()),
   log: (message) => console.log(message),
   carrying: (from) => dispatcher.carrying(from)?.task ?? null,
+  auto: (from) => configStore.current.settings[from]?.carryAgent === true || configStore.current.unattended,
   resolve: async (from, ask) => {
     const config = configStore.current
     const report = PROMPTS[promptLanguage(ask.into)].carryReport({

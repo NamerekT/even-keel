@@ -1,5 +1,5 @@
 import type { Git } from '../git/types.js'
-import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, type Notice, type NoticeError } from '../notice/notice.js'
 import type { ForwardView } from '../state.js'
 import type { ActiveChain } from './model.js'
 
@@ -31,6 +31,8 @@ export interface ForwardDeps {
   carrying: (from: string) => string | null
   /** Asks for that session after the current task of the project the release branch merges into. */
   resolve: (from: string, ask: CarryAsk) => Promise<void>
+  /** Whether a conflict goes to that session by itself, without "Resolve with the agent" (`carryAgent` or unattended mode, BTN-370). */
+  auto: (from: string) => boolean
 }
 
 /** What the carry session is told: the release commit to merge and how git failed it. */
@@ -60,9 +62,14 @@ export function chainQuiet(chain: ActiveChain | undefined, busy: (task: string) 
  * (a conflict, or git refusing with no conflicted file, BTN-314) is aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now", an agent's session or until the branch
  * has the commits by a merge by hand. The hold lives in memory: after a restart the carry is tried once more.
  * A held conflict may be resolved by an agent (BTN-369); while its session is asked for, nothing is merged here.
+ * With `auto` the session is asked for at the conflict itself (BTN-370), once per release commit: a held carry is then
+ * tried again once the release branch has moved, and a session that did not land it gets no successor before that.
  */
 export class ForwardMerger {
   private readonly views = new Map<string, ForwardView>()
+  /** The release commit whose merge failed last, and the one a session was asked for by itself. */
+  private readonly failedAt = new Map<string, string>()
+  private readonly askedAt = new Map<string, string>()
   private work: Promise<void> = Promise.resolve()
 
   constructor(private readonly deps: ForwardDeps) {}
@@ -99,14 +106,23 @@ export class ForwardMerger {
       const view = this.views.get(from)
       const hold = view?.held === true ? view.hold : null
       if (view === undefined || hold?.code !== 'forward.conflict' || view.behind === null) throw fail('forward.noConflict', { from })
-      const ref = `refs/even-keel/forward/${from}`
-      const read = await this.deps.git(this.deps.repo(view.into), ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])
-      const commit = read.out.trim()
-      if (read.code !== 0 || commit === '') throw fail('forward.fetch', { from }, { detail: read.out })
-      const files = (hold.params as { files: string[] }).files
-      await this.deps.resolve(from, { into: view.into, ref, commit, commits: view.behind, files, output: hold.detail ?? '' })
+      const commit = await this.commitOf(view.into, from)
+      if (typeof commit !== 'string') throw commit
+      await this.ask(from, view, hold, commit)
       this.deps.changed()
     })
+  }
+
+  private ask(from: string, view: ForwardView, hold: Notice, commit: string): Promise<void> {
+    const files = (hold.params as { files: string[] }).files
+    return this.deps.resolve(from, { into: view.into, ref: refOf(from), commit, commits: view.behind ?? 0, files, output: hold.detail ?? '' })
+  }
+
+  /** The release commit fetched for the carry, or why it could not be read. */
+  private async commitOf(into: string, from: string): Promise<string | NoticeError> {
+    const read = await this.deps.git(this.deps.repo(into), ['rev-parse', '--verify', '--quiet', `${refOf(from)}^{commit}`])
+    const commit = read.out.trim()
+    return read.code !== 0 || commit === '' ? fail('forward.fetch', { from }, { detail: read.out }) : commit
   }
 
   private queue(run: () => Promise<void>): Promise<void> {
@@ -134,7 +150,7 @@ export class ForwardMerger {
     const same = this.deps.sameRepository(from, into)
     if (same === undefined) return
     if (!same) return wait(view, notice('forward.foreign', { from, into }))
-    const ref = `refs/even-keel/forward/${from}`
+    const ref = refOf(from)
     const fetched = await git(repo, ['fetch', '--quiet', this.deps.repo(from), `+refs/heads/${this.deps.branch(from)}:${ref}`])
     if (fetched.code !== 0) return wait(view, notice('forward.fetch', { from }, { detail: fetched.out }))
     const counted = await git(repo, ['rev-list', '--count', `refs/heads/${branch}..${ref}`])
@@ -143,9 +159,12 @@ export class ForwardMerger {
     view.behind = behind
     if (behind === 0) {
       Object.assign(view, { hold: null, held: false })
+      this.failedAt.delete(from)
+      this.askedAt.delete(from)
       return
     }
-    if ((view.held && !now) || this.deps.carrying(from) !== null) return
+    if (this.deps.carrying(from) !== null) return
+    if (view.held && !now && (!this.deps.auto(from) || (await this.commitOf(into, from)) === this.failedAt.get(from))) return
     if (!now && !this.deps.quiet(into)) return wait(view, notice('forward.busy', { into }))
 
     const current = (await git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out.trim()
@@ -161,12 +180,23 @@ export class ForwardMerger {
         files.length > 0 ? notice('forward.conflict', { from, into, files }, { detail: merged.out }) : notice('forward.failed', { from, into }, { detail: merged.out })
       this.deps.log(files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`)
       Object.assign(view, { hold, held: true })
+      if (!this.deps.auto(from)) return
+      const commit = await this.commitOf(into, from)
+      if (typeof commit !== 'string') return
+      this.failedAt.set(from, commit)
+      if (files.length === 0 || this.askedAt.get(from) === commit) return
+      this.askedAt.set(from, commit)
+      await this.ask(from, view, hold, commit).catch((error) => this.deps.log(`forward: ${from}: the carry session was not asked for: ${error instanceof Error ? error.message : String(error)}`))
       return
     }
     const push = await this.deps.sync(into)
     this.deps.log(`forward: ${from} carried ${behind} commit(s) into ${branch} of ${into}${push === null ? '' : `; the push failed: ${englishOf(push)}`}`)
     Object.assign(view, { behind: 0, hold: null, held: false, last: { at: this.deps.now().toISOString(), commits: behind, push } })
   }
+}
+
+function refOf(from: string): string {
+  return `refs/even-keel/forward/${from}`
 }
 
 /** A held carry stays held: the conflict is still there. */

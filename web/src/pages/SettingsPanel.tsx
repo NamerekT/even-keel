@@ -86,7 +86,7 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'slot', 'changelog', 'color'] },
+  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
@@ -344,6 +344,17 @@ export function SettingsPanel({
               ? [{ value: text('mergeInto'), label: projectLabel(state, text('mergeInto')) }]
               : []),
           ])}
+          {text('mergeInto') !== '' && (
+            <SwitchField
+              className={marks.box('carryAgent')}
+              label={t.settings.carryAgent}
+              hint={t.settings.carryAgentHint}
+              checked={on('carryAgent')}
+              onChange={(checked) => edit('carryAgent', checked)}
+            >
+              {notes('carryAgent')}
+            </SwitchField>
+          )}
           <div className={marks.box('color')}>
             <FieldHead label={t.settings.color} hint={t.settings.colorHint} />
             <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>

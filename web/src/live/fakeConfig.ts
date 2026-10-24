@@ -99,6 +99,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   pullRequests: false,
   intakeLabel: null,
   mergeInto: null,
+  carryAgent: false,
   fillMilestone: false,
   changelog: 'CHANGELOG.md',
   standards: [],

@@ -122,6 +122,8 @@ export interface ProjectSettings {
   intakeLabel: string | null
   /** A release project (BTN-172): the project whose branch its own one merges into once that project's chain is quiet; `null` — a main project. */
   mergeInto: string | null
+  /** A release project's carry that conflicts goes to the agent's session by itself, not only by "Resolve with the agent" (BTN-370). */
+  carryAgent: boolean
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
   /** The changelog file, relative to the repository's root (BTN-209). */
