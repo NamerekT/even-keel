@@ -1,5 +1,5 @@
 .markdown {
-  font-size: 14px;
+  font-size: var(--text-14);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -17,13 +17,13 @@
 .markdown h3,
 .markdown h4 {
   margin: 1.1em 0 0.4em;
-  font-size: 15px;
+  font-size: var(--text-15);
   line-height: 1.35;
 }
 
 .markdown h1,
 .markdown h2 {
-  font-size: 16px;
+  font-size: var(--text-16);
 }
 
 .markdown p,
@@ -55,7 +55,7 @@
 .markdown pre {
   overflow-x: auto;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--fg) 6%, transparent);
 }
 
@@ -74,7 +74,7 @@
   display: block;
   overflow-x: auto;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .markdown th,

@@ -5,14 +5,14 @@
   display: inline-flex;
   align-items: stretch;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
 }
 
 .period__shift,
 .period__button {
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   padding: 6px 10px;
   border: 0;
   background: none;
@@ -71,7 +71,7 @@
 .period__preset {
   width: 100%;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   padding: 6px 8px;
   border: 0;
   border-radius: 6px;
@@ -104,7 +104,7 @@
   gap: 8px 12px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--text-13);
   color: var(--fg-muted);
 }
 
@@ -146,7 +146,7 @@
   grid-column: 1 / -1;
   margin: 0;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .calendar__head {
@@ -168,7 +168,7 @@
 
 .calendar__title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .calendar__title--static {
@@ -201,7 +201,7 @@
 .calendar__weekday {
   padding: 4px 0;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-11);
   text-align: center;
 }
 
@@ -209,7 +209,7 @@
   position: relative;
   height: 32px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-variant-numeric: tabular-nums;
   border: 0;
   border-radius: 0;
@@ -289,15 +289,15 @@
 }
 
 .calendar__cell--from {
-  border-radius: 8px 0 0 8px;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .calendar__cell--to {
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .calendar__cell--from.calendar__cell--to {
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .calendar__cell.heat-0.calendar__cell--from::before,

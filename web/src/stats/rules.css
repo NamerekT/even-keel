@@ -79,7 +79,7 @@
 
 .mark-tip__file {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   white-space: nowrap;
 }
 
@@ -92,7 +92,7 @@
 .mark-tip__more,
 .mark-tip__hint {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 /* Notes shared by the tip and the section */
@@ -107,7 +107,7 @@
   padding: 0 6px;
   border-radius: 999px;
   background: var(--surface-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .rule-tag--economy {
@@ -127,19 +127,19 @@
 }
 
 .rule-reason {
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rule-drift {
   color: var(--warn-fg);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .rule-lines {
   margin-left: auto;
   padding-left: 12px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   white-space: nowrap;
 }
 
@@ -169,12 +169,12 @@
 .rule-chips__label {
   margin-right: 4px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rule-chip {
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   padding: 2px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -210,7 +210,7 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
   transition:
     background-color var(--motion-fast),
@@ -277,7 +277,7 @@
   padding: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   list-style: none;
 }
 
@@ -297,7 +297,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   text-align: left;
   cursor: pointer;
   transition:
@@ -334,7 +334,7 @@
 
 .rule-mark__muted {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rule-mark__what,
@@ -348,14 +348,14 @@
   margin: 0;
   padding: 10px 12px;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .rule-coverage {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 /* Picked marks */
@@ -366,7 +366,7 @@
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .rule-card__head {
@@ -383,7 +383,7 @@
 
 .rule-card__title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .rule-day {
@@ -395,7 +395,7 @@
 .rule-day__title {
   margin: 4px 0 0;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -422,7 +422,7 @@
 
 .rule-set__at {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-variant-numeric: tabular-nums;
 }
 
@@ -462,7 +462,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   text-align: left;
   cursor: pointer;
 }
@@ -491,7 +491,7 @@
 
 .rule-file__path {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   overflow-wrap: anywhere;
 }
 
@@ -521,7 +521,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .rule-diff__at {
@@ -563,7 +563,7 @@
 .rule-compare__sample {
   display: block;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 400;
 }
 
@@ -582,7 +582,7 @@
 
 .family-compare__title {
   margin: 8px 0 0;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .family-compare th {

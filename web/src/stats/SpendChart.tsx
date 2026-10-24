@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { t } from '../i18n/index.js'
+import { Card } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
 import { formatShare, formatUsd } from './format.js'
@@ -91,12 +92,12 @@ export function SpendChart({
   const dragged = (index: number) => drag !== null && index >= Math.min(drag.from, drag.to) && index <= Math.max(drag.from, drag.to)
 
   return (
-    <section className="chart spend" aria-labelledby="spend-title">
-      <header className="chart__head">
-        <h2 id="spend-title" className="chart__title">
-          {t.stats.spend.titles[step]}
-        </h2>
-        <div className="spend__controls">
+    <Card
+      className="chart spend"
+      title={t.stats.spend.titles[step]}
+      titleId="spend-title"
+      actions={
+        <>
           <Segmented
             label={t.stats.spend.metric}
             options={METRICS.map((each) => [each, ...t.stats.spend.metrics[each]])}
@@ -104,8 +105,9 @@ export function SpendChart({
             onChange={onMetric}
           />
           <Segmented label={t.stats.spend.step} options={STEPS.map((each) => [each, ...t.stats.spend.steps[each]])} value={step} onChange={onStep} />
-        </div>
-      </header>
+        </>
+      }
+    >
 
       <div ref={plot} className="chart__plot" onMouseLeave={() => setHovered(null)} onDoubleClick={() => onZoomOut?.()}>
         <div className="chart__axis" aria-hidden="true">
@@ -196,6 +198,6 @@ export function SpendChart({
         {t.stats.spend.zoom}
         {onZoomOut !== null && t.stats.spend.zoomOut}.{marks.size > 0 && t.stats.spend.marks}
       </p>
-    </section>
+    </Card>
   )
 }

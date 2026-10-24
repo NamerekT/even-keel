@@ -46,7 +46,7 @@
 }
 
 .project__name--empty {
-  font-size: 13px;
+  font-size: var(--text-13);
   opacity: 0.7;
 }
 
@@ -59,7 +59,7 @@
 
 .project__name-error {
   color: var(--lamp-error);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .project__controls {
@@ -72,7 +72,7 @@
 
 .project__queue {
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .project__read {
@@ -80,7 +80,7 @@
   align-items: center;
   gap: 4px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .project__refresh {
@@ -129,20 +129,20 @@
   flex-basis: 100%;
   margin: 0;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--warn-bg);
   color: var(--warn-fg);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .project__error {
   flex-basis: 100%;
   margin: 0;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--error-bg);
   color: var(--error-fg);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .project--panel {
@@ -183,7 +183,7 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
@@ -274,7 +274,7 @@
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
@@ -297,7 +297,7 @@
 
 .side-tab--wide {
   flex: 1;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .side-tab .icon {
@@ -389,7 +389,7 @@
 .idle__meme {
   margin: 0;
   color: var(--fg);
-  font-size: 15px;
+  font-size: var(--text-15);
   text-align: left;
 }
 
@@ -404,14 +404,14 @@
   padding-left: 0.95em;
   text-indent: -0.95em;
   color: var(--fg);
-  font-size: 15px;
+  font-size: var(--text-15);
   text-align: left;
 }
 
 .idle__said--human {
   color: var(--fg-muted);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .idle__said--selected > [aria-hidden] {
@@ -420,5 +420,5 @@
 
 .idle__hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-13);
 }

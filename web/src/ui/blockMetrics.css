@@ -8,7 +8,7 @@
   min-height: 24px;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
 }
 
@@ -87,7 +87,7 @@
 .block__now-value {
   min-width: 4ch;
   color: color-mix(in srgb, var(--now) 85%, var(--fg));
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 18px;
@@ -141,7 +141,7 @@
   background: color-mix(in srgb, var(--series) 24%, transparent);
   color: var(--fg);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -150,6 +150,6 @@
   align-items: center;
   gap: 3px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }

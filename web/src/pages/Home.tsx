@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions, projectSlots, questionPath } from '../state.js'
+import { EmptyState, PageHead } from '../ui/blocks.js'
 import { ClonesIcon, ColumnsIcon, GridIcon, NestedIcon } from '../ui/icons.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -48,15 +49,17 @@ export function Home({ state }: { state: EvenKeelState }) {
 
   return (
     <section className="page">
-      <header className="home__head">
-        <h1 className="page__title">{t.home.title}</h1>
-        <div className="home__tools">
-          {state.projects.length > 1 && <GroupingSwitch value={grouping} onChange={setGrouping} />}
-          <Link to={ADD_PROJECT} className="button button--small">
-            + {t.home.add}
-          </Link>
-        </div>
-      </header>
+      <PageHead
+        title={t.home.title}
+        actions={
+          <>
+            {state.projects.length > 1 && <GroupingSwitch value={grouping} onChange={setGrouping} />}
+            <Link to={ADD_PROJECT} className="button button--small">
+              + {t.home.add}
+            </Link>
+          </>
+        }
+      />
       {/* The lines type the way the chains run: as many at once as `parallel` allows, in page order. */}
       <Typists count={state.chain.parallel}>
         <Typed
@@ -67,7 +70,15 @@ export function Home({ state }: { state: EvenKeelState }) {
           to={meme.kind === 'questions' ? questionPath(state, state.projects) : null}
         />
         {state.projects.length === 0 ? (
-          <p className="placeholder">{t.home.empty}</p>
+          <EmptyState
+            action={
+              <Link to={ADD_PROJECT} className="button button--small">
+                + {t.home.add}
+              </Link>
+            }
+          >
+            {t.home.empty}
+          </EmptyState>
         ) : (
           <div className="home__groups">
             {blocks.map((block, index) => {

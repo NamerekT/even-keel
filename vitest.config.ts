@@ -8,5 +8,7 @@ export default defineConfig({
     // The storage and git tests are bound by the disk more than the CPU: on a 12-core workstation half the cores ran
     // the suite in 40 s, all of them in 50 s. A CI runner keeps the default.
     maxWorkers: process.env.CI ? undefined : '50%',
+    // Vitest empties every stylesheet by default, `?raw` too; the design test (`web/src/design.test.ts`) reads them raw.
+    css: { include: [/\.css\?raw$/] },
   },
 })

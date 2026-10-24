@@ -1,6 +1,6 @@
 .tracker-fields__status {
   color: var(--lamp-error);
-  font-size: 13px;
+  font-size: var(--text-13);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -29,7 +29,7 @@
 
 .tracker-fields__aside {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   white-space: nowrap;
 }
 

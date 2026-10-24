@@ -14,6 +14,7 @@ import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { cacheTone, contextFill, contextResets, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { PipelineIcon } from '../ui/icons.js'
@@ -271,31 +272,27 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
     <>
       {note !== null && <p className="notice notice--error">{note}</p>}
       {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session.remoteOff === 'api-key')}</p>}
-      <dl className="panel__facts">
-        <div className="panel__fact">
-          <dt>{t.session.session}</dt>
+      <FactList>
+        <Fact label={t.session.session}>
           <dd className={`panel__state panel__state--${session.lamp}`}>{t.lamp[session.lamp]}</dd>
-        </div>
-        <div className="panel__fact">
-          <dt>{t.session.time}</dt>
+        </Fact>
+        <Fact label={t.session.time}>
           <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
           <dd className="panel__sub">
             {t.time.since} <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
           </dd>
-        </div>
-        <div className={`panel__fact panel__fact--${cacheTone(session.cache, now, session.lamp)}`}>
-          <dt>{t.session.cache}</dt>
+        </Fact>
+        <Fact label={t.session.cache} tone={cacheTone(session.cache, now, session.lamp)}>
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
-        </div>
-        <div className={`panel__fact panel__fact--wide panel__fact--${contextFill(session.contextTokens, scale, session.contextWindow).level}`}>
-          <dt>{t.session.context}</dt>
+        </Fact>
+        <Fact label={t.session.context} wide tone={contextFill(session.contextTokens, scale, session.contextWindow).level}>
           <dd>
             <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} full />
           </dd>
-        </div>
+        </Fact>
         <ModelFact agent={session.agent} model={session.model} />
         <TokensFact tokens={session.tokens} />
-      </dl>
+      </FactList>
       {session.lamp === 'finished' ? (
         <RecordFeed sessionId={session.sessionId} account={session.account} whole={whole} />
       ) : (
@@ -339,8 +336,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : agent === CLAUDE ? model : `${provider} · ${model}`
   return (
-    <div className="panel__fact panel__fact--wide panel__inline">
-      <dt>{t.session.model}</dt>
+    <Fact label={t.session.model} wide className="panel__inline">
       <TipValue value={value}>
         <span className="panel__part">
           <span className="panel__part-label">{t.session.provider}</span>
@@ -354,7 +350,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
         )}
         <span className="panel__tip-note">{model === null ? t.session.modelYet : t.session.modelFrom}</span>
       </TipValue>
-    </div>
+    </Fact>
   )
 }
 
@@ -367,8 +363,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
     [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
-    <div className="panel__fact panel__fact--wide panel__inline">
-      <dt>{t.session.tokens}</dt>
+    <Fact label={t.session.tokens} wide className="panel__inline">
       <TipValue value={formatTokens(tokenTotal(tokens))}>
         {parts.map(([label, value]) => (
           <span key={label} className="panel__part">
@@ -377,7 +372,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
           </span>
         ))}
       </TipValue>
-    </div>
+    </Fact>
   )
 }
 
@@ -459,10 +454,10 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
   const resets = contextResets(rows)
   return (
     <section className="panel__sessions" aria-label={t.session.list}>
-      <h3 className="panel__feed-title">
+      <SectionLabel>
         {t.session.list}
         {resets.total > 0 && t.session.resets(resets.total, t.chain.resetsOf(resets))}
-      </h3>
+      </SectionLabel>
       <ul className="sessions">
         {rows.map((row) => (
           <li key={row.sessionId}>
@@ -556,37 +551,32 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
         {record === null && <p className="placeholder">{t.session.notFound}</p>}
         {record !== null && record !== undefined && (
           <>
-            <dl className="panel__facts">
-              <div className="panel__fact">
-                <dt>{t.session.started}</dt>
+            <FactList>
+              <Fact label={t.session.started}>
                 <dd className="panel__value">
                   <time dateTime={started}>{STARTED().format(new Date(started))}</time>
                 </dd>
-              </div>
-              <div className="panel__fact">
-                <dt>{t.session.lastTurn}</dt>
+              </Fact>
+              <Fact label={t.session.lastTurn}>
                 <dd className="panel__value">{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
-              </div>
-              <div className="panel__fact">
-                <dt>{t.session.worked}</dt>
+              </Fact>
+              <Fact label={t.session.worked}>
                 <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
-              </div>
-              <div className="panel__fact panel__fact--wide">
-                <dt>{t.session.endContext}</dt>
+              </Fact>
+              <Fact label={t.session.endContext} wide>
                 <dd>
                   <ContextMeter tokens={record.contextTokens} window={record.contextWindow} scale={scale} full />
                 </dd>
-              </div>
+              </Fact>
               <TokensFact tokens={record.tokens} />
               {(record.branch !== null || record.workdir !== null) && (
-                <div className="panel__fact panel__fact--wide">
-                  <dt>{t.session.place}</dt>
+                <Fact label={t.session.place} wide>
                   <dd className="session-window__place">
                     {record.branch ?? '—'} · {record.workdir ?? '—'}
                   </dd>
-                </div>
+                </Fact>
               )}
-            </dl>
+            </FactList>
             {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
             <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} whole />
           </>
@@ -623,7 +613,7 @@ function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
   return (
     <section className="panel__feed" aria-label={t.session.feed}>
       <div className="panel__feed-head">
-        <h3 className="panel__feed-title">{t.session.feed}</h3>
+        <SectionLabel>{t.session.feed}</SectionLabel>
         {offered && (
           <button type="button" className="panel__feed-open" onClick={() => setWhole(true)}>
             {t.session.transcript}

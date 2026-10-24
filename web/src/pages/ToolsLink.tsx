@@ -4,6 +4,7 @@ import { t } from '../i18n/index.js'
 import { problemCount, problemsOf } from '../tools/matrix.js'
 import { trackerAddPath, trackerPackage } from '../tools/packageView.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
+import { Band } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../tools/tools.css'
 
@@ -17,17 +18,17 @@ export function ToolsLink({ project, trim, packages }: { project: string; trim: 
   const warn = (count !== null && count > 0) || missing?.problem === true
 
   return (
-    <p className={warn ? 'tools-link tools-link--warn' : 'tools-link'}>
-      <span className="tools-link__text">
-        <span>{t.tools.link(count)}</span>
-        {missing !== null && (
-          <span className={missing.problem ? undefined : 'tools-link__advice'}>
-            {missing.problem ? t.tools.trackerProblem(missing.server) : t.tools.trackerAdvice(missing.server)}
-          </span>
-        )}
-      </span>
-      <Link to={missing === null ? `/tools?projects=${encodeURIComponent(project)}` : trackerAddPath(project, missing.plugin)}>{t.tools.open}</Link>
-    </p>
+    <Band
+      tone={warn ? 'warn' : 'note'}
+      action={<Link to={missing === null ? `/tools?projects=${encodeURIComponent(project)}` : trackerAddPath(project, missing.plugin)}>{t.tools.open}</Link>}
+    >
+      <span>{t.tools.link(count)}</span>
+      {missing !== null && (
+        <span className={missing.problem ? undefined : 'tools-link__advice'}>
+          {missing.problem ? t.tools.trackerProblem(missing.server) : t.tools.trackerAdvice(missing.server)}
+        </span>
+      )}
+    </Band>
   )
 }
 

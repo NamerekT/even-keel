@@ -49,11 +49,11 @@ button.select {
   margin: 0;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   color: var(--fg);
-  font: 14px/1.45 var(--font);
+  font: var(--text-14)/1.45 var(--font);
   animation: fade-in var(--motion-fast) ease-out;
 }
 

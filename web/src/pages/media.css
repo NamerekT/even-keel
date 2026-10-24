@@ -22,7 +22,7 @@
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg);
   font: inherit;
@@ -96,8 +96,8 @@
 
 .tile__ext {
   font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--text-12);
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -231,7 +231,7 @@ video.viewer__media {
   align-items: baseline;
   justify-content: center;
   gap: 0.4rem 1rem;
-  font-size: 13px;
+  font-size: var(--text-13);
   text-align: center;
 }
 

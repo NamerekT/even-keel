@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { LaunchDay } from '../../../src/chain/launches.js'
 import { localized, t } from '../i18n/index.js'
 import { projectPath } from '../state.js'
+import { Card } from '../ui/blocks.js'
 import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 
@@ -29,13 +30,12 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
   const max = Math.max(0, ...days.map(dayTotal))
 
   return (
-    <section className="chart" aria-labelledby="launch-chart-title">
-      <header className="chart__head">
-        <h2 id="launch-chart-title" className="chart__title">
-          {t.launches.title(days.length)}
-        </h2>
-        <span className="chart__total">{t.launches.count(total)}</span>
-      </header>
+    <Card
+      className="chart"
+      title={t.launches.title(days.length)}
+      titleId="launch-chart-title"
+      actions={<span className="chart__total">{t.launches.count(total)}</span>}
+    >
 
       {shown.length > 1 && (
         <ul className="chart__legend chart__legend--projects">
@@ -141,6 +141,6 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
           </table>
         </div>
       </details>
-    </section>
+    </Card>
   )
 }

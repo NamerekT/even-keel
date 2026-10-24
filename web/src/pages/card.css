@@ -51,7 +51,7 @@ html:has(.task-card[open]) {
 .task-card__key {
   color: var(--fg-muted);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -66,9 +66,9 @@ html:has(.task-card[open]) {
   gap: 6px;
   padding: 5px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   text-decoration: none;
   white-space: nowrap;
   transition:
@@ -89,10 +89,10 @@ html:has(.task-card[open]) {
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--fg-muted);
-  font-size: 22px;
+  font-size: var(--text-22);
   line-height: 1;
   cursor: pointer;
 }
@@ -116,7 +116,7 @@ html:has(.task-card[open]) {
   padding: 2px 9px 2px 7px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 18px;
   white-space: nowrap;
   --dot: var(--lamp-idle);
@@ -171,8 +171,8 @@ html:has(.task-card[open]) {
 .task-card__title {
   max-width: 62ch;
   margin: 0 0 22px;
-  font-size: 22px;
-  font-weight: 650;
+  font-size: var(--text-22);
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.01em;
   text-wrap: balance;
@@ -214,7 +214,7 @@ html:has(.task-card[open]) {
   gap: 8px;
   margin: 0 0 12px;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-11);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -231,7 +231,7 @@ html:has(.task-card[open]) {
   padding: 0 6px;
   border-radius: 999px;
   background: var(--surface-muted);
-  font-size: 11px;
+  font-size: var(--text-11);
   letter-spacing: 0;
 }
 
@@ -250,10 +250,10 @@ html:has(.task-card[open]) {
   margin: 0;
   padding: 10px 14px;
   border-left: 3px solid var(--lamp-waiting);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--warn-bg);
   color: var(--warn-fg);
-  font-size: 13px;
+  font-size: var(--text-13);
   line-height: 1.5;
 }
 
@@ -264,7 +264,7 @@ html:has(.task-card[open]) {
 }
 
 .task-card__callout strong {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* Work main does not hold: what lies where, a line each, then the two ways out. */
@@ -296,8 +296,8 @@ html:has(.task-card[open]) {
 .task-card__markdown h3,
 .task-card__markdown h4 {
   margin: 1.5em 0 0.5em;
-  font-size: 16px;
-  font-weight: 650;
+  font-size: var(--text-16);
+  font-weight: 600;
 }
 
 .task-card__markdown h1,
@@ -363,8 +363,8 @@ html:has(.task-card[open]) {
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 22%, var(--surface-muted));
   color: var(--fg);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--text-12);
+  font-weight: 600;
 }
 
 .task-card__bubble {
@@ -376,7 +376,7 @@ html:has(.task-card[open]) {
 }
 
 .task-card__bubble .task-card__markdown {
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .task-card__comment-head {
@@ -385,12 +385,12 @@ html:has(.task-card[open]) {
   align-items: baseline;
   gap: 4px 10px;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .task-card__comment-head time {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 /* Side: action and properties */
@@ -409,7 +409,7 @@ html:has(.task-card[open]) {
 
 .task-card__hint {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 1.45;
 }
 
@@ -425,12 +425,12 @@ html:has(.task-card[open]) {
   grid-template-columns: 84px minmax(0, 1fr);
   align-items: baseline;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .task-card__prop dt {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .task-card__prop dd {
@@ -449,7 +449,7 @@ html:has(.task-card[open]) {
 
 .task-card__milestone small {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 /* The milestone stands where the text was and reads like it; the frame shows on hover and focus. */
@@ -462,7 +462,7 @@ html:has(.task-card[open]) {
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .task-card__milestone-pick:hover:not(:disabled),
@@ -516,7 +516,7 @@ html:has(.task-card[open]) {
   padding: 0;
   list-style: none;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 1.45;
 }
 
@@ -555,7 +555,7 @@ html:has(.task-card[open]) {
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-13);
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -581,7 +581,7 @@ html:has(.task-card[open]) {
 
 .task-card__ref-key {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   white-space: nowrap;
 }

@@ -72,7 +72,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .backlog__priority {
@@ -87,7 +87,7 @@
   flex: none;
   color: var(--fg);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
   font-weight: 600;
   text-decoration: none;
 }
@@ -132,7 +132,7 @@ a.backlog__key:hover {
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   line-height: 1.35;
   text-align: left;
   cursor: pointer;

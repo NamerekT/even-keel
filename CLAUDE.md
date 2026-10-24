@@ -20,7 +20,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/packages.md` | plugins and MCP servers of a project's set, `state/packages.json`, install and update, the keys, the local MCP gateway, the launch flags, the check before a launch |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
 | `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |
-| `docs/design.md` | how the page looks: the reference screens, tokens, blocks, layout and content rules, the check of a screen before the merge |
+| `docs/design.md` | how the page looks: the reference screens, tokens and the CSS test with its baseline, the shared blocks of `web/src/ui/blocks.tsx`, layout and content rules, the check of a screen before the merge |
 | `docs/settings.md` | every setting and the levels it is set at (Even Keel, project, task label), what is not a setting, the settings tables for the database and how labels become values |
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
 | `docs/service.md` | the service on Windows, Linux and macOS |

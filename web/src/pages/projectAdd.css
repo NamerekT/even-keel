@@ -30,7 +30,7 @@
   margin-bottom: 4px;
   padding: 0;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -46,7 +46,7 @@
   border-radius: 6px;
   background: var(--warn-bg);
   color: var(--warn-fg);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .project-add__advanced {
@@ -59,7 +59,7 @@
 
 .project-add__advanced > summary {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
 }
 
@@ -68,7 +68,7 @@
 }
 
 .project-add__trust {
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .project-add__trust p {

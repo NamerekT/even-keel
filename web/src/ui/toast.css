@@ -52,17 +52,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   color: var(--fg-muted);
 }
 
 .toast__title {
-  font-size: 15px;
+  font-size: var(--text-15);
   font-weight: 600;
 }
 
 .toast__body {
-  font-size: 13px;
+  font-size: var(--text-13);
   color: var(--fg-muted);
 }
 

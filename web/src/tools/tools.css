@@ -1,7 +1,7 @@
 .tools__muted {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools__meta {
@@ -16,7 +16,7 @@
   padding: 8px 12px;
   border-radius: var(--radius);
   background: var(--surface-muted);
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .tools__trim--off {
@@ -36,7 +36,7 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .tools-page__main > * {
@@ -52,13 +52,13 @@
 
 .tools__heading {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--text-16);
   font-weight: 600;
 }
 
 .tools__title {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 600;
 }
 
@@ -92,12 +92,12 @@
 
 .tools__problem-label {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools__problem-fix {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--text-12);
   opacity: 0.85;
 }
 
@@ -125,7 +125,7 @@
   padding: 1px 7px;
   border-radius: 6px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   line-height: 18px;
   overflow-wrap: anywhere;
 }
@@ -172,7 +172,7 @@
 
 .tools__find {
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-14);
   width: min(100%, 280px);
   padding: 5px 8px;
   border: 1px solid var(--border);
@@ -185,7 +185,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools__section {
@@ -219,7 +219,7 @@
   min-width: 480px;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools__matrix thead th:first-child {
@@ -239,7 +239,7 @@
   background: var(--surface-muted);
   color: var(--fg-muted);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -258,7 +258,7 @@
 }
 
 .tools__matrix tbody th code {
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .tools__matrix tbody tr:last-child > * {
@@ -283,7 +283,7 @@
 .tools__value {
   min-width: calc(min(var(--chip, 0), 16) * 1ch + 16px);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-12);
 }
 
 .tools__scopes {
@@ -296,7 +296,7 @@
   width: 24px;
   border-radius: 4px;
   color: color-mix(in srgb, var(--fg) 72%, var(--surface));
-  font-size: 11px;
+  font-size: var(--text-11);
   font-weight: 600;
   line-height: 18px;
   text-align: center;
@@ -310,7 +310,7 @@
   background: var(--surface-muted);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 35%, transparent);
   color: var(--fg);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tools__scope--overridden {
@@ -351,7 +351,7 @@
 
 .tools__cwd {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--text-12);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -370,12 +370,12 @@
 
 .tools__group dt {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools__builtin summary {
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   cursor: pointer;
 }
 
@@ -383,47 +383,11 @@
   margin-bottom: 6px;
 }
 
-/* Link on the project page */
-
-.tools-link {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0;
-  padding: 10px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  font-size: 14px;
-}
-
-.tools-link--warn {
-  border-color: var(--warn-fg);
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-}
-
-.tools-link a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.tools-link__text {
-  display: flex;
-  flex: 1 1 20em;
-  flex-direction: column;
-  gap: 2px;
-}
+/* The band on the project page (`ToolsLink`, a `.ui-band`) */
 
 .tools-link__advice {
   color: var(--fg-muted);
-  font-size: 13px;
-}
-
-.tools-link a:hover {
-  text-decoration: underline;
+  font-size: var(--text-13);
 }
 
 /* Loading: the matrix outline */
@@ -442,7 +406,7 @@
   gap: 10px;
   margin: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .tools-loading__scanner {
@@ -510,7 +474,7 @@
   width: min(100%, 72px);
   height: 16px;
   margin: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 @keyframes tools-scan-mini {

@@ -12,7 +12,7 @@
 .status-nav__title {
   margin: 0 0 6px 12px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -21,7 +21,7 @@
 .status-nav__empty {
   margin: 0 12px;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
 }
 
 .status-nav__item .settings-nav__title {
@@ -35,7 +35,7 @@
   max-width: 45%;
   overflow: hidden;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -54,13 +54,13 @@
 
 .status-detail__text {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-15);
 }
 
 .status-detail__note {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 13px;
+  font-size: var(--text-13);
   overflow-wrap: anywhere;
 }
 
@@ -69,7 +69,7 @@
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px 24px;
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .status-facts dt {
@@ -82,20 +82,20 @@
 
 .status-facts__error {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--text-13);
   overflow-wrap: anywhere;
 }
 
 .status-projects {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--text-14);
 }
 
 .status-projects caption {
   padding-bottom: 6px;
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-12);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-align: left;

@@ -44,7 +44,7 @@
 .basement--tall .basement__sign strong {
   display: block;
   margin-bottom: 4px;
-  font-size: 22px;
+  font-size: var(--text-22);
 }
 
 @keyframes basement-in {
@@ -148,7 +148,7 @@
   background: var(--tape);
   color: var(--ink);
   font-size: var(--text);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.14em;
   white-space: pre;
 }
@@ -229,7 +229,7 @@
   border: 3px solid var(--frame);
   border-radius: 6px;
   background: var(--surface);
-  font-size: 15px;
+  font-size: var(--text-15);
   line-height: 1.4;
   text-align: center;
   transform: translateX(-50%);
