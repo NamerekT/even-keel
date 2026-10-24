@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
-import { TRANSPORTS, type Transport } from '../../../src/account/transport.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
@@ -15,7 +14,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
-import { loadedData, Segmented, useStatsAnswer } from '../stats/common.js'
+import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { BracesIcon, ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
@@ -343,27 +342,26 @@ function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sendin
   )
 }
 
-/** How a Claude account runs its sessions, switched on press; a subscription account carries Anthropic's rule on the Agent SDK in the tip. */
-export function TransportAction({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sending' | 'send'>) {
+/**
+ * Through what a Claude account's new sessions run, by `execution.claude`: a quiet line, since the setting on /settings
+ * decides it; a subscription account carries Anthropic's rule on the Agent SDK in the tip.
+ */
+export function TransportNote({ entry }: Pick<NotesProps, 'entry'>) {
   const { transport } = entry
   if (transport === undefined || entry.removing) return null
-  const name = t.account.transport[transport]
-  const tip = (
-    <>
-      <p>{t.account.transportNow(name)}</p>
-      {!entry.apiKey && <p>{t.account.transportTerms}</p>}
-    </>
-  )
   return (
-    <Tipped className="account__actions" tip={tip} align="start">
-      <button
-        type="button"
-        className="button button--small"
-        disabled={sending}
-        onClick={() => void send('account/transport', { account: entry.key, transport: transport === 'sdk' ? 'bg' : 'sdk' })}
-      >
-        {name}
-      </button>
+    <Tipped
+      className="accounts__note accounts__note--tipped"
+      tip={
+        <>
+          <p>{t.account.transportWhere}</p>
+          {transport === 'sdk' && !entry.apiKey && <p>{t.account.transportTerms}</p>}
+        </>
+      }
+      align="start"
+      focusable
+    >
+      {t.account.transportVia(t.account.transport[transport])}
     </Tipped>
   )
 }
@@ -572,20 +570,15 @@ interface ApiKeyProps {
   onCancel: () => void
 }
 
-/**
- * Its own command, so a refused key shows under the form rather than elsewhere on the page. A Claude key comes with how
- * its sessions run, written with the account (`account/api`'s `transport`).
- */
+/** Its own command, so a refused key shows under the form rather than elsewhere on the page. */
 export function ApiKeyFields({ agent, hint, onDone, onCancel }: ApiKeyProps) {
   const { send, sending, failure } = useCommand()
   const [name, setName] = useState('')
   const [key, setKey] = useState('')
-  const [transport, setTransport] = useState<Transport>('sdk')
-  const claude = agent === CLAUDE
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (await send('account/api', { name, key, agent, ...(claude && { transport }) })) onDone()
+    if (await send('account/api', { name, key, agent })) onDone()
   }
 
   return (
@@ -609,12 +602,6 @@ export function ApiKeyFields({ agent, hint, onDone, onCancel }: ApiKeyProps) {
         autoComplete="off"
         spellCheck={false}
       />
-      {claude && (
-        <>
-          <Segmented label={t.account.transportPick} options={TRANSPORTS.map((each) => [each, t.account.transport[each]])} value={transport} onChange={setTransport} />
-          <p className="queue__hint">{t.account.transportChoice}</p>
-        </>
-      )}
       <div className="account__actions">
         <button type="submit" className="button button--primary" disabled={sending || key.trim() === ''}>
           {t.account.keyAdd}
