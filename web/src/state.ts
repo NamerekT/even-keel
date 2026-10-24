@@ -1,5 +1,5 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { ActiveChain, CurrentTask, Leftover, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isFixName, liveFixId, projectOfFix } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
@@ -14,6 +14,7 @@ import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, T
 import { accountName } from './accountName.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
+import { shownWork } from './work.js'
 
 export interface AccountBadge {
   kind: 'in' | 'out' | 'login' | 'unknown'
@@ -235,23 +236,12 @@ export function backlogTasks(state: EvenKeelState, project: string): Task[] {
 
 /** The work left in the folders of the project's backlog tasks, by task. */
 export function backlogWork(state: EvenKeelState, project: string): Record<string, TaskWork> {
-  const works = state.works[project] ?? {}
-  return Object.fromEntries((state.chain.projects[project]?.backlog ?? []).flatMap((id) => (works[id] === undefined ? [] : [[id, works[id]]])))
-}
-
-/**
- * A task the chain still leads, or one whose cleanup is under way, has its folder as its session's to change; a task's
- * commits are its pull request's to show. A closed task shows its work only once the cleanup said what it left (BTN-332).
- */
-function shownWork(
-  work: TaskWork | undefined,
-  task: { lamp: BlockLamp; session: SessionView | null; skipped: boolean; review: boolean },
-  leftovers: Leftover[],
-): Pick<ChainBlock, 'work' | 'leftovers'> | undefined {
-  if (work === undefined || task.session?.lamp === 'working') return undefined
-  if (isClosedLamp(task.lamp)) return leftovers.length === 0 ? undefined : { work, leftovers: leftovers.map((each) => each.notice) }
-  if (task.skipped || (task.review && work.files > 0)) return { work }
-  return undefined
+  return Object.fromEntries(
+    (state.chain.projects[project]?.backlog ?? []).flatMap((id) => {
+      const work = shownWork(state, project, id)
+      return work === null ? [] : [[id, work]]
+    }),
+  )
 }
 
 export interface LinkedTask {
@@ -582,6 +572,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     const sessions = state.taskSessions[id] ?? []
     const lamp = taskLamp(task, session)
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
+    const work = shownWork(state, project, id)
     return {
       id,
       title: task?.title ?? null,
@@ -610,7 +601,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
       ...(reviews.has(id) && { review: reviews.get(id)! }),
-      ...shownWork(state.works[project]?.[id], { lamp, session, skipped: skipped.has(id), review: reviews.has(id) }, left),
+      ...(work !== null && { work, ...(isClosedLamp(lamp) && { leftovers: left.map((each) => each.notice) }) }),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {

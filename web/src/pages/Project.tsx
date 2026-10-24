@@ -8,6 +8,7 @@ import { useNow } from '../layout/useNow.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
+import { shownWork } from '../work.js'
 import {
   activeChain,
   backlogTasks,
@@ -233,7 +234,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             link={issueLink(state.trackerUrls, opened)}
             tracker={state.trackers.find((view) => view.projects.includes(taskProject(state, opened)))?.title ?? null}
             refused={state.chain.projects[taskProject(state, opened)]?.refused?.[opened] ?? null}
-            work={state.works[taskProject(state, opened)]?.[opened] ?? null}
+            work={shownWork(state, taskProject(state, opened), opened)}
             onOpen={openCard}
             onClose={closeCard}
           />
