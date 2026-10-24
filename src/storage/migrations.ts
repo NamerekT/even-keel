@@ -72,7 +72,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   if (questions !== undefined && questions.version < 2) rewrite(questions, jsonText({ version: SCHEMA_VERSION, questions: Array.isArray(questions.value) ? questions.value : [] }))
   if (account !== undefined && account.version < 8) {
     const { active: _moved, ...rest } = asRecord(account)
-    rewrite(account, jsonText(stamped(bgChosen(rest))))
+    rewrite(account, jsonText(stamped(transportsMoved(bgChosen(rest)))))
   }
   if (launches !== undefined && launches.version < 2) {
     const rename = idOf(launches.file)
@@ -92,11 +92,13 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v9 → v10: every file is restamped, for the optional `transport` of an account in `account.json` and the SDK
   // sessions of `state/claude-sdk/` (BTN-239).
   // v10 → v11: `account.json` by `bgChosen`, the others restamped (BTN-302).
+  // v11 → v12: `account.json` by `transportsMoved`, the others restamped (BTN-353).
   for (const stored of [chain, questions, packages]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
   if (account !== undefined && account.version >= 8 && account.version < SCHEMA_VERSION) {
-    rewrite(account, jsonText(account.version < 11 ? stamped(bgChosen(asRecord(account))) : restamped(account)))
+    const record = asRecord(account)
+    rewrite(account, jsonText(stamped(transportsMoved(account.version < 11 ? bgChosen(record) : record))))
   }
   if (launches !== undefined && launches.version >= 2 && launches.version < SCHEMA_VERSION) {
     rewrite(launches, launches.text.replace(/^[^\n]*\n?/, `${JSON.stringify({ version: SCHEMA_VERSION })}\n`))
@@ -187,6 +189,25 @@ function bgChosen(raw: Record<string, unknown>): Record<string, unknown> {
     Object.entries(raw.accounts).map(([key, record]) => [key, key === CODEX_ACCOUNT || !isRecord(record) || isTransport(record.transport) ? record : { ...record, transport: 'bg' }]),
   )
   return { ...raw, accounts }
+}
+
+/**
+ * v11 → v12: how Claude sessions run is the setting `execution.claude`, not a choice of each account (BTN-353). The
+ * accounts' transports go into `transports`, which the service turns into the setting at its start, knowing which
+ * folders are Claude's and which hold an API key, and then drops; a value that is no transport is dropped here.
+ */
+function transportsMoved(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!isRecord(raw.accounts)) return raw
+  const transports: Record<string, unknown> = {}
+  const accounts = Object.fromEntries(
+    Object.entries(raw.accounts).map(([key, record]) => {
+      if (!isRecord(record) || !('transport' in record)) return [key, record]
+      const { transport, ...rest } = record
+      if (isTransport(transport)) transports[key] = transport
+      return [key, rest]
+    }),
+  )
+  return { ...raw, accounts, ...(Object.keys(transports).length > 0 && { transports }) }
 }
 
 function idsOf(raw: unknown): Record<string, string> {

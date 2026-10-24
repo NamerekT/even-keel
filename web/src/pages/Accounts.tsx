@@ -19,7 +19,7 @@ import {
   spendText,
   limitsNote,
   staleText,
-  TransportAction,
+  TransportNote,
   UnknownLimit,
   useSpend,
   useTokens,
@@ -133,11 +133,11 @@ function AccountCard({ entry, view, now, spend, tokens, sending, send }: CardPro
         </>
       )}
       {sharedLimitText(entry, view.accounts) !== null && <p className="accounts__note">{sharedLimitText(entry, view.accounts)}</p>}
+      <TransportNote entry={entry} />
       <AccountWork entry={entry} view={view} />
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} bare />
       <div className="account-card-item__foot">
         <RemoveAction entry={entry} view={view} sending={sending} send={send} />
-        <TransportAction entry={entry} sending={sending} send={send} />
         <NoteActions entry={entry} view={view} now={now} sending={sending} send={send} />
         <AccountRoles entry={entry} view={view} sending={sending} send={send} />
       </div>

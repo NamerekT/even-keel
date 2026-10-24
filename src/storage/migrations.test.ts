@@ -153,8 +153,9 @@ describe('upgradeStorage', () => {
   // only add optional fields, so each step only stamps the files. v7 → v8 (BTN-173) moves the run settings of the config
   // into maps by provider — the samples of v6 and v7 have them, see below — and the active account out of `account.json`.
   // v8 → v9 (BTN-174) adds the new file `state/packages.json` and stamps the others. v9 → v10 (BTN-239) stamps them for
-  // an account's optional `transport`; v10 → v11 (BTN-302) writes `bg` to each account without one.
-  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10])('v%i to the current version', (from) => {
+  // an account's optional `transport`; v10 → v11 (BTN-302) writes `bg` to each account without one; v11 → v12 (BTN-353)
+  // moves the accounts' transports into `transports`, waiting for the service to make them `execution.claude`.
+  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10, 11])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
@@ -168,7 +169,13 @@ describe('upgradeStorage', () => {
         const { version: _, ...old } = JSON.parse(readFileSync(join(sample, name), 'utf8'))
         if (name === 'state/account.json') {
           delete old.active
-          for (const record of Object.values<Record<string, unknown>>(old.accounts)) record.transport ??= 'bg'
+          const transports: Record<string, unknown> = {}
+          for (const [key, record] of Object.entries<Record<string, unknown>>(old.accounts)) {
+            const transport = record.transport ?? (from < 11 ? 'bg' : undefined)
+            if (transport !== undefined) transports[key] = transport
+            delete record.transport
+          }
+          if (Object.keys(transports).length > 0) old.transports = transports
         }
         if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
       }
@@ -228,17 +235,43 @@ describe('upgradeStorage', () => {
     it('writes --bg to each account without a chosen transport, keeps a choice and leaves the Codex folder alone', () => {
       put(state('account.json'), { version: 10, accounts, removing: [] })
       upgrade()
+      const { transport: _, ...global } = accounts.global
       expect(json(state('account.json'))).toEqual({
         version: SCHEMA_VERSION,
-        accounts: { ...accounts, 'team-api': { ...accounts['team-api'], transport: 'bg' } },
+        accounts: { ...accounts, global },
         removing: [],
+        transports: { global: 'sdk', 'team-api': 'bg' },
       })
     })
 
     it('writes it to the accounts of an account file older than v8 too', () => {
       put(state('account.json'), { version: 7, active: 'global', accounts: { global: accounts['team-api'] }, removing: [] })
       upgrade()
-      expect(json(state('account.json')).accounts).toEqual({ global: { ...accounts['team-api'], transport: 'bg' } })
+      expect(json(state('account.json'))).toMatchObject({ accounts: { global: accounts['team-api'] }, transports: { global: 'bg' } })
+    })
+  })
+
+  describe('v11 to v12', () => {
+    it('moves the transport of each account that has one into transports and drops what is no transport', () => {
+      const accounts = {
+        global: { email: 'john.doe@example.com', since: null, previous: null, transport: 'sdk' },
+        'team-api': { email: 'team-api', since: null, previous: null, name: 'Team API', transport: 'pipe' },
+        'work-api': { email: 'work-api', since: null, previous: null },
+      }
+      put(state('account.json'), { version: 11, accounts, removing: ['work-api'] })
+      upgrade()
+      expect(json(state('account.json'))).toEqual({
+        version: SCHEMA_VERSION,
+        accounts: { global: { email: 'john.doe@example.com', since: null, previous: null }, 'team-api': { email: 'team-api', since: null, previous: null, name: 'Team API' }, 'work-api': accounts['work-api'] },
+        removing: ['work-api'],
+        transports: { global: 'sdk' },
+      })
+    })
+
+    it('writes no transports when no account chose one', () => {
+      put(state('account.json'), { version: 11, accounts: { global: { email: null, since: null, previous: null } }, removing: [] })
+      upgrade()
+      expect(json(state('account.json'))).toEqual({ version: SCHEMA_VERSION, accounts: { global: { email: null, since: null, previous: null } }, removing: [] })
     })
   })
 

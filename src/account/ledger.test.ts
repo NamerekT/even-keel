@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountAt, chooseTransport, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
+import { accountAt, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
 
 const now = new Date('2026-09-27T16:00:00.000Z')
 
@@ -98,26 +98,22 @@ describe('forgetAccount', () => {
   })
 })
 
-describe('chooseTransport', () => {
-  it('keeps the choice of a folder, seen or not, and drops it back to the default', () => {
-    const ledger = noteAccount(emptyLedger(), 'work', 'jane@example.com', now)!
-    const chosen = chooseTransport(ledger, 'work', 'sdk')
-    expect(chosen.accounts.work).toEqual({ ...ledger.accounts.work, transport: 'sdk' })
-    expect(chooseTransport(chosen, 'work', null).accounts.work).toEqual(ledger.accounts.work)
-    expect(chooseTransport(emptyLedger(), 'spare', 'bg').accounts.spare).toEqual({ email: null, since: null, previous: null, transport: 'bg' })
-  })
-})
-
 describe('parseLedger', () => {
-  it('reads the chosen transport and nothing it does not know', () => {
+  it('reads the transports waiting for the setting, not a transport of an account, and nothing it does not know', () => {
     const raw = {
       accounts: {
         work: { email: 'work', since: null, previous: null, transport: 'sdk' },
-        spare: { email: null, since: null, previous: null, transport: 'pipe' },
+        spare: { email: null, since: null, previous: null },
       },
       removing: [],
+      transports: { work: 'sdk', spare: 'pipe' },
     }
-    expect(parseLedger(raw).accounts).toEqual({ work: raw.accounts.work, spare: { email: null, since: null, previous: null } })
+    expect(parseLedger(raw)).toEqual({
+      accounts: { work: { email: 'work', since: null, previous: null }, spare: raw.accounts.spare },
+      removing: [],
+      transports: { work: 'sdk' },
+    })
+    expect(parseLedger({ ...raw, transports: undefined }).transports).toBeUndefined()
   })
 
   it('reads the per-folder journal', () => {

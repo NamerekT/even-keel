@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "allowedHosts": [],
   "tracker": "huly",
   "parallel": 1,
@@ -48,7 +48,7 @@
   "provider": "claude",
   "models": { "claude": "opus" },
   "accounts": { "claude": "global", "codex": "codex" },
-  "execution": { "codex": "sandbox" },
+  "execution": { "claude": "auto", "codex": "sandbox" },
   "modelLabels": false,
   "modelPrompts": {
     "sonnet": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label."
