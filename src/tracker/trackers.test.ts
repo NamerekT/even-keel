@@ -3,7 +3,7 @@ import type { ProfileSet, TrackerProfile } from '../profiles/model.js'
 import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
-import { trackerPlans, Trackers, type TrackerConfig } from './trackers.js'
+import { linksTracker, trackerPlans, Trackers, type TrackerConfig } from './trackers.js'
 
 const setupOf = (token: string): TrackerSetup => ({ connect: async () => Promise.reject(new Error(token)), issueUrl: () => `https://${token}/{id}` })
 
@@ -37,7 +37,6 @@ const github: TrackerAdapter = {
 const config = (more: Partial<TrackerConfig> = {}): TrackerConfig => ({
   projects: { ABC: 'D:/abc', XYZ: 'D:/xyz' },
   keys: { ABC: 'ABC', XYZ: 'XYZ' },
-  tracker: 'huly',
   trackers: { ABC: 'huly', XYZ: 'huly' },
   trackerProjects: {},
   ...more,
@@ -79,10 +78,11 @@ function context() {
 }
 
 describe('trackerPlans', () => {
-  it('gives each profile its projects, sorted, and their names in it; the default profile of the default tracker is there without projects', () => {
-    const set: ProfileSet = { profiles: [profile('work', 'huly', {}), profile('octo', 'github', {})], links: {} }
+  it("gives each profile its projects, sorted, and their names in it; the default profile of the links' tracker is there without projects", () => {
+    const set: ProfileSet = { profiles: [profile('work', 'huly', {}), profile('mine', 'github', {}), profile('octo', 'github', {}, false)], links: { ABC: 'octo', XYZ: 'octo' } }
     const plans = trackerPlans(config({ trackers: { XYZ: 'github', ABC: 'github' }, trackerProjects: { XYZ: 'octo/xyz', ABC: 'octo/abc' } }), set)
-    expect(plans.get('work')).toMatchObject({ kind: 'huly', projects: [], places: {} })
+    expect(plans.has('work')).toBe(false)
+    expect(plans.get('mine')).toMatchObject({ kind: 'github', projects: [], places: {} })
     expect(plans.get('octo')).toMatchObject({
       kind: 'github',
       projects: ['ABC', 'XYZ'],
@@ -100,7 +100,7 @@ describe('trackerPlans', () => {
 
   it('puts projects whose tracker has no profile under one key of the tracker', () => {
     const plans = trackerPlans(config({ trackers: { ABC: 'github', XYZ: 'huly' } }), hulyOnly({}))
-    expect([...plans.keys()]).toEqual(['work', 'none:github'])
+    expect([...plans.keys()]).toEqual(['none:github', 'work'])
     expect(plans.get('none:github')).toEqual({ kind: 'github', profile: undefined, projects: ['ABC'], places: { ABC: { key: 'ABC' } } })
   })
 })
@@ -192,19 +192,33 @@ describe('Trackers', () => {
     expect(started.map((each) => [each.view.name, each.view.projects])).toEqual([
       ['work', ['ABC']],
       ['work', ['ABC', 'XYZ']],
-      ['work', ['XYZ']],
       ['octo', ['ABC']],
+      ['work', ['XYZ']],
     ])
     expect(tasksByProject.has('ABC')).toBe(false)
   })
 
-  it('stops a tracker left without projects', () => {
+  it('stops a tracker left without projects, and links no task without a project any more', () => {
     const { trackers, started } = context()
     const set = hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' })
     trackers.apply(config(), set)
     trackers.apply(config({ projects: {}, trackers: {} }), set)
     expect(started[0]!.handle.stopped).toBe(true)
     expect(trackers.views()).toEqual([])
-    expect(trackers.setupOf(null)).toBeDefined()
+    expect(trackers.setupOf(null)).toBeUndefined()
+  })
+})
+
+describe('linksTracker', () => {
+  it('is the tracker most projects run on', () => {
+    expect(linksTracker({ projects: { a: 'D:/a', b: 'D:/b', c: 'D:/c' }, trackers: { a: 'huly', b: 'github', c: 'github' } })).toBe('github')
+  })
+
+  it('goes to the first project of the config in a tie', () => {
+    expect(linksTracker({ projects: { b: 'D:/b', a: 'D:/a' }, trackers: { a: 'huly', b: 'linear' } })).toBe('linear')
+  })
+
+  it('is none without projects', () => {
+    expect(linksTracker({ projects: {}, trackers: {} })).toBeUndefined()
   })
 })

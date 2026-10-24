@@ -8,8 +8,9 @@ import { Writes } from './storage/database.js'
 import { memoryDatabase } from './storage/memory.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 
-const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', ...fields })
-const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', ...fields })
+/** On Huly unless the fields name another tracker: the import stores every project's tracker (BTN-345). */
+const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', tracker: 'huly', repo: 'C:\\abc', ...fields })
+const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ', tracker: 'huly', repo: 'C:\\xyz', ...fields })
 
 describe('ConfigStore', { timeout: 30_000 }, () => {
   let db: PGlite
@@ -140,7 +141,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
 
     const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 1, milestones: [] })
-    expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1, color: 2 }] }))
+    expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', tracker: 'huly', slot: 1, color: 2 }] }))
     expect(config.current.keys[id]).toBe('NEW')
     expect(config.current.slots[id]).toBe(1)
   })
@@ -162,19 +163,19 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
 
     config.removeProject('id-abc')
     expect(await read()).toEqual(stored({ projects: [xyz()] }))
-    expect((await db.query('select * from setting_values where project_id is not null')).rows).toEqual([])
+    expect((await db.query(`select * from setting_values where project_id = 'id-abc'`)).rows).toEqual([])
     expect(config.current.projects).toEqual({ 'id-xyz': 'C:\\xyz' })
     expect(() => config.removeProject('id-abc')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
   })
 
-  it('writes the shared settings and applies them at once, the tracker too', async () => {
+  it('writes the shared settings and applies them at once, with no tracker of its own (BTN-345)', async () => {
     await seed({ projects: [abc()] })
     const config = await open()
 
-    config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' }, config.view().shared)
-    expect(await read()).toEqual(stored({ parallel: 2, tracker: 'linear', projects: [abc()] }))
+    config.saveShared({ ...config.view().shared, parallel: 2 }, config.view().shared)
+    expect(await read()).toEqual(stored({ parallel: 2, projects: [abc()] }))
     expect(config.current.parallel).toBe(2)
-    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { 'id-abc': { tracker: 'linear' } } })
+    expect(config.view().shared).not.toHaveProperty('tracker')
   })
 
   it('writes the chain switches only when they change', async () => {

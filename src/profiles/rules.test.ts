@@ -7,8 +7,8 @@ import { checkProfileRules, cleanRules, projectRules, rulesWith } from './rules.
 const config = parseConfig({
   chain: { active: ['Todo'], requiredLabels: ['Agent'] },
   projects: [
-    { id: 'abc', key: 'ABC', repo: 'C:\\abc' },
-    { id: 'xyz', key: 'XYZ', repo: 'C:\\xyz', chain: { active: ['Ready'] } },
+    { id: 'abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' },
+    { id: 'xyz', key: 'XYZ', repo: 'C:\\xyz', tracker: 'huly', chain: { active: ['Ready'] } },
     { id: 'gh', key: 'GH', repo: 'C:\\gh', tracker: 'github', github: 'octo-org/example' },
   ],
 })
@@ -62,7 +62,7 @@ describe('rules of a tracker profile (BTN-66)', () => {
   it("are the feed's profile's for the tasks of a project's feed, and a change is checked against it too", () => {
     const fed = parseConfig({
       chain: { active: ['Todo'] },
-      projects: [{ id: 'abc', key: 'ABC', repo: 'C:\\abc', feeds: [{ id: 'feed', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] }],
+      projects: [{ id: 'abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly', feeds: [{ id: 'feed', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] }],
     })
     const feed = fed.feeds.abc![0]!
     const set: ProfileSet = {

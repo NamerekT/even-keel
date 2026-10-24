@@ -1058,8 +1058,6 @@ export const en: Messages = {
     },
     parallel: 'Chains at once',
     parallelHint: 'Other projects wait in the queue. Lowering it stops nothing: no new chain starts until fewer run.',
-    tracker: 'Default tracker',
-    trackerHint: 'For projects that name no tracker of their own.',
     sessions: 'Sessions',
     claude: 'Claude Code',
     ci: 'Check and CI',

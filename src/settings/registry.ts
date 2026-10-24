@@ -185,7 +185,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
   { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
-  { key: 'tracker', kind: 'enum', scopes: ['global', 'project'], lands: ['tracker', 'trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
+  // A project's own only (BTN-345): a shared default silently moved every project that named none.
+  { key: 'tracker', kind: 'enum', scopes: ['project'], lands: ['trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
     const where = at(place, 'tracker')
     if (typeof value !== 'string' || value.trim() === '') throw fail('config.trackerName', { where })
     const name = value.trim().toLowerCase()

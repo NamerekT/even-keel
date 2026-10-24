@@ -60,7 +60,7 @@ const SCOPE = SHARED_SCOPE
 const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
-  { id: 'chain', keys: ['parallel', 'tracker', 'brief', 'fillMilestone'] },
+  { id: 'chain', keys: ['parallel', 'brief', 'fillMilestone'] },
   // The shared rules, together with a switch to the rules of each tracker profile, which are saved apart (BTN-66).
   { id: 'rules', keys: [...RULE_KEYS] },
   {
@@ -86,7 +86,6 @@ const promptsOf = (text: string): [string, string][] =>
 
 const valuesOf = (form: SharedForm): Values => ({
   parallel: String(form.parallel),
-  tracker: form.tracker,
   brief: form.brief === null ? '' : String(form.brief),
   ...rulesText(form.chain),
   provider: form.provider,
@@ -140,7 +139,6 @@ function formOf(values: Values): SharedForm | undefined {
   const language = text('language')
   return {
     parallel: parallel!,
-    tracker: text('tracker'),
     brief: text('brief') === '' ? null : text('brief') === 'true',
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
     provider: text('provider'),
@@ -315,12 +313,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)}
         </Section>
         <Section title={t.shared.sections.tasks}>
-          {select(
-            'tracker',
-            t.shared.tracker,
-            config.trackers.map((each) => ({ value: each.name, label: each.name })),
-            t.shared.trackerHint,
-          )}
           {select(
             'brief',
             t.settings.brief,

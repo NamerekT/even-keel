@@ -25,7 +25,8 @@ export interface Queryable {
  * (BTN-199), `unattended` and `trimTools` moving from `chain_flags` into Even Keel's setting rows; step 5 the tracker
  * profiles and each project's profile (BTN-200); step 6 the versions of the milestones' changelog drafts (BTN-209); step 7 what each version's turn cost; step 8 the chain's list of pull requests, `reviews` (BTN-205); step 9 gives each project the color its position had,
  * a `color` row (BTN-207); step 12 the profiles' chain rules, the projects' extra task feeds and each feed's profile,
- * and the profile and status of an archived task (BTN-66). A foreign key between tables is deferred, so that a copy inserts the
+ * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
+ * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -202,6 +203,17 @@ export const STEPS: readonly string[] = [
   );
   alter table closed_tasks add column profile_id text;
   alter table closed_tasks add column status text;
+  `,
+  `
+  insert into setting_definitions (key, kind, spec, default_value, scopes)
+    select 'tracker', 'enum', '{}', '"huly"', 'project' where exists (select 1 from projects)
+    on conflict (key) do nothing;
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select 'tracker', p.id, '', coalesce((select v.value from setting_values v where v.key = 'tracker' and v.project_id is null), '"huly"'),
+           to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
+      from projects p
+     where not exists (select 1 from setting_values v where v.key = 'tracker' and v.project_id = p.id);
+  delete from setting_values where key = 'tracker' and project_id is null;
   `,
 ]
 

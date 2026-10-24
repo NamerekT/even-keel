@@ -1,7 +1,6 @@
 {
-  "version": 12,
+  "version": 13,
   "allowedHosts": [],
-  "tracker": "huly",
   "parallel": 1,
   "chain": {
     "active": ["Todo", "In Progress", "In Review"],
@@ -13,13 +12,15 @@
     {
       "id": "00000000-0000-4000-8000-000000000001",
       "key": "ABC",
-      "repo": "C:\\repos\\example-project"
+      "repo": "C:\\repos\\example-project",
+      "tracker": "huly"
     },
     {
       "id": "00000000-0000-4000-8000-000000000002",
       "key": "XYZ",
       "name": "Other project",
       "repo": "C:\\repos\\other-project",
+      "tracker": "huly",
       "branch": "master",
       "slot": true,
       "brief": false,

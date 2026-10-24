@@ -4,7 +4,7 @@ import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerPlace, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
 
-export type TrackerConfig = Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects'>
+export type TrackerConfig = Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects'>
 
 /** What one profile of a tracker serves: its projects, sorted, and the place of each in the tracker. */
 export interface TrackerPlan {
@@ -20,8 +20,8 @@ export const noProfile = (kind: string): string => `none:${kind}`
 
 /**
  * A plan per profile the projects run on, by the profile's id; a tracker whose projects have no profile gets one by
- * `noProfile`. The default profile of the default tracker is there even without projects: its setup gives the links of
- * other projects' tasks.
+ * `noProfile`. The default profile of the links' tracker (`linksTracker`) is there even when no project runs on it: its
+ * setup gives the links of tasks whose project is not known.
  */
 export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string, TrackerPlan> {
   const plans = new Map<string, TrackerPlan>()
@@ -31,8 +31,9 @@ export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string
     plans.set(key, plan)
     return plan
   }
-  const fallback = defaultProfile(set, config.tracker)
-  if (fallback !== undefined) planOf(config.tracker, fallback)
+  const links = linksTracker(config)
+  const fallback = links === undefined ? undefined : defaultProfile(set, links)
+  if (links !== undefined && fallback !== undefined) planOf(links, fallback)
   for (const project of Object.keys(config.projects).sort()) {
     const kind = config.trackers[project]!
     const plan = planOf(kind, profileFor(set, project, kind))
@@ -41,6 +42,21 @@ export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string
     plan.places[project] = { key: config.keys[project] ?? project, ...(value === undefined ? {} : { value }) }
   }
   return plans
+}
+
+/**
+ * The tracker whose default profile links a task of no known project: the one most projects run on, a tie going to the
+ * first project's in the order of the config; none without projects. It took the shared `tracker` before BTN-345.
+ */
+export function linksTracker(config: Pick<TrackerConfig, 'projects' | 'trackers'>): string | undefined {
+  const counts = new Map<string, number>()
+  for (const project of Object.keys(config.projects)) {
+    const kind = config.trackers[project]!
+    counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
+  let best: string | undefined
+  for (const [kind, count] of counts) if (best === undefined || count > counts.get(best)!) best = kind
+  return best
 }
 
 export interface TrackersDeps {
@@ -69,7 +85,7 @@ interface Running {
 export class Trackers {
   private readonly setups = new Map<string, TrackerSetup | undefined>()
   private readonly running = new Map<string, Running>()
-  /** The plan key of each project, and of the default tracker's default profile. */
+  /** The plan key of each project, and of the links' tracker's default profile. */
   private keys = new Map<string, string>()
   private defaultKey: string | undefined
 
@@ -84,7 +100,7 @@ export class Trackers {
     return this.keys.get(project)
   }
 
-  /** The setup of the project's profile; without a project, of the default tracker's default profile. */
+  /** The setup of the project's profile; without a project, of the default profile of the links' tracker (`linksTracker`). */
   setupOf(project: string | null): TrackerSetup | undefined {
     const key = project === null ? this.defaultKey : this.keys.get(project)
     return key === undefined ? undefined : this.setups.get(key)
@@ -99,7 +115,8 @@ export class Trackers {
       this.setups.delete(key)
     }
     this.keys = new Map([...plans].flatMap(([key, plan]) => plan.projects.map((project): [string, string] => [project, key])))
-    this.defaultKey = defaultProfile(set, config.tracker)?.id
+    const links = linksTracker(config)
+    this.defaultKey = links === undefined ? undefined : defaultProfile(set, links)?.id
     for (const [key, plan] of plans) this.applyOne(key, plan)
   }
 

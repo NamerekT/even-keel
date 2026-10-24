@@ -53,7 +53,6 @@ export interface EvenKeelConfig {
   slots: Record<string, number>
   /** The palette slot of each project (`colorsOf`): its own `color` or a free one; a project past the free ones has none. */
   colors: Record<string, number>
-  tracker: string
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
   /** The extra task feeds of each project that has any (BTN-66), in the order of its entry. */
@@ -270,7 +269,6 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
       records.map((record) => record.id),
       byId((_, { color }) => color as number | undefined),
     ),
-    tracker: shared.tracker as string,
     trackers: byId((_, project) => project.tracker as string),
     trackerProjects: byId((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
     feeds: feedsOf(records, adapters),
@@ -390,7 +388,7 @@ function feedsOf(records: ProjectRecord[], adapters: AdapterShapes): Record<stri
 }
 
 /** What the tracker layer reads (BTN-66): every project, and every feed as a project of its own id on its owner's repository. */
-export interface Readers extends Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects'> {
+export interface Readers extends Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects'> {
   /** The project of each feed, by the feed's id. */
   owners: Record<string, string>
 }
@@ -398,13 +396,12 @@ export interface Readers extends Pick<EvenKeelConfig, 'projects' | 'keys' | 'tra
 const readersCache = new WeakMap<object, Readers>()
 
 /** `Readers` of the config, made once per config object. */
-export function readersOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects' | 'feeds'>): Readers {
+export function readersOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects' | 'feeds'>): Readers {
   const cached = readersCache.get(config)
   if (cached !== undefined) return cached
   const readers: Readers = {
     projects: { ...config.projects },
     keys: { ...config.keys },
-    tracker: config.tracker,
     trackers: { ...config.trackers },
     trackerProjects: { ...config.trackerProjects },
     owners: {},
@@ -429,7 +426,7 @@ export const ownerOf = (readers: Pick<Readers, 'owners'>, reader: string): strin
 export const readerIds = (config: Pick<EvenKeelConfig, 'feeds'>, project: string): string[] => [project, ...(config.feeds[project] ?? []).map((feed) => feed.id)]
 
 /** The reader of a task of the project: the feed whose ids its id carries, else the project itself. */
-export function readerOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects' | 'feeds'>, project: string, task: string, adapters: AdapterShapes = ADAPTERS): string {
+export function readerOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects' | 'feeds'>, project: string, task: string, adapters: AdapterShapes = ADAPTERS): string {
   const feeds = config.feeds[project]
   if (feeds === undefined) return project
   const prefix = task.slice(0, task.lastIndexOf('-'))

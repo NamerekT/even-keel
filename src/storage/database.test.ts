@@ -24,7 +24,9 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
 // Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles, version 6 the
 // changelog drafts, version 7 their turns' spend, version 8 the pull requests, version 9 the colors, version 10 the
-// shelved tasks, version 11 the keys shared by projects, version 12 the profiles' rules and the extra task feeds: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
+// shelved tasks, version 11 the keys shared by projects, version 12 the profiles' rules and the extra task feeds, version
+// 13 the tracker of every project its own: a later step must migrate each, and each step itself must still make exactly
+// the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -483,6 +485,45 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       await opened.close()
     }
     expect(logs).toEqual([])
+  })
+
+  it('of version 13 has the schema step 13 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 11))
+    try {
+      await frozen.exec(fixture(13))
+      expect(await databaseVersion(frozen)).toBe(13)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  /** Version 12 brought to the current schema, `more` run on it first; the tracker rows by project, `null` the shared one. */
+  async function trackersOfV12(more = '') {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(12) + more)
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      const rows = await opened.db.query<{ project_id: string | null; value: string }>("select project_id, value from setting_values where key = 'tracker' order by project_id")
+      return Object.fromEntries(rows.rows.map((row) => [row.project_id ?? 'null', JSON.parse(row.value)]))
+    } finally {
+      await opened.close()
+    }
+  }
+
+  it('of version 12 gives each project without a tracker of its own Huly, the default of then (BTN-345)', async () => {
+    expect(await trackersOfV12()).toEqual({ [ABC]: 'huly', [XYZ]: 'github', [SECOND_ABC]: 'huly' })
+  })
+
+  it('of version 12 gives them the shared tracker it had, and drops the shared row (BTN-345)', async () => {
+    const shared = `insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+      values ('tracker', null, '', '"linear"', '2026-10-18T09:00:00.000Z', 'hand');`
+    expect(await trackersOfV12(shared)).toEqual({ [ABC]: 'linear', [XYZ]: 'github', [SECOND_ABC]: 'linear' })
   })
 })
 

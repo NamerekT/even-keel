@@ -40,7 +40,6 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | Key | Default | |
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
-| `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
 | `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it |
 | `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
@@ -57,7 +56,8 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `projects[].repo` | — | path to the main checkout |
 | `projects[].name` | none | display name shown next to the key; the page edits it in the project head |
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
-| `projects[].tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
+| `projects[].tracker` | `github` | the project's tracker: `huly`, `github` or `linear`. The page and `config-export` always write it; a project of a file without it runs on GitHub. A file of an older Even Keel gives each project the tracker it ran on |
+| `projects[].brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects[].huly` | the key | identifier of the Huly project the project reads, when it is not the key; task ids stay Huly's (`ABC-12`) |
 | `projects[].linear` | the whole team | for a project on Linear: the name of the Linear project the team is narrowed down to, and the key is the team key; or `TEAM/Project` (`TEAM/` for the whole team), and the key is only Even Keel's, so several projects can work on one team. Task ids stay the team's (`TEAM-12`) |

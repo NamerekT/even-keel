@@ -26,13 +26,14 @@ import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
 /**
  * Most cases here are about one field of a project, so they write `projects` keyed by the project key, each id the
- * same as its key: the maps of the config, by id, read as they would by key.
+ * same as its key: the maps of the config, by id, read as they would by key. Such a project is on Huly unless it names
+ * its tracker: the default's project key is not what they are about.
  */
 const parse = (raw: Record<string, unknown>, adapters?: Parameters<typeof parseConfig>[1]) => {
   const { projects } = raw
   const listed =
     typeof projects === 'object' && projects !== null && !Array.isArray(projects)
-      ? Object.entries(projects).map(([key, entry]) => ({ id: key, key, ...(typeof entry === 'object' ? entry : { repo: entry }) }))
+      ? Object.entries(projects).map(([key, entry]) => ({ id: key, key, tracker: 'huly', ...(typeof entry === 'object' ? entry : { repo: entry }) }))
       : projects
   return parseConfig({ ...raw, projects: listed }, adapters)
 }
@@ -41,8 +42,8 @@ describe('projects in the config', () => {
   it('are a list of records in the order of the file, each with its id and key', () => {
     const config = parseConfig({
       projects: [
-        { id: 'b3c1', key: 'XYZ', repo: 'C:\\xyz', name: 'Other' },
-        { id: 'a7f0', key: 'ABC', repo: 'C:\\abc' },
+        { id: 'b3c1', key: 'XYZ', repo: 'C:\\xyz', name: 'Other', tracker: 'huly' },
+        { id: 'a7f0', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' },
       ],
     })
     expect(Object.keys(config.projects)).toEqual(['b3c1', 'a7f0'])
@@ -68,8 +69,8 @@ describe('projects in the config', () => {
     expect(twice({ id: 'a', key: 'ABC' }, { id: 'a', key: 'XYZ' })).toThrow(/projects\[0\].*projects\[1\]/)
     const config = parseConfig({
       projects: [
-        { id: 'a', key: 'ABC', repo: 'C:\\a', chain: { excludedMilestones: ['v1.0.1'] } },
-        { id: 'b', key: 'ABC', repo: 'C:\\b', mergeInto: 'ABC', chain: { requiredMilestones: ['v1.0.1'] } },
+        { id: 'a', key: 'ABC', repo: 'C:\\a', tracker: 'huly', chain: { excludedMilestones: ['v1.0.1'] } },
+        { id: 'b', key: 'ABC', repo: 'C:\\b', tracker: 'huly', mergeInto: 'ABC', chain: { requiredMilestones: ['v1.0.1'] } },
       ],
     })
     expect(config.keys).toEqual({ a: 'ABC', b: 'ABC' })
@@ -114,7 +115,6 @@ describe('parseConfig', () => {
       slots: {},
       colors: { ABC: 1 },
       chain: DEFAULT_RULES,
-      tracker: 'huly',
       trackers: { ABC: 'huly' },
       trackerProjects: {},
       feeds: {},
@@ -193,10 +193,16 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: {}, promptLanguage: 'RU' })).toThrow(/promptLanguage/)
   })
 
-  it('takes the tracker of a project from its own key, else from the shared one', () => {
-    const config = parse({ tracker: ' Fake ', projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', tracker: 'huly' } } }, { huly: {}, fake: {} })
-    expect(config.tracker).toBe('fake')
-    expect(config.trackers).toEqual({ ABC: 'fake', XYZ: 'huly' })
+  it('takes the tracker of a project from its own key, GitHub without one, and reads no shared one (BTN-345)', () => {
+    const config = parseConfig({
+      tracker: 'huly',
+      projects: [
+        { id: 'ABC', key: 'ABC', repo: 'C:\\abc', tracker: ' Linear ' },
+        { id: 'XYZ', key: 'XYZ', repo: 'C:\\xyz', github: 'octo-org/xyz' },
+      ],
+    })
+    expect(config.trackers).toEqual({ ABC: 'linear', XYZ: 'github' })
+    expect(config).not.toHaveProperty('tracker')
   })
 
   it('takes the name of a project in its tracker from the key the adapter asks for', () => {
@@ -207,17 +213,17 @@ describe('parseConfig', () => {
   })
 
   it('rejects a project on such a tracker without that name or with a malformed one', () => {
-    expect(() => parse({ tracker: 'github', projects: { ABC: 'C:\\abc' } })).toThrow(/ABC\.github.*octo-org\/example/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'github' } } })).toThrow(/ABC\.github.*octo-org\/example/)
+    expect(() => parseConfig({ projects: [{ id: 'ABC', key: 'ABC', repo: 'C:\\abc' }] })).toThrow(/ABC\.github.*octo-org\/example/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'https://github.com/octo-org/abc' } } })).toThrow(/ABC\.github/)
   })
 
   it('lets a project leave out a key the adapter takes as optional, but not give a malformed one', () => {
     const config = parse({
-      tracker: 'linear',
-      projects: { ABC: { repo: 'C:\\abc', linear: ' Web app ' }, XYZ: 'C:\\xyz' },
+      projects: { ABC: { repo: 'C:\\abc', tracker: 'linear', linear: ' Web app ' }, XYZ: { repo: 'C:\\xyz', tracker: 'linear' } },
     })
     expect(config.trackerProjects).toEqual({ ABC: 'Web app' })
-    expect(() => parse({ tracker: 'linear', projects: { ABC: { repo: 'C:\\abc', linear: ' ' } } })).toThrow(/ABC\.linear/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'linear', linear: ' ' } } })).toThrow(/ABC\.linear/)
   })
 
   it('takes the extra task feeds of a project, checked by their trackers (BTN-66)', () => {
@@ -491,7 +497,7 @@ describe('parseConfig', () => {
   })
 
   it('rejects a tracker it has no adapter for', () => {
-    expect(() => parse({ tracker: 'jira', projects: { ABC: 'C:\\abc' } })).toThrow(/tracker "jira".*huly/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'jira' } } })).toThrow(/tracker "jira".*huly/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 7 } } })).toThrow(/ABC.tracker/)
   })
 
@@ -752,16 +758,19 @@ describe('projects on one tracker project', () => {
 
   it('let two projects read projects of one Linear team, under their own keys and the team prefix of ids', () => {
     const config = parse({
-      tracker: 'linear',
-      projects: { GS: { repo: 'C:\\gs', linear: 'NAM/GameStore' }, NBC: { repo: 'C:\\nbc', linear: 'NAM/Business card' }, ENG: { repo: 'C:\\eng', linear: 'Web app' } },
+      projects: {
+        GS: { repo: 'C:\\gs', tracker: 'linear', linear: 'NAM/GameStore' },
+        NBC: { repo: 'C:\\nbc', tracker: 'linear', linear: 'NAM/Business card' },
+        ENG: { repo: 'C:\\eng', tracker: 'linear', linear: 'Web app' },
+      },
     })
     expect(['GS', 'NBC', 'ENG'].map((project) => readKeyOf(config, project))).toEqual(['NAM/GameStore', 'NAM/Business card', 'ENG/Web app'])
     expect(['GS', 'NBC', 'ENG'].map((project) => idPrefixOf(config, project))).toEqual(['NAM', 'NAM', 'ENG'])
-    expect(() => parse({ tracker: 'linear', projects: { GS: { repo: 'C:\\gs', linear: 'NAM/' }, NAM: 'C:\\nam' } })).toThrow(/NAM.*GS/)
+    expect(() => parse({ projects: { GS: { repo: 'C:\\gs', tracker: 'linear', linear: 'NAM/' }, NAM: { repo: 'C:\\nam', tracker: 'linear' } } })).toThrow(/NAM.*GS/)
   })
 
   it('read the key on a tracker whose value cannot be shared', () => {
-    const config = parse({ tracker: 'github', projects: { ABC: { repo: 'C:\\abc', github: 'octo-org/abc' } } })
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'octo-org/abc' } } })
     expect(readKeyOf(config, 'ABC')).toBe('ABC')
   })
 
@@ -772,8 +781,8 @@ describe('projects on one tracker project', () => {
 })
 
 describe('projects of one key (BTN-271)', () => {
-  const main = { id: 'f00d-1', key: 'ABC', repo: 'C:\\abc', chain: { excludedMilestones: ['v1.0.1'] } }
-  const release = { id: 'beef-2', key: 'ABC', repo: 'C:\\abc-release', branch: 'release/v1', chain: { requiredMilestones: ['v1.0.1'] } }
+  const main = { id: 'f00d-1', key: 'ABC', repo: 'C:\\abc', tracker: 'huly', chain: { excludedMilestones: ['v1.0.1'] } }
+  const release = { id: 'beef-2', key: 'ABC', repo: 'C:\\abc-release', tracker: 'huly', branch: 'release/v1', chain: { requiredMilestones: ['v1.0.1'] } }
 
   it('read the tracker project of their key, and are told apart by name, then branch, then the start of the id', () => {
     const config = parseConfig({ projects: [main, release] })

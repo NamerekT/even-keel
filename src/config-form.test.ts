@@ -5,12 +5,13 @@ import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
 const formOf = (raw: Record<string, unknown>, project: string): ProjectForm => formsOf(parseConfig(raw)).projects[project]!
 const sharedOf = (raw: Record<string, unknown>): SharedForm => formsOf(parseConfig(raw)).shared
-const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', ...fields })
-const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', ...fields })
+/** On Huly unless the fields name another tracker: a project's tracker is its own (BTN-345). */
+const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', tracker: 'huly', repo: 'C:\\abc', ...fields })
+const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ', tracker: 'huly', repo: 'C:\\xyz', ...fields })
 
 describe('formsOf', () => {
   it('fills a project in with what it inherits', () => {
-    const raw = { tracker: 'github', brief: false, chain: { requiredLabels: ['Auto'] }, projects: [abc({ github: 'octo-org/abc', slot: true })] }
+    const raw = { brief: false, chain: { requiredLabels: ['Auto'] }, projects: [abc({ tracker: 'github', github: 'octo-org/abc', slot: true })] }
     expect(formOf(raw, 'id-abc')).toMatchObject({
       repo: 'C:\\abc',
       branch: 'main',
@@ -68,6 +69,12 @@ describe('withProjectForm', () => {
     const raw = { brief: false, projects: [abc({ tracker: 'github', github: 'octo-org/abc', brief: true, slot: 2, chain: { requiredLabels: ['Auto'] } })] }
     const form: ProjectForm = { ...formOf(raw, 'id-abc'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: [] } }
     expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))).toEqual({ brief: false, projects: [abc()] })
+  })
+
+  it('writes the tracker it moves to even when it is the default, so that no later default moves the project (BTN-345)', () => {
+    const raw = { projects: [abc({ tracker: 'linear' })] }
+    const form: ProjectForm = { ...formOf(raw, 'id-abc'), tracker: 'github', trackerProject: 'octo-org/abc' }
+    expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))).toEqual({ projects: [abc({ tracker: 'github', github: 'octo-org/abc' })] })
   })
 
   it('writes null for statuses by category over a shared list', () => {
@@ -259,7 +266,7 @@ describe('withNewProject', () => {
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }
     const next = withNewProject(raw, draft, 'id-new')
-    expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 2 }], custom: 1 })
+    expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new', tracker: 'huly', color: 2 }], custom: 1 })
     expect(parseConfig(next).projects).toEqual({ 'id-abc': 'C:\\abc', 'id-new': 'D:\\new' })
   })
 
@@ -270,16 +277,16 @@ describe('withNewProject', () => {
     expect((withNewProject(full, draft, 'id-new').projects as Record<string, unknown>[])[8]).not.toHaveProperty('color')
   })
 
-  it('writes the name, the branch, the tracker, its project and the slots when they are the project own', () => {
+  it('writes the name, the branch, the project in the tracker and the slots when they are the project own, and the tracker always (BTN-345)', () => {
     const next = withNewProject({ projects: [] }, { ...draft, name: ' New ', branch: 'master', tracker: 'github', trackerProject: ' octo-org/new ', slot: 2 }, 'id-new')
     expect(next.projects).toEqual([{ id: 'id-new', key: 'NEW', repo: 'D:\\new', name: 'New', branch: 'master', tracker: 'github', github: 'octo-org/new', slot: 2, color: 1 }])
-    expect(withNewProject({ tracker: 'github', projects: [] }, { ...draft, tracker: 'github', trackerProject: 'octo-org/new' }, 'id-new').projects).toEqual([
-      { id: 'id-new', key: 'NEW', repo: 'D:\\new', github: 'octo-org/new', color: 1 },
+    expect(withNewProject({ projects: [] }, { ...draft, tracker: 'github', trackerProject: 'octo-org/new' }, 'id-new').projects).toEqual([
+      { id: 'id-new', key: 'NEW', repo: 'D:\\new', tracker: 'github', github: 'octo-org/new', color: 1 },
     ])
   })
 
   it('starts the list of projects in a config that has none', () => {
-    expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 1 }] })
+    expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new', tracker: 'huly', color: 1 }] })
   })
 
   it("splits a shared tracker project by the draft's milestones: they leave the projects on it (BTN-306)", () => {

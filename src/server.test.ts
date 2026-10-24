@@ -307,7 +307,6 @@ describe('Even Keel HTTP server', () => {
   it('passes the shared settings on and refuses a wrong shape', async () => {
     const shared = {
       parallel: 2,
-      tracker: 'huly',
       brief: true,
       chain,
       provider: 'claude',

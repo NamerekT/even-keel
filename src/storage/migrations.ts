@@ -93,6 +93,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // sessions of `state/claude-sdk/` (BTN-239).
   // v10 → v11: `account.json` by `bgChosen`, the others restamped (BTN-302).
   // v11 → v12: `account.json` by `transportsMoved`, the others restamped (BTN-353).
+  // v12 → v13: the config by `trackersOwned`, the others restamped (BTN-345).
   for (const stored of [chain, questions, packages]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
@@ -129,7 +130,8 @@ export function upgradeStorage(options: UpgradeOptions): void {
 export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): unknown {
   const version = versionOf(raw)
   const upgraded = version < 2 ? configV2(raw) : version < SCHEMA_VERSION && isRecord(raw) ? stamped(raw) : raw
-  return version < 8 ? configV8(upgraded, active) : upgraded
+  const moved = version < 8 ? configV8(upgraded, active) : upgraded
+  return version < 13 ? trackersOwned(moved) : moved
 }
 
 /** v1 → v2: the `projects` object by key becomes an array of records in the same order, the key a field of each. */
@@ -208,6 +210,22 @@ function transportsMoved(raw: Record<string, unknown>): Record<string, unknown> 
     }),
   )
   return { ...raw, accounts, ...(Object.keys(transports).length > 0 && { transports }) }
+}
+
+/** What a project without a tracker of its own and a config without a shared `tracker` ran on before v13. */
+const V12_TRACKER = 'huly'
+
+/**
+ * v12 → v13: the tracker is a project's own (BTN-345). Each project entry that names none gets the one it ran on, the
+ * shared `tracker` or else `huly`, the default of then; the shared key goes, so that no later default moves a project.
+ * The tests read the older samples through it too.
+ */
+export function trackersOwned(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  const { tracker, ...config } = raw
+  const ran = tracker === undefined ? V12_TRACKER : tracker
+  const projects = Array.isArray(config.projects) ? config.projects.map((entry: unknown) => (isRecord(entry) && entry.tracker === undefined ? { ...entry, tracker: ran } : entry)) : config.projects
+  return { ...config, projects }
 }
 
 function idsOf(raw: unknown): Record<string, string> {

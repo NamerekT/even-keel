@@ -57,7 +57,6 @@ const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], w
 
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,
-  tracker: 'huly',
   brief: null,
   chain: DEFAULT_RULES,
   provider: 'claude',
