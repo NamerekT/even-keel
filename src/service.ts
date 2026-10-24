@@ -806,7 +806,7 @@ const monitor = new SessionMonitor({
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
   keyLimits: (key) => account.apiKey(key) && !spendsByKey(key),
-  // The stems name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
+  // The stems name the fix and carry sessions (`<KEY>-FIX`, `<KEY>-CARRY`), the prefixes the tasks of projects whose ids are the tracker's own.
   projectKeys: () => {
     const config = configStore.current
     const projects = Object.keys(config.projects)

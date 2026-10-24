@@ -205,6 +205,15 @@ describe('sessionsByTask', () => {
     expect(sessionsByTask([named, foreign], ['ABC']).get('ABC-FIX')?.sessionId).toBe('named')
     expect([...sessionsByTask([onBranch, foreign], ['ABC'], (agent) => (agent === onBranch ? 'abc-fix/task' : null)).keys()]).toEqual(['ABC-FIX'])
   })
+
+  it('tracks the carry session of a release by its name or its branch, for a configured project only', () => {
+    const named = { ...interactive, sessionId: 'named', name: 'EKR-CARRY' }
+    const onBranch = { ...interactive, sessionId: 'on-branch', name: 'session-2b' }
+    const foreign = { ...interactive, sessionId: 'foreign', name: 'HOT-CARRY' }
+
+    expect(sessionsByTask([named, foreign], ['EKR']).get('EKR-CARRY')?.sessionId).toBe('named')
+    expect([...sessionsByTask([onBranch, foreign], ['EKR'], (agent) => (agent === onBranch ? 'ekr-carry/task' : null)).keys()]).toEqual(['EKR-CARRY'])
+  })
 })
 
 describe('turnStatus', () => {
