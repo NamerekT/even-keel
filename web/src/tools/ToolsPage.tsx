@@ -4,7 +4,9 @@ import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { projectLabel } from '../state.js'
+import { Band, PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { AddPlugin } from './AddPackage.js'
 import { LastSessions } from './LastSessions.js'
@@ -63,13 +65,8 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
 
   return (
     <div className="page tools-page">
-      <header>
-        <h1 className="page__title">{t.tools.heading}</h1>
-        <p className="tools__muted">{t.tools.hint}</p>
-      </header>
-      {views.length > 0 && (
-        <p className={views[0]!.trim ? 'tools__trim' : 'tools__trim tools__trim--off'}>{views[0]!.trim ? t.tools.trimOn(hiddenSkills(views)) : t.tools.trimOff}</p>
-      )}
+      <PageHead title={t.tools.heading} help={<HelpTip text={t.tools.hint} />} />
+      {views.length > 0 && <Band tone={views[0]!.trim ? 'note' : 'warn'}>{views[0]!.trim ? t.tools.trimOn(hiddenSkills(views)) : t.tools.trimOff}</Band>}
       <div className="tools-page__body">
         <ProjectList items={items} empty={t.tools.noProjects} selected={selected} onChange={choose} />
         <div className="tools-page__main" aria-busy={loading}>

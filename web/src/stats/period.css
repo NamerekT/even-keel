@@ -54,7 +54,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+  box-shadow: var(--shadow-popover);
 }
 
 .period__presets {
@@ -74,7 +74,7 @@
   font-size: var(--text-14);
   padding: 6px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   white-space: nowrap;
   color: var(--fg);
@@ -118,7 +118,7 @@
   font: inherit;
   padding: 4px 6px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--fg);
 }
@@ -160,7 +160,7 @@
   font: inherit;
   padding: 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--fg);
   cursor: pointer;
@@ -225,13 +225,13 @@
   left: calc(50% - 9px);
   width: 18px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   background: var(--heat, transparent);
 }
 
 .calendar__cell--wide {
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .calendar__cell--wide::before {

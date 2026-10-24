@@ -2,6 +2,7 @@ import type { AccountDrift, ToolScope, ToolsView } from '../../../src/tools/mode
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectLabel } from '../state.js'
+import { Band } from '../ui/blocks.js'
 import { PROBLEM_KINDS, sharedProblems, type SharedProblem } from './matrix.js'
 import { Chip, valueText } from './SettingsMatrix.js'
 
@@ -9,10 +10,10 @@ import { Chip, valueText } from './SettingsMatrix.js'
 export function Problems({ views, accounts }: { views: ToolsView[]; accounts: AccountDrift[] }) {
   const { state } = useLive()
   const found = sharedProblems(views)
-  if (found.length === 0 && accounts.length === 0) return <p className="tools__ok">{t.tools.problemsNone}</p>
+  if (found.length === 0 && accounts.length === 0) return <Band tone="note">{t.tools.problemsNone}</Band>
 
   return (
-    <section className="tools__problems">
+    <Band tone="warn" className="tools__problems">
       <h2 className="tools__heading">{t.tools.problems}</h2>
       {PROBLEM_KINDS.map((kind) => {
         const problems = found.filter((each) => each.kind === kind)
@@ -45,7 +46,7 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
           </ul>
         </div>
       )}
-    </section>
+    </Band>
   )
 }
 

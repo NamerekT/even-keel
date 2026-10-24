@@ -8,7 +8,7 @@ import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { ImportOffers, Keys, MarketplaceOffer } from './PackagesParts.js'
-import { heldLong, shownPackages } from './packageView.js'
+import { heldLong, keyLabel, shownPackages } from './packageView.js'
 import './packages.css'
 
 /** The catalog against the chosen projects: what each one's sessions get, its problems, and the buttons to change it. */
@@ -198,7 +198,7 @@ function ChoiceCell({ pkg, project, cell }: { pkg: PackageView; project: string;
 
 function ProblemChip({ problem }: { problem: PackageProblem }) {
   return (
-    <Tipped className={problem.kind === 'unsupported' ? 'tools__chip tools__chip--plain' : 'tools__chip tools__chip--lost'} tip={problemTip(problem)} focusable inline>
+    <Tipped className={`tools__chip tools__chip--words ${problem.kind === 'unsupported' ? 'tools__chip--plain' : 'tools__chip--lost'}`} tip={problemTip(problem)} focusable inline>
       {problemText(problem)}
     </Tipped>
   )
@@ -208,7 +208,7 @@ function problemText(problem: PackageProblem): string {
   const text = t.packages.problem
   switch (problem.kind) {
     case 'noKey':
-      return text.noKey(problem.variables.join(', '))
+      return text.noKey(problem.variables.map((name) => keyLabel(name, t.secrets.purpose)).join(', '))
     case 'noResponse':
       return text.noResponse(problem.servers.join(', '))
     case 'noTrackerMcp':

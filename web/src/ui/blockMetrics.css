@@ -51,7 +51,7 @@
   min-width: 0;
   padding: 3px 10px;
   border: 1px solid color-mix(in srgb, var(--now) 32%, var(--border));
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: linear-gradient(
     to right,
     color-mix(in srgb, var(--now) 22%, transparent) var(--fill),
@@ -140,7 +140,7 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--series) 24%, transparent);
   color: var(--fg);
-  font-size: 10px;
+  font-size: var(--text-11);
   font-weight: 600;
   line-height: 1;
 }

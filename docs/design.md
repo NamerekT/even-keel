@@ -30,7 +30,9 @@ Only these values. A colour, size, radius or duration that is not here is either
 | A project or a series in a chart | `--series-1`…`--series-8`, `--series-other` |
 | A neutral share (models, entry points) | `--tone-1`…`--tone-6` |
 | A band | `--warn-bg`/`--warn-fg`, `--error-bg`/`--error-fg` |
-| The shadow of a menu or a tip over the page | `--shadow-popover` |
+| The shadow of a menu or a tip over the page, of a dialog, of a side drawer | `--shadow-popover`, `--shadow-dialog`, `--shadow-drawer` |
+| Text or a knob on a fill that keeps its depth in both themes: on a deep one (accent, red), on a bright one (amber) | `--on-fill`, `--on-bright` |
+| The media viewer, dark in both themes | `--viewer-bg`, `--viewer-fg`, `--viewer-muted`, `--viewer-link`, `--viewer-control`, `--viewer-glass` |
 
 Red is only an error or a limit; amber is a warning or a wait for the user; blue is work going on or a neutral note; green is fine. A bright colour is a small mark — a dot, a bar, a 3 px stripe, a chart. A surface larger than a chip that takes a series or lamp colour is mixed down: `color-mix(in srgb, var(--series-1) 18%, var(--surface))`.
 
@@ -50,9 +52,9 @@ Weights are 400 and 600 only (Chromium draws 500 as 600 in Segoe UI, so a 500 be
 
 **Space** — `--space-2`, `-4`, `-6`, `-8`, `-12`, `-16`, `-24` (the pixels they name). Inside a card 12–16 px; between cards 12–16 px; between the page title and the content 16 px (`.page`).
 
-**Radius** — `--radius` (10 px) for a card, a panel, a band; `--radius-control` (8 px) for a control or a box inside a card; `--radius-pill` (999 px) for a pill; 50 % for a dot.
+**Radius** — `--radius` (10 px) for a card, a panel, a band; `--radius-control` (8 px) for a control or a box inside a card; `--radius-pill` (999 px) for a pill and a thin bar; `--radius-small` (4 px) for a mark inside a control — inline code, a key, a swatch, a focus ring; 50 % for a dot. A box set inside a card's 1 px border takes `--radius-inner`, a ring drawn 1 px around one `--radius-outer`.
 
-**The test** — `web/src/design.test.ts` reads every `web/src/**/*.css` through `cssViolations` (`web/src/ui/cssRules.ts`) and holds four rules: no hex or `rgb()`/`hsl()`/… colour outside `:root`; `font-size` (and the size in a `font` shorthand) only a `--text-*`, `em` or `inherit`; `font-weight` only 400 or 600; `border-radius` only a `--radius*` token, 50 %, 999px, `inherit` or 0. The violations older than the rules are counted per file in `web/src/design-baseline.json`, and a count may only go down: the test fails listing the lines when a file has more than its count, and asks for `npm run design-baseline` (it rewrites the file) when it has fewer. A new stylesheet starts at zero; a value off the scale is a new token here and in `:root`, not a raise of the baseline.
+**The test** — `web/src/design.test.ts` reads every `web/src/**/*.css` through `cssViolations` (`web/src/ui/cssRules.ts`) and holds four rules: no hex or `rgb()`/`hsl()`/… colour outside `:root`; `font-size` (and the size in a `font` shorthand) only a `--text-*`, `em` or `inherit`; `font-weight` only 400 or 600; `border-radius` only a `--radius*` token, 50 %, 999px, `inherit` or 0. The violations older than the rules are counted per file in `web/src/design-baseline.json`, and a count may only go down: the test fails listing the lines when a file has more than its count, and asks for `npm run design-baseline` (it rewrites the file) when it has fewer. A new stylesheet starts at zero; a value off the scale is a new token here and in `:root`, not a raise of the baseline. Since BTN-358 the baseline holds only the one-off decorations, drawn to their own scale on purpose: the basement's tapes and sign (`layout/basement.css`) and the stats stamp (`.stats-stamp` in `stats/stats.css`, its 6 px corner, 20 px word and 10 px caption).
 
 **Motion** — one duration per kind (BTN-112), the `--motion-*` tokens: `fast` 0.15 s (hover, small state changes, a caret or chevron turning, a reorder settling), `appear` 0.2 s ease-out (a page, dialog, panel or revealed section), `mark` 1.6 s ease-out (`block-glow` on a new or landed block), `skeleton` 1.4 s linear (`shimmer`), `blink` 1.2 s, `spin` 0.8 s. A new animation takes a token and an existing keyframe rather than a copy. Only the chain's beat choreography (`--beat-*` in `chain.css`) and one-off decorations (the basement, the stats stamp, the scanner) keep their own timings.
 

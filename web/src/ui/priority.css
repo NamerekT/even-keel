@@ -8,7 +8,7 @@
 
 .priority__bar {
   width: 3px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--fg) 20%, transparent);
 }
 
@@ -38,10 +38,10 @@
   place-items: center;
   width: 13px;
   height: 13px;
-  border-radius: 3px;
+  border-radius: var(--radius-small);
   background: var(--lamp-error);
   color: var(--surface);
-  font-size: 10px;
+  font-size: var(--text-11);
   font-weight: 600;
   line-height: 1;
 }

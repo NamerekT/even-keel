@@ -151,7 +151,7 @@ a.backlog__key:hover {
   width: 26px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg-muted);
   cursor: pointer;
@@ -315,7 +315,7 @@ a.backlog__key:hover {
   background: var(--surface);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  box-shadow: var(--shadow-popover);
   pointer-events: none;
   will-change: transform;
 }

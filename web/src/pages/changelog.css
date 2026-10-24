@@ -6,7 +6,7 @@
   margin: -4px -4px -4px 0;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--fg-muted);
   cursor: pointer;
@@ -37,8 +37,8 @@
 }
 
 .changelog.add-package {
-  --diff-added: color-mix(in srgb, #2ea043 22%, transparent);
-  --diff-removed: color-mix(in srgb, #e5534b 20%, transparent);
+  --diff-added: color-mix(in srgb, var(--lamp-done) 22%, transparent);
+  --diff-removed: color-mix(in srgb, var(--lamp-error) 20%, transparent);
   width: min(760px, calc(100vw - 32px));
 }
 
@@ -88,7 +88,7 @@
 
 .changelog__line ins,
 .changelog__line del {
-  border-radius: 3px;
+  border-radius: var(--radius-small);
   color: inherit;
 }
 

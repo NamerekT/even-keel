@@ -41,7 +41,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   overflow-anchor: none;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent);
 }
 
 .transcript__lines {
@@ -120,7 +120,7 @@
 
 .transcript__lines .markdown code {
   padding: 1px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--fg) 10%, transparent);
   font-size: 0.86em;
 }
@@ -159,7 +159,7 @@
   margin-left: -6px;
   padding: 1px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: none;
   color: inherit;
   font: inherit;
@@ -273,7 +273,7 @@ button.tools__toggle:hover {
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--bg);
   transition: border-color var(--motion-fast);
 }
@@ -386,7 +386,7 @@ button.tools__toggle:hover {
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   color: var(--fg);
-  font-size: 17px;
+  font-size: var(--text-16);
   font-weight: 600;
   pointer-events: none;
 }
@@ -405,7 +405,7 @@ button.tools__toggle:hover {
   align-items: center;
   gap: 4px;
   padding: 2px 4px 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   font-size: var(--text-13);
 }

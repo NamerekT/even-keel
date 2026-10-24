@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, ProjectPackages } from '../../../src/state.js'
-import { blockedProjects, heldFor, importOffers, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage } from './packageView.js'
+import { blockedProjects, heldFor, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -170,5 +170,16 @@ describe('shownPackages', () => {
       { ...base, name: 'db', removed: false },
     ]
     expect(shownPackages(view({ packages })).map((each) => each.name)).toEqual(['db', 'web', 'old'])
+  })
+})
+
+describe('keyLabel', () => {
+  it('takes the name the page knows for a variable', () => {
+    expect(keyLabel('HULY_EMAIL', { HULY_EMAIL: 'The e-mail to sign in to Huly with' })).toBe('The e-mail to sign in to Huly with')
+  })
+
+  it('spells an unknown variable in words, abbreviations in capitals', () => {
+    expect(keyLabel('SENTRY_AUTH_TOKEN', {})).toBe('Sentry auth token')
+    expect(keyLabel('MY_API_URL', {})).toBe('My API URL')
   })
 })

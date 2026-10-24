@@ -6,7 +6,7 @@
   height: 34px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -178,7 +178,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  box-shadow: var(--shadow-popover);
   font-size: var(--text-13);
   pointer-events: none;
 }
@@ -269,7 +269,7 @@
 .system-toggle.gear-toggle {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
 }
 
 .gear-toggle .system-toggle__dot {
@@ -302,7 +302,7 @@
   width: 100%;
   padding: 8px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -412,7 +412,7 @@
 .sheet__chevron {
   content: '›';
   color: var(--fg-muted);
-  font-size: 18px;
+  font-size: var(--text-16);
   line-height: 1;
   transition: transform var(--motion-fast) ease;
 }
@@ -440,7 +440,7 @@
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   font-size: var(--text-15);
 }
 
@@ -449,13 +449,13 @@
 }
 
 .sheet__work:has(.waiting) .queue-toggle {
-  border-radius: 9px 0 0 9px;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .sheet__work .waiting {
   gap: 8px;
   border-left: 0;
-  border-radius: 0 9px 9px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .sheet__work .waiting::after {
@@ -500,7 +500,7 @@
   margin: 0 -10px;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg);
   font: inherit;

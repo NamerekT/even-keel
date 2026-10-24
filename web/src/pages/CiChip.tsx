@@ -148,7 +148,8 @@ function Current({ current, median, now, urls, fixes }: { current: CurrentRun; m
   return (
     <div className="ci__block">
       <a className={fixes.marked.has(run.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={run.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
-        <span className={`ci-status ci-status--${run.status}`}>{t.ci.status[run.status]}</span>
+        {/* A finished run's colour is the head's dot already; only a run still going says so in words. */}
+        {(run.status === 'running' || run.status === 'queued') && <span className={`ci-status ci-status--${run.status}`}>{t.ci.status[run.status]}</span>}
         <span className="ci__title">{run.title}</span>
       </a>
       <p className="ci__meta">

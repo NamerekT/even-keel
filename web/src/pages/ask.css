@@ -5,7 +5,7 @@
   gap: 6px;
   max-width: min(720px, 85%);
   padding: 8px 12px;
-  border-radius: 12px 12px 2px 12px;
+  border-radius: var(--radius) var(--radius) var(--radius-small) var(--radius);
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
 
@@ -29,7 +29,7 @@
 .bubble__more {
   padding: 2px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg);
   font: inherit;
@@ -121,7 +121,7 @@
 .ask-card__header {
   margin-right: 8px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: var(--surface-muted);
   color: var(--fg-muted);
   font-size: var(--text-12);
@@ -218,11 +218,11 @@
 .ask__step {
   padding: 0 6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   background: none;
   color: var(--fg);
   font: inherit;
-  font-size: 18px;
+  font-size: var(--text-16);
   line-height: 1;
   cursor: pointer;
   position: relative;
@@ -269,7 +269,7 @@
 .ask__keys {
   padding: 0 4px;
   border: 1px solid currentColor;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   font: var(--text-11)/1.4 var(--font);
   opacity: 0.75;
 }
@@ -326,7 +326,7 @@
   margin: 0 12px 10px 34px;
   padding: 6px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   color: var(--fg);
   font: inherit;
@@ -336,7 +336,7 @@
   margin: 10px 12px 10px 0;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--bg);
   font: var(--text-13)/1.4 var(--mono);
   white-space: pre;
