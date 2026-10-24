@@ -18,9 +18,14 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('account.signedOut', {}))).toEqual({ to: 'accounts' })
   })
 
-  it('sends a refused or missing token to Access', () => {
-    expect(noticeFixOf(notice('ci.noToken', { kind: 'forgejo' }))).toEqual({ to: 'shared', tab: 'secrets' })
-    expect(noticeFixOf(notice('review.denied', { ci: 'Forgejo', status: 403 }))).toEqual({ to: 'shared', tab: 'secrets' })
+  it('sends a refused or missing token to Trackers and CI', () => {
+    expect(noticeFixOf(notice('ci.noToken', { kind: 'forgejo' }))).toEqual({ to: 'shared', tab: 'trackers' })
+    expect(noticeFixOf(notice('review.denied', { ci: 'Forgejo', status: 403 }))).toEqual({ to: 'shared', tab: 'trackers' })
+  })
+
+  it('sends the page token to Interface', () => {
+    expect(noticeFixOf(notice('config.token', { host: '0.0.0.0' }))).toEqual({ to: 'shared', tab: 'page' })
+    expect(noticeFixOf(notice('config.tokenShape', {}))).toEqual({ to: 'shared', tab: 'page' })
   })
 
   it('finds the fix of a reason in the items or the cause', () => {

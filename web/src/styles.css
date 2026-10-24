@@ -1529,6 +1529,12 @@ input[type='radio']:disabled {
   cursor: pointer;
 }
 
+/* An icon before a button's text ("+ Add profile"). */
+.button > .icon:first-child {
+  margin-right: var(--space-4);
+  vertical-align: -2px;
+}
+
 a.button {
   display: inline-block;
   text-decoration: none;

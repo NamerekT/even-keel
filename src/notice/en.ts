@@ -113,7 +113,7 @@ export const en = {
   'forward.foreign': (p: { from: string; into: string }) =>
     `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — in "Merges into" of ${p.from} pick a project of the same repository`,
 
-  'ci.noToken': (p: { kind: CiKind }) => `no profile has a token for this CI: add a ${FORGES[p.kind]} profile in Settings → Access`,
+  'ci.noToken': (p: { kind: CiKind }) => `no profile has a token for this CI: add a ${FORGES[p.kind]} profile in Settings → Trackers and CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
@@ -368,7 +368,7 @@ export const en = {
   'profiles.inUse': (p: { profile: string; projects: string }) => `profiles: ${p.profile} is used by ${p.projects}; it cannot be removed`,
   'profiles.otherTracker': (p: { profile: string; project: string }) => `profiles: ${p.profile} is a profile of another tracker than ${p.project}'s`,
   'profiles.paused': (p: { profile: string; project: string }) =>
-    `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Access`,
+    `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Trackers and CI`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
   'config.color': (p: { key: string }) => `config: ${p.key}.color must be a whole number from 1 to 8`,

@@ -146,6 +146,6 @@ export async function importForgejo({ db, env, webs, log }: ImportForgejoOptions
     await setStateValue(tx, 'profiles.forgejo.imported', new Date().toISOString())
   })
   if (made.length > 0) log(`profiles: FORGEJO_TOKEN of .env became the profiles ${made.map((profile) => profile.name).join(', ')}; .env is not read for it any more`)
-  else if (token) log('profiles: FORGEJO_TOKEN of .env made no profile: no project has a Forgejo remote; add a Forgejo profile on the Access tab')
+  else if (token) log('profiles: FORGEJO_TOKEN of .env made no profile: no project has a Forgejo remote; add a Forgejo profile on the Trackers and CI tab')
   return set
 }

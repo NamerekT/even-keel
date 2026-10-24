@@ -107,7 +107,7 @@ export const noticesRu: NoticeTexts = {
   'forward.foreign': (p) =>
     `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажи в «Вливается в» проект того же репозитория`,
 
-  'ci.noToken': (p) => `ни у одного профиля нет токена для этого CI: добавьте профиль ${FORGES[p.kind]} в «Настройки → Доступы»`,
+  'ci.noToken': (p) => `ни у одного профиля нет токена для этого CI: добавьте профиль ${FORGES[p.kind]} в «Настройки → Трекеры и CI»`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
@@ -347,7 +347,7 @@ export const noticesRu: NoticeTexts = {
   'profiles.hostLocked': (p) => `профиль ${p.profile} используют ${p.projects}: адрес и workspace не меняются, только учётные данные`,
   'profiles.inUse': (p) => `профиль ${p.profile} используют ${p.projects} — удалить нельзя`,
   'profiles.otherTracker': (p) => `${p.profile} — профиль другого трекера, не того, что у ${p.project}`,
-  'profiles.paused': (p) => `${p.project}: цепочка ждёт — трекер не принял учётные данные профиля ${p.profile}; обновите их в Настройки → Доступ`,
+  'profiles.paused': (p) => `${p.project}: цепочка ждёт — трекер не принял учётные данные профиля ${p.profile}; обновите их в Настройки → Трекеры и CI`,
   'config.repoEmpty': (p) => `путь к репозиторию ${p.key} пуст`,
   'config.slot': (p) => `${p.key}.slot должен быть true, false или числом слотов`,
   'config.color': (p) => `${p.key}.color должен быть целым числом от 1 до 8`,

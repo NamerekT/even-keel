@@ -102,8 +102,8 @@ schema version of a file of the format.
 
 - **Credentials** — never in a draft or the settings tables. The trackers' (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`)
   are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"), and so is Forgejo's
-  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, Tally's own Postgres and classifier stay in `.env`, written from the "Access" tab of `/settings` one at a time
-  (BTN-131, "Credentials" below). Both are outside git (invariant 3).
+  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, Tally's own Postgres and classifier stay in `.env`, written from the `/settings` tab each belongs to
+  (BTN-131, BTN-355, "Credentials" below). Both are outside git (invariant 3).
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
 - **Locations and binaries** — `EVEN_KEEL_CONFIG` (since BTN-199 only the file imported at the first start),
@@ -258,28 +258,31 @@ database ─────────── readSettings ──┘               
 
 ## Credentials (BTN-131)
 
-The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) starts with the trackers' profiles (rows and the
-"Add profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201), then a row per `.env` variable with its own field and its own
-"Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
+There is no tab of credentials (BTN-355): each sits where its use is set. The trackers' profiles (rows and the "Add
+profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201) are the "Trackers and CI" tab;
+the page token is "Page access" on Interface (`PageToken` in `web/src/pages/SettingsSecrets.tsx`, its own "Save" and
+"Remove"); Tally's Postgres is the "Your own Postgres" form on Stats (`stats/tally`, `docs/stats.md`) and its classifier
+the "Span classifier" section next to it (`ClassifierSettings`, one "Save" for the three `TALLY_LLM_*`, `secrets/update`;
+a blank key keeps the saved one). Nothing of it goes into the drafts of the groups, and an empty field is not a removal
+("Remove" is, or a cleared classifier address or model).
 
 - **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: Tally's list and `EVEN_KEEL_TOKEN`. No tracker or CI
-  variable is a row any more: both CI tokens are profiles'.
+  variable is in it any more: both CI tokens are profiles'. `secrets/set`, `secrets/remove` and `secrets/update` (several
+  at once, `null` removing one) refuse a name that is not in it.
 - **Places** — the default profile of each tracker goes to the `env` of the global `settings.json` (sessions started by
   hand read it there, the tracker plugin with them); a Forgejo profile does not; Tally's and the page token only to `.env`. `.env` is edited one line at a
   time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
   reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
-  `docs/accounts.md`) and the tab says so while live sessions hold its stop.
+  `docs/accounts.md`) and the "Trackers and CI" tab says so while live sessions hold its stop (`sessionsPending`).
 - **Secret or not** — by the name (`isSecret`): only `_URL`, `_WORKSPACE`, `_EMAIL`, `_HOST`, `_PORT`, `_NAME`,
   `_MODEL` are shown as they are; anything else, a new unknown name included, is a secret whose value never leaves the
   service, whole or in part.
 - **From outside `.env`** — a variable the service's own environment sets (`EnvFile.isOuter`) wins over the file: the
-  row says so and offers no field.
-- **The sessions' copy** — a row of a key that also goes to the sessions says when the global `settings.json` holds
-  another value or none; "Apply" writes both places.
+  field is off and its tip says so.
 - **The page token** — set only in the shape the start accepts (`guardToken`), and not removed while the service listens
   beyond loopback (`secrets.tokenRequired`).
 - **Packages** — the MCP gateway gives packages the same `.env` (without the tracker variables) and the project's
-  profile on top, so a key is shared by the service and the packages that read it (the row's tip names them). Splitting one off is a variable of its own for the packages, named in the adapter's
+  profile on top, so a key is shared by the service and the packages that read it. Splitting one off is a variable of its own for the packages, named in the adapter's
   `mcpKeys` (the gateway already passes a key under another name); its catalog entry then gets its own places.
 
 ## Labels as values
