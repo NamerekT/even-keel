@@ -42,7 +42,9 @@ export function useStrip(project: string, slot: number | null) {
 export function StatsStrip({ project, strip: { loaded, summary, range } }: { project: string; strip: StripData }) {
   return (
     <section className="strip" aria-label={t.strip.label(project, DAYS)}>
-      {summary === null ? (
+      {loaded === null ? (
+        <StripSkeleton />
+      ) : summary === null ? (
         <AnswerNotice loaded={loaded} />
       ) : (
         <>
@@ -70,6 +72,32 @@ export function StatsStrip({ project, strip: { loaded, summary, range } }: { pro
         {t.strip.more}
       </Link>
     </section>
+  )
+}
+
+/** Widths of each fact's label and value while reading, close to the loaded ones so nothing shifts when the numbers come. */
+const BONES = [
+  [28, 52],
+  [88, 44],
+  [48, 24],
+]
+
+/** The strip while the stats are read: the loaded strip's facts and sparkline, shimmering, at its height. */
+function StripSkeleton() {
+  return (
+    <>
+      <div className="strip__facts strip__facts--reading" role="status" aria-label={t.stats.reading}>
+        {BONES.map(([label, value], index) => (
+          <div key={index}>
+            <span className="skeleton__block strip__bone--label" style={{ width: label }} />
+            <span className="skeleton__block strip__bone--value" style={{ width: value }} />
+          </div>
+        ))}
+      </div>
+      <div className="strip__spark" aria-hidden="true">
+        <div className="skeleton__block" />
+      </div>
+    </>
   )
 }
 

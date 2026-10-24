@@ -921,7 +921,10 @@ a.stats__key:hover {
 
 /* Project page strip */
 
+/* The line heights fix the strip's height: the skeleton and a notice take the facts' height. */
 .strip {
+  --strip-label: 18px;
+  --strip-value: 24px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -937,6 +940,11 @@ a.stats__key:hover {
   flex: 1;
 }
 
+.strip > .notice {
+  padding-block: 10px;
+  line-height: calc(var(--strip-label) + var(--strip-value) - 20px);
+}
+
 .strip__facts {
   display: flex;
   flex-wrap: wrap;
@@ -947,11 +955,13 @@ a.stats__key:hover {
 .strip__facts dt {
   color: var(--fg-muted);
   font-size: var(--text-12);
+  line-height: var(--strip-label);
 }
 
 .strip__facts dd {
   margin: 0;
   font-size: var(--text-16);
+  line-height: var(--strip-value);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -960,6 +970,7 @@ a.stats__key:hover {
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-weight: 400;
+  line-height: var(--strip-label);
 }
 
 .strip__spark {
@@ -976,6 +987,30 @@ a.stats__key:hover {
   flex: 1;
   border-radius: var(--radius-small) var(--radius-small) 0 0;
   background: var(--series);
+}
+
+.strip__facts--reading > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.strip__facts .skeleton__block {
+  margin-block: var(--space-4);
+  border-radius: var(--radius-small);
+}
+
+.strip__facts .strip__bone--label {
+  height: calc(var(--strip-label) - 2 * var(--space-4));
+}
+
+.strip__facts .strip__bone--value {
+  height: calc(var(--strip-value) - 2 * var(--space-4));
+}
+
+.strip__spark > .skeleton__block {
+  flex: 1;
+  height: 100%;
+  border-radius: var(--radius-small);
 }
 
 .strip__more {
