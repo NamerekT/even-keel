@@ -34,7 +34,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys | a revoked key looks fine until a session fails |
-| 24 | [A command after a green main that restarts Even Keel](#a-command-after-a-green-main-that-restarts-even-keel) | a restart in `commands.afterGreen` | the service stays stopped |
+| 24 | [A command after a green main that restarts Even Keel on Linux and macOS](#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on Linux, macOS | the service stays stopped |
 | 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
 | 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
 | 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
@@ -455,9 +455,9 @@ Checked on Huly and on GitHub (BTN-278, 2026-10-24: another milestone, none — 
 
 A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_MS`). The figure was chosen without live runs and may be too short for a slow runner queue (`docs/ci.md`).
 
-### A command after a green main that restarts Even Keel
+### A command after a green main that restarts Even Keel on Linux and macOS
 
-`commands.afterGreen` run as children of the service's node process. The service stops only that process, not its tree — the Windows wrapper (`service/EvenKeelService.cs`, `OnStop`), `KillMode=process` under systemd, `AbandonProcessGroup` under launchd — so a restart command is expected to outlive the stop and start the service again, but that was never run live. If it dies with the service, the service stays stopped, or the commands after the restart one never run. **Workaround:** make the restart the last command, hand it to something outside the service's process tree (a scheduled task, `systemd-run`), or restart by hand (`docs/ci.md`).
+`commands.afterGreen` run as children of the service's node process. The service stops only that process, not its tree — the Windows wrapper (`service/EvenKeelService.cs`, `OnStop`), `KillMode=process` under systemd, `AbandonProcessGroup` under launchd — so a restart command is expected to outlive the stop and start the service again. Checked live on the author's Windows service (2026-10-25): a chain task's push green by the project's check ran `pwsh -NoProfile -Command "Restart-Service EvenKeel; …"`, the service stopped and was up again within 2 s, the rest of that `pwsh` line ran after the start, the command after it never ran, and the commands were not run again after the restart. On Windows the `cmd.exe` running a line dies with node (node's children are in its job object) while the processes it started live on, so the restart has to be one process — `net stop EvenKeel && net start EvenKeel` loses its second half. Not run under systemd or launchd. If the command dies with the service there, the service stays stopped. **Workaround:** make the restart the last command and one process, hand it to something outside the service's process tree (`systemd-run`, a scheduled task), or restart by hand (`docs/ci.md`).
 
 ### Chains of several projects on one remote (BTN-210)
 
