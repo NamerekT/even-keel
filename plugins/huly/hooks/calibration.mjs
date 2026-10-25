@@ -6,7 +6,7 @@ const TASK = /^[A-Z][A-Z0-9]*-\d+$/;
 
 /** Project and task of a Huly call that sets an estimate, or null for any other call. */
 export function estimateCall(toolName, input) {
-  const tool = /__(create|update)_issue$/.exec(toolName ?? "");
+  const tool = /(?:__|^plugin_huly_huly_)(create|update)_issue$/.exec(toolName ?? "");
   if (tool === null || typeof input?.estimation !== "number" || typeof input.project !== "string") return null;
   const project = input.project.toUpperCase();
   if (tool[1] === "create") return { project, task: null };

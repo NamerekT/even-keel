@@ -108,6 +108,7 @@ Users report in the GitHub issues of a public repository while the work and its 
 - Chain sessions: the gateway runs the server in its HTTP mode with the `HULY_*` of the project's profile (`docs/packages.md`); the session sees only the gateway's address. `sessionBase` removes `HULY_*` from the sessions' environment.
 - Sessions started by hand: the default Huly profile's credentials are in `env` of `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders.
 - How to use it — `plugins/huly/README.md`.
+- OpenCode gets both Huly guards from `plugins/huly/opencode/huly.mjs` (plugin 0.5.8): markdown writes are checked before execution; estimate calibration shares the command hook's request and once-per-session marks. For MCP calls, OpenCode 1.18.25 passes the raw result to `tool.execute.after`, so calibration is appended as a text block in `content`, before OpenCode assembles the output (the plugin also accepts the assembled `output` shape). Checked live on Windows on 2026-10-25 with OpenCode 1.18.25 and `opencode/deepseek-v4.1-flash-free`: the gateway tool is `plugin_huly_huly_update_issue`, malformed markdown was refused, a mismatched estimate was refused once, and a corrected retry reached Huly and was read back. A second session saw calibration on an allowed estimate's result and none on its next call.
 
 ### `github` (BTN-65)
 
