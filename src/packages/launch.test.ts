@@ -44,6 +44,7 @@ describe('sessionPackages', () => {
     expect(got.installs).toEqual({ 'huly@even-keel': 'b', strata: 's1' })
     expect(got.plugins).toEqual([
       {
+        package: 'huly@even-keel',
         dir: join(places.cache, 'huly@even-keel', 'b', 'plugin'),
         name: 'huly',
         marketplace: 'ek-b',

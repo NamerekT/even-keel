@@ -68,7 +68,7 @@ Chain sessions start without claude.ai skills and plugins, and with niche bundle
 
 Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
-Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
+Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer. Nor does it start a Codex task when Codex would not run a plugin's hooks (it checks that it trusts them first, and a new Codex version may change how): the session would go without the check before a merge and the context reminders. The page names the package; update Even Keel, or for now run the task on another provider.
 
 ## Accounts
 
