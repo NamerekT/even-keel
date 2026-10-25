@@ -31,6 +31,17 @@ describe('session limit text', () => {
     }
   })
 
+  it.each(['en', 'ru'] as const)('describes the spending cap, its reset and early checks in %s', (language) => {
+    setLanguage(language)
+    const view = { ...session('ABC-5', 0, 'limit'), apiErrorKind: 'spend' as const, account: 'ci-key' }
+    expect(sessionStatus(view)).toBe(language === 'en' ? 'spending limit' : 'лимит трат')
+    expect(limitPlan(hold, now, view, accounts)).toBe(t.session.spendWait(null))
+    const plan = limitPlan({ ...hold, resetsAt: '2026-11-01T00:00:00Z' }, now, view, accounts)
+    expect(plan).toContain(language === 'en' ? 'Nov 1' : '1 нояб.')
+    expect(plan).toContain('5')
+    expect(sessionStatus({ ...view, lamp: 'working' })).toBe(t.lamp.working)
+  })
+
   it.each(['en', 'ru'] as const)('distinguishes credit from usage limits in %s', (language) => {
     setLanguage(language)
     const view = { ...session('ABC-5', 0, 'limit'), apiErrorKind: 'credit' as const }

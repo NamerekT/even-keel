@@ -10,7 +10,7 @@ import type { AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { connectionOf } from '../accounts.js'
-import { formatAgo, formatTokens } from '../format.js'
+import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { loginLeft } from '../state.js'
@@ -273,11 +273,17 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   const brief = bare || quiet
   const stale = staleText(entry)
   const held = launchBlock(view, entry.key)
+  const spendAt = entry.spendingLimit?.resetsAt == null ? null : formatMoment(entry.spendingLimit.resetsAt, now)
 
   return (
     <>
       {!brief && stale !== null && <p className="accounts__note">{stale}</p>}
       {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
+      {entry.spendingLimit != null && (
+        <Tipped className="accounts__note accounts__note--warn" tip={t.session.spendWait(spendAt)} align="start" focusable>
+          {t.session.spendUntil(spendAt)}
+        </Tipped>
+      )}
       {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">

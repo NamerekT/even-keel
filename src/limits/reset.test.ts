@@ -18,6 +18,15 @@ describe('resetTimeOf', () => {
     )
   })
 
+  it('reads the explicit UTC date of an API spending limit without using the machine zone', () => {
+    expect(resetTimeOf('You will regain access on 2026-11-01 at 00:00 UTC.', '2026-10-25T10:00:00Z')).toBe('2026-11-01T00:00:00.000Z')
+    expect(resetTimeOf('regain access on 2027-01-01 at 13:45 UTC', '2026-12-31T10:00:00Z')).toBe('2027-01-01T13:45:00.000Z')
+    for (const date of ['2026-02-30 at 00:00', '2026-11-01 at 24:00', '2026-11-01 at 00:60']) {
+      expect(resetTimeOf(`regain access on ${date} UTC`, '2026-01-01T10:00:00Z')).toBeNull()
+    }
+    expect(resetTimeOf('regain access on 2026-11-01 at 00:00 UTC', '2026-11-01T00:00:01Z')).toBeNull()
+  })
+
   it('reads 12am and 12pm', () => {
     expect(resetTimeOf('resets 12pm (UTC)', '2026-09-27T08:00:00.000Z')).toBe('2026-09-27T12:00:00.000Z')
     expect(resetTimeOf('resets 12am (UTC)', '2026-09-27T08:00:00.000Z')).toBe('2026-09-28T00:00:00.000Z')

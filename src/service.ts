@@ -546,7 +546,7 @@ const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   homeOf: (key) => homes.find(key),
   agentOf,
   apiKey: (key) => account.apiKey(key),
-  creditBackAfter: (key, at) => account.creditBackAfter(key, at),
+  creditBackAfter: (key, at, text) => account.creditBackAfter(key, at, text),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
 })

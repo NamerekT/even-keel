@@ -41,7 +41,7 @@ export interface SetupOptions {
   failRelay?: boolean
   failStop?: boolean
   limitReset?: string | null
-  limitResetAfter?: (account: string, at: string) => string | null
+  limitResetAfter?: (account: string, at: string, text?: string) => string | null
   /** Projects whose set of packages has a problem that holds the chain. */
   packagesBlocked?: Set<string>
   /** Whether the service has read its account folders since its start; absent — it has. */
