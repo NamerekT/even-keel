@@ -178,7 +178,7 @@ export class ForwardMerger {
       await git(repo, ['merge', '--abort'])
       const hold =
         files.length > 0 ? notice('forward.conflict', { from, into, files }, { detail: merged.out }) : notice('forward.failed', { from, into }, { detail: merged.out })
-      this.deps.log(files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`)
+      this.deps.log(`forward: ${files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`}`)
       Object.assign(view, { hold, held: true })
       if (!this.deps.auto(from)) return
       const commit = await this.commitOf(into, from)

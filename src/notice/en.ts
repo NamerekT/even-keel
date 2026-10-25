@@ -100,20 +100,20 @@ export const en = {
   'sync.merge': (p: { remote: string; main: string }) => `sync: ${p.remote}/${p.main} does not merge cleanly into ${p.main}, merge it by hand`,
   'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
 
-  'forward.busy': (p: { into: string }) => `forward: the chain of ${p.into} is working; the release branch goes in once it is quiet`,
+  'forward.busy': (p: { into: string }) => `the chain of ${p.into} is working; the release branch goes in once it is quiet`,
   'forward.notOnBranch': (p: { repo: string; branch: string; current: string }) =>
-    `forward: ${p.repo} is on ${p.current || 'a detached HEAD'}, not ${p.branch}; the release branch waits`,
-  'forward.dirty': (p: { repo: string }) => `forward: ${p.repo} has uncommitted changes; the release branch waits`,
-  'forward.fetch': (p: { from: string }) => `forward: could not fetch the branch of ${p.from}`,
+    `${p.repo} is on ${p.current || 'a detached HEAD'}, not ${p.branch}; the release branch waits`,
+  'forward.dirty': (p: { repo: string }) => `${p.repo} has uncommitted changes; the release branch waits`,
+  'forward.fetch': (p: { from: string }) => `could not fetch the branch of ${p.from}`,
   'forward.conflict': (p: { from: string; into: string; files: string[] }) =>
-    `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Resolve with the agent"`,
-  'forward.noConflict': (p: { from: string }) => `forward: the branch of ${p.from} holds no conflict for an agent to resolve`,
-  'forward.agent': (p: { from: string; task: string }) => `forward: ${p.task} resolves the carry of ${p.from}; the release branch waits for it`,
+    `the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Resolve with the agent"`,
+  'forward.noConflict': (p: { from: string }) => `the branch of ${p.from} holds no conflict for an agent to resolve`,
+  'forward.agent': (p: { from: string; task: string }) => `${p.task} resolves the carry of ${p.from}; the release branch waits for it`,
   'forward.failed': (p: { from: string; into: string }) =>
-    `forward: git could not merge the branch of ${p.from} into ${p.into}, though no file conflicts; fix what git's message names, then press "Carry now"`,
-  'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,
+    `git could not merge the branch of ${p.from} into ${p.into}, though no file conflicts; fix what git's message names, then press "Carry now"`,
+  'forward.notRelease': (p: { project: string }) => `${p.project} merges into no other project`,
   'forward.foreign': (p: { from: string; into: string }) =>
-    `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — in "Merges into" of ${p.from} pick a project of the same repository`,
+    `${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — in "Merges into" of ${p.from} pick a project of the same repository`,
 
   'ci.noToken': (p: { kind: CiKind }) => `no profile has a token for this CI: add a ${FORGES[p.kind]} profile in Settings → Trackers and CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
