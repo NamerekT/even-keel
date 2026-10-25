@@ -32,7 +32,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
-| 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys | a revoked key looks fine until a session fails |
+| 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 24 | [A command after a green main that restarts Even Keel on Linux and macOS](#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on Linux, macOS | the service stays stopped |
 | 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
 | 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
@@ -191,7 +191,7 @@ A `--bg` session waiting on a permission dialog has the call as its question whi
 
 ### A key refused after it was added
 
-The check of a key was seen live answering 200 for a working key and 401 for a made-up one; 403 (a disabled organization or a key without the permission) and a key revoked after it was added were never seen. If a revoked key still answers 200 on the models list, the account looks fine until its first session fails on authentication and stops like any error (`docs/accounts.md`). **Workaround:** remove the account and add a working key.
+The check of a key was seen live answering 200 for a working key and 401 for a made-up one, and on 2026-10-25 401 `authentication_error` "invalid x-api-key" for a key disabled in the Console after it was added and again once it was deleted: the check at the service's start made the account `needsLogin`. A 403 (a disabled organization or a key without the permission) was never seen. If such an organization answers anything but 401 or 403 on the models list, the check learns nothing, the account looks fine and its first session fails and stops like any error (`docs/accounts.md`). **Workaround:** remove the account and add a working key.
 
 ### An API key out of credit (BTN-165)
 
