@@ -27,6 +27,13 @@ const RUN = {
 }
 
 describe('githubActionsSource', () => {
+  it('asks for the project branch, including slashes, without mixing another branch into its history', async () => {
+    const { source } = fake({
+      '/actions/runs?per_page=10&branch=release%2Fv0.1': { workflow_runs: [{ ...RUN, head_branch: 'release/v0.1' }] },
+    })
+    expect((await source.runs(10, 'release/v0.1')).map((run) => run.id)).toEqual([RUN.id])
+  })
+
   it('maps the latest runs', async () => {
     const { asked, source } = fake({ '/actions/runs?per_page=10': { workflow_runs: [RUN] } })
     expect(await source.runs(10)).toEqual([

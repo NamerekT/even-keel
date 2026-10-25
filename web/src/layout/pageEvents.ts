@@ -1,10 +1,15 @@
 import type { EvenKeelState } from '../../../src/state.js'
+import type { CiKind } from '../../../src/ci/model.js'
 import { isCarryName } from '../../../src/chain/fix.js'
 import { shownWork, type WorkInput } from '../work.js'
 
 export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
   WorkInput & {
     chain: Pick<EvenKeelState['chain'], 'active'>
+    config: {
+      shared: { ci: { guard: boolean; kinds: readonly CiKind[] } }
+      projects: Record<string, { ci: { guard: boolean; kinds: readonly CiKind[] } }>
+    }
   }
 
 /**
@@ -15,6 +20,7 @@ export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
 export type PageEvent =
   | { key: string; kind: 'limit'; project: string; until?: string }
   | { key: string; kind: 'red'; project: string; commit: string }
+  | { key: string; kind: 'ciRed'; project: string; ci: CiKind; commit: string }
   | { key: string; kind: 'ask'; project: string | null; task: string }
   | { key: string; kind: 'conflict'; project: string; into: string }
   | { key: string; kind: 'work'; project: string; task: string; path: string; files: number; ahead: number; backlog: boolean }
@@ -34,7 +40,13 @@ export function pageEvents(state: EventsInput): PageEvent[] {
     if (chain.paused && error !== null && /^(ci|check)\./.test(error.code) && 'commit' in error.params) red(project, String(error.params.commit))
   }
   for (const [project, views] of Object.entries(state.ci)) {
-    for (const view of views) if (view.current?.run.status === 'failure') red(project, view.current.run.commit)
+    const settings = state.config.projects[project]?.ci ?? state.config.shared.ci
+    for (const view of views) {
+      if (view.current?.run.status !== 'failure') continue
+      const commit = short(view.current.run.commit)
+      if (settings.guard && settings.kinds.includes(view.kind)) red(project, commit)
+      else events.push({ key: `ciRed|${project}|${view.kind}|${view.remote}|${commit}`, kind: 'ciRed', project, ci: view.kind, commit })
+    }
   }
   for (const [project, episodes] of Object.entries(state.fixes)) {
     // A carry's `red` is the head of the release it brings, not a red main (BTN-371).

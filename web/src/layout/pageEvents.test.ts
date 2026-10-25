@@ -3,7 +3,7 @@ import { notice } from '../../../src/notice/notice.js'
 import type { CiView } from '../../../src/ci/model.js'
 import { freshEvents, pageEvents, type EventsInput } from './pageEvents.js'
 
-const none: EventsInput = { chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
+const none: EventsInput = { config: { shared: { ci: { guard: true, kinds: ['forgejo', 'github'] } }, projects: {} }, chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
 const view = (status: 'failure' | 'success'): CiView =>
   ({
@@ -13,6 +13,22 @@ const view = (status: 'failure' | 'success'): CiView =>
   }) as unknown as CiView
 
 describe('pageEvents', () => {
+  it('reports an uncounted red CI without promising that the next task waits', () => {
+    const config = { ...none.config, projects: { p1: { ci: { guard: true, kinds: ['forgejo'] as const } } } }
+    const github = { ...view('failure'), kind: 'github' as const, remote: 'github' }
+    expect(pageEvents({ ...none, config, ci: { p1: [view('success'), github] } })).toEqual([
+      { key: 'ciRed|p1|github|github|abc1234', kind: 'ciRed', project: 'p1', ci: 'github', commit: 'abc1234' },
+    ])
+    expect(pageEvents({ ...none, config, ci: { p1: [view('failure'), github] } }).map((event) => event.kind)).toEqual(['red', 'ciRed'])
+  })
+
+  it('uses shared CI settings and treats every CI as uncounted with the guard off', () => {
+    for (const ci of [{ guard: false, kinds: ['forgejo'] as const }, { guard: true, kinds: [] }]) {
+      const config = { ...none.config, shared: { ci } }
+      expect(pageEvents({ ...none, config, ci: { p1: [view('failure')] } }).map((event) => event.kind)).toEqual(['ciRed'])
+    }
+  })
+
   it('sees nothing in a quiet state', () => {
     expect(pageEvents(none)).toEqual([])
   })

@@ -24,6 +24,8 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
 }
 
 function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: typeof TARGET | typeof GITHUB } = {}) {
+  let main = options.main ?? 'main'
+  const branches: (string | undefined)[] = []
   let clock = Date.parse('2026-10-12T12:00:00Z')
   let head = 'sha2'
   const refs: string[] = []
@@ -35,7 +37,8 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
   const jobs: CiJob[] = options.jobs ?? [{ id: 1, name: 'test', status: 'success', startedAt: null, stoppedAt: null, steps: null }]
   const source: CiSource = {
     ...(options.log === undefined ? {} : { log: options.log }),
-    runs: async () => {
+    runs: async (_limit, branch) => {
+      branches.push(branch)
       calls.runs++
       if (failure !== null) throw failure
       return runs
@@ -58,7 +61,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     source: options.source === false ? null : source,
     git,
     repo: 'D:/repos/app',
-    ...(options.main === undefined ? {} : { main: () => options.main! }),
+    main: () => main,
     now: () => new Date(clock),
     log: (message) => logs.push(message),
     onChange: () => changes++,
@@ -67,6 +70,8 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     watch,
     calls,
     refs,
+    branches,
+    setMain: (branch: string) => (main = branch),
     logs,
     changes: () => changes,
     advance: (ms: number) => (clock += ms),
@@ -77,6 +82,18 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
 }
 
 describe('CiWatch', () => {
+  it('scopes every poll to the project branch and drops the previous view when the branch changes live', async () => {
+    const t = setup({ main: 'dev' })
+    await t.watch.tick()
+    expect(t.branches).toEqual(['dev'])
+    t.setMain('release/v0.1')
+    t.setRuns([])
+    await t.watch.tick()
+    expect(t.branches).toEqual(['dev', 'release/v0.1'])
+    expect(t.watch.view).toMatchObject({ current: null, history: [], medianMs: null, pushed: null })
+    expect(t.refs.at(-1)).toBe('refs/remotes/origin/release/v0.1')
+  })
+
   it('reads the history once at the start and stays quiet after', async () => {
     const t = setup()
     await t.watch.tick()

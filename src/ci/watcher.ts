@@ -31,6 +31,7 @@ export interface CiWatchDeps {
 export class CiWatch {
   view: CiView
   private head: string | null | undefined
+  private branch: string | undefined
   private polledAt = -Infinity
   private jobsOf: string | null = null
   private tasksOf: { run: number; tasks: string[] } | null = null
@@ -80,11 +81,20 @@ export class CiWatch {
     this.busy = true
     try {
       const now = this.now()
-      const pushed = await this.readHead(now)
+      const branch = this.deps.main?.() ?? 'main'
+      if (branch !== this.branch) {
+        this.branch = branch
+        this.head = undefined
+        this.polledAt = -Infinity
+        this.jobsOf = null
+        this.tasksOf = null
+        this.view = { ...this.view, checkedAt: null, current: null, history: [], medianMs: null, pushed: null }
+      }
+      const pushed = await this.readHead(now, branch)
       if (!pushed && !this.due(now)) return
       this.polledAt = now.getTime()
       const before = JSON.stringify(this.view)
-      await this.poll(source, now)
+      await this.poll(source, now, branch)
       if (JSON.stringify(this.view) !== before) this.deps.onChange()
     } finally {
       this.busy = false
@@ -112,9 +122,8 @@ export class CiWatch {
   }
 
   /** Whether the remote's main moved since the last look; the first look is not a push. */
-  private async readHead(now: Date): Promise<boolean> {
-    const main = this.deps.main?.() ?? 'main'
-    const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/${main}`])
+  private async readHead(now: Date, branch: string): Promise<boolean> {
+    const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/${branch}`])
     const head = read.code === 0 ? read.out.trim() : null
     const first = this.head === undefined
     const moved = !first && head !== null && head !== this.head
@@ -132,9 +141,9 @@ export class CiWatch {
     return (running || waiting) && since >= POLL_MS
   }
 
-  private async poll(source: CiSource, now: Date): Promise<void> {
+  private async poll(source: CiSource, now: Date, branch: string): Promise<void> {
     try {
-      const runs = await source.runs(HISTORY)
+      const runs = await source.runs(HISTORY, branch)
       const run = currentRunOf(runs)
       this.view.current = run === null ? null : await this.currentOf(source, run, runs)
       this.view.history = runs

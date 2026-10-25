@@ -136,6 +136,8 @@ export const en: Messages = {
     limitBody: 'Switch the account or wait for the reset.',
     red: (project: string) => `${project}: main is red`,
     redBody: (commit: string) => `At ${commit}; the next task waits until main is green again.`,
+    ciRed: (project: string, ci: string) => `${project}: ${ci} is red`,
+    ciRedBody: (commit: string) => `At ${commit}; this CI does not decide whether the chain continues.`,
     ask: (task: string) => `${task} asks a question`,
     askBody: 'Answer it in the session’s chat window.',
     conflict: (project: string, into: string) => `${project}: the carry into ${into} hit a conflict`,

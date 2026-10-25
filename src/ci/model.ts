@@ -40,9 +40,9 @@ export interface CiRun {
   url: string
 }
 
-/** The adapter contract of a CI: the latest runs of the repository, newest first, the jobs of one run and a job's log. */
+/** The latest runs, newest first, the jobs of one run and a job's log. A branch scopes the project's main view; PR feedback omits it. */
 export interface CiSource {
-  runs(limit: number): Promise<CiRun[]>
+  runs(limit: number, branch?: string): Promise<CiRun[]>
   jobs(run: CiRun): Promise<CiJob[]>
   /** Absent — the CI does not give logs through its API (Forgejo). */
   log?(job: CiJob): Promise<string>
