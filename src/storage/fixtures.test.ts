@@ -1,4 +1,5 @@
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -54,9 +55,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
   })
 
   // The chain, the questions and the launches are read the way the service gets them: imported into the database.
-  const imported = () => {
+  const imported = async () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-samples-'))
-    cpSync(samples, dir, { recursive: true })
+    await cp(samples, dir, { recursive: true })
     return prepareDatabase({ stateDir: join(dir, 'state'), log: () => {} })
   }
 
@@ -111,9 +112,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(installsFor(file, ABC, 'ABC-2')).toEqual({ 'huly@even-keel': 'a1b2c3' })
   })
 
-  it('is current: the migration writes nothing', () => {
+  it('is current: the migration writes nothing', async () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-samples-'))
-    cpSync(samples, dir, { recursive: true })
+    await cp(samples, dir, { recursive: true })
     const before = filesOf(dir)
     const logs: string[] = []
     upgradeStorage({ configFile: join(dir, 'even-keel.config.json'), stateDir: join(dir, 'state'), log: (line) => logs.push(line) })

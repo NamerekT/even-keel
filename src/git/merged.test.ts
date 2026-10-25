@@ -1,4 +1,5 @@
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -35,9 +36,9 @@ afterAll(() => {
   rmSync(base, { recursive: true, force: true })
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   repo = mkdtempSync(join(tmpdir(), 'even-keel-merged-'))
-  cpSync(base, repo, { recursive: true })
+  await cp(base, repo, { recursive: true })
 })
 
 afterEach(() => {
