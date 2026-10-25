@@ -106,14 +106,19 @@ export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {
   if (task === undefined || task.status.category !== 'UnStarted') throw fail('task.pastBacklog', { task: id })
   const project = id.split('-')[0]!
   const order = state.chain.projects[project]
-  const tasks: ProjectTask[] = state.tasks.map((each) => (each.id === id ? { ...each, status: { name: 'Todo', category: 'ToDo' } } : each))
+  const tasks: ProjectTask[] = state.tasks.map((each) => (each.id === id ? {
+    ...each,
+    status: { name: 'Todo', category: 'ToDo' },
+    milestone: order?.landingMilestones?.[id] ?? each.milestone,
+  } : each))
   if (order === undefined) return { ...state, tasks }
   const { [id]: before = null, ...landing } = order.landing ?? {}
+  const { [id]: filled, ...landingMilestones } = order.landingMilestones ?? {}
   const at = before === null ? -1 : order.order.indexOf(before)
   const placed = at < 0 ? [...order.order, id] : [...order.order.slice(0, at), id, ...order.order.slice(at)]
   const projects = {
     ...state.chain.projects,
-    [project]: { ...order, order: placed, waiting: order.waiting.filter((each) => each !== id), backlog: order.backlog.filter((each) => each !== id), landing },
+    [project]: { ...order, order: placed, waiting: order.waiting.filter((each) => each !== id), backlog: order.backlog.filter((each) => each !== id), landing, landingMilestones },
   }
   return { ...state, tasks, chain: { ...state.chain, projects } }
 }

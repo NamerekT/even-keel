@@ -18,6 +18,7 @@ import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
 import { withFix } from './fakeFix.js'
+import { withMilestonePreview } from './fakeMilestones.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
@@ -342,6 +343,7 @@ export function createFakeSource(search: string): LiveSource {
     link,
   }
   const language = params.get('lang')
+  if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent

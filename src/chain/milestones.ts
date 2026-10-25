@@ -42,6 +42,13 @@ function builds(tasks: Task[]): boolean {
   }
 }
 
+/** The task with the donor's milestone, only when the chain and its blockers allow filling it. */
+export function milestoneCandidate(task: Task, donor: Task | undefined, planned: Task[]): Task {
+  if (task.milestone !== null || donor?.milestone == null || !builds(planned)) return task
+  const candidate = { ...task, milestone: donor.milestone }
+  return builds(planned.map((each) => (each.id === task.id ? candidate : each))) ? candidate : task
+}
+
 /**
  * Gives the active milestone to a task that entered the chain without one, once per stay in the chain: what a person
  * does to the milestone afterwards is theirs. A task whose blockers would then go against the milestone order is left alone.
@@ -69,10 +76,10 @@ export class MilestoneFiller {
 
     const filled: MilestoneFill[] = []
     for (const task of bare) {
-      const next = planned.map((each) => (each.id === task.id ? { ...each, milestone: donor.milestone } : each))
+      const candidate = milestoneCandidate(task, donor, planned)
       try {
-        if (builds(next) && (await this.options.assign(task.id, donor.id))) {
-          planned = next
+        if (candidate !== task && (await this.options.assign(task.id, donor.id))) {
+          planned = planned.map((each) => (each.id === task.id ? candidate : each))
           filled.push({ task: task.id, like: donor.id, milestone: donor.milestone!.label })
         }
         settled.add(task.id)
