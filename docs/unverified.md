@@ -20,7 +20,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description or an uncalibrated estimate reaches Huly |
 | 8 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
-| 10 | [A Codex chain session reaching its own compaction](#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session compacts before the hook asks for a handoff |
+| 10 | [A Codex chain session reaching its own compaction](#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
@@ -67,7 +67,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 59 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
 | 60 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 62 | [Codex compactions on the chain's row](#codex-compactions-on-the-chains-row-btn-299) | Codex | the row's resets counter misses a compaction or counts it twice |
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 66 | [The PR mode switch of the settings panel](#the-pr-mode-switch-of-the-settings-panel-ekr-7) | PR mode | the page refuses the switch; turn it on in the config |
 | 66a | [A chain that ended starting again on feedback](#a-chain-that-ended-starting-again-on-feedback-btn-375) | PR mode | feedback waits for **Start**, as before |
@@ -229,7 +228,7 @@ Checked live: both downloads on Windows x64 (`claude.exe` 2.1.301 by the manifes
 
 ### A Codex chain session reaching its own compaction
 
-Claude Code's compaction in chain sessions was seen live in the week of BTN-254: it comes about 32k short of the window and the session goes on to the task's end (`docs/sessions.md`, "Checkpoint threshold"; the late and hard shares fixed by BTN-377). Codex's never came up: its window is 258,400, its rollouts on disk never went past 139k nor had a `context_compacted`. The thresholds come down to the shares of that window as for Claude — 72, 85 and 95 % (186k, 219k and 245k) unless set in `stats.checkpointShares` — on the assumption that Codex compacts only past them; if it compacts as Claude does, ~32k short of the window (~226k), the hard nudge never comes, and if earlier, the first may not either. A session that compacts goes on with the agent's own summary instead of the handoff note. **Workaround:** if a Codex session loses track after a compaction, press "New session" on the task, or lower the project's shares.
+Claude Code's compaction in chain sessions was seen live in the week of BTN-254: it comes about 32k short of the window and the session goes on to the task's end (`docs/sessions.md`, "Checkpoint threshold"; the late and hard shares fixed by BTN-377). Codex's was seen once, in Windows Sandbox on 25.10.2026 (codex-cli 0.164.0, gpt-6.1-sol on Plus), with `model_context_window = 100000`, which Codex gives as a 95k window: the first nudge reached the session at 77.7k (the 72 % share was crossed inside one large read), the session read on, and Codex compacted at 87.8k, 92 % of the window, before the 95 % hard share. After the compaction the next nudge came, the session wrote `.temp/handoff.md` and ended with `CHECKPOINT:`, and Even Keel handed the task over. Still unknown is where Codex compacts in the full 258,400 window: at the same 92 % (~238k) it falls between the late share (219k) and the hard one (245k), so a session that ignores the first two nudges compacts without a handoff note and goes on from the agent's own summary. **Workaround:** if a Codex session loses track after a compaction, press "New session" on the task, or lower the project's shares (`stats.checkpointShares`).
 
 ### The context window a chain session gets (BTN-187)
 
@@ -280,10 +279,6 @@ Only an `add` with the file's `content` was seen in a rollout (2026-10-18). A `d
 ### Codex stats (BTN-170)
 
 Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones. Never seen: a non-zero `cache_write_input_tokens` — it is assumed to be inside `input_tokens` and is subtracted from it; a rollout in `archived_sessions/`; a 0.162 rollout that has `token_count` lines without a matching `token_usage_record` (the fallback was run only on 0.148 files). If one of these differs, a Codex response is counted twice or its input is off. **Workaround:** none needed for the chain; compare `/stats` with the `usage` in the rollout and fix `src/rollout.ts` (`tally/CLAUDE.md`).
-
-### Codex compactions on the chain's row (BTN-299)
-
-The resets counter of a chain row counts a Codex compaction by the rollout's own `compacted` line (`RolloutFold`), the summary Codex keeps to resume from; the `context_compacted` event that may come with it is not counted. No rollout on disk had a compaction (checked on 2026-10-23), so neither line was ever seen. If 0.162 writes only the event, or a `compacted` line per part of one compaction, the counter misses Codex compactions or counts one more than once. **Workaround:** none needed: the counter is only shown; Tally's stats do not read it.
 
 ### Plugin hooks that block (BTN-180)
 
