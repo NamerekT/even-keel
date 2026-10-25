@@ -7,6 +7,10 @@ const MODELS: Record<string, string> = {
   sonnet: 'Sonnet',
   haiku: 'Haiku',
   fable: 'Fable',
+  sol: 'Sol',
+  luna: 'Luna',
+  astra: 'Astra',
+  terra: 'Terra',
   gpt: 'GPT',
 }
 

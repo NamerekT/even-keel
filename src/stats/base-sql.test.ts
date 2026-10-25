@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SESSION_FOLDERS } from '../../tally/src/db.js'
 import { migrate, pgliteDb } from '../../tally/src/migrations.js'
-import { BASE } from './base-sql.js'
+import { BASE, familyOf } from './base-sql.js'
 
 // The project and task of a message on the whole schema in an in-memory PGlite.
 const REPO = 'D:\\Projects\\even-keel'
@@ -10,7 +10,7 @@ const PARENT = 'abcdef12-0000-4000-8000-000000000000'
 
 type Message = [id: string, session: string, dir: string, task: string | null, at: string]
 
-describe('project of a message', () => {
+describe('stats base SQL', () => {
   let db: PGlite
 
   beforeAll(async () => {
@@ -47,6 +47,45 @@ describe('project of a message', () => {
     )
     return Object.fromEntries(rows.map(({ message_id, project, task }) => [message_id, { project, task }]))
   }
+
+  it.each([
+    ['gpt-6.1-sol', 'sol'],
+    ['gpt-6-sol', 'sol'],
+    ['gpt-5.6-sol', 'sol'],
+    ['gpt-6-luna', 'luna'],
+    ['gpt-5.6-luna', 'luna'],
+    ['gpt-6-astra', 'astra'],
+    ['gpt-5.6-terra', 'terra'],
+    ['openai/gpt-6.1-sol', 'sol'],
+    ['openai/gpt-6-luna', 'luna'],
+    ['openai/gpt-6-astra', 'astra'],
+    ['openai/gpt-5.6-terra', 'terra'],
+    ['gpt-5.4-mini', 'gpt'],
+    ['gpt-reserve', 'gpt'],
+    ['openai/gpt-5.4-mini', 'gpt'],
+    ['gpt-6-solstice', 'gpt'],
+    ['claude-opus-5-5', 'opus'],
+    ['claude-sonnet-5-5', 'sonnet'],
+    ['claude-haiku-4-5-20251001', 'haiku'],
+    ['claude-fable-5', 'fable'],
+    ['big-pickle', null],
+    [null, null],
+  ])('groups model %s as %s', async (model, family) => {
+    const { rows } = await db.query(`select ${familyOf('$1::text')} as family`, [model])
+    expect(rows).toEqual([{ family }])
+  })
+
+  it('combines versions of a tier for spend and the predominant task model', async () => {
+    const source = `with responses(model, cost) as (values
+      ('gpt-6.1-sol', 3), ('gpt-6-sol', 2), ('openai/gpt-5.6-sol', 1),
+      ('gpt-6-luna', 2), ('gpt-5.4-mini', 1))`
+    const { rows } = await db.query(`${source}
+      select ${familyOf('model')} as family, sum(cost)::int as cost
+      from responses group by 1 order by cost desc`)
+    expect(rows).toEqual([{ family: 'sol', cost: 6 }, { family: 'luna', cost: 2 }, { family: 'gpt', cost: 1 }])
+    const task = await db.query(`${source} select mode() within group (order by ${familyOf('model')}) as model from responses`)
+    expect(task.rows).toEqual([{ model: 'sol' }])
+  })
 
   it('remembers the folder of the first answer of a session', async () => {
     const { rows } = await db.query<{ session_id: string; project_dir: string }>(

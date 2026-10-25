@@ -105,6 +105,10 @@ describe('labels', () => {
     expect(entrypointLabel('brand_new')).toBe('brand_new')
   })
 
+  it.each(['Opus', 'Sonnet', 'Haiku', 'Fable', 'Sol', 'Luna', 'Astra', 'Terra', 'GPT'])('names the %s family', (label) => {
+    expect(modelLabel(label.toLowerCase())).toBe(label)
+  })
+
   it('names a model with its version', () => {
     expect(modelVersionLabel('claude-opus-5-5')).toBe('Opus 5.5')
     expect(modelVersionLabel('claude-opus-5')).toBe('Opus 5')

@@ -250,7 +250,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         totalS: activeS + waitS + Math.round(next() * 7200),
         done: index !== 0,
         component: COMPONENTS[(index + project.length) % COMPONENTS.length]!,
-        model: next() > 0.3 ? 'opus' : 'sonnet',
+        model: ['opus', 'sonnet', 'sol', 'luna', 'astra', 'terra', 'gpt'][Math.floor(next() * 7)]!,
       })
     }
   }
@@ -281,7 +281,10 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       previous: totals(list, previousRange(range)),
       limits: mode === 'empty' ? null : limitCoverage(),
       windows: mode === 'empty' ? [] : limitWindows(query, range),
-      models: share(current.cost, [['opus', 0.62], ['sonnet', 0.31], ['haiku', 0.05], ['other', 0.02]]),
+      models: share(current.cost, [
+        ['opus', 0.4], ['sonnet', 0.2], ['sol', 0.15], ['luna', 0.1], ['astra', 0.05],
+        ['terra', 0.04], ['haiku', 0.03], ['gpt', 0.02], ['other', 0.01],
+      ]),
       entrypoints: share(current.cost, query.scope === 'chain' ? [['chain', 1]] : [['chain', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
       tasks,
       weeks,
