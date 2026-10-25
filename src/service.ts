@@ -1065,6 +1065,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
   rules: rulesOf,
+  fillsMilestone: (project) => configStore.current.settings[project]?.fillMilestone ?? false,
   launch: async (project, task, extra) => {
     const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)

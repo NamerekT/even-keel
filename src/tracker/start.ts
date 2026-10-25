@@ -109,7 +109,19 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       console.warn(`config: ${view.title} cannot set the milestone of a task, fillMilestone of ${project} does nothing`)
       return
     }
-    for (const { task, like, milestone } of await filler.sweep(project, dispatcher.view(project))) {
+    const filled = await filler.sweep(project, dispatcher.view(project))
+    const tasks = tasksByProject.get(project) ?? []
+    const milestones = new Map(filled.map(({ task, like }) => [task, tasks.find((each) => each.id === like)?.milestone]))
+    if (filled.length > 0 && !stopped) {
+      const updated = tasks.map((task) => {
+        const milestone = milestones.get(task.id)
+        return milestone == null ? task : { ...task, milestone }
+      })
+      tasksByProject.set(project, updated)
+      dispatcher.setTasks(project, updated)
+      broadcast()
+    }
+    for (const { task, like, milestone } of filled) {
       console.log(`${title}: put ${task} into the milestone ${milestone} of ${like}, it entered the chain without one`)
     }
   }
