@@ -15,7 +15,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 3 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 4 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
 | 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex on Plus or a key | a limit looks like a finished turn, the task waits for you |
-| 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description or an uncalibrated estimate reaches Huly |
+| 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
 | 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 8 | [The wizard's trust check](#the-wizards-trust-check) | new users | a false warning, or a pause at the first launch |
 | 9 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
@@ -257,7 +257,7 @@ Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones. Nev
 
 ### Plugin hooks that block (BTN-180)
 
-All five hook events of a plugin were seen running in Codex, and `additionalContext` reaching the model. Checked live on Windows with Codex 0.164.0 on 2026-10-25: a nested code-mode shell call ignored a `PreToolUse` exit code 2, while `permissionDecision: deny` blocked it before execution; `Stop` with `decision: block` continued the turn. The checkpoint plugin now uses explicit denial: a failed project check held the merge, a passing check allowed it, and the Stop guard saw a shell-written note in the rollout and made the session add `CHECKPOINT:` (`docs/sessions.md`). Still unverified: the Huly plugin's `check-marks` refusal by exit code 2 and `show-calibration` denial on real MCP calls. If either is ignored there, a malformed description or an estimate without calibration reaches Huly. **Workaround:** check the description in Huly and run calibration before estimating.
+All five hook events of a plugin were seen running in Codex, and `additionalContext` reaching the model. Checked live on Windows with Codex 0.164.0 on 2026-10-25: a nested code-mode shell call ignored a `PreToolUse` exit code 2, while `permissionDecision: deny` blocked it before execution; `Stop` with `decision: block` continued the turn. The checkpoint plugin now uses explicit denial: a failed project check held the merge, a passing check allowed it, and the Stop guard saw a shell-written note in the rollout and made the session add `CHECKPOINT:` (`docs/sessions.md`). The Huly plugin's `show-calibration` denial also blocked a real nested MCP call, and its retry went through. `check-marks` now returns the same explicit denial (EKR-32); still unverified: its refusal on a real Codex MCP call. If ignored there, a malformed description reaches Huly. **Workaround:** check the description in Huly.
 
 ### Chat mail at a Codex Stop (BTN-181)
 
