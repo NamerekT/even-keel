@@ -88,6 +88,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 80 | [OpenCode's ChatGPT and Copilot limits](#opencodes-chatgpt-and-copilot-limits-btn-341) | OpenCode on ChatGPT or Copilot | the card has no bars and a limit waits with no reset time, as before |
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
+| 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 
 ## Platforms
 
@@ -140,6 +141,10 @@ It counts a folder trusted when the global `~/.claude.json` or the `.claude.json
 ### Staying signed in after a reboot (EKR-15)
 
 On 21.10.2026 a reboot signed two of three subscription accounts out: the service started before the network, every account's `claude auth status` timed out at once, and a minute later two `.credentials.json` held neither an access nor a refresh token. The CLI renews with a single-use refresh token, so Even Keel assumes the sign-in was lost to a renewal cut off half-way or run twice at once, and guards against both: it asks no account and no `/usage` until the provider's API answers, runs its short calls of one folder one at a time and does not kill one on a timeout (`docs/accounts.md`). Neither the cause nor the guard has been seen live: a reboot with expired tokens and no network at the start was not repeated. If an account still asks to sign in after a reboot, the cause is elsewhere. **Workaround:** sign the account in again from the accounts drawer.
+
+### A Claude plan change (BTN-393)
+
+A ChatGPT plan change revokes the sign-in's access token at once: on 25.10.2026, right after free → Plus, a Codex folder's token with ten days left got 401 from ChatGPT's usage answer until Codex renewed it, and the card had no bars until then. Whether moving a Claude subscription between Pro and Max does the same to the CLI's OAuth token has never been seen. Even Keel assumes the sign-in keeps working and the card takes the new plan and windows at the next `auth status` and `/usage`. If the token is revoked, the card may keep the old plan or show no bars until the CLI renews the token at its next call, or the account may ask to sign in. **Workaround:** start a session on the account, or sign it in again from the accounts drawer.
 
 ## Claude limits
 
