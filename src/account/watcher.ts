@@ -140,6 +140,7 @@ export class AccountWatcher {
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
         lastLimitAt: this.options.lastLimit?.(home.key) ?? null,
+        spendingLimit: this.credit.spendingLimit(home.key, now),
       }
     })
     return {
@@ -161,9 +162,9 @@ export class AccountWatcher {
     return isApiKey(this.known.find((known) => known.home.key === key)?.status ?? null)
   }
 
-  /** When the credit of an API account's key came back after its session stopped on it at `at`; asking keeps it checked. */
-  creditBackAfter(key: string, at: string): string | null {
-    return this.credit.restoredAfter(key, at, this.options.now())
+  /** When an API key can pay again after a credit or spending refusal at `at`; asking keeps it checked. */
+  creditBackAfter(key: string, at: string, text?: string): string | null {
+    return this.credit.restoredAfter(key, at, this.options.now(), text)
   }
 
   /** The folders have been read once since the start; before that `view` lists none of them. */

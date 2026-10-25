@@ -285,8 +285,8 @@ export interface DispatcherDeps {
   accountAt: (account: string, at: string) => string | null
   /** When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
   limitReset: (project: string, task?: string) => string | null
-  /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`); an API account's — when its key's credit came back. */
-  limitResetAfter: (account: string, at: string) => string | null
+  /** When the limit hit at `at` resets; a key's recovery may precede the spending reset in `text`. */
+  limitResetAfter: (account: string, at: string, text?: string) => string | null
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
   /**

@@ -393,6 +393,12 @@ describe('TranscriptFold', () => {
     expect(fold([apiError('authentication_failed', 'Invalid API key')]).summary().apiError).toMatchObject({ kind: 'error' })
   })
 
+  it.each(['API', 'workspace API'])('recognizes a specified %s spending limit even when the CLI calls it unknown', (scope) => {
+    const message = `API Error: 400 You have reached your specified ${scope} usage limits. You will regain access on 2026-11-01 at 00:00 UTC.`
+    expect(fold([apiError('unknown', message)]).summary().apiError).toMatchObject({ kind: 'spend', text: message })
+    expect(fold([apiError('unknown', 'API Error: 400 Invalid request')]).summary().apiError).toMatchObject({ kind: 'error' })
+  })
+
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
     expect(failed.summary().apiError).toMatchObject({ kind: 'error' })

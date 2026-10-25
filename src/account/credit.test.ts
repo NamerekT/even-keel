@@ -50,6 +50,11 @@ describe('checkCredit', () => {
     expect(await checkCredit(KEY, 1000, api({ status: 400, body: EMPTY }).fetchImpl)).toEqual({ state: 'empty' })
   })
 
+  it.each(['API', 'workspace API'])('keeps waiting on the specified %s spending limit', async (scope) => {
+    const body = { error: { message: `You have reached your specified ${scope} usage limits. You will regain access on 2026-11-01 at 00:00 UTC.` } }
+    expect(await checkCredit(KEY, 1000, api({ status: 400, body }).fetchImpl)).toEqual({ state: 'empty' })
+  })
+
   it('knows nothing from any other answer', async () => {
     expect(await checkCredit(KEY, 1000, api({ status: 529, body: {} }).fetchImpl)).toEqual({ state: 'unknown', reason: 'HTTP 529' })
     const badRequest = { type: 'error', error: { type: 'invalid_request_error', message: 'max_tokens: invalid' } }
@@ -117,6 +122,23 @@ describe('CreditChecks', () => {
   const minutes = (count: number) => count * 60_000
   const at = (minute: number) => new Date(Date.UTC(2026, 9, 17, 12, minute))
   const iso = (minute: number) => at(minute).toISOString()
+
+  it('shows a spending cap until recovery and replaces it on a later refusal', () => {
+    const checks = new CreditChecks(minutes(5))
+    const text = 'You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.'
+    checks.restoredAfter('work', iso(0), at(0), text)
+    expect(checks.spendingLimit('work', at(5))).toEqual({ resetsAt: '2026-11-01T00:00:00.000Z' })
+    checks.note('work', { state: 'unknown', reason: 'HTTP 529' }, at(5))
+    expect(checks.restoredAfter('work', iso(0), at(6), text)).toBeNull()
+    expect(checks.spendingLimit('work', at(17))).toBeNull()
+    checks.restoredAfter('work', iso(0), at(17), text)
+    checks.note('work', { state: 'ok' }, at(18))
+    expect(checks.spendingLimit('work', at(18))).toBeNull()
+    checks.restoredAfter('work', iso(20), at(20), 'You have reached your specified workspace API usage limits.')
+    expect(checks.spendingLimit('work', at(20))).toEqual({ resetsAt: null })
+    checks.restoredAfter('work', iso(30), at(30), 'Credit balance is too low')
+    expect(checks.spendingLimit('work', at(30))).toBeNull()
+  })
 
   it('starts checking an interval after it was first asked, and only for asked keys', () => {
     const checks = new CreditChecks(minutes(5))
