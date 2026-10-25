@@ -1,4 +1,5 @@
 import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
+import { isSpendingLimit } from '../limits/spending.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move } from './model.js'
 import { isOwnName } from './fix.js'
 import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession } from './relay.js'
@@ -45,12 +46,12 @@ export class Handovers {
     }
     if (current.limit?.at !== session.limit.at) {
       if (this.deps.account(chain.project, current.task).id === null) return true
-      const reset = this.deps.limitResetAfter(session.account, session.limit.at)
+      const reset = this.deps.limitResetAfter(session.account, session.limit.at, session.limit.text)
       current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), reset)
       this.deps.save(this.state)
-    } else if (current.limit.resetsAt === null) {
-      const reset = this.deps.limitResetAfter(session.account, current.limit.at)
-      if (reset !== null) {
+    } else if (current.limit.resetsAt === null || isSpendingLimit(session.limit.text)) {
+      const reset = this.deps.limitResetAfter(session.account, current.limit.at, session.limit.text)
+      if (reset !== null && (current.limit.resetsAt === null || Date.parse(reset) < Date.parse(current.limit.resetsAt))) {
         current.limit = withReset(current.limit, reset, session.warmMs)
         this.deps.save(this.state)
       }

@@ -13,7 +13,7 @@ export interface SessionMonitorOptions {
   agentOf: (home: AccountHome) => Pick<Agent, 'sessions' | 'tail' | 'remote'>
   homes: () => AccountHome[]
   emailOf: (account: string) => string | null
-  /** An API account's session has no Remote Control and no usage window: it waits out only a key out of credit (`docs/accounts.md`). */
+  /** An API account waits out spent credit and spending caps, with no subscription usage window (`docs/accounts.md`). */
   apiKey: (account: string) => boolean
   /** Optional. A key account with a usage window (Copilot's token, BTN-341): it waits out a spent quota as well as spent credit. */
   keyLimits?: (account: string) => boolean
@@ -116,7 +116,7 @@ export class SessionMonitor {
     if (tracked === undefined || session === undefined || !tracked.present) return undefined
     const account = tracked.agent.account ?? GLOBAL_ACCOUNT
     const apiKey = this.options.apiKey(account)
-    const waited = apiKey ? (this.options.keyLimits?.(account) === true ? ['credit', 'limit'] : ['credit']) : ['limit']
+    const waited = apiKey ? (this.options.keyLimits?.(account) === true ? ['credit', 'spend', 'limit'] : ['credit', 'spend']) : ['limit']
     const { apiError, cache } = tracked.transcript.summary()
     if (apiError === null || !waited.includes(apiError.kind) || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
     const limited = { ...session, limit: { at: apiError.at, text: apiError.text } }

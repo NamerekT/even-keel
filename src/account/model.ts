@@ -54,6 +54,8 @@ export interface AccountEntry {
   usage: UsageHealth
   /** When an account whose limit nothing tells last hit it, by the chain's sessions since the start (BTN-342). */
   lastLimitAt?: string | null
+  /** The spending cap a current chain is waiting out; absent or null when none is known. */
+  spendingLimit?: { resetsAt: string | null } | null
 }
 
 export interface AccountLogin {

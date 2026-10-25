@@ -1,3 +1,5 @@
+import { spendingReset } from './spending.js'
+
 const DAY_MS = 24 * 60 * 60_000
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 // Claude Code: "resets 7:20pm (Europe/Berlin)", "resets Oct 30, 9am (Europe/Berlin)".
@@ -8,6 +10,8 @@ const RETRY_PATTERN =
   /try again at\s+(?:(?<month>[a-z]{3})[a-z]*\.?\s+(?<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?<year>\d{4}),?\s+)?(?<hour>\d{1,2}):(?<minute>\d{2})\s*(?<meridiem>[ap]m)/i
 
 export function resetTimeOf(text: string, at: string): string | null {
+  const spending = spendingReset(text, at)
+  if (spending !== null) return spending
   const match = (RESET_PATTERN.exec(text) ?? RETRY_PATTERN.exec(text))?.groups
   if (match === undefined) return null
   const { month: monthName, day: dayText, year: yearText, hour: hourText, minute: minuteText, meridiem, zone: zoneText } = match

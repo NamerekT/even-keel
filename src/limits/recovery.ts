@@ -8,7 +8,7 @@ interface RecoveryOptions {
   homeOf: (key: string) => AccountHome | undefined
   agentOf: (home: AccountHome) => Pick<Agent, 'keyUsage'>
   apiKey: (key: string) => boolean
-  creditBackAfter: (key: string, at: string) => string | null
+  creditBackAfter: (key: string, at: string, text?: string) => string | null
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
 }
@@ -20,8 +20,8 @@ export function limitRecovery(options: RecoveryOptions) {
     return options.apiKey(key) && (home === undefined || options.agentOf(home).keyUsage !== true)
   }
   const limitRetries = new LimitRetries()
-  const retryAfterLimit = (key: string, at: string): string | null => {
-    if (spendsByKey(key)) return options.creditBackAfter(key, at)
+  const retryAfterLimit = (key: string, at: string, text?: string): string | null => {
+    if (spendsByKey(key)) return options.creditBackAfter(key, at, text)
     if (noKnownLimit(options.limits(key), options.usage(key))) return limitRetries.retryAfter(key, at)
     return limitResetAfter(options.limits(key), at)
   }

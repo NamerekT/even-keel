@@ -241,9 +241,10 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     ]
     return { ...signedIn, active: 'jane.roe', accounts, pool }
   }
-  if (mode === 'api') {
+  if (mode === 'api' || mode === 'spend' || mode === 'spendUnknown') {
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
-    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'] }), lost] }
+    const spendingLimit = mode === 'api' ? null : { resetsAt: mode === 'spendUnknown' ? null : '2026-11-01T00:00:00.000Z' }
+    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'], spendingLimit }), lost] }
   }
   if (mode === 'codex') {
     const codex = codexEntry('codex', 'john.doe@example.com', 'free', {
