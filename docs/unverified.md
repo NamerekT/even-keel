@@ -48,7 +48,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | a pull request uses the old profile |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
-| 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
@@ -377,10 +376,6 @@ Installing a package and the gateway's server processes were run only on Windows
 ### Two profiles of one tracker (BTN-200)
 
 Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (2026-10-25): each its own connection, and each project's gateway server listing its own workspace's projects. Not run: two GitHub profiles, where each project's GitHub Actions runs should be read with its own profile's token — covered by tests. If a project's CI reads with another profile's token (a private repository's runs do not show), **workaround:** keep one GitHub profile.
-
-### Several projects on one tracker project (BTN-172, BTN-73)
-
-Two Even Keel projects on one Huly project (`huly` naming it), split by milestone (`requiredMilestones` on one, `excludedMilestones` on the other), were read in Windows Sandbox (2026-10-25): each order held only its own tasks. Not run as live chains: a task closed by one not taken by the other; nor a Linear team (`linear: TEAM/Project`), where a `TEAM/` value is assumed to read the whole team — covered by tests. If a task shows up in both chains, or in neither, **workaround:** keep one Even Keel project per tracker project and leave the release's tasks `Manual`.
 
 ### Task feeds from another tracker (BTN-66)
 
