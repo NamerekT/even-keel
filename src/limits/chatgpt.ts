@@ -8,6 +8,8 @@ const AUTH_CLAIM = 'https://api.openai.com/auth'
 const FIVE_HOURS = 300
 const WEEK = 10080
 const MONTH = 43200
+const POLL_MS = 5 * 60_000
+const polls = new Map<string, { until: number; token: string; refused: boolean; answer: Promise<UsageAnswer> }>()
 
 /** A ChatGPT sign-in as a client keeps it: the access token, the account it is for, when it expires (ms). */
 export interface ChatGptSignIn {
@@ -58,6 +60,39 @@ export function chatGptAccountIn(codexAuth: string | undefined): string | null {
   } catch {
     return null
   }
+}
+
+/** The ChatGPT access token in Codex's `auth.json`; API keys and incomplete sign-ins have none. */
+export function chatGptSignInIn(codexAuth: string | undefined): ChatGptSignIn | undefined {
+  try {
+    const value: unknown = JSON.parse(codexAuth ?? '')
+    if (!isRecord(value) || value.auth_mode === 'apikey') return undefined
+    const tokens = value.tokens
+    if (!isRecord(tokens) || typeof tokens.access_token !== 'string' || tokens.access_token === '') return undefined
+    return { token: tokens.access_token, accountId: chatGptAccountIn(codexAuth), expiresAt: null }
+  } catch {
+    return undefined
+  }
+}
+
+/** Shares a five-minute poll, including an in-flight call, across Codex and OpenCode folders on one ChatGPT account. */
+export async function pollChatGpt(signIn: ChatGptSignIn, at: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<UsageAnswer> {
+  const now = Date.parse(at)
+  for (const [key, poll] of polls) if (poll.until <= now) polls.delete(key)
+  const account = signIn.accountId ?? chatGptAccountOf(signIn.token)
+  const key = account === null ? `token:${signIn.token}` : chatGptPool(account)
+  const held = polls.get(key)
+  if (held !== undefined) {
+    const answer = await held.answer
+    if (!held.refused || held.token === signIn.token) return answer
+    if (polls.get(key) !== held) return pollChatGpt(signIn, at, timeoutMs, fetchImpl)
+  }
+  const poll = { until: now + POLL_MS, token: signIn.token, refused: false, answer: askChatGpt(signIn, at, timeoutMs, fetchImpl) }
+  polls.set(key, poll)
+  const answer = await poll.answer
+  // A refused token belongs to one folder; another client's valid sign-in may still read the same pool.
+  poll.refused = answer.kind === 'missing'
+  return answer
 }
 
 /**
