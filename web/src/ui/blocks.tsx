@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import { useId, useState, type HTMLAttributes, type ReactNode } from 'react'
 import './blocks.css'
 
 /** The shared blocks of `docs/design.md`, "Blocks": a page is built of these before it gets classes of its own. */
@@ -116,6 +116,24 @@ export function Fact({ label, children, tone = 'ok', wide = false, className }: 
 }
 
 export type BandTone = 'note' | 'warn' | 'error'
+
+/** A compact warning summary; its action stays reachable while the list is folded. */
+export function FoldBand({ title, summary, action, children }: { title: string; summary: string; action?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  return (
+    <div className="ui-fold-band">
+      <Band tone="warn" action={action}>
+        <button type="button" className="ui-fold-band__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+          <strong>{title}</strong>
+          <span className="ui-fold-band__summary">{summary}</span>
+        </button>
+      </Band>
+      <div id={id} hidden={!open} className="ui-fold-band__content">{children}</div>
+    </div>
+  )
+}
 
 /** A warning or an error across a card or the page, its action at the right. */
 export function Band({ tone, action, children, className }: { tone: BandTone; action?: ReactNode; children: ReactNode; className?: string }) {

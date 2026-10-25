@@ -19,6 +19,27 @@ const OUTPUT = [
  * its commit into ABC; the agent's session is asked for after ABC's current task; it leads ABC's chain; it is over.
  */
 export function withCarry(state: EvenKeelState, mode: string, carrying: SessionView, at: string): EvenKeelState {
+  if (mode.startsWith('warnings') || mode === 'warning' || mode === 'empty') {
+    const from = 'ABC'
+    const into = 'DEMO'
+    const variant = mode.slice('warnings-'.length)
+    const count = mode === 'empty' ? 0 : mode === 'warning' ? 1 : 5
+    const leftovers = Array.from({ length: count }, (_, index) => ({
+      task: `${from}-${21 + index}`, at,
+      notice: notice('cleanup.branchKept', { branch: `abc-${21 + index}/task` }, { detail: 'git sync: fatal: refusing to merge unrelated histories' }),
+    }))
+    let forward: EvenKeelState['forwards'][string] = { into, behind: 1, held: true, hold: notice('forward.conflict', { from, into, files: ['CHANGELOG.md', 'src/app.ts'] }, { detail: OUTPUT }) }
+    if (variant === 'waiting') forward = { into, behind: 2, hold: null, held: false }
+    if (variant === 'push') forward = { into, behind: 0, hold: null, held: false, last: { at, commits: 1, push: notice('cleanup.branchKept', { branch: 'release/v1' }) } }
+    if (variant === 'held') forward = { into, behind: 1, hold: notice('forward.foreign', { from, into }), held: true }
+    if (variant === 'agent') forward = { ...forward, agent: 'ABC-CARRY' }
+    return {
+      ...state,
+      projectLabels: variant === 'long' ? { ...state.projectLabels, [into]: 'Application platform with a very long project name (DEMO)' } : state.projectLabels,
+      forwards: { ...state.forwards, ...(mode === 'warning' || mode === 'empty' ? {} : { [from]: forward }) },
+      chain: { ...state.chain, leftovers: { ...state.chain.leftovers, [from]: [...(state.chain.leftovers[from] ?? []), ...leftovers] } },
+    }
+  }
   const hold = notice('forward.conflict', { from: FROM, into: INTO, files: ['CHANGELOG.md', 'src/app.ts'] }, { detail: OUTPUT })
   const held = { into: INTO, behind: 1, hold, held: true }
   const episodes = state.fixes[INTO] ?? []

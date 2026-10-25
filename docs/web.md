@@ -172,6 +172,8 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 
 `?limit=spend|spendUnknown` holds the current API session on a spending cap with or without a reset date; `/accounts?account=spend|spendUnknown` shows the corresponding account note (BTN-382).
 
+The project notice states are on `/p/ABC?forward=warnings`: a carry conflict above five cleanup warnings. Use `warnings-agent`, `warnings-waiting` or `warnings-push` for a sixth, informational warning; `warnings-held` for a held carry; `warnings-long` for a long project label; `warning` for one cleanup warning; `empty` for none. These fixtures live in `web/src/live/fakeCarry.ts` and support the existing dismiss and resolve commands. Combine with `chain=later` for an ordering error above them.
+
 ## Screenshots (`npm run shot`)
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.

@@ -3,6 +3,9 @@ import { plural } from './plural.js'
 const counted = (one: string, other: string) => (count: number) => `${count} ${plural('en', count, { one, other })}`
 
 export const projectNoticesEn = {
+  warnings: counted('warning', 'warnings'),
+  cleanupSummary: (tasks: string) => `Cleanup: ${tasks}`,
+  dismissAll: 'Done for all',
   leftover: (task: string) => `${task} is closed, but not everything after it went through — check by hand.`,
   dismiss: 'Done',
   forwardWaits: (count: number, into: string) =>
