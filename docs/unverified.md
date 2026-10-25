@@ -25,6 +25,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
 | 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
 | 16 | [Forgejo token rights for pull requests](#forgejo-token-rights-for-pull-requests-ekr-9) | PR mode on Forgejo with a token made by the guide | the comments of the conversation are not read, or the open is refused |
+| 16a | [Retrying a pull request after fixing access](#retrying-a-pull-request-after-fixing-access-btn-407) | PR mode paused after a refused open | the pull request stays unopened after Resume |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
@@ -192,6 +193,10 @@ Seen live on a Claude chain session (BTN-189, CLI 2.1.302): a text answer and an
 Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message waited for the hook through a 90-second Bash call and went in at its `PostToolUse`; one sent while the closing text streamed went in at `Stop`, and one sent before a question went in at that `AskUserQuestion`'s `PreToolUse`, the question not going out. Each time the model acted on the message at once and the feed showed it as the user's bubble (the shapes are in `docs/sessions.md`, "Chat mailbox"). Not seen: the mailbox's `Stop` block and `checkpoint-mark`'s in one turn. A turn that ends on `CHECKPOINT:` with mail waiting goes on, and its last line may no longer be the mark, so the handoff waits for the next turn's mark. The same loss was seen live with `NO CHANGES:` on Codex on 25.10.2026: the session answered the `Stop` mail without repeating the line, and the task waited without Done until a chat message asked for it (BTN-406).
 
 **Workaround:** if the handoff does not come, the session writes the mark again at the end of its next turn; or press "New session".
+
+### Retrying a pull request after fixing access (BTN-407)
+
+Covered by dispatcher tests: Start or Resume on `review.notOpened` forgets only the current task's refused mark and retries it without touching its session; another refusal pauses with its new cause and is not retried on each tick. Not checked live: changing the project's remote profile or renewing its token after a real forge refusal, then pressing Resume on the running service. If the new credentials are not picked up, the chain pauses again. **Workaround:** check the profile's access and answer the task's session in the chat to have it mark again, or restart the service to forget the refused mark.
 
 ### Forgejo token rights for pull requests (EKR-9)
 

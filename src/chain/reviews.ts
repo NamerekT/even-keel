@@ -34,8 +34,8 @@ interface Polled {
 // the task is then done — or closed, or gets feedback, which goes back to the task's session while it is not mid-turn.
 export class Reviews {
   /**
-   * The `lastReplyAt` of each task's mark that did not open a pull request: neither Resume nor a restart of the chain
-   * tries it again, only a new turn of the session does. A service restart forgets it and tries the mark once more.
+   * The `lastReplyAt` of each task's mark that did not open a pull request. Only a new turn, Start on
+   * `review.notOpened` or a service restart tries it again.
    */
   private readonly refused = new Map<string, string | null>()
 
@@ -52,6 +52,10 @@ export class Reviews {
 
   recordOf(project: string, task: string): PullRequest | undefined {
     return this.state.reviews[project]?.find((pull) => pull.task === task)
+  }
+
+  retry(task: string): void {
+    this.refused.delete(task)
   }
 
   /** Whether the task waits on its pull request out of the chain: open without feedback, or closed and not cleaned up after. */

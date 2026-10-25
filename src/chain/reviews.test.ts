@@ -144,12 +144,51 @@ describe('Dispatcher in PR mode', () => {
     expect(dispatcher.state.reviews.ABC).toBeUndefined()
   })
 
-  it('does not try a refused mark again on Resume, Skip and Unskip or Stop and Start, only a new turn', async () => {
+  it.each(['start', 'resume'] as const)('retries the same refused mark on %s without touching its session', async (command) => {
     const { pulls, tries } = refusing()
-    const { dispatcher, handoffs } = await running({ reviews: pulls.deps })
+    const { dispatcher, relays, stopped, launched } = await running({ reviews: pulls.deps })
+
+    await dispatcher[command]('ABC')
+    await dispatcher.idle()
+
+    expect(tries.count).toBe(2)
+    expect(pulls.opened).toMatchObject([{ task: 'ABC-1', session: { sessionId: 'old-session' } }])
+    expect(dispatcher.state.reviews.ABC).toMatchObject([{ task: 'ABC-1', markAt: '2026-09-26T11:50:00.000Z' }])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-2' } })
+    expect(relays).toEqual([])
+    expect(stopped).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('pauses with the new cause when a retry fails and waits for another explicit retry', async () => {
+    const { pulls, tries } = refusing()
+    const { dispatcher, relays, stopped, launched } = await running({ reviews: pulls.deps })
+    pulls.deps.open = async () => {
+      tries.count++
+      throw fail('review.noRemote', { project: 'ABC' })
+    }
 
     dispatcher.resume('ABC')
     await dispatcher.idle()
+    expect(tries.count).toBe(2)
+    expect(dispatcher.state.active[0]).toMatchObject({
+      paused: true,
+      current: { task: 'ABC-1', sessionId: 'old-session' },
+      error: { code: 'review.notOpened', cause: { code: 'review.noRemote' } },
+    })
+
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(tries.count).toBe(2)
+    expect(relays).toEqual([])
+    expect(stopped).toEqual([])
+    expect(launched).toEqual([])
+  })
+
+  it('does not try a refused mark again on Skip and Unskip or Stop and Start, only a new turn', async () => {
+    const { pulls, tries } = refusing()
+    const { dispatcher, handoffs } = await running({ reviews: pulls.deps })
+
     dispatcher.skip('ABC', 'ABC-1')
     dispatcher.unskip('ABC', 'ABC-1')
     await dispatcher.idle()

@@ -115,7 +115,7 @@ export const noticesRu: NoticeTexts = {
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
   'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
   'intake.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужны чтение и запись issue репозитория`,
-  'review.notOpened': (p) => `pull request задачи ${p.task} не открыт (ответьте её сессии в чате или пропустите задачу)`,
+  'review.notOpened': (p) => `pull request задачи ${p.task} не открыт (исправьте доступ и нажмите «Снять с паузы», ответьте её сессии в чате или пропустите задачу)`,
   'review.notCompleted': (p) => `у задачи ${p.task} нечего открывать как pull request, но в трекере она не переведена в Done (переведите её сами и продолжите цепочку или пропустите задачу)`,
   'review.notReady': (p) =>
     `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи; она пойдёт сама в течение минуты, как только это исправят, или выключите PR-режим`,
