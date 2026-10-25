@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { askChatGpt, chatGptAccountIn, chatGptAccountOf, chatGptLimits, CHATGPT_USAGE_URL } from './chatgpt.js'
 import { notice } from '../notice/notice.js'
 
@@ -108,5 +108,46 @@ describe('askChatGpt', () => {
       kind: 'unknown',
       reason: notice('usage.chatGptUnread', {}),
     })
+  })
+})
+
+describe('pollChatGpt', () => {
+  beforeEach(() => vi.resetModules())
+
+  it('keeps different accounts separate, including those named only by a token claim', async () => {
+    const { pollChatGpt } = await import('./chatgpt.js')
+    const fetchImpl = answering(200, PLUS)
+    const signIn = (id: string) => ({ token: jwt({ 'https://api.openai.com/auth': { chatgpt_account_id: id } }), accountId: null, expiresAt: null })
+    const first = await pollChatGpt(signIn('example-1'), AT, 1000, fetchImpl)
+    const second = await pollChatGpt(signIn('example-2'), AT, 1000, fetchImpl)
+    expect(first).toMatchObject({ kind: 'limits', limits: { pool: 'chatgpt:example-1' } })
+    expect(second).toMatchObject({ kind: 'limits', limits: { pool: 'chatgpt:example-2' } })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('shares network failures until the next poll, without serving an older successful answer', async () => {
+    const { pollChatGpt } = await import('./chatgpt.js')
+    const fetchImpl = answering(200, PLUS)
+    const signIn = { token: 'fake-access', accountId: 'example-1', expiresAt: null }
+    await pollChatGpt(signIn, AT, 1000, fetchImpl)
+    fetchImpl.mockRejectedValue(new Error('network unavailable'))
+    const later = new Date(Date.parse(AT) + 300_000).toISOString()
+    await expect(pollChatGpt(signIn, later, 1000, fetchImpl)).rejects.toThrow('network unavailable')
+    await expect(pollChatGpt({ ...signIn, token: 'other-fake-access' }, later, 1000, fetchImpl)).rejects.toThrow('network unavailable')
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a refused token, but shares a new request from other sign-ins', async () => {
+    const { pollChatGpt } = await import('./chatgpt.js')
+    const fetchImpl = answering(401, {})
+    const signIn = { token: 'fake-access', accountId: 'example-1', expiresAt: null }
+    await pollChatGpt(signIn, AT, 1000, fetchImpl)
+    await pollChatGpt(signIn, AT, 1000, fetchImpl)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    fetchImpl.mockImplementation(async () => new Response(JSON.stringify(PLUS), { status: 200 }))
+    const answers = await Promise.all(['second', 'third'].map((token) => pollChatGpt({ ...signIn, token }, AT, 1000, fetchImpl)))
+    expect(answers[0]).toMatchObject({ kind: 'limits' })
+    expect(answers[0]).toEqual(answers[1])
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
   })
 })

@@ -34,7 +34,7 @@ With `mergeInto` naming the main project, the release project is carried forward
 
 ## Codex (preview)
 
-The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or a `Codex` label on a task, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript, context fill and limits (5-hour and weekly, or the free plan's 30-day one) read from Codex's own session files, the project's packages passed on every turn. Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.
+The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or a `Codex` label on a task, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript and context fill read from Codex's own session files, the project's packages passed on every turn. Limits (5-hour and weekly, or the free plan's 30-day one) are read from ChatGPT every five minutes, sharing a request with OpenCode on the same subscription; if the request fails, the latest limits in Codex's session files stand in. Even Keel leaves token renewal to Codex. Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.
 
 Run it as a chain only on short test tasks. From the Windows service the Codex sandbox does not start (a Codex bug), so on Windows it needs `execution.codex` set to `bypass`, which runs Codex sessions with no sandbox at all ([What has not been verified](../unverified.md#codex)).
 
@@ -149,7 +149,7 @@ Claude sessions run one of two ways: `CLI --bg`, the CLI's own background sessio
 
 ## Limits
 
-The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent) every 5 minutes; between those reads a session running through the Agent SDK keeps them fresh with the limits the CLI reports at each response. Even Keel stays inside them: while a window is exhausted the next task waits for its reset.
+The windows of every subscription account are read every 5 minutes: Claude Code's 5-hour and weekly windows with its own `/usage` command (no quota spent), Codex and OpenCode's ChatGPT windows from ChatGPT, and Copilot's monthly allowance from GitHub. Between those reads a Claude session running through the Agent SDK keeps its windows fresh with the limits the CLI reports at each response. Even Keel stays inside them: while a window is exhausted the next task waits for its reset.
 
 ## Statistics (optional)
 

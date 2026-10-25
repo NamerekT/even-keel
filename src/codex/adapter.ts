@@ -5,7 +5,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
-import { chatGptAccountIn, chatGptPool } from '../limits/chatgpt.js'
+import { chatGptAccountIn, chatGptPool, chatGptSignInIn, pollChatGpt } from '../limits/chatgpt.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { appServer } from './appserver.js'
@@ -85,7 +85,13 @@ export const codex: AgentAdapter = {
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
       usage: async (home, at) => {
-        const account = chatGptAccountIn(await readFile(join(home.dir, 'auth.json'), 'utf8').catch(() => undefined))
+        const auth = await readFile(join(home.dir, 'auth.json'), 'utf8').catch(() => undefined)
+        const signIn = chatGptSignInIn(auth)
+        if (signIn !== undefined) {
+          const answer = await pollChatGpt(signIn, at, timeoutMs).catch(() => undefined)
+          if (answer?.kind === 'limits') return answer
+        }
+        const account = chatGptAccountIn(auth)
         for (const { file } of (await rolloutFiles(home.dir)).slice(0, LIMIT_ROLLOUTS)) {
           const limits = limitsOfRollout(await readFile(file, 'utf8').catch(() => ''))
           if (limits !== undefined) return { kind: 'limits', limits: account === null ? limits : { ...limits, pool: chatGptPool(account) } }

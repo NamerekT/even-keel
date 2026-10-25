@@ -1,4 +1,4 @@
-import { askChatGpt } from '../limits/chatgpt.js'
+import { pollChatGpt } from '../limits/chatgpt.js'
 import { askCopilot } from '../limits/copilot.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import { notice } from '../notice/notice.js'
@@ -14,7 +14,7 @@ export function openCodeUsage(auth: string | undefined, at: string, timeoutMs: n
   const openai = held.openai
   if (openai?.type === 'oauth' && isText(openai.access)) {
     const signIn = { token: openai.access, accountId: isText(openai.accountId) ? openai.accountId : null, expiresAt: positive(openai.expires) }
-    return askChatGpt(signIn, at, timeoutMs, fetchImpl)
+    return pollChatGpt(signIn, at, timeoutMs, fetchImpl)
   }
   const copilot = held['github-copilot']
   const token = copilot?.type === 'oauth' ? [copilot.refresh, copilot.access].find(isText) : undefined
