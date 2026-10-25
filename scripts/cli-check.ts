@@ -2,7 +2,7 @@
  * The live check of an agent's CLI version before it becomes the checked one (BTN-253, `docs/releases.md`): one session
  * of a cheap model goes through what the chain and the page do with a session, by the same `Agent` calls — the copy of
  * the version, the sign-in, a launch, a question, the answer from the chat, the chat's feed, a checkpoint, the context
- * window, the stop.
+ * window, the package hooks, the limits shape, the stop.
  *
  *   npm run cli-check -- claude <account> [version] [--model <model>] [--no-usage]
  *   npm run cli-check -- codex|opencode|copilot <account> [version] [--model <model>] [--no-usage]
@@ -11,16 +11,22 @@
  * The account folder must have no live session: a Claude daemon on the checked version takes the folder over, and the
  * check stops it at the end, so the next chain launch starts one on the pinned version again. `/usage` is asked once
  * (more often than once per 5 minutes it answers 429): `--no-usage` leaves it out; OpenCode and Copilot skip it.
+ * Codex's limits shape is always checked in this session's rollout, without a usage API request.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { accountsRoot, AccountHomes, type AccountHome } from '../src/account/homes.js'
 import { AGENTS } from '../src/agent/adapters.js'
-import type { Agent, SessionHandle } from '../src/agent/contract.js'
+import type { Agent, SessionHandle, SessionStart } from '../src/agent/contract.js'
 import { sessionBase } from '../src/agent/env.js'
 import { CLAUDE } from '../src/claude/name.js'
 import { CODEX } from '../src/codex/name.js'
+import { appServer } from '../src/codex/appserver.js'
+import { resolveCodexBinary } from '../src/codex/cli.js'
+import { CodexPlugins, pluginId } from '../src/codex/plugins.js'
+import { codexBinaryIn, codexTarget } from '../src/codex/release.js'
+import { rolloutFile } from '../src/codex/rollout.js'
 import { COPILOT } from '../src/copilot/name.js'
 import { runGit } from '../src/git/run.js'
 import { stateDirOf } from '../src/locations.js'
@@ -29,6 +35,7 @@ import { OPENCODE } from '../src/opencode/name.js'
 import { isLive, type AgentEntry } from '../src/sessions/agents.js'
 import { replyPrompt, type Ask } from '../src/sessions/ask.js'
 import type { FeedLine } from '../src/sessions/transcript.js'
+import { checkCodexHookList, checkHookRequests, checkpointPackages, checkRolloutUsage, checkUsage, hookService, type HookRequest } from './cli-check-support.js'
 
 const USAGE = 'usage: npm run cli-check -- claude|codex|opencode|copilot <account> [version] [--model <model>] [--no-usage]'
 const NAME = 'cli-check'
@@ -154,9 +161,10 @@ async function run(options: Options): Promise<void> {
   const adapter = AGENTS[options.agent]!
   const version = options.version ?? adapter.checked
   const work = join(stateDirOf(), 'cli-check')
+  let hookUrl: string | undefined
   const failures: string[] = []
   const agent: Agent = adapter.setup({
-    env: () => sessionBase(process.env),
+    env: () => ({ ...sessionBase(process.env), ...(hookUrl === undefined ? {} : { EVEN_KEEL_URL: hookUrl }) }),
     timeoutMs: CALL_TIMEOUT_MS,
     workDir: work,
     checkedCli: () => true,
@@ -198,23 +206,43 @@ async function run(options: Options): Promise<void> {
   const cwd = join(work, 'session')
   const repo = await step('the working folder', () => freshFolder(cwd), (repo) => (repo === null ? `${cwd}, no repository` : `${cwd}, a worktree of ${repo}`))
   let handle: SessionHandle | undefined
+  let hooks: Awaited<ReturnType<typeof hookService>> | undefined
   try {
-    handle = await check(agent, home, options, version, cwd, (next) => (handle = next))
+    const packages = await step('the checkpoint package', () => checkpointPackages(work, options.agent))
+    hooks = await step('the hook service', () => hookService(), (service) => service.url)
+    hookUrl = hooks.url
+    const set = packages.startOf(NAME, NAME, options.agent)
+    if (options.agent === CODEX) {
+      await step('all Codex package hooks trusted with the turn flags', async () => {
+        const target = codexTarget(process.platform, process.arch)
+        if (target === null) throw new Error('no Codex build for this platform')
+        const bin = resolveCodexBinary(process.env, codexBinaryIn(join(work, 'cli', CODEX, version), target))
+        const flags = await new CodexPlugins(() => bin, (home) => agent.env(home)).args(home, cwd, set.plugins ?? [])
+        const [answer] = await appServer(bin, flags, cwd, agent.env(home), [['hooks/list', {}]])
+        return (set.plugins ?? []).map((plugin) => checkCodexHookList(answer, pluginId(plugin))).join('; ')
+      }, (answer) => answer)
+    }
+    const settings = JSON.stringify({ env: { EVEN_KEEL_URL: hooks.url }, enabledPlugins: packages.otherPlugins(NAME, NAME, [readSettings(home.dir), readSettings(cwd), readSettings(cwd, 'settings.local.json')]) })
+    handle = await check(agent, home, options, version, { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, ...set, settings }, hooks.requests, (next) => (handle = next))
   } finally {
     if (handle !== undefined) await agent.stop(home, handle).catch(() => {})
     if (agent.stopDaemon !== undefined && agent.daemonVersion !== undefined) {
       const live = (await agent.sessions(home).catch(() => [])).filter(isLive)
       if (live.length === 0) await step('the daemon of the check stopped', () => agent.stopDaemon!(home)).catch(() => {})
     }
+    await hooks?.close()
     if (repo !== null) await dropFolder(repo, cwd)
   }
-  if (options.usage && CLI_USAGE.includes(options.agent)) {
-    await step('/usage', async () => {
-      const answer = await agent.usage!(home, new Date().toISOString())
-      if (answer.kind !== 'limits') throw new Error(`${answer.kind}: ${englishOf(answer.reason)}`)
-      return answer.limits
-    }, (limits) => `5h ${limits.fiveHour?.usedPercentage ?? '-'} %, 7d ${limits.sevenDay?.usedPercentage ?? '-'} %`)
-  }
+  if (options.usage && options.agent !== CODEX && CLI_USAGE.includes(options.agent)) {
+    await step('/usage shape', async () => checkUsage(await agent.usage!(home, new Date().toISOString())), (answer) => answer)
+  } else if (options.agent !== CODEX) console.log(`skip  /usage shape — ${options.usage ? 'limits come from the provider API, not this CLI' : '--no-usage'}`)
+}
+
+function readSettings(dir: string, name = 'settings.json'): Record<string, unknown> | undefined {
+  const file = join(dir, '.claude', name)
+  const accountFile = join(dir, name)
+  const found = existsSync(file) ? file : accountFile
+  return existsSync(found) ? JSON.parse(readFileSync(found, 'utf8')) : undefined
 }
 
 async function check(
@@ -222,10 +250,11 @@ async function check(
   home: AccountHome,
   options: Options,
   version: string,
-  cwd: string,
+  start: SessionStart,
+  hookRequests: HookRequest[],
   held: (handle: SessionHandle) => void,
 ): Promise<SessionHandle> {
-  const start = { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, mcp: [], plugins: [] }
+  const { cwd } = start
   const entryOf = async (sessionId: string) => (await agent.sessions(home)).find((each) => each.sessionId === sessionId)
   const handleOf = (entry: AgentEntry): SessionHandle => ({ agentId: entry.id ?? entry.sessionId, sessionId: entry.sessionId })
 
@@ -296,10 +325,24 @@ async function check(
     if ((await agent.record(home, resumed)) === undefined) throw new Error('no record')
     if (!(await agent.transcripts(home)).includes(resumed)) throw new Error('not among the transcripts')
   })
+  await step('the checkpoint package hook ran', () => until('a hook request from the checked session', async () => {
+    try {
+      return checkHookRequests(hookRequests, [launched, resumed])
+    } catch {
+      return undefined
+    }
+  }, 10_000).catch(() => checkHookRequests(hookRequests, [launched, resumed])), (answer) => answer)
+  if (options.agent === CODEX) {
+    await step('rate_limits shape in this session rollout', async () => {
+      const file = await rolloutFile(home.dir, resumed)
+      if (file === undefined) throw new Error(`no rollout for ${resumed}`)
+      return checkRolloutUsage(readFileSync(file, 'utf8'))
+    }, (answer) => answer)
+  }
   // The page's context bar and the checkpoint threshold's cap read the window: Claude's from `/context`, Codex's from the rollout.
   await step('the context window', async () => {
     const asked = agent.contextWindow !== undefined
-    const window = asked ? await agent.contextWindow!(home, options.model) : ((await agent.record(home, resumed))?.contextWindow ?? null)
+    const window = asked ? await agent.contextWindow!(home, options.model ?? '') : ((await agent.record(home, resumed))?.contextWindow ?? null)
     if (window === null) throw new Error(asked ? 'no window in the answer of /context' : 'no window in the transcript')
     return window
   }, (window) => `${window} tokens`)
