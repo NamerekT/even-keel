@@ -98,6 +98,8 @@ fields; adding does not repeat the tracker's network check.
 
 ## Fake states (`npm run dev:fake`)
 
+Chain drag previews and optimistic drops share `withOrder` in `web/src/ui/chainOrder.ts`: `withWaiting` places each locked external blocker before its first dependent in the proposed order. `useChainDrag` measures every displayed row for `stackedTops`, including locked blockers and closed rows; drop targets and the submitted order still contain only chain tasks.
+
 Layout work on a fake state, without a tracker or sessions. The fake history starts in November 2023 and has several projects and folders without a project.
 
 | Parameter | What it shows |
@@ -118,6 +120,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=aside` | main is red while ABC-5 waited on a question: `ABC-FIX` leads the chain, the chat of ABC-5 opens with the reply box shut |
 | `?chain=skip` | a skipped task and a session postponed by a blocker; both OPS tasks skipped, so its card shows the held OPS-2 |
 | `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2): ABC-16 and ABC-17 with "Move to Todo", ABC-21 from v0.3 with it off (`refused`, also in its card) |
+| `?chain=drag` | one external In Progress blocker, ABC-16, holds ABC-7, ABC-9 and ABC-11 in one milestone: drag ABC-13 above ABC-7 or ABC-7 below ABC-10 to compare the preview with the drop; the blocker follows its first dependent and cannot be dragged |
 | `?chain=later` | ABC-10 of v0.2 is blocked by ABC-21 of v0.3 in Todo: the order does not build, the chain is paused with `order.later` |
 | `?chain=pulls\|pullsRemote` | ABC's PR mode has nowhere to go (EKR-7), its chain paused with `review.notReady`: no profile has a token for its Forgejo remote ("Add profile" under the plaque), or it has no remote ("Add a remote or turn PR mode off", to the project's Check and CI tab). Without it DEMO lacks the profile and OPS the remote (`FAKE_PULL_READINESS`), so their PR mode switch is off with its hint |
 | `?changelog=failed\|unnoticed\|empty\|slow\|dirty` | the changelog of a milestone (`web/src/live/fakeChangelog.ts`, versions kept in memory until a reload): the agent fails, it finds nothing a user would notice in the done tasks, the milestone has no done task, the agent never answers, "Write" finds the file changed. Without it an agent's turn takes 2.5 s; ABC's `v0.1` starts written with two of its three done tasks, so its head shows "+1" and the modal "Add 1"; the milestone heads show on a project page with `?chain=backlog` |

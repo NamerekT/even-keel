@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
-import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { blockMetered, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
+import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, BlockMetrics, CacheRing } from '../ui/BlockMetrics.js'
 import { IntoChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -24,7 +24,7 @@ import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
-import { inOrder, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
+import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 /** How long the ghost takes to grow open or fold shut. */
@@ -664,15 +664,6 @@ function linkedIds(blocks: ChainBlock[]): string[] {
 
 function blockersOf(blocks: ChainBlock[]): Map<string, string[]> {
   return new Map(blocks.map((block) => [block.id, block.blockedBy]))
-}
-
-function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
-  const byId = new Map(chain.map((block) => [block.id, block]))
-  const open = order.filter((id) => byId.has(id))
-  if (open.length !== openIds(chain).length) return chain
-  const locked = chain.filter((block) => block.locked).map((block) => block.id)
-  const placed = withWaiting(open, locked, blockersOf(chain)).map((id) => byId.get(id)!)
-  return [...chain.filter((block) => !inOrder(block) && !block.locked), ...placed]
 }
 
 function listClass(drag: ChainDrag | null, landing: Landing | null, settling: boolean): string {
