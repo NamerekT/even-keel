@@ -10,7 +10,7 @@ import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_M
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex } from './release.js'
-import { foldRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
+import { foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
 import { CodexUsage } from './usage.js'
@@ -79,6 +79,7 @@ export const codex: AgentAdapter = {
         return summary === undefined ? undefined : { lines: summary.feed.slice(after), turn: summary.turn }
       },
       feedFile: (home, sessionId) => rolloutFile(home.dir, sessionId),
+      image: (home, sessionId, tool, index) => readRolloutImage(home.dir, sessionId, tool, index),
       transcripts: async (home) => (await rolloutFiles(home.dir)).map((rollout) => rollout.id),
       authStatus: (home) => cli.authStatus(home),
       login: (home) => cli.login(home),
