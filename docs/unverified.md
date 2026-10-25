@@ -16,7 +16,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 5 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
-| 6 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex on Plus or a key | a limit looks like a finished turn, the task waits for you |
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description or an uncalibrated estimate reaches Huly |
 | 8 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
@@ -250,10 +249,6 @@ From the service's Windows session 0 the Codex sandbox does not start, so a chai
 ### Chain sessions in the Codex app and on the phone (BTN-178)
 
 That the Codex desktop app and the ChatGPT app on the phone do not list the chain's threads is read from the app-server protocol (`thread/list` without `sourceKinds` leaves `exec` threads out). Seen in the Windows desktop app (2026-10-23): `~/.codex/state_5.sqlite` holds 36 `exec` threads, the chain's TSK-20 among them, and the app lists none; the Coldbloom chain tasks it does list are its imports of Claude Code transcripts from `~/.claude/projects`, copies that never write back. Not seen on the phone. If an app lists them after all and the user writes there, that turn runs in the app's own app-server and appends to the same rollout: the page shows it in the feed, but Even Keel may `resume` the thread at the same time, and two turns on one thread is untested. **Workaround:** answer Codex sessions only from the page's chat or the tracker (`docs/sessions.md`).
-
-### Errors and limits in the rollout
-
-Seen on the free plan's month (codex-cli 0.164.0, 2026-10-25): the refused turn ends in a `task_complete` with an `error` (`codex_error_info: "usage_limit_exceeded"`, the text "You've hit your usage limit … or try again at Nov 16th, 2026 10:12 PM."), after a `token_count` whose `premium` limits have no window; the reset is read from that text. Not seen: the five-hour and weekly windows of Plus, and an OpenAI API key out of credit. They are assumed to fail the same way, with the time of the same day as a bare "try again at 3:46 PM."; if the shape or the wording differs, a session that hit a limit looks finished without Done and waits for the user, or the chain waits for the reset by the polled windows only. **Workaround:** press "New session" on the task after the reset.
 
 ### A package server and a Codex server of the same name
 
