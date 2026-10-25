@@ -60,8 +60,9 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
   const get = <T>(path: string) => getJson<T>(TITLE, `${base}${path}`, `Bearer ${settings.token}`, timeoutMs, fetchImpl)
 
   return {
-    async runs(limit) {
-      const { workflow_runs: runs } = await get<{ workflow_runs: GithubRun[] }>(`/actions/runs?per_page=${limit}`)
+    async runs(limit, branch) {
+      const filter = branch === undefined ? '' : `&branch=${encodeURIComponent(branch)}`
+      const { workflow_runs: runs } = await get<{ workflow_runs: GithubRun[] }>(`/actions/runs?per_page=${limit}${filter}`)
       return runs.map((run): CiRun => {
         const status = statusOf(run.status, run.conclusion)
         // GitHub sets `run_started_at` at creation, before a runner takes the run.

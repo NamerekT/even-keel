@@ -53,6 +53,26 @@ function setup() {
 }
 
 describe('SharedSources', () => {
+  it('shares runs only for the same branch and limit, keeping unfiltered PR polling separate', async () => {
+    const asked: (string | undefined)[] = []
+    const sources = new SharedSources(() => ({
+      runs: async (_limit, branch) => {
+        asked.push(branch)
+        return [{ ...RUN, commit: branch ?? 'task-head' }]
+      },
+      jobs: async () => [],
+    }))
+    const first = sources.of(TARGET, 'secret')!
+    const second = sources.of({ ...TARGET, remote: 'other' }, 'secret')!
+    const [dev, release, shared, pr] = await Promise.all([
+      first.runs(10, 'dev'), second.runs(10, 'release/v0.1'), second.runs(10, 'dev'), first.runs(10),
+    ])
+    expect([dev[0]!.commit, release[0]!.commit, shared[0]!.commit, pr[0]!.commit]).toEqual(['dev', 'release/v0.1', 'dev', 'task-head'])
+    expect(asked).toEqual(['dev', 'release/v0.1', undefined])
+    await second.runs(5, 'dev')
+    expect(asked).toHaveLength(4)
+  })
+
   it('gives no source without a token', () => {
     const { sources, calls } = setup()
     expect(sources.of(TARGET, null)).toBeNull()

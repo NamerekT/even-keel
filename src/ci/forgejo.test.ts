@@ -32,6 +32,13 @@ const RUN = {
 }
 
 describe('forgejoSource', () => {
+  it('asks for the project branch with pagination', async () => {
+    const { source } = fake({
+      '/actions/runs?page=1&limit=10&ref=refs%2Fheads%2Frelease%2Fv0.1': { workflow_runs: [{ ...RUN, prettyref: 'release/v0.1' }] },
+    })
+    expect((await source.runs(10, 'release/v0.1')).map((run) => run.id)).toEqual([RUN.id])
+  })
+
   it('asks for one page of runs with the token and maps them', async () => {
     const { asked, source } = fake({
       '/actions/runs?page=1&limit=10': {

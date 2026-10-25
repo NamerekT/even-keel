@@ -65,6 +65,7 @@ export function EventToasts() {
 function textOf(event: PageEvent): { title: string; body: string } {
   if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.events.limitBody }
   if (event.kind === 'red') return { title: t.events.red(event.project), body: t.events.redBody(event.commit) }
+  if (event.kind === 'ciRed') return { title: t.events.ciRed(event.project, t.ci.kinds[event.ci]), body: t.events.ciRedBody(event.commit) }
   if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }
   if (event.kind === 'work') {
     return { title: event.files > 0 ? t.events.uncommitted(event.task) : t.events.unmerged(event.task), body: t.events.workBody(event.path) }
@@ -79,6 +80,6 @@ function placeOf(event: PageEvent, state: EvenKeelState): { pathname: string; se
     const pathname = projectPath(event.project)
     return event.backlog ? { pathname, hash: BACKLOG_HASH } : { pathname, search: `?task=${encodeURIComponent(event.task)}` }
   }
-  if (event.kind === 'red' && state.ci[event.project] !== undefined) return { pathname: projectPath(event.project), hash: CI_HASH }
+  if ((event.kind === 'red' || event.kind === 'ciRed') && state.ci[event.project] !== undefined) return { pathname: projectPath(event.project), hash: CI_HASH }
   return { pathname: projectPath(event.project) }
 }

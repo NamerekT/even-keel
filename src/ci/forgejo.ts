@@ -58,8 +58,9 @@ export function forgejoSource(settings: ForgejoSettings, timeoutMs: number, fetc
   const get = <T>(path: string) => getJson<T>(TITLE, `${base}${path}`, `token ${settings.token}`, timeoutMs, fetchImpl)
 
   return {
-    async runs(limit) {
-      const { workflow_runs: runs } = await get<{ workflow_runs: ForgejoRun[] | null }>(`/actions/runs?page=1&limit=${limit}`)
+    async runs(limit, branch) {
+      const filter = branch === undefined ? '' : `&ref=${encodeURIComponent(`refs/heads/${branch}`)}`
+      const { workflow_runs: runs } = await get<{ workflow_runs: ForgejoRun[] | null }>(`/actions/runs?page=1&limit=${limit}${filter}`)
       return (runs ?? []).map(
         (run): CiRun => ({
           id: run.id,

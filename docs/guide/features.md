@@ -182,7 +182,7 @@ The page shows the numbers; the `tally` plugin draws conclusions from them. Its 
 
 ## CI
 
-A badge in the project's head shows the CI of each remote — Forgejo Actions or GitHub Actions, found from `git remote` and the workflow folders: whether the API answers and a runner takes the runs, the current run with its tasks, jobs and steps against the usual length, and the recent runs. The API is polled only while a run is unfinished or after a push.
+A badge in the project's head shows the CI of each remote — Forgejo Actions or GitHub Actions, found from `git remote` and the workflow folders: whether the API answers and a runner takes the runs, the current run with its tasks, jobs and steps against the usual length, and the recent runs. The current run, recent runs and usual length belong to the project's configured branch. The API is polled only while a run is unfinished or after a push. A failed CI outside the project's selection, or with the protection of main off, still gets a notification, which says that the chain does not use that CI to decide whether to continue.
 
 After a task is merged and `main` is pushed, the next task waits for the CI's verdict (as long as the project allows) while its worktree is prepared. A red `main` is fixed first: Even Keel stops the session working on the current task, starts a session to fix `main` — with the failed jobs and the commits of the push in its prompt, without a task in the tracker — and, once the fix is merged, continues the stopped session with a note to merge `main` into its branch. A project can ask for a high-priority fix task in the tracker instead (`ci.fixTask`). If the fix is red too, the chain pauses instead of starting another.
 

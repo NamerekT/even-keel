@@ -14,7 +14,7 @@ interface Answer<T> {
 interface Entry {
   source: CiSource
   used: number
-  runs: Map<number, Answer<CiRun[]>>
+  runs: Map<string, Answer<CiRun[]>>
   jobs: Map<string, Answer<CiJob[]>>
 }
 
@@ -38,9 +38,9 @@ export class SharedSources {
     const entry = this.entryOf(key, target, token)
     if (entry === null) return null
     const source: CiSource = {
-      runs: (limit) => {
+      runs: (limit, branch) => {
         const current = this.entryOf(key, target, token)!
-        return this.answer(current.runs, limit, () => current.source.runs(limit)).then((runs) => [...runs])
+        return this.answer(current.runs, JSON.stringify([limit, branch]), () => current.source.runs(limit, branch)).then((runs) => [...runs])
       },
       jobs: (run) => {
         const current = this.entryOf(key, target, token)!
