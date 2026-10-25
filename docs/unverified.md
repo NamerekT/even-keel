@@ -29,7 +29,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 16 | [PR mode on Forgejo](#pr-mode-on-forgejo-btn-205) | PR mode on Forgejo | feedback does not reach the session; a task waits out of the chain |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
-| 19 | [A chain session on an API account](#a-chain-session-on-an-api-account) | Claude API keys | every session fails on authentication |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
@@ -60,7 +59,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, Copilot, OpenCode | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
-| 47 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
 | 49 | [Milestones on Linear](#milestones-on-linear) | Linear | a task's milestone is not filled |
 | 50 | [Changing a milestone from the task card on Linear](#changing-a-milestone-from-the-task-card-on-linear) | Linear | the card puts the old milestone back |
 | 51 | [The tasks of a milestone on Linear](#the-tasks-of-a-milestone-on-linear-btn-142) | changelog drafts on Linear | the draft takes an older comment |
@@ -175,10 +173,6 @@ A task with nothing to merge is closed by its session's last line `NO CHANGES: <
 
 A resumed session in place was seen to show a fresh session id for under a second before it takes its old one, and the chain now waits for the old id (`docs/sessions.md`). When the CLI starts a copy instead (a new job), the chain takes the first session of that new job; whether a copy also passes through a throwaway id first was not seen. If it does, the chain follows an id with no transcript: the chat says the transcript is not found and the card shows "Session booting" for 5 minutes. The workaround is "New session".
 
-### A chain session on an API account
-
-The CLI was seen to take a key from the account folder's `settings.json` (`claude auth status` says `api_key`, BTN-99) and a `--bg` session was seen to work on a key passed in its environment (BTN-136), but a chain session started from an API account folder with a real key was not run. Every session, a respawned one too, reads the folder's `settings.json` `env` at its start (BTN-129); if the CLI still does not authenticate a chain session with the key from there, the session fails at its first request with an authentication error and stops like any error. **Workaround:** set the key in that folder with `apiKeyHelper` or run the chain on a subscription account (`docs/accounts.md`).
-
 ### Sessions through the Agent SDK (BTN-239)
 
 Run live from the service on Windows (CLI 2.1.308, SDK 0.3.308, Haiku, 2026-10-22): a session outlived `Restart-Service EvenKeel` while it waited on its question and the answer from the page went into it without a resume; another outlived three restarts mid-turn, one of them a 28 s stop over the end of a long command, and finished the turn (`docs/sessions.md`). Not run: a night of the chain on the SDK against `--bg`; the service down long enough for the CLI's output to pass 1 MB and go to the spill file; an answer through Remote Control from the phone and the reattach to the same chat after a resume; the Unix socket on Linux and macOS; a chat message from the page straight into a working session (BTN-291 — the same push was seen taken mid-turn only from a terminal); the account's limits from a session's `rate_limit_event` on the page (BTN-290 — the event and its undocumented `unifiedWindows` seen live only from a script; without that field only the window the event names updates, the other stays from `/usage`). If that message is dropped, the chat keeps it as sent and the session never answers it: send it again once the turn ends. If a long run fails where `--bg` would not, the card shows the session busy and replies do not reach it; if the reattach fails, a resumed session opens a new Remote Control chat. **Workaround:** "New session" on the task; set Claude Code's Execution to `CLI --bg` in Settings → Providers and models, which new sessions follow.
@@ -194,10 +188,6 @@ Claude Code does not read an `AGENTS.md` by itself, so in a project with no `CLA
 ### A permission dialog answered from the page (BTN-269)
 
 A `--bg` session waiting on a permission dialog has the call as its question while the `checkpoint` plugin's `PermissionRequest` hook holds it, and the answer goes to the hook, not by a resume (`docs/sessions.md`, "Permission dialogs"). Seen live on CLI 2.1.308 with a hook of the same protocol written by hand: the hook runs beside the open dialog, its `allow` and `deny` are taken there without a stop, and a decision from elsewhere leaves it running. Not run: the whole path through the service — a chain session, its question on the page, the answer from the chat or a tracker comment; an answer through Remote Control while the hook waits (assumed to leave the hook running too, so the service closes the call once the session stops waiting); a hook held for the full 29 minutes against its 1800 s `timeout`; a dialog the `auto` classifier opens rather than an `ask` rule; Codex taking the hook for its own approvals (it skips them by `turn_id`). If the answer does not reach the dialog, the session keeps waiting and the page shows the question as answered; if a closed call lingers, the page shows a question the session no longer has. **Workaround:** answer the dialog through Remote Control; "New session" on the task.
-
-### The 1-hour cache on a key
-
-`cacheTtl: "1h"` goes to sessions as `promptCacheTtl`, which the CLI 2.1.302 binary honours whatever the sign-in; that a session on a key then really writes the 1-hour cache (`ephemeral_1h_input_tokens` in the transcript) was not checked with a real key. If it does not, sessions on a key keep the 5-minute cache and `/stats` shows more cache writes than expected; nothing breaks (`docs/sessions.md`).
 
 ### A key refused after it was added
 
