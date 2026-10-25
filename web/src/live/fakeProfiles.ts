@@ -27,6 +27,7 @@ const KINDS: ProfileKindView[] = [
   },
   { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new' },
   { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security' },
+  { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/' },
   {
     kind: 'forgejo',
     title: 'Forgejo',
@@ -59,6 +60,7 @@ const PROJECTS: Record<string, TrackerProject[]> = {
     { key: 'ENG', name: 'Web app', within: 'Web app' },
     { key: 'OPS', name: 'Operations' },
   ],
+  gitlab: [{ key: 'group/subgroup/app', name: 'Example app' }, { key: 'group/lib', name: 'Shared library' }],
 }
 export const LINEAR_PROFILE = '3f0c2b9e-0000-4000-8000-000000000004'
 
@@ -144,7 +146,16 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     projectIds: ['feed-abc-lin'],
   }
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
-  return { profiles: mode === 'all' ? [huly, github, linear, forgejo] : [huly, github, forgejo], kinds: KINDS }
+  const gitlab: ProfileView = {
+    id: '3f0c2b9e-0000-4000-8000-000000000005', kind: 'gitlab',
+    name: mode === 'gitlab-long' ? 'GitLab · Example organization / Platform / Shared services / Development account' : 'GitLab · example',
+    isDefault: true, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
+    login: 'johndoe', expiresAt: new Date(Date.now() + 60 * DAY_MS).toISOString(),
+    check: mode === 'gitlab-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'GitLab' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
+    projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+  }
+  if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
+  return { profiles: mode === 'all' ? [huly, github, linear, gitlab, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }
 
 export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {

@@ -31,6 +31,8 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
 export const noticesRu: NoticeTexts = {
+  'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
+  'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
   text: (p) => p.text,
 
   'chain.unknownProject': (p) => `${p.project} — не проект из конфигурации`,

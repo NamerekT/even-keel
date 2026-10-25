@@ -1,3 +1,4 @@
+import { profilesEn } from './profiles-en.js'
 import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
 import type { ContextResets } from '../state.js'
@@ -14,7 +15,7 @@ const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
 const fixes = counted('fix', 'fixes')
 const fixOf = (red: string | null) => (red === null ? 'Fix of main' : `Fix of main: ${red}`)
-const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub' }
+const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', gitlab: 'Project on GitLab' }
 
 export const en: Messages = {
   notice: noticesEn,
@@ -1199,6 +1200,8 @@ export const en: Messages = {
       HULY_PASSWORD: 'The password to sign in to Huly with',
       GITHUB_TOKEN: 'The GitHub token: Issues, the CI and pull requests',
       LINEAR_TOKEN: 'A personal Linear API key',
+      GITLAB_URL: 'GitLab server address',
+      GITLAB_TOKEN: 'GitLab access token',
       FORGEJO_TOKEN: 'The Forgejo token',
     },
   },
@@ -2241,4 +2244,3 @@ export const en: Messages = {
   },
 }
 import { projectNoticesEn } from './project-notices-en.js'
-import { profilesEn } from './profiles-en.js'
