@@ -44,17 +44,14 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 32 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
 | 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
-| 35 | [A tracker profile changed on the page](#a-tracker-profile-changed-on-the-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
-| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
+| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | a pull request uses the old profile |
-| 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a carry whose push fails; push by hand |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
 | 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
-| 43 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, Copilot, OpenCode | a guarded file is edited before its document; the merge still waits for its check |
@@ -134,10 +131,6 @@ If it is wrong: `npx even-keel` fails or the service does not start. Install fro
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
 
 ## The page
-
-### A changed EVEN_KEEL_TOKEN seen from another machine (BTN-130)
-
-Checked live: the service reads the new token from `.env` and logs it. Not checked: the open event streams closed on the change, and a browser on another machine with the old token's cookie getting the token form when its page reconnects, since every request from the author's machine, to any of its addresses, passes without a token. If the page keeps showing a dead connection instead, reload it; the form comes on the next page load.
 
 ### Removing a project on the running service (BTN-118)
 
@@ -397,17 +390,13 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ## Trackers
 
-### A tracker profile changed on the page (BTN-200)
-
-A profile changed on `/settings` → **Trackers and CI** is covered by tests, not run live (it would change the real keys): that the tracker of the profile's projects connects again with the new values, and that a new session finds the default profile's values in the `env` of the global `settings.json`. If the tracker does not connect again, its chips stay "does not answer". **Workaround:** restart the service.
-
 ### Two profiles of one tracker (BTN-200)
 
-Two projects on two profiles of the same tracker — each its own connection, its own gateway keys and its own GitHub Actions token — are covered by tests; the author has one account per tracker, so it never ran live. If a project reads another profile's tasks, **workaround:** keep one profile per tracker.
+Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (2026-10-25): each its own connection, and each project's gateway server listing its own workspace's projects. Not run: two GitHub profiles, where each project's GitHub Actions runs should be read with its own profile's token — covered by tests. If a project's CI reads with another profile's token (a private repository's runs do not show), **workaround:** keep one GitHub profile.
 
 ### Several projects on one tracker project (BTN-172, BTN-73)
 
-Two Even Keel projects on one Huly project (`huly` naming it) or on one Linear team (`linear: TEAM/Project`), split by milestone, are covered by tests; never run as live chains. Assumed: one shared read gives each its own tasks, a task closed by one is not taken by the other, and a Linear `TEAM/` value reads the whole team. If a task shows up in both chains, or in neither, **workaround:** keep one Even Keel project per tracker project and leave the release's tasks `Manual`.
+Two Even Keel projects on one Huly project (`huly` naming it), split by milestone (`requiredMilestones` on one, `excludedMilestones` on the other), were read in Windows Sandbox (2026-10-25): each order held only its own tasks. Not run as live chains: a task closed by one not taken by the other; nor a Linear team (`linear: TEAM/Project`), where a `TEAM/` value is assumed to read the whole team — covered by tests. If a task shows up in both chains, or in neither, **workaround:** keep one Even Keel project per tracker project and leave the release's tasks `Manual`.
 
 ### Task feeds from another tracker (BTN-66)
 
@@ -452,10 +441,6 @@ A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_M
 ### Chains of several projects on one remote (BTN-210)
 
 The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Not run as live chains on the service with a CI: two projects whose pushes race, a red push of one seen by the other. The shared fix (BTN-217) is covered by tests only: while one project fixes a red `main`, the others of the same remote and branch wait at their next launch with a line naming it, and their red pushes start no second fix. What may differ live: the group read from the checkouts' remotes (a project with no remote read yet is in no group, so it may still start a second fix), or a fix that ends in a way the code does not see and leaves the others waiting. **Workaround:** a project waiting on another's fix that is over — "Skip" on that fix session, or close its fix task; to stop sharing at all, put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
-
-### Carrying a release project forward (BTN-172)
-
-The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers. Seen on the author's Windows service (2026-10-22): the fetch from the release clone's folder and a conflict, aborted and held with its file on the page until the merge by hand, after which the hold cleared. Seen in Windows Sandbox (2026-10-23) from a service in session 0 under its own account: a carry as a fast-forward and one as a merge commit, both pushed to the remote; with the account lacking a git name and email the merge failed, was aborted and held with git's message on the page, and "Carry now" went through once the account had them. Such a hold is now `forward.failed`, not a conflict (BTN-314; tests only). Not seen: a push that fails — the page should say so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
 
 ### A conflict resolved by an agent (BTN-369)
 
