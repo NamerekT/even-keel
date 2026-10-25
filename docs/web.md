@@ -140,6 +140,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?trackers=problems` | `/status` with problems on the connections: Huly has not read OPS for 12 minutes, Linear's key was refused 12 minutes ago, a spare GitHub profile serves no project |
 | `?huly=down\|connecting\|off` | the Huly link in the header and the Huly profile's state on Trackers and CI |
 | `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
+| `?account=secondFree` | a Codex sign-in refused as a second free account after the CLI said `Successfully logged in` (BTN-389) |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
 | `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, counted in the card's sessions line and listed by their tab titles in its tip |

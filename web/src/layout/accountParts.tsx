@@ -7,7 +7,7 @@ import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountTokens } from '../../../src/stats/model.js'
-import { loginRow, retryBody, type LoginRow } from '../accountAdd.js'
+import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { connectionOf } from '../accounts.js'
 import { formatAgo, formatTokens } from '../format.js'
@@ -461,18 +461,20 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   }
 
   if (login.error !== null) {
+    // Refused for its plan: the CLI's output ends in a sign-in that went through, so it says when it was written.
+    const refused = planRefused(login)
     return (
       <>
         <p className="notice notice--error">{say(login.error)}</p>
         <div className="account__actions">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send(...retryBody(login))}>
-            {t.common.retry}
+            {refused ? t.addAccount.otherAccount : t.common.retry}
           </button>
           <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
             {t.common.close}
           </button>
         </div>
-        {login.output !== '' && <Output text={login.output} />}
+        {login.output !== '' && <Output text={login.output} label={refused ? t.addAccount.outputBeforePlan : undefined} />}
       </>
     )
   }
@@ -568,10 +570,10 @@ function DeviceCode({ code, onCopy }: { code: string; onCopy: () => void }) {
   )
 }
 
-function Output({ text, open = false }: { text: string; open?: boolean }) {
+function Output({ text, open = false, label = t.account.output }: { text: string; open?: boolean; label?: string }) {
   return (
     <details className="account__output" open={open}>
-      <summary>{t.account.output}</summary>
+      <summary>{label}</summary>
       <pre>{text}</pre>
     </details>
   )

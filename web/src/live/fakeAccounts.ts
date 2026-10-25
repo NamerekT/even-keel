@@ -197,6 +197,11 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   if (mode === 'failed') {
     return { ...signedIn, login: { ...FAKE_LOGIN, error: notice('login.exited', { code: '1' }, { detail: 'OAuth error' }) }, loginBlock: null }
   }
+  if (mode === 'secondFree') {
+    const output = `${FAKE_DEVICE_LOGIN.output}\n\nSuccessfully logged in`
+    const error = notice('account.secondFree', { account: 'john.doe@example.com' })
+    return { ...signedIn, login: { ...FAKE_DEVICE_LOGIN, deviceCode: null, output, error }, loginBlock: null }
+  }
   if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: textNotice('claude: auth status timed out') }, work] }
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }

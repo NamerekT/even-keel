@@ -446,8 +446,17 @@ describe('free Codex accounts', () => {
 
   it('refuses to add a second free account, naming the one already on the free plan', () => {
     const accounts = [entry({}), codex('codex', free('john@example.com'))]
-    expect(say(secondFreeProblem(accounts, 'codex', free('jane@example.com')))).toMatch(/john@example\.com .*free plan/)
+    const refused = secondFreeProblem(accounts, 'codex', free('jane@example.com'))
+    expect(refused?.code).toBe('account.secondFree')
+    expect(say(refused)).toMatch(/sign-in went through.*john@example\.com.*signed out and removed.*nothing was added.*paid/)
     expect(secondFreeProblem([entry({})], 'codex', free('jane@example.com'))).toBeUndefined()
+  })
+
+  it('says a free sign-in into the account already here is that same account', () => {
+    const accounts = [entry({}), codex('codex', free('john@example.com'))]
+    const refused = secondFreeProblem(accounts, 'codex', free('John@Example.com'))
+    expect(refused?.code).toBe('account.sameFree')
+    expect(say(refused)).toMatch(/john@example\.com.*already here.*nothing was added/)
   })
 
   it('holds every free account past the first in the folders\' order: no launch, no Even Keel role', () => {
