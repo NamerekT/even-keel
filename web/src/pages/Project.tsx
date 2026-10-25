@@ -53,7 +53,7 @@ import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { SETTINGS_HASH } from './settingsStore.js'
-import { Forward, Leftovers } from './ProjectNotices.js'
+import { ProjectNotices } from './ProjectNotices.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
@@ -160,13 +160,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             {look === 'tag' && tools}
           </ChainControls>
         </header>
-        {order?.error && (
-          <p className="notice notice--error">
-            <Said notice={order.error} />
-          </p>
-        )}
-        <Leftovers state={state} project={key} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
-        <Forward state={state} project={key} />
+        <ProjectNotices key={`notices-${key}`} state={state} project={key} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
         <EmptyCall state={state} project={key} />
         {blocks.length === 0 ? (
           emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>

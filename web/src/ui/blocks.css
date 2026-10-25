@@ -196,6 +196,42 @@
 
 /* Empty state */
 
+.ui-fold-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.ui-fold-band__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-fold-band__toggle strong {
+  flex-shrink: 0;
+}
+
+.ui-fold-band__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-fold-band__content[hidden] {
+  display: none;
+}
+
 .ui-empty {
   display: flex;
   flex-wrap: wrap;
