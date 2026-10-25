@@ -37,7 +37,7 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
                 return (
                   <span key={project} className={name === null ? 'queue-toggle__key' : 'queue-toggle__name'}>
                     {index > 0 && ' · '}
-                    {name ?? project}
+                    {name ?? projectLabel(state, project)}
                   </span>
                 )
               })}
