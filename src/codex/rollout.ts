@@ -260,9 +260,10 @@ export function rolloutSessionId(text: string): string | undefined {
 }
 
 /**
- * The account's limits as of its newest `token_count` with `rate_limits`: the 300-minute window is the five-hour one,
- * the 10080-minute window the weekly one, the 43200-minute window (the free plan's) the month; a window of another
- * length is not shown.
+ * The account's limits as of its newest `token_count` with `rate_limits` that has a window: the 300-minute window is
+ * the five-hour one, the 10080-minute window the weekly one, the 43200-minute window (the free plan's) the month; a
+ * window of another length is not shown. The `premium` limits without windows that codex-cli 0.164.0 writes before a
+ * turn refused by the limit are passed over: taken, they would wipe the spent window.
  */
 export function limitsOfRollout(text: string): RateLimits | undefined {
   const lines = text.split('\n')
@@ -271,6 +272,7 @@ export function limitsOfRollout(text: string): RateLimits | undefined {
     const limits = record(line?.payload?.rate_limits)
     if (line?.type !== 'event_msg' || line.payload?.type !== 'token_count' || limits === undefined) continue
     const windows = [record(limits.primary), record(limits.secondary)]
+    if (windows.every((window) => window === undefined)) continue
     const monthly = windows.some((window) => window?.window_minutes === MONTH)
     return {
       fiveHour: windowOf(windows, FIVE_HOURS),

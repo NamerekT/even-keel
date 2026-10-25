@@ -14,7 +14,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 3 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 4 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
-| 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex | a limit looks like a finished turn, the task waits for you |
+| 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex on Plus or a key | a limit looks like a finished turn, the task waits for you |
 | 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
 | 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 8 | [The wizard's trust check](#the-wizards-trust-check) | new users | a false warning, or a pause at the first launch |
@@ -225,7 +225,7 @@ That the Codex desktop app and the ChatGPT app on the phone do not list the chai
 
 ### Errors and limits in the rollout
 
-An API error is taken from an `event_msg` of type `error`, and a limit by its text (`usage limit`, `rate limit`, `quota`); neither was ever seen. If the shape differs, a session that hit a limit looks finished without Done and waits for the user. **Workaround:** press "New session" on the task after the reset.
+Seen on the free plan's month (codex-cli 0.164.0, 2026-10-25): the refused turn ends in a `task_complete` with an `error` (`codex_error_info: "usage_limit_exceeded"`, the text "You've hit your usage limit … or try again at Nov 16th, 2026 10:12 PM."), after a `token_count` whose `premium` limits have no window; the reset is read from that text. Not seen: the five-hour and weekly windows of Plus, and an OpenAI API key out of credit. They are assumed to fail the same way, with the time of the same day as a bare "try again at 3:46 PM."; if the shape or the wording differs, a session that hit a limit looks finished without Done and waits for the user, or the chain waits for the reset by the polled windows only. **Workaround:** press "New session" on the task after the reset.
 
 ### A package server and a Codex server of the same name
 
