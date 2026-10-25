@@ -227,6 +227,43 @@ describe('RolloutFold', () => {
     expect(fold([event({ type: 'error', message: 'boom' }), agent('Back.')]).summary().apiError).toBeNull()
   })
 
+  // From a rollout of 2026-10-25: the build the turn's end killed completed 27 ms after the limit.
+  const TURN = '01a174ce-e6ff-7fc2-b68e-db9bb90bab8a'
+  const killed = (turn: string) =>
+    event({
+      type: 'item_completed',
+      thread_id: THREAD,
+      turn_id: turn,
+      item: { type: 'CommandExecution', command: ['pwsh.exe', '-Command', 'npm run build'], status: 'failed', exit_code: -1 },
+    })
+  const turnShell = (turn: string) =>
+    event({ type: 'item_completed', thread_id: THREAD, turn_id: turn, item: { type: 'CommandExecution', command: ['pwsh.exe', '-Command', 'npm test'], status: 'completed' } })
+
+  it('keeps the limit of a turn whose killed command completes after its end', () => {
+    const limited = event({
+      type: 'task_complete',
+      turn_id: TURN,
+      last_agent_message: null,
+      error: { message: 'You’ve hit your usage limit. Upgrade to Pro or try again at Oct 26th, 2026 12:48 AM.', codex_error_info: 'usage_limit_exceeded' },
+    })
+    const summary = fold([meta(), started(), user('TSK-1'), turnShell(TURN), limited, killed(TURN)]).summary()
+    expect(summary.apiError?.kind).toBe('limit')
+  })
+
+  it('keeps the marks of the last message when a command of the ended turn completes after it', () => {
+    const marks = ['CHECKPOINT: .temp/handoff.md', 'PULL REQUEST: .temp/pull-request.md', 'NO CHANGES: the work is already in main']
+    for (const mark of marks) {
+      const ended = event({ type: 'task_complete', turn_id: TURN, last_agent_message: mark })
+      const summary = fold([user('TSK-1'), agent(`Done.\n${mark}`), ended, killed(TURN)]).summary()
+      expect([summary.checkpoint, summary.pullRequest, summary.noChanges].filter((value) => value !== null)).toHaveLength(1)
+    }
+  })
+
+  it('clears the API error on an item of a later turn', () => {
+    const limited = event({ type: 'task_complete', turn_id: TURN, last_agent_message: null, error: { message: "You've hit your usage limit." } })
+    expect(fold([limited, killed('01a174ce-e6ff-7fc2-b68e-000000000002')]).summary().apiError).toBeNull()
+  })
+
   it('feeds each chat message a hook gave the session as the user prompt, once', () => {
     const marked = (id: number, text: string) => `<even-keel-message id="${id}">\n${text}\n</even-keel-message>`
     const context = (text: string) => line('response_item', { type: 'message', role: 'developer', content: [{ type: 'input_text', text }] })
