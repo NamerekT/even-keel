@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
+import { gitlabPulls } from './gitlab.js'
 
 interface Asked {
   method: string
@@ -195,5 +196,95 @@ describe('forgejoPulls', () => {
       notice: { detail: 'pull request already exists' },
     })
     await expect(refused('Bad Gateway')).rejects.toMatchObject({ notice: { detail: 'Bad Gateway' } })
+  })
+})
+
+describe('gitlabPulls', () => {
+  const prefix = 'https://git.example.com/gitlab/api/v4/projects/group%2Fsub%2Fapp'
+  const forge = (routes: Record<string, unknown>, log?: (line: string) => void) => {
+    const { asked, fetchImpl } = fakeFetch(prefix, routes)
+    return { asked, forge: gitlabPulls({ web: 'https://git.example.com/gitlab', owner: 'group/sub', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl, log) }
+  }
+  const request = (change: object) => ({ iid: 9, web_url: 'https://git.example.com/gitlab/group/sub/app/-/merge_requests/9', state: 'opened', sha: 'a1', has_conflicts: false, detailed_merge_status: 'mergeable', ...change })
+
+  it('finds the open merge request of a branch by its source branch', async () => {
+    const { asked, forge: pulls } = forge({ 'GET /merge_requests?state=opened&source_branch=abc-7%2Ftask&per_page=1': [request({})] })
+    expect(await pulls.find('abc-7/task')).toEqual({ number: 9, url: 'https://git.example.com/gitlab/group/sub/app/-/merge_requests/9' })
+    expect(asked[0]!.auth).toBe('Bearer fake-token')
+    expect(await forge({ 'GET /merge_requests?state=opened&source_branch=abc-8%2Ftask&per_page=1': [] }).forge.find('abc-8/task')).toBeNull()
+  })
+
+  it('opens a merge request into the base with the title and the description', async () => {
+    const { asked, forge: pulls } = forge({ 'POST /merge_requests': request({}) })
+    expect(await pulls.create({ branch: 'abc-7/task', base: 'trunk', title: 'Fix the parser', body: 'Closes #7' })).toEqual({ number: 9, url: request({}).web_url })
+    expect(asked[0]!.body).toEqual({ source_branch: 'abc-7/task', target_branch: 'trunk', title: 'Fix the parser', description: 'Closes #7' })
+  })
+
+  it('reads opened and locked as open, merged, closed, and a conflict while the check is done or not', async () => {
+    const state = (change: object) => forge({ 'GET /merge_requests/9': request(change) }).forge.state(9)
+    expect(await state({})).toEqual({ state: 'open', mergeable: true, head: 'a1' })
+    expect(await state({ state: 'locked', detailed_merge_status: 'checking' })).toEqual({ state: 'open', mergeable: null, head: 'a1' })
+    expect(await state({ detailed_merge_status: 'conflict' })).toMatchObject({ mergeable: false })
+    expect(await state({ has_conflicts: true, detailed_merge_status: 'unchecked' })).toMatchObject({ mergeable: false })
+    expect(await state({ detailed_merge_status: 'not_approved' })).toMatchObject({ mergeable: true })
+    expect(await state({ detailed_merge_status: undefined, merge_status: 'unchecked' })).toMatchObject({ mergeable: null })
+    expect((await state({ state: 'merged' })).state).toBe('merged')
+    expect((await state({ state: 'closed' })).state).toBe('closed')
+  })
+
+  const SINCE = '2026-10-18T10:00:00Z'
+  const DISCUSSIONS = 'GET /merge_requests/9/discussions?per_page=100&page=1'
+  const note = (id: number, change: object) => ({ id, type: null, body: 'Rename it', author: { id: 3, username: 'jdoe' }, created_at: '2026-10-18T11:00:00Z', system: false, ...change })
+
+  it('gives the notes after the time, line notes with their place, and drops system notes, bots and empty ones', async () => {
+    const lines: string[] = []
+    const { forge: pulls } = forge(
+      {
+        [DISCUSSIONS]: [
+          { id: 'd1', notes: [note(1, { created_at: '2026-10-18T09:00:00Z' })] },
+          { id: 'd2', notes: [note(2, { body: 'approved this merge request', system: true })] },
+          {
+            id: 'd3',
+            notes: [
+              note(3, { type: 'DiffNote', body: 'here', position: { new_path: 'src/a.ts', new_line: 4, old_path: 'src/a.ts', old_line: 3 } }),
+              note(4, { type: 'DiffNote', body: 'gone line', created_at: '2026-10-18T11:10:00Z', position: { new_path: null, new_line: null, old_path: 'src/b.ts', old_line: 8 } }),
+            ],
+          },
+          { id: 'd4', notes: [note(5, { author: { id: 4, username: 'project_12_bot_0f3a', bot: true }, body: 'Coverage 90%' })] },
+          { id: 'd5', notes: [note(6, { body: '  ', created_at: '2026-10-18T11:20:00Z' }), note(7, { body: 'Make l.txt', created_at: '2026-10-18T11:30:00Z' })] },
+        ],
+        'GET /members/all/3': { access_level: 30 },
+      },
+      (line) => lines.push(line),
+    )
+    expect(await pulls.remarks(9, SINCE, all)).toEqual([
+      { key: 'note:3', kind: 'review', author: 'jdoe', body: '', at: '2026-10-18T11:00:00Z', comments: [{ path: 'src/a.ts', line: 4, body: 'here' }] },
+      { key: 'note:4', kind: 'review', author: 'jdoe', body: '', at: '2026-10-18T11:10:00Z', comments: [{ path: 'src/b.ts', line: 8, body: 'gone line' }] },
+      { key: 'note:7', kind: 'comment', author: 'jdoe', body: 'Make l.txt', at: '2026-10-18T11:30:00Z', comments: [] },
+    ])
+    expect(lines).toEqual([])
+  })
+
+  it('takes only what the wanted filter takes', async () => {
+    const { forge: pulls } = forge({ [DISCUSSIONS]: [{ id: 'd1', notes: [note(1, {}), note(2, {})] }], 'GET /members/all/3': { access_level: 30 } })
+    expect((await pulls.remarks(9, SINCE, (key) => key !== 'note:1')).map((remark) => remark.key)).toEqual(['note:2'])
+  })
+
+  it('skips, once in the log, the notes of an author below Reporter or not a member of the project', async () => {
+    const lines: string[] = []
+    const { asked, forge: pulls } = forge(
+      {
+        [DISCUSSIONS]: [{ id: 'd1', notes: [note(1, {}), note(2, { author: { id: 5, username: 'guest' } }), note(3, { author: { id: 6, username: 'stranger' } }), note(4, {})] }],
+        'GET /members/all/3': { access_level: 20 },
+        'GET /members/all/5': { access_level: 10 },
+      },
+      (line) => lines.push(line),
+    )
+    expect((await pulls.remarks(9, SINCE, all)).map((remark) => remark.key)).toEqual(['note:1', 'note:4'])
+    expect(asked.filter((each) => each.url.endsWith('/members/all/3'))).toHaveLength(1)
+    expect(lines).toEqual([
+      'gitlab: group/sub/app!9: note 2 of guest is skipped: its author is not a Reporter or above in group/sub/app',
+      'gitlab: group/sub/app!9: note 3 of stranger is skipped: its author is not a Reporter or above in group/sub/app',
+    ])
   })
 })

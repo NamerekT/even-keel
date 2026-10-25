@@ -2,10 +2,11 @@ import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import type { CiTarget } from '../ci/remote.js'
 import type { GitResult } from '../git/types.js'
 import type { Forge } from './model.js'
 import { notice } from '../notice/notice.js'
-import { closingBody, describedBy, openPull, pullReadiness, pullTarget } from './open.js'
+import { closingBody, closingOf, describedBy, openPull, pullReadiness, pullTarget } from './open.js'
 
 describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
@@ -78,10 +79,18 @@ describe('openPull', () => {
 })
 
 describe('pullTarget', () => {
-  it('keeps GitLab merge requests unsupported, including configured self-managed hosts', () => {
-    expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:group/app.git' }])).toEqual({ kind: null, remote: 'origin', host: 'gitlab.com' })
-    expect(pullTarget([{ name: 'origin', url: 'git@git.example.com:group/app.git' }], ['https://git.example.com'])).toEqual({ kind: null, remote: 'origin', host: 'git.example.com' })
+  it('takes GitLab by gitlab.com or a GitLab profile’s host, with the subgroups in the owner', () => {
+    expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:group/sub/app.git' }])).toEqual({ kind: 'gitlab', remote: 'origin', web: 'https://gitlab.com', owner: 'group/sub', repo: 'app' })
+    expect(pullTarget([{ name: 'origin', url: 'https://git.example.com/gitlab/group/app.git' }], ['https://git.example.com/gitlab'])).toEqual({
+      kind: 'gitlab',
+      remote: 'origin',
+      web: 'https://git.example.com/gitlab',
+      owner: 'group',
+      repo: 'app',
+    })
+    expect(pullTarget([{ name: 'origin', url: 'git@git.example.com:group/app.git' }])).toMatchObject({ kind: 'forgejo' })
   })
+
   it('takes origin when its address parses', () => {
     const remotes = [
       { name: 'github', url: 'git@github.com:acme/app.git' },
@@ -99,7 +108,7 @@ describe('pullTarget', () => {
   })
 
   it('names the host of a remote on a forge it has no adapter for', () => {
-    expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:acme/app.git' }])).toEqual({ kind: null, remote: 'origin', host: 'gitlab.com' })
+    expect(pullTarget([{ name: 'origin', url: 'git@bitbucket.org:acme/app.git' }])).toEqual({ kind: null, remote: 'origin', host: 'bitbucket.org' })
   })
 
   it('finds none without a remote on a forge', () => {
@@ -177,5 +186,35 @@ describe('closingBody', () => {
       expect(closingBody(body, 'octo-org/tasks#7', 'octo-org/abc')).toBe(`${body}\n\nCloses octo-org/tasks#7`)
     }
     expect(closingBody('See #7', 'octo-org/abc#7', 'octo-org/abc')).toBe('See #7\n\nCloses octo-org/abc#7')
+  })
+
+  it('closes an issue of the merge request’s own GitLab project by its number, another project’s by its full name', () => {
+    const gitlab = 'https://git.example.com/gitlab'
+    expect(closingBody('Quotes kept.', 'group/app#7', 'group/app', gitlab)).toBe('Quotes kept.\n\nCloses #7')
+    expect(closingBody('', 'group/sub/tasks#7', 'group/app', gitlab)).toBe('Closes group/sub/tasks#7')
+    for (const body of ['Closes #7', 'Fixes group/sub/tasks#7', `resolves ${gitlab}/group/sub/tasks/-/issues/7`]) {
+      const issue = body === 'Closes #7' ? 'group/app#7' : 'group/sub/tasks#7'
+      expect(closingBody(body, issue, 'group/app', gitlab)).toBe(body)
+    }
+  })
+})
+
+describe('closingOf', () => {
+  const github: CiTarget = { kind: 'github', remote: 'origin', web: 'https://github.com', owner: 'octo-org', repo: 'abc' }
+  const gitlab: CiTarget = { kind: 'gitlab', remote: 'origin', web: 'https://git.example.com/gitlab', owner: 'group', repo: 'app' }
+
+  it('takes a GitHub issue for a pull request on GitHub', () => {
+    expect(closingOf(github, 'octo-org/tasks#7')).toEqual({ issue: 'octo-org/tasks#7', repo: 'octo-org/abc' })
+    expect(closingOf(github, 'https://git.example.com/gitlab/group/app/-/issues/7')).toBeNull()
+  })
+
+  it('takes a GitLab issue on the merge request’s own server by its address', () => {
+    expect(closingOf(gitlab, 'https://git.example.com/gitlab/group/sub/tasks/-/issues/7')).toEqual({ issue: 'group/sub/tasks#7', repo: 'group/app', gitlab: 'https://git.example.com/gitlab' })
+    expect(closingOf(gitlab, 'https://gitlab.com/group/app/-/issues/7')).toBeNull()
+    expect(closingOf(gitlab, 'group/app#7')).toBeNull()
+  })
+
+  it('closes nothing on Forgejo', () => {
+    expect(closingOf({ ...github, kind: 'forgejo', web: 'https://git.example.com' }, 'octo-org/tasks#7')).toBeNull()
   })
 })

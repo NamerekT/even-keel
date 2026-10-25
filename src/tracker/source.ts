@@ -52,8 +52,9 @@ export interface TaskSource {
    */
   complete?(id: string): Promise<boolean>
   /**
-   * Optional. How a GitHub pull request names the task's issue to close it on merge, `owner/repo#N`; `null` — not a task
-   * of this tracker. In PR mode Even Keel ends the body of the task's pull request on GitHub with `Closes <it>` (BTN-295).
+   * Optional. How a pull request names the task's issue to close it on merge: GitHub issues `owner/repo#N`, GitLab
+   * issues the issue's address; `null` — not a task of this tracker. In PR mode Even Keel ends the body of the task's
+   * pull request on the same forge with `Closes <it>` (BTN-295, BTN-414, `closingOf`).
    */
   closingRef?(id: string): string | null
   /**

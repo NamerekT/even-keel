@@ -52,6 +52,13 @@ describe('GitLab task source', () => {
     expect(await source.complete!('APP-1')).toBe(false)
   })
 
+  it('names a task to a merge request by its issue’s address, and none of another tracker', async () => {
+    const { source } = await connect([])
+    expect(source.closingRef!('APP-7')).toBe('https://gitlab.example.com/group/subgroup/app/-/issues/7')
+    expect(source.closingRef!('ABC-7')).toBeNull()
+    expect(source.closingRef!('not a task')).toBeNull()
+  })
+
   it('skips deleted tasks but distinguishes a missing project from a missing issue', async () => {
     const { source } = await connect([{ status: 404, body: {} }])
     expect(await source.tasks(['bad', 'APP-99'])).toEqual([])

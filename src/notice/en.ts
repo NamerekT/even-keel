@@ -128,10 +128,10 @@ export const en = {
   'review.notReady': (p: { project: string }) =>
     `PR mode of ${p.project} has nowhere to open pull requests, so its chain starts no task; it goes on by itself within a minute once that is fixed, or turn PR mode off`,
   'review.cannotEnable': (p: { project: string }) => `PR mode of ${p.project} is not turned on`,
-  'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub or Forgejo to open a pull request on`,
+  'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub, GitLab or Forgejo to open a pull request on`,
   'review.noToken': (p: { remote: string; kind: CiKind; web: string }) =>
     `no profile has a token for the remote ${p.remote} (${p.web}); add a ${FORGES[p.kind]} profile for its host`,
-  'review.unsupportedHost': (p: { remote: string; host: string }) => `the remote ${p.remote} on ${p.host} is not supported for pull requests: only GitHub and Forgejo are`,
+  'review.unsupportedHost': (p: { remote: string; host: string }) => `the remote ${p.remote} on ${p.host} is not supported for pull requests: only GitHub, GitLab and Forgejo are`,
   'review.noNote': (p: { path: string }) => `the session left no pull request description at ${p.path}`,
   'review.noBranch': (p: { path: string }) => `${p.path} is not on a branch`,
   'review.dirty': (p: { path: string }) => `${p.path} has uncommitted changes`,

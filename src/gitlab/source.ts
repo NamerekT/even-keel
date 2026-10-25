@@ -107,6 +107,12 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       return true
     },
 
+    closingRef(id) {
+      const parsed = parseTaskId(id)
+      const path = parsed === null ? undefined : projects.pathOfKey(parsed.project)
+      return path === undefined ? null : `${settings.web}/${path}/-/issues/${parsed!.number}`
+    },
+
     async children(id) {
       const { path, iid } = addressOf(id)
       const { children } = await hierarchy.read(path, iid)
