@@ -1,3 +1,4 @@
+import { ciEn, ciKindsEn } from './ci-en.js'
 import { profilesEn } from './profiles-en.js'
 import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
@@ -304,48 +305,7 @@ export const en: Messages = {
     title: 'Tasks labeled “Question” wait for an answer in the description — without it the session will most likely get stuck',
     count: counted('question', 'questions'),
   },
-  ci: {
-    chip: 'CI',
-    title: (state: string) => `CI: ${state}. Click to open the runs`,
-    panel: 'Project CI',
-    levels: {
-      error: 'the API is not answering',
-      stuck: 'runs are not taken',
-      failure: 'red',
-      off: 'no token',
-      running: 'running',
-      success: 'green',
-      idle: 'no runs',
-    },
-    kinds: { forgejo: 'Forgejo', github: 'GitHub Actions' },
-    api: { ok: 'API answers', error: 'API is not answering', off: 'not connected' },
-    checked: (ago: string) => `checked ${ago}`,
-    allRuns: 'All runs',
-    openRun: 'Open the run',
-    stuckRun: (span: string) => `The run has been queued for ${span}: no runner takes it`,
-    stuckPush: (commit: string, span: string) => `The push ${commit} has had no run for ${span}: the CI did not pick it up`,
-    pushed: (commit: string) => `Push ${commit}: waiting for a run`,
-    running: (elapsed: string) => `running ${elapsed}`,
-    usual: (median: string) => `usually ${median}`,
-    took: (duration: string) => `took ${duration}`,
-    tasks: 'Tasks of the push',
-    fixTask: 'fix of main',
-    fixTaskTitle: 'The row of this fix in the chain archive',
-    jobs: 'Jobs',
-    noJobs: 'No jobs yet',
-    stepsOnPage: 'Steps are on the run page',
-    history: 'History',
-    showAll: (count: number) => `Show all ${count}`,
-    noRuns: 'No runs yet',
-    status: {
-      queued: 'queued',
-      running: 'running',
-      success: 'green',
-      failure: 'red',
-      cancelled: 'cancelled',
-      skipped: 'skipped',
-    },
-  },
+  ci: ciEn,
   cache: {
     ttl: { '5m': '5 min', '1h': '1 h' },
     cold: (at: string) => `The prompt cache went cold at ${at}: the next turn rereads the whole context at the write price`,
@@ -914,7 +874,7 @@ export const en: Messages = {
     ci: 'CI of main',
     ciHint:
       'After a task is merged and main is pushed, the next task waits for these CIs. A red CI is fixed first, before the next task; a red fix pauses the chain.',
-    ciKinds: { forgejo: 'Forgejo Actions', github: 'GitHub Actions' },
+    ciKinds: ciKindsEn,
     ciWait: 'Longest wait for CI, min',
     ciWaitHint: 'Empty — as long as it takes. 0 — do not wait: faster, but the next task may start on a broken main.',
     ciWaitPlaceholder: 'no limit',
