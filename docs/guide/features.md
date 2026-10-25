@@ -32,6 +32,8 @@ A session that hit the usage limit is resumed after the reset if its prompt cach
 
 The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](../../plugins/checkpoint) plugin asks for it once the context grows past a threshold, 200k tokens until the project's own statistics give a better one, and stops asking below 300k after three handoffs of a task — and when you press **New session** on the page.
 
+If the session writes `.temp/handoff.md` near the end of its turn but forgets the line, the plugin asks it to add it. This also covers Codex writing the note through a shell command with a literal file path. A path built in a variable or a write hidden inside another script still needs the session to add the line itself.
+
 ## Chat with the session
 
 The **Chat** button of the current session opens its whole transcript with a reply box: the session's questions one at a time as a card with radio buttons or checkboxes, free text and files — picked with `+`, pasted with Ctrl+V (a screenshot straight from the clipboard) or dropped on the window — which land in the task's `.temp/inbox/`. Pictures the session read and the ones you sent show as thumbnails that open full-window, with a pager through all of them. The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer. An unsent reply — its text and files — stays with each session's chat in your browser: close the window or reload the page and it is still there, until you send it.

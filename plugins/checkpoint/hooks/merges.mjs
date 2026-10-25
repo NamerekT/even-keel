@@ -41,3 +41,14 @@ export function refusal(command, code, output) {
     "\n"
   );
 }
+
+/** Codex code-mode calls honor an explicit denial, but on 0.164.0 ignore a command hook's exit code 2. */
+export function mergeRefusal(command, code, output) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: refusal(command, code, output),
+    },
+  };
+}

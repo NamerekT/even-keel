@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergesBranch, refusal } from "./merges.mjs";
+import { mergesBranch, refusal, mergeRefusal } from "./merges.mjs";
 
 const branch = "abc-12/task";
 
@@ -24,6 +24,16 @@ describe("mergesBranch", () => {
 });
 
 describe("refusal", () => {
+  it("denies the call explicitly, including Codex nested shell calls that ignore exit code 2", () => {
+    expect(mergeRefusal("npm test", 1, "failed")).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: refusal("npm test", 1, "failed"),
+      },
+    });
+  });
+
   it("names the command and its code and keeps the tail of the output", () => {
     const output = [...Array.from({ length: 80 }, (_, i) => `line ${i}`), "", ""].join("\r\n");
     const text = refusal("npm test", 1, output);

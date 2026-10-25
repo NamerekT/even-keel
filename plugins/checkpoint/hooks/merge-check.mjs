@@ -4,7 +4,7 @@
 // a failed command blocks the merge, and its output goes back to the session to fix.
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mergesBranch, refusal } from "./merges.mjs";
+import { mergesBranch, mergeRefusal } from "./merges.mjs";
 
 const BASE = (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
 const COMMAND_TIMEOUT_MS = 20 * 60_000;
@@ -39,7 +39,7 @@ async function main() {
   const input = readInput();
   if (!input || input.tool_name !== "Bash" || !input.session_id) return;
   if (!String(input.tool_input?.command ?? "").includes("merge")) return;
-  const root = git(process.env.CLAUDE_PROJECT_DIR || input.cwd || ".", ["rev-parse", "--show-toplevel"]);
+  const root = git(process.env.CLAUDE_PROJECT_DIR || input.cwd || input.tool_input?.workdir || ".", ["rev-parse", "--show-toplevel"]);
   const branch = root === "" ? "" : git(root, ["branch", "--show-current"]);
   if (branch === "" || !mergesBranch(input.tool_input?.command, branch)) return;
   let check;
@@ -54,8 +54,8 @@ async function main() {
     const run = spawnSync(command, { cwd: root, shell: true, encoding: "utf8", timeout: COMMAND_TIMEOUT_MS, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
     if (run.status === 0) continue;
     const output = [run.stdout, run.stderr, run.error?.message].filter(Boolean).join("\n");
-    process.stderr.write(refusal(command, run.status ?? -1, output));
-    process.exit(2);
+    process.stdout.write(JSON.stringify(mergeRefusal(command, run.status ?? -1, output)));
+    return;
   }
 }
 

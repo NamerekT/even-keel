@@ -15,7 +15,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 3 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 4 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
 | 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex on Plus or a key | a limit looks like a finished turn, the task waits for you |
-| 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
+| 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description or an uncalibrated estimate reaches Huly |
 | 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 8 | [The wizard's trust check](#the-wizards-trust-check) | new users | a false warning, or a pause at the first launch |
 | 9 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
@@ -38,7 +38,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 26 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
 | 27 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer in the app |
 | 28 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
-| 29 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
+| 29 | [A patched handoff note seen by the Codex Stop hook](#a-patched-handoff-note-seen-by-the-codex-stop-hook) | Codex using apply_patch | a note without the `CHECKPOINT:` line waits for a reply |
 | 30 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 31 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 32 | [A tracker profile changed on the Access page](#a-tracker-profile-changed-on-the-access-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
@@ -257,15 +257,15 @@ Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones. Nev
 
 ### Plugin hooks that block (BTN-180)
 
-All five hook events of a plugin were seen running in Codex, and `additionalContext` reaching the model, but never a hook stopping anything: a `PreToolUse` exit code 2 refusing the call (`merge-check` holding a merge until the project's check, `check-marks` refusing a Huly description with bad marks), `permissionDecision: deny` (`show-calibration`), `decision: block` of a `Stop` hook (`checkpoint-mark`). If Codex ignores one, the call goes through: a merge before the check is green, a description with bad marks, a turn that wrote the handoff note without the `CHECKPOINT:` line waits for a reply. **Workaround:** for the last one, reply `CHECKPOINT: .temp/handoff.md` in the chat window or press "New session"; the others show in the tracker and on the CI.
+All five hook events of a plugin were seen running in Codex, and `additionalContext` reaching the model. Checked live on Windows with Codex 0.164.0 on 2026-10-25: a nested code-mode shell call ignored a `PreToolUse` exit code 2, while `permissionDecision: deny` blocked it before execution; `Stop` with `decision: block` continued the turn. The checkpoint plugin now uses explicit denial: a failed project check held the merge, a passing check allowed it, and the Stop guard saw a shell-written note in the rollout and made the session add `CHECKPOINT:` (`docs/sessions.md`). Still unverified: the Huly plugin's `check-marks` refusal by exit code 2 and `show-calibration` denial on real MCP calls. If either is ignored there, a malformed description or an estimate without calibration reaches Huly. **Workaround:** check the description in Huly and run calibration before estimating.
 
 ### Chat mail at a Codex Stop (BTN-181)
 
 Seen live on 18.10.2026: messages sent during a command reach a Codex session through `PostToolUse`, and the chat shows them from the developer message the hook leaves in the rollout. Not seen: whether a `Stop` `decision: block` keeps the turn going (else the message is counted delivered at `Stop` while the turn ends without it; send it again from the chat), and where the rollout puts its text — the feed looks for the mark in a `UserMessage` too; if it lands elsewhere, the message works but has no bubble in the chat.
 
-### The handoff note of a Codex turn seen by the Stop hook
+### A patched handoff note seen by the Codex Stop hook
 
-`/api/sessions/<id>/note` reads the rollout when the hook asks; that Codex has written the turn's last `FileChange` by then was not seen. If it has not, the hook lets the turn end, as in the previous item.
+Checked live with Codex 0.164.0 on Windows on 2026-10-25: a shell write of the note was already in the rollout when the Stop hook asked `/api/sessions/<id>/note`, and the hook made the session add the mark. The timing of a last `FileChange` from `apply_patch` is still unverified. If that event has not reached disk, the hook lets the turn end. **Workaround:** end with `CHECKPOINT: .temp/handoff.md` explicitly, or press "New session".
 
 ### Plugins in a Codex folder on Linux and macOS
 
