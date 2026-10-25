@@ -1530,6 +1530,7 @@ export const en: Messages = {
           ]),
         failed: (count: number) => `(${count} failed)`,
         failure: 'failed',
+        interrupted: 'cut off by the end of the turn',
         size: (added: number, removed: number) => `${added} ${forms('line', 'lines')(added)} added, ${removed} removed`,
       },
       head: {

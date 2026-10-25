@@ -218,9 +218,11 @@ export class RolloutFold {
     }
     if (item.type === 'CommandExecution') {
       const command = commandOf(item.command)
-      const line: FeedLine = { at, kind: 'tool', text: describeTool(SHELL, { command }, undefined) }
+      const startedAt = typeof item.started_at_ms === 'number' && Number.isFinite(item.started_at_ms) ? new Date(item.started_at_ms).toISOString() : at
+      const line: FeedLine = { at: startedAt, kind: 'tool', text: describeTool(SHELL, { command }, undefined) }
       if (this.whole) Object.assign(line, { detail: command, ...this.callOf(item, SHELL, {}) })
-      this.addAction(line)
+      this.action = line
+      this.addFeedByTime(line)
       this.advanceStage(stageOfCommand(command))
     } else if (item.type === 'FileChange') {
       for (const [path, change] of Object.entries(record(item.changes) ?? {})) {
@@ -240,7 +242,8 @@ export class RolloutFold {
       return
     }
     if (this.whole && item.status === 'failed') {
-      this.addFeed({ at, kind: 'failed', text: failureText(failureOf(item)), ...(typeof item.id === 'string' ? { tool: item.id } : {}) })
+      const interrupted = tail && item.type === 'CommandExecution' && item.exit_code === -1
+      this.addFeed({ at, kind: 'failed', text: failureText(failureOf(item)), ...(interrupted ? { interrupted: true } : {}), ...(typeof item.id === 'string' ? { tool: item.id } : {}) })
     }
   }
 
@@ -278,6 +281,14 @@ export class RolloutFold {
 
   private addFeed(line: FeedLine): void {
     this.feed.push(line)
+    if (this.feed.length > this.feedSize) this.feed = this.feed.slice(-this.feedSize)
+  }
+
+  /** A line goes after the last one that is not later than it: a command killed by the end of the turn is written after the turn's error but started before it. */
+  private addFeedByTime(line: FeedLine): void {
+    let index = this.feed.length
+    while (index > 0 && line.at !== '' && this.feed[index - 1]!.at > line.at) index--
+    this.feed.splice(index, 0, line)
     if (this.feed.length > this.feedSize) this.feed = this.feed.slice(-this.feedSize)
   }
 
@@ -396,7 +407,8 @@ function changeSize(change: Record<string, unknown> | undefined): EditSize | und
 
 /**
  * What a failed call printed: a command's output, a patch's error. A command's exit code goes first, as Claude's
- * `Exit code N` does: its output alone may be an ordinary one (BTN-233), and `-1` is a command that never started.
+ * `Exit code N` does: its output alone may be an ordinary one (BTN-233). `-1` is a command that never started or one
+ * the end of its turn killed mid-work.
  */
 function failureOf(item: Record<string, unknown>): string {
   const output = [item.stderr, item.aggregated_output, item.stdout].find((value): value is string => typeof value === 'string' && value.trim() !== '') ?? ''

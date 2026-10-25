@@ -37,6 +37,8 @@ export interface FeedLine {
   text: string
   /** The whole shell command of a tool line, only in a whole transcript. */
   detail?: string
+  /** A failed line of a command that the end of its turn killed, not one that failed on its own. */
+  interrupted?: true
   /** The id of the call of a tool line, an image line or a failed line, only in a whole transcript. */
   tool?: string
   /** The tool a tool line calls, only in a whole transcript. */
