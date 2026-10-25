@@ -79,7 +79,7 @@ export interface NewPull {
   body: string
 }
 
-/** The pull requests of a repository on GitHub or Forgejo, as far as PR mode needs them. */
+/** The pull requests of a repository on GitHub or Forgejo, or the merge requests of a GitLab project, as far as PR mode needs them. */
 export interface Forge {
   kind: CiKind
   /** The open pull request of the branch; `null` — none. */

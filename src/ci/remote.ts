@@ -106,7 +106,7 @@ export function ciTargets(remotes: Remote[], workflows: Workflows, gitlabUrls: r
 }
 
 /** GitLab groups are part of the project path; only a configured installation prefix belongs to the server. */
-function gitlabRepo(url: string, host: string, bases: readonly string[]): Omit<RemoteRepo, 'host'> | null {
+export function gitlabRepo(url: string, host: string, bases: readonly string[]): Omit<RemoteRepo, 'host'> | null {
   const scp = url.includes('://') ? null : SCP.exec(url)
   const parsed = scp ? null : new URL(url)
   const base = new URL(bases.find((base) => hostOf(base) === host.toLowerCase()) ?? (parsed && parsed.protocol !== 'ssh:' ? parsed.origin : `https://${host}`))

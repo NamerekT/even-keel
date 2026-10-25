@@ -40,7 +40,9 @@ export const profilesRu = {
     deniedPulls: (remotes: string, kind: string) =>
       kind === 'forgejo'
         ? `Pull request не открылся (${remotes}): токену не хватило права write:repository`
-        : `Pull request не открылся (${remotes}): токену не хватило права Pull requests: Read and write`,
+        : kind === 'gitlab'
+          ? `Merge request не открылся (${remotes}): токену не хватило scope api или доступа Developer к проекту`
+          : `Pull request не открылся (${remotes}): токену не хватило права Pull requests: Read and write`,
     rightsIntro: {
       huly: 'Отдельная учётка с доступом к проектам: её почта и пароль или токен, если в настройках аккаунта вашего Huly есть страница API-токенов.',
       github: 'Fine-grained токен на владельца репозиториев.',
@@ -57,7 +59,11 @@ export const profilesRu = {
         pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
       },
       linear: { tracker: 'право записи' },
-      gitlab: { tracker: 'scope api (чтение и запись задач)', ci: 'scope api и доступ к проекту и его прогонам' },
+      gitlab: {
+        tracker: 'scope api (чтение и запись задач)',
+        ci: 'scope api и доступ к проекту и его прогонам',
+        pullRequests: 'scope api, доступ Developer или выше (открыть merge request, читать его обсуждения и участников проекта)',
+      },
       forgejo: {
         ci: 'read:repository (репозитории и их Actions), read:user (проверка входа)',
         pullRequests: 'write:repository (открыть PR, читать его ревью), read:issue (комментарии в обсуждении PR), read:user',

@@ -36,7 +36,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **Questions** wait for you in the page's chat, as a tracker comment or in Claude's Remote Control. You can also write to a session while it works.
 - **Unattended mode** for nights: sessions ask nothing and park what a question holds.
 - **CI.** The next task waits for the CI's verdict on `main`, and a red `main` is fixed first. No CI — your own check commands.
-- **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo; review feedback, failed checks and conflicts go back to the task's session.
+- **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo, or a merge request on GitLab; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
 - **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page; OpenCode accounts on ChatGPT, GitHub Copilot, an API key or its free models; GitHub Copilot CLI accounts on your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
 - **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules, and a session audit skill that reads them and proposes what to change.

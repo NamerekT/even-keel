@@ -34,7 +34,9 @@ export const profilesEn: Messages['profiles'] = {
     deniedPulls: (remotes, kind) =>
       kind === 'forgejo'
         ? `A pull request was not opened (${remotes}): the token lacks write:repository`
-        : `A pull request was not opened (${remotes}): the token lacks Pull requests: Read and write`,
+        : kind === 'gitlab'
+          ? `A merge request was not opened (${remotes}): the token lacks the api scope or Developer access to the project`
+          : `A pull request was not opened (${remotes}): the token lacks Pull requests: Read and write`,
     rightsIntro: {
       huly: "A separate account with access to the projects: its e-mail and password, or a token if your Huly's account settings have an API tokens page.",
       github: "A fine-grained token for the repositories' owner.",
@@ -51,7 +53,11 @@ export const profilesEn: Messages['profiles'] = {
         pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
       },
       linear: { tracker: 'write access' },
-      gitlab: { tracker: 'api scope (reading and writing issues)', ci: 'api scope, with access to the project and its pipelines' },
+      gitlab: {
+        tracker: 'api scope (reading and writing issues)',
+        ci: 'api scope, with access to the project and its pipelines',
+        pullRequests: 'api scope, Developer access or above (opening a merge request, reading its discussions and the project members)',
+      },
       forgejo: {
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
         pullRequests: "write:repository (opening a pull request, reading its reviews), read:issue (comments in the pull request's conversation), read:user",

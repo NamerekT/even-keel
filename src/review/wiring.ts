@@ -6,8 +6,9 @@ import { fail, NoticeError, noticeOf } from '../notice/notice.js'
 import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
+import { gitlabPulls } from './gitlab.js'
 import type { Forge } from './model.js'
-import { noToken, openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
+import { closingOf, noToken, openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
 import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
@@ -21,7 +22,7 @@ export interface ReviewWiring {
   /** The token for the remote's forge (`ciToken`); `null` — no profile has one. */
   token: (project: string, target: CiTarget) => string | null
   complete: (project: string, task: string) => Promise<void>
-  /** The task's GitHub issue, `owner/repo#N` (`TaskSource.closingRef`); `null` — the task is not in GitHub issues. */
+  /** How the task's tracker names its issue to a forge (`TaskSource.closingRef`); `null` — it does not. */
   closingRef?: (project: string, task: string) => Promise<string | null>
   /** Where a token the forge refused to open a pull request with is told, for the profile's card (EKR-9). */
   refusals?: PullRefusals
@@ -50,6 +51,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
 
   function forgeOf(target: CiTarget, token: string): Forge {
     const { owner, repo, web } = target
+    if (target.kind === 'gitlab') return gitlabPulls({ web, owner, repo, token }, timeoutMs)
     return target.kind === 'github' ? githubPulls({ owner, repo, token }, timeoutMs) : forgejoPulls({ web, owner, repo, token }, timeoutMs)
   }
 
@@ -60,8 +62,8 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       if ('notice' in ready) throw new NoticeError(ready.notice)
       const { target } = ready
       const forge = forgeOf(target, ready.token)
-      const issue = target.kind === 'github' ? await wiring.closingRef?.(project, task) : null
-      const closes = issue == null ? undefined : { issue, repo: `${target.owner}/${target.repo}` }
+      const issue = target.kind === 'forgejo' ? null : await wiring.closingRef?.(project, task)
+      const closes = (issue == null ? null : closingOf(target, issue)) ?? undefined
       let opened: Awaited<ReturnType<typeof openPull>>
       try {
         opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now, closes)

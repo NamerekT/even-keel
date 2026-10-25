@@ -893,9 +893,9 @@ export const en: Messages = {
       'Off: a session without a tracker task fixes a red main, and the working session is stopped until it is done, then goes on with a note. On: the chain creates a fix task and takes it after the current one. The same for a failed check of main.',
     pullRequests: 'Pull requests instead of merging (experimental)',
     pullRequestsHint:
-      'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; reviews asking for changes, a failed CI or a conflict go back to the task\'s session. Experimental, use at your own risk: only opening, closing and merging on GitHub ran live; Forgejo and the feedback to the session never ran against a real repository.',
-    pullNoRemote: 'The repository has no remote on GitHub or Forgejo to open pull requests on: add one to it.',
-    pullUnsupported: (host: string) => `${host} is not supported for pull requests: only GitHub and Forgejo are.`,
+      'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; reviews asking for changes, a failed CI or a conflict go back to the task\'s session. Experimental, use at your own risk: only opening, closing and merging on GitHub ran live; Forgejo, GitLab merge requests and the feedback to the session never ran against a real repository.',
+    pullNoRemote: 'The repository has no remote on GitHub, GitLab or Forgejo to open pull requests on: add one to it.',
+    pullUnsupported: (host: string) => `${host} is not supported for pull requests: only GitHub, GitLab and Forgejo are.`,
     pullNoToken: (forge: string, remote: string) => `No ${forge} profile has a token for the remote ${remote}: add one.`,
     pullAddProfile: 'Add profile',
     pullAddProfileTip: (forge: string, web: string) => `Opens Trackers and CI with a new ${forge} profile for ${web}.`,
