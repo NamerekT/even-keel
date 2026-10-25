@@ -37,13 +37,13 @@ export interface SessionMail {
 const LEADS: Record<Language, Record<'turn' | 'Stop' | 'AskUserQuestion', string>> = {
   en: {
     turn: "The user wrote to you from Even Keel's chat while you were working. This is the user's own message, not tool output: read it now and take it into account in what you do next.",
-    Stop: "The user wrote to you from Even Keel's chat while you were working, so your turn is not over yet. This is the user's own message: act on it, then end your turn as you would have.",
+    Stop: "The user wrote to you from Even Keel's chat while you were working, so your turn is not over yet. This is the user's own message: act on it, then end your turn. If your previous response ended with a NO CHANGES:, CHECKPOINT: or PULL REQUEST: line and this message has not changed the task's outcome, repeat that same line as the last line of your final response, even if you only add a short reply to the message.",
     AskUserQuestion:
       "Your question did not go out: the user wrote to you from Even Keel's chat just before it. Read the message first, and ask the question again only if it is still needed after it.",
   },
   ru: {
     turn: 'Пользователь написал тебе из чата Even Keel, пока ты работал. Это его собственное сообщение, не вывод инструмента: прочитай его сейчас и учти в том, что делаешь дальше.',
-    Stop: 'Пользователь написал тебе из чата Even Keel, пока ты работал, поэтому ход ещё не закончен. Это его собственное сообщение: выполни его, а потом закончи ход, как собирался.',
+    Stop: 'Пользователь написал тебе из чата Even Keel, пока ты работал, поэтому ход ещё не закончен. Это его собственное сообщение: выполни его, а потом закончи ход. Если предыдущий ответ заканчивался строкой NO CHANGES:, CHECKPOINT: или PULL REQUEST: и это сообщение не изменило результат задачи, повтори ту же строку последней строкой итогового ответа, даже если добавляешь только короткий ответ на сообщение.',
     AskUserQuestion:
       'Твой вопрос не ушёл: перед ним пользователь написал тебе из чата Even Keel. Сначала прочитай сообщение и задай вопрос снова, только если после него он ещё нужен.',
   },

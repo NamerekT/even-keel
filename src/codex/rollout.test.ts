@@ -246,6 +246,35 @@ describe('RolloutFold', () => {
     expect(summary.feed.map((value) => [value.kind, value.text])).toEqual([['prompt', 'third']])
   })
 
+  it.each([false, true])('reads Stop HookPrompt fragments once without clearing final marks (whole: %s)', (whole) => {
+    const message = '<even-keel-message id="12">\nReply PONG.\nFiles from the user:\n- C:/repo/.temp/inbox/a.png\n</even-keel-message>'
+    const hook = item({ type: 'HookPrompt', fragments: [{ text: 'The user wrote to you.' }, { text: message }] })
+    const escaped = line('response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: `<hook_prompt>${message.replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</hook_prompt>` }] })
+    for (const [mark, field, value] of [
+      ['NO CHANGES: research only', 'noChanges', 'research only'],
+      ['CHECKPOINT: .temp/handoff.md', 'checkpoint', '.temp/handoff.md'],
+      ['PULL REQUEST: .temp/pull-request.md', 'pullRequest', '.temp/pull-request.md'],
+    ] as const) {
+      const marked = fold([started(), agent(mark)], whole)
+      const before = marked.summary()
+      for (const entry of [hook, escaped, hook, item({ type: 'HookPrompt', fragments: [{ text: 'Other hook instructions.' }] })]) marked.push(entry)
+      expect(marked.summary()).toMatchObject({
+        [field]: value,
+        action: before.action,
+        lastMessage: before.lastMessage,
+        lastReplyAt: before.lastReplyAt,
+        turn: before.turn,
+      })
+      expect(marked.summary().feed.filter((entry) => entry.kind === 'prompt')).toEqual([
+        { at: expect.any(String), kind: 'prompt', text: 'Reply PONG.', files: ['C:/repo/.temp/inbox/a.png'] },
+      ])
+      marked.push(agent(`PONG\n${mark}`))
+      expect(marked.summary()[field]).toBe(value)
+      marked.push(user('Continue with a different task.'))
+      expect(marked.summary()[field]).toBeNull()
+    }
+  })
+
   it('skips reasoning, response items and lines that are not JSON', () => {
     const summary = fold(['not json', line('response_item', { type: 'message' }), item({ type: 'Reasoning' }), '']).summary()
     expect(summary.feed).toEqual([])

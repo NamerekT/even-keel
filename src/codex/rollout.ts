@@ -180,6 +180,10 @@ export class RolloutFold {
   private pushItem(at: string, item: Record<string, unknown> | undefined): void {
     if (item === undefined || item.type === 'Reasoning') return
     this.touch(at)
+    if (item.type === 'HookPrompt') {
+      this.pushMail(at, textOf(item.fragments))
+      return
+    }
     if (item.type === 'UserMessage') {
       if (this.pushMail(at, textOf(item.content))) return
       this.checkpoint = null
