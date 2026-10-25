@@ -1541,6 +1541,7 @@ export const ru = {
           ]),
         failed: (count: number) => `(${count} с ошибкой)`,
         failure: 'ошибка',
+        interrupted: 'прервана с концом хода',
         size: (added: number, removed: number) => `Добавлено строк: ${added}, удалено: ${removed}`,
       },
       head: {

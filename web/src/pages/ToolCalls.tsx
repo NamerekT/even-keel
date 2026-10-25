@@ -45,13 +45,13 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
 /** A call: its verb and subject; the shell command and the error open under it. */
 function CallRow({ call, media, onOpen }: { call: Call; media: TranscriptMedia; onOpen: (place: number) => void }) {
   const [open, setOpen] = useState(false)
-  const { line, failure } = call
+  const { line, failure, interrupted } = call
   const more = line.detail !== undefined || failure !== null
   const head: ReactNode = (
     <>
       <CallText line={line} />
       {(line.added !== undefined || line.removed !== undefined) && <EditSize added={line.added ?? 0} removed={line.removed ?? 0} />}
-      {failure !== null && <span className="tools__failed">{t.session.chat.tools.failure}</span>}
+      {failure !== null && <span className="tools__failed">{interrupted ? t.session.chat.tools.interrupted : t.session.chat.tools.failure}</span>}
       {more && <Chevron />}
     </>
   )

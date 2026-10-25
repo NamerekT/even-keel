@@ -250,6 +250,26 @@ describe('RolloutFold', () => {
     expect(summary.apiError?.kind).toBe('limit')
   })
 
+  it('puts a command the end of its turn killed where it started, marked as interrupted', () => {
+    const stamped = (timestamp: string, payload: Record<string, unknown>) => JSON.stringify({ timestamp, type: 'event_msg', payload })
+    const startedAt = Date.parse('2026-10-25T21:02:59.800Z')
+    const limited = stamped('2026-10-25T21:03:12.456Z', {
+      type: 'task_complete',
+      turn_id: TURN,
+      last_agent_message: null,
+      error: { message: 'You’ve hit your usage limit.', codex_error_info: 'usage_limit_exceeded' },
+    })
+    const build = stamped('2026-10-25T21:03:12.483Z', {
+      type: 'item_completed',
+      turn_id: TURN,
+      item: { id: 'exec-9', type: 'CommandExecution', command: ['pwsh.exe', '-Command', 'npm run build'], status: 'failed', exit_code: -1, started_at_ms: startedAt, aggregated_output: 'npm run build' },
+    })
+    const feed = fold([limited, build], true).summary().feed
+    expect(feed.map((each) => each.kind)).toEqual(['tool', 'error', 'failed'])
+    expect(feed[0]).toMatchObject({ at: '2026-10-25T21:02:59.800Z', tool: 'exec-9' })
+    expect(feed[2]).toMatchObject({ interrupted: true, tool: 'exec-9' })
+  })
+
   it('keeps the marks of the last message when a command of the ended turn completes after it', () => {
     const marks = ['CHECKPOINT: .temp/handoff.md', 'PULL REQUEST: .temp/pull-request.md', 'NO CHANGES: the work is already in main']
     for (const mark of marks) {

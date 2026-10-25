@@ -108,6 +108,7 @@ export function fakeCalls(at: (minutes: number) => string): FeedLine[] {
     call('toolu_fake_c5', 'Edit', 'Edit src/chain/order.ts', { subject: `${ROOT}\\src\\chain\\order.ts`, added: 8, removed: 3 }),
     call('toolu_fake_c6', 'Edit', 'Edit src/chain/order.ts', { subject: `${ROOT}\\src\\chain\\order.ts`, added: 2, removed: 1 }),
     call('toolu_fake_c7', 'Bash', 'Bash npx vitest run src/chain && npx tsc --noEmit', { detail: 'npx vitest run src/chain && npx tsc --noEmit' }),
+    { at: at(12), kind: 'failed', text: 'Exit code -1\nnpx vitest run src/chain', tool: 'toolu_fake_c7', interrupted: true },
     { at: at(11), kind: 'text', text: 'Тесты зелёные. Цикл теперь — ошибка над цепочкой с задачами цикла.' },
     call('toolu_fake_c8', 'Read', 'Read docs/chain.md', { subject: `${ROOT}\\docs\\chain.md` }),
   ]

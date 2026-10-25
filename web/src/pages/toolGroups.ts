@@ -27,6 +27,8 @@ export function toolKind(name: string | undefined): ToolKind {
 export interface Call {
   line: FeedLine
   failure: string | null
+  /** The failure is a command the end of its turn killed. */
+  interrupted?: true
 }
 
 /** What the chat lays out: a line of its own, the calls between two texts, or a mark of the time after a pause. */
@@ -54,7 +56,9 @@ export function feedEntries(lines: FeedLine[]): FeedEntry[] {
   for (const line of lines) if (isCall(line) && line.tool !== undefined) calls.set(line.tool, { line, failure: null })
   for (const line of lines) {
     const call = line.kind === 'failed' ? calls.get(line.tool ?? '') : undefined
-    if (call !== undefined) call.failure = line.text
+    if (call === undefined) continue
+    call.failure = line.text
+    if (line.interrupted) call.interrupted = true
   }
 
   const entries: FeedEntry[] = []
@@ -98,7 +102,7 @@ export function summarize(calls: Call[]): GroupSummary {
     }
     counts[kind] += 1
   }
-  return { counts, failed: calls.filter((call) => call.failure !== null).length, size: editTotals(calls.map((call) => call.line)) }
+  return { counts, failed: calls.filter((call) => call.failure !== null && !call.interrupted).length, size: editTotals(calls.map((call) => call.line)) }
 }
 
 /** The lines the edits of `lines` add and remove; `null` when none edits. */
