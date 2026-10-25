@@ -67,6 +67,7 @@ export function chainQuiet(chain: ActiveChain | undefined, busy: (task: string) 
  */
 export class ForwardMerger {
   private readonly views = new Map<string, ForwardView>()
+  private readonly pendingPush = new Map<string, { into: string; repo: string; branch: string; commit: string }>()
   /** The release commit whose merge failed last, and the one a session was asked for by itself. */
   private readonly failedAt = new Map<string, string>()
   private readonly askedAt = new Map<string, string>()
@@ -86,7 +87,12 @@ export class ForwardMerger {
   tick(): Promise<void> {
     return this.queue(async () => {
       const pairs = this.deps.pairs()
-      for (const from of [...this.views.keys()]) if (!pairs.some((pair) => pair.from === from)) this.views.delete(from)
+      for (const from of [...this.views.keys()]) {
+        if (!pairs.some((pair) => pair.from === from)) {
+          this.views.delete(from)
+          this.pendingPush.delete(from)
+        }
+      }
       for (const pair of pairs) await this.step(pair, false)
     })
   }
@@ -150,6 +156,7 @@ export class ForwardMerger {
     const same = this.deps.sameRepository(from, into)
     if (same === undefined) return
     if (!same) return wait(view, notice('forward.foreign', { from, into }))
+    await this.checkPush(view, from, repo, branch)
     const ref = refOf(from)
     const fetched = await git(repo, ['fetch', '--quiet', this.deps.repo(from), `+refs/heads/${this.deps.branch(from)}:${ref}`])
     if (fetched.code !== 0) return wait(view, notice('forward.fetch', { from }, { detail: fetched.out }))
@@ -189,9 +196,29 @@ export class ForwardMerger {
       await this.ask(from, view, hold, commit).catch((error) => this.deps.log(`forward: ${from}: the carry session was not asked for: ${error instanceof Error ? error.message : String(error)}`))
       return
     }
+    const read = await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}^{commit}`])
+    const commit = read.out.trim()
     const push = await this.deps.sync(into)
+    this.pendingPush.delete(from)
+    if (push !== null && read.code === 0 && commit !== '') this.pendingPush.set(from, { into, repo, branch, commit })
     this.deps.log(`forward: ${from} carried ${behind} commit(s) into ${branch} of ${into}${push === null ? '' : `; the push failed: ${englishOf(push)}`}`)
     Object.assign(view, { behind: 0, hold: null, held: false, last: { at: this.deps.now().toISOString(), commits: behind, push } })
+  }
+
+  private async checkPush(view: ForwardView, from: string, repo: string, branch: string): Promise<void> {
+    const pending = this.pendingPush.get(from)
+    if (view.last?.push == null || pending === undefined || pending.into !== view.into || pending.repo !== repo || pending.branch !== branch) return
+    const { git } = this.deps
+    const listed = await git(repo, ['remote'])
+    const remotes = listed.out.split(/\s+/).filter(Boolean)
+    if (listed.code !== 0 || remotes.length === 0) return
+    const ref = `refs/even-keel/forward-push/${from}`
+    for (const remote of remotes) {
+      const fetched = await git(repo, ['fetch', '--no-tags', '--quiet', remote, `+refs/heads/${branch}:${ref}`])
+      if (fetched.code !== 0 || (await git(repo, ['merge-base', '--is-ancestor', pending.commit, ref])).code !== 0) return
+    }
+    view.last = { ...view.last, push: null }
+    this.pendingPush.delete(from)
   }
 }
 

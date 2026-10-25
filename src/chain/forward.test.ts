@@ -11,6 +11,10 @@ const fetch = `fetch --quiet ${release} +refs/heads/release/v0.1:${ref}`
 const count = `rev-list --count refs/heads/dev..${ref}`
 const merge = `merge --no-edit -m Merge branch 'release/v0.1' of EKR (release) into dev ${ref}`
 const onDev = { 'symbolic-ref --quiet --short HEAD': { out: 'dev\n' } }
+const carried = 'rev-parse --verify --quiet refs/heads/dev^{commit}'
+const pushedRef = 'refs/even-keel/forward-push/EKR'
+const fetchPush = (remote: string) => `fetch --no-tags --quiet ${remote} +refs/heads/dev:${pushedRef}`
+const containsCarry = `merge-base --is-ancestor carry-commit ${pushedRef}`
 
 /** An answer given as a list is used up in order, the last one repeating. */
 function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null; auto?: boolean } = {}) {
@@ -79,7 +83,7 @@ describe('ForwardMerger', () => {
   it('merges the release branch into the quiet dev branch and syncs it', async () => {
     const { merger, calls, state } = setup({ [count]: { out: '3\n' }, ...onDev })
     await merger.tick()
-    expect(calls).toEqual([fetch, count, 'symbolic-ref --quiet --short HEAD', 'status --porcelain --untracked-files=no', merge])
+    expect(calls).toEqual([fetch, count, 'symbolic-ref --quiet --short HEAD', 'status --porcelain --untracked-files=no', merge, carried])
     expect(state.syncs).toBe(1)
     expect(merger.view()).toEqual({ EKR: { into: 'BTN', behind: 0, hold: null, held: false, last: { at: '2026-10-22T10:00:00.000Z', commits: 3, push: null } } })
   })
@@ -151,6 +155,53 @@ describe('ForwardMerger', () => {
   it('keeps the failed push of a carry for the page', async () => {
     const failed = notice('sync.push', { remote: 'origin', main: 'dev' })
     const { merger } = setup({ [count]: { out: '1\n' }, ...onDev }, { push: failed })
+    await merger.tick()
+    expect(merger.view().EKR?.last?.push).toEqual(failed)
+  })
+
+  it('clears a failed push on a later tick once every remote has the carry, even while the chain works', async () => {
+    const failed = notice('sync.alias', { exit: 1 })
+    const { merger, calls, state } = setup({
+      [count]: [{ out: '1\n' }, { out: '0\n' }],
+      ...onDev,
+      [carried]: { out: 'carry-commit\n' },
+      remote: { out: 'origin\nmirror\n' },
+      [containsCarry]: [{ code: 0 }, { code: 1 }, { code: 0 }, { code: 0 }],
+    }, { push: failed })
+    await merger.tick()
+    const before = merger.view().EKR!.last!
+    state.quiet = false
+    await merger.tick()
+    expect(merger.view().EKR?.last?.push).toEqual(failed)
+    const changes = state.changes
+    calls.length = 0
+    await merger.tick()
+    expect(merger.view().EKR?.last).toEqual({ ...before, push: null })
+    expect(before.push).toEqual(failed)
+    expect(state.changes).toBe(changes + 1)
+    expect(state.syncs).toBe(1)
+    expect(calls).toContain(fetchPush('origin'))
+    expect(calls).toContain(fetchPush('mirror'))
+    expect(calls).not.toContain(carried)
+    calls.length = 0
+    await merger.tick()
+    expect(calls).toEqual([fetch, count])
+  })
+
+  it.each([
+    { remote: { code: 128, out: 'remote read failed' } },
+    { remote: { out: '' } },
+    { remote: { out: 'origin\n' }, [fetchPush('origin')]: { code: 128, out: 'offline' } },
+    { remote: { out: 'origin\n' }, [containsCarry]: { code: 128, out: 'missing object' } },
+  ])('keeps the failed push when remote containment cannot be confirmed: %j', async (answers) => {
+    const failed = notice('sync.push', { remote: 'origin', main: 'dev' })
+    const { merger } = setup({
+      [count]: [{ out: '1\n' }, { out: '0\n' }],
+      ...onDev,
+      [carried]: { out: 'carry-commit\n' },
+      ...answers,
+    }, { push: failed })
+    await merger.tick()
     await merger.tick()
     expect(merger.view().EKR?.last?.push).toEqual(failed)
   })
