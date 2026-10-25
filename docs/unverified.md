@@ -79,6 +79,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 64 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
 | 65 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
 | 66 | [The PR mode switch of the settings panel](#the-pr-mode-switch-of-the-settings-panel-ekr-7) | PR mode | the page refuses the switch; turn it on in the config |
+| 66a | [A chain that ended starting again on feedback](#a-chain-that-ended-starting-again-on-feedback-btn-375) | PR mode | feedback waits for **Start**, as before |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
@@ -229,6 +230,10 @@ On GitHub PR mode ran whole: against a real repository from the Windows service 
 ### The PR mode switch of the settings panel (EKR-7)
 
 PR mode without a remote ran through the service's API in Windows Sandbox (EKR-12, 2026-10-23 and 2026-10-24): the save of `pullRequests` refused with `review.cannotEnable` (`review.noRemote`), PR mode turned on through `config-import`, Start pausing the chain on `review.notReady`, and a `git remote add` of a GitHub address lifting the pause by itself within a minute, the task started at once. The switch and **Add profile** of the settings panel that go with it were seen on the fake state only. If the page refuses the switch wrongly, **workaround:** turn PR mode on by hand in the config (`npm run storage -- config-export`/`config-import`).
+
+### A chain that ended starting again on feedback (BTN-375)
+
+A chain that ran out of tasks with pull requests open starts again by itself when feedback comes on one of them, and one the user stopped does not; this is tested on the dispatcher only, not yet run against a real pull request. If the mark is lost, the feedback waits for **Start** as it did before. **Workaround:** press **Start**.
 
 ### A session waiting on you behind a monitor
 

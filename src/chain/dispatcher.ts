@@ -159,9 +159,27 @@ export class Dispatcher {
     const polled = await this.reviews.poll(project)
     if (polled.length === 0) return
     this.work = this.work.then(async () => {
-      for (const touched of await this.reviews.apply(polled)) this.refilter(touched)
+      for (const touched of await this.reviews.apply(polled)) {
+        this.refilter(touched)
+        if (this.reviews.wakes(touched)) this.wake(touched)
+      }
     })
     await this.work
+  }
+
+  /**
+   * Feedback came on a pull request of a chain that ended by itself: the chain starts again as with Start (BTN-375).
+   * One the user stopped stays stopped, a paused one paused; one whose launches are blocked waits for the user too.
+   */
+  private wake(project: string): void {
+    if (!this.deps.projects().includes(project) || this.going(project)) return
+    const reason = this.deps.blocked(project)
+    if (reason !== undefined && reason.code !== 'review.notReady') {
+      this.deps.log(`chain: ${project} does not start again on feedback: ${englishOf(reason)}`)
+      return
+    }
+    this.deps.log(`chain: ${project} starts again: feedback came on a pull request of its tasks`)
+    this.enqueue(project)
   }
 
   /**
@@ -180,6 +198,10 @@ export class Dispatcher {
         throw new NoticeError(empty)
       }
     }
+    this.enqueue(project)
+  }
+
+  private enqueue(project: string): void {
     const { active, queue } = this.state
     if (active.length < this.deps.parallel()) {
       const chain = newChain(project)
@@ -197,6 +219,7 @@ export class Dispatcher {
   }
 
   stop(project: string): void {
+    this.reviews.stopped(project)
     const chain = this.chainOf(project)
     if (chain === undefined) return
     this.letGo(chain)
@@ -216,6 +239,7 @@ export class Dispatcher {
   dequeue(project: string): void {
     const index = this.state.queue.indexOf(project)
     if (index < 0) return
+    this.reviews.stopped(project)
     this.state.queue.splice(index, 1)
     this.changed()
   }
@@ -663,6 +687,7 @@ export class Dispatcher {
       const task = own?.task ?? next
       if (task === undefined) {
         this.deps.log(`chain: ${chain.project} ended, no task left to run`)
+        this.reviews.ended(chain.project)
         this.drop(chain)
         this.deps.save(this.state)
         return

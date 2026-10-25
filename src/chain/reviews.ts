@@ -104,6 +104,21 @@ export class Reviews {
     this.drop(project, task)
   }
 
+  /** The chain ran out of tasks and ended by itself: feedback on any of the project's open pull requests starts it again. */
+  ended(project: string): void {
+    for (const pull of this.state.reviews[project] ?? []) if (pull.closed === undefined) pull.wakes = true
+  }
+
+  /** The user stopped the chain: its feedback waits for Start. */
+  stopped(project: string): void {
+    for (const pull of this.state.reviews[project] ?? []) delete pull.wakes
+  }
+
+  /** Feedback waits on a pull request the chain left open when it ended by itself. */
+  wakes(project: string): boolean {
+    return (this.state.reviews[project] ?? []).some((pull) => pull.wakes === true && pull.closed === undefined && pull.feedback !== undefined)
+  }
+
   drop(project: string, task: string): void {
     const kept = (this.state.reviews[project] ?? []).filter((pull) => pull.task !== task)
     if (kept.length === 0) delete this.state.reviews[project]

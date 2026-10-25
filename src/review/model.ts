@@ -27,6 +27,8 @@ export interface PullRequest {
   closedNote?: string
   /** Closed unmerged and cleaned up after: the record stays only for `closedNote`, until the task launches or is done. */
   cleaned?: true
+  /** The chain ended by itself while it was open: feedback on it starts the chain again (BTN-375). Stop clears it. */
+  wakes?: true
 }
 
 /** The pull request as the forge has it now. */
