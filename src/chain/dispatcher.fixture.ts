@@ -59,6 +59,7 @@ export interface SetupOptions {
   sync?: (project: string) => Notice | null
   /** By project, or by the id prefix of a feed's tasks. */
   rules?: Record<string, ChainRules>
+  fillMilestone?: boolean
   main?: MainCheckDeps
   reviews?: ReviewDeps
   unchanged?: UnchangedDeps
@@ -101,6 +102,7 @@ export function setup(options: SetupOptions = {}) {
   const dispatcher = new Dispatcher(state, {
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
+    fillsMilestone: () => options.fillMilestone ?? false,
     rules: (project, task) => (task === undefined ? undefined : options.rules?.[task.slice(0, task.lastIndexOf('-'))]) ?? options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id, extra) => {
       tried.push(`${project}/${id}`)

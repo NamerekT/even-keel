@@ -311,11 +311,13 @@ export interface Ghost {
 
 /** The stand-in for a backlog task at the place the service says it would take; `null` — the chain would not take it. */
 export function ghostOf(state: EvenKeelState, project: string, id: string | null): Ghost | null {
-  const landing = state.chain.projects[project]?.landing
+  const order = state.chain.projects[project]
+  const landing = order?.landing
   if (id === null || landing === undefined || !Object.hasOwn(landing, id)) return null
   const task = state.tasks.find((each) => each.id === id)
   if (task === undefined) return null
-  return { id, title: task.title, milestone: task.milestone?.label ?? null, before: landing[id] ?? null }
+  const milestone = order?.landingMilestones?.[id] ?? task.milestone
+  return { id, title: task.title, milestone: milestone?.label ?? null, before: landing[id] ?? null }
 }
 
 export function canReady(state: EvenKeelState, project: string): boolean {
