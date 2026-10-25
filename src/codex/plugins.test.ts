@@ -1,9 +1,9 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { configPlugins, pluginArgs, pluginId, pluginHooks } from './plugins.js'
+import { configPlugins, pluginArgs, pluginId, pluginHooks, untrustedHooks } from './plugins.js'
 
 const cache = join('C:', 'state', 'packages', 'huly@even-keel', 'b')
-const huly = { dir: join(cache, 'plugin'), name: 'huly', marketplace: 'ek-b', marketplaceFile: join(cache, '.claude-plugin', 'marketplace.json'), servers: ['huly'] }
+const huly = { package: 'huly@even-keel', dir: join(cache, 'plugin'), name: 'huly', marketplace: 'ek-b', marketplaceFile: join(cache, '.claude-plugin', 'marketplace.json'), servers: ['huly'] }
 
 describe('pluginArgs', () => {
   it('declares the install marketplace, turns the plugin on and its own servers off', () => {
@@ -72,5 +72,43 @@ describe('pluginHooks', () => {
     }
     expect(pluginHooks(answer, pluginId(huly))).toEqual({ 'huly@ek-b:hooks/hooks.json:pre_tool_use:0:0': 'sha256:aa' })
     expect(pluginHooks(undefined, 'huly@ek-b')).toEqual({})
+  })
+
+  it('keeps only the hook half of a 0.164.0 hash: the plugin half is never trusted', () => {
+    const answer = {
+      data: [
+        {
+          cwd: 'D:\\repo',
+          hooks: [{ key: 'huly@ek-b:hooks/hooks.json:stop:0:0', pluginId: 'huly@ek-b', currentHash: 'sha256:aa/sha256:pp', trustStatus: 'untrusted' }],
+        },
+      ],
+    }
+    expect(pluginHooks(answer, 'huly@ek-b')).toEqual({ 'huly@ek-b:hooks/hooks.json:stop:0:0': 'sha256:aa' })
+  })
+})
+
+describe('untrustedHooks', () => {
+  const keys = ['huly@ek-b:hooks/hooks.json:pre_tool_use:0:0', 'huly@ek-b:hooks/hooks.json:stop:0:0']
+  const listed = (...statuses: string[]) => ({
+    data: [{ cwd: 'D:\\repo', hooks: statuses.map((trustStatus, i) => ({ key: keys[i], pluginId: 'huly@ek-b', currentHash: 'sha256:aa', trustStatus })) }],
+  })
+
+  it('passes when every hook of the plugin is trusted', () => {
+    expect(untrustedHooks(listed('trusted', 'trusted'), 'huly@ek-b', keys)).toEqual([])
+  })
+
+  it('names each hook Codex does not trust, with its status', () => {
+    expect(untrustedHooks(listed('modified', 'untrusted'), 'huly@ek-b', keys)).toEqual([
+      { key: keys[0], status: 'modified' },
+      { key: keys[1], status: 'untrusted' },
+    ])
+  })
+
+  it('counts a hook gone from the answer or without a status as not trusted', () => {
+    const answer = { data: [{ hooks: [{ key: keys[0], pluginId: 'huly@ek-b', currentHash: 'sha256:aa' }] }] }
+    expect(untrustedHooks(answer, 'huly@ek-b', keys)).toEqual([
+      { key: keys[0], status: 'unknown' },
+      { key: keys[1], status: 'missing' },
+    ])
   })
 })

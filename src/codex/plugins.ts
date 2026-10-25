@@ -45,21 +45,53 @@ export function configPlugins(toml: string): string[] {
   })
 }
 
-/** The `currentHash` of each hook of the plugin in a `hooks/list` answer, by the hook's key. */
+/** A hook of the plugin that Codex would skip on a turn, with the `trustStatus` it gave or `missing`/`unknown`. */
+export interface UntrustedHook {
+  key: string
+  status: string
+}
+
+/** Codex would skip these hooks of the package: a launch without them would lose `merge-check`, the reminders and the mail. */
+export class UntrustedHooks extends Error {
+  constructor(
+    readonly plugin: SessionPlugin,
+    readonly hooks: UntrustedHook[],
+  ) {
+    super(`codex does not trust the hooks of ${plugin.package}: ${hooks.map((hook) => `${hook.key} ${hook.status}`).join(', ')}`)
+  }
+}
+
+function listedHooks(answer: unknown, id: string): Array<{ key: string; currentHash?: unknown; trustStatus?: unknown }> {
+  const data = (answer as { data?: unknown } | undefined)?.data
+  return (Array.isArray(data) ? data : []).flatMap((each) =>
+    (Array.isArray(each?.hooks) ? each.hooks : []).filter((hook: { pluginId?: unknown; key?: unknown } | null) => hook?.pluginId === id && typeof hook.key === 'string'),
+  )
+}
+
+/**
+ * The hash to trust each hook of the plugin by, from a `hooks/list` answer, by the hook's key. From 0.164.0 the
+ * `currentHash` is `<hook hash>/<plugin contents hash>` and `trusted_hash` takes only the hook's half.
+ */
 export function pluginHooks(answer: unknown, id: string): Record<string, string> {
   const hooks: Record<string, string> = {}
-  const data = (answer as { data?: unknown } | undefined)?.data
-  for (const each of Array.isArray(data) ? data : []) {
-    for (const hook of Array.isArray(each?.hooks) ? each.hooks : []) {
-      if (hook?.pluginId === id && typeof hook.key === 'string' && typeof hook.currentHash === 'string') hooks[hook.key] = hook.currentHash
-    }
-  }
+  for (const hook of listedHooks(answer, id)) if (typeof hook.currentHash === 'string') hooks[hook.key] = hook.currentHash.replace(/\/.*$/s, '')
   return hooks
+}
+
+/** The hooks of `keys` that a `hooks/list` answer asked with a turn's flags does not mark `trusted`. */
+export function untrustedHooks(answer: unknown, id: string, keys: readonly string[]): UntrustedHook[] {
+  const status = new Map(listedHooks(answer, id).map((hook) => [hook.key, typeof hook.trustStatus === 'string' ? hook.trustStatus : 'unknown']))
+  return keys.flatMap((key) => {
+    const each = status.get(key) ?? 'missing'
+    return each === 'trusted' ? [] : [{ key, status: each }]
+  })
 }
 
 /**
  * The project's plugins in the Codex folders: a plugin goes into a folder on the first turn there, the hashes of its
- * hooks are asked once per folder and kept while the service runs — an install never changes.
+ * hooks are asked once per folder and kept while the service runs — an install never changes. Before they are kept,
+ * `hooks/list` is asked again with the turn's flags: a hook Codex does not trust there fails the launch, so a change of
+ * the hash format cannot turn the hooks off without a word.
  */
 export class CodexPlugins {
   private readonly hooks = new Map<string, Record<string, string>>()
@@ -106,6 +138,13 @@ export class CodexPlugins {
       ])
     }
     const [list] = await appServer(this.bin(), ['-c', `plugins.${id}.enabled=true`], cwd, env, [['hooks/list', {}]])
-    return pluginHooks(list, id)
+    const hooks = pluginHooks(list, id)
+    const keys = Object.keys(hooks)
+    if (keys.length === 0) return hooks
+    const configured = configPlugins(await readFile(join(home.dir, 'config.toml'), 'utf8').catch(() => ''))
+    const [check] = await appServer(this.bin(), pluginArgs([plugin], hooks, configured), cwd, env, [['hooks/list', {}]])
+    const untrusted = untrustedHooks(check, id, keys)
+    if (untrusted.length > 0) throw new UntrustedHooks(plugin, untrusted)
+    return hooks
   }
 }

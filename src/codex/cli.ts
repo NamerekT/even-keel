@@ -11,7 +11,7 @@ import { isAlive, killTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
-import type { CodexPlugins } from './plugins.js'
+import { type CodexPlugins, UntrustedHooks } from './plugins.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
 
 const run = promisify(execFile)
@@ -222,6 +222,11 @@ export class CodexCli {
     try {
       return await this.plugins.args(home, cwd, start.plugins)
     } catch (error) {
+      if (error instanceof UntrustedHooks) {
+        const version = await this.version(this.envOf(home)).then((out) => out.trim(), () => 'codex of an unknown version')
+        const hooks = error.hooks.map((hook) => `${hook.key} ${hook.status}`).join(', ')
+        throw fail('codex.hooksUntrusted', { task: start.name, package: error.plugin.package }, { detail: `${version}: ${hooks}` }, { cause: error })
+      }
       throw fail('codex.pluginsFailed', { task: start.name, account: home.key }, { detail: (error as Error).message }, { cause: error })
     }
   }

@@ -295,4 +295,15 @@ describe('limitsOfRollout', () => {
   it('is undefined without any rate limits', () => {
     expect(limitsOfRollout([meta(), tokens(1, 0, [1, 0, 1])].join('\n'))).toBeUndefined()
   })
+
+  it('passes over a token count whose rate limits have no window, as the "premium" one written at a refused turn', () => {
+    const premium = event({
+      type: 'token_count',
+      info: null,
+      rate_limits: { limit_id: 'premium', limit_name: null, primary: null, secondary: null, credits: null, plan_type: null },
+    })
+    const text = [tokens(1, 0, [1, 0, 1], { used: 100, minutes: 43200, resets }), premium].join('\n')
+    expect(limitsOfRollout(text)).toMatchObject({ month: { usedPercentage: 100, resetsAt: '2026-01-01T14:00:00.000Z' } })
+    expect(limitsOfRollout(premium)).toBeUndefined()
+  })
 })

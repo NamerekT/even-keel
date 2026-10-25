@@ -77,6 +77,7 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
     installs[name] = id
     if (record.kind === 'plugin' && record.plugin !== undefined) {
       plugins.push({
+        package: name,
         dir: pluginDir(places.cache, name, id),
         name: record.plugin.name,
         marketplace: marketplaceName(id),
