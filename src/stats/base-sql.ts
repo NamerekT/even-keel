@@ -1,5 +1,9 @@
-// A model's family on the page: the Claude tier (opus, sonnet, haiku, fable) or gpt for the OpenAI models Codex runs.
-export const familyOf = (column: string) => `coalesce(substring(${column} from '^claude-([a-z]+)'), substring(${column} from '^(gpt)-'))`
+// A model's family on the page: its Claude or OpenAI tier, with gpt for OpenAI models without a tier.
+export const familyOf = (column: string) => `coalesce(
+  substring(${column} from '^claude-([a-z]+)'),
+  substring(${column} from '^(?:openai/)?gpt-[0-9.]+-(sol|luna|astra|terra)(?:-|$)'),
+  substring(${column} from '^(?:openai/)?(gpt)-')
+)`
 
 // $1 Even Keel project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
 // $6 folders without drive and $7 their groups (folderGroups).
