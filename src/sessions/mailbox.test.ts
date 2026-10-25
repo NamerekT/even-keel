@@ -156,6 +156,13 @@ describe('mailMessage and mailIn', () => {
     expect(mailMessage([mail(1, 'Стоп.')], 'Stop', 'ru')).toMatch(/^Пользователь написал тебе/)
   })
 
+  it.each(['en', 'ru'] as const)('asks for the same final mark after Stop mail in %s', (language) => {
+    const message = mailMessage([mail(1, 'Reply PONG.')], 'Stop', language)
+    for (const mark of ['NO CHANGES:', 'CHECKPOINT:', 'PULL REQUEST:']) expect(message).toContain(mark)
+    expect(message).toContain(language === 'en' ? 'repeat that same line as the last line' : 'повтори ту же строку последней строкой')
+    expect(mailMessage([mail(1, 'Reply PONG.')], 'PostToolUse', language)).not.toContain('NO CHANGES:')
+  })
+
   it('finds nothing in a text that only names the mark', () => {
     expect(mailIn('<even-keel-message id="${mail.id}">\nx\n</even-keel-message>')).toEqual([])
     expect(mailIn('plain text')).toEqual([])
