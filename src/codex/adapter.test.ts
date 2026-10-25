@@ -3,6 +3,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '../agent/contract.js'
 
+const refresh = vi.hoisted(() => vi.fn())
+vi.mock('./appserver.js', () => ({ appServer: refresh }))
+
 const AT = '2026-10-25T10:00:00.000Z'
 const RESET = Date.parse('2026-10-25T12:00:00.000Z') / 1000
 const AUTH = { auth_mode: 'chatgpt', tokens: { access_token: 'fake-access', account_id: 'example-account' } }
@@ -13,6 +16,7 @@ let agent: Agent
 
 beforeEach(async () => {
   vi.resetModules()
+  refresh.mockReset().mockResolvedValue([])
   await mkdir('.temp', { recursive: true })
   dir = await mkdtemp(join('.temp', 'codex-usage-'))
   home.dir = dir
@@ -30,6 +34,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   await rm(dir, { recursive: true, force: true })
 })
 
@@ -83,10 +88,99 @@ describe('Codex usage', () => {
     expect(await agent.usage!(home, AT)).toMatchObject({ kind: 'limits', limits: { fiveHour: { usedPercentage: 90 } } })
   })
 
-  it('has no data when the request fails and there are no rollouts', async () => {
+  it('keeps the refusal reason when there are no rollouts', async () => {
     await rm(join(dir, 'sessions'), { recursive: true })
     answering(401, {})
-    expect(await agent.usage!(home, AT)).toMatchObject({ kind: 'missing', reason: { code: 'usage.noRollout' } })
+    expect(await agent.usage!(home, AT)).toMatchObject({ kind: 'missing', reason: { code: 'usage.chatGptRevoked' } })
+  })
+
+  it.each([401, 403])('renews a refused sign-in (%s) through Codex and retries with the file Codex wrote', async (status) => {
+    const fetchImpl = answering(status, {})
+    refresh.mockImplementation(async () => {
+      await writeFile(join(dir, 'auth.json'), JSON.stringify({ ...AUTH, tokens: { ...AUTH.tokens, access_token: 'renewed-access' } }))
+      fetchImpl.mockImplementation(async () => new Response(JSON.stringify(PLUS), { status: 200 }))
+      return []
+    })
+    const answers = await Promise.all([agent.usage!(home, AT), agent.usage!(home, AT)])
+    expect(answers[0]).toMatchObject({ kind: 'limits', limits: { source: 'api', fiveHour: { usedPercentage: 12 } } })
+    expect(answers[1]).toEqual(answers[0])
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(expect.any(String), [], dir, { CODEX_HOME: dir }, [['account/read', { refreshToken: true }]])
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(fetchImpl.mock.calls[1]).toEqual(['https://chatgpt.com/backend-api/wham/usage', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer renewed-access' }),
+    })])
+  })
+
+  it('does not renew again if the replacement token is refused too', async () => {
+    const fetchImpl = answering(401, {})
+    refresh.mockImplementation(async () => {
+      await writeFile(join(dir, 'auth.json'), JSON.stringify({ ...AUTH, tokens: { ...AUTH.tokens, access_token: 'renewed-access' } }))
+      return []
+    })
+    await agent.usage!(home, AT)
+    await agent.usage!(home, '2026-10-25T10:05:00.000Z')
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(fetchImpl).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not keep renewing after app-server fails', async () => {
+    answering(401, {})
+    refresh.mockRejectedValue(new Error('refresh refused'))
+    expect(await agent.usage!(home, AT)).toMatchObject({ kind: 'limits', limits: { fiveHour: { usedPercentage: 90 } } })
+    await agent.usage!(home, '2026-10-25T10:05:00.000Z')
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['launch', 'resume'] as const)('holds a new %s until renewal has finished', async (method) => {
+    const { CodexCli } = await import('./cli.js')
+    const turn = vi.spyOn(CodexCli.prototype, method).mockResolvedValue('example-session')
+    let finish!: () => void
+    let refreshing!: () => void
+    const started = new Promise<void>((resolve) => { refreshing = resolve })
+    refresh.mockImplementation(() => {
+      refreshing()
+      return new Promise<void>((resolve) => { finish = resolve })
+    })
+    answering(401, {})
+    const reading = agent.usage!(home, AT)
+    await started
+    const start = { name: 'EXAMPLE-1', cwd: dir, prompt: 'Example task', model: null }
+    const launching = method === 'launch' ? agent.launch(home, start) : agent.resume(home, { sessionId: 'example-session', kind: 'codex' }, start)
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(turn).not.toHaveBeenCalled()
+    finish()
+    await Promise.all([reading, launching])
+    expect(turn).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh on an HTTP failure other than an authentication refusal', async () => {
+    answering(502, {})
+    await agent.usage!(home, AT)
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it.each([{ pid: 123, status: 'busy' }, { resting: true, status: 'idle' }])('defers renewal while a session is live: %s', async (live) => {
+    const { CodexCli } = await import('./cli.js')
+    const sessions = vi.spyOn(CodexCli.prototype, 'sessions').mockResolvedValue([
+      { ...live, kind: 'codex', sessionId: 'example-session', cwd: dir, startedAt: 0 } as Awaited<ReturnType<Agent['sessions']>>[number],
+    ])
+    answering(401, {})
+    await agent.usage!(home, AT)
+    expect(refresh).not.toHaveBeenCalled()
+    sessions.mockResolvedValue([])
+    await agent.usage!(home, AT)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    sessions.mockRestore()
+  })
+
+  it('does not renew a token whose expiry is already known to have passed', async () => {
+    const part = Buffer.from(JSON.stringify({ exp: Date.parse(AT) / 1000 - 1 })).toString('base64url')
+    await writeFile(join(dir, 'auth.json'), JSON.stringify({ tokens: { access_token: `header.${part}.sig` } }))
+    await rm(join(dir, 'sessions'), { recursive: true })
+    const fetchImpl = answering(401, {})
+    expect(await agent.usage!(home, AT)).toMatchObject({ kind: 'missing', reason: { code: 'usage.chatGptExpired' } })
+    expect(refresh).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('shares a pending request and its result with OpenCode, then polls again after five minutes', async () => {

@@ -38,14 +38,9 @@ export function chatGptLimits(body: unknown, at: string): RateLimits | undefined
 
 /** The ChatGPT account an access token is for, by its claim; `null` — not a token that says. */
 export function chatGptAccountOf(token: string): string | null {
-  try {
-    const claims: unknown = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
-    const auth = isRecord(claims) ? claims[AUTH_CLAIM] : undefined
-    const id = isRecord(auth) ? auth.chatgpt_account_id : undefined
-    return typeof id === 'string' && id !== '' ? id : null
-  } catch {
-    return null
-  }
+  const auth = claimsOf(token)?.[AUTH_CLAIM]
+  const id = isRecord(auth) ? auth.chatgpt_account_id : undefined
+  return typeof id === 'string' && id !== '' ? id : null
 }
 
 /** The ChatGPT account a Codex folder's `auth.json` is signed in to; `null` — an API key or no sign-in. */
@@ -69,7 +64,9 @@ export function chatGptSignInIn(codexAuth: string | undefined): ChatGptSignIn | 
     if (!isRecord(value) || value.auth_mode === 'apikey') return undefined
     const tokens = value.tokens
     if (!isRecord(tokens) || typeof tokens.access_token !== 'string' || tokens.access_token === '') return undefined
-    return { token: tokens.access_token, accountId: chatGptAccountIn(codexAuth), expiresAt: null }
+    const exp = claimsOf(tokens.access_token)?.exp
+    const expiresAt = typeof exp === 'number' && Number.isFinite(exp) && exp > 0 ? exp * 1000 : null
+    return { token: tokens.access_token, accountId: chatGptAccountIn(codexAuth), expiresAt }
   } catch {
     return undefined
   }
@@ -96,8 +93,8 @@ export async function pollChatGpt(signIn: ChatGptSignIn, at: string, timeoutMs: 
 }
 
 /**
- * Asks ChatGPT for the subscription's windows with a client's sign-in, never renewing it: an expired or refused token
- * waits for the client's next session to renew it. Any other failure throws, for the watcher to retry.
+ * Asks ChatGPT for the subscription's windows without renewing the sign-in. Expiry and refusal have separate reasons;
+ * the owning client decides whether to renew. Any other failure throws, for the watcher to retry.
  */
 export async function askChatGpt(signIn: ChatGptSignIn, at: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<UsageAnswer> {
   if (signIn.expiresAt !== null && signIn.expiresAt <= Date.parse(at)) return { kind: 'missing', reason: notice('usage.chatGptExpired', {}) }
@@ -105,7 +102,7 @@ export async function askChatGpt(signIn: ChatGptSignIn, at: string, timeoutMs: n
   const headers: Record<string, string> = { Authorization: `Bearer ${signIn.token}`, Accept: 'application/json' }
   if (accountId !== null) headers['ChatGPT-Account-Id'] = accountId
   const response = await fetchImpl(CHATGPT_USAGE_URL, { headers, signal: AbortSignal.timeout(timeoutMs) })
-  if (response.status === 401 || response.status === 403) return { kind: 'missing', reason: notice('usage.chatGptExpired', {}) }
+  if (response.status === 401 || response.status === 403) return { kind: 'missing', reason: notice('usage.chatGptRevoked', {}) }
   if (!response.ok) throw new Error(`ChatGPT usage answered ${response.status}`)
   const limits = chatGptLimits(await response.json().catch(() => undefined), at)
   if (limits === undefined) return { kind: 'unknown', reason: notice('usage.chatGptUnread', {}) }
@@ -126,4 +123,13 @@ function windowOf(raw: Record<string, unknown>, at: string): LimitWindow | null 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function claimsOf(token: string): Record<string, unknown> | undefined {
+  try {
+    const claims: unknown = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
+    return isRecord(claims) ? claims : undefined
+  } catch {
+    return undefined
+  }
 }

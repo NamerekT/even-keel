@@ -1,25 +1,21 @@
-import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
-import { chatGptAccountIn, chatGptPool, chatGptSignInIn, pollChatGpt } from '../limits/chatgpt.js'
-import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { appServer } from './appserver.js'
 import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex } from './release.js'
-import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
+import { foldRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
+import { CodexUsage } from './usage.js'
 
 const HISTORY_FEED = 5_000
-/** How many of the newest rollouts are searched for the account's limits. */
-const LIMIT_ROLLOUTS = 20
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
 const CHECKED = '0.164.0'
 
@@ -47,11 +43,16 @@ export const codex: AgentAdapter = {
     const envOf = (home: AccountHome) => codexEnv(env(), home)
     const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
     const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
+    const usage = new CodexUsage({
+      timeoutMs,
+      sessions: (home) => cli.sessions(home),
+      refresh: (home) => appServer(bin(), [], workDir, envOf(home), [['account/read', { refreshToken: true }]]),
+    })
     return {
       mode: SESSION_MODE,
       env: envOf,
-      launch: (home, start) => cli.launch(home, start),
-      resume: (home, { sessionId }, start) => cli.resume(home, sessionId, start),
+      launch: (home, start) => usage.session(home, () => cli.launch(home, start)),
+      resume: (home, { sessionId }, start) => usage.session(home, () => cli.resume(home, sessionId, start)),
       stop: (_home, { sessionId }) => cli.stop(sessionId),
       sessions: (home) => cli.sessions(home),
       tail: (home, agent) => new RolloutTail(home.dir, agent),
@@ -84,20 +85,7 @@ export const codex: AgentAdapter = {
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
-      usage: async (home, at) => {
-        const auth = await readFile(join(home.dir, 'auth.json'), 'utf8').catch(() => undefined)
-        const signIn = chatGptSignInIn(auth)
-        if (signIn !== undefined) {
-          const answer = await pollChatGpt(signIn, at, timeoutMs).catch(() => undefined)
-          if (answer?.kind === 'limits') return answer
-        }
-        const account = chatGptAccountIn(auth)
-        for (const { file } of (await rolloutFiles(home.dir)).slice(0, LIMIT_ROLLOUTS)) {
-          const limits = limitsOfRollout(await readFile(file, 'utf8').catch(() => ''))
-          if (limits !== undefined) return { kind: 'limits', limits: account === null ? limits : { ...limits, pool: chatGptPool(account) } }
-        }
-        return { kind: 'missing', reason: notice('usage.noRollout', {}) }
-      },
+      usage: (home, at) => usage.read(home, at),
       write: async (home, { cwd, prompt, model, timeoutMs }) => {
         const started = Date.now()
         const stdout = await runWithInput(bin(), writeArgs(model), prompt, { cwd, env: envOf(home), timeoutMs })
