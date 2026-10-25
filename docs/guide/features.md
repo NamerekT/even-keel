@@ -109,7 +109,7 @@ The milestone on the card is a pick: choosing another one moves the task there i
 
 A button on a milestone's head in the chain has the agent write that milestone's changelog section in the Keep a Changelog format, from the titles and closing comments of its done tasks, in the language of your `CHANGELOG.md` (or `README.md`). It runs read-only, on the account and model the project's next session would get, and starts from the section already in your changelog file, so your own edits there stay.
 
-You ask for changes in words and see them highlighted, with what each turn cost and on which account; "Write" puts the section into the file (the project setting `changelog`, `CHANGELOG.md` by default) and commits it to the main branch of your checkout; tasks closed later are added to the section with one button, and a released version's section is left alone.
+You ask for changes in words and see them highlighted, with what each turn cost and on which account; "Write" puts the section into the file (the project setting `changelog`, `CHANGELOG.md` by default) and commits it to the main branch of your checkout; tasks closed later are added to the section with one button, and a released version's section is left alone. Tasks a user would not notice (refactoring, tests, process) are left out; when that leaves the section with no entry, the dialog says so and names the tasks instead of keeping an empty draft — say in a task's closing comment what it changes for users and write again.
 
 ## Hands off a stopped session
 

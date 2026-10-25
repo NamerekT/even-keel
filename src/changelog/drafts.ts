@@ -23,6 +23,9 @@ export interface ChangelogDeps {
 
 const headingOf = (text: string) => text.split('\n')[0]!.trimEnd()
 
+/** Whether the section has a line past its headings: a group heading alone (`### Added`) is no entry. */
+const hasEntries = (section: string) => section.split('\n').some((line) => line.trim() !== '' && !line.trimStart().startsWith('#'))
+
 /**
  * The changelog drafts of milestones (BTN-142, BTN-209). The file in the main checkout is the source: every turn starts
  * from its section of the milestone, so the user's own edits there are kept. Each answer is a version in the database,
@@ -108,8 +111,11 @@ export class ChangelogDrafts {
 
   private async turn(project: string, heading: string, request: Parameters<typeof changelogPrompt>[0]): Promise<{ text: string; spend: ChangelogSpend }> {
     const { text: answer, spend } = await this.deps.write(project, changelogPrompt(request))
+    if (answer.trim() === '') throw fail('changelog.failed', { project })
     const text = answerSection(answer, heading)
-    if (text === heading) throw fail('changelog.failed', { project })
+    // The agent left out every task as one a user would not notice: its answer, not a failure. Kept as a version, it
+    // would write a bare heading into the file and count the tasks as written. An edit to nothing is the user's call.
+    if (request.mode !== 'edit' && !hasEntries(text)) throw fail('changelog.unnoticed', { milestone: request.milestone, tasks: request.tasks.map((task) => task.id) })
     return { text, spend }
   }
 

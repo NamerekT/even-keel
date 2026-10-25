@@ -282,7 +282,9 @@ export const noticesRu: NoticeTexts = {
   'changelog.empty': (p) => `в ${p.milestone} нет ни одной сделанной задачи, черновик писать не из чего`,
   'changelog.noAgent': (p) => `агент аккаунта, на котором идёт ${p.project}, не умеет писать черновик`,
   'changelog.failed': (p) => `агент не написал черновик ${p.project}`,
-  'changelog.noDraft': (p) => `у ${p.milestone} ещё нет черновика`,
+  'changelog.unnoticed': (p) =>
+    `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет; если какая-то из них что-то меняет для пользователей, напиши что именно в её закрывающем комментарии и нажми «Написать заново»`,
+  'changelog.noDraft':(p) => `у ${p.milestone} ещё нет черновика`,
   'changelog.released': (p) => `раздел ${p.milestone} выпущен как ${p.tag} и больше не правится`,
   'changelog.nothingNew': (p) => `все сделанные задачи ${p.milestone} уже в черновике`,
   'changelog.notOnBranch': (p) => `основной чекаут на ${p.current || 'отсоединённом HEAD'}, а не на ${p.branch}: ченджлог не записан`,

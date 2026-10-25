@@ -96,7 +96,8 @@ function edited(text: string): string {
 
 /**
  * `changelog/open|again|add|edit|write` → the milestone's newest version, kept in memory per project and milestone.
- * `?changelog=failed|empty|slow|dirty` — the agent fails, the milestone has no done task, writing never ends, the file is dirty.
+ * `?changelog=failed|unnoticed|empty|slow|dirty` — the agent fails, finds nothing a user would notice, the milestone has
+ * no done task, writing never ends, the file is dirty.
  */
 export async function fakeChangelog(state: EvenKeelState, name: string, body: Record<string, unknown>, param: string | null): Promise<ChangelogView | null> {
   if (!name.startsWith('changelog/')) return null
@@ -117,6 +118,7 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
   await new Promise((resolve) => setTimeout(resolve, WRITE_MS))
   if (param === 'failed') throw fail('changelog.failed', { project }, { detail: 'claude exited with 1' })
   const done = unaccounted(projectTasks(state, project), project, milestone, [])
+  if (param === 'unnoticed') throw fail('changelog.unnoticed', { milestone, tasks: done })
   const next = (kind: ChangelogKind, text: string, base: string | null, instruction: string | null, tasks: string[]) => {
     history.push(version(project, milestone, history.length + 1, kind, text, base, instruction, tasks))
     return view(history.at(-1)!)

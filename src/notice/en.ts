@@ -296,7 +296,9 @@ export const en = {
   'changelog.empty': (p: { milestone: string }) => `changelog: ${p.milestone} has no done task to write a draft from`,
   'changelog.noAgent': (p: { project: string }) => `changelog: the agent of the account ${p.project} runs on cannot write a draft`,
   'changelog.failed': (p: { project: string }) => `changelog: the agent did not write the draft of ${p.project}`,
-  'changelog.noDraft': (p: { milestone: string }) => `changelog: ${p.milestone} has no draft yet`,
+  'changelog.unnoticed': (p: { milestone: string; tasks: string[] }) =>
+    `changelog: the agent found nothing a user would notice in the done tasks of ${p.milestone} (${list(p.tasks)}), so the section has no entry; if one of them changes something for users, say what in its closing comment, then press "Write again"`,
+  'changelog.noDraft':(p: { milestone: string }) => `changelog: ${p.milestone} has no draft yet`,
   'changelog.released': (p: { milestone: string; tag: string }) => `changelog: the section of ${p.milestone} is released as ${p.tag} and is not changed`,
   'changelog.nothingNew': (p: { milestone: string }) => `changelog: every done task of ${p.milestone} is already in the draft`,
   'changelog.notOnBranch': (p: { branch: string; current: string }) =>
