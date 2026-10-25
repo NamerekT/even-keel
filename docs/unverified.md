@@ -60,7 +60,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 51 | [The tasks of a milestone on Linear](#the-tasks-of-a-milestone-on-linear-btn-142) | changelog drafts on Linear | the draft takes an older comment |
 | 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories | the page cannot open an attached file |
 | 53 | [A removed key and the global folder's daemon](#a-removed-key-and-the-global-folders-daemon) | anyone removing a key | the removed key stays with the folder's sessions until its daemon exits |
-| 54 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
 | 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
 | 56 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode | the session stops on the error instead of waiting for the reset; on Zen, retries too early or too late |
 | 57 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
@@ -219,10 +218,6 @@ A turn that ends with a background command or a `Monitor` still running leaves t
 ### Background commands of a stopped session on Linux and macOS (BTN-202)
 
 On Windows `claude stop` was seen to leave the `bash.exe` of a `run_in_background` command alive, and Even Keel now kills the session's process tree after the stop; that was checked there. On Linux and macOS it takes the tree from `ps` the same way and sends each process `SIGTERM`, but it never ran there, and whether the CLI already ends those commands itself was not seen. If a stopped session's command lives on, it holds the worktree and the cleanup leaves it in `leftovers`. **Workaround:** kill the command by hand and press "Done" on the warning; the next cleanup removes the folder.
-
-### The Codex changelog turn with JSON output
-
-`codex exec` for a changelog draft was checked live only without `--json`; with it, a successful turn on 0.162.1 was not seen (only failed ones, on a model the plan refuses). Assumed: the answer is the `text` of the last `item.completed` of type `agent_message`, and `turn.completed` carries `usage` with `input_tokens` (the cached ones in it), `cached_input_tokens` and `output_tokens`. If the item type differs, the draft fails with "the turn ended with no message" (`changelog.failed`); if `usage` differs, the dialog shows 0 tokens. **Workaround:** the Claude provider for the project while it is checked.
 
 ### A task back from Backlog after a question in a comment (BTN-245)
 
