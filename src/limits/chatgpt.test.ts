@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { askChatGpt, chatGptAccountIn, chatGptAccountOf, chatGptLimits, CHATGPT_USAGE_URL } from './chatgpt.js'
+import { askChatGpt, chatGptAccountIn, chatGptAccountOf, chatGptLimits, chatGptSignInIn, CHATGPT_USAGE_URL } from './chatgpt.js'
 import { notice } from '../notice/notice.js'
 
 const AT = '2026-10-23T10:00:00.000Z'
@@ -75,6 +75,18 @@ describe('chatGptAccountIn', () => {
   })
 })
 
+describe('chatGptSignInIn', () => {
+  it('reads the access token expiry from its JWT, in milliseconds', () => {
+    const expires = Date.parse(AT) / 1000 + 3600
+    const token = jwt({ exp: expires })
+    expect(chatGptSignInIn(JSON.stringify({ tokens: { access_token: token } }))).toEqual({ token, accountId: null, expiresAt: expires * 1000 })
+  })
+
+  it.each([undefined, 'tomorrow', 0, -1])('leaves an unreadable expiry unknown: %s', (exp) => {
+    expect(chatGptSignInIn(JSON.stringify({ tokens: { access_token: jwt({ exp }) } }))).toMatchObject({ expiresAt: null })
+  })
+})
+
 describe('askChatGpt', () => {
   it('asks with the token and the account, and names the pool by the account', async () => {
     const fetchImpl = answering(200, PLUS)
@@ -92,10 +104,16 @@ describe('askChatGpt', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('takes a refused token for an expired one', async () => {
-    expect(await askChatGpt({ token: 'tok', accountId: null, expiresAt: null }, AT, 1000, answering(401, {}))).toEqual({
+  it.each([401, 403])('distinguishes a refusal (%s) before the token expires', async (status) => {
+    expect(await askChatGpt({ token: 'tok', accountId: null, expiresAt: Date.parse(AT) + 3600_000 }, AT, 1000, answering(status, {}))).toEqual({
       kind: 'missing',
-      reason: notice('usage.chatGptExpired', {}),
+      reason: { code: 'usage.chatGptRevoked', params: {} },
+    })
+  })
+
+  it('does not claim expiry when a refused token has no known expiry', async () => {
+    expect(await askChatGpt({ token: 'tok', accountId: null, expiresAt: null }, AT, 1000, answering(401, {}))).toMatchObject({
+      kind: 'missing', reason: { code: 'usage.chatGptRevoked' },
     })
   })
 

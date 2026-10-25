@@ -12,6 +12,13 @@ function answering(body: unknown) {
 }
 
 describe('openCodeUsage', () => {
+  it('reports revocation before expiry without changing OpenCode’s sign-in', async () => {
+    const auth = JSON.stringify({ openai: { type: 'oauth', access: 'revoked-access', refresh: 'fake-refresh', expires: LATER, accountId: 'revoked-account' } })
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 401 }))
+    expect(await openCodeUsage(auth, AT, 1000, fetchImpl)).toEqual({ kind: 'missing', reason: { code: 'usage.chatGptRevoked', params: {} } })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
   it('asks ChatGPT with the access token of a ChatGPT sign-in', async () => {
     const auth = JSON.stringify({ openai: { type: 'oauth', access: 'acc-token', refresh: 'ref', expires: LATER, accountId: 'acc-1' } })
     const fetchImpl = answering({ rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 18000, reset_at: LATER / 1000 } } })
