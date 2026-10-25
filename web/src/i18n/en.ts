@@ -1596,6 +1596,7 @@ export const en: Messages = {
     modelFrom: "By the session's last answer in its transcript",
     modelYet: 'The session has not answered yet: the model shows from its first answer',
     limitUnknown: 'The limit reset time is unknown — a new session starts as soon as you switch the account.',
+    creditEmpty: 'out of credit',
     creditOut:
       'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up; switching the account starts a new session at once.',
     limitResume: (at: string) => `After the limit resets at ${at} the dispatcher continues this session — the cache will still be warm.`,

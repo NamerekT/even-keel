@@ -14,7 +14,7 @@ import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
 import type { TallyHealth, TallyMode } from './stats/mode.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
-import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
+import type { ApiErrorKind, CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
 import type { Task } from './tracker/model.js'
 import type { UpdateSettings, UpdatesView } from './updates/release.js'
@@ -42,6 +42,7 @@ export interface SessionView {
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */
   ask: Ask | null
   apiError: string | null
+  apiErrorKind: ApiErrorKind | null
   startedAt: string
   lastActivityAt: string | null
   contextTokens: number

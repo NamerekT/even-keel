@@ -27,6 +27,7 @@ import { useTip } from '../ui/useTip.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
+import { limitPlan, sessionStatus } from './sessionStatus.js'
 import './facts.css'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
@@ -256,6 +257,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
 
 function SessionBody({ session, limit, scale, whole }: { session: SessionView; limit: LimitHold | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
+  const { state } = useLive()
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
   const note =
@@ -271,10 +273,10 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
   return (
     <>
       {note !== null && <p className="notice notice--error">{note}</p>}
-      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session.remoteOff === 'api-key')}</p>}
+      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session, state?.account.accounts ?? [])}</p>}
       <FactList>
         <Fact label={t.session.session}>
-          <dd className={`panel__state panel__state--${session.lamp}`}>{t.lamp[session.lamp]}</dd>
+          <dd className={`panel__state panel__state--${session.lamp}`}>{sessionStatus(session)}</dd>
         </Fact>
         <Fact label={t.session.time}>
           <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
@@ -435,13 +437,6 @@ function PanelButton({ tip, held, sending, busy = false, onClick, children }: Pa
       </button>
     </Tipped>
   )
-}
-
-// A session on an API key is held only by its key's credit: the service checks it and goes on once it is back.
-function limitPlan(hold: LimitHold, now: Date, apiKey: boolean): string {
-  if (hold.resetsAt === null) return apiKey ? t.session.creditOut : t.session.limitUnknown
-  const at = formatMoment(hold.resetsAt, now)
-  return hold.then === 'resume' ? t.session.limitResume(at) : t.session.limitRelay(at)
 }
 
 interface SessionListProps {

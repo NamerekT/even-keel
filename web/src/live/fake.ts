@@ -45,6 +45,7 @@ const MAIL_MS = 4_000
 const HAND_EDIT_MS = 15_000
 
 const REWORK = { labels: ['Переделка'] }
+const KEY_LIMIT_AGENTS: Record<string, string> = { credit: 'claude', codexCredit: 'codex', opencodeCredit: 'opencode', copilotMonthly: 'copilot' }
 
 function fakeTranscript(open: Ask | null): FeedLine[] {
   const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
@@ -205,7 +206,7 @@ function fakeState(
         ],
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
-    account: fakeAccount(account, idle, FAKE_LIMITS),
+    account: fakeAccount(limit !== null && KEY_LIMIT_AGENTS[limit] ? 'api' : account, idle, FAKE_LIMITS),
     trackers: [fakeHuly(huly), ...fakeFeedTrackers()],
     trackerUrls: {
       default: 'https://huly.example.com/workbench/example/tracker/{id}',
@@ -269,19 +270,26 @@ function fakeState(
 }
 
 function fakeLimit(kind: string | null): { limit: LimitHold } | Record<string, never> {
-  if (kind !== 'relay' && kind !== 'resume' && kind !== 'unknown' && kind !== 'credit') return {}
-  const resetsAt = kind === 'unknown' || kind === 'credit' ? null : new Date(Date.now() + 95 * 60_000).toISOString()
-  const account = kind === 'credit' ? 'api-work' : 'john@example.com'
+  if (kind === null || (!KEY_LIMIT_AGENTS[kind] && kind !== 'relay' && kind !== 'resume' && kind !== 'unknown')) return {}
+  const credit = !!KEY_LIMIT_AGENTS[kind] && kind !== 'copilotMonthly'
+  const resetsAt = kind === 'unknown' || credit ? null : new Date(Date.now() + 95 * 60_000).toISOString()
+  const account = KEY_LIMIT_AGENTS[kind] ? 'ci-key' : 'john@example.com'
   return {
     limit: { at: ago(3), account, resetsAt, lastReplyAt: ago(4), then: kind === 'resume' ? 'resume' : 'relay', acted: null },
   }
 }
 
 function limitedSession(view: SessionView, kind: string): SessionView {
-  if (kind === 'credit') {
-    return { ...view, apiError: 'Credit balance is too low', lastActivityAt: ago(3), remoteUrl: null, remoteOff: 'api-key', account: 'api-work' }
+  const agent = KEY_LIMIT_AGENTS[kind]
+  if (agent) {
+    const credit = kind !== 'copilotMonthly'
+    return {
+      ...view, agent, model: null, apiErrorKind: credit ? 'credit' : 'limit',
+      apiError: credit ? 'Credit balance is too low' : 'Monthly premium request allowance used up',
+      lastActivityAt: ago(3), remoteUrl: null, remoteOff: agent === 'claude' ? 'api-key' : null, account: 'ci-key',
+    }
   }
-  return { ...view, apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
+  return { ...view, apiErrorKind: 'limit', apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
 }
 
 function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | null {
@@ -330,6 +338,9 @@ export function createFakeSource(search: string): LiveSource {
     link,
   }
   const language = params.get('lang')
+  const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
+  const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
+  if (keyAgent && keyAccount) keyAccount.agent = keyAgent
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)

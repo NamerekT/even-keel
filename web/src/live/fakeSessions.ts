@@ -56,6 +56,7 @@ export function session(task: string, contextTokens: number, lamp: SessionView['
     asking: lamp === 'waiting' && task === 'ABC-5',
     ask: lamp === 'waiting' && task === 'ABC-5' ? FAKE_ASK : null,
     apiError: null,
+    apiErrorKind: null,
     startedAt: ago(42),
     lastActivityAt: ago(0),
     contextTokens,

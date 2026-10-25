@@ -227,6 +227,7 @@ function toView(
     asking: ask !== null,
     ask,
     apiError: summary.apiError?.text ?? null,
+    apiErrorKind: summary.apiError?.kind ?? null,
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,
