@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
-import { describeTool, flatten, lineCount, type EditSize } from '../sessions/entry.js'
+import { describeTool, flatten, lineCount, type EditSize, type TranscriptImage } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
 import {
   callFacts,
@@ -16,11 +16,12 @@ import {
   type TokenTotals,
   type TranscriptSummary,
 } from '../sessions/transcript.js'
+import { rolloutImagePath, rolloutImages } from './rolloutImages.js'
 
 /**
  * A Codex session's transcript: `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`, lines
  * `{timestamp, type, payload}` (codex-cli 0.162.1). The fold reads `session_meta`, `turn_context` and the `event_msg`
- * lines; `response_item` and the rest repeat them for the model.
+ * lines; `response_item` adds tool-result pictures and mailbox messages absent from those events.
  */
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
@@ -62,6 +63,7 @@ export class RolloutFold {
   private model: string | null = null
   private turnStartedAt: string | null = null
   private readonly mailSeen = new Set<number>()
+  private readonly imagePaths = new Map<string, string>()
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -95,6 +97,7 @@ export class RolloutFold {
       this.pushMail(at, textOf(payload.content))
       return
     }
+    if (line.type === 'response_item' && this.whole) this.pushImages(at, payload)
     if (line.type !== 'event_msg') return
     if (payload.type === 'task_started') {
       this.turnStartedAt = at
@@ -151,6 +154,20 @@ export class RolloutFold {
 
   private pushWindow(value: unknown): void {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) this.contextWindow = value
+  }
+
+  private pushImages(at: string, payload: Record<string, unknown>): void {
+    if (typeof payload.call_id !== 'string') return
+    if (payload.type === 'custom_tool_call' || payload.type === 'function_call') {
+      const path = rolloutImagePath(payload)
+      if (path !== '') this.imagePaths.set(payload.call_id, path)
+      return
+    }
+    if (payload.type !== 'custom_tool_call_output' && payload.type !== 'function_call_output') return
+    const text = this.imagePaths.get(payload.call_id) ?? ''
+    this.imagePaths.delete(payload.call_id)
+    const images = rolloutImages(payload).length
+    if (images > 0) this.addFeed({ at, kind: 'image', text, tool: payload.call_id, images })
   }
 
   private pushError(at: string, message: unknown): void {
@@ -319,6 +336,19 @@ export async function foldRollout(home: string, sessionId: string, fold: Rollout
   if (file === undefined) return undefined
   for (const line of (await readFile(file, 'utf8')).split('\n')) fold.push(line)
   return fold.summary()
+}
+
+/** Picture `index` of call `tool`, kept in the rollout even when its original file is gone. */
+export async function readRolloutImage(home: string, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined> {
+  const file = await rolloutFile(home, sessionId)
+  if (file === undefined) return undefined
+  for (const text of (await readFile(file, 'utf8')).split('\n')) {
+    const line = parseLine(text)
+    if (line?.type !== 'response_item' || line.payload?.call_id !== tool) continue
+    const images = rolloutImages(line.payload)
+    if (images.length > 0) return images[index]
+  }
+  return undefined
 }
 
 async function newestFirst(dir: string): Promise<string[]> {
