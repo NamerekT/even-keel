@@ -54,12 +54,9 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, Copilot, OpenCode | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
-| 49 | [Milestones on Linear](#milestones-on-linear) | Linear | a task's milestone is not filled |
-| 50 | [Changing a milestone from the task card on Linear](#changing-a-milestone-from-the-task-card-on-linear) | Linear | the card puts the old milestone back |
-| 51 | [The tasks of a milestone on Linear](#the-tasks-of-a-milestone-on-linear-btn-142) | changelog drafts on Linear | the draft takes an older comment |
 | 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories | the page cannot open an attached file |
 | 53 | [A removed key and the global folder's daemon](#a-removed-key-and-the-global-folders-daemon) | anyone removing a key | the removed key stays with the folder's sessions until its daemon exits |
-| 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
+| 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode on Linux, macOS or a ChatGPT, Copilot, API-key account | sessions do not start, or a whole task runs on a wrong assumption |
 | 56 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode | the session stops on the error instead of waiting for the reset; on Zen, retries too early or too late |
 | 57 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
 | 58 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with Copilot | the sign-in waits for good; sign in in a terminal |
@@ -299,7 +296,7 @@ The install and the check that a plugin is already in a folder (`<CODEX_HOME>/pl
 
 ### OpenCode chain sessions under the service (BTN-214)
 
-Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a script that drove the adapter from a terminal: a launch, a reply that starts with `-`, the transcript and the Tally rows; the session read the project's `CLAUDE.md`. The `checkpoint` package's OpenCode plugin and `Agent.write` (BTN-274) were checked the same way, against a stand-in for the service: the nudge and a chat message after a shell call, the message acted on and shown in the feed, a changelog-style turn with its session deleted after it — never a real handoff, a message from the page or a changelog draft. The plugin's merge check and `CHECKPOINT` line (BTN-288) were checked the same way: a merge of the task branch into a main checkout outside the folder refused by a failing check of a few seconds, and the line added to the last text of a turn that wrote the note. Never a check that passes and lets the merge run, and never one that runs for minutes: if OpenCode gives up on a plugin hook it awaits that long, the merge either runs unchecked or fails with OpenCode's error instead of the check's. Never run as a chain session of the Windows service (session 0) or on Linux and macOS, never on a ChatGPT, Copilot or API-key account, never through a whole task — commits, a merge into the main checkout (`external_directory` is allowed for it), packages' MCP servers through the gateway, plugin skills in `skills.paths`. If OpenCode needs something session 0 lacks, as Codex's sandbox does, the session fails on its first turn with OpenCode's output in the error. **Workaround:** run the task on another provider (a run label) and open an issue with the output.
+Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a script that drove the adapter from a terminal: a launch, a reply that starts with `-`, the transcript and the Tally rows; the session read the project's `CLAUDE.md`. The `checkpoint` package's OpenCode plugin and `Agent.write` (BTN-274) were checked the same way, against a stand-in for the service: the nudge and a chat message after a shell call, the message acted on and shown in the feed, a changelog-style turn with its session deleted after it — never a real handoff or a message from the page. The plugin's merge check and `CHECKPOINT` line (BTN-288) were checked the same way: a merge of the task branch into a main checkout outside the folder refused by a failing check of a few seconds, and the line added to the last text of a turn that wrote the note. Never a check that passes and lets the merge run, and never one that runs for minutes: if OpenCode gives up on a plugin hook it awaits that long, the merge either runs unchecked or fails with OpenCode's error instead of the check's. On 2026-10-25 two tasks of a Linear project ran whole as chain sessions of the Windows service (session 0) on the free `opencode/deepseek-v4.1-flash-free`: each read its issue through the Linear package's MCP server on the gateway, committed, merged into the main checkout and posted its closing comment, and Even Keel closed it; the second turn went on through a restart of the service and its gateway five seconds into it, and the milestone's changelog draft ran as a one-off turn on the same model. Never on Linux and macOS, never on a ChatGPT, Copilot or API-key account, never with plugin skills in `skills.paths`. **Workaround:** run the task on another provider (a run label) and open an issue with the output.
 
 ### A spent limit on OpenCode
 
@@ -402,18 +399,6 @@ A removed key also stops the global folder's daemon (`claude daemon stop --any` 
 ### GitHub attachments of a private repository
 
 Downloading a file attached to an issue comment through the page's file route with the token ran live on a public repository (BTN-278, 2026-10-24): an image came back whole, `inline`. GitHub serves such a file of a public repository without a token too, so that the token gets a private repository's file has not been tried; if it does not, the page cannot open that file (`docs/trackers.md`).
-
-### Milestones on Linear
-
-Filling the milestone of a task that entered the chain without one (`fillMilestone`) was checked on Huly and, in a task feed, on GitHub (BTN-326, 2026-10-23); never on Linear, where an issue without a project is assumed to get the project together with the milestone (`docs/trackers.md`).
-
-### Changing a milestone from the task card on Linear
-
-Checked on Huly and on GitHub (BTN-278, 2026-10-24: another milestone, none — `milestoneId: null` — and back). On Linear the choices are the project milestones of the issue's project and `projectMilestoneId: null` is assumed to clear it. If the tracker refuses, the card puts the old milestone back and shows the error; nothing else changes. **Workaround:** change the milestone in the tracker and press the refresh button in the project head (`docs/trackers.md`).
-
-### The tasks of a milestone on Linear (BTN-142)
-
-`milestoneTasks` was checked live on Huly and on GitHub (BTN-278, 2026-10-24: `milestones(query:)` found the milestone by its title and the draft got its done task). On Linear the default order of `comments` is unknown, so both ends are read and the newer one is kept; if a page of comments holds neither end's newest, the draft gets an older comment for that task. **Workaround:** none needed for the release itself — the draft is a draft; edit it by hand.
 
 ## CI
 
