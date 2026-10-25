@@ -121,7 +121,7 @@ export const en = {
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
   'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
   'intake.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to read and write the repository's issues`,
-  'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (answer its session from the chat, or skip the task)`,
+  'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (fix access and press Resume, answer its session from the chat, or skip the task)`,
   'review.notCompleted': (p: { task: string }) => `${p.task} has nothing to open as a pull request, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
   'review.notReady': (p: { project: string }) =>
     `PR mode of ${p.project} has nowhere to open pull requests, so its chain starts no task; it goes on by itself within a minute once that is fixed, or turn PR mode off`,

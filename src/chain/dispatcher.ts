@@ -188,6 +188,8 @@ export class Dispatcher {
    */
   async start(project: string): Promise<void> {
     this.requireProject(project)
+    const chain = this.chainOf(project)
+    if (chain?.paused && chain.error?.code === 'review.notOpened') return this.resume(project)
     if (this.going(project)) return
     if (!this.hasWork(project)) {
       await this.deps.refresh(project)
@@ -214,7 +216,9 @@ export class Dispatcher {
   resume(project: string): void {
     const chain = this.chainOf(project)
     if (chain === undefined) return
+    const retry = chain.paused && chain.error?.code === 'review.notOpened' ? chain.current?.task : undefined
     this.admit(chain)
+    if (retry !== undefined) this.reviews.retry(retry)
     this.changed()
   }
 
