@@ -436,3 +436,80 @@ describe('Dispatcher polling pull requests', () => {
     expect(saved).toHaveLength(before)
   })
 })
+
+describe('Feedback on the pull request of a chain that ended', () => {
+  /** The chain opens ABC-1's pull request; with `next` it goes on to ABC-2, else it runs out of tasks and ends by itself. */
+  async function outForReview(next = false) {
+    let check = openCheck()
+    const pulls = forge(() => check)
+    const context = setup({ state: runningState(), live: { 'ABC-1': 'old-session' }, reviews: pulls.deps })
+    context.handoffs['ABC-1'] = handoff('old-session')
+    context.dispatcher.setTasks('ABC', next ? [task('ABC-1'), task('ABC-2')] : [task('ABC-1')])
+    await context.dispatcher.idle()
+    expect(pulls.opened).toMatchObject([{ task: 'ABC-1' }])
+    context.handoffs['ABC-1'] = handoff('old-session', null)
+    const feedback = async () => {
+      check = changes()
+      await context.dispatcher.pollReviews()
+      await context.dispatcher.idle()
+    }
+    return { ...context, feedback }
+  }
+
+  const changes = () =>
+    openCheck({ remarks: [{ key: 'review:41', kind: 'changes', author: 'jane', body: 'Rename it.', at: '2026-09-26T12:05:00.000Z', comments: [] }] })
+
+  it('starts the chain again on the task, which takes the feedback, when the chain ended by itself', async () => {
+    const { dispatcher, relays, log, feedback } = await outForReview()
+    expect(dispatcher.state.active).toEqual([])
+    expect(log).toContain('chain: ABC ended, no task left to run')
+
+    await feedback()
+    expect(log).toContain('chain: ABC starts again: feedback came on a pull request of its tasks')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
+    expect(relays[0]?.prompt).toContain('Rename it.')
+  })
+
+  it('leaves the chain stopped when the user stopped it, and the feedback waits for Start', async () => {
+    const { dispatcher, relays, feedback } = await outForReview(true)
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-2')
+    dispatcher.stop('ABC')
+
+    await feedback()
+    expect(dispatcher.state.active).toEqual([])
+    expect(relays).toEqual([])
+    expect(dispatcher.state.reviews.ABC![0]!.feedback).toContain('Rename it.')
+  })
+
+  it('leaves the chain stopped when the user started it again after it ended and stopped it then', async () => {
+    const { dispatcher, launched, feedback } = await outForReview()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-2'])
+    dispatcher.stop('ABC')
+
+    await feedback()
+    expect(dispatcher.state.active).toEqual([])
+  })
+
+  it('leaves a paused chain paused', async () => {
+    const { dispatcher, relays, feedback } = await outForReview(true)
+    dispatcher.state.active[0]!.paused = true
+
+    await feedback()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
+    expect(relays).toEqual([])
+  })
+
+  it('queues the chain when as many chains run as are allowed, and taken off the queue it stays stopped', async () => {
+    const { dispatcher, feedback } = await outForReview()
+    dispatcher.state.active.push({ project: 'XYZ', current: null, paused: true, error: null })
+
+    await feedback()
+    expect(dispatcher.state.queue).toEqual(['ABC'])
+    dispatcher.dequeue('ABC')
+    expect(dispatcher.state.reviews.ABC![0]!.wakes).toBeUndefined()
+  })
+})
