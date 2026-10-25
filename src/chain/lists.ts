@@ -1,7 +1,7 @@
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
-import type { ChainView } from './milestones.js'
+import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
 import { chainOrder, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
 import { admits, isActive } from './rules.js'
@@ -39,13 +39,14 @@ export class TaskLists {
       const extra = { ...(outside.length > 0 && { outside }), ...(reviews.length > 0 && { reviews }) }
       try {
         const order = chainOrder(tasks, this.preferred(project))
-        const { landing, refused } = this.landing(project)
+        const { landing, landingMilestones, refused } = this.landing(project)
         result[project] = {
           order,
           waiting,
           ...extra,
           backlog,
           ...(Object.keys(landing).length > 0 ? { landing } : {}),
+          ...(Object.keys(landingMilestones).length > 0 ? { landingMilestones } : {}),
           ...(Object.keys(refused).length > 0 ? { refused } : {}),
           error: null,
         }
@@ -115,22 +116,27 @@ export class TaskLists {
   }
 
   /** Called only once the chain's own order builds, so a refusal is the task's doing. */
-  private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'refused'> {
+  private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'landingMilestones' | 'refused'> {
     const chain = this.tasks.get(project) ?? []
     const outside = this.outside.get(project) ?? []
     const blockers = (this.waiting.get(project) ?? []).filter((task) => !outside.some((each) => each.id === task.id))
     const landing: Record<string, string | null> = {}
+    const landingMilestones: NonNullable<ProjectOrder['landingMilestones']> = {}
     const refused: Record<string, Notice> = {}
+    const donor = this.deps.fillsMilestone?.(project) ? activeMilestone(chain, this.currentOf(project)) : undefined
     for (const task of [...(this.backlog.get(project) ?? []), ...blockers]) {
       if (!admits(this.deps.rules(project, task.id), task)) continue
-      const tasks = [...chain, task]
+      const planned = [...chain, task, ...blockers.filter((each) => each.id !== task.id)]
+      const candidate = milestoneCandidate(task, donor, planned)
+      const tasks = [...chain, candidate]
       try {
         const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))
         landing[task.id] = order[order.indexOf(task.id) + 1] ?? null
+        if (candidate !== task) landingMilestones[task.id] = candidate.milestone!
       } catch (error) {
         refused[task.id] = noticeOf(error)
       }
     }
-    return { landing, refused }
+    return { landing, landingMilestones, refused }
   }
 }

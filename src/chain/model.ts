@@ -2,7 +2,7 @@ import type { CiVerdict, RedRun } from '../ci/verdict.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
-import type { Task } from '../tracker/model.js'
+import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
 import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
 import type { ChainRules } from './rules.js'
@@ -204,6 +204,8 @@ export interface ProjectOrder {
    * task each would stand right before, `null` for the end. Set when there are any.
    */
   landing?: Record<string, string | null>
+  /** The milestone a landing preview would get on entry; absent when it keeps its own. */
+  landingMilestones?: Record<string, TaskMilestone>
   /** Those of them whose move would leave the chain without an order, with the reason. Set when there are any. */
   refused?: Record<string, Notice>
   /** The project's tasks with a pull request open or closed but not cleaned up after; set when there are any. */
@@ -257,6 +259,8 @@ export interface DispatcherDeps {
   parallel: () => number
   /** The project's chain rules; with a task, the rules of the feed it comes from (BTN-66), whose tracker has statuses of its own. */
   rules: (project: string, task?: string) => ChainRules
+  /** The project's current `fillMilestone` setting; absent means off. */
+  fillsMilestone?: (project: string) => boolean
   /**
    * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
    * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.
