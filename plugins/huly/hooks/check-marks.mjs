@@ -13,12 +13,17 @@ try {
 
 const offenders = offendersIn(input?.tool_input);
 if (offenders.length > 0) {
-  process.stderr.write(
+  const reason =
     "Not sent: Huly's editor cannot open inline code inside bold, italics, strikethrough or a link " +
       "(RangeError: Invalid collection of marks), and the user could no longer edit the text. " +
       "Move the code outside the mark — `**text** `code`` instead of `**text `code`**` — and call the tool again. Found:\n" +
       offenders.map((fragment) => `- ${fragment}`).join("\n") +
-      "\n",
-  );
-  process.exit(2);
+      "\n";
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason,
+    },
+  }));
 }
