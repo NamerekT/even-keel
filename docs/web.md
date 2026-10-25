@@ -170,6 +170,8 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |
 
+`?limit=spend|spendUnknown` holds the current API session on a spending cap with or without a reset date; `/accounts?account=spend|spendUnknown` shows the corresponding account note (BTN-382).
+
 ## Screenshots (`npm run shot`)
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.

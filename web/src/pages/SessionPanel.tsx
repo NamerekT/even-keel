@@ -272,7 +272,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
 
   return (
     <>
-      {note !== null && <p className="notice notice--error">{note}</p>}
+      {note !== null && !(session.apiErrorKind === 'spend' && limit !== null) && <p className="notice notice--error">{note}</p>}
       {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session, state?.account.accounts ?? [])}</p>}
       <FactList>
         <Fact label={t.session.session}>

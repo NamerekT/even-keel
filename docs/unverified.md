@@ -30,6 +30,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
+| 20a | [API spending cap recovery](#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
@@ -87,6 +88,10 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
+
+### API spending cap recovery
+
+The organization's actual refusal was seen on Claude CLI 2.1.310 on 2026-10-25: HTTP 400, `error: unknown`, "reached your specified API usage limits", and an explicit UTC date of renewed access. Parsing that refusal, waiting until its date, and early recovery on a successful key check are covered by tests; the panel and account card were checked on fake states. A real chain has not yet been left through the reset or a raised cap. The phrase "specified workspace API usage limits" is accepted defensively but has not been seen in a live refusal. If its actual wording differs or recovery fails, switch to an available account, or raise the cap and start a new session. Check both automatic recovery paths on a test project before relying on them unattended.
 
 ## Platforms
 

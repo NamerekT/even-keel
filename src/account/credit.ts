@@ -1,3 +1,5 @@
+import { isSpendingLimit, spendingReset } from '../limits/spending.js'
+
 const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=100'
 const MESSAGES_URL = 'https://api.anthropic.com/v1/messages'
 const API_VERSION = '2023-06-01'
@@ -23,7 +25,7 @@ export function checkCredit(key: string, timeoutMs: number, fetchImpl: typeof fe
       headers: { 'x-api-key': key, 'anthropic-version': API_VERSION, 'content-type': 'application/json' },
       pick: (ids) => ids.find((id) => id.includes('haiku')) ?? ids[0] ?? null,
       body: (model) => ({ model, max_tokens: 1, messages: [{ role: 'user', content: '.' }] }),
-      empty: (status, text) => status === 400 && text.toLowerCase().includes(OUT_OF_CREDIT),
+      empty: (status, text) => status === 400 && (text.toLowerCase().includes(OUT_OF_CREDIT) || isSpendingLimit(text)),
     },
     timeoutMs,
     fetchImpl,
@@ -97,6 +99,7 @@ interface Wanted {
   askedAt: number
   checkedAt: number
   restoredAt: string | null
+  spending: { resetsAt: string | null } | null
 }
 
 /**
@@ -109,10 +112,11 @@ export class CreditChecks {
   constructor(private readonly intervalMs: number) {}
 
   /** When the credit of the key came back after the stop at `since`; null — not yet, and the key gets checked. */
-  restoredAfter(key: string, since: string, now: Date): string | null {
+  restoredAfter(key: string, since: string, now: Date, text = ''): string | null {
     const known = this.wanted.get(key)
     if (known === undefined || Date.parse(known.since) < Date.parse(since)) {
-      this.wanted.set(key, { since, askedAt: now.getTime(), checkedAt: now.getTime(), restoredAt: null })
+      const spending = isSpendingLimit(text) ? { resetsAt: spendingReset(text, since) } : null
+      this.wanted.set(key, { since, askedAt: now.getTime(), checkedAt: now.getTime(), restoredAt: null, spending })
       return null
     }
     known.askedAt = now.getTime()
@@ -124,6 +128,11 @@ export class CreditChecks {
     return [...this.wanted]
       .filter(([, want]) => want.restoredAt === null && time - want.askedAt <= 2 * this.intervalMs && time - want.checkedAt >= this.intervalMs)
       .map(([key]) => key)
+  }
+
+  spendingLimit(key: string, now: Date): { resetsAt: string | null } | null {
+    const want = this.wanted.get(key)
+    return want === undefined || want.restoredAt !== null || now.getTime() - want.askedAt > 2 * this.intervalMs ? null : want.spending
   }
 
   note(key: string, verdict: CreditVerdict, now: Date): void {

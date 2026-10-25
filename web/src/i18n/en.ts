@@ -1597,6 +1597,10 @@ export const en: Messages = {
     modelYet: 'The session has not answered yet: the model shows from its first answer',
     limitUnknown: 'The limit reset time is unknown — a new session starts as soon as you switch the account.',
     creditEmpty: 'out of credit',
+    spendEmpty: 'spending limit',
+    spendUntil: (at: string | null) => at === null ? 'API spending limit reached' : `API spending limit until ${at}`,
+    spendWait: (at: string | null) =>
+      `${at === null ? 'The API spending limit reset time is unknown.' : `The API spending limit resets at ${at}.`} The dispatcher checks the key every 5 minutes and continues sooner if the limit is raised. You can also switch the account.`,
     creditOut:
       'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up; switching the account starts a new session at once.',
     limitResume: (at: string) => `After the limit resets at ${at} the dispatcher continues this session — the cache will still be warm.`,
