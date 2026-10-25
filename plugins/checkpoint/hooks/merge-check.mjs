@@ -17,11 +17,11 @@ function readInput() {
 async function main() {
   const input = readInput();
   if (!input || input.tool_name !== "Bash" || !input.session_id) return;
-  const cwd = process.env.CLAUDE_PROJECT_DIR || input.cwd || ".";
+  const cwd = process.env.CLAUDE_PROJECT_DIR || input.cwd || input.tool_input?.workdir || ".";
   const text = await mergeRefusal(input.tool_input?.command, cwd, () => checkOf(input.session_id));
   if (text === null) return;
-  process.stderr.write(text);
-  process.exit(2);
+  // An explicit denial: Codex 0.164.0 ignores exit code 2 alone for the nested shell calls of code mode.
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: text } }));
 }
 
 // Even Keel not answering must never block a merge.

@@ -227,6 +227,38 @@ describe.each(Object.entries(agents))("the standards hook on %s input", (_agent,
   });
 });
 
+describe.each(Object.entries(agents))("the merge check on %s input", (_agent, input) => {
+  let repo;
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "merge-check-"));
+    execFileSync("git", ["init", "-q", "-b", "abc-12/task"], { cwd: repo });
+  });
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  const merge = (session, at) => ({ ...input(session, "PreToolUse", { tool_name: "Bash", tool_input: { command: "git merge --no-edit abc-12/task", ...at.tool } }), cwd: at.cwd });
+
+  it("denies a merge whose check fails explicitly, which Codex code mode honors where it ignores exit code 2", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: [`node -e "console.log('red'); process.exit(4)"`], branch: "main" });
+    const denied = await run("merge-check.mjs", merge(session, { cwd: repo }));
+    expect(denied.code).toBe(0);
+    expect(JSON.parse(denied.stdout).hookSpecificOutput).toEqual({
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: expect.stringMatching(/exited with code 4[\s\S]*red/),
+    });
+    answers.set(`/api/sessions/${session}/check`, { commands: ['node -e "process.exit(0)"'], branch: "main" });
+    expect(await run("merge-check.mjs", merge(session, { cwd: repo }))).toEqual({ code: 0, stdout: "" });
+  });
+
+  it("finds the worktree by the call's workdir when the event has no cwd, as a Codex shell call gives it", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: ['node -e "process.exit(1)"'], branch: "main" });
+    const denied = await run("merge-check.mjs", merge(session, { cwd: undefined, tool: { workdir: repo } }));
+    expect(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecision).toBe("deny");
+  });
+});
+
 // OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the
 // session's folder (a task's worktree) given once when the plugin is made.
 describe("the OpenCode plugin", () => {

@@ -30,6 +30,8 @@ Even Keel takes it from there: it stops the session and starts a new one in the 
 
 A third hook, on `PreToolUse` of Bash, guards the merge of a chain session. When a command runs `git … merge … <branch>` with the branch of the session's own worktree — the session bringing its task into `main` — the hook asks Even Keel for the project's check (`/api/sessions/<id>/check`, the `commands.check` of the project). Even Keel gives the commands only when no CI it counts will judge `main`: the project counts none, or one does not answer. The hook runs them in order in the worktree, through the system shell, 20 minutes each at most; the first that fails blocks the merge, and its command, exit code and the last 60 lines of output go back to the session to fix. A command without `merge`, a merge of another branch, `--abort`, a session Even Keel did not start, or Even Keel not answering within two seconds — the hook lets the command through.
 
+The refusal is an explicit `permissionDecision: deny`, which also blocks nested shell calls from Codex code mode. Codex 0.164.0 was seen to ignore exit code 2 alone for those calls.
+
 ## Messages from the chat
 
 A message the user writes from Even Keel's chat window to a session in the middle of a turn waits in Even Keel's mailbox; the fourth hook, `mailbox.mjs`, takes it (`POST /api/sessions/<id>/mail` with the event) and hands it to the session without stopping it:
