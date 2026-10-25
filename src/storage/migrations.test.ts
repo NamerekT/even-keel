@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -162,8 +163,8 @@ describe('upgradeStorage', () => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
-    it('stamps every file with the new version and changes nothing else', () => {
-      cpSync(sample, dir, { recursive: true })
+    it('stamps every file with the new version and changes nothing else', async () => {
+      await cp(sample, dir, { recursive: true })
       const before = originals()
       upgrade()
       for (const name of names.filter((each) => each.endsWith('.json'))) {
@@ -196,8 +197,8 @@ describe('upgradeStorage', () => {
   describe('v7 to v8', () => {
     const sample = join(root, 'test', 'fixtures', 'schema-v7')
 
-    it('moves agent, codexModel and the shared model into maps by provider and the bypass of the sandbox into the shared execution', () => {
-      cpSync(sample, dir, { recursive: true })
+    it('moves agent, codexModel and the shared model into maps by provider and the bypass of the sandbox into the shared execution', async () => {
+      await cp(sample, dir, { recursive: true })
       put(configFile, { ...json(configFile), model: 'sonnet' })
       upgrade()
       const config = json(configFile)
@@ -217,8 +218,8 @@ describe('upgradeStorage', () => {
       })
     })
 
-    it('moves the active account of the account file into the config, the global folder being the default', () => {
-      cpSync(sample, dir, { recursive: true })
+    it('moves the active account of the account file into the config, the global folder being the default', async () => {
+      await cp(sample, dir, { recursive: true })
       put(state('account.json'), { ...json(state('account.json')), active: 'team-api' })
       upgrade()
       expect(json(configFile).accounts).toEqual({ claude: 'team-api' })

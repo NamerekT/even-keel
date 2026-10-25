@@ -1,4 +1,5 @@
-import { cpSync, existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PGlite, type PGliteOptions } from '@electric-sql/pglite'
 import { inject } from 'vitest'
@@ -14,11 +15,11 @@ if (!(PATCHED in PGlite)) {
   const create = PGlite.create.bind(PGlite)
   Object.assign(PGlite, {
     [PATCHED]: true,
-    create: (first?: string | PGliteOptions, second?: PGliteOptions) => {
+    create: async (first?: string | PGliteOptions, second?: PGliteOptions) => {
       const options: PGliteOptions = typeof first === 'string' ? { ...second, dataDir: first } : { ...first }
       if (options.loadDataDir === undefined) {
         if (options.dataDir === undefined) options.loadDataDir = fresh
-        else if (!existsSync(join(options.dataDir, 'PG_VERSION'))) cpSync(dir, options.dataDir, { recursive: true })
+        else if (!existsSync(join(options.dataDir, 'PG_VERSION'))) await cp(dir, options.dataDir, { recursive: true })
       }
       return create(options)
     },

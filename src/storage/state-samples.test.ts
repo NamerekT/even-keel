@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -25,7 +26,7 @@ describe.each([2, 3, 4, 5, 6, 7, 8, 9])('the frozen sample of schema v%i', { tim
   const listing = () => readdirSync(stateDir).sort()
 
   it('moves into the database whole, keeps the files as imported and does it once', async () => {
-    cpSync(join(root, 'test', 'fixtures', `schema-v${version}`), dir, { recursive: true })
+    await cp(join(root, 'test', 'fixtures', `schema-v${version}`), dir, { recursive: true })
     upgradeStorage({ configFile: join(dir, 'even-keel.config.json'), stateDir, log: () => {} })
     const files = readStateFiles(stateDir)!
     const { db, close } = await prepare()
