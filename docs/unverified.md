@@ -35,7 +35,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 24 | [A command after a green main that restarts Even Keel on Linux and macOS](#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on Linux, macOS | the service stays stopped |
 | 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
-| 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
+| 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix that is over |
 | 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
 | 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex accounts added from the page | a second free account is added and only held afterwards |
 | 29 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
@@ -51,7 +51,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
-| 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, Copilot, OpenCode | a guarded file is edited before its document; the merge still waits for its check |
@@ -131,10 +130,6 @@ If it is wrong: `npx even-keel` fails or the service does not start. Install fro
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
 
 ## The page
-
-### Removing a project on the running service (BTN-118)
-
-Adding a project was checked on a fresh install from the Windows service (BTN-161, 18.10.2026): the wizard on an empty database, and projects of Huly, GitHub and Linear each taking their first task. The removal is covered by tests and was looked at on fake data only: a removal refused by a real live session was never run. If a removal goes through while a session works there, **workaround:** `npm run storage -- config-export`, edit the file, `config-import` it — the service applies it on the fly.
 
 ### The wizard's trust check
 
@@ -440,7 +435,7 @@ A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_M
 
 ### Chains of several projects on one remote (BTN-210)
 
-The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Not run as live chains on the service with a CI: two projects whose pushes race, a red push of one seen by the other. The shared fix (BTN-217) is covered by tests only: while one project fixes a red `main`, the others of the same remote and branch wait at their next launch with a line naming it, and their red pushes start no second fix. What may differ live: the group read from the checkouts' remotes (a project with no remote read yet is in no group, so it may still start a second fix), or a fix that ends in a way the code does not see and leaves the others waiting. **Workaround:** a project waiting on another's fix that is over — "Skip" on that fix session, or close its fix task; to stop sharing at all, put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
+The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Run in Windows Sandbox (2026-10-25) as two live chains on one remote with a CI: their pushes raced, one broke `main`, its project started the fix session, the other's red push logged that the fix was already under way and started none, and its next task launched only once the fix was green. Not seen: a fix that ends in a way the code does not see (stopped, skipped, its task closed by hand) and leaves the others waiting, and a project with no remote read yet, which is in no group and may still start a second fix. **Workaround:** a project waiting on another's fix that is over — "Skip" on that fix session, or close its fix task; to stop sharing at all, put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
 
 ### A conflict resolved by an agent (BTN-369)
 
