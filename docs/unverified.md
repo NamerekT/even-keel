@@ -337,7 +337,7 @@ Checked on Copilot CLI 1.0.98 on Windows from a terminal, on the machine's own s
 
 ### Hooks and plugins in Copilot sessions
 
-GitHub's docs say Copilot runs the hooks of the repository's `.claude/settings.json` and loads a Claude Code plugin from `--plugin-dir` with its skills and hooks; neither was seen. The checkpoint threshold, the chat mailbox and a plugin's hooks rest on it. If Copilot does not run them, a Copilot session never hands over on a full context and gets chat messages only after its turn, and a plugin's hooks do nothing. **Workaround:** keep Copilot for short tasks; send messages between turns.
+The checkpoint package's command hooks from `--plugin-dir` were checked on Copilot CLI 1.0.98 on Windows on 2026-10-25: `cli-check` received `/mail` and `/checkpoint` requests for its session. Repository hooks from `.claude/settings.json`, plugin skill loading, an actual checkpoint threshold crossing and mail delivery into the running turn remain unchecked. If those paths fail, a Copilot session may not hand over on a full context or receive chat messages until its turn ends. **Workaround:** keep Copilot for short tasks; send messages between turns.
 
 ### MCP servers in Copilot sessions
 
