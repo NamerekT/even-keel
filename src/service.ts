@@ -43,15 +43,13 @@ import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf } from './git/changes.js'
 import { TaskWorks, worksOf } from './git/work.js'
 import { commitChangelog } from './git/changelog.js'
-import { ciSource, ciToken, projectTargets } from './ci/adapters.js'
+import { ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
 import { intakeRepo } from './intake/github.js'
 import { Intake, type IntakePlace } from './intake/intake.js'
 import type { IntakeEntry } from './intake/model.js'
-import { SharedSources } from './ci/shared.js'
-import { CiWatch } from './ci/watcher.js'
-import { CiWatches } from './ci/watches.js'
+import { createCiWatches } from './ci/wiring.js'
 import { ConfigStore } from './config-store.js'
 import {
   DEFAULT_BRANCH,
@@ -462,25 +460,16 @@ const ciOn = (profileId: string, hidden: boolean) =>
     .map(({ project, target }) => ({ project, remote: target.remote }))
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
-const ciSources = new SharedSources((target, token) => ciSource(target, token, CI_TIMEOUT_MS))
-const watchSource = (project: string, target: CiTarget) => ciSources.of(target, ciTokenOf(project, target)?.token ?? null)
-const ciWatches = new CiWatches({
-  targets: (repo) => projectTargets(runGit, repo),
-  watch: (project, repo, target) =>
-    new CiWatch({
-      target,
-      source: watchSource(project, target),
-      git: runGit,
-      repo,
-      main: () => branchOf(project),
-      log: (message) => console.log(message),
-      onChange: () => {
-        hub.broadcast('state', getState())
-        dispatcher.check()
-      },
-    }),
-  source: watchSource,
+const ciWatches = createCiWatches({
+  git: runGit,
+  token: (project, target) => ciTokenOf(project, target)?.token ?? null,
+  branch: branchOf,
+  timeoutMs: CI_TIMEOUT_MS,
   log: (message) => console.log(message),
+  onChange: () => {
+    hub.broadcast('state', getState())
+    dispatcher.check()
+  },
 })
 /** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
 const tallyMode = () => configStore.current.tally ?? inferredTallyMode(process.env, existsSync(join(stateDir, 'tally', 'pgdata')))
