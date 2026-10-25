@@ -40,23 +40,28 @@ export function hookRuleFile(path: string, home: string): RuleFile | null {
 }
 
 // A session is logged by a line whose `sessions` has a prefix of its id, as the server attaches them.
-export function journalCheck(text: string, session: string): { logged: boolean; errors: string[] } {
+// `next` is one past the largest numeric id; `taken` are the ids of the session's lines that another line has too.
+export function journalCheck(text: string, session: string): { logged: boolean; errors: string[]; next: number; taken: string[] } {
   const { rows, errors } = parseImports(text)
-  const logged = rows.some((row) => row.sessions.some((prefix) => prefix !== '' && session.startsWith(prefix)))
+  const own = rows.filter((row) => row.sessions.some((prefix) => prefix !== '' && session.startsWith(prefix)))
+  const taken = own.filter((row) => rows.some((other) => other !== row && other.id === row.id)).map((row) => row.id)
+  const next = Math.max(0, ...rows.filter((row) => /^\d+$/.test(row.id)).map((row) => Number(row.id))) + 1
   const lines = text.split(/\r?\n/)
   const short = session.slice(0, 8)
-  const own = errors.filter((error) => lines[error.line - 1]!.includes(short)).map((error) => `line ${error.line}: ${error.message}`)
-  return { logged, errors: logged ? [] : own }
+  const broken = errors.filter((error) => lines[error.line - 1]!.includes(short)).map((error) => `line ${error.line}: ${error.message}`)
+  const logged = own.length > 0
+  return { logged, errors: logged ? [] : broken, next, taken: [...new Set(taken)] }
 }
 
-export function afterEdit(input: HookInput, state: HookState, place: HookPlace): { state: HookState; context: string | null } {
+export function afterEdit(input: HookInput, state: HookState, journal: string | null, place: HookPlace): { state: HookState; context: string | null } {
   const path = input.tool_input?.file_path
   if (!EDIT_TOOLS.has(input.tool_name ?? '') || typeof path !== 'string') return { state, context: null }
   const file = hookRuleFile(path, place.home)
   if (file === null || state.files.includes(file.display)) return { state, context: null }
+  const session = input.session_id ?? ''
   const context =
     `Rule file changed: ${file.display}. Before you end the turn, log why in the rule history — ` +
-    `${format(input.session_id ?? '', place.journal, [file.display])} ` +
+    `${format(session, place.journal, [file.display], journalCheck(journal ?? '', session).next)} ` +
     'If this session already has a line there, add the file to its files instead of a new line.'
   return { state: { ...state, files: [...state.files, file.display] }, context }
 }
@@ -65,19 +70,21 @@ export function beforeStop(input: HookInput, state: HookState, journal: string |
   const fresh = state.files.filter((file) => !state.blocked.includes(file))
   if (input.stop_hook_active === true || fresh.length === 0) return { state, reason: null }
   const session = input.session_id ?? ''
-  const { logged, errors } = journalCheck(journal ?? '', session)
-  if (logged) return { state, reason: null }
+  const { logged, errors, next, taken } = journalCheck(journal ?? '', session)
+  if (logged && taken.length === 0) return { state, reason: null }
   const broken = errors.length === 0 ? '' : ` Lines of this session there do not parse: ${errors.join('; ')}.`
-  const reason =
-    `This session changed rule files (${state.files.join(', ')}), and the rule history has no line with its id in sessions.${broken} ` +
-    `Add it now — ${format(session, place.journal, state.files)} ` +
-    'Then end the turn as before: if your last message ended with a CHECKPOINT: line, end with it again. This reminder comes once.'
+  const ask = logged
+    ? `This session changed rule files (${state.files.join(', ')}), and its line in the rule history has id ${taken.join(', ')}, which another line has too. ` +
+      `Give it id ${next}, the next free one${taken.length > 1 ? ', and the ones after it to the others' : ''}, and keep it after the last line of ${place.journal}. `
+    : `This session changed rule files (${state.files.join(', ')}), and the rule history has no line with its id in sessions.${broken} ` +
+      `Add it now — ${format(session, place.journal, state.files, next)} `
+  const reason = ask + 'Then end the turn as before: if your last message ended with a CHECKPOINT: line, end with it again. This reminder comes once.'
   return { state: { ...state, blocked: [...state.files] }, reason }
 }
 
-function format(session: string, journal: string, files: string[]): string {
+function format(session: string, journal: string, files: string[], next: number): string {
   const example = {
-    id: '<unique in the log>',
+    id: next,
     at: '<ISO time of the edit>',
     atPrecision: 'exact',
     sessions: [session],
@@ -88,7 +95,8 @@ function format(session: string, journal: string, files: string[]): string {
     source: 'session',
   }
   return (
-    `append one JSON line per set of edits to ${journal} (Read it, then Edit; Write only if it does not exist): ${JSON.stringify(example)}. ` +
+    `append one JSON line per set of edits to ${journal}, after the last line (Read it, then Edit with the last line as old_string; Write only if it does not exist), ` +
+    `with id ${next}, the next free one: ${JSON.stringify(example)}. ` +
     `action: ${IMPORT_ACTIONS.join(' | ')}; atPrecision: ${IMPORT_PRECISIONS.join(' | ')}; purpose: one or more of ${RULE_PURPOSES.join(', ')}; ` +
     'summary and reason in the language of the lines already there. The format is `ruleHistory` in tally/CLAUDE.md.'
   )
@@ -111,7 +119,7 @@ export function runHook(raw: unknown, { root, env, home }: HookEnv): object | nu
   const state = readState(stateFile)
 
   if (input.hook_event_name === 'PostToolUse') {
-    const next = afterEdit(input, state ?? EMPTY_STATE, place)
+    const next = afterEdit(input, state ?? EMPTY_STATE, readText(place.journal), place)
     if (next.context === null) return null
     writeState(stateFile, next.state, state === null)
     return { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: next.context } }

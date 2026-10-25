@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -51,14 +51,26 @@ describe('hookRuleFile', () => {
 
 describe('journalCheck', () => {
   it('finds the session by a prefix in sessions, as the server matches it', () => {
-    expect(journalCheck(`${line({ sessions: ['ffff0000'] })}\n${line()}\n`, session)).toEqual({ logged: true, errors: [] })
+    expect(journalCheck(`${line({ id: 6, sessions: ['ffff0000'] })}\n${line()}\n`, session)).toEqual({ logged: true, errors: [], next: 8, taken: [] })
     expect(journalCheck(line({ sessions: [session] }), session).logged).toBe(true)
   })
 
   it('is not logged without a line of the session', () => {
-    expect(journalCheck('', session)).toEqual({ logged: false, errors: [] })
-    expect(journalCheck(line({ sessions: ['ffff0000'] }), session)).toEqual({ logged: false, errors: [] })
+    expect(journalCheck('', session)).toEqual({ logged: false, errors: [], next: 1, taken: [] })
+    expect(journalCheck(line({ sessions: ['ffff0000'] }), session)).toEqual({ logged: false, errors: [], next: 8, taken: [] })
     expect(journalCheck(line({ sessions: [''] }), session).logged).toBe(false)
+  })
+
+  it('gives the next number after the largest one, whatever the order and the type', () => {
+    const text = [line({ id: 21, sessions: ['ffff0000'] }), line({ id: '30', sessions: ['ffff0000'] }), line({ id: 4, sessions: ['ffff0000'] }), line({ id: 'x-1' })].join('\n')
+    expect(journalCheck(text, session).next).toBe(31)
+  })
+
+  it('names the ids of the session that another line took too', () => {
+    const shared = `${line({ id: 21, sessions: ['ffff0000'] })}\n${line({ id: 21 })}\n`
+    expect(journalCheck(shared, session)).toMatchObject({ logged: true, next: 22, taken: ['21'] })
+    expect(journalCheck(`${line({ id: 21, sessions: ['ffff0000'] })}\n${line({ id: '21', sessions: ['eeee0000'] })}\n`, session).taken).toEqual([])
+    expect(journalCheck(`${line({ id: 21 })}\n${line({ id: 21 })}\n`, session).taken).toEqual([])
   })
 
   it('names the broken lines of the session, not the others', () => {
@@ -72,29 +84,37 @@ describe('journalCheck', () => {
 
 describe('afterEdit', () => {
   it('reminds once per rule file and remembers it', () => {
-    const first = afterEdit(edit('C:/Users/Jane/.claude/CLAUDE.md'), EMPTY_STATE, place)
+    const first = afterEdit(edit('C:/Users/Jane/.claude/CLAUDE.md'), EMPTY_STATE, null, place)
     expect(first.state.files).toEqual(['~/.claude/CLAUDE.md'])
     expect(first.context).toContain('~/.claude/CLAUDE.md')
     expect(first.context).toContain(place.journal)
     expect(first.context).toContain(session)
     expect(first.context).toContain('economy, quality, process, infra')
 
-    const again = afterEdit(edit('c:\\Users\\Jane\\.claude\\CLAUDE.md'), first.state, place)
+    const again = afterEdit(edit('c:\\Users\\Jane\\.claude\\CLAUDE.md'), first.state, null, place)
     expect(again).toEqual({ state: first.state, context: null })
 
-    const other = afterEdit(edit('C:/Users/Jane/.claude/skills/coding/SKILL.md'), first.state, place)
+    const other = afterEdit(edit('C:/Users/Jane/.claude/skills/coding/SKILL.md'), first.state, null, place)
     expect(other.state.files).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/coding/SKILL.md'])
     expect(other.context).toContain('~/.claude/skills/coding/SKILL.md')
 
-    const stored = afterEdit(edit('C:\\Users\\Jane\\.claude-skills\\coding\\SKILL.md'), other.state, place)
+    const stored = afterEdit(edit('C:\\Users\\Jane\\.claude-skills\\coding\\SKILL.md'), other.state, null, place)
     expect(stored).toEqual({ state: other.state, context: null })
-    expect(afterEdit(edit('C:/Users/Jane/.claude-skills/coding/SKILL.md'), EMPTY_STATE, place).state.files).toEqual(['~/.claude/skills/coding/SKILL.md'])
+    expect(afterEdit(edit('C:/Users/Jane/.claude-skills/coding/SKILL.md'), EMPTY_STATE, null, place).state.files).toEqual(['~/.claude/skills/coding/SKILL.md'])
+  })
+
+  it('names the next free id and says to add the line at the end', () => {
+    const journal = `${line({ id: 21, sessions: ['ffff0000'] })}\n${line({ id: 22, sessions: ['eeee0000'] })}\n`
+    const { context } = afterEdit(edit('C:/Users/Jane/.claude/CLAUDE.md'), EMPTY_STATE, journal, place)
+    expect(context).toContain('"id":23')
+    expect(context).toContain('after the last line')
+    expect(afterEdit(edit('C:/Users/Jane/.claude/CLAUDE.md'), EMPTY_STATE, null, place).context).toContain('"id":1,')
   })
 
   it('stays silent on other files and other tools', () => {
-    expect(afterEdit(edit('C:/Users/Jane/.claude/projects/x/memory/a.md'), EMPTY_STATE, place)).toEqual({ state: EMPTY_STATE, context: null })
-    expect(afterEdit(edit('C:/Users/Jane/.claude-memory/x/a.md'), EMPTY_STATE, place)).toEqual({ state: EMPTY_STATE, context: null })
-    expect(afterEdit({ ...edit('C:/Users/Jane/.claude/CLAUDE.md'), tool_name: 'Read' }, EMPTY_STATE, place).context).toBeNull()
+    expect(afterEdit(edit('C:/Users/Jane/.claude/projects/x/memory/a.md'), EMPTY_STATE, null, place)).toEqual({ state: EMPTY_STATE, context: null })
+    expect(afterEdit(edit('C:/Users/Jane/.claude-memory/x/a.md'), EMPTY_STATE, null, place)).toEqual({ state: EMPTY_STATE, context: null })
+    expect(afterEdit({ ...edit('C:/Users/Jane/.claude/CLAUDE.md'), tool_name: 'Read' }, EMPTY_STATE, null, place).context).toBeNull()
   })
 })
 
@@ -126,6 +146,21 @@ describe('beforeStop', () => {
   it('names the broken lines of the session', () => {
     expect(beforeStop(stop(), edited, line({ atPrecision: 'minute' }), place).reason).toMatch(/line 1: atPrecision must be one of/)
   })
+
+  it('blocks once when the line of the session took an id of another line, and gives a free one', () => {
+    const journal = `${line({ id: 21, sessions: ['ffff0000'] })}\n${line({ id: 21 })}\n${line({ id: 22, sessions: ['eeee0000'] })}\n`
+    const first = beforeStop(stop(), edited, journal, place)
+    expect(first.reason).toContain('id 21')
+    expect(first.reason).toContain('23')
+    expect(first.reason).toContain('This reminder comes once')
+    expect(first.state.blocked).toEqual(['~/.claude/CLAUDE.md'])
+    expect(beforeStop(stop(), first.state, journal, place).reason).toBeNull()
+  })
+
+  it('lets the stop pass when the id of the session is its own', () => {
+    const journal = `${line({ id: 21, sessions: ['ffff0000'] })}\n${line({ id: 22 })}\n`
+    expect(beforeStop(stop(), edited, journal, place).reason).toBeNull()
+  })
 })
 
 describe('runHook', () => {
@@ -140,10 +175,13 @@ describe('runHook', () => {
     writeFileSync(join(dir, 'tally.config.json'), JSON.stringify({ ruleHistory: 'log/rules.jsonl' }))
     const env = { TALLY_CONFIG: join(dir, 'tally.config.json'), EVEN_KEEL_STATE_DIR: join(dir, 'state') }
     const run = (input: unknown) => runHook(input, { root: dir!, env, home })
+    mkdirSync(join(dir, 'log'))
+    writeFileSync(join(dir, 'log', 'rules.jsonl'), `${line({ sessions: ['ffff0000'] })}\n`)
 
     const reminded = run(edit('C:/Users/Jane/.claude/CLAUDE.md'))
     expect(reminded).toMatchObject({ hookSpecificOutput: { hookEventName: 'PostToolUse' } })
     expect(JSON.stringify(reminded)).toContain(join(dir, 'log', 'rules.jsonl').replaceAll('\\', '/'))
+    expect(JSON.stringify(reminded)).toContain('\\"id\\":8')
     expect(run(edit('C:/Users/Jane/.claude/CLAUDE.md'))).toBeNull()
     expect(JSON.parse(readFileSync(join(dir, 'state', 'rule-hook', `${session}.json`), 'utf8'))).toEqual({ files: ['~/.claude/CLAUDE.md'], blocked: [] })
 
