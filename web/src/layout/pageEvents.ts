@@ -46,7 +46,7 @@ export function pageEvents(state: EventsInput): PageEvent[] {
     events.push({ key: `ask|${session.sessionId}`, kind: 'ask', project, task: session.task })
   }
   for (const [project, forward] of Object.entries(state.forwards)) {
-    if (forward.hold?.code === 'forward.conflict') events.push({ key: `conflict|${project}|${forward.into}`, kind: 'conflict', project, into: forward.into })
+    if (forward.hold?.code === 'forward.conflict' && !forward.agent) events.push({ key: `conflict|${project}|${forward.into}`, kind: 'conflict', project, into: forward.into })
   }
   for (const [project, works] of Object.entries(state.works)) {
     const backlog = state.chain.projects[project]?.backlog ?? []

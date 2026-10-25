@@ -53,6 +53,22 @@ describe('pageEvents', () => {
     expect(pageEvents(input)).toEqual([{ key: 'conflict|p1|p2', kind: 'conflict', project: 'p1', into: 'p2' }])
   })
 
+  it('hides a conflict assigned to the agent and sees it again when the agent is skipped', () => {
+    const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
+    const forward = { into: 'p2', behind: 2, hold, held: true }
+    const conflict = pageEvents({ ...none, forwards: { p1: forward } })
+    const assigned = pageEvents({ ...none, forwards: { p1: { ...forward, agent: 'ABC-CARRY' } } })
+    expect(assigned).toEqual([])
+    expect(freshEvents(new Set(conflict.map((each) => each.key)), assigned)).toEqual([])
+    expect(freshEvents(new Set(assigned.map((each) => each.key)), conflict)).toEqual(conflict)
+  })
+
+  it('shows no conflict toast when the agent takes it automatically', () => {
+    const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
+    const input = { ...none, forwards: { p1: { into: 'p2', behind: 2, hold, held: true, agent: 'ABC-CARRY' } } }
+    expect(freshEvents(new Set(), pageEvents(input))).toEqual([])
+  })
+
   it('sees work left in the folder of a task out of the chain, but not of one in it or with a pull request', () => {
     const work = (files: number, ahead: number) => ({ path: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/task', files, ahead })
     const order = { order: ['ABC-2'], waiting: ['ABC-3'], backlog: ['ABC-1'], error: null }

@@ -202,6 +202,8 @@ The gear in the header has a dot when something is wrong and a **Status** row le
 
 What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict, a task that left the chain with its work not committed or not merged — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
 
+A carry conflict's notification goes away once an agent is assigned, and a conflict assigned automatically gets no notification. If you **Skip** the agent's session while the conflict remains, the notification returns.
+
 ## In the tray (Windows)
 
 On Windows `even-keel install` makes Even Keel start at your sign-in, with no administrator, and puts its icon in the tray: a dot says whether it runs, a chain is paused or a session waits for your answer, and the menu opens the page, restarts Even Keel or quits it. It runs while you are signed in; for a machine nobody signs in to, a clone can still be a Windows service. In full — [As a service](setup.md#as-a-service).
