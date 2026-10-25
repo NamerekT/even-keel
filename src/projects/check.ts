@@ -65,12 +65,12 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   return { repo, entry, yields, tracker, trusted, platform, user: deps.user }
 }
 
-async function checkRepo(
+export async function checkRepo(
   git: Git,
   draft: ProjectDraft,
   raw: unknown,
-  platform: NodeJS.Platform,
-  adapter: TrackerAdapter | undefined,
+  platform: NodeJS.Platform = process.platform,
+  adapter?: TrackerAdapter,
 ): Promise<ProjectCheck['repo']> {
   const path = draft.repo.trim()
   if (path === '') return { root: null, current: null, suggested: null, notice: null }

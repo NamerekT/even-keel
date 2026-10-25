@@ -1602,7 +1602,7 @@ let server = createEvenKeelServer({
         },
         draft,
       ),
-    add: (draft) => addProject({ configStore, profiles }, draft),
+    add: (draft) => addProject({ configStore, profiles, git: runGit }, draft),
     remove: (project) => {
       const repo = configStore.current.projects[project]
       if (repo === undefined) throw fail('config.unknownProject', { key: project })
