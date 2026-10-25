@@ -4,6 +4,7 @@
 // on the threshold itself is measured: the work left is a constant, or a higher threshold would shorten the
 // measured remainder and pull itself up.
 
+import { CLAUDE } from '../claude/name.js'
 import type { CheckpointShares } from '../state.js'
 
 export const DEFAULT_FIRST = 200_000
@@ -61,22 +62,39 @@ export interface SessionCheckpoint {
  */
 export const DEFAULT_SHARES: Readonly<CheckpointShares> = Object.freeze({ first: 72, late: 85, hard: 95 })
 
-const shareOf = (window: number, percent: number) => Math.floor((window * percent) / 100 / 1000) * 1000
+/**
+ * How far short of its window an agent compacts its context by itself (BTN-377): Claude Code about 32k, measured on
+ * 56 auto-compactions of a 250k window at 216–227k and on a 400k window at a median 369k. An agent not here keeps
+ * the shares alone until its point is measured.
+ */
+const COMPACTION_GAP: Readonly<Record<string, number>> = { [CLAUDE]: 32_000 }
+/** How far before that point the late and hard thresholds come at most: room for a large tool result and the note. */
+const BEFORE_COMPACTION = { late: 30_000, hard: 15_000 } as const
+
+const thousands = (tokens: number) => Math.floor(tokens / 1000) * 1000
+const shareOf = (window: number, percent: number) => thousands((window * percent) / 100)
 
 /**
  * The thresholds of one session: a default or calibrated one over the share of its window goes down to it, and
- * the late and hard ones are capped by theirs. One pinned in the settings stays as it is, past the window too,
- * with the hook's own later thresholds: whoever pinned it meant it.
+ * the late and hard ones are capped by theirs and, for an agent whose compaction is measured, by that point less
+ * their margin. One pinned in the settings stays as it is, past the window too, with the hook's own later
+ * thresholds: whoever pinned it meant it.
  */
 export function withinWindow(
   threshold: Pick<SessionCheckpoint, 'first' | 'source'>,
   window: number | null,
   shares: CheckpointShares = DEFAULT_SHARES,
+  agent: string | null = null,
 ): Pick<SessionCheckpoint, 'first' | 'source' | 'late' | 'hard'> {
   if (window === null || threshold.source === 'config') return { ...threshold, late: null, hard: null }
   const cap = shareOf(window, shares.first)
   const first = threshold.first > cap ? { first: cap, source: 'window' as const } : threshold
-  return { ...first, late: shareOf(window, shares.late), hard: shareOf(window, shares.hard) }
+  const gap = agent === null ? undefined : COMPACTION_GAP[agent]
+  const capped = (key: keyof typeof BEFORE_COMPACTION) => {
+    const share = shareOf(window, shares[key])
+    return gap === undefined ? share : Math.min(share, thousands(window - gap - BEFORE_COMPACTION[key]))
+  }
+  return { ...first, late: capped('late'), hard: capped('hard') }
 }
 
 function calibrated(measure: CheckpointMeasure): number | null {

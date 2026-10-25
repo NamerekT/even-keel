@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkpointThreshold, DEFAULT_FIRST, withinWindow, type CheckpointMeasure } from './checkpoint.js'
+import { checkpointThreshold, DEFAULT_FIRST, DEFAULT_SHARES, withinWindow, type CheckpointMeasure } from './checkpoint.js'
 
 describe('withinWindow', () => {
   it('lowers a default or calibrated threshold to the share of the session window, marking it so', () => {
@@ -23,6 +23,22 @@ describe('withinWindow', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, shares)).toEqual({ first: 150_000, source: 'window', late: 225_000, hard: 250_000 })
     expect(withinWindow({ first: 140_000, source: 'calibrated' }, 250_000, shares)).toEqual({ first: 140_000, source: 'calibrated', late: 225_000, hard: 250_000 })
     expect(withinWindow({ first: 999_999, source: 'config' }, 250_000, shares)).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
+  })
+
+  it('keeps the late and hard thresholds of a Claude session before its compaction, about 32k short of the window', () => {
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'claude')).toEqual({ first: 180_000, source: 'window', late: 188_000, hard: 203_000 })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 200_000, DEFAULT_SHARES, 'claude')).toMatchObject({ late: 138_000, hard: 153_000 })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400, DEFAULT_SHARES, 'claude')).toMatchObject({ late: 196_000, hard: 211_000 })
+  })
+
+  it('takes the share when it comes before the compaction', () => {
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 400_000, DEFAULT_SHARES, 'claude')).toMatchObject({ late: 338_000, hard: 353_000 })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 400_000, { first: 50, late: 60, hard: 70 }, 'claude')).toMatchObject({ late: 240_000, hard: 280_000 })
+  })
+
+  it('leaves the shares alone for an agent whose compaction is not measured, and a pinned threshold alone for Claude', () => {
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'codex')).toMatchObject({ late: 212_000, hard: 237_000 })
+    expect(withinWindow({ first: 999_999, source: 'config' }, 250_000, DEFAULT_SHARES, 'claude')).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
   })
 })
 

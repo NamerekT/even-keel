@@ -1738,10 +1738,11 @@ let server = createEvenKeelServer({
   checkpoint: async (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
-    const window = sessions.find((view) => view.sessionId === sessionId)?.contextWindow ?? configStore.current.context.window
+    const view = sessions.find((each) => each.sessionId === sessionId)
+    const window = view?.contextWindow ?? configStore.current.context.window
     const { first, source } = await stats.checkpoint(configStore.current.keys[run.project] ?? run.project, pinnedCheckpoint(run.project))
     const shares = configStore.current.settings[run.project]?.checkpointShares ?? configStore.current.stats.checkpointShares
-    return { ...run, ...withinWindow({ first, source }, window, shares), context: monitor.contextOf(sessionId) ?? null }
+    return { ...run, ...withinWindow({ first, source }, window, shares, view?.agent ?? null), context: monitor.contextOf(sessionId) ?? null }
   },
   handoffNote: async (sessionId) => {
     if (handoffsOf(launches, sessionId) === undefined) return undefined
