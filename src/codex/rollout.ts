@@ -62,6 +62,7 @@ export class RolloutFold {
   private workdir: string | null = null
   private model: string | null = null
   private turnStartedAt: string | null = null
+  private endedTurn: string | null = null
   private readonly mailSeen = new Set<number>()
   private readonly imagePaths = new Map<string, string>()
 
@@ -104,8 +105,10 @@ export class RolloutFold {
       this.pushWindow(payload.model_context_window)
     } else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
     else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
-    else if (payload.type === 'task_complete' && record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
-    else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item))
+    else if (payload.type === 'task_complete') {
+      if (typeof payload.turn_id === 'string') this.endedTurn = payload.turn_id
+      if (record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
+    } else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item), this.endedTurn !== null && payload.turn_id === this.endedTurn)
   }
 
   summary(): TranscriptSummary {
@@ -177,7 +180,8 @@ export class RolloutFold {
     this.addFeed({ at, kind: 'error', text })
   }
 
-  private pushItem(at: string, item: Record<string, unknown> | undefined): void {
+  /** `tail` marks an item of a turn that has already ended, such as a command its end killed: it keeps the turn's error and marks. */
+  private pushItem(at: string, item: Record<string, unknown> | undefined, tail: boolean): void {
     if (item === undefined || item.type === 'Reasoning') return
     this.touch(at)
     if (item.type === 'HookPrompt') {
@@ -194,7 +198,7 @@ export class RolloutFold {
       if (line !== null) this.addFeed(line)
       return
     }
-    this.apiError = null
+    if (!tail) this.apiError = null
     this.lastReplyAt = at
     if (item.type === 'AgentMessage') {
       const message = textOf(item.content)
@@ -207,9 +211,11 @@ export class RolloutFold {
       this.noChanges = noChangesOf(message)
       return
     }
-    this.checkpoint = null
-    this.pullRequest = null
-    this.noChanges = null
+    if (!tail) {
+      this.checkpoint = null
+      this.pullRequest = null
+      this.noChanges = null
+    }
     if (item.type === 'CommandExecution') {
       const command = commandOf(item.command)
       const line: FeedLine = { at, kind: 'tool', text: describeTool(SHELL, { command }, undefined) }
