@@ -752,18 +752,7 @@ export const ru = {
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',
-    leftover: (task: string) => `${task} закрыта, но после неё не всё прошло гладко — проверьте руками.`,
-    dismiss: 'Убрал',
-    forwardWaits: (count: number, into: string) => `${counted('коммит', 'коммита', 'коммитов')(count)} этого проекта ждут переноса в ${into}.`,
-    forwardPushFailed: (into: string) => `Релизная ветка влилась в ${into}, но не отправилась — отправит следующая синхронизация.`,
-    forwardNow: 'Перенести сейчас',
-    forwardConflict: (count: number, from: string, into: string, files: number) =>
-      `${counted('коммит', 'коммита', 'коммитов')(count)} ${from} конфликту${count === 1 ? 'ет' : 'ют'} с ${into} в ${counted('файле', 'файлах', 'файлах')(files)}`,
-    forwardResolve: 'Разрешить агентом',
-    forwardMore: 'Подробнее',
-    forwardAgent: (into: string) => `Агент разрешает конфликт в цепочке ${into}`,
-    forwardAgentAsked: (into: string) => `Агент разрешит конфликт после текущей задачи ${into}`,
-    forwardAgentOpen: 'Открыть',
+    ...projectNoticesRu,
     pullAddRemote: 'Добавьте remote или выключите PR-режим',
     resume: 'Снять с паузы',
     stop: 'Остановить',
@@ -2352,3 +2341,4 @@ export const ru = {
 }
 
 export type Messages = typeof ru
+import { projectNoticesRu } from './project-notices-ru.js'
