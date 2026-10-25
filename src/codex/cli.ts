@@ -151,7 +151,7 @@ export class CodexCli {
     const { name, cwd } = start
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
-    this.registry.save({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
+    await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
     return turn.thread
   }
 
@@ -163,22 +163,34 @@ export class CodexCli {
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })
     const { stopped: _, ...kept } = session
-    this.registry.save({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
+    await this.saveTurn({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
     return sessionId
   }
 
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if (await this.turnLive(session)) {
-      await killTree(session.pid)
-      const deadline = Date.now() + STOP_TIMEOUT_MS
-      while (isAlive(session.pid)) {
-        if (Date.now() > deadline) throw fail('codex.stillRunning', { session: sessionId })
-        await delay(POLL_MS)
-      }
-    }
+    if (await this.turnLive(session)) await this.stopTurn(sessionId, session.pid)
     this.registry.save({ ...session, stopped: true })
+  }
+
+  /** A turn already runs when its record is saved: a failed save must not leave an untracked process. */
+  private async saveTurn(session: CodexSession): Promise<void> {
+    try {
+      this.registry.save(session)
+    } catch (error) {
+      await this.stopTurn(session.sessionId, session.pid)
+      throw error
+    }
+  }
+
+  private async stopTurn(sessionId: string, pid: number): Promise<void> {
+    await killTree(pid)
+    const deadline = Date.now() + STOP_TIMEOUT_MS
+    while (isAlive(pid)) {
+      if (Date.now() > deadline) throw fail('codex.stillRunning', { session: sessionId })
+      await delay(POLL_MS)
+    }
   }
 
   async sessions(home: AccountHome): Promise<AgentEntry[]> {
