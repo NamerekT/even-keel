@@ -86,6 +86,7 @@ import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice
 import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
+import { addProject } from './projects/add.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
 import { checkoutRemotes, ProjectRemotes, remotePeers, remotesIn, repositoryIds, sameRepository } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
@@ -1601,11 +1602,7 @@ let server = createEvenKeelServer({
         },
         draft,
       ),
-    add: (draft) => {
-      const id = configStore.addProject(draft)
-      if (draft.profile !== null) profiles.link(id, draft.profile)
-      console.log(`page: the project ${draft.key.trim()} is added to the config`)
-    },
+    add: (draft) => addProject({ configStore, profiles }, draft),
     remove: (project) => {
       const repo = configStore.current.projects[project]
       if (repo === undefined) throw fail('config.unknownProject', { key: project })
