@@ -49,11 +49,16 @@ export class Handovers {
       const reset = this.deps.limitResetAfter(session.account, session.limit.at, session.limit.text)
       current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), reset)
       this.deps.save(this.state)
+      const when = current.limit.resetsAt === null ? 'reset unknown' : `resets at ${current.limit.resetsAt}`
+      const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
+      this.deps.log(`chain: ${current.task}: limit reached on account ${session.account}; ${when}; next: ${next}`)
     } else if (current.limit.resetsAt === null || isSpendingLimit(session.limit.text)) {
       const reset = this.deps.limitResetAfter(session.account, current.limit.at, session.limit.text)
       if (reset !== null && (current.limit.resetsAt === null || Date.parse(reset) < Date.parse(current.limit.resetsAt))) {
         current.limit = withReset(current.limit, reset, session.warmMs)
         this.deps.save(this.state)
+        const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
+        this.deps.log(`chain: ${current.task}: limit reset updated to ${current.limit.resetsAt}; next: ${next}`)
       }
     }
     const hold = current.limit
@@ -67,6 +72,8 @@ export class Handovers {
     try {
       const sessionId = step === 'resume' ? await this.deps.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
       this.moved(chain, current, step, sessionId, session.sessionId)
+      const how = step === 'resume' ? `resume in session ${sessionId}` : `handoff to new session ${sessionId} from ${session.sessionId}`
+      this.deps.log(`chain: ${current.task}: continued after the limit by ${how}`)
     } catch (error) {
       this.halt(chain, noticeOf(error))
     }
