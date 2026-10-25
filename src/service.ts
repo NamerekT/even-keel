@@ -79,8 +79,8 @@ import { runGit } from './git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { fastForwardMain, syncMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from './git/worktree.js'
-import { exhaustedReset, limitResetAfter } from './limits/model.js'
-import { LimitRetries, noKnownLimit } from './limits/retry.js'
+import { exhaustedReset } from './limits/model.js'
+import { limitRecovery } from './limits/recovery.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
@@ -542,18 +542,14 @@ const reach = new Reachability({
   onChange: (url, up) => console.log(up ? `network: ${url} answers again` : `network: ${url} does not answer; account checks and /usage wait for it`),
 })
 const online = (home: AccountHome) => reach.up(providerUrl(home.agent))
-/** A key account polled for its limits like a subscription (`Agent.keyUsage`: Copilot's token, BTN-341). */
-const spendsByKey = (key: string): boolean => {
-  const home = homes.find(key)
-  return account.apiKey(key) && (home === undefined || agentOf(home).keyUsage !== true)
-}
-const limitRetries = new LimitRetries()
-/** When the chain tries an account again after a limit it hit at `at`: a key's credit back, a window's reset, a growing retry. */
-const retryAfterLimit = (key: string, at: string): string | null => {
-  if (spendsByKey(key)) return account.creditBackAfter(key, at)
-  if (noKnownLimit(limits.limits(key), limits.usage(key))) return limitRetries.retryAfter(key, at)
-  return limitResetAfter(limits.limits(key), at)
-}
+const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
+  homeOf: (key) => homes.find(key),
+  agentOf,
+  apiKey: (key) => account.apiKey(key),
+  creditBackAfter: (key, at) => account.creditBackAfter(key, at),
+  limits: (key) => limits.limits(key),
+  usage: (key) => limits.usage(key),
+})
 
 const limits = new LimitsWatcher({
   file: limitsFile,
