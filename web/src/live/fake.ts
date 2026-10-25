@@ -19,6 +19,7 @@ import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fake
 import { withCarry } from './fakeCarry.js'
 import { withFix } from './fakeFix.js'
 import { withMilestonePreview } from './fakeMilestones.js'
+import { withDragPreview } from './fakeDrag.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
@@ -410,6 +411,7 @@ export function createFakeSource(search: string): LiveSource {
   if (parallel > 1 && current.state !== null) {
     current.state = startChain({ ...current.state, chain: { ...current.state.chain, parallel, queue: current.state.chain.queue.slice(1) } }, 'DEMO', launches)
   }
+  if (params.get('chain') === 'drag' && current.state !== null) current.state = withDragPreview(current.state)
   if (params.get('chain') === 'backlog' && current.state !== null) {
     const { tasks, chain } = current.state
     current.state.tasks = [

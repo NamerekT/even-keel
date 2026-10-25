@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import { isOwnName } from '../../../src/chain/fix.js'
 import type { ChainBlock } from '../state.js'
+import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { moveItem } from '../ui/drag.js'
 import { stillMotion } from '../ui/landing.js'
 import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops, type Bounds, type Box, type Point } from '../ui/reorder.js'
@@ -25,6 +25,8 @@ interface Active {
   id: string
   from: number
   order: string[]
+  rows: string[]
+  blocks: ChainBlock[]
   boxes: Box[]
   area: { width: number; height: number }
   bounds: Bounds
@@ -131,27 +133,30 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     const measure = (state: Active) => {
       const point = listPoint(state.client)
       const shift = { x: point.x - state.grab.x, y: point.y - state.grab.y }
-      const { x: dx, y: dy } = clampShift(state.boxes[state.from]!, state.area, shift)
-      const centers = state.boxes.map((box) => ({ x: box.left + box.width / 2, y: box.top + box.height / 2 }))
+      const { x: dx, y: dy } = clampShift(state.boxes[state.rows.indexOf(state.id)]!, state.area, shift)
+      const centers = state.order.map((id) => {
+        const box = state.boxes[state.rows.indexOf(id)]!
+        return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+      })
       const center = { x: centers[state.from]!.x + dx, y: centers[state.from]!.y + dy }
       return { dx, dy, target: clampDrop(state.bounds, nearestIndex(centers, center), state.from) }
     }
 
     const render = (state: Active) => {
       const { dx, dy, target } = measure(state)
-      const preview = moveItem(state.order, state.from, target)
+      const preview = withOrder(state.blocks, moveItem(state.order, state.from, target)).map((block) => block.id)
       const tops = stackedTops(
         state.boxes,
-        preview.map((id) => state.order.indexOf(id)),
+        preview.map((id) => state.rows.indexOf(id)),
       )
       const offsets = new Map<string, Point>()
-      for (const [index, id] of state.order.entries()) {
+      for (const [index, id] of state.rows.entries()) {
         const slot = state.boxes[preview.indexOf(id)]!
         const own = state.boxes[index]!
         if (id !== state.id && tops[index] !== own.top) offsets.set(id, { x: slot.left - own.left, y: tops[index]! - own.top })
       }
       offsets.set(state.id, { x: dx, y: dy })
-      const related = relatives(state.order, blockersOf(latest.current.blocks), state.id)
+      const related = relatives(state.rows, blockersOf(state.blocks), state.id)
       setDrag({ id: state.id, target, offsets, blockers: new Set(related.blockers), dependents: new Set(related.dependents) })
     }
 
@@ -172,11 +177,12 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       const { blocks } = latest.current
       const open = blocks.filter(inOrder)
       const order = open.map((block) => block.id)
+      const rows = blocks.map((block) => block.id)
       const from = order.indexOf(current.id)
       if (from < 0) return
       const rect = list.getBoundingClientRect()
       const items = [...list.querySelectorAll<HTMLElement>('[data-block]')]
-      const boxes = order.map((id) => {
+      const boxes = rows.map((id) => {
         const box = items.find((item) => item.dataset.block === id)!.getBoundingClientRect()
         return { left: box.left - rect.left, top: box.top - rect.top, width: box.width, height: box.height }
       })
@@ -186,6 +192,8 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
         id: current.id,
         from,
         order,
+        rows,
+        blocks,
         boxes,
         area: { width: rect.width, height: rect.height },
         bounds: dropBounds(order, new Map(open.map((block) => [block.id, block.after])), from, pinned),
@@ -308,11 +316,6 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
 /** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
 export function reorderable(block: ChainBlock): boolean {
   return inOrder(block) && !block.current
-}
-
-/** An open task of the chain's order; the fix and carry sessions are open and have no place in it. */
-export function inOrder(block: ChainBlock): boolean {
-  return block.open && !isOwnName(block.id)
 }
 
 function positions(list: HTMLElement): Map<string, Point> {
