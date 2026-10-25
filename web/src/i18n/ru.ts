@@ -1,3 +1,4 @@
+import { ciRu, ciKindsRu } from './ci-ru.js'
 import { profilesRu } from './profiles-ru.js'
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
@@ -309,48 +310,7 @@ export const ru = {
     title: 'Задачи с ярлыком «Вопрос» ждут ответа в описании — без него сессия, скорее всего, встанет',
     count: counted('вопрос', 'вопроса', 'вопросов'),
   },
-  ci: {
-    chip: 'CI',
-    title: (state: string) => `CI: ${state}. Нажмите, чтобы открыть прогоны`,
-    panel: 'CI проекта',
-    levels: {
-      error: 'API не отвечает',
-      stuck: 'прогон не берут',
-      failure: 'красный',
-      off: 'нет токена',
-      running: 'идёт прогон',
-      success: 'зелёный',
-      idle: 'прогонов нет',
-    },
-    kinds: { forgejo: 'Forgejo', github: 'GitHub Actions' },
-    api: { ok: 'API отвечает', error: 'API не отвечает', off: 'не подключён' },
-    checked: (ago: string) => `проверено ${ago}`,
-    allRuns: 'Все прогоны',
-    openRun: 'Открыть прогон',
-    stuckRun: (span: string) => `Прогон стоит в очереди ${span}: раннер его не берёт`,
-    stuckPush: (commit: string, span: string) => `Пуш ${commit} уже ${span} без прогона: CI его не подхватил`,
-    pushed: (commit: string) => `Пуш ${commit}: ждём прогон`,
-    running: (elapsed: string) => `идёт ${elapsed}`,
-    usual: (median: string) => `обычно ${median}`,
-    took: (duration: string) => `шёл ${duration}`,
-    tasks: 'Задачи пуша',
-    fixTask: 'починка main',
-    fixTaskTitle: 'Строка этой починки в архиве цепочки',
-    jobs: 'Задачи прогона',
-    noJobs: 'Задач прогона пока нет',
-    stepsOnPage: 'Шаги — на странице прогона',
-    history: 'История',
-    showAll: (count: number) => `Показать все ${count}`,
-    noRuns: 'Прогонов ещё не было',
-    status: {
-      queued: 'в очереди',
-      running: 'идёт',
-      success: 'зелёный',
-      failure: 'красный',
-      cancelled: 'отменён',
-      skipped: 'пропущен',
-    },
-  },
+  ci: ciRu,
   cache: {
     ttl: { '5m': '5 мин', '1h': '1 ч' },
     cold: (at: string) => `Кэш промпта остыл в ${at}: следующий ход перечитает весь контекст по цене записи`,
@@ -1108,7 +1068,7 @@ export const ru = {
     ci: 'CI на main',
     ciHint:
       'После слияния задачи и пуша main следующая задача ждёт эти CI. Красный CI чинится первым, до следующей задачи; красное исправление ставит цепочку на паузу.',
-    ciKinds: { forgejo: 'Forgejo Actions', github: 'GitHub Actions' },
+    ciKinds: ciKindsRu,
     ciWait: 'Ждать CI не дольше, мин',
     ciWaitHint: 'Пусто — сколько понадобится. 0 — не ждать: быстрее, но следующая задача может стартовать на сломанном main.',
     ciWaitPlaceholder: 'без ограничения',
