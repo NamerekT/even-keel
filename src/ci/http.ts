@@ -7,6 +7,12 @@ export async function getJson<T>(ci: string, url: string, authorization: string,
   return (await (await request(ci, url, { authorization, accept: 'application/json', denied }, timeoutMs, fetchImpl)).json()) as T
 }
 
+/** GitLab's pagination header; an absent header falls back to the page length at the caller. */
+export async function getJsonPage<T>(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch): Promise<{ rows: T[]; nextPage: string | null }> {
+  const response = await request(ci, url, { authorization, accept: 'application/json' }, timeoutMs, fetchImpl)
+  return { rows: await response.json() as T[], nextPage: response.headers.get('x-next-page') }
+}
+
 /** Redirects are followed: GitHub answers a job log with one to a signed address. */
 export async function getText(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch): Promise<string> {
   return (await request(ci, url, { authorization, accept: 'text/plain' }, timeoutMs, fetchImpl)).text()

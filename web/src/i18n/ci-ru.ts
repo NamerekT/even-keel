@@ -1,4 +1,4 @@
-export const ciKindsRu = { forgejo: 'Forgejo Actions', github: 'GitHub Actions' }
+export const ciKindsRu = { forgejo: 'Forgejo Actions', github: 'GitHub Actions', gitlab: 'GitLab CI' }
 
 export const ciRu = {
   chip: 'CI',
@@ -13,7 +13,7 @@ export const ciRu = {
     success: 'зелёный',
     idle: 'прогонов нет',
   },
-  kinds: { forgejo: 'Forgejo', github: 'GitHub Actions' },
+  kinds: { forgejo: 'Forgejo', github: 'GitHub Actions', gitlab: 'GitLab CI' },
   api: { ok: 'API отвечает', error: 'API не отвечает', off: 'не подключён' },
   checked: (ago: string) => `проверено ${ago}`,
   allRuns: 'Все прогоны',

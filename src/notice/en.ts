@@ -1,7 +1,7 @@
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
-export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo' }
+export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 

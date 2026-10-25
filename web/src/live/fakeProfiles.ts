@@ -152,8 +152,9 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     isDefault: true, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
     login: 'johndoe', expiresAt: new Date(Date.now() + 60 * DAY_MS).toISOString(),
     check: mode === 'gitlab-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'GitLab' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
-    projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+    projects: [], ci: [{ project: 'ABC', remote: 'origin' }], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
   }
+  if (mode === 'gitlab-ci') return { profiles: [gitlab, { ...gitlab, id: '3f0c2b9e-0000-4000-8000-000000000006', name: 'GitLab · deploy', isDefault: false, ci: [] }], kinds: KINDS }
   if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, gitlab, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }

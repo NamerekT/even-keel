@@ -1,33 +1,37 @@
 import type { ProfileKind } from '../profiles/model.js'
 import { CredentialsRefused, type ProfileAccount } from '../tracker/source.js'
+import { forgejoBase, hostOf } from './host.js'
+export { forgejoBase, hostOf } from './host.js'
 
 export const FORGEJO_URL = 'FORGEJO_URL'
 export const FORGEJO_TOKEN = 'FORGEJO_TOKEN'
 
-/** A server's address as the API is asked at: with a scheme (`https://` when it has none), without a trailing slash. */
-export function forgejoBase(url: string): string {
-  const trimmed = url.trim()
-  return (/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`).replace(/\/+$/, '')
-}
-
-/** The host of a profile's address or of a remote's web address, lowercase; `null` — none can be read. */
-export function hostOf(url: string): string | null {
-  try {
-    return new URL(forgejoBase(url)).hostname.toLowerCase() || null
-  } catch {
-    return null
-  }
-}
-
 /** Whom the token signs in as. The user is read with `read:user`, so a token without that right is refused too. */
 export async function forgejoAccount(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<ProfileAccount> {
   const url = values[FORGEJO_URL] ?? ''
+  const gitlabError = () => new Error(`forgejo: ${hostOf(url) ?? url} is GitLab: add a GitLab profile in Trackers and CI`)
+  if (hostOf(url) === 'gitlab.com') throw gitlabError()
   const ask = (path: string) =>
     fetchImpl(`${forgejoBase(url)}/api/v1/${path}`, {
       headers: { authorization: `token ${values[FORGEJO_TOKEN] ?? ''}`, accept: 'application/json', 'user-agent': 'even-keel' },
       signal: AbortSignal.timeout(timeoutMs),
     })
-  await assertForgejo(await ask('version'), url)
+  const version = await ask('version')
+  if (version.headers.has('x-gitlab-meta')) {
+    await version.body?.cancel()
+    throw gitlabError()
+  }
+  try {
+    await assertForgejo(version, url)
+  } catch (error) {
+    const response = await fetchImpl(`${forgejoBase(url)}/api/v4/version`, {
+      headers: { authorization: `Bearer ${values[FORGEJO_TOKEN] ?? ''}`, accept: 'application/json', 'user-agent': 'even-keel' },
+      signal: AbortSignal.timeout(timeoutMs),
+    }).catch(() => null)
+    const body = await response?.json().catch(() => null) as { version?: unknown; revision?: unknown } | null
+    if ((typeof body?.version === 'string' && typeof body?.revision === 'string') || response?.headers.has('x-gitlab-meta') || /\/users\/sign_in/.test(version.url)) throw gitlabError()
+    throw error
+  }
   const response = await ask('user')
   if (response.status === 401 || response.status === 403) {
     await response.body?.cancel()

@@ -386,6 +386,11 @@ export function createFakeSource(search: string): LiveSource {
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   if (params.has('secrets') && current.state !== null) current.state.secrets = fakeSecrets(params.get('secrets'))
   if (params.has('profiles') && current.state !== null) current.state.profiles = fakeProfiles(params.get('profiles'))
+  if (current.state !== null && (params.get('ci')?.startsWith('gitlab') || params.get('profiles') === 'gitlab-ci')) {
+    current.state.remotes = { ...current.state.remotes, ABC: [{ id: 'gitlab.example.com/group/subgroup/app', path: 'subgroup/app' }] }
+    current.state.pullReadiness = { ...current.state.pullReadiness, ABC: notice('review.unsupportedHost', { remote: 'origin', host: 'gitlab.example.com' }) }
+    if (!params.has('profiles')) current.state.profiles = fakeProfiles('gitlab-ci')
+  }
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]

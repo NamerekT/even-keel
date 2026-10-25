@@ -85,6 +85,15 @@ function github(): CiView {
 
 /** `?ci=failure|stuck|push|fixed|error|off|none`; without it ABC has a running Forgejo run and a green GitHub Actions. */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
+  if (kind?.startsWith('gitlab')) {
+    const view = fakeCi(kind.slice(7) || null).ABC![0]!
+    const url = 'https://gitlab.example.com/group/subgroup/app/-/pipelines'
+    const history = view.history.map((run) => ({ ...run, workflow: 'GitLab CI', url: `${url}/${run.id}` }))
+    return { ABC: [{ ...view, kind: 'gitlab', url, history,
+      error: view.error?.code === 'ci.noToken' ? notice('ci.noToken', { kind: 'gitlab' }) : view.error ? notice('ci.unreachable', { ci: 'GitLab CI' }) : null,
+      current: view.current ? { ...view.current, run: history.find((run) => run.id === view.current!.run.id)! } : null,
+    }] }
+  }
   if (kind === 'none') return {}
   const finished = forgejo({ current: { run: HISTORY[0]!, tasks: ['ABC-4'], jobs: [job(1, 'test', 'success', 1_800, 192, false)] }, history: HISTORY })
   const queued = run(41, 'queued', 300, null, '[ABC-5] Экспорт отчёта')

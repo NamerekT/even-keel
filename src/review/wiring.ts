@@ -13,6 +13,7 @@ import type { PullRefusals } from './refusals.js'
 const RUNS_POLLED = 20
 
 export interface ReviewWiring {
+  gitlabUrls?: () => readonly string[]
   git: Git
   repo: (project: string) => string
   main: (project: string) => string
@@ -35,7 +36,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
   /** The remote named, while git still has it on a forge. */
   async function targetOf(project: string, remote: string): Promise<CiTarget> {
     const remotes = await remotesIn(git, wiring.repo(project))
-    const target = pullTarget(remotes.filter(({ name }) => name === remote))
+    const target = pullTarget(remotes.filter(({ name }) => name === remote), wiring.gitlabUrls?.())
     if (target === null) throw fail('review.noRemote', { project })
     if (target.kind === null) throw new NoticeError(unsupportedHost(target))
     return target
@@ -55,7 +56,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
   return {
     on: wiring.on,
     open: async (project, task, session) => {
-      const ready = pullReadiness(project, await remotesIn(git, wiring.repo(project)), (target) => wiring.token(project, target))
+      const ready = pullReadiness(project, await remotesIn(git, wiring.repo(project)), (target) => wiring.token(project, target), wiring.gitlabUrls?.())
       if ('notice' in ready) throw new NoticeError(ready.notice)
       const { target } = ready
       const forge = forgeOf(target, ready.token)

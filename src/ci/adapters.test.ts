@@ -23,6 +23,19 @@ const FORGEJO = { kind: 'forgejo', web: 'https://git.example.com' } as const
 const forgejo = (id: string, isDefault: boolean, url: string) => profile(id, 'forgejo', isDefault, { FORGEJO_URL: url, FORGEJO_TOKEN: `${id}-token` })
 
 describe('ciToken', () => {
+  const lab = (id: string, url = '', isDefault = false) => profile(id, 'gitlab', isDefault, { GITLAB_URL: url, GITLAB_TOKEN: `${id}-token` })
+  const GITLAB = { kind: 'gitlab', web: 'https://gitlab.com' } as const
+
+  it('chooses a GitLab override, then the project profile, then the default on the remote host', () => {
+    const set: ProfileSet = { profiles: [lab('default', '', true), lab('project'), lab('chosen'), lab('elsewhere', 'https://git.example.com', true)], links: { [ABC]: 'project' } }
+    expect(ciToken(GITLAB, set, ABC, 'gitlab')?.profile).toBe('project')
+    expect(ciToken(GITLAB, set, ABC, 'huly')?.profile).toBe('default')
+    expect(ciToken(GITLAB, set, ABC, 'gitlab', { gitlab: 'chosen' })?.profile).toBe('chosen')
+    expect(ciToken(GITLAB, set, ABC, 'gitlab', { gitlab: 'elsewhere' })?.profile).toBe('project')
+    expect(ciToken(GITLAB, set, ABC, 'huly', { gitlab: 'deleted' })?.profile).toBe('default')
+    expect(ciToken({ kind: 'gitlab', web: 'https://unknown.example.com' }, set, ABC, 'gitlab')).toBeNull()
+    expect(ciToken({ kind: 'gitlab', web: 'https://git.example.com' }, set, ABC, 'gitlab')?.profile).toBe('elsewhere')
+  })
   it('gives GitHub Actions the token of the project\'s tracker profile when that is a GitHub one', () => {
     const set: ProfileSet = { profiles: [personal, org], links: { [ABC]: 'org' } }
     expect(ciToken(GITHUB, set, ABC, 'github')).toEqual({ token: 'org-token', profile: 'org' })

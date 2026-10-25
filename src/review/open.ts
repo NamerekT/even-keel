@@ -10,7 +10,7 @@ import type { Forge, Opened } from './model.js'
  * The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205);
  * one on a forge with no adapter gives its host (EKR-8).
  */
-export function pullTarget(remotes: Remote[]): CiTarget | UnsupportedRemote | null {
+export function pullTarget(remotes: Remote[], gitlabUrls: readonly string[] = []): CiTarget | UnsupportedRemote | null {
   const parsed = remotes.flatMap(({ name, url }) => {
     const repo = parseRemote(url)
     return repo === null ? [] : [{ name, repo }]
@@ -18,7 +18,8 @@ export function pullTarget(remotes: Remote[]): CiTarget | UnsupportedRemote | nu
   const chosen = parsed.find(({ name }) => name === 'origin') ?? parsed[0]
   if (chosen === undefined) return null
   const { host, ...repo } = chosen.repo
-  const kind = remoteKind(host)
+  const found = remoteKind(host, gitlabUrls)
+  const kind = found === 'gitlab' ? null : found
   return kind === null ? { kind, remote: chosen.name, host } : { kind, remote: chosen.name, ...repo }
 }
 
@@ -33,8 +34,8 @@ export type PullReadiness ={ target: CiTarget; token: string } | { notice: Notic
  * Whether a project's PR mode has where to go: the remote its pull requests go to and the token for its forge, or why
  * not (EKR-12). `token` — the one a profile has for the remote (`ciToken`), `null` without one.
  */
-export function pullReadiness(project: string, remotes: Remote[], token: (target: CiTarget) => string | null): PullReadiness {
-  const target = pullTarget(remotes)
+export function pullReadiness(project: string, remotes: Remote[], token: (target: CiTarget) => string | null, gitlabUrls: readonly string[] = []): PullReadiness {
+  const target = pullTarget(remotes, gitlabUrls)
   if (target === null) return { notice: notice('review.noRemote', { project }) }
   if (target.kind === null) return { notice: unsupportedHost(target) }
   const found = token(target)

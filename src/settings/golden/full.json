@@ -229,7 +229,8 @@
         "guard": true,
         "kinds": [
           "forgejo",
-          "github"
+          "github",
+          "gitlab"
         ],
         "waitMinutes": null,
         "recheckMain": true,
@@ -267,7 +268,8 @@
         "guard": true,
         "kinds": [
           "forgejo",
-          "github"
+          "github",
+          "gitlab"
         ],
         "waitMinutes": null,
         "recheckMain": true,
@@ -305,7 +307,8 @@
         "guard": true,
         "kinds": [
           "forgejo",
-          "github"
+          "github",
+          "gitlab"
         ],
         "waitMinutes": null,
         "recheckMain": true,
@@ -391,7 +394,8 @@
     "guard": true,
     "kinds": [
       "forgejo",
-      "github"
+      "github",
+      "gitlab"
     ],
     "waitMinutes": null,
     "recheckMain": true,

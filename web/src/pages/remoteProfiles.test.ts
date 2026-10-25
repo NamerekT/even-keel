@@ -16,6 +16,14 @@ const huly = profile('huly', 'huly')
 const ALL = [huly, personal, org, own, bare, elsewhere]
 
 describe('remoteChoices', () => {
+  it('offers GitLab profiles only on the remote host, defaulting an empty address to GitLab.com', () => {
+    const lab = (id: string, url: string) => ({ id, kind: 'gitlab', fields: [{ name: 'GITLAB_URL', secret: false, set: true, value: url }] })
+    const profiles = [...ALL, lab('public', ''), lab('own-lab', 'https://GIT.example.com/lab')]
+    const choices = remoteChoices(profiles, [{ id: 'git.example.com/group/app', path: 'group/app' }])
+    expect(choices.gitlab.map((each) => each.id)).toEqual(['own-lab'])
+    expect(choices.forgejo).toEqual([])
+    expect(remoteChoices(profiles, [{ id: 'gitlab.com/group/app', path: 'group/app' }]).gitlab.map((each) => each.id)).toEqual(['public'])
+  })
   it('offers the GitHub profiles to a project with a github.com remote', () => {
     expect(remoteChoices(ALL, [{ id: 'github.com/octo-org/abc', path: 'octo-org/abc' }]).github.map((each) => each.id)).toEqual(['personal', 'org'])
   })
@@ -33,6 +41,6 @@ describe('remoteChoices', () => {
   })
 
   it('offers nothing to a project with only a local remote', () => {
-    expect(remoteChoices(ALL, [{ id: 'd:/repos/abc.git', path: 'abc' }])).toEqual({ github: [], forgejo: [] })
+    expect(remoteChoices(ALL, [{ id: 'd:/repos/abc.git', path: 'abc' }])).toEqual({ github: [], forgejo: [], gitlab: [] })
   })
 })

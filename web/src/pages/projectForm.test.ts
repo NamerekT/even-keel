@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import type { ProjectForm } from '../../../src/state.js'
 import { fakeConfig } from '../live/fakeConfig.js'
 import { formOf, masksOf, rowsText, standardRows, valuesOf } from './projectForm.js'
+
+it('keeps the GitLab CI selection and remote profile through the project settings draft', () => {
+  const config = fakeConfig()
+  const form: ProjectForm = { ...config.projects.ABC!, ci: { ...config.projects.ABC!.ci, kinds: ['gitlab'] }, remoteProfiles: { gitlab: 'lab-profile' }, own: { 'ci.kinds': ['gitlab'] } }
+  const result = formOf(valuesOf(form, {}), form.name, config.shared)
+  expect(result?.ci.kinds).toEqual(['gitlab'])
+  expect(result?.remoteProfiles).toEqual({ gitlab: 'lab-profile' })
+})
 
 describe("the project form's standards", () => {
   it('go to the draft and back as they were', () => {

@@ -1,7 +1,7 @@
 import { notice, type Notice } from '../notice/notice.js'
 import { STUCK_MS, type CiKind, type CiRun, type CiView } from './model.js'
 
-export const CI_TITLES: Readonly<Record<CiKind, string>> = { forgejo: 'Forgejo', github: 'GitHub Actions' }
+export const CI_TITLES: Readonly<Record<CiKind, string>> = { forgejo: 'Forgejo', github: 'GitHub Actions', gitlab: 'GitLab CI' }
 
 export interface RedRun {
   kind: CiKind
