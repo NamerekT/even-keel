@@ -76,6 +76,11 @@ describe('parseLoginStatus', () => {
     expect(parseLoginStatus('Not logged in\n', auth)).toMatchObject({ loggedIn: false, authMethod: null, email: null })
   })
 
+  it('reads the API key line of codex-cli 0.164', () => {
+    const text = 'API key configured - sk-proj-***xTfMA\nAuthentication is checked when you send a request.\n'
+    expect(parseLoginStatus(text, undefined)).toMatchObject({ loggedIn: true, authMethod: 'api_key', email: null })
+  })
+
   it('does without a readable token', () => {
     expect(parseLoginStatus('Logged in using ChatGPT', '{"tokens":{"id_token":"broken"}}')).toMatchObject({ loggedIn: true, email: null, subscriptionType: null })
   })
