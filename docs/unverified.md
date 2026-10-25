@@ -76,8 +76,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
 | 62 | [Codex compactions on the chain's row](#codex-compactions-on-the-chains-row-btn-299) | Codex | the row's resets counter misses a compaction or counts it twice |
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 64 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 65 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
 | 66 | [The PR mode switch of the settings panel](#the-pr-mode-switch-of-the-settings-panel-ekr-7) | PR mode | the page refuses the switch; turn it on in the config |
 | 66a | [A chain that ended starting again on feedback](#a-chain-that-ended-starting-again-on-feedback-btn-375) | PR mode | feedback waits for **Start**, as before |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
@@ -136,10 +134,6 @@ If it is wrong: `npx even-keel` fails or the service does not start. Install fro
 ### Plugins from a git URL marketplace
 
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
-
-### The first start with the PGlite state database (BTN-198)
-
-The import of `state/even-keel.db` into `state/even-keel/` was tested on the frozen samples and run on a copy of the author's live state (889 launches, 93 handoff snapshots, 10 closed tasks: every table came over whole); backup and export through a live owner, a reader in a worker thread of the owner's process (the way Tally's collector reads) and a restore of the backup were checked on that copy. Not yet by the service itself after an update, with its page and a restart in the middle (`docs/storage.md`). If the start stops on the page with an import error, the file is untouched and nothing was written. **Workaround:** if the state looks wrong after the import, stop Even Keel, delete `state/even-keel/`, rename `even-keel.db.imported` back to `even-keel.db` and start the previous version.
 
 ## The page
 
@@ -253,7 +247,7 @@ Covered by tests only: a session that asks in a tracker comment, moves its task 
 
 ### Chain sessions on the checked CLI (BTN-250)
 
-Checked live: both downloads on Windows x64 (`claude.exe` 2.1.301 by the manifest's sha256, the Codex npm package 0.162.1 by its sha512, ~25 s together) and each copy answering `--version` with its version; that a copy outside the installer's `versions/` starts its daemon and sessions on itself was seen in BTN-248, in a scratch folder; the CLI check (BTN-253, `docs/releases.md`) runs a launch, a resume and a stop on a copy through the adapters, and stops its daemon after them, from a terminal; the OpenCode 1.18.25 and Copilot 1.0.98 copies (BTN-347) passed it the same way on Windows x64. Not run from the service: the first chain launch on the copy, `claude daemon stop --any` of a newer daemon followed by that launch (the next daemon assumed to come from the copy, as from a terminal), whether a terminal's newer `claude --bg` replaces the service's daemon in Windows session 0, and the downloads on Linux, macOS and Windows on ARM (a Linux without glibc is told by Node's report and takes OpenCode's `-musl` and Copilot's `linuxmusl` package; GNU or BSD `tar` unpacks the npm packages). If the daemon comes back on the newer version, the banner keeps naming the account and the sessions run on that version, as before the pin; if a download fails, the log says why and the sessions run on the installed CLI. **Workaround:** Settings → Models, "CLI version", `Installed`.
+Checked live: both downloads on Windows x64 (`claude.exe` 2.1.301 by the manifest's sha256, the Codex npm package 0.162.1 by its sha512, ~25 s together) and each copy answering `--version` with its version; that a copy outside the installer's `versions/` starts its daemon and sessions on itself was seen in BTN-248, in a scratch folder; the CLI check (BTN-253, `docs/releases.md`) runs a launch, a resume and a stop on a copy through the adapters, and stops its daemon after them, from a terminal; the OpenCode 1.18.25 and Copilot 1.0.98 copies (BTN-347) passed it the same way on Windows x64. From the author's Windows service (2026-10-25): with `cli.claude` set to `checked`, the 2.1.310 copy downloaded in 17 s and the chain's sessions launched from it. Not run from the service: `claude daemon stop --any` of a newer daemon followed by that launch (the next daemon assumed to come from the copy, as from a terminal), whether a terminal's newer `claude --bg` replaces the service's daemon in Windows session 0, and the downloads on Linux, macOS and Windows on ARM (a Linux without glibc is told by Node's report and takes OpenCode's `-musl` and Copilot's `linuxmusl` package; GNU or BSD `tar` unpacks the npm packages). If the daemon comes back on the newer version, the banner keeps naming the account and the sessions run on that version, as before the pin; if a download fails, the log says why and the sessions run on the installed CLI. **Workaround:** Settings → Models, "CLI version", `Installed`.
 
 ### A Codex chain session reaching its own compaction
 
@@ -464,10 +458,6 @@ A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_M
 ### A command after a green main that restarts Even Keel
 
 `commands.afterGreen` run as children of the service's node process. The service stops only that process, not its tree — the Windows wrapper (`service/EvenKeelService.cs`, `OnStop`), `KillMode=process` under systemd, `AbandonProcessGroup` under launchd — so a restart command is expected to outlive the stop and start the service again, but that was never run live. If it dies with the service, the service stays stopped, or the commands after the restart one never run. **Workaround:** make the restart the last command, hand it to something outside the service's process tree (a scheduled task, `systemd-run`), or restart by hand (`docs/ci.md`).
-
-### The first start with Forgejo profiles (BTN-201)
-
-Checked live, read-only: a profile built from `FORGEJO_TOKEN` the way `importForgejo` builds it, on the host of this repository's Forgejo remote, signs in through `/api/v1/user` and is the one `ciToken` gives that remote, and the runs come with it; another host gets no token. The import itself, by the service on its own database after an update, is covered only by tests. If the Forgejo CI disappears from the page after the update, the import made no profile for that host (the log says why). **Workaround:** add a Forgejo profile on `/settings` → **Trackers and CI** with the server's address and the token.
 
 ### Chains of several projects on one remote (BTN-210)
 
