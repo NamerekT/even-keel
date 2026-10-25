@@ -46,3 +46,13 @@ export function offendersIn(value) {
   if (value && typeof value === "object") return Object.values(value).flatMap(offendersIn);
   return [];
 }
+
+/** The refusal shared by command hooks and the OpenCode plugin, or null for clean input. */
+export function marksRefusal(value) {
+  const offenders = offendersIn(value);
+  if (offenders.length === 0) return null;
+  return "Not sent: Huly's editor cannot open inline code inside bold, italics, strikethrough or a link " +
+    "(RangeError: Invalid collection of marks), and the user could no longer edit the text. " +
+    "Move the code outside the mark — `**text** `code`` instead of `**text `code`**` — and call the tool again. Found:\n" +
+    offenders.map((fragment) => `- ${fragment}`).join("\n") + "\n";
+}
