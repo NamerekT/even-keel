@@ -113,7 +113,8 @@ function parseEvent(line: string): Record<string, unknown> | undefined {
 export function parseLoginStatus(text: string, authFile: string | undefined): AccountStatus {
   const none = { email: null, orgName: null, subscriptionType: null }
   if (/^Not logged in/m.test(text)) return { loggedIn: false, authMethod: null, ...none }
-  if (/^Logged in using an API key/m.test(text)) return { loggedIn: true, authMethod: 'api_key', ...none }
+  // codex-cli 0.162.1 says "Logged in using an API key", 0.164.0 "API key configured".
+  if (/^(Logged in using an API key|API key configured)/m.test(text)) return { loggedIn: true, authMethod: 'api_key', ...none }
   if (!/^Logged in using ChatGPT/m.test(text)) throw fail('codex.statusUnreadable', {}, { detail: text.trim().slice(0, 200) })
   const claims = tokenClaims(authFile)
   const plan = (claims?.['https://api.openai.com/auth'] as Record<string, unknown> | undefined)?.chatgpt_plan_type
