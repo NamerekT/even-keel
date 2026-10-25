@@ -39,7 +39,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex accounts added from the page | the one-time code shows only in the unfolded CLI output |
 | 29 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
 | 30 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer on the phone |
-| 31 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
 | 32 | [A patched handoff note seen by the Codex Stop hook](#a-patched-handoff-note-seen-by-the-codex-stop-hook) | Codex using apply_patch | a note without the `CHECKPOINT:` line waits for a reply |
 | 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
@@ -190,7 +189,7 @@ Seen live on a Claude chain session (BTN-189, CLI 2.1.302): a text answer and an
 
 ### Chat mail in a real session (BTN-181)
 
-Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message waited for the hook through a 90-second Bash call and went in at its `PostToolUse`; one sent while the closing text streamed went in at `Stop`, and one sent before a question went in at that `AskUserQuestion`'s `PreToolUse`, the question not going out. Each time the model acted on the message at once and the feed showed it as the user's bubble (the shapes are in `docs/sessions.md`, "Chat mailbox"). Not seen: the mailbox's `Stop` block and `checkpoint-mark`'s in one turn. A turn that ends on `CHECKPOINT:` with mail waiting goes on, and its last line may no longer be the mark, so the handoff waits for the next turn's mark.
+Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message waited for the hook through a 90-second Bash call and went in at its `PostToolUse`; one sent while the closing text streamed went in at `Stop`, and one sent before a question went in at that `AskUserQuestion`'s `PreToolUse`, the question not going out. Each time the model acted on the message at once and the feed showed it as the user's bubble (the shapes are in `docs/sessions.md`, "Chat mailbox"). Not seen: the mailbox's `Stop` block and `checkpoint-mark`'s in one turn. A turn that ends on `CHECKPOINT:` with mail waiting goes on, and its last line may no longer be the mark, so the handoff waits for the next turn's mark. The same loss was seen live with `NO CHANGES:` on Codex on 25.10.2026: the session answered the `Stop` mail without repeating the line, and the task waited without Done until a chat message asked for it (BTN-406).
 
 **Workaround:** if the handoff does not come, the session writes the mark again at the end of its next turn; or press "New session".
 
@@ -267,10 +266,6 @@ All five hook events of a plugin were seen running in Codex, and `additionalCont
 ### Project standards on each agent (BTN-359)
 
 The hooks of a project's standards (`docs/sessions.md`, "Project standards") were run by their tests with the inputs Claude Code documents, and live on Codex (0.164.0, 2026-10-25): four chain sessions had their first edit of a screen file refused with `docs/design.md` ("Not yet: … falls under the project's standard"). Assumed, per agent: Codex's compaction fires `SessionStart` with `compact`. Copilot runs the plugin's Claude-format hooks with its own tool names (`view`, `edit`, `create`, `str_replace`) and the path in `path`. OpenCode fires `session.compacted` after a compaction; its PR mode mark is not held, as its turn's end cannot be blocked. If a name or a field differs, that agent's session edits a guarded file without the document, or gets it only once per session; if a compaction is missed, the document is not given again after it. The merge's check is plain files and git and does not depend on the agent. **Workaround:** name the document in the task's text; the merge still waits for the shots and the answers.
-
-### Chat mail at a Codex Stop (BTN-181)
-
-Seen live on 18.10.2026: messages sent during a command reach a Codex session through `PostToolUse`, and the chat shows them from the developer message the hook leaves in the rollout. Not seen: whether a `Stop` `decision: block` keeps the turn going (else the message is counted delivered at `Stop` while the turn ends without it; send it again from the chat), and where the rollout puts its text — the feed looks for the mark in a `UserMessage` too; if it lands elsewhere, the message works but has no bubble in the chat.
 
 ### A patched handoff note seen by the Codex Stop hook
 
