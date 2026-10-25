@@ -62,6 +62,7 @@ describe('handoff_notes', () => {
   beforeAll(async () => {
     db = await PGlite.create()
     await db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'))
+    await db.exec(readFileSync(new URL('./migrations/8-handoff-headings.sql', import.meta.url), 'utf8'))
   }, 30_000)
 
   afterAll(async () => {
@@ -79,6 +80,16 @@ describe('handoff_notes', () => {
       { session_id: 'a', headings: ['ABC-1 — note 1', 'Done', 'Next command'], note_chars: 75, prompt_chars: 5 },
       { session_id: 'b', headings: [], note_chars: null, prompt_chars: 11 },
     ])
+  })
+
+  it('leaves out lines of fenced code blocks', async () => {
+    const note = [
+      '# Real', '```bash', '# comment in a block', 'for q in 0 1; do :; done', '```', '## After',
+      '~~~sh', '# tilde comment', '~~~', '```', '# no language', '```', '### Last',
+    ].join('\r\n')
+    await db.query(`insert into handoffs (session_id, previous, task, reason, source, prompt, note) values ('c', 'a', 'ABC-2', 'relay', 'even-keel', 'x', $1)`, [note])
+    const { rows } = await db.query("select headings from handoff_notes where session_id = 'c'")
+    expect(rows).toEqual([{ headings: ['Real', 'After', 'Last'] }])
   })
 })
 
