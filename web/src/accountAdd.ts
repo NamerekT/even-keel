@@ -133,3 +133,12 @@ export function retryBody(login: AccountLogin): [string, Record<string, unknown>
   if (login.target !== null) return ['account/renew', { account: login.target }]
   return ['account/add', { agent: login.agent, ...(login.method !== undefined && { method: login.method }) }]
 }
+
+/**
+ * A sign-in Even Keel refused for its plan once the CLI had signed in: the CLI output ends in its success, and only
+ * another account makes a new try worth it.
+ */
+export function planRefused(login: AccountLogin): boolean {
+  const code = login.error?.code
+  return code === 'account.secondFree' || code === 'account.sameFree'
+}

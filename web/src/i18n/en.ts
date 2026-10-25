@@ -557,6 +557,8 @@ export const en: Messages = {
       deviceCode: 'Enter this code there',
     },
     picksUp: 'This window picks up the end of the sign-in itself.',
+    otherAccount: 'Sign in with another account',
+    outputBeforePlan: 'CLI output: the sign-in, before the plan check',
     discard: { title: 'Discard what you entered?', question: 'The name and the key typed here are lost.', confirm: 'Discard', cancel: 'Keep editing' },
     stop: {
       title: 'Cancel the sign-in?',

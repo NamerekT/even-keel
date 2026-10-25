@@ -273,11 +273,17 @@ export function missingNotice(agent: string): Notice {
   return notice(agent === CODEX ? 'login.codexMissing' : 'login.claudeMissing', {})
 }
 
-/** Why a Codex sign-in on the free plan is not added: another account already holds the one free plan. */
+/**
+ * Why a Codex sign-in on the free plan is not added: another account already holds the one free plan, or the sign-in
+ * is that very account again.
+ */
 export function secondFreeProblem(accounts: AccountEntry[], agent: string, status: AccountStatus): Notice | undefined {
   if (agent !== CODEX || !isFree(status)) return undefined
   const first = freeCodex(accounts)[0]
-  return first === undefined ? undefined : notice('account.secondFree', { account: first.status?.email ?? first.key })
+  if (first === undefined) return undefined
+  const account = first.status?.email ?? first.key
+  const same = status.email !== null && first.status?.email?.toLowerCase() === status.email.toLowerCase()
+  return notice(same ? 'account.sameFree' : 'account.secondFree', { account })
 }
 
 function freeHeld(accounts: AccountEntry[], key: string): Notice | undefined {

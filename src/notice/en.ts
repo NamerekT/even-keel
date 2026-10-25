@@ -216,7 +216,9 @@ export const en = {
   'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',
   'account.codexHomeKept': () => "codex: Codex's own folder (CODEX_HOME or ~/.codex) is not removed from here",
   'account.secondFree': (p: { account: string }) =>
-    `codex: ${p.account} is already on the free plan; OpenAI's terms do not allow several free accounts to get round the limits, so add a paid one`,
+    `codex: the sign-in went through, but on the free plan, and ${p.account} is already the free account here; OpenAI's terms do not allow several free accounts to get round the limits, so the new folder was signed out and removed and nothing was added. Sign in with a paid account, or move this one to a paid plan and sign in again`,
+  'account.sameFree': (p: { account: string }) =>
+    `codex: the sign-in went through as ${p.account}, the free account already here; the new folder was signed out and removed and nothing was added. To add another account, sign in with a paid one`,
   'account.extraFree': (p: { account: string }) =>
     `codex: a second free Codex account next to ${p.account}; OpenAI's terms do not allow several free accounts to get round the limits, so sessions do not start here until it is on a paid plan`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,

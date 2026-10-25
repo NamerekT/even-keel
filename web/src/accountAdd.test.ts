@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN, SIGN_INS } from '../../src/agent/providers.js'
-import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, retryBody, WAYS, withAdd, withoutAdd } from './accountAdd.js'
+import { notice } from '../../src/notice/notice.js'
+import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, planRefused, retryBody, WAYS, withAdd, withoutAdd } from './accountAdd.js'
 import { PROVIDERS } from './accounts.js'
 
 const search = (text: string) => new URLSearchParams(text)
@@ -138,5 +139,14 @@ describe('retryBody', () => {
     expect(retryBody(login())).toEqual(['account/add', { agent: 'claude' }])
     expect(retryBody(login({ agent: 'opencode', method: 'copilot' }))).toEqual(['account/add', { agent: 'opencode', method: 'copilot' }])
     expect(retryBody(login({ target: 'work' }))).toEqual(['account/renew', { account: 'work' }])
+  })
+})
+
+describe('planRefused', () => {
+  it('tells a sign-in refused for its plan after the CLI signed in from a failed one', () => {
+    expect(planRefused(login({ agent: 'codex', error: notice('account.secondFree', { account: 'john@example.com' }) }))).toBe(true)
+    expect(planRefused(login({ agent: 'codex', error: notice('account.sameFree', { account: 'john@example.com' }) }))).toBe(true)
+    expect(planRefused(login({ error: notice('login.timeout', { minutes: 5 }) }))).toBe(false)
+    expect(planRefused(login())).toBe(false)
   })
 })
