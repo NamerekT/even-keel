@@ -4,6 +4,23 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-10-25
+
+### Changed
+
+- Chain sessions run on Claude Code 2.1.310 and codex-cli 0.164.0, the versions this release was checked against.
+- Tips no longer pop up when the mouse passes over them: a tip opens once the pointer rests on it for 700 ms, at once if another tip was just open, on focus or on a press. The "?" next to a setting opens and closes only on a press.
+- The sessions list of a task says why a new session followed a cold cache: the limit, a fixed main branch, pull request feedback or a task that came back.
+
+### Fixed
+
+- Codex 0.164.0 runs the packages' hooks again. A launch whose hooks Codex does not trust now fails with a message naming the package, the CLI version and each hook, instead of a chain running silently without the merge check, reminders and chat mail.
+- A Codex limit no longer wipes the spent monthly limit, so answers stay refused until it resets. The reset time is read from Codex's own refusal.
+- On Codex, the checkpoint plugin's merge check now stops a merge run from code mode, and a handoff note written by a shell command is noticed when the session forgets the `CHECKPOINT:` line.
+- On Codex, the Huly plugin now refuses a malformed description or comment instead of letting it reach Huly.
+- A project's commands run in the environment of the task's own account. A Codex-only install without `~/.claude` no longer pauses the chain on `beforeStart`; `check` and `afterGreen` run the same way.
+- A session whose turn ended on a question to you while its monitor still runs shows as waiting, not working.
+
 ## [0.1.1] - 2026-10-22
 
 ### Changed
