@@ -161,6 +161,22 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     expect(deps.write).not.toHaveBeenCalled()
   })
 
+  it('tells a section without entries apart from a failed turn and keeps neither', async () => {
+    const { deps, drafts } = setup({ tasks: [task('ABC-1'), task('ABC-3')] })
+    vi.mocked(deps.write).mockResolvedValueOnce({ text: '## [0.1.0]\n\n### Added\n', spend: SPEND })
+    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toMatchObject({ notice: { code: 'changelog.unnoticed', params: { milestone: 'v0.1', tasks: ['ABC-1', 'ABC-3'] } } })
+    vi.mocked(deps.write).mockResolvedValueOnce({ text: '  \n', spend: SPEND })
+    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toMatchObject({ notice: { code: 'changelog.failed', params: { project: 'ABC' } } })
+    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).version.number).toBe(1)
+  })
+
+  it('keeps an edit that leaves the section without entries: the user asked for it', async () => {
+    const { deps, drafts } = setup()
+    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    vi.mocked(deps.write).mockResolvedValueOnce({ text: '## [Unreleased]', spend: SPEND })
+    expect((await drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'Drop everything' })).version).toMatchObject({ number: 2, text: '## [Unreleased]' })
+  })
+
   it('keeps no failed turn: the next call tries again', async () => {
     const { deps, drafts } = setup()
     vi.mocked(deps.write).mockRejectedValueOnce(new Error('agent down'))
