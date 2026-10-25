@@ -27,10 +27,27 @@ const agents = {
 };
 
 describe.each(Object.entries(agents))("check-marks on %s input", (_agent, input) => {
-  it("refuses inline code inside bold and lets clean markdown through", () => {
-    const refused = run("check-marks.mjs", input({ project: "ABC", identifier: "ABC-1", description: "**see `Core`**" }));
-    expect(refused.status).toBe(2);
-    expect(refused.stderr).toMatch(/Not sent/);
-    expect(run("check-marks.mjs", input({ project: "ABC", identifier: "ABC-1", description: "**see** `Core`" })).status).toBe(0);
+  it("denies inline code inside marks with the offending fragments", () => {
+    const refused = run("check-marks.mjs", input({ project: "ABC", identifier: "ABC-1", description: "**see `Core`** and ~~use `Old`~~" }));
+    expect(refused.status).toBe(0);
+    expect(refused.stderr).toBe("");
+    expect(JSON.parse(refused.stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: expect.stringMatching(/Not sent/),
+      },
+    });
+    const reason = JSON.parse(refused.stdout).hookSpecificOutput.permissionDecisionReason;
+    expect(reason).toContain("- **see `Core`**");
+    expect(reason).toContain("- ~~use `Old`~~");
+    expect(reason).toContain("Move the code outside the mark");
+  });
+
+  it("lets clean markdown through without output", () => {
+    const allowed = run("check-marks.mjs", input({ project: "ABC", identifier: "ABC-1", description: "**see** `Core`" }));
+    expect(allowed.status).toBe(0);
+    expect(allowed.stdout).toBe("");
+    expect(allowed.stderr).toBe("");
   });
 });
