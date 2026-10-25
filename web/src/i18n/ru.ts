@@ -1,3 +1,4 @@
+import { profilesRu } from './profiles-ru.js'
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
@@ -20,7 +21,7 @@ const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
 const fixes = counted('починка', 'починки', 'починок')
 const fixOf = (red: string | null) => (red === null ? 'Починка main' : `Починка main: ${red}`)
-const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub' }
+const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub', gitlab: 'Проект на GitLab' }
 
 export const ru = {
   notice: noticesRu,
@@ -1392,6 +1393,8 @@ export const ru = {
       HULY_PASSWORD: 'Пароль для входа в Huly',
       GITHUB_TOKEN: 'Токен GitHub: задачи (Issues), CI и pull requests',
       LINEAR_TOKEN: 'Личный ключ API Linear',
+      GITLAB_URL: 'Адрес сервера GitLab',
+      GITLAB_TOKEN: 'Токен доступа GitLab',
       FORGEJO_TOKEN: 'Токен Forgejo',
     } as Record<string, string>,
   },
@@ -2254,4 +2257,3 @@ export const ru = {
 
 export type Messages = typeof ru
 import { projectNoticesRu } from './project-notices-ru.js'
-import { profilesRu } from './profiles-ru.js'

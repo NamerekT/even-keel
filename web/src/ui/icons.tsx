@@ -351,7 +351,7 @@ export function NestedIcon() {
   )
 }
 
-const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, forgejo: PipelineIcon }
+const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, gitlab: BranchIcon, forgejo: PipelineIcon }
 
 /** A profile's own icon by its kind, a tracker's or a CI's; a key for a kind without one. */
 export function TrackerIcon({ kind }: { kind: string }) {

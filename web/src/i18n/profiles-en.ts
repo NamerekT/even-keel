@@ -22,7 +22,7 @@ export const profilesEn: Messages['profiles'] = {
       kind === 'forgejo'
         ? `Forgejo CI not shown (${remotes}): the token does not see the repository or its Actions, it needs read:repository`
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
-    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', forgejo: 'The CI of an own Forgejo server, no tracker' },
+    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues on GitLab.com or your own server', forgejo: 'The CI of an own Forgejo server, no tracker' },
     pullsRefused: 'PR refused',
     rulesOf: (name) => `Rules: ${name}`,
     rulesFor: (keys) => `Projects on this profile: ${keys}.`,
@@ -37,6 +37,7 @@ export const profilesEn: Messages['profiles'] = {
       huly: "A separate account with access to the projects: its e-mail and password, or a token if your Huly's account settings have an API tokens page.",
       github: "A fine-grained token for the repositories' owner.",
       linear: 'A personal API key.',
+      gitlab: 'A personal access token with the api scope. Leave the address empty for GitLab.com.',
       forgejo: "The server's address and a token. A CI and pull requests take the profile whose host is their remote's.",
     },
     rightsUse: { tracker: 'Tracker', ci: 'CI', pullRequests: 'Pull requests' },
@@ -48,6 +49,7 @@ export const profilesEn: Messages['profiles'] = {
         pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
       },
       linear: { tracker: 'write access' },
+      gitlab: { tracker: 'api scope (reading and writing issues)' },
       forgejo: {
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
         pullRequests: "write:repository (opening a pull request, reading its reviews), read:issue (comments in the pull request's conversation), read:user",
@@ -69,6 +71,8 @@ export const profilesEn: Messages['profiles'] = {
       HULY_PASSWORD: 'The password of that Huly account.',
       GITHUB_TOKEN: 'A fine-grained token for the repositories’ owner, with the rights of each use listed above.',
       LINEAR_TOKEN: 'A personal Linear API key with write access.',
+      GITLAB_URL: 'The GitLab web address, without /api/v4. Empty means https://gitlab.com.',
+      GITLAB_TOKEN: 'A personal access token with the api scope; read_api cannot close issues or post comments.',
       FORGEJO_URL: 'The address of the Forgejo server, as you open it in the browser.',
       FORGEJO_TOKEN: 'An access token with the rights of each use listed above.',
     } as Record<string, string>,
@@ -77,6 +81,7 @@ export const profilesEn: Messages['profiles'] = {
       HULY_WORKSPACE: 'example-workspace',
       HULY_EMAIL: 'john.doe@example.com',
       FORGEJO_URL: 'https://forgejo.example.com',
+      GITLAB_URL: 'https://gitlab.com',
     } as Record<string, string>,
     check: 'Check',
     checking: 'Checking…',

@@ -1,10 +1,11 @@
 import { github } from '../github/adapter.js'
+import { gitlab } from '../gitlab/adapter.js'
 import { huly } from '../huly/adapter.js'
 import { linear } from '../linear/adapter.js'
 import type { KeyRules } from '../packages/keys.js'
 import type { TrackerAdapter } from './source.js'
 
-export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear }
+export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear, gitlab }
 
 /**
  * The tracker of a project whose entry names none: only a file of the current schema meets it, as `config-import` reads

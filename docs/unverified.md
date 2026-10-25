@@ -45,6 +45,8 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
+| 37a | [GitLab Issues](#gitlab-issues) | GitLab.com and self-managed GitLab projects | issues, dependencies or milestones may not reach the chain, or a comment may not reach a waiting session |
+| 37b | [GitLab MCP plugin](#gitlab-mcp-plugin) | GitLab projects with the plugin | a session cannot read or update its issue |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -361,6 +363,14 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ## Trackers
+
+### GitLab Issues
+
+The adapter has fixture tests, but no live project has run through it. A paired live check must cover GitLab.com and a self-managed address (including subgroups), account and token expiry, labels guarding entry, both states, Premium blocking links versus Free related links, work-item parent/children including an older schema, all milestone operations, comments from Reporter/inherited members versus outsiders and the token owner, and completion after a merge. If an API assumption differs, the chain may pause, lose ordering or progress, or fail to receive a trusted answer. **Workaround:** pause the project, inspect and update its issue directly in GitLab, and answer sessions from the page; on Free use manual order or milestones rather than blocking links. GitLab CI and merge-request dispatch are not part of this adapter.
+
+### GitLab MCP plugin
+
+The PAT-capable `@zereight/mcp-gitlab@2.3.11` manifest, gateway key substitution and skill are checked locally, but the package has not been installed and used through the gateway against a real GitLab project. The official MCP cannot use the selected legacy `api` PAT, so a community stdio server is used. Verify its launch, selected profile and self-managed address, issue/label/milestone/work-item tools and token isolation in a chain session. If the command or tool contract differs, a plugin session cannot read or update its task. **Workaround:** disable the plugin and use the adapter with `brief: true`; record comments and decisions in GitLab yourself.
 
 ### Two profiles of one tracker (BTN-200)
 

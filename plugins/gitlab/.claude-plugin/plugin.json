@@ -1,0 +1,7 @@
+{
+  "name": "gitlab",
+  "version": "0.1.0",
+  "description": "GitLab Issues for Even Keel sessions: a PAT-capable MCP server for gitlab.com or a self-managed instance, and the task skill.",
+  "author": { "name": "Even Keel" },
+  "keywords": ["gitlab", "issues", "tracker", "even-keel", "mcp"]
+}

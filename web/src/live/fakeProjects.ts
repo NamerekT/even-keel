@@ -81,26 +81,26 @@ function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['e
   const where = `projects[${state.projects.length}]`
   if (!KEY.test(key)) return notice('config.projectKey', { where: `${where}.key`, value: key })
   // Projects may share a key (BTN-271), but not on GitHub with another repository: the task ids of both would be the same.
-  if (draft.tracker !== 'github') return null
+  if (draft.tracker !== 'github' && draft.tracker !== 'gitlab') return null
   const repo = draft.trackerProject.trim() || null
   const other = state.projects.find((project) => {
     const form = state.config.projects[project]
-    return state.projectKeys[project] === key && form?.tracker === 'github' && form.trackerProject !== repo
+    return state.projectKeys[project] === key && form?.tracker === draft.tracker && form.trackerProject !== repo
   })
   return other === undefined ? null : notice('wizard.keyTaken', { key, project: state.projectLabels[other] ?? other })
 }
 
 function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
-  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : 'Huly'
+  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : name === 'gitlab' ? 'GitLab' : 'Huly'
   if (mode === 'off') {
-    const variables = name === 'github' ? ['GITHUB_TOKEN'] : name === 'linear' ? ['LINEAR_API_KEY'] : ['HULY_URL', 'HULY_EMAIL', 'HULY_PASSWORD', 'HULY_WORKSPACE']
+    const variables = name === 'github' ? ['GITHUB_TOKEN'] : name === 'linear' ? ['LINEAR_API_KEY'] : name === 'gitlab' ? ['GITLAB_TOKEN'] : ['HULY_URL', 'HULY_EMAIL', 'HULY_PASSWORD', 'HULY_WORKSPACE']
     return { ok: false, missing: variables, open: null, openToAll: false, notice: notice('wizard.trackerOff', { tracker: title, variables }) }
   }
   if (mode === 'failed') {
     return { ok: false, missing: [], open: null, openToAll: false, notice: notice('wizard.trackerFailed', { tracker: title }, { detail: 'connect ETIMEDOUT 10.0.0.5:443' }) }
   }
   // The fake GitHub repository is public: the wizard shows its warning.
-  return { ok: true, missing: [], open: 7, openToAll: name === 'github', notice: null }
+  return { ok: true, missing: [], open: 7, openToAll: name === 'github' || name === 'gitlab', notice: null }
 }
 
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */

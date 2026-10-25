@@ -32,6 +32,8 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The English texts of the server's messages: the log and the English page both read them.
 export const en = {
+  'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
+  'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   text: (p: { text: string }) => p.text,
 
   'chain.unknownProject': (p: { project: string }) => `chain: ${p.project} is not a configured project`,
