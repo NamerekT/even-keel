@@ -293,7 +293,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
   const controls = chainControls(status, state.chain.projects[project])
-  const error = (status.kind === 'paused' ? status.error : null) ?? failure
+  const error = failure
   const after = queuedAfter(state.chain, project)
   const off = controls.off === null ? undefined : t.project.off[controls.off]
 
@@ -364,7 +364,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
         </p>
       )}
       <NoticeFixButton project={project} notice={error} />
-      <PullFixButton state={state} project={project} error={status.kind === 'paused' ? status.error : null} />
+      <PullFixButton state={state} project={project} error={error} />
     </>
   )
 }

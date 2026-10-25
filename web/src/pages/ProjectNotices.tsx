@@ -3,11 +3,12 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { activeChain, projectLabel, projectPath } from '../state.js'
+import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
 import { Band, FoldBand } from '../ui/blocks.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { NoticeFixButton } from './FixButtons.js'
-import { forwardTone, warningTasks } from './noticeGroups.js'
+import { PullFixButton } from './PullButtons.js'
+import { forwardTone, projectErrors, warningTasks } from './noticeGroups.js'
 import './projectNotices.css'
 
 export function ProjectNotices({ state, project, rows }: { state: EvenKeelState; project: string; rows: string[] }) {
@@ -16,7 +17,7 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
   const tasks = warningTasks(state.chain.leftovers[project] ?? [], rows)
   const tone = forwardTone(state.forwards[project])
   const count = tasks.length + (tone !== null && tone !== 'error' ? 1 : 0)
-  const error = state.chain.projects[project]?.error
+  const errors = projectErrors(state.chain.projects[project]?.error ?? null, chainStatus(state.chain, project))
   const summary = [
     ...(tasks.length > 0 ? [t.project.cleanupSummary(tasks.slice(0, 3).join(', ') + (tasks.length > 3 ? '…' : ''))] : []),
     ...(tone !== null && tone !== 'error' ? [forwardSummary(state, project)] : []),
@@ -35,12 +36,19 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
       {tone !== null && tone !== 'error' && <Forward state={state} project={project} />}
     </>
   )
-  if (!error && tone === null && count === 0 && failure === null) return null
+  if (errors.length === 0 && tone === null && count === 0 && failure === null) return null
   return (
     <div className="project-notices">
-      {error && (
-        <Band tone="error"><Said notice={error} /></Band>
-      )}
+      {errors.map((error, index) => (
+        <Band key={index} tone="error" action={
+          <>
+            <NoticeFixButton project={project} notice={error} />
+            <PullFixButton state={state} project={project} error={error} />
+          </>
+        }>
+          <Said notice={error} />
+        </Band>
+      ))}
       {tone === 'error' && <Forward state={state} project={project} />}
       {count > 1 ? (
         <FoldBand
