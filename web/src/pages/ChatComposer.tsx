@@ -3,12 +3,14 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
 import { isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
 import { takenFiles } from './chatFiles.js'
+import { sendsReply } from './chatKeys.js'
 import { holdKey, shownAsk } from './composerHold.js'
 import { ChatMail } from './ChatMail.js'
 
@@ -41,6 +43,7 @@ interface Props {
  * outlives a new question.
  */
 export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
+  const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
   const [answered, setAnswered] = useState<string | null>(null)
   const ask = shownAsk(session.ask, answered)
@@ -139,7 +142,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
             rows={ask === null ? 2 : 1}
             value={text}
             disabled={sending}
-            placeholder={t.session.chat.placeholder}
+            placeholder={coarsePointer ? t.session.chat.touchPlaceholder : t.session.chat.placeholder}
             onChange={(event) => setText(event.target.value)}
             onPaste={(event) => {
               // Text goes into the field as usual; a picture or files copied in Explorer go into the list.
@@ -147,7 +150,9 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
               if (pasted.length > 0) attach(pasted)
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) event.currentTarget.form?.requestSubmit()
+              if (!sendsReply(event.nativeEvent, coarsePointer)) return
+              event.preventDefault()
+              event.currentTarget.form?.requestSubmit()
             }}
           />
           <button
