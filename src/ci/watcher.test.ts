@@ -3,9 +3,11 @@ import type { Git } from '../git/types.js'
 import { fail } from '../notice/notice.js'
 import type { CiJob, CiRun, CiSource } from './model.js'
 import { CiWatch, ERROR_RETRY_MS, POLL_MS, PUSH_WINDOW_MS } from './watcher.js'
+import type { CiTarget } from './remote.js'
 
 const TARGET = { kind: 'forgejo' as const, remote: 'origin', web: 'https://forgejo.example.com', owner: 'john', repo: 'app' }
 const GITHUB = { kind: 'github' as const, remote: 'github', web: 'https://github.com', owner: 'john', repo: 'app' }
+const GITLAB = { kind: 'gitlab' as const, remote: 'origin', web: 'https://gitlab.com', owner: 'group/sub', repo: 'app' }
 
 function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   return {
@@ -23,7 +25,7 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: typeof TARGET | typeof GITHUB } = {}) {
+function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: CiTarget } = {}) {
   let main = options.main ?? 'main'
   const branches: (string | undefined)[] = []
   let clock = Date.parse('2026-10-12T12:00:00Z')
@@ -82,6 +84,18 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
 }
 
 describe('CiWatch', () => {
+  it('links GitLab pipelines and hides a CI without access, then recovers after the token is fixed', async () => {
+    expect(setup({ target: GITLAB, source: false }).watch.hidden).toBe(true)
+    const t = setup({ target: GITLAB })
+    expect(t.watch.view.url).toBe('https://gitlab.com/group/sub/app/-/pipelines')
+    t.fail(fail('ci.http', { ci: 'GitLab CI', status: 404 }))
+    await t.watch.tick()
+    expect(t.watch.hidden).toBe(true)
+    t.watch.setSource({ runs: async () => [run(3)], jobs: async () => [] })
+    await t.watch.tick()
+    expect(t.watch.hidden).toBe(false)
+    expect(t.watch.view.current?.run.id).toBe(3)
+  })
   it('scopes every poll to the project branch and drops the previous view when the branch changes live', async () => {
     const t = setup({ main: 'dev' })
     await t.watch.tick()

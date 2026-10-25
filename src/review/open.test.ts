@@ -78,6 +78,10 @@ describe('openPull', () => {
 })
 
 describe('pullTarget', () => {
+  it('keeps GitLab merge requests unsupported, including configured self-managed hosts', () => {
+    expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:group/app.git' }])).toEqual({ kind: null, remote: 'origin', host: 'gitlab.com' })
+    expect(pullTarget([{ name: 'origin', url: 'git@git.example.com:group/app.git' }], ['https://git.example.com'])).toEqual({ kind: null, remote: 'origin', host: 'git.example.com' })
+  })
   it('takes origin when its address parses', () => {
     const remotes = [
       { name: 'github', url: 'git@github.com:acme/app.git' },

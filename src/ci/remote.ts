@@ -1,4 +1,5 @@
 import type { CiKind } from './model.js'
+import { hostOf } from './host.js'
 
 export interface RemoteRepo {
   host: string
@@ -26,23 +27,23 @@ export interface UnsupportedRemote {
 }
 
 /** Public forges of a kind with no adapter yet; a new adapter takes its host out of here. */
-const UNSUPPORTED_HOSTS: ReadonlySet<string> = new Set(['gitlab.com', 'bitbucket.org'])
+const UNSUPPORTED_HOSTS: ReadonlySet<string> = new Set(['bitbucket.org'])
 
 /**
- * The kind of forge a remote's host is: `github.com` is GitHub, a known public host of another forge has none, and any
- * other host is taken for Forgejo — a server of its own on an unknown domain cannot be told by its name; the Forgejo
- * profile's check says when it is not one.
+ * Public GitHub and GitLab hosts, then self-managed GitLab hosts identified by profiles. Unknown hosts stay Forgejo.
  */
-export function remoteKind(host: string): CiKind | null {
+export function remoteKind(host: string, gitlabUrls: readonly string[] = []): CiKind | null {
   const lower = host.toLowerCase()
   if (lower === 'github.com') return 'github'
+  if (lower === 'gitlab.com' || gitlabUrls.some((url) => hostOf(url) === lower)) return 'gitlab'
   return UNSUPPORTED_HOSTS.has(lower) ? null : 'forgejo'
 }
 
-/** Which workflow folders the repository has: `.forgejo/workflows` and `.github/workflows`. */
+/** Workflow folders and the root `.gitlab-ci.yml` file. */
 export interface Workflows {
   forgejo: boolean
   github: boolean
+  gitlab?: boolean
 }
 
 const SCP = /^[\w.-]+@([\w.-]+):(.+)$/
@@ -88,14 +89,33 @@ export function remotesOf(out: string): Remote[] {
 
 // GitHub runs only `.github/workflows`; Forgejo runs `.forgejo/workflows` and falls back to `.github/workflows` when it
 // has none of its own.
-export function ciTargets(remotes: Remote[], workflows: Workflows): CiTarget[] {
-  return remotes.flatMap(({ name, url }) => {
+export function ciTargets(remotes: Remote[], workflows: Workflows, gitlabUrls: readonly string[] = []): CiTarget[] {
+  return remotes.flatMap<CiTarget>(({ name, url }) => {
     const parsed = parseRemote(url)
     if (parsed === null) return []
     const { host, ...repo } = parsed
-    const kind = remoteKind(host)
+    const kind = remoteKind(host, gitlabUrls)
     if (kind === null) return []
+    if (kind === 'gitlab') {
+      const gitlab = gitlabRepo(url, host, gitlabUrls)
+      return workflows.gitlab && gitlab ? [{ kind, remote: name, ...gitlab }] : []
+    }
     const runs = kind === 'github' ? workflows.github : workflows.forgejo || workflows.github
     return runs ? [{ kind, remote: name, ...repo }] : []
   })
+}
+
+/** GitLab groups are part of the project path; only a configured installation prefix belongs to the server. */
+function gitlabRepo(url: string, host: string, bases: readonly string[]): Omit<RemoteRepo, 'host'> | null {
+  const scp = url.includes('://') ? null : SCP.exec(url)
+  const parsed = scp ? null : new URL(url)
+  const base = new URL(bases.find((base) => hostOf(base) === host.toLowerCase()) ?? (parsed && parsed.protocol !== 'ssh:' ? parsed.origin : `https://${host}`))
+  const prefix = base.pathname.replace(/\/+$/, '')
+  const path = `/${(scp ? scp[2]! : parsed!.pathname).replace(/^\/+/, '')}`.replace(/\.git\/?$/, '')
+  // SSH paths start at the project namespace; only HTTP remotes carry the installation prefix.
+  const web = parsed !== null && parsed.protocol !== 'ssh:'
+  if (web && prefix && !path.startsWith(`${prefix}/`)) return null
+  const parts = path.slice(web ? prefix.length : 0).split('/').filter(Boolean).map(decodeURIComponent)
+  if (parts.length < 2) return null
+  return { web: `${base.origin}${prefix}`, owner: parts.slice(0, -1).join('/'), repo: parts.at(-1)! }
 }

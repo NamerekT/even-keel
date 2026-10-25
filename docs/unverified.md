@@ -47,6 +47,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37a | [GitLab Issues](#gitlab-issues) | GitLab.com and self-managed GitLab projects | issues, dependencies or milestones may not reach the chain, or a comment may not reach a waiting session |
 | 37b | [GitLab MCP plugin](#gitlab-mcp-plugin) | GitLab projects with the plugin | a session cannot read or update its issue |
+| 37c | [GitLab CI](#gitlab-ci) | projects with GitLab.com or self-managed remotes | pipelines may be hidden, have the wrong timing, or fail to guard the next launch |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -87,6 +88,10 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 The organization's actual refusal was seen on Claude CLI 2.1.310 on 2026-10-25: HTTP 400, `error: unknown`, "reached your specified API usage limits", and an explicit UTC date of renewed access. Parsing that refusal, waiting until its date, and early recovery on a successful key check are covered by tests; the panel and account card were checked on fake states. A real chain has not yet been left through the reset or a raised cap. The phrase "specified workspace API usage limits" is accepted defensively but has not been seen in a live refusal. If its actual wording differs or recovery fails, switch to an available account, or raise the cap and start a new session. Check both automatic recovery paths on a test project before relying on them unattended.
 
 ## Platforms
+
+### GitLab CI
+
+The CI adapter is checked against API fixtures and the GitLab API documentation, and the interface against fake states. A real GitLab.com or self-managed pipeline has not been polled yet. Host detection from GitLab profiles, nested groups and installation prefixes, branch filters, pipeline timing, jobs pagination, manual and scheduled statuses, profile selection, shared polling and hiding a refused CI still need the paired live check. If an API response or access rule differs, the badge may disappear or the chain may wait for an unavailable verdict. Use the project's check commands as a fallback, leave GitLab outside its counted CIs until the check passes, and inspect the pipeline on GitLab. Merge requests are not supported.
 
 ### macOS
 

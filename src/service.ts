@@ -43,7 +43,7 @@ import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf } from './git/changes.js'
 import { TaskWorks, worksOf } from './git/work.js'
 import { commitChangelog } from './git/changelog.js'
-import { ciToken, projectTargets } from './ci/adapters.js'
+import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
 import { intakeRepo } from './intake/github.js'
@@ -220,7 +220,7 @@ const envFile = loadEnv()
 /** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
 const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
 /** The trackers' and Forgejo's credentials (BTN-200, BTN-201); the first start makes them of the variables of `.env`. */
-await importProfiles({
+const trackerProfiles = await importProfiles({
   db,
   env: process.env,
   adapters: ADAPTERS,
@@ -231,7 +231,7 @@ const importedProfiles = await importForgejo({
   db,
   env: process.env,
   webs: async () => {
-    const targets = await Promise.all(Object.values(configStore.current.projects).map((repo) => projectTargets(runGit, repo).catch(() => [])))
+    const targets = await Promise.all(Object.values(configStore.current.projects).map((repo) => projectTargets(runGit, repo, trackerProfiles.profiles).catch(() => [])))
     return targets.flat().flatMap((target) => (target.kind === 'forgejo' ? [target.web] : []))
   },
   log: (line) => console.log(line),
@@ -447,8 +447,7 @@ const trackers = new Trackers({
   log: (line) => console.log(line),
 })
 /**
- * The token of the project's CI on the remote: a GitHub profile's (BTN-200) or the Forgejo profile's on its host
- * (BTN-201), the one its `remoteProfiles` names first (BTN-231).
+ * The remote's CI token from the project's explicit choice or the automatic profile of its forge and host.
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
@@ -461,6 +460,7 @@ const ciOn = (profileId: string, hidden: boolean) =>
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
 const ciWatches = createCiWatches({
+  profiles: () => profiles.current().profiles,
   git: runGit,
   token: (project, target) => ciTokenOf(project, target)?.token ?? null,
   branch: branchOf,
@@ -648,6 +648,7 @@ const profiles: Profiles = new Profiles({
   onChange: (set) => {
     trackers.apply(readers(), set)
     ciWatches.tokensChanged()
+    void ciWatches.refresh()
     dispatcher.check()
     hub.broadcast('state', getState())
   },
@@ -662,7 +663,7 @@ const profileBlock = (project: string): Notice | undefined => {
   return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project: projectLabel(configStore.current, project) })
 }
 /** Whether pull requests of the project in PR mode have where to go, by the remotes given (EKR-12). */
-const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(project, urls, (target) => ciTokenOf(project, target)?.token ?? null)
+const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(project, urls, (target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls(profiles.current().profiles))
 /**
  * PR mode with nowhere to open pull requests: no session of the project starts (EKR-12). The remotes are those
  * reread each minute, so one added by hand lifts it without a restart; a project not read yet is not held.
@@ -1174,6 +1175,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   refresh: async (project) => void (await refreshProject(project)),
   log: (message) => console.log(message),
   reviews: reviewDeps({
+    gitlabUrls: () => gitlabUrls(profiles.current().profiles),
     git: runGit,
     repo: (project) => configStore.current.projects[project]!,
     main: branchOf,

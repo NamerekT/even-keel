@@ -285,7 +285,7 @@ describe('parseConfig', () => {
   })
 
   it('rejects remote profiles of an unknown kind or not a map', () => {
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { gitlab: 'x' } } } })).toThrow(/ABC.remoteProfiles/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { unknown: 'x' } } } })).toThrow(/ABC.remoteProfiles/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: ['x'] } } })).toThrow(/ABC.remoteProfiles/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { github: 1 } } } })).toThrow(/ABC.remoteProfiles/)
   })
@@ -354,8 +354,8 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', standards: [{ doc: 'docs/design.md', files: [] }] } } })).toThrow(/ABC.standards/)
   })
 
-  it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {
-    expect(DEFAULT_CI).toEqual({ guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false })
+  it('counts all supported CIs and waits for them as long as it takes unless the project says otherwise', () => {
+    expect(DEFAULT_CI).toEqual({ guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false })
     const config = parse({
       projects: {
         ABC: { repo: 'C:\\abc', ci: { kinds: ['github'], waitMinutes: 15 } },

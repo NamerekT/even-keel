@@ -21,8 +21,10 @@ export const profilesEn: Messages['profiles'] = {
     hiddenCi: (remotes, kind) =>
       kind === 'forgejo'
         ? `Forgejo CI not shown (${remotes}): the token does not see the repository or its Actions, it needs read:repository`
+        : kind === 'gitlab'
+          ? `GitLab CI not shown (${remotes}): the token does not reach the project's pipelines, check its api scope and project access`
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
-    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues on GitLab.com or your own server', forgejo: 'The CI of an own Forgejo server, no tracker' },
+    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues and CI on GitLab.com or your own server', forgejo: 'The CI of an own Forgejo server, no tracker' },
     pullsRefused: 'PR refused',
     rulesOf: (name) => `Rules: ${name}`,
     rulesFor: (keys) => `Projects on this profile: ${keys}.`,
@@ -49,7 +51,7 @@ export const profilesEn: Messages['profiles'] = {
         pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
       },
       linear: { tracker: 'write access' },
-      gitlab: { tracker: 'api scope (reading and writing issues)' },
+      gitlab: { tracker: 'api scope (reading and writing issues)', ci: 'api scope, with access to the project and its pipelines' },
       forgejo: {
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
         pullRequests: "write:repository (opening a pull request, reading its reviews), read:issue (comments in the pull request's conversation), read:user",

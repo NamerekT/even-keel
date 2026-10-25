@@ -21,12 +21,14 @@ export const profilesRu = {
     hiddenCi: (remotes: string, kind: string) =>
       kind === 'forgejo'
         ? `CI Forgejo не показывается (${remotes}): токен не видит репозиторий или его Actions, нужно право read:repository`
+        : kind === 'gitlab'
+          ? `GitLab CI не показывается (${remotes}): токен не достаёт до прогонов проекта, проверьте scope api и доступ к проекту`
         : `GitHub Actions не показываются (${remotes}): токен не достаёт до Actions репозитория, нужно право Actions: Read`,
     kindHint: {
       huly: 'Свой сервер или облако Huly',
       github: 'Issues и Actions на github.com',
       linear: 'Рабочее пространство Linear',
-      gitlab: 'Задачи на GitLab.com или своём сервере',
+      gitlab: 'Задачи и CI на GitLab.com или своём сервере',
       forgejo: 'CI своего сервера Forgejo, не трекер',
     } as Record<string, string>,
     pullsRefused: 'PR отклонён',
@@ -55,7 +57,7 @@ export const profilesRu = {
         pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
       },
       linear: { tracker: 'право записи' },
-      gitlab: { tracker: 'scope api (чтение и запись задач)' },
+      gitlab: { tracker: 'scope api (чтение и запись задач)', ci: 'scope api и доступ к проекту и его прогонам' },
       forgejo: {
         ci: 'read:repository (репозитории и их Actions), read:user (проверка входа)',
         pullRequests: 'write:repository (открыть PR, читать его ревью), read:issue (комментарии в обсуждении PR), read:user',

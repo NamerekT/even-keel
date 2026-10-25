@@ -1,6 +1,6 @@
 import type { Notice } from '../notice/notice.js'
 
-export const CI_KINDS = ['forgejo', 'github'] as const
+export const CI_KINDS = ['forgejo', 'github', 'gitlab'] as const
 
 export type CiKind = (typeof CI_KINDS)[number]
 

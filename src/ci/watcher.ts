@@ -44,7 +44,7 @@ export class CiWatch {
     this.view = {
       kind,
       remote,
-      url: `${web}/${owner}/${repo}/actions`,
+      url: `${web}/${owner}/${repo}/${kind === 'gitlab' ? '-/pipelines' : 'actions'}`,
       health: deps.source === null ? 'off' : 'ok',
       error: deps.source === null ? notice('ci.noToken', { kind }) : null,
       checkedAt: null,
@@ -57,7 +57,7 @@ export class CiWatch {
 
   /**
    * A CI no profile's token reaches — none at all, or the API refuses it or does not show the repository — is not shown
-   * and does not judge a main: GitHub Actions since BTN-200, Forgejo since BTN-201.
+   * and does not judge a main, for every forge.
    */
   get hidden(): boolean {
     if (this.source === null) return true

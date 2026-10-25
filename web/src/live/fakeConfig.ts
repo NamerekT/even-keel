@@ -53,7 +53,7 @@ export const FAKE_VOCABULARY: TrackerVocabulary = {
   milestones: ['v1.0', 'v1.1', 'v2.0'],
 }
 
-const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }
+const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false }
 
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,

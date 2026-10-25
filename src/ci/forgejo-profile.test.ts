@@ -5,6 +5,13 @@ import { FORGEJO_PROFILE, forgejoAccount, hostOf } from './forgejo-profile.js'
 const VALUES = { FORGEJO_URL: 'git.example.com/', FORGEJO_TOKEN: 'example-token' }
 
 describe('forgejoAccount', () => {
+  it('recognizes GitLab on its public or own host and points to the GitLab profile', async () => {
+    const fetchImpl = (async (url: string) => url.includes('/api/v4/')
+      ? Response.json({ version: '18.5.0', revision: 'abc123' })
+      : new Response('<html>Sign in</html>', { headers: { 'content-type': 'text/html' } })) as typeof fetch
+    await expect(forgejoAccount(VALUES, 1_000, fetchImpl)).rejects.toThrow('GitLab profile')
+    await expect(forgejoAccount({ ...VALUES, FORGEJO_URL: 'https://gitlab.com' }, 1_000, fetchImpl)).rejects.toThrow('GitLab profile')
+  })
   it('signs in as the token\'s user and names the profile by the host', async () => {
     const asked: string[] = []
     const fetch = (async (url: string, init: RequestInit) => {
