@@ -116,6 +116,8 @@ export interface SessionMcp {
 
 /** A plugin package's install: its copy, and the marketplace of that copy alone for an agent that installs from one. */
 export interface SessionPlugin {
+  /** The package it comes from, as the page names it: `checkpoint@even-keel`. */
+  package: string
   /** The plugin's folder. */
   dir: string
   /** The plugin's own name. */

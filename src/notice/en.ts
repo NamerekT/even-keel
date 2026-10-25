@@ -180,6 +180,9 @@ export const en = {
   'codex.startFailed': (p: { task: string; cwd: string }) => `codex: could not start ${p.task} in ${p.cwd}`,
   'codex.resumeFailed': (p: { task: string; cwd: string }) => `codex: could not resume ${p.task} in ${p.cwd}`,
   'codex.pluginsFailed': (p: { task: string; account: string }) => `codex: could not install the plugins of ${p.task} into ${p.account}`,
+  'codex.hooksUntrusted': (p: { task: string; package: string }) =>
+    `codex: Codex does not trust the hooks of the package ${p.package}, so ${p.task} would run without the check before a merge ` +
+    'and the context reminders; update Even Keel, or for now run the task on another provider',
   'codex.otherThread': (p: { task: string; asked: string; got: string }) =>
     `codex: ${p.task} was resumed as ${p.asked} but came up as the new thread ${p.got}`,
   'codex.unknownSession': (p: { session: string }) => `codex: Even Keel did not start the session ${p.session}`,
