@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
 import { t } from '../i18n/index.js'
+import { useCoarsePointer } from '../layout/useCoarsePointer.js'
+import { sendsReply } from './chatKeys.js'
 import './ask.css'
 
 /** What the user has picked for one question: option labels and, when "Other" is on, its text. */
@@ -36,6 +38,7 @@ interface PanelProps {
  * with its field, the preview beside; Skip and Next, Submit on the last question.
  */
 export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
+  const coarsePointer = useCoarsePointer()
   const [tab, setTab] = useState(0)
   const [pointed, setPointed] = useState<string | null>(null)
   const count = ask.questions.length
@@ -63,10 +66,10 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
       className="ask"
       disabled={disabled}
       onKeyDown={(event) => {
-        if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return
-        event.preventDefault()
-        event.stopPropagation()
-        advance(event.currentTarget.form)
+        // A radio or checkbox must not trigger the form's implicit submission.
+        if (event.key === 'Enter' && event.target instanceof HTMLInputElement && ['radio', 'checkbox'].includes(event.target.type)) {
+          event.preventDefault()
+        }
       }}
     >
       <legend className="ask__head">
@@ -106,13 +109,18 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
               <span className="ask__label">{t.session.chat.other}</span>
             </label>
             {pick.other !== null && (
-              <input
+              <textarea
                 className="ask__other"
-                type="text"
+                rows={2}
                 value={pick.other}
                 placeholder={t.session.chat.otherPlaceholder}
                 autoFocus
                 onChange={(event) => onPick(index, { ...pick, other: event.target.value })}
+                onKeyDown={(event) => {
+                  if (!sendsReply(event.nativeEvent, coarsePointer)) return
+                  event.preventDefault()
+                  advance(event.currentTarget.form)
+                }}
               />
             )}
           </li>
@@ -132,7 +140,7 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
         </button>
         <button type="button" className="button button--primary" disabled={last && !ready} onClick={(event) => advance(event.currentTarget.form)}>
           {last ? t.session.chat.submit : t.session.chat.next}
-          <kbd className="ask__keys">Ctrl ↵</kbd>
+          {!coarsePointer && <kbd className="ask__keys">↵</kbd>}
         </button>
       </div>
     </fieldset>
