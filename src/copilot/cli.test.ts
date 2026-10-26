@@ -80,6 +80,12 @@ describe('turn output', () => {
   const result = JSON.stringify({ type: 'result', timestamp: '2026-10-22T10:00:09.000Z', sessionId: 'abc', exitCode: 0, usage: { premiumRequests: 1 } })
   const progress = JSON.stringify({ type: 'assistant.turn_start', data: { turnId: '0' } })
 
+  it('ignores stderr after the last JSON event', () => {
+    expect(turnEnded(`${result}\nERROR cleanup\n`)).toBe(true)
+    expect(turnEnded(`${result}\n${progress}\nERROR retrying`)).toBe(false)
+    expect(turnEnded('ERROR cleanup')).toBe(false)
+  })
+
   it('ends with the result line, which names the session', () => {
     expect(turnEnded(`${progress}\n`)).toBe(false)
     expect(turnEnded(`${progress}\n${result}\n`)).toBe(true)

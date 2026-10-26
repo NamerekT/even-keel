@@ -28,6 +28,16 @@ describe('threadOf', () => {
 })
 
 describe('turnEnded', () => {
+  it.each(['turn.completed', 'turn.failed'])('ignores stderr after %s', (type) => {
+    expect(turnEnded(`{"type":"${type}"}\nERROR failed to record rollout items\n\n`)).toBe(true)
+  })
+
+  it('uses the last JSON event, ignoring non-events and stderr', () => {
+    expect(turnEnded('{"type":"turn.completed"}\n{"type":"turn.started"}\nERROR retrying')).toBe(false)
+    expect(turnEnded('{"type":"turn.completed"}\nnull\n[]\n{}\n"stderr"\nERROR cleanup')).toBe(true)
+    expect(turnEnded('ERROR cleanup')).toBe(false)
+  })
+
   it('sees the completed and the failed turn on the last line', () => {
     expect(turnEnded('{"type":"turn.started"}\n{"type":"turn.completed","usage":{}}\n')).toBe(true)
     expect(turnEnded('{"type":"turn.started"}\n{"type":"turn.failed","error":{"message":"boom"}}')).toBe(true)

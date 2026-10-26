@@ -111,9 +111,17 @@ export function threadOf(stdout: string): string | undefined {
 
 /** The turn's last event says it is over. */
 export function turnEnded(stdout: string): boolean {
-  const lines = stdout.trimEnd().split('\n')
-  const type = parse(lines.at(-1) ?? '')?.type
+  const type = lastEvent(stdout)?.type
   return type === 'turn.completed' || type === 'turn.failed'
+}
+
+/** stdout shares its file with stderr; only objects with an event type belong to the JSON stream. */
+export function lastEvent(stdout: string): Record<string, unknown> | undefined {
+  for (const line of stdout.split('\n').reverse()) {
+    const event = parse(line)
+    if (typeof event?.type === 'string') return event
+  }
+  return undefined
 }
 
 /** The last bytes of a turn's output: its end is all `turnEnded` needs. */

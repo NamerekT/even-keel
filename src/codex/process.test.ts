@@ -18,6 +18,11 @@ describe('processBelongsToTurn', () => {
     expect(processBelongsToTurn(undefined, turnAt)).toBe(true)
     expect(processBelongsToTurn(turnAt, undefined)).toBe(true)
   })
+
+  it('uses the longer launch window of Copilot and OpenCode', () => {
+    expect(processBelongsToTurn(turnAt + 120_000, turnAt, 120_000)).toBe(true)
+    expect(processBelongsToTurn(turnAt + 120_001, turnAt, 120_000)).toBe(false)
+  })
 })
 
 describe('turnStartedAt', () => {

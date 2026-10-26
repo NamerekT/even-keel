@@ -11,7 +11,8 @@ import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from
 import { runWithInput } from '../agent/oneturn.js'
 import { passedSkillFolders } from '../agent/projectRules.js'
 import { isAlive, killTree } from '../agent/process.js'
-import { entryOf, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
+import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from '../codex/process.js'
+import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { AgentEntry } from '../sessions/agents.js'
@@ -199,7 +200,7 @@ export function sessionOf(stdout: string): string | undefined {
 
 /** The turn's last event says it is over: an error, or a step that finished for any reason but a tool call. */
 export function turnEnded(stdout: string): boolean {
-  const event = parse(stdout.trimEnd().split('\n').at(-1) ?? '')
+  const event = lastEvent(stdout)
   if (event?.type === 'error') return true
   const part = event?.part as Record<string, unknown> | undefined
   return event?.type === 'step_finish' && part?.reason !== 'tool-calls'
@@ -213,7 +214,7 @@ export interface TurnError {
 
 /** The error event a turn of the session ended on, read from the end of its output: an error is always the last event. */
 export function turnError(tail: string, sessionId: string): TurnError | undefined {
-  const event = parse(tail.trimEnd().split('\n').at(-1) ?? '')
+  const event = lastEvent(tail)
   if (event?.type !== 'error' || event.sessionID !== sessionId || typeof event.timestamp !== 'number') return undefined
   const error = event.error
   return { at: event.timestamp, error: typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : {} }
@@ -337,10 +338,12 @@ export class OpenCodeCli {
 
   private async turnLive(session: CodexSession): Promise<boolean> {
     return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
+      && processBelongsToTurn(await polledProcessStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)
   }
 
   private async endTurn(session: CodexSession): Promise<void> {
     if (!(await this.turnLive(session))) return
+    if (!processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)) return
     await killTree(session.pid)
     const deadline = Date.now() + STOP_TIMEOUT_MS
     while (isAlive(session.pid)) {
