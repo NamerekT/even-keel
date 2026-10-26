@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ProtectionWarnings, protectionAgents, remoteProtectionWarnings } from './ProtectionWarnings.js'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -37,9 +38,10 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
       {tone !== null && tone !== 'error' && <Forward state={state} project={project} />}
     </>
   )
-  if (errors.length === 0 && tone === null && count === 0 && failure === null) return null
+  if (errors.length === 0 && tone === null && count === 0 && failure === null && protectionAgents(state, project).length === 0 && remoteProtectionWarnings(state, project).length === 0) return null
   return (
     <div className="project-notices">
+      <ProtectionWarnings state={state} project={project} />
       {errors.map((error, index) => (
         <Band key={index} tone="error" action={
           <>

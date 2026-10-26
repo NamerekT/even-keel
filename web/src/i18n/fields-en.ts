@@ -8,6 +8,7 @@ const list = (items: string[]) => items.join(', ')
  * server's text with the path.
  */
 export const fieldsEn = {
+  'config.protection': () => 'Use valid protection groups and native deny rules',
   'config.branch': (p) => `${p.value} is not a branch name`,
   'config.changelogPath': (p) => `${p.value} is not a file path inside the repository`,
   'config.repoEmpty': () => 'The folder of the repository is empty',

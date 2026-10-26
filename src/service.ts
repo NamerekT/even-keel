@@ -46,6 +46,7 @@ import { changesOf } from './git/changes.js'
 import { TaskWorks, worksOf } from './git/work.js'
 import { commitChangelog } from './git/changelog.js'
 import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
+import { ProtectionAudit } from './ci/protection-audit.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
 import { intakeRepo } from './intake/github.js'
@@ -409,6 +410,7 @@ const sayBlankedSecrets = (home: AccountHome) => {
 }
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
 const launchIn = async (home: AccountHome, start: SessionStart, project: string | undefined) => {
+  if (project !== undefined) await protectionAudit.check(project)
   await requireModel(home, start)
   if (home.agent === CLAUDE && start.settings !== undefined) sayBlankedSecrets(home)
   try {
@@ -474,6 +476,7 @@ const trackers = new Trackers({
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
+const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: () => hub.broadcast('state', getState()) })
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -900,7 +903,8 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 }
 
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
-const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
+const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection'> => ({
+  protection: (project === undefined ? undefined : configStore.current.settings[project]?.protection) ?? configStore.current.protection,
   ...(home.agent !== CLAUDE && configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
   ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
 })
@@ -1474,6 +1478,7 @@ function removalFacts(project: string, repo: string): RemovalFacts {
 }
 
 const getState = (): EvenKeelState => ({
+  protection: protectionAudit.view,
   startedAt,
   projects: Object.keys(configStore.current.projects),
   projectKeys: configStore.current.keys,

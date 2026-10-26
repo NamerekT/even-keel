@@ -415,6 +415,8 @@ export const noticesRu: NoticeTexts = {
     `у ${p.project} и ${p.other} один ключ ${p.key} на разных репозиториях (${p.project} — на ${p.trackerProject}), и ID задач у них совпадут: дайте одному из них другой ключ`,
   'config.modelPrompts': () => 'modelPrompts должен сопоставлять имени модели промт',
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
+  'protection.fileConflict': () => '«Защита» не может записать правила: их место занято другим файлом. Переименуйте этот файл и запустите сессию снова',
+  'config.protection': (p) => `В настройке «Защита» (${p.where}) нужны допустимые группы и правила запретов агентов`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
   'config.cacheTtl': (p) => `cacheTtl: ${p.value} — должно быть "5m" или "1h", либо ключа нет`,
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,

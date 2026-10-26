@@ -75,6 +75,31 @@ Built on the research below (BTN-213) and checked on Copilot CLI 1.0.98 on Windo
 - One transport only: the Agent SDK (BTN-239) is Claude's, so a Copilot folder, a token one too, has no transport (`transportOf` is `null`, its card says none), and the adapter has no `Agent.reply` and its entries do not steer. An answer or a limit resume is a new turn with `--resume` once the last one is over, as for Codex and OpenCode, and a chat message mid-turn waits for the mailbox or the turn's end.
 - What Copilot does not get yet: the checkpoint threshold and the chat mailbox work only if Copilot runs the project's `.claude/settings.json` hooks, which the docs say and nobody saw (`docs/unverified.md`); a stall watchdog, `Agent.write`.
 
+## Protection
+
+`src/sessions/protection.ts` defines seven default deny groups. `protection` has `disabled` (group ids), `claude`
+(permission strings), `codex` (arrays of literal command-prefix arguments), and `copilot` (tool rules). Fields inherit
+from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
+`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and `deleteTracker`. Sessions → Protection
+edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
+OS sandbox or a guarantee against equivalent commands.
+
+Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport.
+Copilot receives `--deny-tool` alongside `--allow-all-tools`. Huly deletion rules name the plugin gateway and standalone
+server. Codex cannot deny MCP calls through execpolicy; the Huly group is labelled Claude/Copilot. OpenCode receives
+no Protection rules and the page says so. An agent without a sandbox and without Even Keel rules gets a warning linking
+to the project's session settings.
+
+Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
+folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.
+The file is refreshed before a CLI turn (including resume) and loaded at startup. Slot reuse replaces only this file.
+Other Codex project configuration retains its normal trust requirements. Checked on Codex 0.164.0 with a local
+Responses server sending a harmless `echo` tool call: a `forbidden` prefix was rejected under bypass in the account
+and project config layers. [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes:
+defaults cover push flags immediately after `git push` or after a configured remote, and literal dangerous `rm`
+targets. Other argument orders, force/deletion refspecs, expanded paths, shell variants and MCP are not covered.
+Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
+
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)
 
 A project set up for one agent keeps its rules when a run profile switches to another. The table of what each agent reads is `READS` in `src/agent/projectRules.ts`, shared by the adapters, the packages check (`pluginReach`) and the page's "What the session gets" (`docs/web.md`). Checked live on 2026-10-24 on Windows, with a scratch repository per case (only `CLAUDE.md`, only `AGENTS.md`, both; each file with its own secret word, a skill in each of `.claude/skills`, `.agents/skills`, `.codex/skills`, `.github/skills`, `.opencode/skills`), asking the session for the words and the skills in its context: Claude Code 2.1.309 (`claude -p` and `--bg`, Haiku), codex-cli 0.164.0 (`gpt-5.6-luna`), OpenCode 1.18.25 (`big-pickle`, with the account folder and flags of a chain session), Copilot CLI 1.0.103 (`copilot instruction list`, `copilot skill list`).

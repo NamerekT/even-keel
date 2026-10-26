@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
+import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
+import { ProtectionSettings } from './ProtectionSettings.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -92,7 +94,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -546,6 +548,8 @@ export function SettingsPanel({
             standards={standardRows(text('standards')).map((row) => row.doc).filter((doc) => doc !== '')}
           />
         </Section>
+        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => edit('protection', value)} error={errorOf('protection')} />
+        {notes('protection')}
         <Section title={t.settings.sections.context}>
           {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
           <Row

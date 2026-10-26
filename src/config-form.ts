@@ -46,6 +46,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
   const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
+    protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
@@ -253,6 +254,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('language', 'language', form.language),
     { group: 'promptLanguage', key: 'promptLanguage', qualifier: '', value: form.promptLanguage, fallback: form.language ?? DEFAULT_LANGUAGE },
     value('hiddenSkills', 'hiddenSkills', names(form.hiddenSkills)),
+    value('protection', 'protection', form.protection),
     value('cacheTtl', 'cacheTtl', form.cacheTtl),
     value('contextHandoffs', 'contextHandoffs', form.contextHandoffs),
     value('keepWarm', 'keepWarm', form.keepWarm),

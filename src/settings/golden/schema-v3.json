@@ -91,6 +91,12 @@
       "modelLabels": null,
       "cacheTtl": null,
       "contextHandoffs": true,
+      "protection": {
+        "disabled": [],
+        "claude": [],
+        "codex": [],
+        "copilot": []
+      },
       "checkpointTokens": null,
       "checkpointShares": {
         "first": 72,
@@ -131,6 +137,12 @@
       "modelLabels": null,
       "cacheTtl": null,
       "contextHandoffs": true,
+      "protection": {
+        "disabled": [],
+        "claude": [],
+        "codex": [],
+        "copilot": []
+      },
       "checkpointTokens": null,
       "checkpointShares": {
         "first": 72,
@@ -199,6 +211,12 @@
     "artifact-capabilities",
     "dataviz"
   ],
+  "protection": {
+    "disabled": [],
+    "claude": [],
+    "codex": [],
+    "copilot": []
+  },
   "cacheTtl": null,
   "contextHandoffs": true,
   "ci": {

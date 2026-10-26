@@ -2,6 +2,15 @@
 
 Every environment variable and every setting. How to set Even Keel up is in [setup](setup.md), what it does in [features](features.md).
 
+### Protection setting
+
+`protection` is shared and per project, edited in **Sessions → Protection**. Its default is
+`{ "disabled": [], "claude": [], "codex": [], "copilot": [] }`: all built-in groups on, no extra native rules.
+`disabled` lists groups to turn off: `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`,
+`deleteParent`, `deleteTracker`. The other fields add native deny rules: Claude permission strings, Codex arrays of
+command arguments (for example `["terraform", "destroy"]`), and Copilot tool strings. A project's field replaces its
+shared counterpart; omitted fields inherit. New launches only; see [coverage and limits](features.md#protection).
+
 ## Environment
 
 `.env` in the data folder: a clone's own folder, or for an install with npm `%LOCALAPPDATA%\even-keel`, `~/Library/Application Support/even-keel` or `~/.local/share/even-keel` (`$XDG_DATA_HOME/even-keel`). Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.

@@ -15,6 +15,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
+import { protectionRules } from '../sessions/protection.js'
 
 const run = promisify(execFile)
 
@@ -69,7 +70,7 @@ export interface TurnPlace {
  * A new session gets its id from Even Keel (`--session-id`) and its task as its name; a resume names the session. The
  * prompt goes as `--prompt=`: a reply starts with `- "question" → answer`, which `-p` would take for an option.
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'plugins'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'plugins' | 'protection'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
   const { name, model, mcp, plugins = [] } = start
   return [
     '-C',
@@ -79,6 +80,7 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'p
     '--no-auto-update',
     '--no-ask-user',
     `--${SESSION_MODE}`,
+    ...(start.protection === undefined ? [] : protectionRules(start.protection).copilot.flatMap(rule => ['--deny-tool', rule])),
     ...(session.resume ? [`--resume=${session.id}`] : ['--session-id', session.id, '--name', name]),
     ...(model === null ? [] : ['--model', model]),
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),

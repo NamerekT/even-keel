@@ -75,6 +75,8 @@ export interface SessionStart {
   settings?: string
   /** Optional. Run without the agent's own sandbox and approvals (the global `execution` of the agent is `bypass`). */
   bypassSandbox?: boolean
+  /** Native deny rules resolved from the current shared and project Protection settings. */
+  protection?: import('../sessions/protection.js').Protection
   /**
    * Optional. The MCP servers of the project's packages, all behind Even Keel's gateway (`src/packages/`): the session
    * gets these and no other. `undefined` — the agent's own configuration decides.
