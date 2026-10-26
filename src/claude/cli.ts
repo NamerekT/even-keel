@@ -16,7 +16,7 @@ import { newestExtensionBinary } from '../sessions/paths.js'
 import { CallTimeout, FolderCalls } from './calls.js'
 import { contextArgs } from './context.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
-import { descendantsOf, isAlive, killLeftovers } from './tree.js'
+import { descendantsOf, killLeftovers, sessionProcessAlive } from './tree.js'
 
 const run = promisify(execFile)
 
@@ -152,7 +152,8 @@ export class ClaudeCli {
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
     const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isGone(running)) return
-    const children = running.pid === undefined ? Promise.resolve([]) : descendantsOf(running.pid)
+    if (running.pid !== undefined && !(await sessionProcessAlive(running.pid, running.processStartedAt, true))) return
+    const children = running.pid === undefined ? Promise.resolve([]) : descendantsOf({ pid: running.pid, startedAt: running.processStartedAt })
     if (process.platform !== 'win32') await children
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
@@ -161,7 +162,7 @@ export class ClaudeCli {
     }
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
-      if (isAlive(running.pid)) {
+      if (await sessionProcessAlive(running.pid, running.processStartedAt)) {
         await delay(EXIT_POLL_MS)
         continue
       }
@@ -342,7 +343,9 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
   const texts = await Promise.all(
     names.filter((name) => /^\d+\.json$/.test(name)).map((name) => readFile(join(dir, name), 'utf8').catch(() => '')),
   )
-  return texts.map(parseSessionRecord).filter((record): record is SessionRecord => record !== undefined && isAlive(record.pid))
+  const records = texts.map(parseSessionRecord).filter((record): record is SessionRecord => record !== undefined)
+  const alive = await Promise.all(records.map((record) => sessionProcessAlive(record.pid, record.startedAt)))
+  return records.filter((_, index) => alive[index])
 }
 
 /**

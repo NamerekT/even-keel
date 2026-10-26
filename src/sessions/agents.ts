@@ -12,6 +12,8 @@ export interface AgentEntry {
   cwd: string
   kind: string
   startedAt: number
+  /** Claude's per-process initialization time; a resumed job may have an earlier `startedAt`. */
+  processStartedAt?: number
   sessionId: string
   name?: string
   status?: AgentStatus
@@ -100,6 +102,7 @@ export function parseAgents(raw: string, account?: string): AgentEntry[] {
 export interface SessionRecord {
   pid: number
   sessionId: string
+  startedAt?: number
   status?: AgentStatus
   waitingFor?: string
   entrypoint?: string
@@ -117,11 +120,12 @@ export function parseSessionRecord(raw: string): SessionRecord | undefined {
     return undefined
   }
   if (typeof value !== 'object' || value === null) return undefined
-  const { pid, sessionId, status, waitingFor, entrypoint, name, cwd } = value as Record<string, unknown>
-  if (typeof pid !== 'number' || typeof sessionId !== 'string') return undefined
+  const { pid, sessionId, startedAt, status, waitingFor, entrypoint, name, cwd } = value as Record<string, unknown>
+  if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 0 || typeof sessionId !== 'string') return undefined
   return {
     pid,
     sessionId,
+    ...(typeof startedAt === 'number' && Number.isFinite(startedAt) && startedAt > 0 ? { startedAt } : {}),
     ...(typeof status === 'string' && STATUSES.includes(status) ? { status: status as AgentStatus } : {}),
     ...(typeof waitingFor === 'string' ? { waitingFor } : {}),
     ...(typeof entrypoint === 'string' ? { entrypoint } : {}),
@@ -135,9 +139,10 @@ export function withLiveRecords(agents: AgentEntry[], records: SessionRecord[]):
   return agents.map((agent) => {
     const record = bySession.get(agent.sessionId)
     if (record === undefined) return agent
-    if (agent.pid !== undefined) return record.status === 'shell' ? { ...agent, status: 'shell' } : agent
+    const processTime = record.startedAt === undefined || (agent.pid !== undefined && agent.pid !== record.pid) ? {} : { processStartedAt: record.startedAt }
+    if (agent.pid !== undefined) return { ...agent, ...processTime, ...(record.status === 'shell' ? { status: 'shell' } : {}) }
     const { pid, status, waitingFor } = record
-    return { ...agent, pid, ...(status === undefined ? {} : { status }), ...(waitingFor === undefined ? {} : { waitingFor }) }
+    return { ...agent, ...processTime, pid, ...(status === undefined ? {} : { status }), ...(waitingFor === undefined ? {} : { waitingFor }) }
   })
 }
 
