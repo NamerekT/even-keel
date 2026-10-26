@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ADAPTERS } from '../tracker/adapters.js'
+import { keysOf, substitute } from '../packages/keys.js'
+import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
 import { keyPool, profileFor, sameAccount, serverProfile, type ProfileSet, type TrackerProfile } from './model.js'
 
 const profile = (id: string, kind: string, isDefault: boolean, values: Record<string, string> = {}, login: string | null = null): TrackerProfile => ({
@@ -58,6 +59,34 @@ describe('keyPool', () => {
     const fed = { ...set, feeds: { 'feed-gh': 'org' } }
     expect(keyPool(fed, ADAPTERS, env, 'xyz', 'huly', [{ id: 'feed-gh', tracker: 'github' }])).toMatchObject({ GITHUB_TOKEN: 'org-token', HULY_TOKEN: 'h' })
     expect(keyPool(fed, ADAPTERS, env, 'xyz', 'github', [{ id: 'feed-gh', tracker: 'github' }]).GITHUB_TOKEN).toBe('personal-token')
+  })
+
+  it.each([
+    { source: 'project', kind: 'gitlab', feeds: [] },
+    { source: 'feed', kind: 'huly', feeds: [{ id: 'cloud-feed', tracker: 'gitlab' }] },
+    { source: 'last feed', kind: 'huly', feeds: [{ id: 'local-feed', tracker: 'gitlab' }, { id: 'cloud-feed', tracker: 'gitlab' }] },
+    { source: 'project over its feed', kind: 'gitlab', feeds: [{ id: 'local-feed', tracker: 'gitlab' }] },
+  ])('replaces all variables of the $source profile so an omitted URL uses the server default', ({ kind, feeds }) => {
+    const profiles: ProfileSet = {
+      profiles: [
+        ...set.profiles,
+        profile('local', 'gitlab', true, { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: 'local-token' }),
+        profile('cloud', 'gitlab', false, { GITLAB_TOKEN: 'cloud-token' }),
+      ],
+      links: { abc: 'cloud' },
+      feeds: { 'local-feed': 'local', 'cloud-feed': 'cloud' },
+    }
+    const pool = keyPool(profiles, ADAPTERS, env, 'abc', kind, feeds)
+    expect(pool).not.toHaveProperty('GITLAB_URL')
+    expect(pool).toMatchObject({ GITLAB_TOKEN: 'cloud-token', GITHUB_TOKEN: 'personal-token', HULY_TOKEN: 'h', CONTEXT7_KEY: 'c7' })
+    expect(serverProfile(profiles, 'abc', kind, feeds, 'gitlab')?.id).toBe('cloud')
+
+    const entry = { command: 'npx', env: { GITLAB_API_URL: '${GITLAB_URL:-https://gitlab.com}', GITLAB_PERSONAL_ACCESS_TOKEN: '${GITLAB_PERSONAL_ACCESS_TOKEN}' } }
+    const keys = keysOf('gitlab', entry, trackerKeyRules(), pool)
+    expect(keys.missing).toEqual([])
+    expect(keys.names).toContain('GITLAB_URL')
+    expect(keys.env).not.toHaveProperty('GITLAB_URL')
+    expect(substitute(entry, keys.values).env).toEqual({ GITLAB_API_URL: 'https://gitlab.com', GITLAB_PERSONAL_ACCESS_TOKEN: 'cloud-token' })
   })
 })
 
