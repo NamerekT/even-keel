@@ -1,6 +1,7 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
+import { GitlabUploads } from './uploads.js'
 
 export interface GitlabMilestone {
   id: number
@@ -55,7 +56,7 @@ export function gitlabPriority(labels: string[]): TaskPriority {
 }
 
 export class ProjectMap {
-  constructor(private readonly projects: Readonly<Record<string, TrackerPlace>>, private readonly web: string) {}
+  constructor(private readonly projects: Readonly<Record<string, TrackerPlace>>, readonly web: string) {}
 
   pathOf(id: string): string | undefined { return Object.hasOwn(this.projects, id) ? this.projects[id]!.value : undefined }
   pathOfKey(key: string): string | undefined { return Object.values(this.projects).find((project) => project.key === key)?.value }
@@ -83,13 +84,16 @@ export function toTrackerTask(issue: GitlabIssue, links: GitlabLink[], projects:
 
 export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNote[], projects: ProjectMap, hierarchy: Hierarchy = EMPTY_HIERARCHY): TrackerCard {
   const task = toTrackerTask(issue, links, projects, hierarchy)
+  const uploads = new GitlabUploads(projects.web, issue.web_url.replace(/\/(?:-\/)?(?:issues|work_items)\/\d+\/?$/, ''), issue.project_id)
+  const comments = notes.filter((note) => !note.system).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id)
+  const attachments = new Map([issue.description ?? '', ...comments.map((note) => note.body)].flatMap((text) => uploads.files(text)).map((file) => [file.file, file]))
   const refOf = (ref: GitlabRef): TaskRef => ({ id: projects.idOf(ref), title: ref.title, status: gitlabStatus(ref.state) })
   return {
-    id: task.id, title: task.title, description: issue.description ?? '', status: task.status, priority: task.priority,
+    id: task.id, title: task.title, description: uploads.rewrite(issue.description ?? '', task.id), status: task.status, priority: task.priority,
     labels: task.labels, milestone: task.milestone, parent: hierarchy.parent === null ? null : refOf(hierarchy.parent),
     blockedBy: links.filter((link) => link.link_type === 'is_blocked_by').map(refOf),
     blocks: links.filter((link) => link.link_type === 'blocks').map(refOf), related: links.filter((link) => link.link_type === 'relates_to').map(refOf),
-    comments: notes.filter((note) => !note.system).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id).map((note) => ({ author: note.author?.username ?? null, at: Date.parse(note.created_at), text: note.body })),
-    attachments: [],
+    comments: comments.map((note) => ({ author: note.author?.username ?? null, at: Date.parse(note.created_at), text: uploads.rewrite(note.body, task.id) })),
+    attachments: [...attachments.values()],
   }
 }

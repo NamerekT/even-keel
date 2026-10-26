@@ -3,6 +3,7 @@ import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GitlabApi, GitlabHttpError } from './api.js'
 import { GitlabHierarchy } from './hierarchy.js'
+import { GitlabUploads, uploadType } from './uploads.js'
 import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, ProjectMap, toCard, toTrackerTask, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabNote } from './model.js'
 
 export interface GitlabSettings {
@@ -131,6 +132,22 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       return toCard(issue, await linksOf(path, iid), await notesOf(id), projects, await hierarchy.read(path, iid))
     },
 
+    async file(id, file) {
+      const issue = await rawIssue(id)
+      const card = toCard(issue, [], await notesOf(id), projects)
+      if (!card.attachments.some((attachment) => attachment.file === file)) return null
+      let response: Response
+      try {
+        response = await api.request(`/api/v4${projectBase(addressOf(id).path)}/uploads/${file}`)
+      } catch (error) {
+        if (error instanceof TrackerNotFound) return null
+        throw error
+      }
+      if (response.body === null) return null
+      const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
+      return { type: uploadType(file, response.headers.get('content-type') ?? ''), size: Number.isNaN(size) ? null : size, body: response.body }
+    },
+
     async comment(id, body) {
       return String((await api.rest<{ id: number }>(`${addressOf(id).base}/notes`, 'POST', { body })).id)
     },
@@ -139,7 +156,10 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       const notes = await notesOf(id)
       const anchor = notes.findIndex((note) => String(note.id) === after)
       if (anchor < 0) return []
-      return (await trustedNotes(id, notes.slice(anchor + 1))).map((note) => ({ id: String(note.id), body: note.body, files: [] }))
+      const trusted = await trustedNotes(id, notes.slice(anchor + 1))
+      const issue = trusted.some((note) => note.body.includes('/uploads/')) ? await rawIssue(id) : null
+      const uploads = new GitlabUploads(settings.web, `${settings.web}/${addressOf(id).path}`, issue?.project_id)
+      return trusted.map((note) => ({ id: String(note.id), body: note.body, files: uploads.files(note.body).map(({ file, name }) => ({ file, name })) }))
     },
 
     async create(task) {
