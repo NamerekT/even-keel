@@ -100,6 +100,7 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
 | `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |
 | `cacheTtl` | `null` | prompt cache lifetime of chain sessions, `"5m"` or `"1h"`; `null` leaves it to Claude Code (1 hour on a subscription, 5 minutes on an API key). A 1-hour cache write costs more but survives longer waits |
+| `keepWarm` | `0` | whole hours, 0–24, that the prompt cache of a Claude chain session waiting for your reply is kept warm, counted from its last answer; `0` — off. A ping to a copy of the session goes out shortly before the cache would expire, and spends the account's limits ([Keeping a waiting session warm](features.md#keeping-a-waiting-session-warm)) |
 | `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
 | `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
 | `unattended` | `false` | [unattended mode](features.md#unattended-mode), the switch in **Settings → Chain** |

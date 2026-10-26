@@ -5,7 +5,7 @@ import type { PullRequest, ReviewCheck } from '../review/model.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, PullCleanup, ReviewDeps, ReviewView } from './model.js'
 import { PROMPTS } from './prompts.js'
-import { WARM_CACHE_MS, type HandoffSession } from './relay.js'
+import { warmSince, type HandoffSession } from './relay.js'
 
 /** What PR mode needs of the dispatcher that runs it. */
 export interface ReviewHost {
@@ -220,7 +220,7 @@ export class Reviews {
       account.id !== null &&
       session.lastReplyAt !== null &&
       account.id === this.deps.accountAt(session.account, session.lastReplyAt) &&
-      now - Date.parse(session.lastReplyAt) < WARM_CACHE_MS
+      warmSince(session, now)
     delete pull.feedback
     if (warm) await this.handovers.deliver(chain, current, session, feedback, null, 'review')
     else await this.handovers.handOverCurrent(chain, current, session, 'review', feedback)

@@ -255,6 +255,8 @@ export interface SharedForm {
   promptLanguage: Language
   hiddenSkills: string[]
   cacheTtl: CacheTtl | null
+  /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */
+  keepWarm: number
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */
   ci: CiSettings
   fillMilestone: boolean

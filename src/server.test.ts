@@ -325,6 +325,7 @@ describe('Even Keel HTTP server', () => {
       promptLanguage: 'en',
       hiddenSkills: ['dataviz'],
       cacheTtl: '1h',
+      keepWarm: 2,
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: { first: 70, late: 85, hard: 95 } },
@@ -339,6 +340,7 @@ describe('Even Keel HTTP server', () => {
 
     const refusals = [
       ['parallel', { parallel: '2' }],
+      ['keepWarm', { keepWarm: '2' }],
       ['modelPrompts', { modelPrompts: { haiku: 1 } }],
       ['prompt', { prompt: 1 }],
       ['execution', { execution: { codex: true } }],

@@ -135,6 +135,7 @@ describe('parseConfig', () => {
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
       cacheTtl: null,
       parallel: 1,
+      keepWarm: 0,
       updates: { check: true, notify: true },
       unattended: false,
       trimTools: true,
@@ -163,6 +164,14 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: {}, parallel: 0 })).toThrow(/parallel/)
     expect(() => parse({ projects: {}, parallel: 1.5 })).toThrow(/parallel/)
     expect(() => parse({ projects: {}, parallel: '2' })).toThrow(/parallel/)
+  })
+
+  it('takes the hours of keeping a waiting cache warm as a whole number up to a day', () => {
+    expect(parse({ projects: {} }).keepWarm).toBe(0)
+    expect(parse({ projects: {}, keepWarm: 24 }).keepWarm).toBe(24)
+    expect(() => parse({ projects: {}, keepWarm: 25 })).toThrow(/keepWarm/)
+    expect(() => parse({ projects: {}, keepWarm: -1 })).toThrow(/keepWarm/)
+    expect(() => parse({ projects: {}, keepWarm: 1.5 })).toThrow(/keepWarm/)
   })
 
   it('takes the skills hidden from chain sessions as a list of names', () => {

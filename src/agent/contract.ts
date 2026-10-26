@@ -235,6 +235,12 @@ export interface Agent {
   liveRecords?(home: AccountHome): Promise<LiveRecord[]>
   /** Optional. Runs a turn of its own and returns the answer's text and cost; Even Keel writes changelog drafts with it (`src/changelog/`). */
   write?(home: AccountHome, turn: OneTurn): Promise<OneTurnAnswer>
+  /**
+   * Optional. The keep-warm ping (BTN-437): `start.prompt` goes to a fork of the session that writes no transcript and
+   * changes nothing, run with the session's own options and `start.model`, and the answer is what its one call read
+   * from the prompt cache and wrote. The session itself is not touched. Without it the agent's sessions are not kept warm.
+   */
+  warm?(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<TurnSpend>
   /** Optional. Remote Control: whether the account starts sessions with it, and the bridge of a live session. */
   remote?: RemoteControl
 }

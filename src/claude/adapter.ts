@@ -127,6 +127,11 @@ export const claude: AgentAdapter = {
       pinned: () => (pinned() === undefined ? null : version),
       daemonVersion: (home) => cli.daemonVersion(home),
       write: (home, turn) => cli.write(home, turn),
+      warm: async (home, { sessionId }, start) => {
+        if (await sdk.knows(sessionId)) return sdk.warm(home, sessionId, start)
+        const { cwd, prompt, model, settings, mcp, plugins } = start
+        return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })
+      },
       liveRecords,
       remote: {
         enabled: remoteAt,

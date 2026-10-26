@@ -7,6 +7,7 @@ import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
+import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { placeholderIn } from '../sessions/prompt.js'
 import type { CheckpointShares, OwnKey } from '../state.js'
 import { DEFAULT_SHARES } from '../stats/checkpoint.js'
@@ -181,6 +182,13 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   { key: 'parallel', kind: 'integer', scopes: ['global'], lands: ['parallel'], default: 1, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })
+    return value
+  } },
+  // Off until its live check (BTN-437): each ping spends the account's limits.
+  { key: 'keepWarm', kind: 'integer', scopes: ['global'], lands: ['keepWarm'], default: 0, check: (value) => {
+    if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > MAX_KEEP_WARM_HOURS) {
+      throw fail('config.keepWarm', { value: json(value), max: String(MAX_KEEP_WARM_HOURS) })
+    }
     return value
   } },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },

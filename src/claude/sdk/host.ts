@@ -11,7 +11,8 @@ import { fail, notice, NoticeError } from '../../notice/notice.js'
 import type { AgentEntry } from '../../sessions/agents.js'
 import { questionsOf, replyParts, type Ask, type AskAnswers } from '../../sessions/ask.js'
 import { NO_APPROVAL, permissionAsk, permissionMove } from '../../sessions/permission.js'
-import { SESSION_MODE } from '../cli.js'
+import type { TurnSpend } from '../../state.js'
+import { hooksOff, SESSION_MODE, WARM_MODE, warmSpend } from '../cli.js'
 import { agentsFallback } from '../instructions.js'
 import type { ExecutorHello } from './executor.js'
 import { ExecutorProcess, newPipe, probe, startExecutor, type ExecutorRequest } from './pipe.js'
@@ -23,6 +24,7 @@ const ATTACH_TIMEOUT_MS = 15_000
 const REMOTE_TIMEOUT_MS = 15_000
 const EXIT_TIMEOUT_MS = 30_000
 const EXIT_POLL_MS = 100
+const WARM_TIMEOUT_MS = 3 * 60_000
 const ASK_TOOL = 'AskUserQuestion'
 
 export interface SdkHostOptions {
@@ -172,6 +174,37 @@ export class SdkSessions {
     if (session === undefined) throw fail('claude.resumeFailed', { task: start.name, cwd: start.cwd })
     if ((await this.reply(home, sessionId, start.prompt)) !== null) return sessionId
     return this.launch(home, start, session)
+  }
+
+  /**
+   * The keep-warm ping (BTN-437): a fork of the session with its own options beside its executor, with no transcript,
+   * for one call that may change nothing — as `warmArgs` does for `--bg`. The CLI is the SDK's own child, not an executor's.
+   */
+  async warm(home: AccountHome, sessionId: string, start: SessionStart): Promise<TurnSpend> {
+    const options: SdkOptions = {
+      cwd: start.cwd,
+      env: this.options.envOf(home),
+      pathToClaudeCodeExecutable: this.options.bin(),
+      permissionMode: WARM_MODE,
+      systemPrompt: { type: 'preset', preset: 'claude_code' },
+      ...(start.model !== null && { model: start.model }),
+      ...sessionOptions({ ...start, settings: hooksOff(start.settings) }),
+      resume: sessionId,
+      forkSession: true,
+      persistSession: false,
+      maxTurns: 1,
+      canUseTool: async () => ({ behavior: 'deny', message: NO_APPROVAL }),
+    }
+    const query = (await this.sdk()).query({ prompt: start.prompt, options })
+    const result = async () => {
+      for await (const message of query) if (message.type === 'result') return warmSpend(message, start.model)
+      throw new Error('the fork ended with no result')
+    }
+    try {
+      return await within(result(), WARM_TIMEOUT_MS, 'the fork did not answer')
+    } finally {
+      query.close()
+    }
   }
 
   /** Kills the executor with the CLI and what it started, mid-turn too, and waits until they are gone. */
