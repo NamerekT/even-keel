@@ -50,6 +50,11 @@ export function writeKey(dir: string, key: string): void {
   keepOwnInstructions(dir)
 }
 
+/** A new key under its provider's entry of `auth.json`, the other providers' entries as they are (BTN-418). */
+export function replaceKey(dir: string, key: string): void {
+  writeFileSync(authFile(dir), JSON.stringify({ ...credentials(readAuth(dir)), [keyVendor(key)]: { type: 'api', key } }, null, 2))
+}
+
 /** The first API key of `auth.json`; `null` for a folder signed in otherwise or not at all. */
 export function keyOf(dir: string): string | null {
   for (const credential of Object.values(credentials(readAuth(dir)))) {

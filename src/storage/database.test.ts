@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { loadKeyOrganizations } from '../account/organizations.js'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { readSnapshots } from '../chain/snapshots.js'
 import { latestVersion, spentOn, writtenTasks } from '../changelog/store.js'
@@ -25,8 +26,8 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 // Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles, version 6 the
 // changelog drafts, version 7 their turns' spend, version 8 the pull requests, version 9 the colors, version 10 the
 // shelved tasks, version 11 the keys shared by projects, version 12 the profiles' rules and the extra task feeds, version
-// 13 the tracker of every project its own: a later step must migrate each, and each step itself must still make exactly
-// the tables of its sample.
+// 13 the tracker of every project its own, version 14 the organizations of the API keys: a later step must migrate each,
+// and each step itself must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -498,6 +499,35 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       await frozen.close()
       await made.close()
     }
+  })
+
+  it('of version 14 has the schema step 14 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 12))
+    try {
+      await frozen.exec(fixture(14))
+      expect(await databaseVersion(frozen)).toBe(14)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it("of version 14 is read with the API keys' organizations (BTN-418)", async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(14))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      expect(await databaseVersion(opened.db)).toBe(DATABASE_VERSION)
+      expect(await loadKeyOrganizations(opened.db)).toEqual(new Map([['codex-api', 'org-openai-example'], ['work-api', 'org-anthropic-example']]))
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
   })
 
   /** Version 12 brought to the current schema, `more` run on it first; the tracker rows by project, `null` the shared one. */

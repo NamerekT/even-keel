@@ -48,6 +48,8 @@ export interface AccountEntry {
   removing: boolean
   configPending: boolean
   apiKey: boolean
+  /** An API account whose folder keeps the key itself, so the page can put a new one in its place (BTN-418). */
+  keyReplaceable?: boolean
   /** How its new Claude sessions run (`transportOf`); absent for an agent with one way only. */
   transport?: Transport
   limits: RateLimits | null

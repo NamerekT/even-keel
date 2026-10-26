@@ -112,6 +112,7 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
     status: { loggedIn: true, authMethod: 'api_key', email: key, orgName: null, subscriptionType: null },
     loginExpiresAt: null,
     apiKey: true,
+    keyReplaceable: true,
     ...patch,
   })
 }
@@ -351,16 +352,23 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     }
     return { ...account, login: { ...(FAKE_LOGINS[agent] ?? FAKE_LOGIN), agent, ...(method !== undefined && { method }), target, startedAt: ago(0) } }
   }
-  if (name === 'account/api') {
+  if (name === 'account/api' || name === 'account/key') {
+    const agent = name === 'account/key' ? (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE) : body.agent
     const value = String(body.key).trim()
-    const kind = body.agent === COPILOT ? 'copilotToken' : body.agent === CODEX ? 'codexKey' : 'apiKey'
+    const kind = agent === COPILOT ? 'copilotToken' : agent === CODEX ? 'codexKey' : 'apiKey'
     const token = kind !== 'copilotToken' || /^(github_pat_|gho_|ghu_)/.test(value)
     if (!/^\S{21,}$/.test(value) || !token) throw fail(`account.${kind}Invalid`, {})
     if (value.includes('rejected')) throw fail(`account.${kind}Rejected`, {})
     if (value.includes('offline')) throw fail(`account.${kind}Unchecked`, { reason: 'fetch failed' })
-    const name = String(body.name ?? '').trim()
-    const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
-    const entry = apiEntry(key, { name: name || null, agent: String(body.agent ?? CLAUDE) })
+    // A key of another organization than the account's is another account (BTN-418).
+    if (name === 'account/key') {
+      if (value.includes('other-org')) throw fail('account.keyOtherOrganization', { agent: String(agent) })
+      const working = { needsLogin: false, status: { loggedIn: true, authMethod: 'api_key', email: key, orgName: null, subscriptionType: null } }
+      return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, ...working } : entry)) }
+    }
+    const given = String(body.name ?? '').trim()
+    const folder = folderName(given || 'api', account.accounts.map((entry) => entry.key))
+    const entry = apiEntry(folder, { name: given || null, agent: String(body.agent ?? CLAUDE) })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {

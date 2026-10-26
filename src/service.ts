@@ -9,6 +9,7 @@ import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkGitHubToken, checkOpenAiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { forgetKeyOrganization, loadKeyOrganizations, saveKeyOrganization } from './account/organizations.js'
 import { executionOfChoices, transportOf } from './account/transport.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
@@ -216,6 +217,8 @@ for (const method of ['log', 'warn', 'error'] as const) {
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
+/** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
+const keyOrganizations = await loadKeyOrganizations(db)
 const envFile = loadEnv()
 /** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
 const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
@@ -726,6 +729,17 @@ const account = new AccountWatcher({
   lastLimit: (key) => limitRetries.lastAt(key),
   checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
+  organizations: {
+    of: (key) => keyOrganizations.get(key),
+    note: (key, organization) => {
+      keyOrganizations.set(key, organization)
+      writes.add(`the organization of ${key}`, saveKeyOrganization(db, key, organization, new Date()))
+    },
+    forget: (key) => {
+      if (!keyOrganizations.delete(key)) return
+      writes.add(`the organization of ${key}`, forgetKeyOrganization(db, key))
+    },
+  },
   checkCredit: (agent, key) => CREDIT_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
   creditCheckMs: CREDIT_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,

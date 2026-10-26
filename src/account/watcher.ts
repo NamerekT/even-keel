@@ -79,6 +79,8 @@ export interface AccountWatcherOptions {
   /** Whether the agent's provider takes the key. */
   checkKey: (agent: string, key: string) => Promise<KeyVerdict>
   keyCheckMs: number
+  /** The organization each API account's key was last seen paying through (`src/account/organizations.ts`). */
+  organizations: KeyOrganizations
   /** Whether the key can pay again, asked of the agent's provider. */
   checkCredit: (agent: string, key: string) => Promise<CreditVerdict>
   creditCheckMs: number
@@ -89,10 +91,18 @@ export interface AccountWatcherOptions {
   onError: (error: unknown) => void
 }
 
+export interface KeyOrganizations {
+  of: (key: string) => string | undefined
+  note: (key: string, organization: string) => void
+  forget: (key: string) => void
+}
+
 interface Known {
   home: AccountHome
   status: AccountStatus | null
   error: Notice | null
+  /** The folder keeps its key itself, so the page may replace it (`AccountHomes.replacement`). */
+  keyHeld: boolean
 }
 
 interface Running {
@@ -119,7 +129,7 @@ export class AccountWatcher {
 
   get view(): AccountView {
     const now = this.options.now()
-    const accounts = this.known.map(({ home, status, error }): AccountEntry => {
+    const accounts = this.known.map(({ home, status, error, keyHeld }): AccountEntry => {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, isApiKey(status))
       return {
@@ -136,6 +146,7 @@ export class AccountWatcher {
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
         apiKey: isApiKey(status),
+        keyReplaceable: isApiKey(status) && keyHeld,
         ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
@@ -217,15 +228,47 @@ export class AccountWatcher {
 
   async addApiKey(name: string, key: string, agent: string): Promise<void> {
     const value = assertApiKey(key, agent)
-    const verdict = await this.options.checkKey(agent, value)
-    const provider = keyProvider(agent, value)
-    if (verdict.state === 'rejected') throw fail(REJECTED[provider], {})
-    if (verdict.state === 'unknown') throw fail(UNCHECKED[provider], { reason: verdict.reason })
+    const verdict = await this.accepted(agent, value)
     const home = this.options.homes.addApiKey(name, value, agent)
-    this.keys.note(home.key, verdict, this.options.now())
+    this.noteKey(home.key, verdict)
     this.options.name(home.key, name)
     this.claimShared(home)
     await this.refresh()
+  }
+
+  /**
+   * A new key in the folder of an API account (BTN-418): its name, roles and pools stay. Checked as a new account's key
+   * is, and refused when the account's organization is known and the key's is another one. Running sessions go on with
+   * the key they started with; new ones read the new one.
+   */
+  async replaceApiKey(key: string, value: string): Promise<void> {
+    const home = this.options.homes.find(key)
+    if (home === undefined) throw fail('account.unknown', { key })
+    const next = this.options.homes.replacement(home, value)
+    const verdict = await this.accepted(home.agent, next)
+    const known = this.options.organizations.of(key)
+    if (known !== undefined && verdict.organization !== undefined && verdict.organization !== known) {
+      throw fail('account.keyOtherOrganization', { agent: home.agent })
+    }
+    this.options.homes.replaceApiKey(home, next)
+    this.noteKey(key, verdict)
+    await this.refresh()
+  }
+
+  /** The provider's verdict on a key it takes; a refusal or no answer is thrown. */
+  private async accepted(agent: string, key: string): Promise<KeyVerdict & { state: 'ok' }> {
+    const verdict = await this.options.checkKey(agent, key)
+    const provider = keyProvider(agent, key)
+    if (verdict.state === 'rejected') throw fail(REJECTED[provider], {})
+    if (verdict.state === 'unknown') throw fail(UNCHECKED[provider], { reason: verdict.reason })
+    return verdict
+  }
+
+  private noteKey(key: string, verdict: KeyVerdict): void {
+    this.keys.note(key, verdict, this.options.now())
+    if (verdict.state === 'ok' && verdict.organization !== undefined && verdict.organization !== this.options.organizations.of(key)) {
+      this.options.organizations.note(key, verdict.organization)
+    }
   }
 
   renew(key: string): void {
@@ -300,7 +343,7 @@ export class AccountWatcher {
         const key = this.options.homes.apiKeyOf(home)
         if (key === null) return false
         const before = this.keys.rejected(home.key)
-        this.keys.note(home.key, await this.options.checkKey(home.agent, key), now)
+        this.noteKey(home.key, await this.options.checkKey(home.agent, key))
         return this.keys.rejected(home.key) !== before
       }),
     )
@@ -329,6 +372,7 @@ export class AccountWatcher {
     this.options.forget(key)
     this.keys.forget(key)
     this.credit.forget(key)
+    this.options.organizations.forget(key)
   }
 
   code(code: string): void {
@@ -349,13 +393,14 @@ export class AccountWatcher {
 
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
-    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null }
+    const keyHeld = !home.global && this.options.homes.apiKeyOf(home) !== null
+    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld }
     try {
-      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null }
+      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
-      return { home, status: before?.status ?? null, error }
+      return { home, status: before?.status ?? null, error, keyHeld }
     }
   }
 

@@ -50,6 +50,26 @@ describe('checkOpenAiKey', () => {
   })
 })
 
+describe('the organization a working key pays through (BTN-418)', () => {
+  const answering = (status: number, headers: Record<string, string>): typeof fetch => async () => new Response('{}', { status, headers })
+
+  it("takes Anthropic's from anthropic-organization-id", async () => {
+    const fetchImpl = answering(200, { 'anthropic-organization-id': 'org-anthropic-example' })
+    expect(await checkApiKey('sk-ant-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok', organization: 'org-anthropic-example' })
+  })
+
+  it("takes OpenAI's from openai-organization", async () => {
+    const fetchImpl = answering(200, { 'openai-organization': 'org-openai-example', 'openai-project': 'proj_example' })
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok', organization: 'org-openai-example' })
+  })
+
+  it('knows none from an answer without the header, an empty one, or a refusal', async () => {
+    expect(await checkApiKey('sk-ant-fake-0000000000000000', 1000, answering(200, {}))).toEqual({ state: 'ok' })
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answering(200, { 'openai-organization': ' ' }))).toEqual({ state: 'ok' })
+    expect(await checkApiKey('sk-ant-fake-0000000000000000', 1000, answering(401, { 'anthropic-organization-id': 'org-x' }))).toEqual({ state: 'rejected' })
+  })
+})
+
 describe('KeyChecks', () => {
   const hour = 60 * 60_000
   const at = (minutes: number) => new Date(Date.UTC(2026, 9, 17, 12, minutes))

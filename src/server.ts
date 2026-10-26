@@ -90,6 +90,8 @@ export interface AccountControl {
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
   addApiKey(name: string, key: string, agent: string): Promise<void>
+  /** A new key in the folder of an API account, its name, roles and pools kept (BTN-418). */
+  replaceApiKey(account: string, key: string): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
@@ -304,6 +306,7 @@ const COMMANDS: Record<string, Command> = {
       textOf(body.key, 'key'),
       body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
     ),
+  'account/key': ({ account }, body) => account.replaceApiKey(accountOf(body), textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),

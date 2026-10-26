@@ -2,6 +2,8 @@ import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
+/** Whose key an API account holds, by `keyProvider`. */
+export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
 
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 
@@ -234,6 +236,12 @@ export const en = {
     'copilot: Copilot CLI takes a fine-grained personal access token (github_pat_…) with the Copilot Requests permission, or an OAuth token (gho_…); a classic ghp_ one it refuses',
   'account.copilotTokenRejected': () => "copilot: GitHub doesn't accept this token: it is wrong, expired or revoked",
   'account.copilotTokenUnchecked': (p: { reason: string }) => `copilot: could not check the token with GitHub (${p.reason}); try again later`,
+  'account.keyNotHeld': (p: { agent: string }) =>
+    `${p.agent}: this account's key is not kept in its folder (the agent's own folder or a script that gives the key), so it is not replaced from here`,
+  'account.keyOtherProvider': (p: { provider: string }) =>
+    `opencode: the account holds a key of ${PROVIDER_NAMES[p.provider] ?? p.provider}; a key of another provider is another account: add it as one`,
+  'account.keyOtherOrganization': (p: { agent: string }) =>
+    `${p.agent}: the key is of another organization than the account's, so it is another account: add it as one; the old key stays`,
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,

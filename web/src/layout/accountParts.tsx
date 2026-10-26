@@ -21,6 +21,7 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
+import { keyWord, ReplaceKeyDialog } from './ReplaceKeyDialog.js'
 import './accountAdd.css'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
@@ -284,7 +285,12 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           {t.session.spendUntil(spendAt)}
         </Tipped>
       )}
-      {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
+      {entry.apiKey && entry.needsLogin && (
+        <div className="accounts__note accounts__note--warn">
+          <span>{keyWord(entry) === 'token' ? t.account.tokenLost : t.account.apiKeyLost}</span>
+          {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
+        </div>
+      )}
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
@@ -313,12 +319,13 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   )
 }
 
-/** The buttons `AccountNotes` leaves out when `bare`: renew the sign-in, keep a folder being removed. */
+/** The buttons `AccountNotes` leaves out when `bare`: renew the sign-in, replace a refused key, keep a folder being removed. */
 export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps, 'bare' | 'quiet'>) {
   const left = loginLeft(entry.loginExpiresAt, now)
   return (
     <>
       {!entry.apiKey && (left.renew || entry.needsLogin) && <RenewButton entry={entry} view={view} sending={sending} send={send} />}
+      {entry.apiKey && entry.needsLogin && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
     </>
   )
@@ -349,6 +356,19 @@ function RenewButton({ entry, view, sending, send }: Omit<NotesProps, 'now' | 'b
     >
       {label}
     </button>
+  )
+}
+
+/** The fix of a refused key next to its line: the same dialog as the ⋯ menu's item. */
+function ReplaceKeyButton({ entry, view, sending }: Pick<NotesProps, 'entry' | 'view' | 'sending'>) {
+  const [replacing, setReplacing] = useState(false)
+  return (
+    <>
+      <button type="button" className="button button--small" disabled={sending} onClick={() => setReplacing(true)}>
+        {t.account.replaceKey[keyWord(entry)]}
+      </button>
+      {replacing && <ReplaceKeyDialog entry={entry} title={accountName(entry, view.accounts)} onClose={() => setReplacing(false)} />}
+    </>
   )
 }
 
@@ -401,16 +421,19 @@ interface RemoveProps {
  */
 export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
   const [confirming, setConfirming] = useState(false)
+  const [replacing, setReplacing] = useState(false)
   const kept = removeProblem(view, entry.key)
 
   if (entry.removing) return null
+  const replace = entry.keyReplaceable === true ? [{ label: t.account.replaceKey[keyWord(entry)], pick: () => setReplacing(true) }] : []
   return (
     <>
       <MoreMenu
         label={t.account.more(accountName(entry, view.accounts))}
         disabled={sending}
-        items={[{ label: t.common.remove, danger: true, problem: kept === undefined ? undefined : say(kept), pick: () => setConfirming(true) }]}
+        items={[...replace, { label: t.common.remove, danger: true, problem: kept === undefined ? undefined : say(kept), pick: () => setConfirming(true) }]}
       />
+      {replacing && <ReplaceKeyDialog entry={entry} title={accountName(entry, view.accounts)} onClose={() => setReplacing(false)} />}
       {confirming && (
         <ConfirmDialog
           title={accountName(entry, view.accounts)}
