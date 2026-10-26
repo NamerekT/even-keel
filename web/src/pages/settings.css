@@ -576,7 +576,8 @@
   margin-left: 4px;
 }
 
-/* The question mark stays pale until its row is pointed at. */
+/* The question mark stays pale until its row is pointed at. A field of several rows marks each `settings__help-scope`:
+   pointing at one lights only its own mark, not those of the field's other rows. */
 @media (hover: hover) {
   .settings__field .help,
   .settings__heading .help,
@@ -587,7 +588,8 @@
       color var(--motion-fast);
   }
 
-  .settings__field:hover .help,
+  .settings__field:hover:not(:has(.settings__help-scope:hover)) .help:not(.settings__help-scope .help),
+  .settings__help-scope:hover .help,
   .settings__heading:hover .help,
   .provider-grid__head:hover .help,
   .provider-grid__cell:hover .help,
