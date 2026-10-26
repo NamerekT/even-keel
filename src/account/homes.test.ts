@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -238,4 +238,69 @@ describe('AccountHomes Copilot accounts', () => {
     expect(assertApiKey(`${token} `, 'copilot')).toBe(token)
     expect(keyProvider('copilot', token)).toBe('github')
   })
+})
+
+describe('AccountHomes.replaceApiKey (BTN-418)', () => {
+  const old = 'sk-ant-api03-FAKE0000000000000000000000000000-oldkey'
+  const next = 'sk-ant-api03-FAKE1111111111111111111111111111-newkey'
+  const withRoot = (run: (root: string, homes: AccountHomes) => void) => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      run(root, new AccountHomes(env, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot')))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+  const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'))
+
+  it("puts Claude's new key into settings.json and approves it in place of the old one, keeping the rest", () =>
+    withRoot((_root, homes) => {
+      const home = homes.addApiKey('Work', old)
+      const settings = join(home.dir, 'settings.json')
+      const config = join(home.dir, '.claude.json')
+      writeFileSync(settings, JSON.stringify({ model: 'opus', env: { ANTHROPIC_API_KEY: old, OTHER: '1' } }))
+      writeFileSync(config, JSON.stringify({ numStartups: 3, customApiKeyResponses: { approved: ['someone-else-0000000', old.slice(-20)], rejected: ['refused-000000000000'] } }))
+      homes.replaceApiKey(home, ` ${next}\n`)
+      expect(json(settings)).toEqual({ model: 'opus', env: { ANTHROPIC_API_KEY: next, OTHER: '1' } })
+      expect(json(config)).toEqual({ numStartups: 3, customApiKeyResponses: { approved: ['someone-else-0000000', next.slice(-20)], rejected: ['refused-000000000000'] } })
+      expect(homes.apiKeyOf(home)).toBe(next)
+    }))
+
+  it("puts Codex's into auth.json and OpenCode's under the same provider, keeping the rest", () =>
+    withRoot((_root, homes) => {
+      const codex = homes.addApiKey('', 'sk-proj-fake-0000000000000000-old', 'codex')
+      const auth = join(codex.dir, 'auth.json')
+      writeFileSync(auth, JSON.stringify({ auth_mode: 'apikey', OPENAI_API_KEY: 'sk-proj-fake-0000000000000000-old', last_refresh: null }))
+      homes.replaceApiKey(codex, 'sk-proj-fake-0000000000000000-new')
+      expect(json(auth)).toEqual({ auth_mode: 'apikey', OPENAI_API_KEY: 'sk-proj-fake-0000000000000000-new', last_refresh: null })
+
+      const openCode = homes.addApiKey('Zen', 'sk-ant-fake.example.com.0000', 'opencode')
+      const file = join(openCode.dir, 'data', 'opencode', 'auth.json')
+      writeFileSync(file, JSON.stringify({ anthropic: { type: 'api', key: 'sk-ant-fake.example.com.0000' }, github: { type: 'oauth', refresh: 'x' } }))
+      homes.replaceApiKey(openCode, 'sk-ant-fake.example.com.1111')
+      expect(json(file)).toEqual({ anthropic: { type: 'api', key: 'sk-ant-fake.example.com.1111' }, github: { type: 'oauth', refresh: 'x' } })
+    }))
+
+  it("refuses an OpenCode key of another provider than the account's, and writes nothing", () =>
+    withRoot((_root, homes) => {
+      const home = homes.addApiKey('Zen', 'sk-ant-fake.example.com.0000', 'opencode')
+      expect(() => homes.replaceApiKey(home, 'sk-proj-fake-0000000000000000-new')).toThrow(
+        expect.objectContaining({ notice: expect.objectContaining({ code: 'account.keyOtherProvider' }) }),
+      )
+      expect(homes.apiKeyOf(home)).toBe('sk-ant-fake.example.com.0000')
+    }))
+
+  it('refuses a malformed key as adding does, and a folder that holds no key of its own', () =>
+    withRoot((root, homes) => {
+      const home = homes.addApiKey('Work', old)
+      expect(() => homes.replaceApiKey(home, 'too short')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'account.apiKeyInvalid' }) }))
+      const helper = join(root, 'claude', 'helper')
+      mkdirSync(helper)
+      writeFileSync(join(helper, 'settings.json'), JSON.stringify({ apiKeyHelper: 'get-key.sh' }))
+      expect(() => homes.replaceApiKey({ key: 'helper', dir: helper, global: false, agent: 'claude' }, next)).toThrow(
+        expect.objectContaining({ notice: expect.objectContaining({ code: 'account.keyNotHeld' }) }),
+      )
+      expect(() => homes.replaceApiKey({ ...home, global: true }, next)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'account.keyNotHeld' }) }))
+      expect(homes.apiKeyOf(home)).toBe(old)
+    }))
 })

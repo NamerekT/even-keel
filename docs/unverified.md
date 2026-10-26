@@ -33,6 +33,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
+| 23a | [An API key's organization header](#an-api-keys-organization-header) | replacing an API key | a key of another organization replaces the old one, or a key of the same one is refused |
 | 24 | [A command after a green main that restarts Even Keel on Linux and macOS](#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on Linux, macOS | the service stays stopped |
 | 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
 | 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix that is over |
@@ -190,7 +191,11 @@ A `--bg` session waiting on a permission dialog has the call as its question whi
 
 ### A key refused after it was added
 
-The check of a key was seen live answering 200 for a working key and 401 for a made-up one, and on 2026-10-25 401 `authentication_error` "invalid x-api-key" for a key disabled in the Console after it was added and again once it was deleted: the check at the service's start made the account `needsLogin`. A 403 (a disabled organization or a key without the permission) was never seen. If such an organization answers anything but 401 or 403 on the models list, the check learns nothing, the account looks fine and its first session fails and stops like any error (`docs/accounts.md`). **Workaround:** remove the account and add a working key.
+The check of a key was seen live answering 200 for a working key and 401 for a made-up one, and on 2026-10-25 401 `authentication_error` "invalid x-api-key" for a key disabled in the Console after it was added and again once it was deleted: the check at the service's start made the account `needsLogin`. A 403 (a disabled organization or a key without the permission) was never seen. If such an organization answers anything but 401 or 403 on the models list, the check learns nothing, the account looks fine and its first session fails and stops like any error (`docs/accounts.md`). **Workaround:** replace the key with a working one ("Replace key" in the card's ⋯ menu).
+
+### An API key's organization header
+
+Replacing an API account's key (BTN-418, `docs/accounts.md`, "The key's organization") refuses a key of another organization by the header a working key's answer to the models list carries: Anthropic's `anthropic-organization-id`, OpenAI's `openai-organization`. Both are taken from the providers' documentation; the parsing is tested on a stubbed `fetch`, no live answer was looked at. Assumed: the header comes on `GET /v1/models` (not only on generation calls), it names the organization the same way for every key of it, and an OpenAI project key (`sk-proj-`) gets the organization there too, not only `openai-project`. If no header comes, nothing is refused and a key of another organization replaces the old one, its spend counted under the old account. If the value differs between keys of one organization (per workspace or per project), a working key of the same account is refused as of another organization. **Workaround:** for the first, remove the account and add the other organization's key as its own; for the second, add the new key as a new account.
 
 ### An API key out of credit (BTN-165)
 

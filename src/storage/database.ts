@@ -26,7 +26,8 @@ export interface Queryable {
  * profiles and each project's profile (BTN-200); step 6 the versions of the milestones' changelog drafts (BTN-209); step 7 what each version's turn cost; step 8 the chain's list of pull requests, `reviews` (BTN-205); step 9 gives each project the color its position had,
  * a `color` row (BTN-207); step 12 the profiles' chain rules, the projects' extra task feeds and each feed's profile,
  * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
- * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345). A foreign key between tables is deferred, so that a copy inserts the
+ * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
+ * organization each API account's key pays through, `key_organizations` (BTN-418). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -214,6 +215,13 @@ export const STEPS: readonly string[] = [
       from projects p
      where not exists (select 1 from setting_values v where v.key = 'tracker' and v.project_id = p.id);
   delete from setting_values where key = 'tracker' and project_id is null;
+  `,
+  `
+  create table key_organizations (
+    account      text primary key,
+    organization text not null,
+    seen_at      text not null
+  );
   `,
 ]
 

@@ -6,7 +6,7 @@ import { CODEX } from '../codex/name.js'
 import { tokenOf, writeToken } from '../copilot/home.js'
 import { COPILOT } from '../copilot/name.js'
 import { fail } from '../notice/notice.js'
-import { keyOf, keyVendor, writeKey } from '../opencode/home.js'
+import { keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
@@ -133,6 +133,45 @@ export class AccountHomes {
     return home
   }
 
+  /**
+   * The trimmed key that may take the place of the folder's own (BTN-418): of the right form, into a folder that holds its
+   * key itself — not the agent's own folder, not one with `apiKeyHelper` — and of the provider of the key it holds.
+   */
+  replacement(home: AccountHome, key: string): string {
+    const value = assertApiKey(key, home.agent)
+    const held = home.global ? null : this.apiKeyOf(home)
+    if (held === null) throw fail('account.keyNotHeld', { agent: home.agent })
+    const provider = keyProvider(home.agent, held)
+    if (keyProvider(home.agent, value) !== provider) throw fail('account.keyOtherProvider', { provider })
+    return value
+  }
+
+  /**
+   * A new key in the place of the folder's own, the rest of its files as they are: Claude's `settings.json` and the
+   * approval in `.claude.json` (the old key's suffix goes), Codex's `auth.json`, OpenCode's provider entry, Copilot's token.
+   */
+  replaceApiKey(home: AccountHome, key: string): void {
+    const held = this.apiKeyOf(home)
+    const value = this.replacement(home, key)
+    if (home.agent === COPILOT) return writeToken(home.dir, value)
+    if (home.agent === OPENCODE) return replaceKey(home.dir, value)
+    if (home.agent === CODEX) {
+      const file = join(home.dir, CODEX_AUTH)
+      writeFileSync(file, JSON.stringify({ ...readObject(file), [CODEX_KEY_FIELD]: value }, null, 2))
+      return
+    }
+    const settingsFile = join(home.dir, 'settings.json')
+    const settings = readObject(settingsFile)
+    writeFileSync(settingsFile, JSON.stringify({ ...settings, env: { ...objectOf(settings.env), [API_KEY_VARIABLE]: value } }, null, 2))
+    const configFile = this.configFile(home)
+    const config = readObject(configFile)
+    const responses = objectOf(config.customApiKeyResponses)
+    const approved = (Array.isArray(responses.approved) ? responses.approved : []).filter((suffix) => suffix !== held?.slice(-APPROVED_SUFFIX))
+    const rejected = Array.isArray(responses.rejected) ? responses.rejected : []
+    const customApiKeyResponses = { ...responses, approved: [...approved, value.slice(-APPROVED_SUFFIX)], rejected }
+    writeFileSync(configFile, JSON.stringify({ ...config, customApiKeyResponses }, null, 2))
+  }
+
   /** The key in Claude's `settings.json`, Codex's or OpenCode's `auth.json`; a folder with `apiKeyHelper` has none to read. */
   apiKeyOf(home: AccountHome): string | null {
     if (home.agent === OPENCODE) return keyOf(home.dir)
@@ -187,6 +226,19 @@ export class AccountHomes {
       return []
     }
   }
+}
+
+/** A JSON object file; an empty object for one missing, broken or holding something else. */
+function readObject(file: string): Record<string, unknown> {
+  try {
+    return objectOf(JSON.parse(readFileSync(file, 'utf8')))
+  } catch {
+    return {}
+  }
+}
+
+function objectOf(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 }
 
 /** The trimmed key, or a refusal of one that is not a single word long enough to approve. */

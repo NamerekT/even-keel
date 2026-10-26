@@ -1,4 +1,4 @@
-import { FORGES, type GitStep } from '../../../src/notice/en.js'
+import { FORGES, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -221,6 +221,10 @@ export const noticesRu: NoticeTexts = {
     'Copilot CLI принимает мелкозернистый личный токен (github_pat_…) с правом Copilot Requests или OAuth-токен (gho_…); классический ghp_ он не берёт',
   'account.copilotTokenRejected': () => 'GitHub не принимает этот токен: он неверный, истёк или отозван',
   'account.copilotTokenUnchecked': (p) => `не удалось проверить токен у GitHub (${p.reason}) — попробуйте позже`,
+  'account.keyNotHeld': () => 'ключ этого аккаунта хранится не в его папке (собственная папка агента или скрипт, выдающий ключ) — отсюда его не заменить',
+  'account.keyOtherProvider': (p) =>
+    `в аккаунте ключ ${PROVIDER_NAMES[p.provider] ?? p.provider}; ключ другого провайдера — это другой аккаунт, добавьте его отдельно`,
+  'account.keyOtherOrganization': () => 'ключ из другой организации, чем у аккаунта, — это другой аккаунт: добавьте его отдельно; старый ключ остался',
   'account.chainRunning': (p) => `цепочка ${p.project} работает — остановите её перед сменой аккаунта`,
   'account.sessionsBusy': (p) => `сессии посреди хода (${list(p.sessions)}) — смените аккаунт, когда они закончат`,
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,
