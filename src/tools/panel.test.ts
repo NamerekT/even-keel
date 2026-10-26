@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
-import { readBranchDocs, readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
+import { chainSettings, readBranchDocs, readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
 
 describe('readToolsView', () => {
   let root: string
@@ -55,6 +55,18 @@ describe('readToolsView', () => {
 
   it('has no rules when git cannot read the branch', async () => {
     expect((await readToolsView('ABC', places)).rules).toBeNull()
+  })
+})
+
+describe('chainSettings', () => {
+  const settings = (secrets?: string[]) => JSON.parse(chainSettings('repo', {}, false, [], 'home/.claude', null, secrets)) as Record<string, unknown>
+
+  it('blanks every secret in env: the user settings cannot hand one to a chain session', () => {
+    expect(settings(['GITLAB_TOKEN', 'HULY_PASSWORD']).env).toEqual({ GITLAB_TOKEN: '', HULY_PASSWORD: '' })
+  })
+
+  it('has no env without secrets', () => {
+    expect(settings()).not.toHaveProperty('env')
   })
 })
 

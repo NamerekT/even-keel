@@ -17,7 +17,7 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
-import { sessionBase } from './agent/env.js'
+import { sessionBase, sessionSecrets, settingsSecrets } from './agent/env.js'
 import { ModelCatalog } from './agent/models.js'
 import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
@@ -397,9 +397,18 @@ const requireModel = async (home: AccountHome, start: SessionStart) => {
   const refusal = await models.refusal(home, start.name, start.model)
   if (refusal !== undefined) throw new NoticeError(refusal)
 }
+const secretsSaid = new Map<string, string>()
+/** Logs, once per account and list, the keys its `settings.json` sets that the chain's `--settings` blanks (BTN-436). */
+const sayBlankedSecrets = (home: AccountHome) => {
+  const names = settingsSecrets(readJson(join(home.dir, 'settings.json')), sessionSecrets(packages.keyNames())).join(', ')
+  if (secretsSaid.get(home.key) === names) return
+  secretsSaid.set(home.key, names)
+  if (names !== '') console.log(`launch: the env of account ${home.key}'s settings.json sets ${names}; chain sessions get them blank`)
+}
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
 const launchIn = async (home: AccountHome, start: SessionStart, project: string | undefined) => {
   await requireModel(home, start)
+  if (home.agent === CLAUDE && start.settings !== undefined) sayBlankedSecrets(home)
   try {
     return await agentOf(home).launch(home, start)
   } catch (error) {
@@ -991,6 +1000,7 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
         configStore.current.hiddenSkills,
         homes.global.dir,
         configStore.current.settings[project]?.cacheTtl ?? null,
+        sessionSecrets(packages.keyNames()),
       )
 
 function projectOf(task: string): string | undefined {
