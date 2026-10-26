@@ -1,50 +1,44 @@
-name: CLI downloads
+name: Tests
 
+# The same check as .forgejo/workflows/test.yml, for pull requests on GitHub. Forgejo ignores this folder
+# while it has its own, and the service rebuild stays there: a GitHub runner cannot reach the workstation.
 on:
+  push:
+    branches:
+      - main
+      - dev
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - dev
+      - 'release/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  native:
-    name: ${{ matrix.runner }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-          - macos-latest
-          - macos-15-intel
-          - windows-latest
-          - windows-11-arm
+  test:
+    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run cli-fetch
 
-  alpine:
-    name: Alpine musl x64
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      # Run checkout on the host: JavaScript actions bring a glibc Node binary.
-      - run: >-
-          docker run --rm
-          -v "$GITHUB_WORKSPACE:/work" -w /work
-          -e CI=true -e GITHUB_STEP_SUMMARY=/work/.temp/cli-fetch-summary.md
-          node:24-alpine
-          sh -c 'mkdir -p .temp && npm ci && npm run cli-fetch'
-      - if: always()
-        run: |
-          if [ -f .temp/cli-fetch-summary.md ]; then
-            cat .temp/cli-fetch-summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run typecheck
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test
