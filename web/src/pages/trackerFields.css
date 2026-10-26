@@ -14,10 +14,13 @@
   color: var(--lamp-done);
 }
 
+.tracker-fields__row > * {
+  min-width: 0;
+}
+
 /* The project's fields stay on the profile's row while their inputs fit; the name found beside one wraps under it. */
 .tracker-fields__row > :not(:first-child) {
   flex: 1 1 240px;
-  min-width: 0;
 }
 
 .tracker-fields__input-row {
