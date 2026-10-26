@@ -91,7 +91,8 @@ export const defaultProfile = (set: ProfileSet, kind: string): TrackerProfile | 
 /**
  * The keys a project's MCP servers take (BTN-200): the environment without any kind's variables, then each kind's
  * default profile, then the profiles the project's feeds run on (BTN-66), then the profile the project runs on — its
- * tracker server signs in as that one, and a feed's tracker of another kind as the feed's.
+ * tracker server signs in as that one, and a feed's tracker of another kind as the feed's. Each profile replaces its
+ * kind's variables in full, so omitted fields take the server's defaults.
  */
 export function keyPool(
   set: ProfileSet,
@@ -102,10 +103,16 @@ export function keyPool(
   feeds: readonly { id: string; tracker: string }[] = [],
 ): NodeJS.ProcessEnv {
   const pool: NodeJS.ProcessEnv = { ...env }
+  const apply = (profile: TrackerProfile | undefined) => {
+    if (profile === undefined) return
+    for (const name of kinds[profile.kind]?.variables ?? []) delete pool[name]
+    Object.assign(pool, profile.values)
+  }
   for (const each of Object.values(kinds)) for (const name of each.variables) delete pool[name]
-  for (const profile of set.profiles) if (profile.isDefault) Object.assign(pool, profile.values)
-  for (const feed of feeds) Object.assign(pool, profileFor(set, feed.id, feed.tracker)?.values)
-  return Object.assign(pool, profileFor(set, projectId, kind)?.values)
+  for (const profile of set.profiles) if (profile.isDefault) apply(profile)
+  for (const feed of feeds) apply(profileFor(set, feed.id, feed.tracker))
+  apply(profileFor(set, projectId, kind))
+  return pool
 }
 
 /** The profile a project's MCP server of `server`'s tracker signs in as under `keyPool`: the one written last. */
