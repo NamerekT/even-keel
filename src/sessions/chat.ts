@@ -33,7 +33,7 @@ export function createChat(deps: ChatDeps) {
     resume: (task, sessionId, prompt) => {
       const project = deps.configuredProject(task)
       if (project === undefined) throw fail('config.unknownProject', { key: task })
-      dispatcher.answer(project, task, sessionId, null, prompt)
+      return dispatcher.answer(project, task, sessionId, null, prompt)
     },
     language: deps.language,
     changed: deps.changed,

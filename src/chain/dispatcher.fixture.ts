@@ -3,7 +3,7 @@ import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { MainCheckDeps, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
+import type { DispatcherDeps, MainCheckDeps, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
@@ -39,6 +39,7 @@ export interface SetupOptions {
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
+  reply?: DispatcherDeps['reply']
   failStop?: boolean
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
@@ -136,10 +137,10 @@ export function setup(options: SetupOptions = {}) {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
       return session.sessionId
     },
-    reply: async (id, session, prompt) => {
+    reply: options.reply ?? (async (id, session, prompt) => {
       relays.push({ kind: 'reply', task: id, sessionId: session.sessionId, prompt })
       return session.sessionId
-    },
+    }),
     relay: async (id, session, prompt, reason) => {
       if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
       relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason })

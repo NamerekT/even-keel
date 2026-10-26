@@ -20,6 +20,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
 | 10 | [A Codex chain session reaching its own compaction](#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
+| 11a | [Mail resumed while a chain stops](#mail-resumed-while-a-chain-stops-btn-427) | chat users with a stop pending | a message may need sending again |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
@@ -204,6 +205,10 @@ Read from CLI 2.1.302, never seen with a key at zero: the API answers 400 "Your 
 ### The chat's turn line while an answer is delivered to Codex or after the chain stopped (BTN-188)
 
 Seen live on a Claude chain session (BTN-189, CLI 2.1.302): a text answer and an `AskUserQuestion` answer were each in the transcript 8 s after the send, and the line went from "Delivering the answer" to "Thinking" then (`docs/web.md`). Not run on a Codex session nor on an answer to a session whose chain stopped (`deliverLoose`). It assumes the respawned session writes its prompt (or the answer's result) with a time after the moment the service began the delivery. If it does not, the line keeps saying the answer is on its way for up to three minutes while the session works; nothing else is affected.
+
+### Mail resumed while a chain stops (BTN-427)
+
+Regression tests cover a message left in the mailbox when the turn ends and `stopAfter` drops the chain before its queued answer runs, and an answer to a question in the same race. They use the real dispatcher, chat routing and mailbox with a fake session transport. Delivery goes to the same session through `deliverLoose`; transport failures and session replacements return mail to the chat, and hooks cannot take mail claimed for a queued resume. This timing has not been checked against a live CLI after the fix. If the CLI refuses the resume, mail should return instead of appearing delivered. **Workaround:** check the session transcript and resend a returned message from chat.
 
 ### Chat mail in a real session (BTN-181)
 

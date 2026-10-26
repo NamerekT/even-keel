@@ -117,8 +117,13 @@ export class Handovers {
     prompt: string,
     ask: string | null,
     move: 'answer' | 'review' = 'answer',
-  ): Promise<void> {
-    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) return
+  ): Promise<boolean> {
+    if (!this.state.active.includes(chain)) {
+      return move === 'answer' ? this.deliverLoose(chain.project, current.task, session, prompt) : false
+    }
+    if (chain.current !== current || current.sessionId !== session.sessionId || this.deps.handoff(current.task)?.sessionId !== session.sessionId) {
+      return this.undelivered(current.task, session, 'the current session changed before delivery')
+    }
     begin(current, this.deps.now().toISOString(), move)
     current.answering = true
     current.reply = prompt
@@ -127,21 +132,30 @@ export class Handovers {
     try {
       const sessionId = await this.deps.reply(current.task, session, prompt)
       this.moved(chain, current, move, sessionId, session.sessionId)
+      return true
     } catch (error) {
       this.halt(chain, noticeOf(error))
+      return this.undelivered(current.task, session, englishOf(noticeOf(error)))
     }
   }
 
   /** The answer to a session that lives on after its chain stopped: no chain to follow it or to pause on a failure. */
-  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<void> {
-    if (this.state.active.some((chain) => chain.project === project)) return
+  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+    if (this.deps.handoff(task)?.sessionId !== session.sessionId) return this.undelivered(task, session, 'the session changed before delivery')
+    if (this.state.active.some((chain) => chain.project === project)) return this.undelivered(task, session, 'a chain started before delivery')
     const at = this.deps.now().toISOString()
     try {
       const sessionId = await this.deps.reply(task, session, prompt)
       this.deps.journal({ at, project, task, sessionId, reason: 'answer', previous: session.sessionId })
+      return true
     } catch (error) {
-      this.deps.log(`chain: ${task}: the answer did not reach the session ${session.sessionId}: ${englishOf(noticeOf(error))}`)
+      return this.undelivered(task, session, englishOf(noticeOf(error)))
     }
+  }
+
+  private undelivered(task: string, session: HandoffSession, reason: string): false {
+    this.deps.log(`chain: ${task}: the answer did not reach the session ${session.sessionId}: ${reason}`)
+    return false
   }
 
   /** `extra` — the feedback a `review` handover carries, kept in `reply` for a service restart to make the move again. */
