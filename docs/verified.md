@@ -216,10 +216,12 @@ What runs every day was never checked in a session of its own and has no commit.
 | A task with nothing to merge ends by `NO CHANGES:` | same | to 2026-10-27 | 12 tasks (7 on `dev`, 5 on `main`) | whole |
 | A release project's carry into `dev` after a task | same | to 2026-10-27 | 7 carries of the release's commits by the chain's `EKR-CARRY` | whole |
 | A pull request or merge request opened for a task in PR mode | same, Forgejo and GitLab sandboxes | to 2026-10-27 | 24 opened (9 Forgejo, 15 GitLab); 5 restarts of a chain on feedback | whole |
-| The service's restart (update, rebuild, a crash of the host) | same | 2026-10-04 to 2026-10-27 | 568 starts, 24–61 on the busiest days | whole as a start; whether the sessions lived through each is in the rows of Sessions |
+| The service's restart (update, rebuild, a crash of the host) | same | 2026-10-04 to 2026-10-27 | 569 starts, up to 64 a day | whole as a start; whether the sessions lived through each is in the rows of Sessions |
 | Chain sessions on Even Keel's own copy of the Claude Code CLI (`cli.claude: checked`, row 8 of "What to check first") | same | 2026-10-24 20:42 to 2026-10-27 | 126 launches and 96 task closes from the copy of 2.1.310, no failure of the CLI; passive, so the row stays open for a new version | whole for 2.1.310; each later version needs its own `cli-check` |
 
-Commit messages that claim a live check and touched `unverified.md`, where the history alone does not say which entry the check lifted. Kept as leads for a later pass; none is counted above.
+## Unclear
+
+Commit messages that claim a live check and touched `unverified.md`, where the history alone does not say which entry the check lifted. Kept as leads for a later pass; none is counted in the tables above.
 
 | Commit | Date | What the message says |
 | --- | --- | --- |
