@@ -13,6 +13,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls } from './calls.js'
 import { contextArgs } from './context.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
@@ -24,6 +25,7 @@ const APPEAR_TIMEOUT_MS = 30_000
 const APPEAR_POLL_MS = 250
 const EXIT_POLL_MS = 100
 const CLOCK_SKEW_MS = 5_000
+const WARM_TIMEOUT_MS = 3 * 60_000
 
 /** `EVEN_KEEL_CLAUDE_BIN`, else Even Keel's own copy of the checked version (`pinned`), else the installed CLI. */
 export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
@@ -107,6 +109,11 @@ export class ClaudeCli {
 
   async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
     return parseWriteAnswer(await runWithInput(this.bin(), writeArgs(model), prompt, { cwd, env: this.envOf(home), timeoutMs }))
+  }
+
+  /** The keep-warm ping of a session (`warmArgs`) in its own folder; loading a long transcript takes longer than a short call. */
+  async warm(home: AccountHome, sessionId: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras): Promise<TurnSpend> {
+    return parseWarmAnswer(await runWithInput(this.bin(), warmArgs(sessionId, model, extras), prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS }), model)
   }
 
   authLogin(home: AccountHome): ChildProcessWithoutNullStreams {
@@ -277,12 +284,10 @@ export function parseWriteAnswer(stdout: string): OneTurnAnswer {
  * would swallow it. A server goes under its `gatewayName`.
  */
 export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
-  const { settings, mcp, plugins = [], instructions } = extras
-  const servers = Object.fromEntries((mcp ?? []).map((each) => [gatewayName(each), { type: 'http', url: each.url }]))
+  const { settings, instructions } = extras
   return [
     '--bg',
-    ...(mcp === undefined ? [] : ['--mcp-config', JSON.stringify({ mcpServers: servers }), '--strict-mcp-config']),
-    ...plugins.flatMap(({ dir }) => ['--plugin-dir', dir]),
+    ...packageArgs(extras),
     '--permission-mode',
     SESSION_MODE,
     '-n',
@@ -291,6 +296,86 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
     ...(settings === undefined ? [] : ['--settings', settings]),
     ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
   ]
+}
+
+function packageArgs({ mcp, plugins = [] }: SessionExtras): string[] {
+  const servers = Object.fromEntries((mcp ?? []).map((each) => [gatewayName(each), { type: 'http', url: each.url }]))
+  return [
+    ...(mcp === undefined ? [] : ['--mcp-config', JSON.stringify({ mcpServers: servers }), '--strict-mcp-config']),
+    ...plugins.flatMap(({ dir }) => ['--plugin-dir', dir]),
+  ]
+}
+
+/** The permission mode of a keep-warm fork: whatever is not allowed already is refused, with nobody asked. */
+export const WARM_MODE = 'dontAsk'
+
+/**
+ * The keep-warm ping (BTN-437): a fork of the session with no transcript, for one call, with the prompt on stdin. Its
+ * tools, system prompt and model must be the session's, or it misses the cache: the session's servers, plugins,
+ * settings and instructions, and the model of its last answer. `--max-turns 1` does not keep a tool call from running,
+ * so the mode refuses one; the hooks are off, so that the plugins' hooks take no mail and hold no stop of the fork.
+ * `plan` would be safer, but it changes the prompt and the fork read nothing (CLI 2.1.310, 2026-10-26).
+ */
+export function warmArgs(sessionId: string, model: string | null, extras: SessionExtras = {}): string[] {
+  const { settings, instructions } = extras
+  return [
+    '-p',
+    '--resume',
+    sessionId,
+    '--fork-session',
+    '--no-session-persistence',
+    '--output-format',
+    'json',
+    '--max-turns',
+    '1',
+    ...packageArgs(extras),
+    '--permission-mode',
+    WARM_MODE,
+    ...(model === null ? [] : ['--model', model]),
+    '--settings',
+    hooksOff(settings),
+    ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
+  ]
+}
+
+/** The chain's `--settings` JSON with every hook off: `disableAllHooks` does not change the prompt, so the cache holds. */
+export function hooksOff(settings: string | undefined): string {
+  return JSON.stringify({ ...(settings === undefined ? {} : (JSON.parse(settings) as object)), disableAllHooks: true })
+}
+
+/**
+ * What the ping's one call read and wrote: the top `usage` of the result. A fork's `modelUsage` and `total_cost_usd`
+ * carry on from the totals its transcript saved, so they count the session's earlier turns too, and the cost is left out.
+ */
+export function parseWarmAnswer(stdout: string, model: string | null): TurnSpend {
+  return warmSpend(JSON.parse(stdout) as WarmResult, model)
+}
+
+/** The CLI's `result` message, as `-p --output-format json` prints it and the SDK streams it. */
+export interface WarmResult {
+  subtype?: string
+  is_error?: boolean
+  result?: unknown
+  duration_ms?: number
+  usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
+}
+
+export function warmSpend(answer: WarmResult, model: string | null): TurnSpend {
+  if (answer.is_error === true || answer.subtype !== 'success') {
+    throw new Error(typeof answer.result === 'string' && answer.result !== '' ? answer.result : `the turn ended with ${answer.subtype ?? 'no result'}`)
+  }
+  const usage = answer.usage ?? {}
+  return {
+    model,
+    tokens: {
+      input: usage.input_tokens ?? 0,
+      output: usage.output_tokens ?? 0,
+      cacheRead: usage.cache_read_input_tokens ?? 0,
+      cacheWrite: usage.cache_creation_input_tokens ?? 0,
+    },
+    cost: null,
+    durationMs: answer.duration_ms ?? 0,
+  }
 }
 
 /**

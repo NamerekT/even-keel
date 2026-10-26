@@ -246,6 +246,16 @@ What the CLI 2.1.302 binary does, in order of precedence: the `FORCE_PROMPT_CACH
 
 The `cacheTtl` key (`"5m"` | `"1h"`, absent or `null` — the CLI decides; `/settings`, the Claude Code group, and a project's own value in its panel, BTN-187) goes into the chain sessions' `--settings` as `promptCacheTtl` (`chainSettings` in `src/tools/panel.ts`), on every launch. It is live: the next launch takes the new value. It matters mostly on a key, where a chain waiting for a reply longer than 5 minutes otherwise writes the whole context again. Seen live on a key with `1h` (CLI 2.1.310, Haiku, a `--bg` and an SDK chain session, 2026-10-25): every cache write of both was `ephemeral_1h_input_tokens`, none 5-minute.
 
+### Keep-warm (BTN-437, `src/sessions/keepwarm.ts`, `Agent.warm`)
+
+Modelled on Flow's `/keepwarm` (MIT). When to ping and what keeps it safe is in `docs/chain.md` ("A keep-warm ping"); here — what the ping is. It is a fork of the session that writes nothing: the session's transcript, process and question stay as they are.
+
+- `--bg` (`ClaudeCli.warm`, `warmArgs`): `claude -p --resume <id> --fork-session --no-session-persistence --output-format json --max-turns 1`, the session's `--mcp-config`/`--plugin-dir`, `--permission-mode dontAsk`, `--model` of the session's last answer (`SessionView.model`), the chain's `--settings` with `disableAllHooks: true` (`hooksOff`) and `--append-system-prompt-file` when the session has one; the prompt `Reply with the single word ok.` on stdin, 3 minutes at most.
+- SDK (`SdkSessions.warm`): `query` with a string prompt, `resume`, `forkSession: true`, `persistSession: false`, `maxTurns: 1`, `permissionMode: 'dontAsk'`, a `canUseTool` that denies, the session's own `sessionOptions` with the hooks off.
+- What it spent is the top `usage` of the result (`warmSpend`): a fork's `modelUsage` and `total_cost_usd` add up the turns it resumed, so its cost is left `null`.
+
+Probed on CLI 2.1.310 with Haiku (2026-10-26): without `--no-session-persistence` the fork writes a transcript of its own, with it none. Forks of a multi-turn `-p` session read 99.5% and 100% of their prompt from the cache; a single-turn `--bg` one 91.5%, a single-turn `-p` one 88% (the tool list and the system prompt of a first turn differ a little). `plan` mode reads nothing from the cache (it changes the system prompt), `auto`, `default` and `dontAsk` read the same; `--max-turns 1` does not stop a tool call in `auto` (a Write went through), `default` and `dontAsk` refuse it — so the fork runs in `dontAsk`. `disableAllHooks` keeps the cache. What was not seen live is in `docs/unverified.md`.
+
 ## The Agent SDK transport (BTN-239, `src/claude/sdk/`)
 
 A second way to run Claude sessions, beside `--bg`, chosen per account folder; the research behind it is the two sections below.

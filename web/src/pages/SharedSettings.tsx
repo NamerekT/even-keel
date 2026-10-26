@@ -70,7 +70,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -101,6 +101,7 @@ const valuesOf = (form: SharedForm): Values => ({
   promptLanguage: form.promptLanguage,
   hiddenSkills: form.hiddenSkills.join('\n'),
   cacheTtl: form.cacheTtl ?? '',
+  keepWarm: String(form.keepWarm),
   allowedHosts: form.allowedHosts.join('\n'),
   window: String(form.context.window),
   warn: String(form.context.warn),
@@ -127,11 +128,11 @@ const amountOf = (text: string): number | undefined => (text.trim() !== '' && Nu
 /** What the service gets; `undefined` while a number field holds something else, or a moved folder lacks a side. The service judges the ranges. */
 function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
-  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days'].map((key) => wholeOf(text(key), 0))
+  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
   const waitMinutes = minutesOf(text('wait'))
-  const [parallel, window, minTasks, minSessions, days] = numbers
+  const [parallel, window, minTasks, minSessions, days, keepWarm] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
   const checkpointShares = sharesOf(values)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
@@ -154,6 +155,7 @@ function formOf(values: Values): SharedForm | undefined {
     promptLanguage: text('promptLanguage') as Language,
     hiddenSkills: linesOf(text('hiddenSkills')),
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
+    keepWarm: keepWarm!,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
     stats: {
@@ -489,6 +491,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             ],
             t.shared.cacheTtlHint,
           )}
+          {numberRow('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
         </Section>
       </>
     ),

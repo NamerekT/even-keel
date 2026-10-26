@@ -71,6 +71,7 @@ export const FAKE_SHARED: SharedForm = {
   promptLanguage: 'en',
   hiddenSkills: ['update-config', 'keybindings-help', 'loop', 'schedule', 'init'],
   cacheTtl: null,
+  keepWarm: 0,
   allowedHosts: [],
   context: { window: 600_000, warn: 50, danger: 80 },
   stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: DEFAULT_SHARES },
