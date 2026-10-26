@@ -108,6 +108,16 @@ export function CheckIcon() {
   )
 }
 
+/** Copy: two sheets, one over the other. */
+export function CopyIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+      <path d="M10.5 3.5v-.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5" />
+    </svg>
+  )
+}
+
 /** Needs a fix: an exclamation mark, for a step's red dot. */
 export function BangIcon() {
   return (

@@ -40,6 +40,8 @@ export const ru = {
     max: 'Макс.',
     noData: 'нет данных',
     reading: 'Читаю транскрипт…',
+    copyCommand: 'Скопировать команду',
+    commandCopied: 'Скопировано',
   },
   units: {
     day: 'д',
@@ -592,8 +594,6 @@ export const ru = {
     agent: 'Агент',
     agentHint: 'На чём идут сессии проекта. Потом меняется в настройках проекта.',
     sharedAgent: (name: string) => `${name} (общий)`,
-    copyCommand: 'Копировать',
-    commandCopied: 'Скопировано',
     trusted: 'Claude Code доверяет папке',
     checkAgain: 'Проверить снова',
     openProject: 'Открыть проект',

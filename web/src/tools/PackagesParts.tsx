@@ -3,6 +3,7 @@ import type { KeyView, PackagesView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { importOffers, keyLabel, marketplaceCommand, type Dismissed } from './packageView.js'
@@ -70,7 +71,7 @@ export function MarketplaceOffer({ view }: { view: PackagesView }) {
       <div className="packages__offer">
         <span>{t.packages.marketplace(own.name)}</span>
         <HelpTip text={t.packages.marketplaceTip} />
-        <code className="packages__command">{marketplaceCommand(own.dir)}</code>
+        <CommandBlock command={marketplaceCommand(own.dir)} className="packages__command" />
         <button type="button" className="button button--small button--primary" disabled={sending} onClick={() => void send('packages/marketplace', {})}>
           {t.packages.marketplaceAdd}
         </button>

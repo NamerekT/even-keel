@@ -44,24 +44,14 @@
 }
 
 .project-add__trust {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
   font-size: var(--text-14);
 }
 
 .project-add__trust p {
-  margin: 0 0 var(--space-8);
-}
-
-.project-add__command {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-}
-
-.project-add__command code {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  user-select: all;
+  margin: 0;
 }
 
 /* The foot stands under the summary card, not inside one: no line of its own. */

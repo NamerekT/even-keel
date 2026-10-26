@@ -7,6 +7,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
 import {
@@ -264,9 +265,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
               <div className="notice notice--warn project-add__trust">
                 <p>{t.wizard.untrusted}</p>
-                <TrustCommand command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
+                <CommandBlock command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
                 <p>{t.wizard.trustUser(repoCheck.user)}</p>
-                <TrustCommand command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
+                <CommandBlock command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
               </div>
             )}
             {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
@@ -408,26 +409,4 @@ function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields
   if (missing === 'place' || missing === 'project') return t.wizard.missing.field(t.settings.trackerProject(fields.tracker, title))
   if (missing === 'key') return t.wizard.missing.field(t.wizard.prefix)
   return t.wizard.missing[missing]
-}
-
-/** The command as selectable text; the copy button only where the page has the clipboard (plain HTTP from another host has none). */
-function TrustCommand({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false)
-  const canCopy = typeof navigator !== 'undefined' && navigator.clipboard !== undefined
-  const copy = () => {
-    navigator.clipboard.writeText(command).then(
-      () => setCopied(true),
-      () => undefined,
-    )
-  }
-  return (
-    <div className="project-add__command">
-      <code className="settings__text--mono">{command}</code>
-      {canCopy && (
-        <button type="button" className="button" onClick={copy}>
-          {copied ? t.wizard.commandCopied : t.wizard.copyCommand}
-        </button>
-      )}
-    </div>
-  )
 }
