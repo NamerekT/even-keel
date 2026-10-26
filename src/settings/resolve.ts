@@ -65,6 +65,7 @@ export function checkRows(rows: SettingRow[], records: ProjectRecord[], context:
  * `undefined` — the level has no row.
  */
 export function inherit(key: string, inherited: unknown, own: unknown): unknown {
+  if (key === 'protection') return { ...(inherited as object), ...(own as object | undefined) }
   if (definitionOf(key).qualifier === undefined) return own === undefined ? inherited : own
   return { ...(inherited as Record<string, unknown>), ...(own as Record<string, unknown> | undefined) }
 }

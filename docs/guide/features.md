@@ -1,5 +1,24 @@
 # What Even Keel does
 
+## Protection
+
+**Sessions → Protection**, in shared settings or a project's settings, enables default groups of destructive-action
+deny rules. They start enabled. A project can turn a group off, add native rules, or use shared protection. Changes
+apply when a session starts; running sessions keep their existing settings.
+
+Claude Code receives permission deny rules; Copilot receives tool deny rules. Codex receives command-prefix rules,
+which also work in its full-access mode. Codex matches literal argument prefixes: defaults cover common push flag
+orders and literal recursive-delete targets. Other argument orders, refspecs, shell expansions and MCP calls are
+outside those Codex rules. Huly deletion rules apply to Claude and Copilot. OpenCode receives no Protection rules.
+The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
+Rules can reduce accidental actions; they are not an OS sandbox.
+
+Before launching a project's session, Even Keel reads the main branch's protection on GitHub and Forgejo, using the
+configured branch name and remote profiles. Missing protection, failed verification and potential administrator
+bypasses appear on the project page beside a link to the server's branch rules. Enable rules blocking force pushes
+and branch deletion there, including enforcement for administrators where appropriate. Even Keel does not change
+server rules. Checks are cached for five minutes. No protection check is available for GitLab yet.
+
 The [README](../../README.md) has the short version. This is every feature in full; the keys named here are in the [reference](reference.md).
 
 ## The chain

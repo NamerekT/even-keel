@@ -4,6 +4,13 @@ Even Keel watches the CI of each project and shows it on the page (BTN-102). Aft
 
 ## The layer
 
+Before a project launches a session, `ProtectionAudit` reads its GitHub/Forgejo remotes independently of workflow
+discovery, using the normal remote profiles. Results are cached for five minutes per repository, branch and profile
+selection, in `EvenKeelState.protection`. It never changes server rules or blocks a launch. GitHub's active rulesets
+and classic branch protection contribute separately to force-push and deletion protection. Forgejo's rule list is
+paged; an exact rule wins over globs, and disagreeing globs yield unknown. API failures and unsupported GitLab checks
+yield unknown. The project page links to branch settings for missing/unverified protection and administrator bypasses.
+
 `src/ci/` is separate from the tracker layer and knows nothing of tasks beyond the `[KEY-N]` ids in commit subjects.
 
 | File | What is in it |

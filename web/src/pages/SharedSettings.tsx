@@ -1,4 +1,6 @@
 import { Fragment, useEffect, type ReactNode } from 'react'
+import { ProtectionSettings } from './ProtectionSettings.js'
+import { protectionOf, protectionText } from './protectionDraft.js'
 import { useSearchParams } from 'react-router'
 import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
@@ -70,7 +72,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -86,6 +88,7 @@ const promptsOf = (text: string): [string, string][] =>
   (JSON.parse(text) as [string, string][]).map(([model, prompt]): [string, string] => [model.trim(), prompt.trim()]).filter(([model, prompt]) => model !== '' && prompt !== '')
 
 const valuesOf = (form: SharedForm): Values => ({
+  protection: protectionText(form.protection),
   parallel: String(form.parallel),
   brief: form.brief === null ? '' : String(form.brief),
   ...rulesText(form.chain),
@@ -129,6 +132,8 @@ const amountOf = (text: string): number | undefined => (text.trim() !== '' && Nu
 /** What the service gets; `undefined` while a number field holds something else, or a moved folder lacks a side. The service judges the ranges. */
 function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
+  const protection = protectionOf(text('protection'))
+  if (protection === undefined) return undefined
   const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
@@ -154,6 +159,7 @@ function formOf(values: Values): SharedForm | undefined {
     prompt: text('prompt').trim() === '' ? null : text('prompt'),
     language: language === '' ? null : (language as Language),
     promptLanguage: text('promptLanguage') as Language,
+    protection,
     hiddenSkills: linesOf(text('hiddenSkills')),
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
     contextHandoffs: values.contextHandoffs as boolean,
@@ -451,6 +457,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             <FieldNote error={errorOf('hiddenSkills')} />
           </div>
         </Section>
+        <ProtectionSettings value={text('protection')} onChange={value => edit('protection', value)} error={errorOf('protection')} />
         <Section title={t.shared.sections.context}>
           <div className="settings__field">
             <FieldHead label={t.shared.context} hint={t.shared.contextHint} />

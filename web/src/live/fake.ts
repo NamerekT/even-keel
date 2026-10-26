@@ -17,6 +17,7 @@ import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
+import { withProtection } from './fakeProtection.js'
 import { withFix } from './fakeFix.js'
 import { withMilestonePreview } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
@@ -391,6 +392,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.pullReadiness = { ...current.state.pullReadiness, ABC: notice('review.unsupportedHost', { remote: 'origin', host: 'gitlab.example.com' }) }
     if (!params.has('profiles')) current.state.profiles = fakeProfiles('gitlab-ci')
   }
+  if (current.state !== null && params.has('protection')) current.state = withProtection(current.state, params.get('protection')!)
   const active = current.state?.chain.active[0]
   if ((params.get('chain') === 'apiError' || params.get('chain') === 'apiRetry') && current.state !== null && active) {
     const agent = params.get('agent') ?? 'codex'

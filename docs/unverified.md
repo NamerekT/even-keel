@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
@@ -85,6 +86,18 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
+
+### Protection across agent transports and remote servers
+
+Codex 0.164.0 rejected a forbidden harmless command in bypass mode against a local Responses server, including rules
+in the working folder. A public GitHub remote's active rulesets were read live and returned protected with possible
+bypasses. Claude CLI/SDK deny injection, Copilot wildcard and Huly deny matching, Codex under Windows session 0 and
+slot reuse, and Forgejo/classic GitHub branch protection have not been checked end to end.
+The adapter arguments, settings inheritance and API verdicts are covered by tests. If an agent ignores a native rule,
+equivalent destructive actions can still run; Codex's documented prefix gaps include reordered arguments, refspecs,
+expanded shell paths and MCP calls. Inspect server rules directly, enforce protection there, and use a sandbox when
+available. A rule is not a security boundary. Check CLI/SDK denial using harmless commands, then protected/unprotected
+and permission-denied remote responses; do not test destructive pushes or deletions on a real repository.
 
 ### API spending cap recovery
 

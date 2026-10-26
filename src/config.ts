@@ -12,6 +12,7 @@ import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
+import type { Protection } from './sessions/protection.js'
 import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, PROJECT_KEY, writeRows } from './settings/file.js'
 import { at, OWN_KEYS } from './settings/registry.js'
@@ -34,6 +35,7 @@ export {
 export { isPlainObject } from './settings/file.js'
 
 export interface EvenKeelConfig {
+  protection: Protection
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
   /**
@@ -302,6 +304,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     language,
     promptLanguage: promptLanguage(shared),
     hiddenSkills: shared.hiddenSkills as string[],
+    protection: shared.protection as Protection,
     cacheTtl: shared.cacheTtl as CacheTtl | null,
     contextHandoffs: shared.contextHandoffs as boolean,
     ci: ciOf(shared),
@@ -355,6 +358,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     modelLabels: (own.modelLabels as boolean | undefined) ?? null,
     cacheTtl: values.cacheTtl as CacheTtl | null,
     contextHandoffs: values.contextHandoffs as boolean,
+    protection: values.protection as Protection,
     checkpointTokens: values['stats.checkpointTokens'] as number | null,
     checkpointShares: sharesOf(values, record.key),
     own:Object.fromEntries(OWN_KEYS.flatMap((key) => (own[key] === undefined ? [] : [[key, own[key]]]))) as OwnValues,

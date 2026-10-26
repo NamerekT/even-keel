@@ -4,6 +4,7 @@ const list = (items: string[]) => items.join(', ')
 
 // The refusals of a setting as its field says them, in Russian; the keys come from fields-en.ts.
 export const fieldsRu: FieldTexts = {
+  'config.protection': () => 'Нужны допустимые группы защиты и правила запретов агентов',
   'config.branch': (p) => `${p.value} — не имя ветки`,
   'config.changelogPath': (p) => `${p.value} — не путь к файлу внутри репозитория`,
   'config.repoEmpty': () => 'Папка репозитория пуста',

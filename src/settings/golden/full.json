@@ -200,6 +200,23 @@
       "modelLabels": false,
       "cacheTtl": "1h",
       "contextHandoffs": true,
+      "protection": {
+        "disabled": [
+          "deleteTracker"
+        ],
+        "claude": [
+          "Write(.env)"
+        ],
+        "codex": [
+          [
+            "terraform",
+            "destroy"
+          ]
+        ],
+        "copilot": [
+          "write(.env)"
+        ]
+      },
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -252,6 +269,23 @@
       "modelLabels": null,
       "cacheTtl": "1h",
       "contextHandoffs": false,
+      "protection": {
+        "disabled": [
+          "deleteTracker"
+        ],
+        "claude": [
+          "Write(.env)"
+        ],
+        "codex": [
+          [
+            "terraform",
+            "destroy"
+          ]
+        ],
+        "copilot": [
+          "write(.env)"
+        ]
+      },
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -292,6 +326,23 @@
       "modelLabels": null,
       "cacheTtl": "1h",
       "contextHandoffs": false,
+      "protection": {
+        "disabled": [
+          "deleteTracker"
+        ],
+        "claude": [
+          "Write(.env)"
+        ],
+        "codex": [
+          [
+            "terraform",
+            "destroy"
+          ]
+        ],
+        "copilot": [
+          "write(.env)"
+        ]
+      },
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -332,6 +383,23 @@
       "modelLabels": null,
       "cacheTtl": "1h",
       "contextHandoffs": false,
+      "protection": {
+        "disabled": [
+          "deleteTracker"
+        ],
+        "claude": [
+          "Write(.env)"
+        ],
+        "codex": [
+          [
+            "terraform",
+            "destroy"
+          ]
+        ],
+        "copilot": [
+          "write(.env)"
+        ]
+      },
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -394,6 +462,23 @@
     "loop",
     "simplify"
   ],
+  "protection": {
+    "disabled": [
+      "deleteTracker"
+    ],
+    "claude": [
+      "Write(.env)"
+    ],
+    "codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "copilot": [
+      "write(.env)"
+    ]
+  },
   "cacheTtl": "1h",
   "contextHandoffs": false,
   "ci": {

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { upgradeStorage } from './migrations.js'
+import { SCHEMA_VERSION } from './schema.js'
 
 let dir: string | undefined
 afterEach(() => {
@@ -28,7 +29,7 @@ describe('v13 to v14 package settings', () => {
     const upgrade = () => upgradeStorage({ stateDir: dir!, configFile: join(dir!, 'absent.json'), log: () => {} })
     upgrade()
     const migrated = JSON.parse(readFileSync(file, 'utf8'))
-    expect(migrated.version).toBe(14)
+    expect(migrated.version).toBe(SCHEMA_VERSION)
     expect(migrated.packages.plugin.settings).toEqual({ MODE: 'careful' })
     expect(migrated.packages.pending.settings).toEqual({ EXTRA: 'keep' })
     expect(migrated.projects.project.settings).toEqual({ plugin: { TOOLSETS: 'projects' } })

@@ -46,6 +46,7 @@ import { changesOf } from './git/changes.js'
 import { TaskWorks, worksOf } from './git/work.js'
 import { commitChangelog } from './git/changelog.js'
 import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
+import { ProtectionAudit } from './ci/protection-audit.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
 import { intakeRepo } from './intake/github.js'
@@ -129,7 +130,8 @@ import { setStateValue, stateValue } from './storage/service-state.js'
 import { checkServer, serverValues } from './stats/connect.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { TallyService } from './stats/tally.js'
-import { chainSettings, readToolsView } from './tools/panel.js'
+import { readToolsView } from './tools/panel.js'
+import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
 import type { TrackerLink } from './tracker/link.js'
@@ -408,6 +410,7 @@ const sayBlankedSecrets = (home: AccountHome) => {
 }
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
 const launchIn = async (home: AccountHome, start: SessionStart, project: string | undefined) => {
+  if (project !== undefined) await protectionAudit.check(project)
   await requireModel(home, start)
   if (home.agent === CLAUDE && start.settings !== undefined) sayBlankedSecrets(home)
   try {
@@ -473,6 +476,7 @@ const trackers = new Trackers({
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
+const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: () => hub.broadcast('state', getState()) })
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -899,7 +903,8 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 }
 
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
-const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
+const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection'> => ({
+  protection: (project === undefined ? undefined : configStore.current.settings[project]?.protection) ?? configStore.current.protection,
   ...(home.agent !== CLAUDE && configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
   ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
 })
@@ -987,22 +992,7 @@ const withProject = (prompt: string, project: string | undefined): string => {
   return withPrompts(prompt, { shared: config.prompt, project: own }, promptLanguage(project))
 }
 
-/** The settings files whose `enabledPlugins` a chain session would read. */
-const pluginSettings = (repo: string) =>
-  [join(homes.global.dir, 'settings.json'), join(repo, '.claude', 'settings.json'), join(repo, '.claude', 'settings.local.json')].map(readJson)
-
-const settingsFor = (task: string, project = projectOf(task)): string | undefined =>
-  project === undefined
-    ? undefined
-    : chainSettings(
-        configStore.current.projects[project]!,
-        packages.otherPlugins(project, task, pluginSettings(configStore.current.projects[project]!)),
-        dispatcher.state.trimTools,
-        configStore.current.hiddenSkills,
-        homes.global.dir,
-        configStore.current.settings[project]?.cacheTtl ?? null,
-        sessionSecrets(packages.keyNames()),
-      )
+const settingsFor = createSessionSettings({ config: () => configStore.current, packages, globalDir: homes.global.dir, trim: () => dispatcher.state.trimTools, projectOf })
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
@@ -1488,6 +1478,7 @@ function removalFacts(project: string, repo: string): RemovalFacts {
 }
 
 const getState = (): EvenKeelState => ({
+  protection: protectionAudit.view,
   startedAt,
   projects: Object.keys(configStore.current.projects),
   projectKeys: configStore.current.keys,
