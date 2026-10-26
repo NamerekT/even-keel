@@ -162,7 +162,7 @@ describe('seedPackages', () => {
       'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
       'playwright@official': { kind: 'plugin', plugin: { name: 'playwright', marketplace: 'official' }, default: true, settings: {}, installs: [] },
       'huly@even-keel': { kind: 'plugin', plugin: { name: 'huly', marketplace: 'even-keel' }, default: false, settings: {}, installs: [] },
-      strata: { kind: 'mcp', server: { command: 'strata', env: { MODE: 'fast' } }, default: true, settings: { MODE: 'fast' }, installs: [] },
+      strata: { kind: 'mcp', server: { command: 'strata', env: { MODE: 'fast' } }, default: true, settings: {}, installs: [] },
     })
     expect(file.projects).toEqual({ ABC: { on: ['huly@even-keel'], off: ['playwright@official'], settings: {} } })
   })

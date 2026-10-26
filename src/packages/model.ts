@@ -1,3 +1,5 @@
+import { defaultSettings } from './settings.js'
+
 /** An MCP server's entry as `.mcp.json` writes it: `command`, `args`, `env` for stdio, `type`, `url`, `headers` for HTTP. */
 export type ServerEntry = Record<string, unknown>
 
@@ -27,7 +29,7 @@ export interface PackageRecord {
   server?: ServerEntry
   /** Projects get it unless they turn it off. */
   default: boolean
-  /** The values of its settings (`env` of a stdio server, headers of an HTTP one) projects start from. */
+  /** User overrides of the install's settings (`env` of a stdio server, headers of an HTTP one). */
   settings: Record<string, string>
   /** Oldest first: the last one is current. */
   installs: PackageInstall[]
@@ -84,9 +86,20 @@ export function enabledPackages(file: PackagesFile, project: string): string[] {
   return Object.keys(file.packages).filter((name) => enabledIn(file, project, name))
 }
 
-/** The package's settings for the project: its own values over the package's. */
+export function defaultsOf(record: PackageRecord): Record<string, string> {
+  const install = current(record)
+  const entries = install === undefined ? { server: record.server ?? {} } : Object.fromEntries(Object.entries(install.servers).map(([name, server]) => [name, server.entry]))
+  return defaultSettings(entries)
+}
+
+export function packageSettings(record: PackageRecord): Record<string, string> {
+  return { ...defaultsOf(record), ...record.settings }
+}
+
+/** The project's overrides over the current install's defaults and the package's values, for the page. */
 export function settingsOf(file: PackagesFile, project: string, name: string): Record<string, string> {
-  return { ...file.packages[name]?.settings, ...file.projects[project]?.settings[name] }
+  const record = file.packages[name]
+  return { ...(record === undefined ? {} : packageSettings(record)), ...file.projects[project]?.settings[name] }
 }
 
 /** What a session of the task runs on: its pins, else the current install of every package the project has. */
