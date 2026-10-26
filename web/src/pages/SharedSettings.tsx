@@ -70,7 +70,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -110,6 +110,7 @@ const valuesOf = (form: SharedForm): Values => ({
   minSessions: String(form.stats.compare.minSessions),
   days: String(form.stats.compare.days),
   otherBelow: String(form.stats.otherBelow),
+  contextHandoffs: form.contextHandoffs,
   checkpointTokens: form.stats.checkpointTokens === null ? '' : String(form.stats.checkpointTokens),
   ...sharesText(form.stats.checkpointShares),
   moves: linesText(Object.entries(form.stats.moves).map(lineOf)),
@@ -155,6 +156,7 @@ function formOf(values: Values): SharedForm | undefined {
     promptLanguage: text('promptLanguage') as Language,
     hiddenSkills: linesOf(text('hiddenSkills')),
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
+    contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
@@ -244,10 +246,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     />
   )
   // A number among others of one setting: its name above it.
-  const number = (key: string, label: string, invalid: boolean) => (
+  const number = (key: string, label: string, invalid: boolean, disabled = false) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} htmlFor={fieldId(key)} />
-      {numberInput(key, invalid)}
+      {numberInput(key, invalid, { disabled })}
       {marks.note(key)}
     </div>
   )
@@ -303,6 +305,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
   const kinds = draft.edit.kinds as readonly CiKind[]
   const unguarded = !(draft.edit.guard as boolean)
+  const handoffsOff = !(draft.edit.contextHandoffs as boolean)
   const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
 
   const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
@@ -458,6 +461,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             </div>
             <FieldNote error={errorOf('context')} />
           </div>
+          {check('contextHandoffs', t.shared.contextHandoffs, `${t.shared.contextHandoffsHint} ${t.shared.forProjects}`)}
           <Row
             className={marks.box('checkpointTokens')}
             label={t.shared.checkpointTokens}
@@ -465,6 +469,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             htmlFor={fieldId('checkpointTokens')}
             control={numberInput('checkpointTokens', text('checkpointTokens').trim() !== '' && wholeOf(text('checkpointTokens'), 0) === undefined, {
               placeholder: t.shared.checkpointTokensPlaceholder,
+              disabled: handoffsOff,
             })}
           >
             {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
@@ -474,7 +479,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
             <div className="settings__row">
               {SHARE_KEYS.map((key) => (
-                <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined)}</Fragment>
+                <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined, handoffsOff)}</Fragment>
               ))}
             </div>
             <FieldNote error={errorOf('checkpointShares')} />

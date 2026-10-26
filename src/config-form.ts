@@ -43,11 +43,11 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, keepWarm, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
 }
@@ -254,6 +254,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     { group: 'promptLanguage', key: 'promptLanguage', qualifier: '', value: form.promptLanguage, fallback: form.language ?? DEFAULT_LANGUAGE },
     value('hiddenSkills', 'hiddenSkills', names(form.hiddenSkills)),
     value('cacheTtl', 'cacheTtl', form.cacheTtl),
+    value('contextHandoffs', 'contextHandoffs', form.contextHandoffs),
     value('keepWarm', 'keepWarm', form.keepWarm),
     value('ci', 'ci.guard', form.ci.guard),
     value('ci', 'ci.kinds', CI_KINDS.filter((kind) => form.ci.kinds.includes(kind))),

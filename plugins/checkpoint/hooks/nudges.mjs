@@ -17,7 +17,8 @@ const positive = (value) => (Number.isFinite(value) && value > 0 ? value : null)
  * `answer` is what Even Keel said about the session, or null: outside a chain, or with no Even Keel at all.
  * Its `late` and `hard` are what the session's context window allows: they only bring the thresholds down.
  * A task that has had its handoffs is held: nothing below the hard threshold, since every further handoff
- * costs a recovery that the shorter context no longer pays back.
+ * costs a recovery that the shorter context no longer pays back. A `source` of `off` — the project turned
+ * handoffs by context off and leaves the context to the agent's own compaction: no nudge at any size.
  */
 export function planOf(env, answer) {
   const plan = { ...DEFAULTS };
@@ -27,11 +28,12 @@ export function planOf(env, answer) {
   plan.handoffs = positive(answer?.handoffs) ?? 0;
   plan.held = plan.handoffs >= plan.maxHandoffs;
   if (plan.held) plan.first = Math.max(plan.first, plan.hard);
+  plan.off = answer?.source === "off";
   return plan;
 }
 
 export function markOf(context, plan) {
-  if (context < plan.first) return 0;
+  if (plan.off || context < plan.first) return 0;
   if (context >= plan.late) return plan.late + Math.floor((context - plan.late) / plan.lateStep) * plan.lateStep;
   const mark = plan.first + Math.floor((context - plan.first) / plan.step) * plan.step;
   return mark > plan.first && plan.late - mark < plan.lateStep ? mark - plan.step : mark;

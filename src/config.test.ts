@@ -117,7 +117,7 @@ describe('parseConfig', () => {
       feeds: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -134,6 +134,7 @@ describe('parseConfig', () => {
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
       cacheTtl: null,
+      contextHandoffs: true,
       parallel: 1,
       keepWarm: 0,
       updates: { check: true, notify: true },
@@ -337,13 +338,14 @@ describe('parseConfig', () => {
         modelLabels: null,
         promptLanguage: 'en',
         cacheTtl: null,
+        contextHandoffs: true,
         checkpointTokens: null,
         checkpointShares: SHARES,
         own: {},
       },
       XYZ: {
         ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [] },
-        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
+        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })
   })
@@ -396,6 +398,19 @@ describe('parseConfig', () => {
     expect(config.settings.ABC?.fillMilestone).toBe(true)
     expect(config.settings.XYZ?.fillMilestone).toBe(false)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', fillMilestone: 'yes' } } })).toThrow(/ABC.fillMilestone/)
+  })
+
+  it('keeps handoffs by context on unless a level turns them off, the project over the shared one', () => {
+    const on = parse({ projects: { ABC: 'C:\\abc' } })
+    expect(on.contextHandoffs).toBe(true)
+    expect(on.settings.ABC?.contextHandoffs).toBe(true)
+    const off = parse({ contextHandoffs: false, projects: { ABC: { repo: 'C:\\abc', contextHandoffs: true }, XYZ: 'C:\\xyz' } })
+    expect(off.contextHandoffs).toBe(false)
+    expect(off.settings.ABC).toMatchObject({ contextHandoffs: true, own: { contextHandoffs: true } })
+    expect(off.settings.XYZ).toMatchObject({ contextHandoffs: false, own: {} })
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc', contextHandoffs: false } } }).settings.ABC?.contextHandoffs).toBe(false)
+    expect(() => parse({ projects: {}, contextHandoffs: 'off' })).toThrow(/contextHandoffs/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', contextHandoffs: 0 } } })).toThrow(/ABC.contextHandoffs/)
   })
 
   it('reads the run settings of a project by provider, trimmed, blank names left out', () => {

@@ -143,6 +143,8 @@ export interface ProjectSettings {
   promptLanguage: Language
   /** The prompt cache TTL of the project's sessions, the shared one filled in; `null` — the CLI's own choice. */
   cacheTtl: CacheTtl | null
+  /** The checkpoint hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
+  contextHandoffs: boolean
   /** The checkpoint hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
   checkpointTokens: number | null
   /** The shares of the session's window the checkpoint thresholds come at, at most; each the shared one unless the project has its own. */
@@ -163,6 +165,7 @@ export interface OwnValues {
   fillMilestone?: boolean
   promptLanguage?: Language
   cacheTtl?: CacheTtl | null
+  contextHandoffs?: boolean
   'stats.checkpointTokens'?: number | null
   'stats.checkpointShares.first'?: number
   'stats.checkpointShares.late'?: number
@@ -255,6 +258,8 @@ export interface SharedForm {
   promptLanguage: Language
   hiddenSkills: string[]
   cacheTtl: CacheTtl | null
+  /** For every project without its own (BTN-255); `false` — no handoffs by context size. */
+  contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */
   keepWarm: number
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */

@@ -1130,6 +1130,9 @@ export const en: Messages = {
     days: 'Days',
     otherBelow: 'Into Other when cheaper than, $',
     otherBelowHint: 'On /stats, a folder group that cost less than this in all goes into Other.',
+    contextHandoffs: 'Handoffs by context size',
+    contextHandoffsHint:
+      'On — past the checkpoint threshold the checkpoint plugin asks a chain session for a handoff note, and a fresh session goes on from it. Off — it never asks, and the agent compacts its context by itself; the chat messages, the check before the merge and handoffs on a limit stay. Applies to running sessions too.',
     checkpointTokens: 'Checkpoint threshold, tokens',
     checkpointTokensHint: 'The context size, from 100,000, at which the checkpoint plugin first asks a chain session for a handoff. Empty — by the calibration on /stats.',
     checkpointTokensPlaceholder: 'by the calibration',

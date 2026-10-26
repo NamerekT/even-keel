@@ -65,14 +65,14 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
 const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
   repo: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'],
   tracker: ['tracker', 'trackerProject', 'fillMilestone', 'chain'],
-  sessions: ['provider', 'models', 'accounts', 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'checkpointTokens', 'checkpointShares'],
+  sessions: ['provider', 'models', 'accounts', 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'contextHandoffs', 'checkpointTokens', 'checkpointShares'],
   ci: ['check', 'afterGreen', 'ci', 'pullRequests'],
 }
 
 const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   chain: ['parallel', 'brief', 'fillMilestone', 'chain'],
   models: ['provider', 'models', 'accounts', 'execution', 'cli', 'modelLabels', 'modelPrompts', 'promptLanguage'],
-  sessions: ['hiddenSkills', 'context', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
+  sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
   ci: ['ci'],
   page: ['language', 'allowedHosts'],
   stats: ['stats'],

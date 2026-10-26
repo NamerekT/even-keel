@@ -92,7 +92,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -278,6 +278,7 @@ export function SettingsPanel({
   const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
   const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
   const sharedShares = sharesText(shared.stats.checkpointShares)
+  const handoffsOff = !(switchOf(text('contextHandoffs')) ?? shared.contextHandoffs)
   const kinds = on('ownKinds') ? (draft.edit.kinds as readonly CiKind[]) : shared.ci.kinds
   const kindsText = (value: Value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind]))
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
@@ -546,18 +547,19 @@ export function SettingsPanel({
           />
         </Section>
         <Section title={t.settings.sections.context}>
+          {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
           <Row
             className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
             label={t.shared.checkpointTokens}
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
-            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder)}
+            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder, handoffsOff)}
             control={number(
               'checkpointTokens',
               on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint,
               on('ownCheckpoint') && tokensOf(text('checkpointTokens')) === undefined,
               (value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value),
-              { placeholder: t.shared.checkpointTokensPlaceholder },
+              { placeholder: t.shared.checkpointTokensPlaceholder, disabled: handoffsOff },
             )}
           >
             {flagNote('ownCheckpoint')}
@@ -568,13 +570,15 @@ export function SettingsPanel({
             <FieldHead
               label={t.shared.checkpointShares}
               hint={t.shared.checkpointSharesHint}
-              inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '))}
+              inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
             />
             <div className="settings__row">
               {SHARE_KEYS.map((key) => (
                 <div key={key} className={marks.box(key)}>
                   <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} />
-                  {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value))}
+                  {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
+                    disabled: handoffsOff,
+                  })}
                   {marks.note(key)}
                 </div>
               ))}

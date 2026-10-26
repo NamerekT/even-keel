@@ -105,6 +105,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       modelLabels: null,
       promptLanguage: 'en',
       cacheTtl: null,
+      contextHandoffs: true,
       checkpointTokens: null,
       checkpointShares: { first: 72, late: 85, hard: 95 },
       own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true },

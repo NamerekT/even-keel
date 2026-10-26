@@ -52,6 +52,7 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
   promptLanguage: form.own.promptLanguage ?? '',
   cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
+  contextHandoffs: switchText(form.own.contextHandoffs),
   ownCheckpoint: form.own['stats.checkpointTokens'] !== undefined,
   checkpointTokens: form.checkpointTokens === null ? '' : String(form.checkpointTokens),
   // The panel sets the three shares together: any of them the project's own makes all three its own.
@@ -102,6 +103,7 @@ function ownOf(values: Values): OwnValues | undefined {
     ['fillMilestone', switchOf(text('fillMilestone'))],
     ['promptLanguage', text('promptLanguage') === '' ? undefined : text('promptLanguage')],
     ['cacheTtl', ttl === '' ? undefined : ttl === CLI_TTL ? null : ttl],
+    ['contextHandoffs', switchOf(text('contextHandoffs'))],
     ['stats.checkpointTokens', on('ownCheckpoint') ? checkpointTokens : undefined],
     ['stats.checkpointShares.first', shares?.first],
     ['stats.checkpointShares.late', shares?.late],
@@ -158,6 +160,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
     modelLabels: labels === '' ? null : labels === 'true',
     promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
     cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
+    contextHandoffs: ownOr(own, 'contextHandoffs', shared.contextHandoffs),
     checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),
     checkpointShares: {
       first: ownOr(own, 'stats.checkpointShares.first', shared.stats.checkpointShares.first),

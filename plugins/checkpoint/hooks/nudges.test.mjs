@@ -14,7 +14,13 @@ describe("planOf", () => {
       maxHandoffs: 3,
       handoffs: 0,
       held: false,
+      off: false,
     });
+  });
+
+  it("is off when Even Keel says handoffs by context are off", () => {
+    expect(planOf({}, { first: 187_000, source: "off", handoffs: 0 })).toMatchObject({ off: true });
+    expect(planOf({ CHECKPOINT_FIRST_TOKENS: "120000" }, { first: 187_000, source: "calibrated", handoffs: 0 }).off).toBe(false);
   });
 
   it("takes thresholds from the environment and ignores what is not a positive number", () => {
@@ -69,6 +75,12 @@ describe("markOf", () => {
   it("is silent below the hard threshold for a held task", () => {
     const plan = planOf({}, { first: 187_000, source: "calibrated", handoffs: 3 });
     expect(marksOf(plan, [250_000, 299_999, 300_000, 330_000])).toEqual([0, 0, 300_000, 325_000]);
+  });
+
+  it("never marks a context while handoffs by context are off, a held task's hard threshold included", () => {
+    const sizes = [150_000, 200_000, 250_000, 300_000, 999_999, 2_000_000];
+    expect(marksOf(planOf({}, { first: 187_000, source: "off", late: 212_000, hard: 237_000, handoffs: 0 }), sizes)).toEqual(sizes.map(() => 0));
+    expect(marksOf(planOf({}, { first: 187_000, source: "off", handoffs: 3 }), sizes)).toEqual(sizes.map(() => 0));
   });
 
   it("keeps every nudge inside a 250k window", () => {

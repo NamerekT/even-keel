@@ -270,6 +270,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw fail('config.otherBelow', { value: json(value) })
     return value
   } },
+  // Off — the checkpoint hook asks for no handoff by context size, the agent's own compaction keeps the context (BTN-255).
+  { key: 'contextHandoffs', kind: 'boolean', scopes: ['global', 'project'], lands: ['contextHandoffs', 'settings'], default: true, check: boolean('contextHandoffs') },
   { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global', 'project'], lands: ['stats', 'settings'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
     return value
@@ -352,7 +354,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
 export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
+export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {
