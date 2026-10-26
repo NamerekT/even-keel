@@ -50,6 +50,7 @@ function hulyLike(missing: Set<string>) {
 const handles: TrackerHandle[] = []
 afterEach(() => {
   for (const handle of handles.splice(0)) handle.stop()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -77,6 +78,30 @@ function start(projects: string[], connect: () => Promise<TaskSource>, overrides
 }
 
 describe('startTracker', () => {
+  it('logs repeated status poll failures once and logs recovery once', async () => {
+    vi.useFakeTimers()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    let failing = true
+    const tasks = vi.fn(async () => {
+      if (failing) throw new Error('tracker unavailable')
+      return [task('APP-1')]
+    })
+    start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [task('APP-1')], statuses: ['Todo'] }),
+      tasks,
+      close: async () => {},
+    }))
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(tasks).toHaveBeenCalledTimes(3)
+    expect(errors).toHaveBeenCalledExactlyOnceWith('Huly: tracker unavailable')
+    expect(logs).not.toHaveBeenCalled()
+
+    failing = false
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(logs).toHaveBeenCalledExactlyOnceWith('Huly: reads again')
+  })
+
   it.each([true, false])('publishes the milestone in the same read only after a successful assignment (%s)', async (assigned) => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const milestone = { label: 'v0.2', targetDate: 1_800_000_000_000 }

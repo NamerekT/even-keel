@@ -145,6 +145,9 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       broadcast()
     },
     onError: report,
+    onRecovered: () => {
+      if (!stopped) console.log(`${title}: reads again`)
+    },
   })
 
   const unknownByProject = new Map<string, string>()
