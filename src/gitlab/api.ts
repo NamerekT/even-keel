@@ -1,5 +1,6 @@
 import { fail } from '../notice/notice.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
+import { trackedFetch } from '../tracker/diagnostics.js'
 
 export const GITLAB_URL = 'GITLAB_URL'
 export const GITLAB_TOKEN = 'GITLAB_TOKEN'
@@ -25,13 +26,13 @@ export class GitlabApi {
   constructor(readonly web: string, private readonly token: string, private readonly timeoutMs: number, private readonly fetchImpl: typeof fetch = fetch) {}
 
   async request(path: string, method = 'GET', body?: unknown): Promise<Response> {
-    const response = await this.fetchImpl(`${this.web}${path}`, {
+    const response = await trackedFetch(this.fetchImpl, `${this.web}${path}`, {
       method,
       headers: { 'private-token': this.token, 'content-type': 'application/json', 'user-agent': 'even-keel' },
       signal: AbortSignal.timeout(this.timeoutMs),
       redirect: 'error',
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    })
+    }, path)
     if (response.ok) return response
     await response.body?.cancel()
     if (response.status === 401) throw new CredentialsRefused('gitlab: the token is refused (HTTP 401)')
