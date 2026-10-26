@@ -129,7 +129,8 @@ import { setStateValue, stateValue } from './storage/service-state.js'
 import { checkServer, serverValues } from './stats/connect.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { TallyService } from './stats/tally.js'
-import { chainSettings, readToolsView } from './tools/panel.js'
+import { readToolsView } from './tools/panel.js'
+import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
 import type { TrackerLink } from './tracker/link.js'
@@ -987,22 +988,7 @@ const withProject = (prompt: string, project: string | undefined): string => {
   return withPrompts(prompt, { shared: config.prompt, project: own }, promptLanguage(project))
 }
 
-/** The settings files whose `enabledPlugins` a chain session would read. */
-const pluginSettings = (repo: string) =>
-  [join(homes.global.dir, 'settings.json'), join(repo, '.claude', 'settings.json'), join(repo, '.claude', 'settings.local.json')].map(readJson)
-
-const settingsFor = (task: string, project = projectOf(task)): string | undefined =>
-  project === undefined
-    ? undefined
-    : chainSettings(
-        configStore.current.projects[project]!,
-        packages.otherPlugins(project, task, pluginSettings(configStore.current.projects[project]!)),
-        dispatcher.state.trimTools,
-        configStore.current.hiddenSkills,
-        homes.global.dir,
-        configStore.current.settings[project]?.cacheTtl ?? null,
-        sessionSecrets(packages.keyNames()),
-      )
+const settingsFor = createSessionSettings({ config: () => configStore.current, packages, globalDir: homes.global.dir, trim: () => dispatcher.state.trimTools, projectOf })
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
