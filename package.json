@@ -46,6 +46,7 @@
     "shot": "tsx scripts/shot.ts",
     "storage": "tsx scripts/storage.ts",
     "cli-check": "tsx scripts/cli-check.ts",
+    "cli-fetch": "tsx scripts/cli-fetch.ts",
     "design-baseline": "tsx scripts/design-baseline.ts"
   },
   "devDependencies": {
