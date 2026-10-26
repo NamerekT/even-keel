@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fail } from '../notice/notice.js'
@@ -76,6 +77,18 @@ export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: 
   } catch (error) {
     throw fail('packages.npmFailed', { spec: target }, { detail: (error as Error).message }, { cause: error })
   }
+  return pinnedServer(entry, spec, version, prefix)
+}
+
+/** Copies the same version another install already has in `from` into `prefix`, instead of npm install. */
+export async function copyPinned(entry: ServerEntry, spec: NpxSpec, version: string, from: string, prefix: string): Promise<InstalledServer> {
+  await cp(from, prefix, { recursive: true, verbatimSymlinks: true, errorOnExist: true, force: false })
+  return pinnedServer(entry, spec, version, prefix)
+}
+
+/** The server that runs the bin of the version installed in `prefix` with node. */
+export function pinnedServer(entry: ServerEntry, spec: NpxSpec, version: string, prefix: string): InstalledServer {
+  const target = `${spec.name}@${version}`
   const home = join(prefix, 'node_modules', ...spec.name.split('/'))
   let manifest: Record<string, unknown> = {}
   try {

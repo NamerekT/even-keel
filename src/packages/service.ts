@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
@@ -10,7 +10,7 @@ import { McpGateway, type GatewayTarget } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, enabledPackages, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
-import { installPinned, parseNpx, resolveVersion } from './npm.js'
+import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
@@ -494,7 +494,14 @@ export class Packages {
         if (spec === null || npm === null) servers[server] = { entry, npm: null }
         else {
           const at = seconds()
-          servers[server] = await installPinned(entry, spec, npm, join(home, 'servers', server))
+          const prefix = join(home, 'servers', server)
+          const copied = await this.copyServer(name, last, server, entry, spec, npm, prefix)
+          if (copied !== null) {
+            servers[server] = copied
+            this.deps.log(`packages: ${name}: ${spec.name}@${npm} copied from ${last!.id} in ${seconds() - at} s`)
+            continue
+          }
+          servers[server] = await installPinned(entry, spec, npm, prefix)
           this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} took ${seconds() - at} s`)
         }
       }
@@ -512,6 +519,24 @@ export class Packages {
     } finally {
       this.installing.delete(name)
       this.deps.onChange()
+    }
+  }
+
+  /**
+   * The previous install's copy of the same npm version, so a plugin-only update skips npm install;
+   * `null` — nothing to copy or the copy failed. The previous install keeps its own folder: a running task may hold it.
+   */
+  private async copyServer(name: string, last: PackageInstall | undefined, server: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string): Promise<InstalledServer | null> {
+    const known = last?.servers[server]?.npm
+    if (last === undefined || known?.name !== spec.name || known.version !== npm) return null
+    const from = join(this.deps.cache, name, last.id, 'servers', server)
+    if (!existsSync(from)) return null
+    try {
+      return await copyPinned(entry, spec, npm, from, prefix)
+    } catch (error) {
+      rmSync(prefix, { recursive: true, force: true })
+      this.deps.log(`packages: ${name}: ${spec.name}@${npm} not copied from ${last.id}, installing: ${(error as Error).message}`)
+      return null
     }
   }
 
