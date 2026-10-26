@@ -26,6 +26,8 @@ The projects and the settings live in Even Keel's database and are edited on the
 
 When you add the project, Even Keel checks the repository again before saving it. A folder inside a repository is saved as the repository's root folder.
 
+The wizard shows a validation error under the field that needs correcting and marks its step in red. Empty required fields are named at the bottom of the form.
+
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;

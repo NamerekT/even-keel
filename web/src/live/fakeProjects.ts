@@ -78,11 +78,12 @@ function repoNotice(state: EvenKeelState, root: string, branch: string): Project
 
 function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['entry'] {
   const key = draft.key.trim()
-  const where = `projects[${state.projects.length}]`
-  if (!KEY.test(key)) return notice('config.projectKey', { where: `${where}.key`, value: key })
+  if (!KEY.test(key)) return notice('wizard.keyShape', { value: key })
   // Projects may share a key (BTN-271), but not on GitHub with another repository: the task ids of both would be the same.
   if (draft.tracker !== 'github' && draft.tracker !== 'gitlab') return null
   const repo = draft.trackerProject.trim() || null
+  const pattern = draft.tracker === 'gitlab' ? /^[\w-][\w.-]*(?:\/[\w-][\w.-]*)+$/ : /^[\w.-]+\/[\w.-]+$/
+  if (!pattern.test(repo ?? '')) return notice('wizard.trackerPlace', { example: draft.tracker === 'gitlab' ? 'group/subgroup/project' : 'octo-org/example' })
   const other = state.projects.find((project) => {
     const form = state.config.projects[project]
     return state.projectKeys[project] === key && form?.tracker === draft.tracker && form.trackerProject !== repo

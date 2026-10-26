@@ -170,6 +170,7 @@ function ProjectFields(props: ProjectFieldsProps) {
         options={options}
         aside={aside}
         onChange={(value) => onChange((before) => typedIn(before, 'key', value.toUpperCase()))}
+        {...owned}
       />
     )
   }

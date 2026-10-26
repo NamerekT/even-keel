@@ -61,6 +61,21 @@ export function shapeOf(choice: TrackerChoice | undefined): TrackerShape {
 /** Whether the wizard shows the key as a field of its own, not only what the picked project fills. */
 export const keyTyped = (shape: TrackerShape) => shape !== 'key'
 
+/** The field named by an entry refusal; blank required values are explained by the footer instead. */
+export function entryField(fields: WizardFields, shape: TrackerShape, entry: ProjectCheck['entry']): 'key' | 'tracker' | 'milestones' | null {
+  if (entry === null) return null
+  if (entry.code === 'wizard.trackerShared') return 'milestones'
+  if (entry.code === 'wizard.keyShape' || entry.code === 'wizard.keyTaken') {
+    if (fields.key.trim() === '') return null
+    return keyTyped(shape) ? 'key' : 'tracker'
+  }
+  if (entry.code === 'wizard.trackerPlace') {
+    const value = shape === 'key' ? fields.key : shape === 'within' ? fields.team : fields.trackerProject
+    if (value.trim() === '') return null
+  }
+  return 'tracker'
+}
+
 /** The prefix the project's task ids will have where they are the tracker's own; blank — the key's. */
 export function idPrefix(shape: TrackerShape, fields: WizardFields): string {
   if (shape === 'alias') return fields.trackerProject.trim()
@@ -228,13 +243,12 @@ export type WizardStepId = (typeof WIZARD_STEPS)[number]
 export function stepChecks(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null, repoCheck: ProjectCheck | null, agent: StepCheck): Record<WizardStepId, StepCheck> {
   const key = fields.key.trim()
   const entry = check?.entry ?? null
-  const shared = entry?.code === 'wizard.trackerShared'
-  const keyRefused = key !== '' && entry !== null && !shared
+  const refused = entryField(fields, shape, entry)
   const repo = fields.repo.trim() === '' ? 'empty' : repoCheck?.repo.notice != null ? 'failed' : repoCheck?.repo.root != null ? 'passed' : 'empty'
   const trackerAnswer = check?.tracker == null ? 'empty' : check.tracker.ok ? 'passed' : 'failed'
-  const tracker = fields.profile === '' ? 'empty' : !keyTyped(shape) && keyRefused ? 'failed' : trackerAnswer
+  const tracker = fields.profile === '' ? 'empty' : refused === 'tracker' ? 'failed' : trackerAnswer
   const project =
-    shared || (keyTyped(shape) && keyRefused) ? 'failed' : key !== '' && check !== null && entry === null ? 'passed' : 'empty'
+    refused === 'milestones' || refused === 'key' ? 'failed' : key !== '' && check !== null && entry === null ? 'passed' : 'empty'
   return { agent, repo, tracker, project, place: draftOfFields(fields) === undefined ? 'failed' : 'passed' }
 }
 

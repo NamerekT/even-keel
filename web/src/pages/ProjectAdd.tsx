@@ -12,6 +12,7 @@ import { agentCheck, AgentReady } from './AgentReady.js'
 import {
   draftOfFields,
   EMPTY_FIELDS,
+  entryField,
   keyOfTyped,
   keyTyped,
   missingOf,
@@ -143,7 +144,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   // A tracker project another project has opens the milestones, and they stay open while they are typed (BTN-306).
   const trackerShared = check?.entry?.code === 'wizard.trackerShared'
   // The key is red only with its reason under it: an empty key is said once, by what is missing at the bottom.
-  const keyRefused = check?.entry != null && fields.key.trim() !== '' && !trackerShared
+  const keyRefused = entryField(fields, shape, check?.entry ?? null) === 'key'
   useEffect(() => {
     if (trackerShared) setMilestonesOpen(true)
   }, [trackerShared])
