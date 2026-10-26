@@ -12,11 +12,11 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
 import { type CodexPlugins, UntrustedHooks } from './plugins.js'
+import { APPEAR_TIMEOUT_MS, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
 
 const run = promisify(execFile)
 
-const APPEAR_TIMEOUT_MS = 60_000
 const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
 const TRIPLES: Record<string, string> = { x64: 'x86_64-pc-windows-msvc', arm64: 'aarch64-pc-windows-msvc' }
@@ -170,7 +170,9 @@ export class CodexCli {
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if (await this.turnLive(session)) await this.stopTurn(sessionId, session.pid)
+    if ((await this.turnLive(session)) && processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out))) {
+      await this.stopTurn(sessionId, session.pid)
+    }
     this.registry.save({ ...session, stopped: true })
   }
 

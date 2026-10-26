@@ -23,7 +23,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
-| 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
+| 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped turn goes on, or a reused pid is killed |
 | 16 | [Forgejo token rights for pull requests](#forgejo-token-rights-for-pull-requests-ekr-9) | PR mode on Forgejo with a token made by the guide | the comments of the conversation are not read, or the open is refused |
 | 16a | [Retrying a pull request after fixing access](#retrying-a-pull-request-after-fixing-access-btn-407) | PR mode paused after a refused open | the pull request stays unopened after Resume |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
@@ -273,7 +273,7 @@ A service restart mid-turn was checked live with the real service on Windows (BT
 
 ### Stopping a turn on macOS and Linux
 
-The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`).
+The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`). Before a stop, the process creation time is read from `/proc/<pid>/stat` plus boot time and `getconf CLK_TCK` on Linux, or `ps -o lstart=` on macOS, to leave a newer process that reused the pid alive. Neither platform's creation-time lookup has been checked live. If it fails, the stop keeps its previous behaviour and can kill a reused pid; a wrong creation time can also leave the turn running. The equivalent Windows check was verified with owned parent/child processes: a reused pid was preserved, the current turn's tree was killed, and an unrecognised output filename kept the previous behaviour. **Workaround:** if a Codex process has crashed, verify its pid and creation time in the operating system before stopping the session or cleaning up its task.
 
 ### Edit sizes of a FileChange (BTN-185)
 
