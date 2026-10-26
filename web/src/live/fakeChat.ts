@@ -185,7 +185,7 @@ export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>):
     return { ...state, mailbox: { ...state.mailbox, [view.sessionId]: { ...box, mail: [...box.mail, mail] } } }
   }
   if (view.lamp === 'working') throw fail('answer.busy', { task })
-  const working = { ...view, lamp: 'working' as const, asking: false, ask: null, waitingFor: null }
+  const working = { ...view, lamp: 'working' as const, asking: false, ask: null, waitingFor: null, apiError: null, apiErrorKind: null }
   const dismissed = withMail(state, view.sessionId, (each) => (each.fate === 'returned' ? { ...each, fate: 'dismissed' } : each))
   return { ...dismissed, sessions: state.sessions.map((each) => (each === view ? working : each)) }
 }

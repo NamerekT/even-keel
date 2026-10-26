@@ -27,7 +27,7 @@ export const composerEn = {
   delivering: 'Delivering the answer, the session is starting up',
   finished: 'The session has finished — it cannot be replied to.',
   limit: 'The session hit a limit — Even Keel resumes it by itself.',
-  error: 'The session stopped on an API error. You can reply once it waits again.',
+  error: 'The session stopped on an API error. Send a reply to resume it.',
   dialog: (what: string) => `The session waits for ${what}. Answer it through Remote Control.`,
   aside: 'The fix of main leads the chain. You can reply from the chat once it lands; until then — through Remote Control.',
   question: 'Question',

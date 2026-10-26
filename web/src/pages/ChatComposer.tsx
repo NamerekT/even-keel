@@ -12,6 +12,7 @@ import { isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
 import { holdKey, shownAsk } from './composerHold.js'
+import { lockReason } from './composerLock.js'
 import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
@@ -170,7 +171,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
         <p className="notice notice--error">{say(failure)}</p>
       ) : (
         <p className="chat__hint">
-          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : ''))}
+          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : session.lamp === 'error' ? t.session.chat.error : ''))}
         </p>
       )}
     </form>
@@ -203,15 +204,6 @@ function useChatDraft(sessionId: string, draft: Draft, restore: (draft: Draft) =
     const timer = setTimeout(() => void writeDraft(sessionId, latest.current), DRAFT_SAVE_MS)
     return () => clearTimeout(timer)
   }, [sessionId, draft.text, draft.files])
-}
-
-function lockReason(session: SessionView, aside: boolean): string | null {
-  if (session.lamp === 'working') return t.session.chat.working
-  if (session.lamp === 'finished') return t.session.chat.finished
-  if (session.lamp === 'limit') return t.session.chat.limit
-  if (session.lamp === 'error') return t.session.chat.error
-  if (session.waitingFor !== null && !session.asking) return t.session.chat.dialog(session.waitingFor)
-  return aside ? t.session.chat.aside : null
 }
 
 async function encoded(file: File): Promise<{ name: string; data: string }> {
