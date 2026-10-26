@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
+import { DEFAULT_PROTECTION } from './sessions/protection.js'
 import {
   DEFAULT_CI,
   idPrefixOf,
@@ -105,7 +106,7 @@ describe('parseConfig', () => {
       feeds: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -121,6 +122,7 @@ describe('parseConfig', () => {
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
+      protection: DEFAULT_PROTECTION,
       cacheTtl: null,
       contextHandoffs: true,
       parallel: 1,
@@ -327,13 +329,14 @@ describe('parseConfig', () => {
         promptLanguage: 'en',
         cacheTtl: null,
         contextHandoffs: true,
+        protection: DEFAULT_PROTECTION,
         checkpointTokens: null,
         checkpointShares: SHARES,
         own: {},
       },
       XYZ: {
         ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [] },
-        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, checkpointTokens: null, checkpointShares: SHARES, own: {} },
+        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })
   })

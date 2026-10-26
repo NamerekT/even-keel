@@ -20,6 +20,6 @@ export function createSessionSettings(deps: SessionSettingsDeps) {
     const config = deps.config()
     const repo = config.projects[project]!
     const files = [join(deps.globalDir, 'settings.json'), join(repo, '.claude', 'settings.json'), join(repo, '.claude', 'settings.local.json')].map(readJson)
-    return chainSettings(repo, deps.packages.otherPlugins(project, task, files), deps.trim(), config.hiddenSkills, deps.globalDir, config.settings[project]?.cacheTtl ?? null, sessionSecrets(deps.packages.keyNames()))
+    return chainSettings(repo, deps.packages.otherPlugins(project, task, files), deps.trim(), config.hiddenSkills, deps.globalDir, config.settings[project]?.cacheTtl ?? null, sessionSecrets(deps.packages.keyNames()), config.settings[project]?.protection ?? config.protection)
   }
 }

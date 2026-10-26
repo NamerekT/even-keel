@@ -8,6 +8,7 @@ import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
+import type { Protection } from './sessions/protection.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
 import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
@@ -143,6 +144,8 @@ export interface ProjectSettings {
   promptLanguage: Language
   /** The prompt cache TTL of the project's sessions, the shared one filled in; `null` — the CLI's own choice. */
   cacheTtl: CacheTtl | null
+  /** The resolved native deny rules; omitted by older clients. */
+  protection?: Protection
   /** The checkpoint hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
   contextHandoffs: boolean
   /** The checkpoint hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
@@ -157,6 +160,7 @@ export interface ProjectSettings {
 export type OwnKey = keyof OwnValues
 
 export interface OwnValues {
+  protection?: Partial<Protection>
   'ci.guard'?: boolean
   'ci.kinds'?: CiKind[]
   'ci.waitMinutes'?: number | null
@@ -238,6 +242,7 @@ export interface ProjectForm extends ProjectSettings {
 
 /** The shared keys of the config as the settings page edits them, defaults filled in. */
 export interface SharedForm {
+  protection?: Protection
   parallel: number
   brief: boolean | null
   chain: ChainRules
@@ -416,6 +421,7 @@ export interface TaskWork {
 }
 
 export interface EvenKeelState {
+  protection?: Record<string, import('./ci/protection-model.js').RemoteProtection[]>
   startedAt: string
   /** The projects by their ids, as every map of a project here names them: two projects may share a key (BTN-271). */
   projects: string[]

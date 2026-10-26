@@ -105,6 +105,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 
 | Parameter | What it shows |
 | --- | --- |
+| `?protection=unsafe|unprotected|unknown|protected` | empty Protection rules with Codex bypass, or remote branch audit verdicts; `unknown` includes a long remote name |
 | `?link=stale\|connecting` | connection states |
 | `?chain=idle` | no active chain, to check starting one; "Start" and "New session" go through the start phases 3 s each |
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |

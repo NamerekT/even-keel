@@ -8,6 +8,7 @@ import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
+import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import { placeholderIn } from '../sessions/prompt.js'
 import type { CheckpointShares, OwnKey } from '../state.js'
 import { DEFAULT_SHARES } from '../stats/checkpoint.js'
@@ -175,6 +176,19 @@ const context = (key: 'window' | 'warn' | 'danger'): SettingDefinition => ({
 
 /** Every setting of Even Keel, in the order of the file. Project record fields (`id`, `key`, `name`, `repo`, `branch`, the tracker's project) are not here. */
 export const DEFINITIONS: readonly SettingDefinition[] = [
+  { key: 'protection', kind: 'json', scopes: ['global', 'project'], lands: ['protection', 'settings'], default: DEFAULT_PROTECTION, check: (value, place) => {
+    const invalid = () => fail('config.protection', { where: at(place, 'protection') })
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalid()
+    const fields = value as Record<string, unknown>
+    for (const [key, entries] of Object.entries(fields)) {
+      if (!['disabled', 'claude', 'codex', 'copilot'].includes(key) || !Array.isArray(entries)) throw invalid()
+      if (key === 'codex') {
+        if (entries.some(entry => !Array.isArray(entry) || entry.length === 0 || entry.some(arg => typeof arg !== 'string' || arg.length === 0))) throw invalid()
+      } else if (entries.some(entry => typeof entry !== 'string' || entry.trim() === '')) throw invalid()
+      if (key === 'disabled' && entries.some(entry => !PROTECTION_GROUPS.includes(entry))) throw invalid()
+    }
+    return fields
+  } },
   { key: 'allowedHosts', kind: 'list', scopes: ['global'], lands: ['allowedHosts'], default: [], check: (value) => {
     const names = Array.isArray(value) ? value.map((name) => (typeof name === 'string' ? name.trim().toLowerCase() : '')) : ['']
     if (names.some((name) => name === '' || /[/\\@?#\s]/.test(name))) throw fail('config.allowedHosts', {})
@@ -354,7 +368,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
 export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
+export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {

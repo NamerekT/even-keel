@@ -12,6 +12,7 @@ import type { CompareSettings } from './stats/rules.js'
 import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
+import type { Protection } from './sessions/protection.js'
 
 export function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw fail('request.required', { field: 'project' })
@@ -155,6 +156,7 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
+    protection: body.protection as Protection | undefined,
     parallel: numberOf(parallel, 'parallel'),
     brief: briefOf(brief),
     chain: rulesOf(chain),
