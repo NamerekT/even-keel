@@ -1,4 +1,4 @@
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Writes } from '../storage/database.js'
 import { memoryDatabase } from '../storage/memory.js'
 import { Mailbox } from './mailbox.js'
@@ -7,7 +7,7 @@ import { mailFor, settleMail, type MailRelay } from './mailRelay.js'
 const SESSION = '11111111-2222-4333-8444-555555555555'
 const OTHER = '66666666-7777-4888-8999-000000000000'
 
-async function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = () => {}) {
+async function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = async () => true) {
   let now = Date.parse('2026-10-18T10:00:00.000Z')
   const writes = new Writes(() => {})
   const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => new Date(now))
@@ -20,8 +20,9 @@ async function relay(live: { sessionId: string; midTurn: boolean; asking: boolea
     mailbox,
     live: () => live,
     resume: (task, sessionId, prompt) => {
-      resume(task, sessionId, prompt)
+      const delivery = resume(task, sessionId, prompt)
       resumed.push({ task, sessionId, prompt })
+      return delivery
     },
     language: () => 'en',
     changed: () => changes++,
@@ -33,6 +34,31 @@ async function relay(live: { sessionId: string; midTurn: boolean; asking: boolea
 
 // The first database of a file migrates the template, which under a full run takes longer than the default 5 s.
 describe('settleMail', { timeout: 30_000 }, () => {
+  it('settles a queued resume only after delivery and keeps timers and hooks from taking it again', async () => {
+    const delivery = Promise.withResolvers<boolean>()
+    const { deps, mailbox, later, resumed } = await relay({ sessionId: SESSION, midTurn: false, asking: false }, () => delivery.promise)
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(11)
+    settleMail(deps)
+    expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
+    await settleMail(deps)
+    expect(resumed).toHaveLength(1)
+    expect(mailFor(deps, SESSION, 'PreToolUse')).toBeNull()
+    delivery.resolve(true)
+    await vi.waitFor(() => expect(mailbox.of(SESSION)[0]?.fate).toBe('delivered'))
+  })
+
+  it.each(['refused', 'rejected'])('returns a message after an asynchronous resume is %s', async (outcome) => {
+    const delivery = Promise.withResolvers<boolean>()
+    const { deps, mailbox, later } = await relay({ sessionId: SESSION, midTurn: false, asking: false }, () => delivery.promise)
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(11)
+    settleMail(deps)
+    if (outcome === 'refused') delivery.resolve(false)
+    else delivery.reject(new Error('resume failed'))
+    await vi.waitFor(() => expect(mailbox.of(SESSION)[0]?.fate).toBe('returned'))
+  })
+
   it('leaves a message to the hooks while the session works', async () => {
     const { deps, mailbox, later, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
@@ -47,7 +73,7 @@ describe('settleMail', { timeout: 30_000 }, () => {
     mailbox.post('ABC-1', SESSION, 'one', [])
     mailbox.post('ABC-1', SESSION, 'two', [])
     later(11)
-    settleMail(deps)
+    await settleMail(deps)
     expect(resumed).toHaveLength(1)
     expect(resumed[0]!.prompt).toContain('one')
     expect(resumed[0]!.prompt).toContain('two')
@@ -71,7 +97,7 @@ describe('settleMail', { timeout: 30_000 }, () => {
     const { deps, mailbox, later } = await relay({ sessionId: OTHER, midTurn: false, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(11)
-    settleMail(deps)
+    await settleMail(deps)
     expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
   })
 

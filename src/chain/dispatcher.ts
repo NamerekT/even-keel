@@ -338,14 +338,16 @@ export class Dispatcher {
     return answerable(this.state, this.deps, project, task, sessionId, ask, takes)
   }
 
-  /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
-  answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
+  /** Invariant 1, exception 6: queues the user's answer and resolves to whether it reached the session. */
+  answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): Promise<boolean> {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
-    this.work = this.work.then(() => {
+    const delivery = this.work.then(() => {
       if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt)
       this.unhold(chain)
       return this.handovers.deliver(chain, current, session, prompt, ask)
     })
+    this.work = delivery.then(() => {})
+    return delivery
   }
 
   /** A pause for the user to tell the session of a mark refused what to do ends once they do: its next mark opens at once. */

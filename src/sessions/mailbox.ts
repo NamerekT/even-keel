@@ -35,6 +35,7 @@ interface Row {
  */
 export class Mailbox {
   private readonly heard = new Set<string>()
+  private readonly claimed = new Set<number>()
 
   private constructor(
     private readonly db: Db,
@@ -76,14 +77,22 @@ export class Mailbox {
   take(sessionId: string, event: MailEvent): Mail[] {
     this.heard.add(sessionId)
     return this.settle(
-      this.mails.filter((mail) => mail.sessionId === sessionId && mail.fate === 'waiting'),
+      this.waiting().filter((mail) => mail.sessionId === sessionId),
       'delivered',
       event,
     )
   }
 
   waiting(): Mail[] {
-    return this.mails.filter((mail) => mail.fate === 'waiting').map((mail) => ({ ...mail }))
+    return this.mails.filter((mail) => mail.fate === 'waiting' && !this.claimed.has(mail.id)).map((mail) => ({ ...mail }))
+  }
+
+  /** Holds waiting mail for a queued resume, so hooks and timers cannot deliver it a second time. Not persisted. */
+  claim(mails: Mail[]): Mail[] {
+    const ids = new Set(mails.map((mail) => mail.id))
+    const claimed = this.waiting().filter((mail) => ids.has(mail.id))
+    for (const mail of claimed) this.claimed.add(mail.id)
+    return claimed
   }
 
   /** Gives `fate` to those of `mails` that still wait and returns them. */
@@ -92,7 +101,10 @@ export class Mailbox {
     const ids = new Set(mails.map((mail) => mail.id))
     const settled = this.mails.filter((mail) => ids.has(mail.id) && mail.fate === 'waiting')
     if (settled.length === 0) return []
-    for (const mail of settled) Object.assign(mail, { fate, event, settledAt })
+    for (const mail of settled) {
+      this.claimed.delete(mail.id)
+      Object.assign(mail, { fate, event, settledAt })
+    }
     this.write("update mailbox set fate = $1, event = $2, settled_at = $3 where id = any($4) and fate = 'waiting'", [
       fate,
       event,
