@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { claudeEnv } from '../claude/adapter.js'
-import { sessionBase } from './env.js'
+import { sessionBase, sessionSecrets, settingsSecrets } from './env.js'
 
 const env = {
   PATH: '/bin',
@@ -19,6 +19,26 @@ describe('sessionBase', () => {
 
   it('drops the CI token', () => {
     expect(sessionBase({ ...env, FORGEJO_TOKEN: 'fake-token' }).FORGEJO_TOKEN).toBeUndefined()
+  })
+})
+
+describe('sessionSecrets', () => {
+  it('names the trackers, the CIs and the packages keys', () => {
+    const names = sessionSecrets(['EXAMPLE_KEY'])
+    expect(names).toEqual(expect.arrayContaining(['HULY_PASSWORD', 'GITLAB_TOKEN', 'GITLAB_URL', 'FORGEJO_TOKEN', 'EXAMPLE_KEY']))
+    expect(names).not.toContain('PATH')
+  })
+})
+
+describe('settingsSecrets', () => {
+  it('finds the names the env of a settings file sets', () => {
+    const settings = { theme: 'dark', env: { GITLAB_TOKEN: 'example', PATH: '/bin', HULY_URL: 'https://huly.example.com' } }
+    expect(settingsSecrets(settings, sessionSecrets()).sort()).toEqual(['GITLAB_TOKEN', 'HULY_URL'])
+  })
+
+  it('finds nothing without an env', () => {
+    expect(settingsSecrets(undefined, sessionSecrets())).toEqual([])
+    expect(settingsSecrets({ env: 'broken' }, sessionSecrets())).toEqual([])
   })
 })
 
