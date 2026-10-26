@@ -1,6 +1,6 @@
 import type { EvenKeelState, ProjectCheck } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
-import { keyTyped, type TrackerShape, type WizardFields } from './projectWizard.js'
+import { entryField, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { Status, TrackerFields } from './TrackerFields.js'
 
 interface TrackerStepProps {
@@ -16,11 +16,9 @@ interface TrackerStepProps {
 export function TrackerStep({ state, fields, shape, check, onChange }: TrackerStepProps) {
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
   const profiles = state.profiles.profiles.filter((profile) => kinds.some((kind) => kind.kind === profile.kind))
+  const refused = entryField(fields, shape, check?.entry ?? null) === 'tracker'
   const status =
-    // Milestones a shared tracker project needs are said under their field, on the project step.
-    !keyTyped(shape) && check?.entry != null && check.entry.code !== 'wizard.trackerShared' && fields.key.trim() !== '' ? (
-      <Status>{say(check.entry)}</Status>
-    ) : check?.tracker?.notice != null ? (
+    check?.tracker?.notice != null ? (
       <Status>{say(check.tracker.notice)}</Status>
     ) : check?.tracker?.ok === true ? (
       <Status ok>{t.wizard.trackerOk(check.tracker.open ?? 0)}</Status>
@@ -35,6 +33,8 @@ export function TrackerStep({ state, fields, shape, check, onChange }: TrackerSt
         profiles={profiles}
         kinds={kinds}
         profileHint={t.wizard.profileHint}
+        projectNote={refused && <Status>{say(check!.entry!)}</Status>}
+        projectInvalid={refused}
         status={status}
         onChange={onChange}
       />

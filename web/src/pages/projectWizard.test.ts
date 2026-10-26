@@ -3,6 +3,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import type { ProjectCheck } from '../../../src/state.js'
 import {
   draftOfFields,
+  entryField,
   EMPTY_FIELDS,
   keyOfFolder,
   keyOfTyped,
@@ -188,6 +189,39 @@ describe('stepChecks', () => {
     const entry: Notice = { code: 'wizard.trackerShared', params: { project: 'Shop' } }
     const shared = { ...passed, entry, tracker: null }
     expect(stepChecks(typed, 'key', shared, shared, 'passed').project).toBe('failed')
+  })
+
+  it.each(['place', 'alias', 'within'] as const)('fails Tracker for a tracker place refusal on %s, leaving Project empty', (shape) => {
+    const entered = { ...typed, team: 'ENG', trackerProject: 'invalid' }
+    const entry: Notice = { code: 'wizard.trackerPlace', params: { example: 'group/subgroup/project' } }
+    const refused = { ...passed, entry, tracker: null }
+    expect(stepChecks(entered, shape, refused, refused, 'passed')).toMatchObject({ tracker: 'failed', project: 'empty' })
+    expect(entryField(entered, shape, entry)).toBe('tracker')
+  })
+
+  it('fails Project only for key refusals when the prefix is a separate field', () => {
+    const entry: Notice = { code: 'wizard.keyShape', params: { value: 'invalid' } }
+    const refused = { ...passed, entry, tracker: null }
+    expect(stepChecks(typed, 'place', refused, refused, 'passed')).toMatchObject({ tracker: 'empty', project: 'failed' })
+    expect(entryField(typed, 'place', entry)).toBe('key')
+    expect(entryField(typed, 'place', notice)).toBe('key')
+    expect(entryField(typed, 'key', entry)).toBe('tracker')
+  })
+
+  it.each(['place', 'alias', 'within', 'key'] as const)('leaves a blank tracker project empty on %s and names it in the footer', (shape) => {
+    const entered = { ...typed, repo: 'D:/Projects/shop', key: shape === 'key' ? '' : 'CC' }
+    const entry: Notice = { code: 'wizard.trackerPlace', params: { example: 'group/subgroup/project' } }
+    const refused = { ...passed, entry, tracker: null }
+    expect(stepChecks(entered, shape, refused, refused, 'passed')).toMatchObject({ tracker: 'empty', project: 'empty' })
+    expect(entryField(entered, shape, entry)).toBeNull()
+    expect(missingOf(entered, shape, refused)).toBe(shape === 'place' ? 'place' : 'project')
+  })
+
+  it('keeps blank keys quiet, shared milestones on Project, and other entry failures away from the prefix', () => {
+    expect(entryField({ ...typed, key: ' ' }, 'place', notice)).toBeNull()
+    expect(entryField(typed, 'place', { code: 'wizard.trackerShared', params: { project: 'Shop' } })).toBe('milestones')
+    expect(entryField(typed, 'place', { code: 'wizard.entryFailed', params: {} })).toBe('tracker')
+    expect(entryField(typed, 'place', null)).toBeNull()
   })
 
   it('fails the folders on a pool that is not a whole number above zero', () => {
