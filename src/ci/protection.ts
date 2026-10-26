@@ -23,7 +23,17 @@ export async function branchProtection(target: CiTarget, branch: string, token: 
       const types = Array.isArray(rules.value) ? new Set(rules.value.map(rule => rule.type)) : new Set()
       const force = types.has('non_fast_forward') || classic.value?.allow_force_pushes?.enabled === false || classic.value?.lock_branch?.enabled === true
       const deletion = types.has('deletion') || classic.value?.allow_deletions?.enabled === false || classic.value?.lock_branch?.enabled === true
-      if (force && deletion) return { ...base, status: 'protected', bypass: types.size > 0 || classic.value?.enforce_admins?.enabled !== true }
+      if (force && deletion) {
+        const ids = new Set(Array.isArray(rules.value) ? rules.value.map(rule => rule.ruleset_id) : [])
+        const bypasses = await Promise.all([...ids].map(async id => {
+          if (!Number.isSafeInteger(id) || id <= 0) return true
+          try {
+            const detail = await get(`${root}/rulesets/${id}`)
+            return !Array.isArray(detail.value?.bypass_actors) || detail.value.bypass_actors.length > 0
+          } catch { return true }
+        }))
+        return { ...base, status: 'protected', bypass: bypasses.some(Boolean) || (classic.status === 200 && classic.value?.enforce_admins?.enabled !== true) }
+      }
       if (current.value?.protected === false && rules.status === 200) return { ...base, status: 'unprotected' }
       if (classic.status === 200 && rules.status === 200) return { ...base, status: 'unprotected' }
       return base
@@ -41,7 +51,12 @@ export async function branchProtection(target: CiTarget, branch: string, token: 
     const exact = rules.filter(rule => name(rule) === branch)
     const matching = exact.length > 0 ? exact : rules.filter(rule => typeof name(rule) === 'string' && matchesGlob(branch, name(rule)))
     if (matching.length === 0) return { ...base, status: 'unprotected' }
-    const verdicts = new Set(matching.map(rule => rule.enable_force_push === true ? 'unprotected' : rule.enable_force_push === false ? 'protected' : 'unknown'))
+    const verdicts = new Set(matching.map(rule => {
+      if (rule.enable_force_push === true) return 'unprotected'
+      if (rule.enable_force_push === false) return 'protected'
+      // Older Forgejo APIs have no force-push switch: a branch rule always forbids it.
+      return !Object.hasOwn(rule, 'enable_force_push') && typeof rule.enable_push === 'boolean' ? 'protected' : 'unknown'
+    }))
     return { ...base, status: verdicts.size === 1 ? [...verdicts][0]! : 'unknown', bypass: matching.some(rule => rule.apply_to_admins !== true || rule.enable_force_push_allowlist === true) }
   } catch { return base }
 }

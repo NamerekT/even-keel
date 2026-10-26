@@ -95,9 +95,11 @@ Timeout and slow-call diagnostics are covered by tests but have not been observe
 ### Protection across agent transports and remote servers
 
 Codex 0.164.0 rejected a forbidden harmless command in bypass mode against a local Responses server, including rules
-in the working folder. A public GitHub remote's active rulesets were read live and returned protected with possible
-bypasses. Claude CLI/SDK deny injection, Copilot wildcard and Huly deny matching, Codex under Windows session 0 and
-slot reuse, and Forgejo/classic GitHub branch protection have not been checked end to end.
+in the working folder. On 2026-10-26 a public GitHub remote's active ruleset returned protected without bypasses after
+reading its empty `bypass_actors`; Forgejo 16.0.3's older branch rules, without `enable_force_push` and enforced for
+administrators, returned the same verdict. Claude CLI/SDK deny injection, Copilot wildcard and Huly deny matching,
+Codex under Windows session 0 and slot reuse, classic GitHub protection, actual server rejection of destructive
+operations, and permission-denied remote responses have not been checked end to end.
 The adapter arguments, settings inheritance and API verdicts are covered by tests. If an agent ignores a native rule,
 equivalent destructive actions can still run; Codex's documented prefix gaps include reordered arguments, refspecs,
 expanded shell paths and MCP calls. Inspect server rules directly, enforce protection there, and use a sandbox when

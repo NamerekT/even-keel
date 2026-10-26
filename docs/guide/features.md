@@ -17,7 +17,9 @@ Before launching a project's session, Even Keel reads the main branch's protecti
 configured branch name and remote profiles. Missing protection, failed verification and potential administrator
 bypasses appear on the project page beside a link to the server's branch rules. Enable rules blocking force pushes
 and branch deletion there, including enforcement for administrators where appropriate. Even Keel does not change
-server rules. Checks are cached for five minutes. No protection check is available for GitLab yet.
+server rules. GitHub rulesets with no bypass actors do not show a bypass warning; if the profile cannot read the
+bypass list, the warning remains. Older Forgejo rules without a force-push switch are recognized as protection too.
+Checks are cached for five minutes. No protection check is available for GitLab yet.
 
 The [README](../../README.md) has the short version. This is every feature in full; the keys named here are in the [reference](reference.md).
 
