@@ -23,6 +23,7 @@ import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
+import { untrustedStart } from './claude/trust.js'
 import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './chain/launches.js'
@@ -84,7 +85,7 @@ import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
-import { checkDraft } from './projects/check.js'
+import { checkDraft, isTrusted } from './projects/check.js'
 import { addProject } from './projects/add.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
 import { checkoutRemotes, ProjectRemotes, remotePeers, remotesIn, repositoryIds, sameRepository } from './projects/remotes.js'
@@ -311,9 +312,9 @@ const transcriptWatch = new TranscriptWatch(
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => configStore.current.accounts[CLAUDE]!
-/** `.claude.json` files sessions read: the global one and the shared Claude account's. */
-const claudeConfigs = () =>
-  [...new Set([homes.global, homes.find(claudeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+/** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */
+const claudeConfigs = (account = claudeAccount()) =>
+  [...new Set([homes.global, homes.find(account)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
 const packages: Packages = new Packages({
   file: join(stateDir, 'packages.json'),
   cache: join(stateDir, 'packages'),
@@ -396,9 +397,16 @@ const requireModel = async (home: AccountHome, start: SessionStart) => {
   const refusal = await models.refusal(home, start.name, start.model)
   if (refusal !== undefined) throw new NoticeError(refusal)
 }
-const launchIn = async (home: AccountHome, start: SessionStart) => {
+/** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
+const launchIn = async (home: AccountHome, start: SessionStart, project: string | undefined) => {
   await requireModel(home, start)
-  return agentOf(home).launch(home, start)
+  try {
+    return await agentOf(home).launch(home, start)
+  } catch (error) {
+    const folder = project === undefined ? undefined : configStore.current.projects[project]
+    const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username }
+    throw (place === null ? null : untrustedStart(error, place)) ?? error
+  }
 }
 const resumeIn = async (home: AccountHome, session: SessionHandle, start: SessionStart) => {
   await requireModel(home, start)
@@ -1080,7 +1088,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const started = withProject(await briefed(task, startPrompt(task, place, promptLanguage(project), branchOf(project), pullRequestsOn(project)), project), project)
     const { prompt, model, provider, fallback } = planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
     const extras = agentExtras(home, project, task)
-    const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, project), ...extras })
+    const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, project), ...extras }, project)
     if (fallback === null) return { sessionId }
     console.warn(englishOf(noAccountFor(task, fallback, provider)))
     return { sessionId, fallback }
@@ -1140,7 +1148,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const note = await readNote(notePath)
     const at = new Date().toISOString()
     const extras = agentExtras(home, project, task)
-    const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, project), ...extras })
+    const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, project), ...extras }, project)
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
     writes.add(`the handoff snapshot of ${task}`, saveSnapshot(db, snapshot))
     return sessionId
@@ -1151,7 +1159,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const place = await places.ready(project, name)
     const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(project), branchOf(project)), project), project)
     const extras = agentExtras(home, project, name)
-    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras }, project)
   },
   launchCarry: async (project, name, report) => {
     const home = homeOf(choiceFor(project).account)
@@ -1159,7 +1167,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     const place = await places.ready(project, name)
     const { prompt, model } = planFor(name, withProject(carryPrompt(report, place, promptLanguage(project), branchOf(project)), project), project)
     const extras = agentExtras(home, project, name)
-    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras }, project)
   },
   carried: async (project, commit) =>
     (await runGit(configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${branchOf(project)}`])).code === 0,
@@ -1568,6 +1576,12 @@ let server = createEvenKeelServer({
         },
         draft,
       ),
+    trust: (project, account) => {
+      const folder = configStore.current.projects[project]
+      if (folder === undefined) throw fail('config.unknownProject', { key: project })
+      const configs = claudeConfigs(account ?? runSettings(configStore.current, project).accounts[CLAUDE] ?? claudeAccount()).map(readJson)
+      return { folder, trusted: configs.some((config) => isTrusted(config, folder)), platform: process.platform, user: userInfo().username }
+    },
     add: (draft) => addProject({ configStore, profiles, git: runGit }, draft),
     remove: (project) => {
       const repo = configStore.current.projects[project]

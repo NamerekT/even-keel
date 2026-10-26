@@ -3,7 +3,7 @@ import type { ChainRules } from '../chain/rules.js'
 import { CLAUDE } from '../claude/name.js'
 import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject, yieldedMilestones } from '../config-form.js'
-import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels } from '../config.js'
+import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -34,7 +34,7 @@ const ENTRY_ID = 'wizard-check'
 
 /**
  * What the wizard's draft would come to: the repository and its branch, the config with the draft added, the tracker's
- * answer for the project and Claude Code's trust in the folder, for a project on Claude only. Each step that needs an earlier one is left `null`
+ * answer for the project and Claude Code's trust in the folder, for a project Claude may run on. Each step that needs an earlier one is left `null`
  * until that one passes.
  */
 export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<ProjectCheck> {
@@ -46,12 +46,14 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   let entry: Notice | null = null
   let rules: ChainRules | undefined
   let yields: string[] = []
+  let labels = isPlainObject(raw) && raw.modelLabels === true
   try {
     const placed = { ...draft, repo: repo.root ?? draft.repo, branch }
     const config = parseConfig(withNewProject(raw, placed, ENTRY_ID, deps.adapters), deps.adapters)
     rules = config.rules[ENTRY_ID]!
-    const labels = projectLabels(config)
-    yields = Object.keys(yieldedMilestones(raw, placed, ENTRY_ID, deps.adapters)).map((project) => labels[project]!)
+    labels = runSettings(config, ENTRY_ID).labels
+    const names = projectLabels(config)
+    yields = Object.keys(yieldedMilestones(raw, placed, ENTRY_ID, deps.adapters)).map((project) => names[project]!)
   } catch (error) {
     entry = keyNotice(noticeOf(error))
   }
@@ -61,7 +63,8 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
       : null
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
   const root = repo.root
-  const trusted = root === null || provider !== CLAUDE ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
+  // Run labels can give any task to Claude, whatever the project's own agent (BTN-429).
+  const trusted = root === null || (provider !== CLAUDE && !labels) ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
   return { repo, entry, yields, tracker, trusted, platform, user: deps.user }
 }
 

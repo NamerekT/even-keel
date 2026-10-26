@@ -157,6 +157,8 @@ export const noticesRu: NoticeTexts = {
     `Демон ${p.title} аккаунта ${p.account} работает на ${p.running}, а не на проверенной ${p.wanted}: его сессии идут на ${p.running}, пока в аккаунте есть живые сессии, потом Even Keel его перезапустит`,
 
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
+  'claude.untrusted': (p) =>
+    `Claude Code ещё не доверяет папке ${p.folder}, поэтому ${p.task} не запущена. Выполните claude в этой папке от пользователя ${p.user}, примите доверие и продолжите цепочку`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,
   'claude.resumedNotShown': (p) => `${p.task} продолжена, но не появилась в claude agents`,

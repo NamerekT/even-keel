@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { notice } from '../../../src/notice/notice.js'
-import { fieldFixOf, noticeFixOf } from './noticeFix.js'
+import { fieldFixOf, noticeFixOf, untrustedOf } from './noticeFix.js'
 
 describe('noticeFixOf', () => {
   it('sends a wrong main branch to the repository tab of the project', () => {
@@ -32,6 +32,13 @@ describe('noticeFixOf', () => {
     const empty = notice('chain.empty', { project: 'ABC' }, { items: [notice('chain.emptyNone', {}), notice('chain.emptyLabels', { labels: ['ready'] })] })
     expect(noticeFixOf(empty)).toEqual({ to: 'project', tab: 'tracker' })
     expect(noticeFixOf(notice('claude.startFailed', { task: 'ABC-1', cwd: 'D:/abc' }, { cause: notice('prompt.empty', { before: 'x', value: 'null' }) }))).toEqual({ to: 'project', tab: 'sessions' })
+  })
+
+  it('resumes the chain of a folder Claude Code does not trust: the resume asks the CLI again (BTN-429)', () => {
+    const untrusted = notice('claude.untrusted', { task: 'GLS-4', folder: 'D:/gls', platform: 'win32', user: 'svc' })
+    expect(noticeFixOf(untrusted)).toEqual({ to: 'resume' })
+    expect(untrustedOf(notice('chain.empty', { project: 'GLS' }, { cause: untrusted }))).toEqual({ task: 'GLS-4', folder: 'D:/gls', platform: 'win32', user: 'svc' })
+    expect(untrustedOf(notice('claude.startFailed', { task: 'GLS-4', cwd: 'D:/gls' }))).toBeNull()
   })
 
   it('has no fix for a notice nothing on the page fixes', () => {

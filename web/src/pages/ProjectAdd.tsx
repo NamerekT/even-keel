@@ -7,7 +7,6 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
-import { CommandBlock } from '../ui/blocks.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
 import {
@@ -21,8 +20,6 @@ import {
   stepChecks,
   suggestOfRepo,
   switchProfile,
-  trustCommand,
-  trustCommandAs,
   typedIn,
   WIZARD_STEPS,
   type Missing,
@@ -37,6 +34,7 @@ import { ListTable } from './settingsTable.js'
 import { setupLine } from './Setup.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
+import { TrustCommands } from './TrustCommands.js'
 import { checkMarks } from './wizard.js'
 import { StepDot, WizardFoot, WizardFrame } from './WizardFrame.js'
 import { TrackerStep } from './WizardTracker.js'
@@ -265,9 +263,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
               <div className="notice notice--warn project-add__trust">
                 <p>{t.wizard.untrusted}</p>
-                <CommandBlock command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
-                <p>{t.wizard.trustUser(repoCheck.user)}</p>
-                <CommandBlock command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
+                <TrustCommands folder={repoCheck.repo.root} platform={repoCheck.platform} user={repoCheck.user} />
               </div>
             )}
             {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}

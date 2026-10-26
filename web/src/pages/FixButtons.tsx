@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router'
 import type { Notice } from '../../../src/notice/notice.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { useCommand } from '../live/useCommand.js'
 import { projectOfPath, projectPath } from '../state.js'
 import { type NoticeFix, noticeFixOf } from './noticeFix.js'
 import { openTab, projectScope, SETTINGS_HASH, SHARED_SCOPE } from './settingsStore.js'
@@ -14,6 +15,7 @@ export function NoticeFixButton({ project, notice }: { project: string | null; n
 
 export function FixButton({ project, fix, className = 'button button--small notice-fix' }: { project: string | null; fix: NoticeFix; className?: string }) {
   const go = useFix()
+  if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
   const target = fix.to === 'project' ? (fix.project ?? project) : null
   if (fix.to === 'project' && target === null) return null
   return (
@@ -23,11 +25,21 @@ export function FixButton({ project, fix, className = 'button button--small noti
   )
 }
 
+/** Resumes a chain paused on what is fixed outside the page: its next launch is the check that it is fixed. */
+function ResumeButton({ project, className }: { project: string; className: string }) {
+  const { send, sending } = useCommand()
+  return (
+    <button type="button" className={className} disabled={sending} onClick={() => void send('chain/resume', { project })}>
+      {t.fix.resume}
+    </button>
+  )
+}
+
 /** Opens the place of a fix; `project` — the project of a fix in a project's settings, by its id or its key. */
 export function useFix() {
   const navigate = useNavigate()
   const { state } = useLive()
-  return (fix: NoticeFix, project: string | null) => {
+  return (fix: Exclude<NoticeFix, { to: 'resume' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
     if (fix.to === 'shared') {
       openTab(SHARED_SCOPE, fix.tab)

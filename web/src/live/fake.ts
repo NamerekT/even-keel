@@ -419,6 +419,10 @@ export function createFakeSource(search: string): LiveSource {
     const error = notice('git.noBranch', { project: active.project, branch: 'trunk', repo: 'D:/work/abc' })
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
+  if (params.get('chain') === 'untrusted' && active) {
+    const error = notice('claude.untrusted', { task: 'ABC-5', folder: 'D:/work/abc', platform: 'win32', user: 'evenkeel' })
+    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
+  }
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: 'D:/work/abc/.claude/worktrees/even-keel' }, { detail: 'M src/app.ts\n?? src/scratch.ts' })
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
@@ -702,6 +706,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
+      if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: 'win32', user: 'evenkeel' } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       const result = fakeProfilesQuery(current.state, name, body)
