@@ -34,6 +34,22 @@ describe('parseAgents', () => {
 })
 
 describe('parseSessionRecord', () => {
+  it('keeps the process start separately from the original job start after a resume', () => {
+    const record = parseSessionRecord(JSON.stringify({ pid: 42, sessionId: 's1', startedAt: 2_000 }))!
+    expect(record.startedAt).toBe(2_000)
+    const [agent] = withLiveRecords([{ ...jobOnly, sessionId: 's1', startedAt: 1_000 }], [record])
+    expect(agent).toMatchObject({ pid: 42, startedAt: 1_000, processStartedAt: 2_000 })
+  })
+
+  it('ignores invalid process timestamps and rejects unsafe pids', () => {
+    for (const startedAt of ['2000', null, -1, 0, Infinity]) {
+      expect(parseSessionRecord(JSON.stringify({ pid: 42, sessionId: 's1', startedAt }))?.startedAt).toBeUndefined()
+    }
+    for (const pid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(parseSessionRecord(JSON.stringify({ pid, sessionId: 's1' }))).toBeUndefined()
+    }
+  })
+
   it('reads the pid, session, status, name and origin a running session writes to sessions/<pid>.json', () => {
     const raw = JSON.stringify({ pid: 4436, sessionId: 's1', cwd: 'C:\\x', kind: 'bg', status: 'busy', name: 'ABC-1', entrypoint: 'cli' })
 
@@ -135,7 +151,7 @@ describe('withLiveRecords', () => {
   it('keeps what claude agents already printed', () => {
     const printed = { ...job, pid: 7, status: 'waiting' as const, waitingFor: 'permission' }
 
-    expect(withLiveRecords([printed], [{ pid: 8, sessionId: 's1', status: 'busy' }])).toEqual([printed])
+    expect(withLiveRecords([printed], [{ pid: 8, sessionId: 's1', status: 'busy', startedAt: 2_000 }])).toEqual([printed])
   })
 
   it('tells a printed busy session from one whose turn ended with a background command left running', () => {
