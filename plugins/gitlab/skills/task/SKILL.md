@@ -5,7 +5,7 @@ description: Work a GitLab issue through the gitlab MCP server: read the brief, 
 
 # Working a GitLab issue
 
-Use the `gitlab` MCP server (`@zereight/mcp-gitlab`, with issue, label, milestone and work-item tools). If a needed tool is missing, tell the user; do not script against the API.
+Use the `gitlab` MCP server (`@zereight/mcp-gitlab`, with the `issues,milestones` toolsets). Read issues through REST `get_issue`; these tools are available immediately, without `discover_tools`. Work-item tools are not enabled: the pinned server's GraphQL queries fail on CE/Free with `No such type WorkItemWidgetStatus`. Do not use `get_work_item` or `list_work_items` to read an issue. If a needed tool is missing, tell the user; do not script against the API.
 
 Even Keel orders the open issues, starts a session for the first, closes it once its branch lands in the project's main branch and cleans up. The session does the issue and merges; everything else belongs to Even Keel.
 
@@ -51,5 +51,5 @@ Even Keel orders the open issues, starts a session for the first, closes it once
 - Priority is a label: `priority::high` or `priority: high`, with levels `urgent`, `high`, `medium`, `low`. Use high for a broken chain or when the user says it goes next, medium for normal work, low for ideas. Never choose urgent yourself. Preserve existing labels when updating a label list.
 - Put new work in the current issue's milestone unless it belongs later. Add `## Where to look` with known file and symbol names. Do not guess pointers.
 - Run labels pick a provider or model only when the user named one; use the project's existing label.
-- Child items are native work items on Free too. Use the work-item tools only when the server exposes the hierarchy; an old GitLab may not. Do not substitute a Markdown checklist for a native parent-child relationship.
+- Child items use native work-item hierarchy, but this package does not enable tools to manage it. If a task needs a parent-child change, tell the user that it needs a compatible work-item tool. Do not substitute a Markdown checklist for a native parent-child relationship.
 - Titles, descriptions and comments use the language of the project's issues. Do not assign an issue unless the user names the assignee.

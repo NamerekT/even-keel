@@ -20,7 +20,7 @@ GitLab has no backlog. Set **Required labels** to a label you add after reading 
 
 ## Plugin
 
-On `/tools`, add `gitlab@even-keel` to the project. It brings `gitlab:task` and the stdio MCP server [`@zereight/mcp-gitlab`](https://github.com/zereight/gitlab-mcp), pinned at 2.3.11. The gateway maps `GITLAB_PERSONAL_ACCESS_TOKEN` to the profile's `GITLAB_TOKEN`, and fills `GITLAB_API_URL` from `GITLAB_URL`; the server normalizes it to `/api/v4`. Sessions see only the local gateway, not the profile token. The package enables work-item and milestone tools as well as the default issue tools.
+On `/tools`, add `gitlab@even-keel` to the project. It brings `gitlab:task` and the stdio MCP server [`@zereight/mcp-gitlab`](https://github.com/zereight/gitlab-mcp), pinned at 2.3.11. The gateway maps `GITLAB_PERSONAL_ACCESS_TOKEN` to the profile's `GITLAB_TOKEN`, and fills `GITLAB_API_URL` from `GITLAB_URL`; the server normalizes it to `/api/v4`. Sessions see only the local gateway, not the profile token. The package explicitly enables the `issues,milestones` toolsets, so sessions can read issues through REST `get_issue` immediately. Work-item tools are disabled because this MCP version's GraphQL queries fail on CE/Free with `No such type WorkItemWidgetStatus`; managing native parent-child relationships needs a compatible work-item tool.
 
 The [official MCP server](https://docs.gitlab.com/user/model_context_protocol/mcp_server/#authentication) rejects a legacy PAT with the `api` scope: it requires an OAuth token with `mcp`, or a separate fine-grained MCP token. The community server accepts the same PAT as the adapter and supports self-managed hosts without interactive OAuth.
 

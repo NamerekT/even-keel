@@ -132,6 +132,6 @@ Users report in the GitHub issues of a public repository while the work and its 
 
 ### `gitlab` (BTN-410)
 
-- The stdio package `@zereight/mcp-gitlab@2.3.11`, with work-item and milestone tools enabled. The official MCP rejects a legacy `api` PAT and requires OAuth with `mcp` or a separate fine-grained MCP token, so the community server matches the adapter's credentials and works on self-managed hosts without OAuth.
+- The stdio package `@zereight/mcp-gitlab@2.3.11`, with `GITLAB_TOOLSETS: "issues,milestones"`: REST issue tools are available from launch. Work-item tools are disabled because their GraphQL queries include `WorkItemWidgetStatus`, which CE/Free does not expose and rejects for the whole query. The task skill uses `get_issue` and does not offer work-item hierarchy changes through this package. The official MCP rejects a legacy `api` PAT and requires OAuth with `mcp` or a separate fine-grained MCP token, so the community server matches the adapter's credentials and works on self-managed hosts without OAuth.
 - The gateway fills `${GITLAB_PERSONAL_ACCESS_TOKEN}` through `mcpKeys` from `GITLAB_TOKEN`, and `${GITLAB_URL:-https://gitlab.com}` into `GITLAB_API_URL`; the package normalizes the web root to `/api/v4`. The session only sees the local gateway.
 - How to use it — `plugins/gitlab/README.md`.
