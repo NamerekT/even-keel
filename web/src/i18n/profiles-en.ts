@@ -24,7 +24,7 @@ export const profilesEn: Messages['profiles'] = {
         : kind === 'gitlab'
           ? `GitLab CI not shown (${remotes}): the token does not reach the project's pipelines, check its api scope and project access`
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
-    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues and CI on GitLab.com or your own server', forgejo: 'The CI of an own Forgejo server, no tracker' },
+    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues and CI on GitLab.com or your own server', jira: 'Issues on a Jira Cloud site', forgejo: 'The CI of an own Forgejo server, no tracker' },
     pullsRefused: 'PR refused',
     rulesOf: (name) => `Rules: ${name}`,
     rulesFor: (keys) => `Projects on this profile: ${keys}.`,
@@ -42,6 +42,7 @@ export const profilesEn: Messages['profiles'] = {
       github: "A fine-grained token for the repositories' owner.",
       linear: 'A personal API key.',
       gitlab: 'A personal access token with the api scope. Leave the address empty for GitLab.com.',
+      jira: 'The site address, the e-mail of an Atlassian account that sees the projects and its API token.',
       forgejo: "The server's address and a token. A CI and pull requests take the profile whose host is their remote's.",
     },
     rightsUse: { tracker: 'Tracker', ci: 'CI', pullRequests: 'Pull requests' },
@@ -58,6 +59,7 @@ export const profilesEn: Messages['profiles'] = {
         ci: 'api scope, with access to the project and its pipelines',
         pullRequests: 'api scope, Developer access or above (opening a merge request, reading its discussions and the project members)',
       },
+      jira: { tracker: 'Browse projects, Add comments, Transition issues and Edit issues in the projects; a token with scopes: read:jira-work, write:jira-work, read:jira-user' },
       forgejo: {
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
         pullRequests: "write:repository (opening a pull request, reading its reviews), read:issue (comments in the pull request's conversation), read:user",
@@ -81,6 +83,9 @@ export const profilesEn: Messages['profiles'] = {
       LINEAR_TOKEN: 'A personal Linear API key with write access.',
       GITLAB_URL: 'The GitLab web address, without /api/v4. Empty means https://gitlab.com.',
       GITLAB_TOKEN: 'A personal access token with the api scope; read_api cannot close issues or post comments.',
+      JIRA_URL: 'The address of the Jira Cloud site, https://<site>.atlassian.net, without a path.',
+      JIRA_EMAIL: 'The e-mail of the Atlassian account the token belongs to.',
+      JIRA_TOKEN: 'An API token of that account, classic or with scopes.',
       FORGEJO_URL: 'The address of the Forgejo server, as you open it in the browser.',
       FORGEJO_TOKEN: 'An access token with the rights of each use listed above.',
     } as Record<string, string>,
@@ -90,6 +95,8 @@ export const profilesEn: Messages['profiles'] = {
       HULY_EMAIL: 'john.doe@example.com',
       FORGEJO_URL: 'https://forgejo.example.com',
       GITLAB_URL: 'https://gitlab.com',
+      JIRA_URL: 'https://example.atlassian.net',
+      JIRA_EMAIL: 'john.doe@example.com',
     } as Record<string, string>,
     check: 'Check',
     checking: 'Checking…',

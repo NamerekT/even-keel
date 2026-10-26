@@ -29,6 +29,19 @@ const KINDS: ProfileKindView[] = [
   { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security' },
   { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/' },
   {
+    kind: 'jira',
+    title: 'Jira',
+    tracker: true,
+    fields: [
+      { name: 'JIRA_URL', secret: false },
+      { name: 'JIRA_EMAIL', secret: false },
+      { name: 'JIRA_TOKEN', secret: true },
+    ],
+    hostVariables: ['JIRA_URL'],
+    alternatives: [],
+    help: 'https://id.atlassian.com/manage-profile/security/api-tokens',
+  },
+  {
     kind: 'forgejo',
     title: 'Forgejo',
     tracker: false,
@@ -61,6 +74,7 @@ const PROJECTS: Record<string, TrackerProject[]> = {
     { key: 'OPS', name: 'Operations' },
   ],
   gitlab: [{ key: 'group/subgroup/app', name: 'Example app' }, { key: 'group/lib', name: 'Shared library' }],
+  jira: [{ key: 'ABC', name: 'Example app' }, { key: 'WEB', name: 'Website' }],
 }
 export const LINEAR_PROFILE = '3f0c2b9e-0000-4000-8000-000000000004'
 
@@ -156,7 +170,15 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   }
   if (mode === 'gitlab-ci') return { profiles: [gitlab, { ...gitlab, id: '3f0c2b9e-0000-4000-8000-000000000006', name: 'GitLab · deploy', isDefault: false, ci: [] }], kinds: KINDS }
   if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
-  return { profiles: mode === 'all' ? [huly, github, linear, gitlab, forgejo] : [huly, github, forgejo], kinds: KINDS }
+  const jira: ProfileView = {
+    id: '3f0c2b9e-0000-4000-8000-000000000007', kind: 'jira', name: 'Jira · example',
+    isDefault: true, fields: fields('jira', { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: '' }),
+    login: 'john.doe@example.com', expiresAt: null,
+    check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
+    projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+  }
+  if (mode?.startsWith('jira')) return { profiles: [jira], kinds: KINDS }
+  return { profiles: mode === 'all' ? [huly, github, linear, gitlab, jira, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }
 
 export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {

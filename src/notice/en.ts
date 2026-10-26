@@ -36,6 +36,10 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 export const en = {
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
+  'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',
+  'jira.incomplete': () => 'Fill in the site address, the e-mail and the API token of the Jira profile in Trackers and CI.',
+  'jira.blocksType': (p: { types: string }) =>
+    `Jira has no issue link type named Blocks (it has: ${p.types || 'none'}), and Even Keel orders the chain by it. Give a link type that name back in Jira's settings, Issue linking.`,
   text: (p: { text: string }) => p.text,
 
   'chain.unknownProject': (p: { project: string }) => `chain: ${p.project} is not a configured project`,

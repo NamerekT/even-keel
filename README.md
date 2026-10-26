@@ -9,7 +9,7 @@
 
 **And it shows what each change did.** Built-in statistics show what every task cost, where sessions got stuck and how full their context ran, and compare before and after every change to your rule files.
 
-It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app) and GitLab Issues (GitLab.com or your own server).
+It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues (GitLab.com or your own server) and Jira Cloud.
 
 ![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](assets/screens/chain.png)
 
@@ -52,7 +52,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`) and git with your name and email set: sessions commit and merge under them.
 - **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page. **OpenCode** (preview) only for projects or tasks on it: `npm install -g opencode-ai`, signed in from the accounts page; checked with its free `opencode/big-pickle`. **GitHub Copilot CLI** (preview) only for projects or tasks on it: `winget install GitHub.Copilot` (or `npm install -g @github/copilot`), signed in with `copilot login` or a token on the accounts page.
-- **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, or a Linear workspace.
+- **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, a Linear workspace or a Jira Cloud site.
 - **Windows, Linux or macOS.** Windows is where it runs every day; Linux was checked end to end; macOS is expected to work but has not been checked. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
@@ -81,7 +81,7 @@ npm run build
 npm start
 ```
 
-Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), or a GitLab personal access token with the `api` scope; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
+Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
 
 Want to look first? `npm run dev:fake` in a clone shows the page on fake data, with no tracker and no sessions.
 
@@ -149,11 +149,11 @@ The chain never talks to a tracker directly: it reads tasks through an adapter. 
 
 ### A plugin for it
 
-A plugin gives sessions the tracker's MCP server and a skill for working a task. Use [plugins/huly](plugins/huly) as the pattern: `.claude-plugin/plugin.json`, `.mcp.json` with the server, `skills/task/SKILL.md`; add an entry to [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) and name the server in the adapter's `mcpServer`, so that Even Keel can check sessions see it. When the server's `${…}` placeholder names the adapter's key differently, declare it in the adapter's `mcpKeys` (`{ LINEAR_API_KEY: 'LINEAR_TOKEN' }`), so the gateway fills it from the project's profile. Raise the plugin's `version` on every change: installed copies are cached by version.
+A plugin gives sessions the tracker's MCP server and a skill for working a task. Use [plugins/huly](plugins/huly) as the pattern: `.claude-plugin/plugin.json`, `.mcp.json` with the server, `skills/task/SKILL.md`; add an entry to [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) and name the server in the adapter's `mcpServer`, so that Even Keel can check sessions see it. When the server's `${…}` placeholder names the adapter's key differently, declare it in the adapter's `mcpKeys` (`{ LINEAR_API_KEY: 'LINEAR_TOKEN' }`), so the gateway fills it from the project's profile; a value built from several keys, such as Jira's Basic header, goes in `mcpValues`. Raise the plugin's `version` on every change: installed copies are cached by version.
 
 ### Where it could grow
 
-- Other trackers: Jira, YouTrack…
+- Other trackers: YouTrack, Jira Data Center…
 - Your own classifier for the statistics, or a different model behind it.
 - Other APIs and other agents: today Even Keel runs the Claude Code, Codex, OpenCode and GitHub Copilot CLIs and is built around the first two's subscription limits.
 

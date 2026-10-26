@@ -31,6 +31,12 @@
       "category": "productivity"
     },
     {
+      "name": "jira",
+      "description": "Jira Cloud for Even Keel sessions: the official Atlassian MCP server signed in with an API token and a skill to read the issue, record decisions, file blockers and questions, and close the issue by merging",
+      "source": "./plugins/jira",
+      "category": "productivity"
+    },
+    {
       "name": "checkpoint",
       "description": "Context checkpoints: once the context grows past a threshold, the session writes a handoff note and ends its turn with CHECKPOINT: <path>, and Even Keel continues the task in a fresh session; a chain session's merge waits for the project's check when no CI judges main",
       "source": "./plugins/checkpoint",
