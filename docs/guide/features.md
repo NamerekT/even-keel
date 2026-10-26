@@ -9,7 +9,11 @@ apply when a session starts; running sessions keep their existing settings.
 Claude Code receives permission deny rules; Copilot receives tool deny rules. Codex receives command-prefix rules,
 which also work in its full-access mode. Codex matches literal argument prefixes: defaults cover common push flag
 orders and literal recursive-delete targets. Other argument orders, refspecs, shell expansions and MCP calls are
-outside those Codex rules. Huly deletion rules apply to Claude and Copilot. OpenCode receives no Protection rules.
+outside those Codex rules. What does not hold on Codex, as seen live: a command with a redirection (`2>&1`, `> file`),
+a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
+in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a
+`+main` refspec, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
+checked command by command. Huly deletion rules apply to Claude and Copilot. OpenCode receives no Protection rules.
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
 Rules can reduce accidental actions; they are not an OS sandbox.
 
