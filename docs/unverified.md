@@ -47,10 +47,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
-| 37a | [GitLab Issues](#gitlab-issues) | GitLab under a path prefix or an older version | issues, dependencies or milestones may not reach the chain, or a comment may not reach a waiting session |
-| 37b | [GitLab MCP plugin](#gitlab-mcp-plugin) | GitLab under a path prefix with the plugin | a session gets no GitLab tools and cannot read or update its issue |
-| 37c | [GitLab CI](#gitlab-ci) | GitLab under a path prefix, manual or scheduled pipelines on main, a GitLab remote of a project on another tracker | the badge may disappear or the chain may wait for a verdict that does not come |
-| 37d | [GitLab merge requests](#gitlab-merge-requests-btn-414) | PR mode on GitLab.com, line comments, cross-project issues | a review note does not reach the session, or the issue stays open until Even Keel closes it |
 | 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects | issues, blockers or versions may not reach the chain, a task may not close, or a file may not open |
 | 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin | a session gets no Jira tools and cannot read or update its issue |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
@@ -95,14 +91,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 The organization's actual refusal was seen on Claude CLI 2.1.310 on 2026-10-25: HTTP 400, `error: unknown`, "reached your specified API usage limits", and an explicit UTC date of renewed access. Parsing that refusal, waiting until its date, and early recovery on a successful key check are covered by tests; the panel and account card were checked on fake states. A real chain has not yet been left through the reset or a raised cap. The phrase "specified workspace API usage limits" is accepted defensively but has not been seen in a live refusal. If its actual wording differs or recovery fails, switch to an available account, or raise the cap and start a new session. Check both automatic recovery paths on a test project before relying on them unattended.
 
 ## Platforms
-
-### GitLab CI
-
-Checked live on GitLab.com (shared runners, a project in a subgroup) and on a self-managed GitLab CE 19.5 with a project runner, both on GitLab Issues: the host found from the GitLab profile, the badge with its runs and jobs, a red main after a task leading to a `<KEY>-FIX` session and the chain going on after the green fix, `ci.fixTask` creating a high-priority issue that is taken first, a remote the token cannot read hidden after one 404, and a Forgejo profile's check on a GitLab host saying it is GitLab (its wording is BTN-443). Not checked yet: GitLab under a path prefix, a pipeline with more than one page of jobs, manual and scheduled pipelines on main, and a GitLab remote of a project on another tracker. If one of these differs, the badge may disappear or the chain may wait for a verdict that does not come. **Workaround:** use the project's check commands, leave GitLab outside its counted CIs, and inspect the pipeline on GitLab. Merge requests are the next entry.
-
-### GitLab merge requests (BTN-414)
-
-Checked live on a self-managed GitLab CE 19.5 with GitLab Issues: the profile's `api` token pushes the branch and opens the merge request with `Closes #N`; a note after the push, a failed pipeline of the head commit and a conflict with main each reach the task's session; a merge closes the issue and the task goes to Done with its cleanup; a merge request closed unmerged skips the task, cleans up and keeps its remarks for the next session. Found there: right after a push GitLab can keep the old `has_conflicts` while it rechecks, so a resolved conflict is told once more (BTN-441), and a note the session writes into its own merge request with the profile's token comes back to it as a remark (BTN-442). Not checked yet: a merge request on GitLab.com, `Closes group/name#N` for an issue of another project, line comments (`DiffNote`), an approval staying out as a system note, notes of project and group access token users dropped as bots, and notes of an author below Reporter skipped. If one of these is wrong, a review comment may not reach the session or a bot's note may loop it, or the issue stays open until Even Keel closes it as after any merge. **Workaround:** leave `pullRequests` off for a GitLab project, or tell the session in the chat what the review asks.
 
 ### macOS
 
@@ -397,14 +385,6 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ## Trackers
-
-### GitLab Issues
-
-Checked live on GitLab.com (a project in a subgroup, Ultimate trial) and on a self-managed GitLab CE 19.5: the order by blocking links, priority and milestone, the label that keeps a task out of the chain, a parent closed after its last child, a question asked in a comment with an outsider's comment skipped and the owner's answer delivered, the task card with its images, and closing after a merge. A related link (`relates_to`, all that CE Free allows) shows as related on the card and gives no order. Not checked yet: GitLab served under a path prefix (`https://host/gitlab`), the older work-item hierarchy of earlier GitLab versions, answers from a Reporter or an inherited group member, and a token that expires while the chain runs. If one of these differs, the chain may pause, lose ordering or progress, or fail to receive a trusted answer. **Workaround:** pause the project, inspect and update its issue directly in GitLab, and answer sessions from the page; on Free use manual order or milestones rather than blocking links. GitLab CI and merge-request dispatch are not part of this adapter.
-
-### GitLab MCP plugin
-
-The official MCP cannot use the selected legacy `api` PAT, so the community stdio server `@zereight/mcp-gitlab@2.3.11` is used. Checked live on GitLab.com and a self-managed address: the package installs, the gateway starts the server with the project's own profile, a chain session without `brief` read its issue and commented through it, and the server's issue tools created issues, a milestone and a blocking link and changed an issue's labels and milestone. The work-item tools are left off (toolsets `issues,milestones`), so a session does not edit the hierarchy through the plugin. Not checked yet: GitLab under a path prefix. If the command or tool contract differs, a plugin session cannot read or update its task. **Workaround:** disable the plugin and use the adapter with `brief: true`; record comments and decisions in GitLab yourself.
 
 ### Jira Cloud
 
