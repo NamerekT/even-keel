@@ -12,6 +12,12 @@ describe('withLabels', () => {
 })
 
 describe('notices', () => {
+  it('renders profile messages without a service prefix', () => {
+    expect(englishOf(notice('profiles.refused', { tracker: 'Jira' }))).toBe('Jira refused the credentials')
+    expect(englishOf(notice('profiles.unknown', {}))).toBe('there is no such profile; the page may be out of date')
+    expect(englishOf(notice('profiles.inUse', { profile: 'Work', projects: 'ABC' }))).toBe('Work is used by ABC; it cannot be removed')
+  })
+
   it('renders the English text from the code and its values', () => {
     expect(englishOf(notice('chain.midTurn', { task: 'ABC-1' }))).toBe('chain: ABC-1 is mid-turn; wait until its session stops')
   })
