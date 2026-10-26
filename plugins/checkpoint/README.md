@@ -22,6 +22,8 @@ Along with the context, Even Keel gives two more things for a session of a chain
 - **how many handoffs the task has had** — after the third the hook stays silent until the context reaches **300k**: on tasks handed over again and again most handoffs lose money;
 - **the late and hard thresholds the session's context window allows** — 85 % and 95 % of it unless Even Keel's `stats.checkpointShares` says otherwise: on a small window the hook takes them in place of 250k and 300k, so every nudge still comes before the agent compacts the context on its own. The hook keeps the lower of the two, so a share never lifts a threshold past the hook's own.
 
+A project that turns **handoffs by context** off in Even Keel (`contextHandoffs`) gets no nudge at any size, the hard threshold of a held task included: the agent's own compaction looks after its context. Everything else here stays on — the mark of a note the session wrote by itself, the chat's messages, the standards and the check before the merge.
+
 Even Keel knows the context as of its last poll of the session, a few seconds back, so a nudge may come one tool call late. A session never waits for an answer longer than two seconds (five on `Stop`).
 
 Even Keel takes it from there: it stops the session and starts a new one in the same worktree with a handoff prompt that points at the note (see [Handoffs](../../docs/guide/features.md#handoffs) in Even Keel's guide). Outside a chain the line is just the end of a turn — start a new session yourself and give it the note.

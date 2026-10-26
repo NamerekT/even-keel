@@ -199,6 +199,7 @@
       },
       "modelLabels": false,
       "cacheTtl": "1h",
+      "contextHandoffs": true,
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -215,6 +216,7 @@
         "ci.recheckMain": false,
         "ci.fixTask": true,
         "fillMilestone": true,
+        "contextHandoffs": true,
         "stats.checkpointShares.late": 80
       },
       "promptLanguage": "en"
@@ -249,6 +251,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "contextHandoffs": false,
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -288,6 +291,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "contextHandoffs": false,
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -327,6 +331,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "contextHandoffs": false,
       "checkpointTokens": 150000,
       "checkpointShares": {
         "first": 70,
@@ -390,6 +395,7 @@
     "simplify"
   ],
   "cacheTtl": "1h",
+  "contextHandoffs": false,
   "ci": {
     "guard": true,
     "kinds": [

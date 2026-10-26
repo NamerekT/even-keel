@@ -890,6 +890,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     // What the project ends up with: shown by the panel, never written; `own` is what is.
     promptLanguage: body.promptLanguage as Language,
     cacheTtl: (body.cacheTtl ?? null) as CacheTtl | null,
+    contextHandoffs: (body.contextHandoffs ?? true) as boolean,
     checkpointTokens: (body.checkpointTokens ?? null) as number | null,
     checkpointShares: sharesOf(body.checkpointShares),
     own: ownOf(body.own),
@@ -904,7 +905,7 @@ function ownOf(raw: unknown): OwnValues {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -926,6 +927,8 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),
     // A page from before the switch sends none: form and base then agree and nothing is written.
     cacheTtl: (cacheTtl ?? null) as CacheTtl | null,
+    // A page from before the switch sends none: on, as the default, so nothing is written.
+    contextHandoffs: contextHandoffs === undefined ? true : switchOf(contextHandoffs, 'contextHandoffs'),
     // A page from before the setting sends none: off, as the default, so nothing is written.
     keepWarm: keepWarm === undefined ? 0 : numberOf(keepWarm, 'keepWarm'),
     ci: ci === undefined ? DEFAULT_CI : ciOf(ci),

@@ -244,8 +244,8 @@ describe('Even Keel HTTP server', () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
     const settings = {
       ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', standards: [STANDARD], ...form },
-      ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
-      own: { 'ci.guard': false, cacheTtl: '1h', 'stats.checkpointShares.first': 60 },
+      ...{ promptLanguage: 'ru', cacheTtl: '1h', contextHandoffs: false, checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
+      own: { 'ci.guard': false, cacheTtl: '1h', contextHandoffs: false, 'stats.checkpointShares.first': 60 },
       ownRules: [],
     }
     const started = { ...settings, prompt: null, slot: 0, own: {} }
@@ -325,6 +325,7 @@ describe('Even Keel HTTP server', () => {
       promptLanguage: 'en',
       hiddenSkills: ['dataviz'],
       cacheTtl: '1h',
+      contextHandoffs: false,
       keepWarm: 2,
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -341,6 +342,7 @@ describe('Even Keel HTTP server', () => {
     const refusals = [
       ['parallel', { parallel: '2' }],
       ['keepWarm', { keepWarm: '2' }],
+      ['contextHandoffs', { contextHandoffs: 'off' }],
       ['modelPrompts', { modelPrompts: { haiku: 1 } }],
       ['prompt', { prompt: 1 }],
       ['execution', { execution: { codex: true } }],

@@ -47,8 +47,11 @@ export interface SessionCheckpoint {
   task: string
   handoffs: number
   first: number
-  /** `window` — the project's threshold was lowered to fit the session's context window. */
-  source: CheckpointThreshold['source'] | 'window'
+  /**
+   * `window` — the project's threshold was lowered to fit the session's context window; `off` — the project turned
+   * handoffs by context off (`contextHandoffs`, BTN-255) and the hook asks for none at any size.
+   */
+  source: CheckpointThreshold['source'] | 'window' | 'off'
   /** The hook's late and hard thresholds at most, from the session's window (BTN-259); `null` — the hook keeps its own. */
   late: number | null
   hard: number | null

@@ -161,6 +161,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "contextHandoffs": true,
       "checkpointTokens": null,
       "checkpointShares": {
         "first": 72,
@@ -202,6 +203,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "contextHandoffs": true,
       "checkpointTokens": null,
       "checkpointShares": {
         "first": 72,
@@ -241,6 +243,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "contextHandoffs": true,
       "checkpointTokens": null,
       "checkpointShares": {
         "first": 72,
@@ -312,6 +315,7 @@
     "dataviz"
   ],
   "cacheTtl": null,
+  "contextHandoffs": true,
   "ci": {
     "guard": true,
     "kinds": [

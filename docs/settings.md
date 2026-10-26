@@ -60,6 +60,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `allowedHosts` | G | — | page, hand | `[]` |
 | `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
+| `contextHandoffs` | G, P | P over G; `false` — the `checkpoint` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions.md`) | page, hand | `true` |
 | `stats.checkpointTokens` | G, P | P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand | `null` (calibrated per project) |
 | `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, `docs/sessions.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
 | `tally` | G | — (`off`, `local`, `server`) | page (the setup's stats step and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
@@ -130,7 +131,8 @@ entries stay as the reason for the levels.
 - `ci.*` was project-only: five projects that want `fixTask` set it five times. Now a shared level, each key over its own.
 - `promptLanguage` was shared only, though projects differ in the language of their tasks. Now on both levels.
 - `stats.checkpointTokens` pinned the threshold for every project while the calibration it switches off is per project.
-  Now on both levels; the key stays under `stats`.
+  Now on both levels; the key stays under `stats`. Turning the handoffs by context off took a pin of 999999 under it
+  until BTN-255 gave that its own switch, `contextHandoffs`.
 - `cacheTtl` lacked the project level, `fillMilestone` the shared one. Both now on both levels.
 - `context.window` is a property of the model, not of Even Keel. The window now comes from the agent (`/context` of
   Claude, the rollout of Codex, `docs/sessions.md`), and the setting is only the fallback.
