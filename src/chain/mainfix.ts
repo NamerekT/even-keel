@@ -4,7 +4,7 @@ import type { Task } from '../tracker/model.js'
 import { isFixName } from './fix.js'
 import type { MainCheck } from './maincheck.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
-import { mainFixedPrompt, WARM_CACHE_MS, type HandoffReason, type HandoffSession } from './relay.js'
+import { mainFixedPrompt, warmSince, type HandoffReason, type HandoffSession } from './relay.js'
 
 /** What the fix of a red main needs of the dispatcher that runs it. */
 export interface FixHost {
@@ -126,8 +126,7 @@ export class MainFix {
     const warm =
       account.id !== null &&
       account.id === this.deps.accountAt(session.account, held.at) &&
-      session.lastReplyAt !== null &&
-      now.getTime() - Date.parse(session.lastReplyAt) < WARM_CACHE_MS
+      warmSince(session, now.getTime())
     try {
       const sessionId = warm ? await this.deps.reply(held.task, session, prompt) : await this.host.handOver(held.task, session, 'mainFixed', prompt)
       this.deps.journal({ at, project, task: held.task, sessionId, reason: warm ? 'resume' : 'relay', ...(warm ? {} : { cause: 'mainFixed' as const }), previous: session.sessionId })

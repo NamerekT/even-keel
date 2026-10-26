@@ -56,6 +56,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `promptLanguage` | G, P | P over G | page, hand | `language`, else `en` |
 | `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
 | `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's) | page, hand | `null` (the CLI's) |
+| `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer that its cache is kept warm (BTN-437, `docs/chain.md`); 0 — off | page, hand | 0, until its live check |
 | `allowedHosts` | G | — | page, hand | `[]` |
 | `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |

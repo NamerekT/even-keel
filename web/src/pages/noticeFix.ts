@@ -72,7 +72,7 @@ const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
 const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   chain: ['parallel', 'brief', 'fillMilestone', 'chain'],
   models: ['provider', 'models', 'accounts', 'execution', 'cli', 'modelLabels', 'modelPrompts', 'promptLanguage'],
-  sessions: ['hiddenSkills', 'context', 'checkpointTokens', 'checkpointShares', 'cacheTtl'],
+  sessions: ['hiddenSkills', 'context', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
   ci: ['ci'],
   page: ['language', 'allowedHosts'],
   stats: ['stats'],

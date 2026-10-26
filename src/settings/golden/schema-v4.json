@@ -211,6 +211,7 @@
   },
   "fillMilestone": false,
   "parallel": 1,
+  "keepWarm": 0,
   "unattended": false,
   "trimTools": true,
   "tally": null,

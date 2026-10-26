@@ -48,6 +48,7 @@ export const fieldsEn = {
   'config.hiddenSkills': () => 'A skill name per line',
   'config.cacheTtl': () => '5 min, 1 h, or empty',
   'config.parallel': (p) => `A whole number from 1, not ${p.value}`,
+  'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
   'config.allowedHosts': () => 'A host name per line',
   'config.contextWindow': (p) => `A whole number of tokens from 1, not ${p.value}`,
   'config.contextPercents': () => 'Percents with 0 < Warning < Danger ≤ 100',
