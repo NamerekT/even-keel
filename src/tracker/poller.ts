@@ -1,4 +1,4 @@
-import type { TrackerLink } from './link.js'
+import { errorText, type TrackerLink } from './link.js'
 import { diffStatuses, type StatusChange, type TaskStatus } from './model.js'
 
 export interface StatusPollerOptions {
@@ -7,6 +7,7 @@ export interface StatusPollerOptions {
   intervalMs: number
   onChange: (changes: StatusChange[]) => void
   onError: (error: unknown) => void
+  onRecovered?: () => void
 }
 
 export class StatusPoller {
@@ -14,6 +15,7 @@ export class StatusPoller {
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
   private stopped = true
+  private failure: string | undefined
 
   constructor(private readonly options: StatusPollerOptions) {}
 
@@ -48,7 +50,14 @@ export class StatusPoller {
         else this.known.set(change.id, change.to)
       }
       if (changes.length > 0) this.options.onChange(changes)
+      if (this.failure !== undefined) {
+        this.failure = undefined
+        this.options.onRecovered?.()
+      }
     } catch (error) {
+      const text = errorText(error)
+      if (text === this.failure) return
+      this.failure = text
       this.options.onError(error)
     }
   }

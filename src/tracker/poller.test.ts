@@ -45,6 +45,7 @@ afterEach(() => {
 function makePoller(watched: () => string[]) {
   const changes: StatusChange[][] = []
   const errors: unknown[] = []
+  const recovered = vi.fn()
   const connect = vi.fn(async () => source())
   const poller = new StatusPoller({
     link: new TrackerLink({ name: 'huly', connect, timeoutMs: 1000 }),
@@ -52,8 +53,9 @@ function makePoller(watched: () => string[]) {
     intervalMs: 5000,
     onChange: (batch) => changes.push(batch),
     onError: (error) => errors.push(error),
+    onRecovered: recovered,
   })
-  return { poller, changes, errors, connect }
+  return { poller, changes, errors, connect, recovered }
 }
 
 describe('StatusPoller', () => {
@@ -102,5 +104,67 @@ describe('StatusPoller', () => {
     await poller.stop()
     await vi.advanceTimersByTimeAsync(20_000)
     expect(queried).toHaveLength(1)
+  })
+
+  it('reports repeated failures once and recovers even when no status changed', async () => {
+    const { poller, changes, errors, recovered } = makePoller(() => ['ABC-1'])
+    poller.start()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(recovered).not.toHaveBeenCalled()
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      failNext = true
+      await vi.advanceTimersByTimeAsync(5000)
+    }
+    expect(errors).toHaveLength(1)
+    expect(recovered).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(changes).toHaveLength(1)
+    expect(recovered).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(recovered).toHaveBeenCalledTimes(1)
+
+    failNext = true
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(errors).toHaveLength(2)
+    await poller.stop()
+  })
+
+  it('reports a changed error message or cause during an outage', async () => {
+    const { poller, errors, connect } = makePoller(() => ['ABC-1'])
+    let reason: unknown = new Error('fetch failed', { cause: new Error('refused') })
+    connect.mockImplementation(async () => ({ ...source(), tasks: async () => { throw reason } }))
+    poller.start()
+    await vi.advanceTimersByTimeAsync(0)
+    reason = new Error('fetch failed', { cause: new Error('refused') })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(errors).toHaveLength(1)
+    reason = new Error('fetch failed', { cause: new Error('DNS') })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(errors).toHaveLength(2)
+    reason = 'token expired'
+    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(errors).toHaveLength(3)
+    await poller.stop()
+  })
+
+  it('does not report recovery when there are no watched tasks to query', async () => {
+    let watched = ['ABC-1']
+    const { poller, errors, recovered } = makePoller(() => watched)
+    failNext = true
+    poller.start()
+    await vi.advanceTimersByTimeAsync(0)
+    watched = []
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(recovered).not.toHaveBeenCalled()
+    watched = ['ABC-1']
+    failNext = true
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(errors).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(recovered).toHaveBeenCalledTimes(1)
+    await poller.stop()
   })
 })
