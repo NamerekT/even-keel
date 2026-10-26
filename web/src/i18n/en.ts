@@ -34,6 +34,8 @@ export const en: Messages = {
     max: 'Max',
     noData: 'no data',
     reading: 'Reading the transcript…',
+    copyCommand: 'Copy the command',
+    commandCopied: 'Copied',
   },
   units: {
     day: 'd',
@@ -583,8 +585,6 @@ export const en: Messages = {
     agent: 'Agent',
     agentHint: "What the project's sessions run on. Changed later in the project's settings.",
     sharedAgent: (name: string) => `${name} (shared)`,
-    copyCommand: 'Copy',
-    commandCopied: 'Copied',
     trusted: 'Claude Code trusts the folder',
     checkAgain: 'Check again',
     openProject: 'Open the project',

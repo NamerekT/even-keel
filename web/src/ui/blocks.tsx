@@ -1,4 +1,7 @@
-import { useId, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { t } from '../i18n/index.js'
+import { CheckIcon, CopyIcon } from './icons.js'
+import { Tipped } from './Tipped.js'
 import './blocks.css'
 
 /** The shared blocks of `docs/design.md`, "Blocks": a page is built of these before it gets classes of its own. */
@@ -141,6 +144,45 @@ export function Band({ tone, action, children, className }: { tone: BandTone; ac
     <div className={join('ui-band', `ui-band--${tone}`, className)}>
       <div className="ui-band__text">{children}</div>
       {action !== undefined && <div className="ui-band__action">{action}</div>}
+    </div>
+  )
+}
+
+const COPIED_MS = 2000
+
+/**
+ * A command for a person to run, apart from the text around it, with a copy button in its corner.
+ * Plain HTTP from another host has no clipboard: there the block is only selectable text.
+ */
+export function CommandBlock({ command, className }: { command: string; className?: string }) {
+  const [copied, setCopied] = useState(false)
+  const canCopy = typeof navigator !== 'undefined' && navigator.clipboard !== undefined
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  const copy = () => {
+    navigator.clipboard.writeText(command).then(
+      () => setCopied(true),
+      () => undefined,
+    )
+  }
+  const label = copied ? t.common.commandCopied : t.common.copyCommand
+  return (
+    <div className={join('ui-command', canCopy && 'ui-command--copy', className)}>
+      <pre className="ui-command__text">
+        <code>{command}</code>
+      </pre>
+      {canCopy && (
+        <Tipped tip={label} className="ui-command__copy">
+          <button type="button" className="ui-command__button" aria-label={label} onClick={copy}>
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </button>
+        </Tipped>
+      )}
     </div>
   )
 }

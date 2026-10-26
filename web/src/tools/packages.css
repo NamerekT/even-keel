@@ -298,9 +298,9 @@
   font-size: var(--text-13);
 }
 
+/* The command takes a line of its own; the buttons follow under it. */
 .packages__command {
-  user-select: all;
-  overflow-wrap: anywhere;
+  flex: 1 1 100%;
 }
 
 .packages__block {
