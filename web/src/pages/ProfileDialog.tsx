@@ -30,6 +30,8 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? fixed ?? null)
+  const [gitlabHost, setGitlabHost] = useState<string | null>(null)
+  const activeProfile = gitlabHost === null ? profile : undefined
   const title = useId()
   const view = kinds.find((each) => each.kind === kind)
 
@@ -55,7 +57,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
       <div className="add-package__frame">
         <header className="add-package__head">
           <h2 id={title} className="add-package__title">
-            {profile !== undefined ? t.profiles.editTitle(profile.name) : view === undefined ? t.profiles.add : `${t.profiles.add} · ${view.title}`}
+            {activeProfile !== undefined ? t.profiles.editTitle(activeProfile.name) : view === undefined ? t.profiles.add : `${t.profiles.add} · ${view.title}`}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
             ×
@@ -65,11 +67,13 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
           <KindStep kinds={kinds} onPick={setKind} />
         ) : (
           <FieldsStep
+            key={view.kind}
             kind={view}
-            profile={profile}
+            profile={activeProfile}
             stress={stress}
-            host={host}
-            onBack={profile === undefined && fixed === undefined ? () => setKind(null) : undefined}
+            host={gitlabHost ?? host}
+            onBack={activeProfile === undefined && fixed === undefined ? () => { setGitlabHost(null); setKind(null) } : undefined}
+            onGitlab={kinds.some((each) => each.kind === 'gitlab') ? (address) => { setGitlabHost(address); setKind('gitlab') } : undefined}
             onClose={onClose}
             onSaved={onSaved}
           />
@@ -102,6 +106,7 @@ interface FieldsProps {
   host: string | undefined
   /** None for an edit: the kind of a stored profile stays. */
   onBack: (() => void) | undefined
+  onGitlab: ((address: string) => void) | undefined
   onClose: () => void
   onSaved: ((id: string) => void) | undefined
 }
@@ -138,7 +143,7 @@ function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | u
   )
 }
 
-function FieldsStep({ kind, profile, stress, host, onBack, onClose, onSaved }: FieldsProps) {
+function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, onSaved }: FieldsProps) {
   const { query } = useLive()
   const [alternative, setAlternative] = useState(() => alternativeOf(kind, profile))
   const [typed, setTyped] = useState<Record<string, string>>(() =>
@@ -186,7 +191,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onClose, onSaved }: F
   }
 
   return (
-    <form className="add-package__form" onSubmit={(event) => void save(event)}>
+    <form className="add-package__form profile-form" onSubmit={(event) => void save(event)}>
       <div className="add-package__body">
         <Rights kind={kind} stress={stress} />
         {kind.alternatives.length > 1 && (
@@ -232,7 +237,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onClose, onSaved }: F
         </Field>
         {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}</p>}
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
-        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+        {failure !== null && <div className="notice notice--error">{say(failure)}{failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}
       </div>
       <footer className="add-package__foot">
         {onBack !== undefined && (

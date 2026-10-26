@@ -1,4 +1,5 @@
 import type { ProfileKind } from '../profiles/model.js'
+import { fail } from '../notice/notice.js'
 import { CredentialsRefused, type ProfileAccount } from '../tracker/source.js'
 import { forgejoBase, hostOf } from './host.js'
 export { forgejoBase, hostOf } from './host.js'
@@ -9,7 +10,7 @@ export const FORGEJO_TOKEN = 'FORGEJO_TOKEN'
 /** Whom the token signs in as. The user is read with `read:user`, so a token without that right is refused too. */
 export async function forgejoAccount(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<ProfileAccount> {
   const url = values[FORGEJO_URL] ?? ''
-  const gitlabError = () => new Error(`forgejo: ${hostOf(url) ?? url} is GitLab: add a GitLab profile in Trackers and CI`)
+  const gitlabError = () => fail('profiles.isGitlab', { host: hostOf(url) ?? url })
   if (hostOf(url) === 'gitlab.com') throw gitlabError()
   const ask = (path: string) =>
     fetchImpl(`${forgejoBase(url)}/api/v1/${path}`, {

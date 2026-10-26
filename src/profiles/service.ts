@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { englishOf, fail, noticeOf } from '../notice/notice.js'
+import { englishOf, fail, noticeOf, NoticeError } from '../notice/notice.js'
 import { withSessionEnv } from '../secrets/service.js'
 import { isSecret } from '../secrets/catalog.js'
 import type { CheckResult, CiRemote, ProfileCheck, ProfilesView } from '../state.js'
@@ -297,6 +297,7 @@ export class Profiles {
     try {
       return await adapter.account(values, this.deps.timeoutMs)
     } catch (error) {
+      if (error instanceof NoticeError) throw error
       const detail = error instanceof Error ? error.message : String(error)
       if (error instanceof CredentialsRefused) throw fail('profiles.refused', { tracker: adapter.title }, { detail })
       throw fail('profiles.unreachable', { tracker: adapter.title }, { detail })

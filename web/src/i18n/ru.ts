@@ -1375,6 +1375,7 @@ export const ru = {
       JIRA_EMAIL: 'Почта учётки Atlassian',
       JIRA_TOKEN: 'API-токен Atlassian',
       FORGEJO_TOKEN: 'Токен Forgejo',
+      FORGEJO_URL: 'Адрес сервера Forgejo',
     } as Record<string, string>,
   },
   profiles: profilesRu,

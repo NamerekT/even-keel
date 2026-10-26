@@ -219,6 +219,7 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   const kind = String(body.kind)
   const title = KINDS.find((each) => each.kind === kind)?.title ?? kind
   const values = (body.values ?? {}) as Record<string, string | null>
+  if (name === 'profiles/check' && kind === 'forgejo' && values.FORGEJO_URL === 'https://gitlab.com') throw fail('profiles.isGitlab', { host: 'gitlab.com' })
   if (name === 'profiles/projects') {
     const profile = state.profiles.profiles.find((each) => each.id === body.id)
     const query = String(body.query ?? '').toLowerCase()

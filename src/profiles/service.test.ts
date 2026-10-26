@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
+import { FORGEJO_PROFILE } from '../ci/forgejo-profile.js'
 import { openDatabase, Writes } from '../storage/database.js'
 import { CredentialsRefused, type TrackerAdapter } from '../tracker/source.js'
 import { profileKinds, type ProfileKind, type ProfileSet, type TrackerProfile } from './model.js'
@@ -107,6 +108,11 @@ describe('Profiles', { timeout: 60_000 }, () => {
   }
 
   describe('check', () => {
+    it('reports a GitLab host as GitLab without an untranslated detail', async () => {
+      const profiles = make(undefined, { kinds: profileKinds({}, { forgejo: FORGEJO_PROFILE }) })
+      await expect(profiles.check({ kind: 'forgejo', values: { FORGEJO_URL: 'https://gitlab.com', FORGEJO_TOKEN: 'example-token' } }))
+        .rejects.toMatchObject({ notice: { code: 'profiles.isGitlab', params: { host: 'gitlab.com' } } })
+    })
     it('says whom the values sign in as and what to name the profile', async () => {
       const result = await make().check({ kind: 'fake', values: { FAKE_URL: 'https://fake.example.com', FAKE_TOKEN: 'abc' } })
       expect(result).toEqual({ login: 'abc-user', name: 'Fake · abc', expiresAt: null, duplicate: null })

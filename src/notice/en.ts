@@ -389,6 +389,7 @@ export const en = {
   'profiles.incomplete': (p: { tracker: string }) => `profiles: the ${p.tracker} fields are not filled in full`,
   'profiles.refused': (p: { tracker: string }) => `profiles: ${p.tracker} refused the credentials`,
   'profiles.unreachable': (p: { tracker: string }) => `profiles: ${p.tracker} did not answer`,
+  'profiles.isGitlab': (p: { host: string }) => `${p.host} is GitLab: add a GitLab profile`,
   'profiles.hostLocked': (p: { profile: string; projects: string }) =>
     `profiles: ${p.profile} is used by ${p.projects}; its address and workspace stay, only the credentials change`,
   'profiles.inUse': (p: { profile: string; projects: string }) => `profiles: ${p.profile} is used by ${p.projects}; it cannot be removed`,
