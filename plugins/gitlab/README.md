@@ -26,4 +26,4 @@ The [official MCP server](https://docs.gitlab.com/user/model_context_protocol/mc
 
 For sessions started by hand, add the Even Keel marketplace and run `claude plugin install gitlab@even-keel --scope project`. Supply `GITLAB_PERSONAL_ACCESS_TOKEN` and optionally `GITLAB_URL` in the session environment. Even Keel writes the default profile's `GITLAB_TOKEN` to the shared settings; the MCP placeholder uses the different name above, so supply it explicitly for a hand-started session. Leave `brief` on auto: the plugin then reads the issue itself.
 
-CI and merge-request dispatch are not provided by this adapter. End-to-end GitLab and MCP checks are tracked in [What has not been verified](../../docs/unverified.md#gitlab-issues).
+CI and merge-request dispatch are not provided by this adapter. The adapter, the plugin, GitLab CI and merge requests were checked end to end on GitLab.com and on a self-managed GitLab CE 19.5, at the root and under a path prefix.
