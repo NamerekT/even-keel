@@ -51,6 +51,8 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37b | [GitLab MCP plugin](#gitlab-mcp-plugin) | GitLab projects with the plugin | a session cannot read or update its issue |
 | 37c | [GitLab CI](#gitlab-ci) | projects with GitLab.com or self-managed remotes | pipelines may be hidden, have the wrong timing, or fail to guard the next launch |
 | 37d | [GitLab merge requests](#gitlab-merge-requests-btn-414) | PR mode on GitLab.com and self-managed GitLab | a merge request does not open, or a review note or a conflict does not reach the session |
+| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects | issues, blockers or versions may not reach the chain, a task may not close, or a file may not open |
+| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin | a session gets no Jira tools and cannot read or update its issue |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -393,6 +395,23 @@ The adapter has fixture tests, but no live project has run through it. A paired 
 ### GitLab MCP plugin
 
 The PAT-capable `@zereight/mcp-gitlab@2.3.11` manifest, gateway key substitution and skill are checked locally, but the package has not been installed and used through the gateway against a real GitLab project. The official MCP cannot use the selected legacy `api` PAT, so a community stdio server is used. Verify its launch, selected profile and self-managed address, issue/label/milestone/work-item tools and token isolation in a chain session. If the command or tool contract differs, a plugin session cannot read or update its task. **Workaround:** disable the plugin and use the adapter with `brief: true`; record comments and decisions in GitLab yourself.
+
+### Jira Cloud
+
+The adapter is built from the Jira Cloud REST v3 documentation and checked against fixtures only; no live site has run through it. Assumed and to check on a live site:
+
+- a classic token signs in on the site, and a token with scopes is refused there and accepted through `api.atlassian.com/ex/jira/<cloudId>`, the cloud id coming from `<site>/_edge/tenant_info` without sign-in;
+- `POST /search/jql` pages with `nextPageToken`, and `POST /issue/bulkfetch` returns the found issues and lists the missing keys in `issueErrors` instead of failing;
+- the statuses of `/project/<key>/statuses` cover a team-managed project too, and a Backlog status of a company-managed Scrum template is in the `new` category;
+- a media node's `alt` is the attachment's file name, and `/attachment/content/<id>?redirect=false` returns the bytes rather than a redirect body;
+- `/issue/createmeta/<key>/issuetypes` answers with `issueTypes` (or `values`), and the create screen takes `priority` and `fixVersions` — a site whose screen lacks either refuses the create;
+- a transition to a Done-category status needs no screen fields; a workflow that asks for a resolution or a comment on the way refuses it.
+
+If one is wrong, the profile check fails, the chain reads fewer issues, a task stays open after the merge, or a file on the card does not open. **Workaround:** close the task in Jira by hand; for the create, turn `ci.fixTask` off.
+
+### Jira MCP plugin
+
+The plugin's `.mcp.json` and the gateway's Basic header are checked by tests, but no session has used Atlassian's Rovo MCP server through the gateway. Assumed from Atlassian's documentation: with API token authentication turned on by the organization admin, the server accepts `Authorization: Basic base64(email:token)` of a token with scopes, offers its Jira tools under the names the `jira:task` skill uses (`getJiraIssue`, `editJiraIssue`, `createJiraIssueLink`, `addOrEditJiraIssueComment`, `transitionJiraIssue`…), and `getAccessibleAtlassianResources` gives the site's `cloudId`. Also unchecked: the direction of a `Blocks` link made by `createJiraIssueLink`, which the skill tells the session to read back. If any is wrong, a plugin session gets no Jira tools or files the link the wrong way. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
 
 ### Two profiles of one tracker (BTN-200)
 

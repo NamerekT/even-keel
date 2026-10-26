@@ -266,6 +266,11 @@ export interface TrackerAdapter {
    * (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`): the MCP gateway fills it from the same pool of keys.
    */
   mcpKeys?: Readonly<Record<string, string>>
+  /**
+   * Optional. By placeholder of the plugin's `.mcp.json`, a value the gateway makes of several of the adapter's variables
+   * (Jira: `JIRA_BASIC_AUTH` — the Basic header of `JIRA_EMAIL` and `JIRA_TOKEN`); `from` — the variables it reads.
+   */
+  mcpValues?: Readonly<Record<string, DerivedKey>>
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
   /** Optional. The value of `projectKey` a git remote of the repository suggests (GitHub: `owner/name` of a github.com remote). */
@@ -275,6 +280,12 @@ export interface TrackerAdapter {
    * set only in part. `projects` — the place of each project on this profile, by its id.
    */
   setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, TrackerPlace>>): TrackerSetup | undefined
+}
+
+/** A placeholder's value made of pool variables (`TrackerAdapter.mcpValues`); `undefined` — they are not all set. */
+export interface DerivedKey {
+  from: readonly string[]
+  value: (env: Readonly<Record<string, string | undefined>>) => string | undefined
 }
 
 /** A project as its tracker's adapter knows it: the key from `even-keel.config.json` and the value of `projectKey`, if any. */

@@ -17,7 +17,7 @@ export type ProfileRules = Partial<Pick<ChainRules, ProfileRuleKey>>
 export interface TrackerProfile {
   /** A GUID. */
   id: string
-  /** The adapter's name: `huly`, `github`, `linear`, `gitlab`. */
+  /** The adapter's name: `huly`, `github`, `linear`, `gitlab`, `jira`. */
   kind: string
   name: string
   /** The credentials by the adapter's variable names (`HULY_URL`, `GITHUB_TOKEN`): what its `setup` reads. */

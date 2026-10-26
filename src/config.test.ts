@@ -244,7 +244,7 @@ describe('parseConfig', () => {
     expect(feedOf('x')).toThrow(/ABC\.feeds/)
     expect(feedOf({ tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\].*id/)
     expect(feedOf({ id: 'ABC', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\]/)
-    expect(feedOf({ id: 'f', tracker: 'jira', key: 'ABCGH' })).toThrow(/ABC\.feeds\[0\]\.tracker/)
+    expect(feedOf({ id: 'f', tracker: 'redmine', key: 'ABCGH' })).toThrow(/ABC\.feeds\[0\]\.tracker/)
     expect(feedOf({ id: 'f', tracker: 'github', key: 'abc', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\]\.key/)
     expect(feedOf({ id: 'f', tracker: 'github', key: 'ABCGH', github: 'ideas' })).toThrow(/ABC\.feeds\[0\]\.github/)
   })
@@ -495,7 +495,7 @@ describe('parseConfig', () => {
   })
 
   it('rejects a tracker it has no adapter for', () => {
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'jira' } } })).toThrow(/tracker "jira".*huly/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'redmine' } } })).toThrow(/tracker "redmine".*huly/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 7 } } })).toThrow(/ABC.tracker/)
   })
 

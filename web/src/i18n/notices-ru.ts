@@ -33,6 +33,10 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 export const noticesRu: NoticeTexts = {
   'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
+  'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',
+  'jira.incomplete': () => 'Заполните в профиле Jira («Трекеры и CI») адрес сайта, почту и API-токен.',
+  'jira.blocksType': (p) =>
+    `В Jira нет типа связи Blocks (есть: ${p.types || 'никаких'}), а Even Keel выстраивает цепь по нему. Верните это имя типу связи в настройках Jira, Issue linking.`,
   text: (p) => p.text,
 
   'chain.unknownProject': (p) => `${p.project} — не проект из конфигурации`,
