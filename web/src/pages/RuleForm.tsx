@@ -242,7 +242,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, labels, mod
           </tr>
         </tfoot>
       </table>
-      <div className="rule-take" role="radiogroup" aria-label={t.settings.labelTakeTitle}>
+      <div className="rule-take settings__help-scope" role="radiogroup" aria-label={t.settings.labelTakeTitle}>
         <label className="settings__check">
           <input type="radio" name={`${id}-take`} checked={anyLabel} onChange={() => put({ requiredLabels: [] })} />
           {t.settings.labelTake.any}

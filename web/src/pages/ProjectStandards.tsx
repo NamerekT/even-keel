@@ -99,7 +99,7 @@ function Standard({
   ]
   // The masks wrap: the preset's list does not fit one line of the panel.
   const field = (key: 'files' | 'except', label: string, hint: string) => (
-    <div className="standard__field">
+    <div className="standard__field settings__help-scope">
       <FieldHead label={label} hint={hint} htmlFor={`${id}-${key}`} />
       <textarea
         id={`${id}-${key}`}
@@ -116,7 +116,7 @@ function Standard({
 
   return (
     <div className="standard">
-      <div className="standard__field">
+      <div className="standard__field settings__help-scope">
         <FieldHead label={text.doc} hint={text.docHint} htmlFor={`${id}-doc`} />
         <div className="standard__doc">
           <Select
@@ -138,7 +138,7 @@ function Standard({
       {gone && <p className="notice notice--warn standard__gone">{text.docGone(branch)}</p>}
       {field('files', text.files, text.filesHint)}
       {field('except', text.except, text.exceptHint)}
-      <div className="standard__foot">
+      <div className="standard__foot settings__help-scope">
         <span className="settings__head-row">
           <label className="settings__label" htmlFor={`${id}-shots`}>
             {text.shots}
