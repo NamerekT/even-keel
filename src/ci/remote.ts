@@ -1,4 +1,5 @@
 import type { CiKind } from './model.js'
+import { Skipped } from '../github/trust.js'
 import { hostOf } from './host.js'
 
 export interface RemoteRepo {
@@ -105,16 +106,27 @@ export function ciTargets(remotes: Remote[], workflows: Workflows, gitlabUrls: r
   })
 }
 
-/** GitLab groups are part of the project path; only a configured installation prefix belongs to the server. */
+const ambiguousGitlab = new Skipped((line) => console.log(line))
+
+/** GitLab groups are part of the project path; the longest matching installation prefix belongs to the server. */
 export function gitlabRepo(url: string, host: string, bases: readonly string[]): Omit<RemoteRepo, 'host'> | null {
   const scp = url.includes('://') ? null : SCP.exec(url)
   const parsed = scp ? null : new URL(url)
-  const base = new URL(bases.find((base) => hostOf(base) === host.toLowerCase()) ?? (parsed && parsed.protocol !== 'ssh:' ? parsed.origin : `https://${host}`))
-  const prefix = base.pathname.replace(/\/+$/, '')
   const path = `/${(scp ? scp[2]! : parsed!.pathname).replace(/^\/+/, '')}`.replace(/\.git\/?$/, '')
   // SSH paths start at the project namespace; only HTTP remotes carry the installation prefix.
   const web = parsed !== null && parsed.protocol !== 'ssh:'
-  if (web && prefix && !path.startsWith(`${prefix}/`)) return null
+  const candidates = bases.filter((base) => hostOf(base) === host.toLowerCase()).map((base) => {
+    const parsed = new URL(base)
+    return { web: `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`, prefix: parsed.pathname.replace(/\/+$/, '') }
+  })
+  const matching = web ? candidates.filter(({ prefix }) => path.startsWith(`${prefix}/`)).sort((a, b) => b.prefix.length - a.prefix.length) : candidates
+  if (web && candidates.length && !matching.length) return null
+  const base = new URL(matching[0]?.web ?? (web ? parsed.origin : `https://${host}`))
+  const prefix = base.pathname.replace(/\/+$/, '')
+  const installations = [...new Set(candidates.map(({ web }) => web))]
+  if (!web && installations.length > 1) {
+    ambiguousGitlab.note(JSON.stringify(installations), `gitlab: ambiguous SSH remote on ${host}; using ${installations[0]} (first of ${installations.join(', ')})`)
+  }
   const parts = path.slice(web ? prefix.length : 0).split('/').filter(Boolean).map(decodeURIComponent)
   if (parts.length < 2) return null
   return { web: `${base.origin}${prefix}`, owner: parts.slice(0, -1).join('/'), repo: parts.at(-1)! }

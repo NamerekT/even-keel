@@ -1,5 +1,48 @@
-import { describe, expect, it } from 'vitest'
-import { ciTargets, parseRemote, remoteKind, remotesOf } from './remote.js'
+import { describe, expect, it, vi } from 'vitest'
+import { ciTargets, gitlabRepo, parseRemote, remoteKind, remotesOf } from './remote.js'
+
+describe('GitLab installation selection', () => {
+  const root = 'https://git.example.com'
+  const bases = [root, `${root}/gitlab/`, `${root}/gitlab/nested`, `${root}/other`]
+
+  it.each([bases, [...bases].reverse()].map((urls) => [urls]))('uses the longest matching prefix regardless of profile order: %j', (urls) => {
+    for (const [path, web, owner] of [
+      ['gitlab/group/sub/app.git', `${root}/gitlab`, 'group/sub'],
+      ['gitlab/nested/group/app.git', `${root}/gitlab/nested`, 'group'],
+      ['other/group/app.git', `${root}/other`, 'group'],
+      ['group/sub/app.git', root, 'group/sub'],
+      ['gitlab-extra/group/app.git', root, 'gitlab-extra/group'],
+    ]) {
+      const remotes = [{ name: 'origin', url: `${root}/${path}` }]
+      expect(ciTargets(remotes, { forgejo: false, github: false, gitlab: true }, urls)).toEqual([
+        { kind: 'gitlab', remote: 'origin', web, owner, repo: 'app' },
+      ])
+    }
+  })
+
+  it('rejects unmatched prefixes when no root profile exists', () => {
+    expect(gitlabRepo(`${root}/elsewhere/group/app.git`, 'git.example.com', [`${root}/gitlab`])).toBeNull()
+    expect(gitlabRepo(`${root}/gitlab-extra/group/app.git`, 'git.example.com', [`${root}/gitlab`])).toBeNull()
+  })
+
+  it('keeps the first SSH base and logs the ambiguous choice once for distinct installations', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const host = 'ssh-lab.example.com'
+      const urls = [`https://${host}/gitlab`, `https://${host}`]
+      for (const remote of [`git@${host}:group/sub/app.git`, `ssh://git@${host}:2222/group/sub/app.git`]) {
+        expect(gitlabRepo(remote, host, urls)).toEqual({ web: urls[0], owner: 'group/sub', repo: 'app' })
+      }
+      expect(log).toHaveBeenCalledTimes(1)
+      expect(log.mock.calls[0]?.[0]).toContain(urls[0])
+      log.mockClear()
+      gitlabRepo('git@single-lab.example.com:group/app.git', 'single-lab.example.com', ['https://single-lab.example.com/lab', 'https://single-lab.example.com/lab/'])
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
+  })
+})
 
 describe('remoteKind', () => {
   it('knows supported public hosts and configured GitLab hosts, leaving unknown ones to Forgejo', () => {
