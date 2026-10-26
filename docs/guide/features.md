@@ -20,6 +20,8 @@ What a session runs on — the provider, its model and its account — is set in
 
 The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or a `Codex` label on a task, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript, context fill and limits (5-hour and weekly, or the free plan's 30-day one) read from Codex's own session files, the project's packages passed on every turn. Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.
 
+When stopping a Codex session, Even Keel checks whether its process number was reused by a newer process and leaves that newer process running. If the operating system cannot report its creation time, stopping follows the previous behaviour.
+
 Run it as a chain only on short test tasks. From the Windows service the Codex sandbox does not start (a Codex bug), so on Windows it needs `execution.codex` set to `bypass`, which runs Codex sessions with no sandbox at all ([What has not been verified](../unverified.md#codex)).
 
 ## Slots

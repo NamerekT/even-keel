@@ -22,7 +22,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 10 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing mid-turn | a message is delivered but ignored or not shown |
 | 11 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 12 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
-| 13 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
+| 13 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped turn goes on, or a reused pid is killed |
 | 14 | [PR mode beyond GitHub's open, close and merge](#pr-mode-beyond-githubs-open-close-and-merge-btn-205) | PR mode | feedback does not reach the session; a task waits out of the chain |
 | 15 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 16 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
@@ -245,7 +245,7 @@ Liveness is the pid of the last turn: a pid reused by another process after a cr
 
 ### Stopping a turn on macOS and Linux
 
-The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`).
+The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`). Before a stop, the process creation time is read from `/proc/<pid>/stat` plus boot time and `getconf CLK_TCK` on Linux, or `ps -o lstart=` on macOS, to leave a newer process that reused the pid alive. Neither platform's creation-time lookup has been checked live. If it fails, the stop keeps its previous behaviour and can kill a reused pid; a wrong creation time can also leave the turn running. The equivalent Windows check was verified with owned parent/child processes: a reused pid was preserved, the current turn's tree was killed, and an unrecognised output filename kept the previous behaviour. **Workaround:** if a Codex process has crashed, verify its pid and creation time in the operating system before stopping the session or cleaning up its task.
 
 ### Edit sizes of a FileChange (BTN-185)
 
