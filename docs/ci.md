@@ -7,9 +7,17 @@ Even Keel watches the CI of each project and shows it on the page (BTN-102). Aft
 Before a project launches a session, `ProtectionAudit` reads its GitHub/Forgejo remotes independently of workflow
 discovery, using the normal remote profiles. Results are cached for five minutes per repository, branch and profile
 selection, in `EvenKeelState.protection`. It never changes server rules or blocks a launch. GitHub's active rulesets
-and classic branch protection contribute separately to force-push and deletion protection. Forgejo's rule list is
-paged; an exact rule wins over globs, and disagreeing globs yield unknown. API failures and unsupported GitLab checks
-yield unknown. The project page links to branch settings for missing/unverified protection and administrator bypasses.
+and classic branch protection contribute separately to force-push and deletion protection. Each unique active GitHub
+ruleset is read for `bypass_actors`: an empty list means no bypass, a nonempty, hidden or inaccessible list keeps the
+possible-bypass warning without discarding the protection verdict. Classic protection contributes its administrator
+bypass only when it exists. See the [GitHub rules API](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).
+Forgejo's rule list is paged; an exact rule wins over globs, and disagreeing globs yield unknown. Older Forgejo rules
+with a boolean `enable_push` but no `enable_force_push` forbid force pushes; an explicit switch takes precedence,
+and incomplete or malformed responses stay unknown. Checked live on 2026-10-26: Forgejo 16.0.3 returned these older
+rules with `apply_to_admins: true`; GitHub returned an active ruleset with empty `bypass_actors` and no classic rule.
+Both remotes reported protected without bypass warnings, using the project's selected profiles. API failures and
+unsupported GitLab checks yield unknown. The project page links to branch settings for missing/unverified protection
+and administrator bypasses.
 
 `src/ci/` is separate from the tracker layer and knows nothing of tasks beyond the `[KEY-N]` ids in commit subjects.
 
