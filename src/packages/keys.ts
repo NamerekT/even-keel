@@ -1,4 +1,5 @@
 import { fail } from '../notice/notice.js'
+import type { DerivedKey } from '../tracker/source.js'
 import type { ServerEntry } from './model.js'
 import { PLACEHOLDER, placeholders } from './settings.js'
 
@@ -18,6 +19,8 @@ export interface TrackerKeys {
 export interface KeyRules {
   /** A placeholder's name in the pool when it differs (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`), from the tracker adapters. */
   aliases: Readonly<Record<string, string>>
+  /** A placeholder made of several pool variables (Jira's Basic header), from the tracker adapters. */
+  derived?: Readonly<Record<string, DerivedKey>>
   trackers: readonly TrackerKeys[]
 }
 
@@ -46,6 +49,14 @@ export function keysOf(name: string, entry: ServerEntry, rules: KeyRules, env: N
   const names: string[] = []
   const optional = defaulted(entry)
   for (const placeholder of placeholders(entry)) {
+    const derived = rules.derived?.[placeholder]
+    if (derived !== undefined) {
+      names.push(...derived.from)
+      const value = derived.value(env) || env[placeholder]
+      if (value) values[placeholder] = value
+      else if (!optional.has(placeholder)) missing.push(...derived.from.filter((variable) => !env[variable]))
+      continue
+    }
     const pool = rules.aliases[placeholder] ?? placeholder
     names.push(pool)
     const value = env[pool] || env[placeholder]

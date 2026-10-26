@@ -91,9 +91,14 @@ function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['e
 }
 
 function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
-  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : name === 'gitlab' ? 'GitLab' : 'Huly'
+  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : name === 'gitlab' ? 'GitLab' : name === 'jira' ? 'Jira' : 'Huly'
   if (mode === 'off') {
-    const variables = name === 'github' ? ['GITHUB_TOKEN'] : name === 'linear' ? ['LINEAR_API_KEY'] : name === 'gitlab' ? ['GITLAB_TOKEN'] : ['HULY_URL', 'HULY_EMAIL', 'HULY_PASSWORD', 'HULY_WORKSPACE']
+    const variables =
+      name === 'github' ? ['GITHUB_TOKEN']
+      : name === 'linear' ? ['LINEAR_API_KEY']
+      : name === 'gitlab' ? ['GITLAB_TOKEN']
+      : name === 'jira' ? ['JIRA_URL', 'JIRA_EMAIL', 'JIRA_TOKEN']
+      : ['HULY_URL', 'HULY_EMAIL', 'HULY_PASSWORD', 'HULY_WORKSPACE']
     return { ok: false, missing: variables, open: null, openToAll: false, notice: notice('wizard.trackerOff', { tracker: title, variables }) }
   }
   if (mode === 'failed') {

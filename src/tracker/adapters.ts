@@ -1,11 +1,12 @@
 import { github } from '../github/adapter.js'
 import { gitlab } from '../gitlab/adapter.js'
 import { huly } from '../huly/adapter.js'
+import { jira } from '../jira/adapter.js'
 import { linear } from '../linear/adapter.js'
 import type { KeyRules } from '../packages/keys.js'
 import type { TrackerAdapter } from './source.js'
 
-export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear, gitlab }
+export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear, gitlab, jira }
 
 /**
  * The tracker of a project whose entry names none: only a file of the current schema meets it, as `config-import` reads
@@ -19,6 +20,7 @@ export const trackerVariables = (): string[] => Object.values(ADAPTERS).flatMap(
 export function trackerKeyRules(): KeyRules {
   return {
     aliases: Object.assign({}, ...Object.values(ADAPTERS).map((adapter) => adapter.mcpKeys ?? {})),
+    derived: Object.assign({}, ...Object.values(ADAPTERS).map((adapter) => adapter.mcpValues ?? {})),
     trackers: Object.values(ADAPTERS).flatMap((adapter) =>
       adapter.mcpServer === undefined ? [] : [{ server: adapter.mcpServer, variables: adapter.variables, ready: (env: NodeJS.ProcessEnv) => ready(adapter, env) }],
     ),
