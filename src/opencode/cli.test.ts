@@ -108,6 +108,7 @@ describe('pluginFiles', () => {
 
 describe('a turn of its own', () => {
   const event = (value: Record<string, unknown>) => JSON.stringify({ timestamp: 1, sessionID: 'ses_abc', ...value })
+
   const finish = (tokens: Record<string, unknown>, cost: number) => event({ type: 'step_finish', part: { type: 'step-finish', reason: 'stop', tokens, cost } })
 
   it('runs with no external plugin, the prompt on stdin and the model when one is asked for', () => {
@@ -158,6 +159,13 @@ describe('parseJsonc', () => {
 describe('the output of opencode run', () => {
   const event = (value: Record<string, unknown>) => JSON.stringify({ timestamp: 1, sessionID: 'ses_abc', ...value })
 
+  it.each([{ type: 'step_finish', part: { reason: 'stop' } }, { type: 'error' }])('ignores stderr after $type', (last) => {
+    expect(turnEnded(`${event(last)}\nERROR cleanup\n`)).toBe(true)
+    expect(turnEnded(`${event(last)}\n${event({ type: 'tool_use' })}\nERROR retrying`)).toBe(false)
+    expect(turnEnded(`${event({ type: 'step_finish', part: { reason: 'tool-calls' } })}\nERROR cleanup`)).toBe(false)
+    expect(turnEnded('ERROR cleanup')).toBe(false)
+  })
+
   it('names the session from its first event', () => {
     expect(sessionOf(`not json\n${event({ type: 'step_start' })}\n`)).toBe('ses_abc')
     expect(sessionOf('')).toBeUndefined()
@@ -174,6 +182,7 @@ describe('the output of opencode run', () => {
     const error = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
     const failed = `${event({ type: 'step_start' })}\n${event({ type: 'error', timestamp: 1792776798957, error })}\n`
     expect(turnError(failed, 'ses_abc')).toEqual({ at: 1792776798957, error })
+    expect(turnError(`${failed}ERROR cleanup\n`, 'ses_abc')).toEqual({ at: 1792776798957, error })
     expect(turnError(failed, 'ses_other')).toBeUndefined()
     expect(turnError(`${event({ type: 'step_finish', part: { reason: 'stop' } })}\n`, 'ses_abc')).toBeUndefined()
     expect(turnError('', 'ses_abc')).toBeUndefined()

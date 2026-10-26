@@ -12,7 +12,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
 import { type CodexPlugins, UntrustedHooks } from './plugins.js'
-import { APPEAR_TIMEOUT_MS, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
+import { APPEAR_TIMEOUT_MS, polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
 
 const run = promisify(execFile)
@@ -170,9 +170,7 @@ export class CodexCli {
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if ((await this.turnLive(session)) && processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out))) {
-      await this.stopTurn(sessionId, session.pid)
-    }
+    if (await this.turnLive(session)) await this.stopTurn(session)
     this.registry.save({ ...session, stopped: true })
   }
 
@@ -181,12 +179,14 @@ export class CodexCli {
     try {
       this.registry.save(session)
     } catch (error) {
-      await this.stopTurn(session.sessionId, session.pid)
+      await this.stopTurn(session)
       throw error
     }
   }
 
-  private async stopTurn(sessionId: string, pid: number): Promise<void> {
+  private async stopTurn(session: CodexSession): Promise<void> {
+    const { sessionId, pid, out } = session
+    if (!processBelongsToTurn(await processStartedAt(pid), turnStartedAt(out))) return
     await killTree(pid)
     const deadline = Date.now() + STOP_TIMEOUT_MS
     while (isAlive(pid)) {
@@ -253,6 +253,7 @@ export class CodexCli {
 
   private async turnLive(session: CodexSession): Promise<boolean> {
     return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
+      && processBelongsToTurn(await polledProcessStartedAt(session.pid), turnStartedAt(session.out))
   }
 
   /**

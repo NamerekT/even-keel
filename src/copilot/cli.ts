@@ -9,7 +9,8 @@ import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import { gatewayName, type SessionStart } from '../agent/contract.js'
 import { isAlive, killTree } from '../agent/process.js'
-import { entryOf, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
+import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from '../codex/process.js'
+import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
@@ -118,7 +119,7 @@ function serversIn(file: string): string[] {
 
 /** The turn is over once the CLI wrote its `result` line, the last of `--output-format json`. */
 export function turnEnded(stdout: string): boolean {
-  const event = parse(stdout.trimEnd().split('\n').at(-1) ?? '')
+  const event = lastEvent(stdout)
   return event?.type === 'result'
 }
 
@@ -170,7 +171,7 @@ export class CopilotCli {
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if (await this.turnLive(session)) {
+    if ((await this.turnLive(session)) && processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)) {
       await killTree(session.pid)
       const deadline = Date.now() + STOP_TIMEOUT_MS
       while (isAlive(session.pid)) {
@@ -209,6 +210,7 @@ export class CopilotCli {
 
   private async turnLive(session: CodexSession): Promise<boolean> {
     return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
+      && processBelongsToTurn(await polledProcessStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)
   }
 
   /**

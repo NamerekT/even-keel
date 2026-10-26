@@ -5,18 +5,46 @@ import { promisify } from 'node:util'
 const run = promisify(execFile)
 const QUERY_TIMEOUT_MS = 5_000
 export const APPEAR_TIMEOUT_MS = 60_000
+const PROCESS_CACHE_MS = 1_000
+let windowsSnapshot: { expires: number; query: Promise<Map<number, number>> } | undefined
 
 export function turnStartedAt(out: string): number | undefined {
   const match = /-(\d+)\.jsonl$/.exec(out)
   return match === null ? undefined : finite(Number(match[1]))
 }
 
-/** A younger process has reused the turn's pid; unknown times preserve the existing stop behaviour. */
-export function processBelongsToTurn(startedAt: number | undefined, turnAt: number | undefined): boolean {
-  return startedAt === undefined || turnAt === undefined || startedAt <= turnAt + APPEAR_TIMEOUT_MS
+/** A younger process has reused the turn's pid; unknown times preserve the existing behaviour. */
+export function processBelongsToTurn(startedAt: number | undefined, turnAt: number | undefined, appearTimeoutMs = APPEAR_TIMEOUT_MS): boolean {
+  return startedAt === undefined || turnAt === undefined || startedAt <= turnAt + appearTimeoutMs
 }
 
-/** Queried only before a stop, never by the session poller. */
+/** Polls share one Windows process snapshot, including concurrent polls of different adapters and accounts. */
+export async function polledProcessStartedAt(pid: number): Promise<number | undefined> {
+  if (process.platform !== 'win32') return processStartedAt(pid)
+  if (windowsSnapshot === undefined || Date.now() >= windowsSnapshot.expires) {
+    const snapshot = { expires: Infinity, query: windowsProcessTimes() }
+    windowsSnapshot = snapshot
+    void snapshot.query.finally(() => { snapshot.expires = Date.now() + PROCESS_CACHE_MS })
+  }
+  return (await windowsSnapshot.query).get(pid)
+}
+
+async function windowsProcessTimes(): Promise<Map<number, number>> {
+  const times = new Map<number, number>()
+  try {
+    const command = "Get-Process | ForEach-Object { try { '{0} {1}' -f $_.Id, ([DateTimeOffset]$_.StartTime).ToUnixTimeMilliseconds() } catch {} }"
+    const { stdout } = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { timeout: QUERY_TIMEOUT_MS, windowsHide: true })
+    for (const line of stdout.split(/\r?\n/)) {
+      const match = /^(\d+) (\d+)$/.exec(line.trim())
+      if (match !== null) times.set(Number(match[1]), Number(match[2]))
+    }
+  } catch {
+    // An unavailable snapshot preserves the existing liveness behaviour.
+  }
+  return times
+}
+
+/** A fresh query before killing a tree: a poll's snapshot may predate a reused pid. */
 export async function processStartedAt(pid: number): Promise<number | undefined> {
   if (!Number.isSafeInteger(pid) || pid <= 0) return undefined
   try {
@@ -44,7 +72,7 @@ export async function processStartedAt(pid: number): Promise<number | undefined>
       return finite(Date.parse(stdout.trim()))
     }
   } catch {
-    // A missing process or an unavailable start time keeps the existing stop behaviour.
+    // A missing process or an unavailable start time keeps the existing behaviour.
   }
   return undefined
 }
