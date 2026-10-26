@@ -351,7 +351,7 @@ export function NestedIcon() {
   )
 }
 
-const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, gitlab: BranchIcon, forgejo: PipelineIcon }
+const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, gitlab: MergeIcon, forgejo: PipelineIcon }
 
 /** A profile's own icon by its kind, a tracker's or a CI's; a key for a kind without one. */
 export function TrackerIcon({ kind }: { kind: string }) {
@@ -391,6 +391,17 @@ export function BranchIcon() {
       <circle cx="4.5" cy="12.75" r="1.5" />
       <circle cx="11.5" cy="5.25" r="1.5" />
       <path d="M4.5 4.75v6.5M11.5 6.75c0 2.5-2 3.25-4.5 3.75-1.25.25-2.25.75-2.5 1" />
+    </svg>
+  )
+}
+
+/** A GitLab profile: two lines merging into one arrow, not GitLab's mark. */
+export function MergeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="4" cy="12.75" r="1.5" />
+      <circle cx="12" cy="12.75" r="1.5" />
+      <path d="M4 11.25V2M1.75 4.25 4 2l2.25 2.25M12 11.25V10a4 4 0 0 0-4-4H4" />
     </svg>
   )
 }
