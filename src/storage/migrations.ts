@@ -96,6 +96,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v11 → v12: `account.json` by `transportsMoved`, the others restamped (BTN-353).
   // v12 → v13: the config by `trackersOwned`, the others restamped (BTN-345).
   // v13 → v14: package settings become user overrides, with defaults read from each install (BTN-434).
+  // v14 → v15: additive Protection settings; omitted fields keep the built-in defaults.
   if (packages !== undefined && packages.version < SCHEMA_VERSION) {
     const record = asRecord(packages)
     rewrite(packages, jsonText(stamped(packages.version < 14 ? packageOverrides(record) : record)))
@@ -137,7 +138,13 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const version = versionOf(raw)
   const upgraded = version < 2 ? configV2(raw) : version < SCHEMA_VERSION && isRecord(raw) ? stamped(raw) : raw
   const moved = version < 8 ? configV8(upgraded, active) : upgraded
-  return version < 13 ? trackersOwned(moved) : moved
+  const owned = version < 13 ? trackersOwned(moved) : moved
+  return version < 15 ? configV15(owned) : owned
+}
+
+/** v14 → v15: Protection is additive; omitted fields inherit the built-in rules without writing a settings override. */
+function configV15(raw: unknown): unknown {
+  return isRecord(raw) ? stamped(raw) : raw
 }
 
 /** v1 → v2: the `projects` object by key becomes an array of records in the same order, the key a field of each. */

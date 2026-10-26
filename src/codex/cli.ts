@@ -11,6 +11,7 @@ import { isAlive, killTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
+import { writeProtection } from './protection.js'
 import { type CodexPlugins, UntrustedHooks } from './plugins.js'
 import { APPEAR_TIMEOUT_MS, polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
@@ -149,6 +150,7 @@ export class CodexCli {
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     const { name, cwd } = start
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
@@ -159,6 +161,7 @@ export class CodexCli {
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })

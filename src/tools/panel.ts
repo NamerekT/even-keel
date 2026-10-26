@@ -8,6 +8,7 @@ import type { Git } from '../git/types.js'
 import type { SessionReach } from '../packages/model.js'
 import { samePath } from '../paths.js'
 import type { CacheTtl } from '../state.js'
+import { protectionRules, type Protection } from '../sessions/protection.js'
 import { projectDirName } from '../sessions/paths.js'
 import type { ReceivedTools, ToolsView } from './model.js'
 import { latestStarted, readReceived, skillSource } from './received.js'
@@ -58,8 +59,10 @@ export function chainSettings(
   globalDir: string,
   cacheTtl: CacheTtl | null,
   secrets: readonly string[] = [],
+  protection?: Protection,
 ): string {
   const always = {
+    permissions: { deny: protectionRules(protection).claude },
     autoMemoryDirectory: sharedMemory(globalDir, repo),
     ...(Object.keys(plugins).length > 0 && { enabledPlugins: plugins }),
     ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),

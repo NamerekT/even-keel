@@ -1,4 +1,6 @@
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
+import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
+import { protectionOf, protectionText } from './protectionDraft.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { EvenKeelState, OwnKey, OwnValues, ProjectForm, SharedForm, Standard } from '../../../src/state.js'
 import { linkedProfile } from './ProjectTracker.js'
@@ -17,6 +19,7 @@ export const profileOf = (state: EvenKeelState | null, project: string, tracker:
 
 /** `form.chain` holds no profile: a key the project leaves unset shows the profile's value, the one in force. */
 export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): Values => ({
+  protection: form.own.protection === undefined ? '' : protectionText(form.protection),
   repo: form.repo,
   branch: form.branch,
   tracker: form.tracker,
@@ -95,6 +98,7 @@ function ownOf(values: Values): OwnValues | undefined {
   const kinds = values.kinds as readonly string[]
   const ttl = text('cacheTtl')
   const entries: [OwnKey, unknown][] = [
+    ['protection', text('protection') === '' ? undefined : protectionOf(text('protection'))],
     ['ci.guard', switchOf(text('guard'))],
     ['ci.kinds', on('ownKinds') ? CI_KINDS.filter((kind) => kinds.includes(kind)) : undefined],
     ['ci.waitMinutes', on('ownWait') ? waitMinutes : undefined],
@@ -118,6 +122,7 @@ const ownOr = <K extends OwnKey>(own: OwnValues, key: K, shared: Exclude<OwnValu
 /** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
 export function formOf(values: Values, name: string | null, shared: SharedForm): ProjectForm | undefined {
   const text = (key: string) => values[key] as string
+  if (text('protection') !== '' && protectionOf(text('protection')) === undefined) return undefined
   const on = (key: string) => values[key] as boolean
   const slot = wholeOf(text('slot'), 0)
   const own = ownOf(values)
@@ -160,6 +165,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
     modelLabels: labels === '' ? null : labels === 'true',
     promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
     cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
+    protection: { ...(shared.protection ?? DEFAULT_PROTECTION), ...own.protection },
     contextHandoffs: ownOr(own, 'contextHandoffs', shared.contextHandoffs),
     checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),
     checkpointShares: {

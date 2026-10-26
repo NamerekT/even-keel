@@ -451,6 +451,8 @@ export const en = {
     `config: ${p.project} and ${p.other} have the key ${p.key} on different repositories (${p.project} on ${p.trackerProject}), and the task ids of both would be the same: give one of them another key`,
   'config.modelPrompts': () => 'config: modelPrompts must map the name of a model to a prompt',
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
+  'protection.fileConflict': () => 'Protection cannot write its rules: another file occupies their location. Rename that file, then retry the session',
+  'config.protection': (p: { where: string }) => `Protection (${p.where}) must contain valid disabled groups and native deny rules`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,

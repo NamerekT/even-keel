@@ -1,5 +1,6 @@
 {
-  "version": 14,
+  "version": 15,
+  "protection": { "disabled": [], "claude": [], "codex": [], "copilot": [] },
   "allowedHosts": [],
   "parallel": 1,
   "chain": {
