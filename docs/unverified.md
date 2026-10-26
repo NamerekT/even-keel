@@ -94,17 +94,16 @@ Timeout and slow-call diagnostics are covered by tests but have not been observe
 
 ### Protection across agent transports and remote servers
 
-Codex 0.164.0 rejected a forbidden harmless command in bypass mode against a local Responses server, including rules
-in the working folder. On 2026-10-26 a public GitHub remote's active ruleset returned protected without bypasses after
-reading its empty `bypass_actors`; Forgejo 16.0.3's older branch rules, without `enable_force_push` and enforced for
-administrators, returned the same verdict. Claude CLI/SDK deny injection, Copilot wildcard and Huly deny matching,
-Codex under Windows session 0 and slot reuse, classic GitHub protection, actual server rejection of destructive
-operations, and permission-denied remote responses have not been checked end to end.
-The adapter arguments, settings inheritance and API verdicts are covered by tests. If an agent ignores a native rule,
-equivalent destructive actions can still run; Codex's documented prefix gaps include reordered arguments, refspecs,
-expanded shell paths and MCP calls. Inspect server rules directly, enforce protection there, and use a sandbox when
-available. A rule is not a security boundary. Check CLI/SDK denial using harmless commands, then protected/unprotected
-and permission-denied remote responses; do not test destructive pushes or deletions on a real repository.
+What Codex's rules hold and miss, Copilot's rules as Even Keel writes them (they missed the very command they name,
+BTN-463), the remote audit's verdicts for tokens without access, and the page's warnings are in
+[`verified.md`](verified.md). Not checked live: Claude CLI/SDK deny rules from the chain's `--settings` (no harness
+could be staged, see `verified.md`), Huly deletion rules on Claude and Copilot, Copilot's rules after BTN-463, Codex
+under Windows session 0 and slot reuse, classic GitHub protection, a server actually rejecting a destructive push,
+the page's band for a remote after a real launch, and a project's own Protection rules over the shared ones reaching
+a new session without a restart. The adapter arguments, settings inheritance and API verdicts are covered by tests.
+If an agent ignores a native rule, equivalent destructive actions can still run. Inspect server rules directly,
+enforce protection there, and use a sandbox when available. A rule is not a security boundary. Check denial with
+harmless commands against a local bare remote; do not test destructive pushes or deletions on a real repository.
 
 ### API spending cap recovery
 
