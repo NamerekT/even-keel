@@ -159,7 +159,7 @@ describe('upgradeStorage', () => {
   // an account's optional `transport`; v10 → v11 (BTN-302) writes `bg` to each account without one; v11 → v12 (BTN-353)
   // moves the accounts' transports into `transports`, waiting for the service to make them `execution.claude`; v12 → v13
   // (BTN-345) moves the shared `tracker` of the config into its projects, see below.
-  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])('v%i to the current version', (from) => {
+  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 

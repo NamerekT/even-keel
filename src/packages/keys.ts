@@ -1,8 +1,9 @@
 import { fail } from '../notice/notice.js'
 import type { ServerEntry } from './model.js'
+import { PLACEHOLDER, placeholders } from './settings.js'
 
-/** `${NAME}` or `${NAME:-default}`, as Claude Code reads `.mcp.json`. */
-const PLACEHOLDER = /\$\{(\w+)(?::-([^}]*))?\}/g
+export { applySettings, defaultSettings, placeholders } from './settings.js'
+
 const PLAIN_VALUE = /^[\w.\-/:+=@~%,]*$/
 const NAME = /^[A-Za-z_]\w*$/
 
@@ -29,10 +30,6 @@ export interface ServerKeys {
   missing: string[]
   /** Every pool variable the server reads: the page shows whether each is set. */
   names: string[]
-}
-
-export function placeholders(entry: ServerEntry): string[] {
-  return [...new Set([...JSON.stringify(entry).matchAll(PLACEHOLDER)].map((match) => match[1]!))]
 }
 
 /** Placeholders every occurrence of which has a default: the server starts without them. */
@@ -71,27 +68,6 @@ export function substitute(entry: ServerEntry, values: Record<string, string>): 
   return JSON.parse(JSON.stringify(entry), (_key, value: unknown) =>
     typeof value === 'string' ? value.replace(PLACEHOLDER, (whole, name: string, fallback?: string) => values[name] ?? fallback ?? whole) : value,
   ) as ServerEntry
-}
-
-/** A package's settings: the `env` of its stdio servers and the headers of its HTTP ones, those without a key in them. */
-export function defaultSettings(servers: Record<string, ServerEntry>): Record<string, string> {
-  const settings: Record<string, string> = {}
-  for (const entry of Object.values(servers)) {
-    for (const [key, value] of Object.entries(settable(entry))) if (typeof value === 'string' && placeholders({ value }).length === 0) settings[key] = value
-  }
-  return settings
-}
-
-export function applySettings(entry: ServerEntry, settings: Record<string, string>): ServerEntry {
-  const field = typeof entry.command === 'string' ? 'env' : 'headers'
-  const own = settable(entry)
-  const applied = Object.fromEntries(Object.entries(own).map(([key, value]) => [key, key in settings && placeholders({ value }).length === 0 ? settings[key] : value]))
-  return Object.keys(own).length === 0 ? entry : { ...entry, [field]: applied }
-}
-
-function settable(entry: ServerEntry): Record<string, unknown> {
-  const own = typeof entry.command === 'string' ? entry.env : entry.headers
-  return typeof own === 'object' && own !== null && !Array.isArray(own) ? (own as Record<string, unknown>) : {}
 }
 
 /** `.env` with the variable's line replaced, or added at the end; every other line stays as it is. */

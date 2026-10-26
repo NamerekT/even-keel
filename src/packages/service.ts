@@ -7,9 +7,9 @@ import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { bringsServer, Probes, projectPackages } from './check.js'
 import { McpGateway, type GatewayTarget } from './gateway.js'
-import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
+import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
-import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, enabledPackages, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
@@ -124,7 +124,7 @@ export class Packages {
         error: this.errors.get(name) ?? null,
         note: this.notes.get(name) ?? null,
         default: record.default,
-        settings: record.settings,
+        settings: packageSettings(record),
         servers: Object.keys(install?.servers ?? {}),
         extras: install?.extras ?? false,
         removed: record.removed === true,
@@ -342,7 +342,7 @@ export class Packages {
     if (typeof entry.command !== 'string' && typeof entry.url !== 'string') throw fail('packages.badServer', { name })
     const known = this.file.packages[name]
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
-    this.file.packages[name] = { kind: 'mcp', server: entry, default: project === undefined, settings: defaultSettings({ [name]: entry }), installs: known?.installs ?? [] }
+    this.file.packages[name] = { kind: 'mcp', server: entry, default: project === undefined, settings: {}, installs: known?.installs ?? [] }
     this.installAdded(name, project)
   }
 
@@ -384,12 +384,12 @@ export class Packages {
     this.projectKnown(project)
     const record = this.recordOf(name)
     if (project === undefined) {
-      if (value === null) delete record.settings[key]
+      if (value === null || value === defaultsOf(record)[key]) delete record.settings[key]
       else record.settings[key] = value
     } else {
       const set = (this.file.projects[project] ??= { on: [], off: [], settings: {} })
       const own = (set.settings[name] ??= {})
-      if (value === null || value === record.settings[key]) delete own[key]
+      if (value === null || value === packageSettings(record)[key]) delete own[key]
       else own[key] = value
       if (Object.keys(own).length === 0) delete set.settings[name]
     }
@@ -445,7 +445,7 @@ export class Packages {
     const record = this.file.packages[route.name]
     const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
     if (server === undefined) return null
-    const entry = applySettings(server.entry, settingsOf(this.file, project, route.name))
+    const entry = applySettings(server.entry, { ...record?.settings, ...this.file.projects[project]?.settings[route.name] })
     const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
     return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env }
   }
@@ -500,7 +500,6 @@ export class Packages {
       }
       const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras }
       record.installs.push(install)
-      record.settings = { ...defaultSettings(Object.fromEntries(Object.entries(servers).map(([server, each]) => [server, each.entry]))), ...record.settings }
       this.prune()
       this.save()
       this.deps.log(`packages: ${name} ${version ?? id} installed in ${seconds()} s`)

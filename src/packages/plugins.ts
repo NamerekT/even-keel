@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fail } from '../notice/notice.js'
-import { defaultSettings } from './keys.js'
 import { emptyPackages, pluginKey, type PackagesFile, type ServerEntry } from './model.js'
 
 type Json = Record<string, unknown>
@@ -163,7 +162,7 @@ export function seedPackages(input: SeedInput): PackagesFile {
     if (set.on.length > 0 || set.off.length > 0) file.projects[project] = set
   }
   for (const [name, server] of Object.entries(input.userServers)) {
-    if (!(name in file.packages)) file.packages[name] = { kind: 'mcp', server, default: true, settings: defaultSettings({ [name]: server }), installs: [] }
+    if (!(name in file.packages)) file.packages[name] = { kind: 'mcp', server, default: true, settings: {}, installs: [] }
   }
   return file
 }

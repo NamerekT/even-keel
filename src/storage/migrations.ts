@@ -6,6 +6,7 @@ import { isTransport } from '../account/transport.js'
 import { parseConfig, withIds } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
+import { packageOverrides } from './package-settings.js'
 import { isRecord, renameChainProjects } from './projects.js'
 import { isVersionLine, refuseNewer, SCHEMA_VERSION, versionOf } from './schema.js'
 
@@ -94,7 +95,12 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v10 → v11: `account.json` by `bgChosen`, the others restamped (BTN-302).
   // v11 → v12: `account.json` by `transportsMoved`, the others restamped (BTN-353).
   // v12 → v13: the config by `trackersOwned`, the others restamped (BTN-345).
-  for (const stored of [chain, questions, packages]) {
+  // v13 → v14: package settings become user overrides, with defaults read from each install (BTN-434).
+  if (packages !== undefined && packages.version < SCHEMA_VERSION) {
+    const record = asRecord(packages)
+    rewrite(packages, jsonText(stamped(packages.version < 14 ? packageOverrides(record) : record)))
+  }
+  for (const stored of [chain, questions]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
   if (account !== undefined && account.version >= 8 && account.version < SCHEMA_VERSION) {
