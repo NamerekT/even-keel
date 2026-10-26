@@ -122,7 +122,7 @@ interface BodyProps {
 
 function CardBody({ card, refused, work, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
-  const markdown = useMarkdown(onOpen)
+  const markdown = useMarkdown(onOpen, card.attachments)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
   const relations = card.blockedBy.length + card.blocks.length + card.related.length > 0
@@ -357,7 +357,8 @@ function RefLink({ item, onOpen }: { item: TaskRef; onOpen: (task: string) => vo
 }
 
 // A link to a task opens its card; a web link opens in a new tab; a link the tracker keeps to itself stays text.
-function useMarkdown(onOpen: (task: string) => void): Components {
+function useMarkdown(onOpen: (task: string) => void, attachments: Card['attachments']): Components {
+  const localFiles = new Set(attachments.map((file) => file.url).filter((url) => url.startsWith('/api/tasks/')))
   return {
     a: ({ href, children }) => {
       if (typeof children === 'string' && isTaskId(children) && !/^https?:/i.test(href ?? '')) {
@@ -367,7 +368,7 @@ function useMarkdown(onOpen: (task: string) => void): Components {
           </button>
         )
       }
-      if (href !== undefined && /^(https?|mailto):/i.test(href)) {
+      if (href !== undefined && (/^(https?|mailto):/i.test(href) || localFiles.has(href))) {
         return (
           <a href={href} target="_blank" rel="noreferrer">
             {children}
@@ -376,6 +377,8 @@ function useMarkdown(onOpen: (task: string) => void): Components {
       }
       return <span>{children}</span>
     },
-    img: ({ alt }) => (alt ? <span className="markdown__image">[{alt}]</span> : null),
+    img: ({ src, alt }) => typeof src === 'string' && localFiles.has(src)
+      ? <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
+      : (alt ? <span className="markdown__image">[{alt}]</span> : null),
   }
 }
