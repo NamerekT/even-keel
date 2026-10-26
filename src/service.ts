@@ -93,12 +93,13 @@ import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
 import { createEvenKeelServer, type ChainControl } from './server.js'
 import { Approvals } from './sessions/approvals.js'
-import { replyParts, replyPrompt, type Reply } from './sessions/ask.js'
-import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
+import { replyParts } from './sessions/ask.js'
+import { createChat } from './sessions/chat.js'
+import { inboxImage } from './sessions/inbox.js'
 import { sharedFile } from './sessions/shareFile.js'
 import type { SessionMail } from './sessions/mail.js'
 import { Mailbox } from './sessions/mailbox.js'
-import { mailFor, settleMail, type MailRelay } from './sessions/mailRelay.js'
+import { mailFor, settleMail } from './sessions/mailRelay.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
@@ -1358,60 +1359,19 @@ async function steer(task: string, session: HandoffSession, prompt: string): Pro
   return (await agentOf(home).reply?.(home, session, goOnWith(home, task, session, prompt))) != null
 }
 
-const mailRelay: MailRelay = {
+const { mailRelay, answerSession } = createChat({
+  dispatcher,
   mailbox,
-  live: (task) => {
-    const view = liveView(task)
-    return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: agentStatus(task) === 'busy', asking: view.asking }
-  },
-  resume: (task, sessionId, prompt) => {
-    const project = configuredProject(task)
-    if (project === undefined) throw fail('config.unknownProject', { key: task })
-    dispatcher.answer(project, task, sessionId, null, prompt)
-  },
+  configuredProject,
+  liveView,
+  midTurn: (task) => agentStatus(task) === 'busy',
+  steering,
+  steer,
   language: promptLanguage,
   changed: () => hub.broadcast('state', getState()),
   log: (line) => console.log(line),
   now: () => new Date(),
-}
-
-/**
- * Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6);
- * a page message to a working session goes straight in when it steers (BTN-291), else into its mailbox when its hooks
- * take mail (BTN-181).
- */
-async function answerSession(
-  project: string,
-  task: string,
-  sessionId: string,
-  ask: string | null,
-  reply: Omit<Reply, 'files'> & { files: InboxFile[] },
-): Promise<void> {
-  const takes = reply.from === 'page' && (steering(sessionId) || mailbox.listens(sessionId))
-  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
-  const question = ask === null ? null : (liveView(task)?.ask ?? null)
-  let files: string[]
-  try {
-    files = await saveInbox(session.workdir, reply.files)
-  } catch (error) {
-    throw fail('answer.file', { name: reply.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
-  }
-  const prompt = replyPrompt({ ...reply, files }, question, promptLanguage(project))
-  if (midTurn) {
-    if (steering(sessionId) && (await steer(task, session, prompt))) {
-      console.log(`chain: ${task}: the user's message from the page went into the working session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
-      return
-    }
-    if (!mailbox.listens(sessionId)) throw fail('answer.busy', { task })
-    mailbox.post(task, sessionId, reply.text, files)
-    console.log(`chain: ${task}: the user's message from the page waits in the mailbox of the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
-    hub.broadcast('state', getState())
-    return
-  }
-  dispatcher.answer(project, task, sessionId, ask, prompt)
-  mailbox.dismiss(sessionId)
-  console.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
-}
+})
 
 function occupantsOf(slot: string, task: string) {
   const owners = new Map(launches.map((entry) => [entry.sessionId, entry.task]))

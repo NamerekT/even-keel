@@ -12,6 +12,7 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { Cleanups } from './cleanup.js'
+import { answerable } from './answers.js'
 import { MainCarry } from './carry.js'
 import { isCarryName, isFixName, isOwnName } from './fix.js'
 import { Handovers } from './handover.js'
@@ -334,23 +335,7 @@ export class Dispatcher {
     ask: string | null,
     takes = false,
   ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
-    this.requireProject(project)
-    const chain = this.chainOf(project) ?? null
-    const current = chain?.current?.task === task ? chain.current : null
-    if (chain !== null && current === null) throw fail('chain.notCurrent', { task })
-    if (current !== null && (current.sessionId === null || current.starting !== undefined)) throw fail('chain.launching', { task })
-    const session = this.deps.handoff(task)
-    if ((current !== null && current.sessionId !== sessionId) || session?.sessionId !== sessionId || this.deps.asked(task) !== ask) {
-      throw fail('answer.moved', { task })
-    }
-    if (this.deps.midTurn(task)) {
-      if (!takes || ask !== null) throw fail('answer.busy', { task })
-      return { chain, current, session, midTurn: true }
-    }
-    this.requireLaunches(project, task)
-    const reset = this.deps.limitReset(project, task)
-    if (reset !== null) throw fail('chain.limitSpent', { until: reset })
-    return { chain, current, session, midTurn: false }
+    return answerable(this.state, this.deps, project, task, sessionId, ask, takes)
   }
 
   /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
