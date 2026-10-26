@@ -23,8 +23,10 @@ export interface ProfilesDeps {
   kinds: ProfileKinds
   /** As stored at the start. */
   set: ProfileSet
-  /** The projects by id, each with its key and its tracker. */
-  projects: () => Readonly<Record<string, { key: string; kind: string }>>
+  /** The projects by id, each with its key and its tracker; a project's extra feed (BTN-66) is marked `feed`. */
+  projects: () => Readonly<Record<string, { key: string; kind: string; feed?: boolean }>>
+  /** The projects and feeds whose profile stays: the chain has started a task of theirs. */
+  locked?: () => readonly string[]
   /** The global `settings.json`: a kind's default profile is the one sessions started by hand get. */
   settingsFile: () => string
   /** A variable left the sessions' settings: the daemon of the global folder still hands it out until it restarts. */
@@ -164,12 +166,20 @@ export class Profiles {
     this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
   }
 
+  /** The projects and feeds the chain has started on the old default stay on it, linked to it by name (BTN-435). */
   setDefault(id: string): void {
     const profile = this.profile(id)
     if (profile === undefined) throw fail('profiles.unknown', {})
     if (profile.isDefault) return
+    const old = defaultProfile(this.set, profile.kind)
+    const locked = new Set(this.deps.locked?.() ?? [])
+    const kept = old === undefined ? [] : this.projectsOn(old).filter(([projectId]) => locked.has(projectId))
+    const links = { ...this.set.links }
+    const feeds = { ...this.set.feeds }
+    for (const [projectId, project] of kept) (project.feed ? feeds : links)[projectId] = old!.id
     const profiles = this.set.profiles.map((each) => (each.kind === profile.kind ? { ...each, isDefault: each.id === id } : each))
-    this.replace({ ...this.set, profiles }, profile.kind)
+    if (kept.length > 0) this.deps.log(`profiles: ${keysOf(kept)} stay on ${old!.name}: the chain has started their tasks`)
+    this.replace({ profiles, links, feeds }, profile.kind)
   }
 
   /** The project, or with `feed` a project's feed (BTN-66), runs on the profile; `null` — on its tracker's default. */
@@ -325,7 +335,7 @@ export class Profiles {
   }
 
   /** The projects that run on the profile, by id. */
-  private projectsOn(profile: TrackerProfile): [string, { key: string; kind: string }][] {
+  private projectsOn(profile: TrackerProfile): [string, { key: string; kind: string; feed?: boolean }][] {
     return Object.entries(this.deps.projects()).filter(([id, project]) => profileFor(this.set, id, project.kind)?.id === profile.id)
   }
 

@@ -206,6 +206,31 @@ describe('Profiles', { timeout: 60_000 }, () => {
     expect(() => profiles.link(ABC, 'missing')).toThrow(NoticeError)
   })
 
+  it('keeps a locked project or feed on the old default when the default moves, the rest follow it (BTN-435)', async () => {
+    const FEED = 'feed-1'
+    const lines: string[] = []
+    const profiles = make(
+      { profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} },
+      {
+        projects: () => ({ [ABC]: { key: 'ABC', kind: 'fake' }, [XYZ]: { key: 'XYZ', kind: 'fake' }, [FEED]: { key: 'ABCF', kind: 'fake', feed: true } }),
+        locked: () => [ABC, FEED],
+        log: (line) => lines.push(line),
+      },
+    )
+    profiles.setDefault('p2')
+    expect(profiles.current()).toMatchObject({ links: { [ABC]: 'p1' }, feeds: { [FEED]: 'p1' } })
+    expect(profiles.view().profiles.map((each) => each.projects)).toEqual([['ABC', 'ABCF'], ['XYZ']])
+    expect(lines).toEqual(['profiles: ABC, ABCF stay on Fake p1: the chain has started their tasks'])
+    await writes.settled()
+    expect(await readProfiles(db)).toMatchObject({ links: { [ABC]: 'p1' }, feeds: { [FEED]: 'p1' } })
+  })
+
+  it('leaves a locked project linked to another profile as it is when the default moves', async () => {
+    const profiles = make({ profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: { [ABC]: 'p2' } }, { locked: () => [ABC] })
+    profiles.setDefault('p2')
+    expect(profiles.current().links).toEqual({ [ABC]: 'p2' })
+  })
+
   it("links a feed apart from the projects, and a feed on a profile keeps it from going (BTN-66)", async () => {
     const FEED = 'feed-1'
     const profiles = make(

@@ -638,9 +638,10 @@ const profiles: Profiles = new Profiles({
   set: importedProfiles,
   // Feeds too (BTN-66): a profile a feed reads on is in use, and its kind is checked like a project's.
   projects: () => {
-    const { keys, trackers: kinds } = readers()
-    return Object.fromEntries(Object.entries(keys).map(([id, key]) => [id, { key, kind: kinds[id]! }]))
+    const { keys, trackers: kinds, owners } = readers()
+    return Object.fromEntries(Object.entries(keys).map(([id, key]) => [id, { key, kind: kinds[id]!, feed: owners[id] !== undefined }]))
   },
+  locked: () => lockedReaders(),
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   expired: () => void daemons.expire(homes.global),
   ci: (id) => ciOn(id, false),
