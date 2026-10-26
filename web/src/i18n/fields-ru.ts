@@ -44,6 +44,7 @@ export const fieldsRu: FieldTexts = {
   'config.hiddenSkills': () => 'По имени навыка на строку',
   'config.cacheTtl': () => '5 мин, 1 ч или пусто',
   'config.parallel': (p) => `Целое число от 1, а не ${p.value}`,
+  'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
   'config.allowedHosts': () => 'По имени хоста на строку',
   'config.contextWindow': (p) => `Целое число токенов от 1, а не ${p.value}`,
   'config.contextPercents': () => 'Проценты, 0 < Предупреждение < Опасно ≤ 100',

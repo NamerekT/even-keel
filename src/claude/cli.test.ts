@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from '../sessions/agents.js'
-import { callFailure, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, writeArgs } from './cli.js'
+import { callFailure, parseWarmAnswer, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
 
 describe('callFailure', () => {
   const failed = (fields: object) => Object.assign(new Error('Command failed: C:\\cli\\claude.exe -p /usage\nnoise'), fields)
@@ -126,6 +126,48 @@ describe('resumeArgs', () => {
 
   it('keeps a reply that starts with an answer line from being read as an option', () => {
     expect(resumeArgs('s-1', '- "Which color?" → Red\n', true, 'ABC-1', null).at(-1)).toBe('\n- "Which color?" → Red\n')
+  })
+})
+
+describe('warmArgs', () => {
+  it('forks the session with no transcript for one call that may change nothing', () => {
+    const args = warmArgs('s-1', 'claude-haiku-5-5')
+    expect(args.slice(0, 9)).toEqual(['-p', '--resume', 's-1', '--fork-session', '--no-session-persistence', '--output-format', 'json', '--max-turns', '1'])
+    expect(args.slice(9)).toEqual(['--permission-mode', 'dontAsk', '--model', 'claude-haiku-5-5', '--settings', '{"disableAllHooks":true}'])
+  })
+
+  it("passes the session's own servers, plugins, settings and instructions, with the hooks off", () => {
+    const mcp = [{ name: 'strata', plugin: null, url: 'http://127.0.0.1:4748/mcp/p/strata@b/strata' }]
+    const plugins = [{ package: 'huly@even-keel', dir: 'C:\\cache\\huly', name: 'huly', marketplace: 'ek-a', marketplaceFile: 'C:\\cache\\m.json', servers: [] }]
+    const settings = '{"promptCacheTtl":"1h","env":{"HULY_TOKEN":""}}'
+    const args = warmArgs('s-1', null, { mcp, plugins, settings, instructions: 'C:\\work\\AGENTS.md' }).slice(9)
+    const session = sessionArgs('ABC-1', null, { mcp, plugins }).slice(1, 6)
+    expect(args.slice(0, 5)).toEqual(session)
+    expect(args.slice(5, 7)).toEqual(['--permission-mode', 'dontAsk'])
+    expect(JSON.parse(args[args.indexOf('--settings') + 1]!)).toEqual({ promptCacheTtl: '1h', env: { HULY_TOKEN: '' }, disableAllHooks: true })
+    expect(args.slice(-2)).toEqual(['--append-system-prompt-file', 'C:\\work\\AGENTS.md'])
+  })
+})
+
+describe('parseWarmAnswer', () => {
+  const usage = { input_tokens: 2, cache_creation_input_tokens: 101, cache_read_input_tokens: 22478, output_tokens: 4 }
+
+  it("takes the tokens of the ping's own call, not the fork's running totals", () => {
+    const answer = parseWarmAnswer(
+      JSON.stringify({
+        type: 'result', subtype: 'success', is_error: false, result: 'ok', duration_ms: 2400, total_cost_usd: 0.0028, usage,
+        modelUsage: { 'claude-haiku-5-5': { inputTokens: 1192, cacheReadInputTokens: 103506, cacheCreationInputTokens: 7173, costUSD: 0.0028 } },
+      }),
+      'claude-haiku-5-5',
+    )
+    expect(answer).toEqual({ model: 'claude-haiku-5-5', tokens: { input: 2, output: 4, cacheRead: 22478, cacheWrite: 101 }, cost: null, durationMs: 2400 })
+  })
+
+  it('throws when the fork did more than answer', () => {
+    expect(() => parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, usage }), null)).toThrow('error_max_turns')
+    expect(() => parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Credit balance is too low', usage }), null)).toThrow(
+      'Credit balance is too low',
+    )
   })
 })
 

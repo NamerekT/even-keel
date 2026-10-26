@@ -403,6 +403,7 @@
   },
   "fillMilestone": false,
   "parallel": 2,
+  "keepWarm": 3,
   "unattended": true,
   "trimTools": false,
   "tally": "server",

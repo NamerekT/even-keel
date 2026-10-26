@@ -439,6 +439,16 @@ describe('Dispatcher polling pull requests', () => {
     expect(relays[0]?.prompt).toContain('PULL REQUEST:')
   })
 
+  it('resumes a session whose cache a keep-warm ping read since its last answer', async () => {
+    const opening = await opened(changes)
+    const { handoffs, relays, clock } = opening
+    handoffs['ABC-1'] = { ...handoffs['ABC-1']!, warmedAt: '2026-09-26T12:30:00.000Z' }
+    clock.now = new Date('2026-09-26T13:00:00Z')
+    await polledAndStarted(opening)
+
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
+  })
+
   it('starts a new session with the feedback when the task has none', async () => {
     const opening = await opened(changes)
     const { dispatcher, extras, launched, live, journal } = opening

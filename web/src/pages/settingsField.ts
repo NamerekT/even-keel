@@ -15,6 +15,7 @@ const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.parallel': 'parallel',
+  'config.keepWarm': 'keepWarm',
   'config.modelPrompts': 'modelPrompts',
   'config.modelPromptEmpty': 'modelPrompts',
   'config.modelPromptPlaceholder': 'modelPrompts',

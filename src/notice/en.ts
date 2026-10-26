@@ -454,6 +454,7 @@ export const en = {
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
+  'config.keepWarm': (p: { value: string; max: string }) => `config: keepWarm must be a whole number of hours from 0 to ${p.max}, got ${p.value}`,
   'config.mergeInto': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,
   'config.mergeIntoValue': (p: { where: string }) => `config: ${p.where} must be a project key or null`,

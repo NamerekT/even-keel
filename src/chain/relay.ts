@@ -106,6 +106,14 @@ export interface HandoffSession {
   pullRequest?: string | null
   /** The reason the last response's `NO CHANGES: <why>` line gives (EKR-10); absent or `null` — no mark. */
   noChanges?: string | null
+  /** When a keep-warm ping last read the session's cache (BTN-437); absent or `null` — none did. */
+  warmedAt?: string | null
+}
+
+/** Whether the session's cache is still warm: an hour's cache since its last answer or a later keep-warm ping. */
+export function warmSince(session: HandoffSession, now: number, warmMs = WARM_CACHE_MS): boolean {
+  const moments = [session.lastReplyAt, session.warmedAt].filter((at) => at != null).map((at) => Date.parse(at))
+  return moments.length > 0 && now - Math.max(...moments) < warmMs
 }
 
 export interface LimitedSession extends HandoffSession {

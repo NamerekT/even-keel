@@ -90,6 +90,8 @@ export interface EvenKeelConfig {
   fillMilestone: boolean
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
+  /** Hours a waiting chain session's cache is kept warm after its last answer (BTN-437); 0 — off. */
+  keepWarm: number
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
   unattended: boolean
   trimTools: boolean
@@ -302,6 +304,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     ci: ciOf(shared),
     fillMilestone: shared.fillMilestone as boolean,
     parallel: shared.parallel as number,
+    keepWarm: shared.keepWarm as number,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,

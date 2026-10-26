@@ -104,6 +104,7 @@ import { mailFor, settleMail } from './sessions/mailRelay.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
+import { KEEP_WARM_PROMPT, KEEP_WARM_TICK_MS, KeepWarm, warmTasks, type WarmFacts, type WarmTask } from './sessions/keepwarm.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { noteAtEnd } from './sessions/note.js'
 import { TranscriptOwners } from './sessions/owners.js'
@@ -1086,6 +1087,35 @@ async function syncProject(project: string): Promise<Notice | null> {
   return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, branchOf(project))
 }
 
+/** The live view of the session a running chain will go on in, if its agent can ping a fork of it (BTN-437). */
+const warmable = ({ task, sessionId }: WarmTask): SessionView | undefined => {
+  const view = liveView(task)
+  if (view === undefined || (sessionId !== null && view.sessionId !== sessionId)) return undefined
+  const session = monitor.handoff(task)
+  return session?.sessionId === view.sessionId && agentOf(homeOf(session.account)).warm !== undefined ? view : undefined
+}
+
+const keepWarm: KeepWarm = new KeepWarm({
+  hours: () => configStore.current.keepWarm,
+  sessions: (): WarmFacts[] =>
+    warmTasks(dispatcher.state).flatMap((each) => {
+      const view = warmable(each)
+      if (view === undefined) return []
+      const busy = agentStatus(view.task) === 'busy' || monitor.holds.held(view.sessionId)
+      return [{ task: view.task, sessionId: view.sessionId, busy, limited: view.lamp === 'limit', cache: view.cache }]
+    }),
+  ping: async ({ task, sessionId }) => {
+    const view = warmable({ task, sessionId })
+    const session = monitor.handoff(task)
+    if (view === undefined || session === undefined) throw new Error(`the session ${sessionId} is not live`)
+    const home = homeOf(session.account)
+    const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: settingsFor(task), ...agentExtras(home, projectOf(task), task) }
+    return agentOf(home).warm!(home, session, start)
+  },
+  now: () => new Date(),
+  log: (line) => console.log(line),
+})
+
 const dispatcher = new Dispatcher(await loadChainState(db), {
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
@@ -1127,7 +1157,10 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   },
   now: () => new Date(),
   limited: (task) => monitor.limited(task),
-  handoff: (task) => monitor.handoff(task),
+  handoff: (task) => {
+    const session = monitor.handoff(task)
+    return session === undefined ? undefined : { ...session, warmedAt: keepWarm.warmedAt(session.sessionId) }
+  },
   locate: locateWorktree,
   account: (project, task) => accountNow(choiceFor(project, task).account),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
@@ -1917,6 +1950,7 @@ setInterval(() => void questions.tick(), 15_000).unref()
 setInterval(() => settleMail(mailRelay), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
+setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 
 const applyCi = () =>

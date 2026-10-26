@@ -1102,6 +1102,9 @@ export const en: Messages = {
     cacheTtl1h: '1 hour',
     cacheTtlHint:
       'For chain sessions, from the next launch. Claude Code writes the cache for 1 hour on a subscription within its limits and for 5 minutes on an API key. A 1-hour write costs more but survives a longer pause between turns.',
+    keepWarm: 'Keep the cache of a waiting session warm, hours',
+    keepWarmHint:
+      'While the current session of a chain waits for your answer, Even Keel asks a copy of it for one word shortly before its cache expires, so your answer does not pay for reading the whole context anew. The session itself gets nothing. Counted from its last answer; 0 turns it off. Each ping spends the account’s limits, and a missed cache stops the pings for that session.',
     hiddenSkillsAdd: 'Add a skill',
     page: 'Interface',
     models: 'Providers and models',
