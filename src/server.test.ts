@@ -83,6 +83,10 @@ describe('Even Keel HTTP server', () => {
           calls.push(['check', draft])
           return { repo: { root: draft.repo, current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' }
         },
+        trust: (project, account) => {
+          calls.push(['trust', { project, account }])
+          return { folder: 'D:/abc', trusted: false, platform: 'win32', user: 'svc' }
+        },
         add: record('add'),
         remove: record('removeProject'),
         dismissUpdate: record('dismiss'),

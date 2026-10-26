@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
+import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { CacheTtl, ConfigView, ProjectForm } from '../../../src/state.js'
@@ -47,6 +48,7 @@ import {
 import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
+import { TrustWarning } from './TrustCommands.js'
 import { useModels } from './useModels.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
@@ -153,6 +155,8 @@ export function SettingsPanel({
   // The model is offered from the account its row runs on: the project's own, else the shared one.
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
   const modelOffers = useModels(offered.map(rowAccount))
+  // Claude takes the project's tasks as its agent, or any task by its run label (BTN-429): the form's values, not the saved ones.
+  const mayRunClaude = (text('provider') || shared.provider) === CLAUDE || (switchOf(text('modelLabels')) ?? shared.modelLabels)
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -496,6 +500,7 @@ export function SettingsPanel({
             }}
           />
           {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
+          {mayRunClaude && <TrustWarning project={project} account={rowAccount(CLAUDE)} />}
         </Section>
         <Section title={t.settings.sections.prompt}>
           {pick('brief', t.settings.brief, t.settings.briefHint, [

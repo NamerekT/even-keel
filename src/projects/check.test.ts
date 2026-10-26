@@ -93,6 +93,12 @@ describe('checkDraft', () => {
     expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), { ...draft, provider: 'claude' })).trusted).toBe(false)
   })
 
+  it('asks the trust of a project on another agent once run labels can give a task to Claude (BTN-429)', async () => {
+    const labelled = { claudeConfigs: () => [{}], raw: () => ({ provider: 'codex', modelLabels: true, projects: [] }) }
+    expect((await checkDraft(deps(labelled), draft)).trusted).toBe(false)
+    expect((await checkDraft(deps(labelled), { ...draft, provider: 'opencode' })).trusted).toBe(false)
+  })
+
   it("takes the trust of the chain's account folder as well as the global one (BTN-300)", async () => {
     const account = { projects: { 'D:/new': { hasTrustDialogAccepted: true } } }
     expect((await checkDraft(deps({ claudeConfigs: () => [undefined, account] }), draft)).trusted).toBe(true)

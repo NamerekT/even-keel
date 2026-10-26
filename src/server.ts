@@ -37,7 +37,7 @@ import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, Standard, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -139,6 +139,8 @@ export interface SettingsControl {
   saveShared(form: SharedForm, base: SharedForm): void
   /** What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust. */
   check(draft: ProjectDraft): Promise<ProjectCheck>
+  /** Claude Code's trust in the project's checkout as the Claude account folder `account` (blank — the project's own) sees it. */
+  trust(project: string, account: string | null): ProjectTrust
   /** Adds the wizard's project to the config; refuses one the config would not parse. */
   add(draft: ProjectDraft): void
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
@@ -350,6 +352,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
     changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'edit', instruction: textOf(body.instruction, 'instruction') }),
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
   'models/list': ({ models }, body) => models(textOf(body.account, 'account')),
+  'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
 }

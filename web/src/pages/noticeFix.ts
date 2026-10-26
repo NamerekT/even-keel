@@ -7,9 +7,10 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
 
 /**
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
- * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts.
+ * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
+ * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again.
  */
-export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' }
+export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' } | { to: 'resume' }
 
 const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
@@ -33,6 +34,20 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'review.denied': PROFILES,
   'config.token': PAGE,
   'config.tokenShape': PAGE,
+  'claude.untrusted': { to: 'resume' },
+}
+
+type Untrusted = Extract<Notice, { code: 'claude.untrusted' }>['params']
+
+/** The folder Claude Code refused to start a task in, from the notice or one of its reasons; `null` — none. */
+export function untrustedOf(notice: Notice | null | undefined): Untrusted | null {
+  if (notice === null || notice === undefined) return null
+  if (notice.code === 'claude.untrusted') return notice.params
+  for (const item of notice.items ?? []) {
+    const found = untrustedOf(item)
+    if (found !== null) return found
+  }
+  return untrustedOf(notice.cause)
 }
 
 /** The place a notice is fixed at: its own, or that of its first reason (the items, then the cause); `null` — none on the page. */

@@ -159,6 +159,7 @@ export const en: Messages = {
     trackers: 'Open Settings → Trackers and CI',
     page: 'Open Settings → Interface',
     accounts: 'Open Accounts',
+    resume: 'Check again and resume',
   },
   banner: {
     config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,
@@ -875,6 +876,8 @@ export const en: Messages = {
     modelLabels: 'Run labels',
     modelLabelsHint:
       "On — a task's label picks its session: Claude | sonnet, Codex | gpt-6.1-sol, or a bare Codex for the provider's model. Off — such labels are ignored.",
+    untrusted:
+      "Claude Code does not trust the project's folder yet: a task that goes to Claude would pause the chain on it. Run the command in a terminal and accept the trust.",
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',

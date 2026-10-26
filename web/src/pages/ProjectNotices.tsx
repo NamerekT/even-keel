@@ -8,6 +8,7 @@ import { Band, FoldBand } from '../ui/blocks.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
+import { UntrustedCommands } from './TrustCommands.js'
 import { forwardTone, projectErrors, warningTasks } from './noticeGroups.js'
 import './projectNotices.css'
 
@@ -47,6 +48,7 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
           </>
         }>
           <Said notice={error} />
+          <UntrustedCommands notice={error} />
         </Band>
       ))}
       {tone === 'error' && <Forward state={state} project={project} />}

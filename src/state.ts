@@ -322,11 +322,22 @@ export interface ProjectCheck {
     openToAll: boolean
     notice: Notice | null
   } | null
-  /** Whether Claude Code trusts the folder; `null` — no repository to ask about, or the project does not run on Claude. */
+  /**
+   * Whether Claude Code trusts the folder; `null` — no repository to ask about, or Claude never runs the project's
+   * sessions: it is not the project's agent and run labels are off.
+   */
   trusted: boolean | null
   /** The platform of the service's machine (`process.platform`), which the folder is on: the trust command depends on it. */
   platform: string
   /** The user the service runs as: the trust is given in a terminal of theirs, or it lands in another profile (BTN-310). */
+  user: string
+}
+
+/** Claude Code's trust in a project's checkout, for its settings (`project/trust`, BTN-429). */
+export interface ProjectTrust {
+  folder: string
+  trusted: boolean
+  platform: string
   user: string
 }
 
