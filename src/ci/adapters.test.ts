@@ -26,6 +26,20 @@ describe('ciToken', () => {
   const lab = (id: string, url = '', isDefault = false) => profile(id, 'gitlab', isDefault, { GITLAB_URL: url, GITLAB_TOKEN: `${id}-token` })
   const GITLAB = { kind: 'gitlab', web: 'https://gitlab.com' } as const
 
+  it('takes GitLab tokens only from the selected installation on a shared host', () => {
+    const root = 'https://git.example.com'
+    const set: ProfileSet = {
+      profiles: [lab('root', root, true), lab('lab', `${root}/gitlab/`), lab('lab-chosen', `${root}/gitlab`)],
+      links: { [ABC]: 'root' },
+    }
+    const target = { kind: 'gitlab', web: `${root}/gitlab` } as const
+    expect(ciToken(target, set, ABC, 'gitlab')).toEqual({ profile: 'lab', token: 'lab-token' })
+    expect(ciToken(target, set, ABC, 'gitlab', { gitlab: 'root' })?.profile).toBe('lab')
+    expect(ciToken(target, set, ABC, 'gitlab', { gitlab: 'lab-chosen' })?.profile).toBe('lab-chosen')
+    expect(ciToken({ kind: 'gitlab', web: root }, set, ABC, 'gitlab', { gitlab: 'lab' })?.profile).toBe('root')
+    expect(ciToken({ kind: 'gitlab', web: `${root}/missing` }, set, ABC, 'gitlab')).toBeNull()
+  })
+
   it('chooses a GitLab override, then the project profile, then the default on the remote host', () => {
     const set: ProfileSet = { profiles: [lab('default', '', true), lab('project'), lab('chosen'), lab('elsewhere', 'https://git.example.com', true)], links: { [ABC]: 'project' } }
     expect(ciToken(GITLAB, set, ABC, 'gitlab')?.profile).toBe('project')

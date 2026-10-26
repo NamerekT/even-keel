@@ -79,6 +79,21 @@ describe('openPull', () => {
 })
 
 describe('pullTarget', () => {
+  it('shares the longest matching GitLab prefix selection with CI, falling back to the root', () => {
+    const root = 'https://git.example.com'
+    for (const bases of [[root, `${root}/gitlab`, `${root}/gitlab/nested`], [`${root}/gitlab/nested`, `${root}/gitlab`, root]]) {
+      for (const [path, web, owner] of [
+        ['gitlab/group/sub/app.git', `${root}/gitlab`, 'group/sub'],
+        ['gitlab/nested/group/app.git', `${root}/gitlab/nested`, 'group'],
+        ['group/sub/app.git', root, 'group/sub'],
+      ]) {
+        expect(pullTarget([{ name: 'origin', url: `${root}/${path}` }], bases)).toEqual({
+          kind: 'gitlab', remote: 'origin', web, owner, repo: 'app',
+        })
+      }
+    }
+  })
+
   it('takes GitLab by gitlab.com or a GitLab profile’s host, with the subgroups in the owner', () => {
     expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:group/sub/app.git' }])).toEqual({ kind: 'gitlab', remote: 'origin', web: 'https://gitlab.com', owner: 'group/sub', repo: 'app' })
     expect(pullTarget([{ name: 'origin', url: 'https://git.example.com/gitlab/group/app.git' }], ['https://git.example.com/gitlab'])).toEqual({

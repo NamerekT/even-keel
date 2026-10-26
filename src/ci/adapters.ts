@@ -25,7 +25,7 @@ export interface CiToken {
 
 /**
  * An explicit remote profile wins. GitHub otherwise takes the project's GitHub profile or the default. GitLab takes
- * the project's GitLab profile on the remote host, then its default there; Forgejo takes its default on that host.
+ * the project's GitLab profile for the installation, then its default there; Forgejo takes its default on that host.
  */
 export function ciToken(
   target: Pick<CiTarget, 'kind' | 'web'>,
@@ -41,8 +41,9 @@ export function ciToken(
     profile = onHost.find((each) => each.id === chosen.forgejo) ?? onHost.find((each) => each.isDefault) ?? onHost[0]
   } else if (target.kind === 'gitlab') {
     const own = profileFor(set, projectId, tracker)
-    const onHost = set.profiles.filter((each) => each.kind === 'gitlab' && hostOf(webUrl(each.values)) === hostOf(target.web))
-    profile = onHost.find((each) => each.id === chosen.gitlab) ?? onHost.find((each) => each.id === own?.id) ?? onHost.find((each) => each.isDefault) ?? onHost[0]
+    const installation = new URL(target.web).href.replace(/\/+$/, '')
+    const onInstallation = set.profiles.filter((each) => each.kind === 'gitlab' && new URL(webUrl(each.values)).href.replace(/\/+$/, '') === installation)
+    profile = onInstallation.find((each) => each.id === chosen.gitlab) ?? onInstallation.find((each) => each.id === own?.id) ?? onInstallation.find((each) => each.isDefault) ?? onInstallation[0]
   } else {
     const own = profileFor(set, projectId, tracker)
     profile = set.profiles.find((each) => each.kind === 'github' && each.id === chosen.github) ?? (own?.kind === 'github' ? own : defaultProfile(set, 'github'))
