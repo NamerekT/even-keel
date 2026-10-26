@@ -2,7 +2,7 @@
 
 Even Keel is checked live on the author's machine with the author's accounts. Some behaviour could not be checked there: the situation never came up, or there was no way to create it. This page lists it, so you know where Even Keel works on an assumption. Each entry says what is assumed, what happens if the assumption is wrong and what to do about it.
 
-If you run into one of these, please open an issue with what you saw: it is the only way the entry gets checked.
+If you run into one of these, please open an issue with what you saw: it is the only way the entry gets checked. What has been checked is in [verified.md](verified.md).
 
 ## What to check first
 

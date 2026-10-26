@@ -1,0 +1,178 @@
+# What has been verified
+
+The log of live checks. When an entry of [`unverified.md`](unverified.md) is checked, it moves here instead of vanishing; a check that covers only part of an entry narrows the entry there and adds what passed here. What is still open stays in `unverified.md`; a line here does not mean the whole feature is checked, only the behaviour it names.
+
+The groups are the sections of `unverified.md`, so one thing is looked up in the same place in both files. The entries from before 2026-10-26 were rebuilt from the history of `unverified.md` (the commits named in the table), by their text, not by hashes: the history before 2026-10-21 was rewritten and its old hashes are dead. A check done without ever having an entry in `unverified.md` is not here.
+
+## How an entry reads
+
+One row is one check.
+
+| Column | What it says |
+| --- | --- |
+| Behaviour | what was seen, not the name of the task |
+| Where | the kind of place: Windows Sandbox ("sandbox"), the service on the author's workstation, a server, the author's own GitLab CE, GitLab.com, GitHub, a fake forge in the sandbox, a second instance in a terminal. No host names, addresses, folders or accounts |
+| Date | the day of the run (YYYY-MM-DD), as the commit says; the commit's own date if the run's was not written |
+| Versions | the CLI, the tracker or the forge, when written down. Even Keel is the commit in the last column or its parent |
+| Task, commit | the task and the commit that lifted or narrowed the entry in `unverified.md` |
+| Result | **whole**, **with a caveat** (what stayed open or went wrong), or **bugs found** (their IDs) |
+| Session | the Claude Code session of the run; empty until it is filled in |
+
+## Platforms
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The start at sign-in without a service: `EvenKeel.exe --start`/`--stop`/`--quit`, node restarted within 5 s after a kill, the `Run` value written, read back and removed, a second install over a running host | a process in Windows session 0 with a stand-in for Even Keel | 2026-10-24 | — | BTN-372, `7ae2fff6` | with a caveat: the tray on a desktop, Windows starting the `Run` value, `npx even-keel` under the host and `rebuild.ps1` over SSH not run | |
+| Downloads of the checked CLIs of every adapter and each binary's `--version` on Linux x64: glibc (Ubuntu) and Alpine (musl builds picked) | Linux x64, a container | 2026-10-25 | CLIs of that day's pins | `de784e5c` | whole | |
+| The same downloads on Linux arm64, glibc and musl | `node:24` and `node:24-alpine` arm64 containers under qemu | 2026-10-25 | CLIs of that day's pins | `fbfc2e74` | whole | |
+| Downloads on Windows x64 and arm64, macOS Intel and arm64, Linux x64 (glibc and musl) and arm64; the SDK module loads (`npm run cli-fetch`) | seven platforms | 2026-10-26 | CLIs of that day's pins | BTN-380, `19b0c594` | whole; macOS ran no service or chain (still open) | |
+
+## Updating
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The page's update on Windows: the update process outlived `Stop-Service`; the non-admin account stopped and started its own service; `npm ci` ran with the service stopped; a failed build and a silent service were rolled back; an update and its revert went through; a release with a new dependency installed it; `rebuild.ps1` ran `npm install` with the service stopped | sandbox, the service under a local non-admin user | 2026-10-22 | — | BTN-287, `62f9a3e1` | whole for Windows | |
+| "Update" pressed during a chain launch: a Codex task's launch with a 90 s `beforeStart` held the update in "waiting for" the project until the session had an id; the session's first turn ended while the service was down and the new service closed the task | sandbox | 2026-10-22 | Codex | BTN-287, `cd7aac5f` | whole | |
+| The update button on Linux under systemd | Linux, systemd | 2026-10-22 | — | BTN-272, `f795cc70` | whole for systemd | |
+| The npm install: `npx` installs globally and registers the service, the update button installs, rolls back and reverts, `even-keel update` and `uninstall` work with the service, `sql.mjs` finds the data | sandbox with a local registry standing in for npmjs | 2026-10-23 | — | `ba8fee3e` | with a caveat: Linux and macOS and the first real publish open | |
+| "Add to Claude Code" from the service of an npm install | sandbox | 2026-10-23 | — | `ba8fee3e` | whole | |
+| "Add to Claude Code" on a second instance with an empty default Claude config: the marketplace added, the offer gone | a second instance on the author's workstation | 2026-10-22 | — | BTN-282, `831e804e` | with a caveat: an installed service not tried (done 2026-10-23, row above) | |
+| The first start after an update: `state/even-keel.db` imported into `state/even-keel/` by itself at a restart (891 launches, 93 handoffs, 11 closed tasks), the page and the CI served after it | the service on the author's workstation | 2026-10-18 | — | BTN-280, `d7dd7a0a` | whole | |
+| The first start made the Forgejo profile from `FORGEJO_TOKEN` of `.env`; the Forgejo CI on `origin` green right after | the service on the author's workstation | 2026-10-18 | Forgejo | BTN-280, `d7dd7a0a` | whole | |
+
+## The page
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The service committed the changelog from session 0 in two real checkouts (hooks, autocrlf, identity, `safe.directory` all held) | the service on the author's workstation | 2026-10-22 | — | BTN-282, `166f8d10` | whole | |
+| Files copied in Explorer paste into the chat as attachments | sandbox / workstation page | 2026-10-22 | — | BTN-282, `166f8d10` | whole | |
+| A VS Code chat shows on the page under its tab's title | the workstation | 2026-10-22 | VS Code | BTN-282, `166f8d10` | whole | |
+| The wizard's trust check: a folder trusted under an account folder's `CLAUDE_CONFIG_DIR` is recorded in that folder only, so the wizard warned falsely | the workstation | 2026-10-22 | — | BTN-282, `166f8d10` | bugs found: BTN-300 (fixed `3af3b883`) | |
+| "Your own Postgres": the check, the `.env` write, the collector migrating as `tally_writer`, `/stats` reading | a second instance against Postgres from `tally/deploy` | 2026-10-22 | — | BTN-282, `acd77d2a` | with a caveat: a service started while a reader held the folder served only the error page; two processes opening the folder in one second both opened it (BTN-301) | |
+| A reader opening the state database while the service starts: the folder claimed atomically, the second process refused, a reader waits for the port | four processes started at once | 2026-10-23 | — | BTN-301, `62f6d9aa` | whole after the fix | |
+| A remote added to a checkout on the running service gave the CI watch within a minute | sandbox | 2026-10-23 | — | BTN-191, `0245358e` | whole | |
+| A changed `EVEN_KEEL_TOKEN` dropped a page on another machine to the token form within seconds, no reload | sandbox, a page on another machine | 2026-10-25 | — | BTN-281, `d4ebda69` | whole | |
+| A Huly profile saved from password to token connected again at once and wrote its values into the global `settings.json` `env`; two Huly profiles kept their own connections and gateway servers | sandbox, a second Huly workspace | 2026-10-25 | Huly | BTN-281, `d4ebda69` | whole | |
+| Removing a project: refused naming the session and its worktree while its task's session worked (from the API and from "Remove project", chain running and stopped); done once the task was Done and its push green | sandbox | 2026-10-25 | Haiku sessions | BTN-281, `51343e22` | whole | |
+
+## Accounts
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The transfer moved a probe skill from `~/.claude/skills` into `~/.claude-skills` and linked it from both account folders; a Haiku session in `auto` wrote its `SKILL.md` and a memory file without a question; sessions in `~/.claude` load skills through the links | the workstation | 2026-10-24 | CLI 2.1.310 | BTN-294, `cdd9c22e` | whole; `agents` and `hooks` still linked straight into `~/.claude` then (BTN-373) | |
+| The same for hooks and agents: moved into `~/.claude-hooks` and `~/.claude-agents`, both account folders linked, a Haiku session wrote a probe hook and agent without a question, the `settings.json` hooks naming `~/.claude/hooks/…` ran through the link | the workstation | 2026-10-24 | CLI 2.1.310 | BTN-373, `c75c5d88` | whole | |
+| A Claude API key disabled in the Console after it was added, then deleted, answered the models list 401 `authentication_error`; the check at the service's start made the account `needsLogin` | the workstation, Anthropic Console | 2026-10-25 | — | BTN-277, `70042f16` | with a caveat: a disabled organization's 403 not seen | |
+| A chain task on an API account folder through `--bg` and another through the Agent SDK, each authenticated from the folder's `settings.json` key, went to a merge and Done | the service on the author's workstation | 2026-10-25 | CLI 2.1.310, Haiku | BTN-277, `f658b08e` | whole | |
+| With `cacheTtl: "1h"` every cache write of both sessions was `ephemeral_1h_input_tokens` | same run | 2026-10-25 | CLI 2.1.310 | BTN-277, `f658b08e` | whole | |
+| The sign-in from the page for Codex: the device link showed and worked | the service in the sandbox | 2026-10-23 | Codex | BTN-284, `a3094875` | whole | |
+
+## Claude limits
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The warm resume after a limit | the service on the author's workstation | 2026-10-22 | — | `bfc84635`, `e0c78f6d` | whole (cold path left) | |
+| The cold path after a limit: three limits on one account in unattended mode each sat over an hour; each time the chain started a new session with a handoff within about a minute of the reset and went on | the service on the author's workstation | 2026-10-22 | — | `8eb4483d`, `eea06504` (the same change on both branches) | whole | |
+
+## Sessions
+
+Pull request mode sits here, as in `unverified.md`.
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| Chat mail on a Claude session: a message sent during a 90 s Bash call waited for the hook, went in at its `PostToolUse`, the model acted on it, shown as the user's bubble | the workstation | 2026-10-22 | Haiku `--bg` | BTN-282, `1eb3f0d4` | whole | |
+| The chat mailbox's `Stop` block and the `AskUserQuestion` deny; their transcript shapes written into `docs/sessions.md` | the workstation | 2026-10-22 | Haiku `--bg` | BTN-282, `19e20e3b` | whole; the `Stop` block meeting a checkpoint mark still open | |
+| Chat mail at a Codex `Stop`: the session answered the mail at `Stop` | the workstation | 2026-10-25 | Codex | `f8175a3e` | with a caveat: the session did not repeat `NO CHANGES:`, so the task waited (BTN-406) | |
+| The turn line's delivery phase: a text answer and an `AskUserQuestion` answer were each in the transcript 8 s after the send and the line moved on; `--bg` resume after an unanswered question gives the call the synthetic interrupted result | the workstation | 2026-10-18 | CLI 2.1.302 | BTN-189, `1cad08b9` | whole for Claude (Codex and `deliverLoose` open) | |
+| A session outlived `Restart-Service` with its question open and took the answer without a resume; outlived restarts mid-turn, one a 28 s stop over a long command's end | the service on the author's workstation | 2026-10-22 | — | BTN-292, `38f88d77` | with a caveat: a night against `--bg`, Remote Control from the phone, the spill file, Unix open | |
+| What the daemon caches: a session inherits the environment its daemon started with and puts the `settings.json` `env` read at its start on top; a removed key stays until the daemon restarts; a later `claude --bg` environment never reaches its session | sandbox account folder | 2026-10-18 | CLI 2.1.302 | BTN-129, `07be72a0` | whole | |
+| A session id with no transcript after a reply: resuming in place respawns the job's process, which shows a fresh session id for under a second | the workstation (TSK-20) | 2026-10-18 | CLI 2.1.302 | `f36a9c2e` | bugs found (fixed in that commit) | |
+| A task ended by its session's `NO CHANGES:` line: a Codex session on a task it could not do left the branch on main, ended with the mark, and the service moved the task to Done | sandbox, Huly | 2026-10-22 | Codex | EKR-10, `12a86a0f` | whole | |
+| A task already done in main got the mark on its own on Linear, went to Done and got the mark's line as a comment | the service on the author's workstation, OpenCode on a free model | 2026-10-25 | OpenCode | `5bee3f5b` | with a caveat: the comment on GitHub not seen | |
+| Outsiders' replies to a question in an issue are skipped (with a log line) on a public GitHub repository | sandbox, GitHub | 2026-10-22 | — | EKR-19, `1ed2912b`, `a74ee06d` | whole; PR mode part moved to the row below | |
+| Claude Code's own compaction in chain sessions: 56 auto-compactions in 37 sessions on a 250k window, all at 216–227k (median 218k); hand sessions on a 400k window at a median 369k; every session went on from its summary to its task's end | measured from a week of the author's chain (Tally) | 2026-10-24 | CLI 2.1.30x | `032ac901` | whole for Claude (Codex's own compaction: Codex group) | |
+| The first chain launches from the service on the CLI copy: with `cli.claude` set to `checked`, the 2.1.310 copy downloaded in 17 s and the chain's sessions launched from it | the service on the author's workstation | 2026-10-25 | CLI 2.1.310 | BTN-280, `d7dd7a0a` | with a caveat: a newer daemon replacing the service's still open | |
+| **PR mode on GitHub, the push, the open, a pull request closed unmerged and one merged** | a real repository, the service on the author's workstation | 2026-10-18 | — | BTN-161, kept by `656259f8` | whole | |
+| **PR mode on GitHub, feedback**: the owner's comment in the conversation, failed runs of the head commit, a collaborator's comments, a collaborator's request for changes with a line comment — each reached the session by `--resume` once the chain was started again; each fix pushed to the same pull request; an outsider's comment skipped with its log line | a public GitHub repository, GitHub-tracker project, a Claude session | 2026-10-24 | — | BTN-278, `656259f8` | whole | |
+| **PR mode on GitHub, the end**: `Closes owner/repo#N` linked the issue (BTN-295); the merge moved the task to Done and removed the worktree, the branch and the branch on GitHub | same run | 2026-10-24 | — | BTN-278, `656259f8` | whole | |
+| PR mode without a remote on a GitHub-tracker project: the chain paused on `review.notReady` and went on by itself within a minute of `git remote add`; the save of `pullRequests` refused with `review.cannotEnable` | sandbox through the service's API | 2026-10-23, 2026-10-24 | — | EKR-12, `0245358e`, `656259f8` | whole; the settings panel switch seen on a fake state only (EKR-7), done 2026-10-25 (row below) | |
+| PR mode on Forgejo's API against a fake Forgejo: the push, the open, a request for changes reaching the session by `--resume`, its fix, the merge to Done | sandbox, fake Forgejo, a Codex session | 2026-10-23 | — | BTN-205, `0245358e` | with a caveat: answer shapes made up (superseded by the real Forgejo row) | |
+| PR mode on a real Forgejo: the push and the open; the owner's conversation comment and their request for changes with a line comment (and with no text) each waking the ended chain and reaching a new session by a handoff; a failed run of the head commit and a conflict with main (the session merged and resolved it); two merges to Done with the worktree, the branch and the branch on the remote removed; a pull request closed unmerged cleaned up, its task skipped; a task with nothing ahead of main and a clean worktree to Done without a pull request (BTN-222); a token without pull request rights halting the chain with `review.notOpened` | a real self-hosted Forgejo, a Linear project on the service, OpenCode sessions, a bot user's profile, a Forgejo Actions runner | 2026-10-25 | Forgejo | BTN-205, `bcb61774`, `5bee3f5b` | with a caveat: the token rights the guide names (`write:repository`, `read:issue`, `read:user`) and that Forgejo refuses a request for changes on one's own pull request were not tried; the bot token had `write:issue` in place of `read:issue` (EKR-9) | |
+| A chain that ended starts again on feedback on one of its pull requests (BTN-375); one the user stopped stays stopped | same real Forgejo run | 2026-10-25 | Forgejo | BTN-375, `cf389189` | whole | |
+| The PR mode switch of the settings panel and **Add profile**, with a remote added | same run | 2026-10-25 | — | EKR-7, `cf389189` | whole | |
+| A project's chosen GitHub profile took its CI at once and the first profile's list emptied | sandbox, GitHub | 2026-10-24 | — | BTN-231, `656259f8` | with a caveat: the profile opening pull requests not told apart (one token) — closed 2026-10-25 by the row below | |
+| A project's chosen Forgejo profile (a bot user) opening the pull requests | real Forgejo | 2026-10-25 | Forgejo | BTN-231, `cf389189` | whole | |
+| Task feeds: a GitHub feed of a Huly project; `fillMilestone` on GitHub | the workstation, GitHub | 2026-10-23 | Huly, GitHub | BTN-326, `c33aaf79` | with a caveat: a feed on a second Huly workspace, PR mode and tracker questions for a feed's task, run labels, Tally's "failed"/"halted" open | |
+| Two Huly projects on one Huly project split by milestone read their own tasks | sandbox, a second Huly workspace | 2026-10-25 | Huly | BTN-172, BTN-73, `d4ebda69` | with a caveat: Linear and a task closed by one chain not taken by the other open | |
+| Two Even Keel projects on one Linear team read their own tasks | the service on the author's workstation | 2026-10-25 | Linear | BTN-172, `dd0d68b2` | whole as read; a `TEAM/` value reading the whole team stays covered by tests | |
+
+## Codex
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| Bypassed Codex chain sessions ran commands, committed and merged from session 0 (TSK-19 on 2026-10-17, TSK-20 on 2026-10-18); a Codex chain of a Linear project read its tasks through the `linear@even-keel` package, committed, merged, and both tasks closed one after the other (BTN-161, 2026-10-18) | the service, a fresh install | 2026-10-17, 2026-10-18 | codex-cli 0.162.1 | BTN-232, `74de7d54` | whole for short tasks | |
+| Thirteen BTN tasks on the host: long tasks and a limit ran through; update diffs carry a hunk-only `unified_diff`; Tally matched every `token_usage_record`; the calibration hook's deny held on a real MCP call; the standards guard refused the first edit of a screen file | the service on the author's workstation | 2026-10-25 | codex-cli 0.164.0 | `61f7bbfe` | whole; a FileChange delete, `check-marks` exit code 2 under code mode, compaction for standards open | |
+| A Codex limit (Plus five-hour window): the same `task_complete` error with a bare "try again at 2:48 PM", the reset read from it, the chain resumed by itself | the workstation | 2026-10-25 | codex-cli 0.164.0 | EKR-30, `621c60ce` | whole; a key out of credit stays in the API key entry | |
+| A service restart mid-turn: `codex.exe` outlived it and a resume from the chat finished the task | the service in the sandbox | 2026-10-23 | Codex | BTN-284, `a3094875` | whole | |
+| The Codex desktop app lists none of the chain's exec threads; the chain tasks it shows are imported Claude Code transcripts | the workstation | 2026-10-23 | Codex app | BTN-178, `7bdbb644` | whole (as a finding) | |
+| Codex's own compaction: the first nudge at 77.7k, Codex compacted at 87.8k (92 %) before the hard share, then the session handed off by `CHECKPOINT`; one `compacted` line in the rollout and no `context_compacted` event | sandbox, Plus | 2026-10-25 | codex-cli 0.164.0, gpt-6.1-sol, 95k window | BTN-299, `a76b20a7` | with a caveat: where Codex compacts in the full window open | |
+| The changelog turn with JSON output: `thread.started`, `turn.started`, one `agent_message` item, `turn.completed` with usage; `parseWriteAnswer` took the text and the tokens as assumed | sandbox, Plus | 2026-10-25 | codex-cli 0.164.0 | `93cc1e84` | whole | |
+| Hooks that block, in a nested code-mode shell call: `PreToolUse` exit code 2 was ignored, `permissionDecision: deny` blocked before execution; `Stop` with `decision: block` continued the turn; a failed project check held a merge, a passing one allowed it | Windows | 2026-10-25 | codex-cli 0.164.0 | EKR-31, `0640637c` | with a caveat: the Huly plugin's `check-marks` exit code 2 and `show-calibration` on real MCP calls open (the host run of `61f7bbfe` saw the calibration deny hold) | |
+| A shell-written handoff note was already in the rollout when the Stop hook asked for the note; the hook made the session add `CHECKPOINT:` | Windows | 2026-10-25 | codex-cli 0.164.0 | EKR-31, `0640637c` | with a caveat: the timing of an `apply_patch` FileChange open | |
+| A failed command's line names its exit code; from session 0 every command fails with exit code −1 because the sandbox does not start, an escalated rerun approved by `auto_review` runs unsandboxed | the service | 2026-10-19 | codex-cli 0.162.1 | BTN-233, `3e18e816` | whole | |
+| Plugins in `~/.codex`: both plugins installed in 0.6 s, `config.toml` got only two `enabled = false` tables, `hooks/list` showed all five hooks trusted and `skills/list` the huly skills | the workstation | 2026-10-18 | codex-cli 0.162.1 | BTN-180, `9ad9ee3c` | with a caveat: Linux and macOS path, blocking hooks open at that time | |
+
+## OpenCode
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| A launch, a reply that starts with `-`, the transcript and the Tally rows; the session read the project's `CLAUDE.md` | the workstation, driven from a terminal, free model | before 2026-10-25 | OpenCode 1.18.25 | BTN-214, kept by `e9803a15` | whole | |
+| The checkpoint plugin's nudge and chat message after a shell call, `Agent.write` with its session deleted, the merge check (a failing check refused a merge) and the `CHECKPOINT` line | same, against a stand-in for the service | before 2026-10-25 | OpenCode 1.18.25 | BTN-274, BTN-288, kept by `e9803a15` | with a caveat: a passing check, a check of minutes open | |
+| Two tasks of a Linear project ran whole as chain sessions of the service (session 0): read the issue through the Linear package's MCP server on the gateway, committed, merged, posted the closing comment, Even Keel closed them; the second turn went on through a restart of the service and its gateway 5 s into it; the milestone's changelog draft ran as a one-off turn | the service on the author's workstation | 2026-10-25 | OpenCode, free `deepseek-v4.1-flash-free` | BTN-214, `e9803a15` | with a caveat: Linux, macOS, ChatGPT, Copilot, API-key accounts, plugin skills in `skills.paths` open | |
+| OpenCode on ChatGPT: the page's sign-in showed the device link and code and landed in the account's folder; the chain launched a task on `openai/gpt-6.1-sol`, one of 17 openai models listed; `gpt-6-sol`, `gpt-6-astra`, `gpt-6-luna` are not listed and `opencode run` fails on them, so refusing is right; the card got the 5h and weekly windows from `wham/usage` with the Codex card's pool | sandbox, Plus | 2026-10-25 | OpenCode 1.18.25 | BTN-341, `ca51cda4` | with a caveat: Copilot and API keys open | |
+
+## Copilot
+
+Nothing of the Copilot group has left `unverified.md` yet.
+
+## Packages
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| The gateway's server (`npx @firfi/huly-mcp`) started and answered from the service's session 0 of a fresh install | the service | 2026-10-18 | — | BTN-161, `74de7d54` | whole | |
+| Adding a project, and the gateway's remote servers | the workstation | 2026-10-20 | — | `78ad2c37` | whole (project removal left open, done 2026-10-25 above) | |
+
+## Trackers
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| A comment's upload downloaded through the file route (an image came back whole, inline) | a public GitHub repository | 2026-10-24 | — | BTN-278, `656259f8` | with a caveat: a private repository open | |
+| A fine-grained GitHub token's card shows its expiry | GitHub | 2026-10-24 | — | BTN-278, `656259f8` | whole | |
+| The milestone on the card moved a GitHub milestone, cleared it (`milestoneId: null`) and put it back | sandbox, GitHub | 2026-10-24 | GitHub | BTN-278, `656259f8` | whole; Linear open | |
+| `milestoneTasks` found a GitHub milestone by title (`milestones(query:)`) and the draft got its done task | sandbox, GitHub | 2026-10-24 | GitHub | BTN-142, `656259f8` | whole; Linear open | |
+| `fillMilestone` on GitHub in a task feed | the workstation | 2026-10-23 | GitHub | BTN-326, `c33aaf79` | whole | |
+| The milestones on Linear: `fillMilestone`, changing a milestone from the card, the tasks of a milestone | the service on the author's workstation | 2026-10-25 | Linear | BTN-142, `e9803a15` | whole (the commit lifts all three entries; the run's own text is in `unverified.md`'s history) | |
+| GitLab as a task tracker (GitLab Issues): the order by blocking links, priority and milestone, the label that keeps a task out of the chain, a parent closed after its last child, a question in a comment with an outsider's comment skipped and the owner's answer delivered, the card with its images, closing after a merge | GitLab.com (a project in a subgroup, Ultimate trial) and the author's own GitLab CE | 2026-10-26 | GitLab CE 19.5 | BTN-411, `5e5e8712`; whole in `bd8b20d4` | whole after `bd8b20d4`: under a path prefix, Reporter and inherited-member answers, a token expiring mid-chain, related links on Free (shown as related, no order) all checked | |
+| The GitLab MCP plugin: `@zereight/mcp-gitlab@2.3.11` installs, the gateway starts it with the project's own profile, a chain session without `brief` read its issue and commented; issue tools created issues, a milestone and a blocking link and changed labels and a milestone | GitLab.com and a self-managed server, a path prefix | 2026-10-26 | the package version named | BTN-415, `3259e858`, `bd8b20d4` | with a caveat: work-item tools left off (toolsets `issues,milestones`); a key kept in an account's `settings.json` `env` still reached sessions past the gateway (BTN-436) | |
+
+## CI
+
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| A restart of Even Keel from `commands.afterGreen`: `pwsh -NoProfile -Command "Restart-Service EvenKeel; …"` stopped and started the service within 2 s; the rest of that line ran after the start; the command after it never ran and none ran again after the restart | the service on the author's workstation | 2026-10-25 | — | BTN-280, `87eb4eb4` | with a caveat: systemd and launchd open; on Windows the line's `cmd.exe` dies with node, so the restart must be one process | |
+| Two live chains on one remote: the pushes of HULY and HUB raced, HULY's broke main, HULY started the fix session, HUB's red push logged that a fix was already under way and started none, HUB's next task launched once the fix was green | sandbox | 2026-10-25 | Haiku | BTN-281, `51343e22` | with a caveat: a fix that ends unseen and a project with no remote read yet open | |
+| Projects of one remote on real clones of a bare remote: main fast-forwarded before a launch; a rejected sync tried once more | the workstation | 2026-10-18 | — | BTN-210, `f279131c` | with a caveat: the red main of another project's push unseen then (BTN-217) | |
+| A release carry from a service in session 0 went through as a fast-forward and as a merge commit and was pushed; without a git identity it was held with git's message (worded as a conflict) | sandbox | 2026-10-23 | — | BTN-172, `7bdbb644` | bugs found: BTN-314 (fixed `973fd0cf`) | |
+| A held carry: the service fetched the release clone, aborted a conflict and held it until the merge by hand | the service on the author's workstation | 2026-10-23 | — | BTN-172, `12a86a0f` | whole | |
+| A carry whose push was refused said so on the release project's page; one that needed a merge commit without a git identity held as `forward.failed` until "Carry now" | sandbox | 2026-10-25 | — | BTN-281, `d4ebda69` | whole (BTN-384: the failure stays on the page after main is pushed) | |
+| GitLab CI: the host found from the GitLab profile; the badge with its runs and jobs; a red main after a task leading to a `<KEY>-FIX` session and the chain going on after the green fix; `ci.fixTask` creating a high-priority issue taken first; a remote the token cannot read hidden after one 404; a Forgejo profile's check on a GitLab host saying it is GitLab | GitLab.com (shared runners, a subgroup project) and a self-managed GitLab CE with a project runner | 2026-10-26 | GitLab CE 19.5 | BTN-415, `3259e858` | whole after `bd8b20d4`: a path prefix, more than one page of jobs, manual and delayed pipelines, a GitLab remote of a Linear project (106 jobs seen) all checked | |
+| GitLab merge requests: the profile's `api` token pushes the branch and opens the merge request with `Closes #N`; a note, a failed pipeline of the head commit and a conflict with main each reach the session; a merge closes the issue and the task goes to Done with cleanup; a merge request closed unmerged skips the task and keeps its remarks | self-managed GitLab CE with GitLab Issues | 2026-10-26 | GitLab CE 19.5 | BTN-414, `3259e858` | bugs found: BTN-441 (a resolved conflict told once more), BTN-442 (a session's own note comes back as a remark); the rest checked in `bd8b20d4`: cross-project `Closes group/name#N`, answers from an inherited Reporter, project and group bot notes dropped, a profile token revoked mid-chain | |
+
+## Unclear
+
+Commit messages that claim a live check and touched `unverified.md`, where the history alone does not say which entry the check lifted. Kept as leads for a later pass; none is counted above.
+
+| Commit | Date | What the message says |
+| --- | --- | --- |
+| `235d4753` BTN-136 | 2026-10-17 | Agent SDK and API-key sessions checked live: resume after the host dies, a detached executor that reattaches to a running CLI, Remote Control through `enableRemoteControl` with reattach, `claude --bg` on an API key (table in `docs/sessions.md`) |
+| `9e5f0f20` BTN-202 | 2026-10-18 | `claude stop` left the `bash.exe` of a `run_in_background` command alive on Windows; the stop now kills the process tree |
+| `55cad0ca` BTN-159 | 2026-10-17 | The format of the CLI's `mcp-needs-auth-cache.json` checked live on CLI 2.1.302 |
