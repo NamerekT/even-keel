@@ -158,3 +158,13 @@
 .profile-rights__note {
   display: block;
 }
+
+@media (max-width: 760px) {
+  .profile-form .add-package__foot {
+    flex-wrap: wrap;
+  }
+
+  .profile-form .add-package__foot .button {
+    flex: 1 0 auto;
+  }
+}

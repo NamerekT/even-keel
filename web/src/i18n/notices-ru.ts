@@ -366,6 +366,7 @@ export const noticesRu: NoticeTexts = {
   'profiles.incomplete': (p) => `поля ${p.tracker} заполнены не полностью`,
   'profiles.refused': (p) => `${p.tracker} не принял учётные данные`,
   'profiles.unreachable': (p) => `${p.tracker} не ответил`,
+  'profiles.isGitlab': (p) => `${p.host} — это GitLab: добавьте профиль GitLab`,
   'profiles.hostLocked': (p) => `профиль ${p.profile} используют ${p.projects}: адрес и workspace не меняются, только учётные данные`,
   'profiles.inUse': (p) => `профиль ${p.profile} используют ${p.projects} — удалить нельзя`,
   'profiles.otherTracker': (p) => `${p.profile} — профиль другого трекера, не того, что у ${p.project}`,

@@ -1182,6 +1182,7 @@ export const en: Messages = {
       JIRA_EMAIL: 'The e-mail of the Atlassian account',
       JIRA_TOKEN: 'Atlassian API token',
       FORGEJO_TOKEN: 'The Forgejo token',
+      FORGEJO_URL: 'Forgejo server address',
     },
   },
   profiles: profilesEn,
