@@ -1,4 +1,5 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
+import { trackedFetch } from '../tracker/diagnostics.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
@@ -148,12 +149,12 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
   const projectUrls = new Map<string, string>()
 
   async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-    const response = await fetchImpl(API, {
+    const response = await trackedFetch(fetchImpl, API, {
       method: 'POST',
       headers: { authorization: settings.token, 'content-type': 'application/json' },
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(timeoutMs),
-    })
+    }, '/graphql')
     const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: { message: string }[] }
     const errors = (body.errors ?? []).map((error) => error.message).join('; ')
     if (!response.ok) throw new Error(`linear: HTTP ${response.status}${errors ? `: ${errors}` : ''}`)
@@ -376,7 +377,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     // A file of a comment is its upload link; the key goes only to Linear's upload host.
     async file(_id, file) {
       if (!UPLOADS.test(file)) return null
-      const response = await fetchImpl(file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs) })
+      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs) }, '/uploads/[redacted]')
       if (!response.ok || response.body === null) return null
       const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
       return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }

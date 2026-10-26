@@ -50,6 +50,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects | issues, blockers or versions may not reach the chain, a task may not close, or a file may not open |
 | 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin | a session gets no Jira tools and cannot read or update its issue |
+| 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -86,6 +87,10 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
+
+### Tracker call diagnostics
+
+Timeout and slow-call diagnostics are covered by tests but have not been observed in a running service against a slow tracker. If the log does not identify the operation or request count, inspect the tracker and network directly and report the missing details.
 
 ### Protection across agent transports and remote servers
 

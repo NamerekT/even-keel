@@ -1,4 +1,5 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
+import { trackedFetch } from '../tracker/diagnostics.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
@@ -158,12 +159,12 @@ export async function connectGithub(
   const skipped = new Skipped(log)
 
   async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-    const response = await fetchImpl(API, {
+    const response = await trackedFetch(fetchImpl, API, {
       method: 'POST',
       headers: { authorization: `bearer ${settings.token}`, 'content-type': 'application/json', 'user-agent': 'even-keel' },
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(timeoutMs),
-    })
+    }, '/graphql')
     const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: GraphqlError[]; message?: string }
     if (!response.ok) throw new Error(`github: HTTP ${response.status}${body.message ? `: ${body.message}` : ''}`)
     const failed = (body.errors ?? []).filter((error) => error.type !== 'NOT_FOUND')
@@ -395,7 +396,7 @@ export async function connectGithub(
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.
     async file(_id, file) {
       if (!UPLOADS.test(file)) return null
-      const response = await fetchImpl(file, { headers: { authorization: `bearer ${settings.token}`, 'user-agent': 'even-keel' }, signal: AbortSignal.timeout(timeoutMs) })
+      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: `bearer ${settings.token}`, 'user-agent': 'even-keel' }, signal: AbortSignal.timeout(timeoutMs) }, '/uploads/[redacted]')
       if (!response.ok || response.body === null) return null
       const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
       return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }

@@ -1,4 +1,5 @@
 import { fail } from '../notice/notice.js'
+import { trackedFetch } from '../tracker/diagnostics.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 
 export const JIRA_URL = 'JIRA_URL'
@@ -50,7 +51,7 @@ export class JiraApi {
     } catch (error) {
       if (!(error instanceof CredentialsRefused)) throw error
     }
-    const tenant = await fetchImpl(`${site}/_edge/tenant_info`, { signal: AbortSignal.timeout(timeoutMs), redirect: 'error' })
+    const tenant = await trackedFetch(fetchImpl, `${site}/_edge/tenant_info`, { signal: AbortSignal.timeout(timeoutMs), redirect: 'error' }, '/_edge/tenant_info')
     const cloudId = tenant.ok ? ((await tenant.json().catch(() => ({}))) as { cloudId?: unknown }).cloudId : undefined
     if (typeof cloudId !== 'string' || !/^[\w-]+$/.test(cloudId)) throw new CredentialsRefused('jira: the site refuses the e-mail and the API token (HTTP 401)')
     const gateway = new JiraApi(`${GATEWAY}/${cloudId}`, auth, timeoutMs, fetchImpl)
@@ -66,13 +67,13 @@ export class JiraApi {
   }
 
   async request(path: string, method = 'GET', body?: unknown): Promise<Response> {
-    const response = await this.fetchImpl(`${this.base}${path}`, {
+    const response = await trackedFetch(this.fetchImpl, `${this.base}${path}`, {
       method,
       headers: { authorization: this.auth, accept: 'application/json', 'content-type': 'application/json', 'user-agent': 'even-keel' },
       signal: AbortSignal.timeout(this.timeoutMs),
       redirect: 'error',
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    })
+    }, path)
     if (response.ok) return response
     const detail = errorText(await response.json().catch(() => ({})))
     if (response.status === 401) throw new CredentialsRefused(`jira: the e-mail and the API token are refused (HTTP 401)${detail ? `: ${detail}` : ''}`)

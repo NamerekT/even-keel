@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { GitlabApi } from '../gitlab/api.js'
 import type { TrackerHealth } from './health.js'
 import { errorText, TrackerLink } from './link.js'
 import { TrackerNotFound, type Tracker } from './source.js'
@@ -19,6 +20,63 @@ afterEach(() => {
 })
 
 describe('TrackerLink', () => {
+  it('logs timeout details without changing the health error', async () => {
+    vi.useFakeTimers()
+    const log = vi.fn()
+    const source = fakeSource()
+    source.tasks = async () => {
+      const api = new GitlabApi('https://example.com', 'fake', 5000, async () => new Promise(() => {}))
+      await api.request('/api/v4/issues?token=secret')
+      return []
+    }
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000, onDiagnostic: log })
+    const pending = link.run((tracker) => tracker.tasks([]))
+    const rejected = expect(pending).rejects.toThrow('gitlab: call timed out after 1000 ms')
+    await vi.advanceTimersByTimeAsync(1000)
+    await rejected
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/tasks.*1000 ms.*1 HTTP request/))
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/longest 1000 ms \/api\/v4\/issues/))
+    expect(log.mock.calls[0]![0]).not.toContain('secret')
+    expect(link.health.error).toBe('gitlab: call timed out after 1000 ms')
+  })
+
+  it('throttles slow successful calls separately by operation', async () => {
+    vi.useFakeTimers()
+    const log = vi.fn()
+    const source = fakeSource()
+    source.tasks = async () => { await new Promise((resolve) => setTimeout(resolve, 600)); return [] }
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000, onDiagnostic: log })
+    for (let i = 0; i < 2; i++) {
+      const pending = link.run((tracker) => tracker.tasks([]))
+      await vi.advanceTimersByTimeAsync(600)
+      await pending
+    }
+    expect(log).toHaveBeenCalledTimes(1)
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/tasks.*600 ms/))
+    await vi.advanceTimersByTimeAsync(600000)
+    const pending = link.run((tracker) => tracker.tasks([]))
+    await vi.advanceTimersByTimeAsync(600)
+    await pending
+    expect(log).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps concurrent calls and their request counts separate', async () => {
+    vi.useFakeTimers()
+    const log = vi.fn()
+    const api = new GitlabApi('https://example.com', 'fake', 5000, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      return new Response('{}')
+    })
+    const source = fakeSource()
+    source.tasks = async () => { await api.request('/api/v4/issues'); return [] }
+    source.chainTasks = async () => { await Promise.all([api.request('/api/graphql'), api.request('/api/graphql')]); return { tasks: [], unknownStatuses: [] } }
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000, onDiagnostic: log })
+    const calls = Promise.all([link.run((tracker) => tracker.tasks([])), link.run((tracker) => tracker.chainTasks('X', {} as never))])
+    await vi.advanceTimersByTimeAsync(600)
+    await calls
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/tasks.*1 HTTP request/))
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/chainTasks.*2 HTTP requests/))
+  })
   it('connects once and reuses the connection', async () => {
     const connect = vi.fn(async () => fakeSource())
     const link = new TrackerLink({ name: 'huly',connect, timeoutMs: 1000 })

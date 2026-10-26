@@ -1,5 +1,6 @@
 import type { TrackerHealth } from './health.js'
 import { TrackerNotFound, type Tracker } from './source.js'
+import { callDiagnostics, longestRequest, type CallDiagnostics } from './diagnostics.js'
 
 export interface TrackerLinkOptions {
   name: string
@@ -7,12 +8,14 @@ export interface TrackerLinkOptions {
   timeoutMs: number
   now?: () => Date
   onHealth?: (health: TrackerHealth) => void
+  onDiagnostic?: (message: string) => void
 }
 
 export class TrackerLink {
   private source: Promise<Tracker> | undefined
   private closed = false
   private current: TrackerHealth = { state: 'connecting', lastOkAt: null, error: null }
+  private readonly slowLogged = new Map<string, number>()
 
   constructor(private readonly options: TrackerLinkOptions) {}
 
@@ -22,12 +25,30 @@ export class TrackerLink {
 
   async run<T>(call: (source: Tracker) => Promise<T>): Promise<T> {
     if (this.closed) throw new Error(`${this.options.name}: link is closed`)
-    const pending = (this.source ??= this.options.connect())
+    const started = Date.now()
+    const diagnostics: CallDiagnostics = { operation: 'connect', requests: 0, measured: false, active: new Map() }
+    const pending = callDiagnostics.run(diagnostics, () => (this.source ??= this.options.connect()))
     try {
-      const result = await withTimeout(pending.then(call), this.options.timeoutMs, this.options.name)
+      const work = callDiagnostics.run(diagnostics, () => pending.then((source) => call(new Proxy(source, {
+        get(target, property, receiver) {
+          const value = Reflect.get(target, property, receiver)
+          if (typeof value !== 'function') return value
+          return (...args: unknown[]) => {
+            diagnostics.operation = String(property)
+            return Reflect.apply(value, target, args)
+          }
+        },
+      }))))
+      const result = await withTimeout(work, this.options.timeoutMs, this.options.name)
+      const elapsed = Date.now() - started
+      if (elapsed > this.options.timeoutMs / 2 && Date.now() - (this.slowLogged.get(diagnostics.operation) ?? -Infinity) >= 600_000) {
+        this.slowLogged.set(diagnostics.operation, started + elapsed)
+        this.diagnostic('slow call', elapsed, diagnostics)
+      }
       this.answered()
       return result
     } catch (error) {
+      if (error instanceof CallTimeout) this.diagnostic('call timed out', Date.now() - started, diagnostics)
       if (error instanceof TrackerNotFound) {
         this.answered()
         throw error
@@ -36,6 +57,13 @@ export class TrackerLink {
       this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: errorText(error) })
       throw error
     }
+  }
+
+  private diagnostic(kind: string, elapsed: number, call: CallDiagnostics): void {
+    const count = call.measured ? `${call.requests} HTTP request${call.requests === 1 ? '' : 's'}` : 'HTTP request count unavailable'
+    const request = longestRequest(call)
+    const longest = request ? `, longest ${request.ms} ms ${request.path}` : ''
+    ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${kind} ${call.operation}, ${elapsed} ms, ${count}${longest}`)
   }
 
   /** Closes the connection, if any: the next call connects again, with what `connect` reads by then (new credentials). */
@@ -78,10 +106,12 @@ export function errorText(error: unknown): string {
   return cause instanceof Error ? `${error.message}: ${cause.message}` : error.message
 }
 
+class CallTimeout extends Error {}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${name}: call timed out after ${ms} ms`)), ms)
+    timer = setTimeout(() => reject(new CallTimeout(`${name}: call timed out after ${ms} ms`)), ms)
   })
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
