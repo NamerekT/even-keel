@@ -95,14 +95,15 @@ Timeout and slow-call diagnostics are covered by tests but have not been observe
 ### Protection across agent transports and remote servers
 
 What Codex's rules hold and miss, Copilot's rules as Even Keel writes them (they missed the very command they name,
-BTN-463), the remote audit's verdicts for tokens without access, and the page's warnings are in
-[`verified.md`](verified.md). Not checked live: Claude CLI/SDK deny rules from the chain's `--settings` (no harness
-could be staged, see `verified.md`), Huly deletion rules on Claude and Copilot (the server names Copilot gives the plugin gateway and the standalone
+BTN-463), the remote audit's verdicts for tokens without access, the page's warnings, and Claude's deny rules from
+a `--bg` chain session's `--settings` (a shared rule and a project's rule saved on the running service, both refused
+by the harness) are in [`verified.md`](verified.md). Not checked live: Claude deny rules in an SDK session (the same
+`--settings` through the Agent SDK), Huly deletion rules on Claude and Copilot (the server names Copilot gives the plugin gateway and the standalone
 server), Copilot's rules from a chain launch (the generated set held in the sandbox, its `rm -rf` ones only in their
 shape with `echo`: the model refused to run `rm -rf` itself), Codex
 under Windows session 0 and slot reuse, classic GitHub protection, a server actually rejecting a destructive push,
 the page's band for a remote after a real launch, and a project's own Protection rules over the shared ones reaching
-a new session without a restart. The adapter arguments, settings inheritance and API verdicts are covered by tests.
+a new session of an agent other than Claude Code without a restart. The adapter arguments, settings inheritance and API verdicts are covered by tests.
 If an agent ignores a native rule, equivalent destructive actions can still run. Inspect server rules directly,
 enforce protection there, and use a sandbox when available. A rule is not a security boundary. Check denial with
 harmless commands against a local bare remote; do not test destructive pushes or deletions on a real repository.
