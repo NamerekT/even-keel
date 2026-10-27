@@ -20,6 +20,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 8 | [Claude daemon replacement from the service](#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
 | 10 | [A Codex chain session reaching its own compaction](#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
+| 10a | [A task label selecting compaction](#a-task-label-selecting-compaction) | tasks using the compaction label | the session may still receive a handoff nudge |
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
 | 11a | [Mail resumed while a chain stops](#mail-resumed-while-a-chain-stops-btn-427) | chat users with a stop pending | a message may need sending again |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
@@ -219,6 +220,10 @@ With `keepWarm` above 0 a fork of a waiting Claude chain session asks for one wo
 ### Handoffs by context size turned off (BTN-255)
 
 With `contextHandoffs` off the checkpoint endpoint answers `source: "off"` and the hook asks for no handoff at any context size (`docs/sessions.md`, "Checkpoint threshold"). Checked by tests of the hook's plan and the settings levels, and on 2026-10-26 by the real `context-checkpoint.mjs` process against a fake endpoint: at 500k tokens it stayed silent on `source: "off"` and nudged on `calibration`. Not run: the service's own answer for a live session, and a real chain session past its threshold with the switch off, and its own compaction afterwards. Assumed: that the session's `checkpoint` package is 0.13.0 or later — an older one does not know `source: "off"` and keeps nudging at the threshold; that the agent's compaction then keeps the session going without a handoff. **Workaround:** if a session still gets the nudge, update the `checkpoint` package on `/tools` and press "New session"; to stop the nudges at once, set the threshold to its highest value as before.
+
+### A task label selecting compaction
+
+The label `Разрыв | компакция` pins a task's checkpoint threshold to 999999; the handoff label or no label inherits the project's threshold. The settings resolver is tested, but the path from a live tracker task through the service's checkpoint endpoint and the plugin has not been checked. If the label is not read, the task may receive handoff nudges. **Workaround:** pin the project's threshold in Settings and inspect the session's checkpoint endpoint.
 
 ### A key refused after it was added
 
