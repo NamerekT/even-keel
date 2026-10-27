@@ -137,6 +137,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=dialog` | the current session hangs on a startup dialog before its first turn |
 | `?chain=hung` | the current session is OpenCode's, its turn written nothing for 35 minutes and taken for hung |
 | `?chain=apiError\|apiRetry&agent=codex\|claude\|opencode\|copilot` | ABC-5 stopped on an API error and accepts a reply (`apiError`), or is still retrying and keeps "Send" locked (`apiRetry`). The agent defaults to Codex |
+| `?chain=transient&agent=codex\|claude\|opencode\|copilot` | ABC-5 waits on a temporary model refusal, with an amber waiting lamp and a same-session retry scheduled in 15 minutes; chat and "New session" remain available |
 | `?chain=ask` | ABC-5 is current and waits on an `AskUserQuestion` of two questions with Other and a preview; its feed has an answered one with the user's words and a file; "Send" answers in the fake |
 | `?chain=completion\|completion-long\|completion-question` | ABC-5 is merged but the tracker refuses Done: the project and card show its validator response and the tracker link; the lamp and session panel show the refusal instead of a reply prompt. The long variant checks wrapping; the question variant preserves a real session question alongside the refusal |
 | `?chain=unsaved` | the same question as the job file gives it, the transcript not having the call yet: single choices, no previews, the line about the lost message |

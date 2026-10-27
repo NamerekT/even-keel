@@ -187,7 +187,12 @@ export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>):
   if (view.lamp === 'working') throw fail('answer.busy', { task })
   const working = { ...view, lamp: 'working' as const, asking: false, ask: null, waitingFor: null, apiError: null, apiErrorKind: null }
   const dismissed = withMail(state, view.sessionId, (each) => (each.fate === 'returned' ? { ...each, fate: 'dismissed' } : each))
-  return { ...dismissed, sessions: state.sessions.map((each) => (each === view ? working : each)) }
+  const active = dismissed.chain.active.map((chain) => {
+    if (chain.current?.sessionId !== view.sessionId) return chain
+    const { limit: _limit, ...current } = chain.current
+    return { ...chain, current }
+  })
+  return { ...dismissed, chain: { ...dismissed.chain, active }, sessions: state.sessions.map((each) => (each === view ? working : each)) }
 }
 
 /** The fake hook: every message that waits is taken after a tool call. */

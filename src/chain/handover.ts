@@ -1,8 +1,9 @@
 import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
 import { isSpendingLimit } from '../limits/spending.js'
+import { LimitRetries } from '../limits/retry.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move } from './model.js'
 import { isOwnName } from './fix.js'
-import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession } from './relay.js'
+import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession, type LimitedSession } from './relay.js'
 
 const UNANSWERED_MS = 10 * 60_000
 
@@ -23,6 +24,8 @@ function settle(current: CurrentTask): void {
 // 1–3, 6 and 9): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
 // and when the task is back from an inactive status; and how long an unattended chain waits for a quiet one.
 export class Handovers {
+  private readonly transientRetries = new LimitRetries()
+
   constructor(
     private readonly state: ChainState,
     private readonly deps: DispatcherDeps,
@@ -37,7 +40,13 @@ export class Handovers {
 
   async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const session = this.deps.limited(current.task)
+    if (session?.transient === true) return this.followTransient(chain, current, session)
     if (session === undefined) {
+      const recovered = this.deps.handoff(current.task)
+      const hit = recovered === undefined ? null : this.transientRetries.lastAt(recovered.sessionId)
+      if (recovered?.lastReplyAt != null && hit !== null && Date.parse(recovered.lastReplyAt) > Date.parse(hit)) {
+        this.transientRetries.reset(recovered.sessionId)
+      }
       if (current.limit !== undefined && current.limit.acted === null) {
         delete current.limit
         this.deps.save(this.state)
@@ -74,6 +83,37 @@ export class Handovers {
       this.moved(chain, current, step, sessionId, session.sessionId)
       const how = step === 'resume' ? `resume in session ${sessionId}` : `handoff to new session ${sessionId} from ${session.sessionId}`
       this.deps.log(`chain: ${current.task}: continued after the limit by ${how}`)
+    } catch (error) {
+      this.halt(chain, noticeOf(error))
+    }
+    return true
+  }
+
+  private async followTransient(chain: ActiveChain, current: CurrentTask, session: LimitedSession): Promise<boolean> {
+    if (session.sessionId !== current.sessionId) return true
+    if (current.resumedAt !== undefined && Date.parse(session.limit.at) <= Date.parse(current.resumedAt)) return true
+    if (session.lastReplyAt !== null && Date.parse(session.lastReplyAt) > Date.parse(this.transientRetries.lastAt(session.sessionId) ?? session.limit.at)) {
+      this.transientRetries.reset(session.sessionId)
+    }
+    if (current.limit?.at !== session.limit.at) {
+      const resetsAt = this.transientRetries.retryAfter(session.sessionId, session.limit.at)
+      current.limit = { at: session.limit.at, account: session.account, resetsAt, lastReplyAt: session.lastReplyAt, then: 'resume', acted: null }
+      this.deps.save(this.state)
+      this.deps.log(`chain: ${current.task}: temporary model error; retry at ${resetsAt} in session ${session.sessionId}`)
+    }
+    const hold = current.limit
+    if (hold.acted !== null || hold.resetsAt === null || this.deps.now().getTime() < Date.parse(hold.resetsAt)) return true
+    if (this.deps.midTurn(current.task) || !this.deps.account(chain.project, current.task).ready || this.deps.blocked(chain.project, current.task) !== undefined) return true
+    hold.acted = 'resume'
+    begin(current, this.deps.now().toISOString(), 'resume')
+    this.deps.save(this.state)
+    try {
+      const prompt = this.deps.promptLanguage(current.task) === 'ru'
+        ? 'Продолжай: предыдущий запрос завершился временной ошибкой модели.'
+        : 'Continue: the previous request failed with a temporary model error.'
+      const sessionId = await this.deps.reply(current.task, session, prompt)
+      this.moved(chain, current, 'resume', sessionId, session.sessionId)
+      this.deps.log(`chain: ${current.task}: continued after a temporary model error in session ${sessionId}`)
     } catch (error) {
       this.halt(chain, noticeOf(error))
     }
@@ -234,6 +274,11 @@ export class Handovers {
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at
+    if (move === 'answer' || move === 'review') {
+      delete current.limit
+      this.transientRetries.reset(previous)
+    }
+    if (sessionId !== previous) this.transientRetries.reset(previous)
     settle(current)
     this.deps.save(this.state)
   }

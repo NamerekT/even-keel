@@ -52,6 +52,8 @@ export const en = {
   'chain.midTurn': (p: { task: string }) => `chain: ${p.task} is mid-turn; wait until its session stops`,
   'chain.notCurrent': (p: { task: string }) => `chain: ${p.task} is not the current task of a chain`,
   'chain.limitSpent': (p: { until: string }) => `chain: the usage limit is spent until ${p.until}; switch the account or wait`,
+  'session.transient': () => 'waiting to retry',
+  'session.transientRetry': (p: { at: string }) => `The model is temporarily unavailable. The dispatcher will retry this same session at ${p.at}. You can continue it now from the chat or start a new session.`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
   'chain.noAccountFor': (p: { task: string; label: string; provider: string }) =>
     `chain: ${p.task} is labelled ${p.label}, but no account of that provider is in the pool; it runs on ${p.provider}, as its project does`,

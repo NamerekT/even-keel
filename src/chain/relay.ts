@@ -118,6 +118,8 @@ export function warmSince(session: HandoffSession, now: number, warmMs = WARM_CA
 
 export interface LimitedSession extends HandoffSession {
   limit: { at: string; text: string }
+  /** An overload refusal: retry the same session rather than waiting for an account's allowance. */
+  transient?: true
   /** How long the cache stays warm after the last reply (`warmCacheMs`); absent — `WARM_CACHE_MS`, a subscription's. */
   warmMs?: number
 }

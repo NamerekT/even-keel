@@ -118,6 +118,9 @@ export class SessionMonitor {
     const apiKey = this.options.apiKey(account)
     const waited = apiKey ? (this.options.keyLimits?.(account) === true ? ['credit', 'spend', 'limit'] : ['credit', 'spend']) : ['limit']
     const { apiError, cache } = tracked.transcript.summary()
+    if (apiError?.kind === 'transient' && !this.holds.held(session.sessionId) && lampOf(tracked.agent, apiError.kind) === 'waiting') {
+      return { ...session, transient: true, limit: { at: apiError.at, text: apiError.text } }
+    }
     if (apiError === null || !waited.includes(apiError.kind) || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
     const limited = { ...session, limit: { at: apiError.at, text: apiError.text } }
     return apiKey ? { ...limited, warmMs: warmCacheMs(cache?.ttl ?? null) } : limited

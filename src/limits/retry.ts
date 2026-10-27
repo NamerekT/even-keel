@@ -37,6 +37,11 @@ export class LimitRetries {
   lastAt(key: string): string | null {
     return this.hits.get(key)?.at(-1)?.at ?? null
   }
+
+  /** A successful session answer or a human continuation starts the retry ladder over. */
+  reset(key: string): void {
+    this.hits.delete(key)
+  }
 }
 
 /**

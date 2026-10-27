@@ -1,5 +1,6 @@
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
+import { isTransientError } from '../sessions/transient.js'
 import {
   callFacts,
   checkpointOf,
@@ -249,7 +250,7 @@ class SessionFold {
 
   private pushError(at: string, error: Json): void {
     const brief = flatten(errorText(error), TEXT_LIMIT)
-    const kind = CREDIT_TEXT.test(brief) ? 'credit' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
+    const kind = CREDIT_TEXT.test(brief) ? 'credit' : isTransientError(JSON.stringify(error)) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
     this.apiError = { kind, text: brief, at }
     this.addFeed({ at, kind: 'error', text: brief })
   }

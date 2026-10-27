@@ -257,9 +257,9 @@ const LAUNCH_GRACE_MS = 5 * 60_000
  */
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null, now = Date.now()): Lamp {
   if (agent === undefined || agent.state === 'stopped' || (agent.state === 'done' && !isLive(agent))) return 'finished'
-  if (agent.state === 'failed') return 'error'
+  if (agent.state === 'failed' && apiError !== 'transient') return 'error'
   if (!isLive(agent) && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
-  const error = apiError === 'credit' || apiError === 'spend' ? 'limit' : apiError
+  const error = apiError === 'credit' || apiError === 'spend' ? 'limit' : apiError === 'transient' ? 'waiting' : apiError
   if (agent.status === 'busy' || (agent.status === 'shell' && agent.state !== 'blocked' && error !== 'limit')) return 'working'
   if (error !== null) return error
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'

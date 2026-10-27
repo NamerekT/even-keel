@@ -1,6 +1,7 @@
 import type { ChainState } from '../chain/model.js'
 import type { CacheTtl, TurnSpend } from '../state.js'
 import { TTL_MS, type CacheWindow } from './transcript.js'
+import { isTransientError } from './transient.js'
 
 /** How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. */
 const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '5m': 60_000 }
@@ -59,13 +60,14 @@ export interface WarmTask {
 
 /**
  * The tasks a running chain will go on in a session of: its current one, unless it is starting, being moved or on a
- * limit, and those whose pull request is open (BTN-205). A paused or halted chain, or one waiting on a limit, has none.
+ * limit with a handoff planned, and those whose pull request is open (BTN-205). A paused or halted chain has none;
+ * warmStep excludes actual limits, while a temporary model error waiting for a resume remains eligible.
  */
 export function warmTasks(state: ChainState): WarmTask[] {
   return state.active.flatMap((chain) => {
     if (chain.paused || chain.error !== null || chain.limitUntil !== undefined) return []
     const { current } = chain
-    const leads = current !== null && current.sessionId !== null && current.starting === undefined && current.limit === undefined
+    const leads = current !== null && current.sessionId !== null && current.starting === undefined && (current.limit === undefined || current.limit.then === 'resume')
     const own: WarmTask[] = leads ? [{ task: current.task, sessionId: current.sessionId }] : []
     const reviewed = (state.reviews[chain.project] ?? []).filter((pull) => pull.closed === undefined && pull.task !== current?.task)
     return [...own, ...reviewed.map((pull) => ({ task: pull.task, sessionId: null }))]
@@ -86,7 +88,7 @@ export interface KeepWarmDeps {
 /**
  * Keeps the prompt cache of a session that waits warm (BTN-437): a fork of it with no transcript asks for one word
  * shortly before the cache goes cold, and the API reads the same prefix again. A miss or a failure turns it off for
- * that session until a restart; what it sent is kept in memory, so after a restart a cache looks cold and is let go.
+ * that session until a restart, except an overload refusal, which is skipped; what it sent is kept in memory.
  */
 export class KeepWarm {
   private readonly memory = new Map<string, WarmMemory>()
@@ -133,6 +135,10 @@ export class KeepWarm {
       this.memory.set(sessionId, { stretch, pings, warmedAt: now.toISOString() })
       this.deps.log(`keepwarm: ${task}: the ping ${pings} kept the cache of ${sessionId} warm (${read})`)
     } catch (error) {
+      if (isTransientError((error as Error).message)) {
+        this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) skipped: ${(error as Error).message}`)
+        return
+      }
       this.off.add(sessionId)
       this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) failed: ${(error as Error).message}; not kept warm until a restart`)
     } finally {
