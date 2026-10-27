@@ -38,6 +38,8 @@ export const en = {
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',
   'jira.incomplete': () => 'Fill in the site address, the e-mail and the API token of the Jira profile in Trackers and CI.',
+  'jira.mcpSite': () => 'The MCP token cannot see this Jira site. Enable API token authentication for the Atlassian MCP server in your organization’s admin settings, then create a new Atlassian MCP V2 token.',
+  'jira.mcpToken': () => 'The Atlassian MCP server refused the MCP token. Enable API token authentication in your organization’s admin settings, then create a new Atlassian MCP V2 token for this e-mail.',
   'jira.blocksType': (p: { types: string }) =>
     `Jira has no issue link type named Blocks (it has: ${p.types || 'none'}), and Even Keel orders the chain by it. Give a link type that name back in Jira's settings, Issue linking.`,
   text: (p: { text: string }) => p.text,

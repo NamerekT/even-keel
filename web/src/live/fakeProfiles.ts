@@ -36,6 +36,7 @@ const KINDS: ProfileKindView[] = [
       { name: 'JIRA_URL', secret: false },
       { name: 'JIRA_EMAIL', secret: false },
       { name: 'JIRA_TOKEN', secret: true },
+      { name: 'JIRA_MCP_TOKEN', secret: true },
     ],
     hostVariables: ['JIRA_URL'],
     alternatives: [],
@@ -220,6 +221,7 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   const title = KINDS.find((each) => each.kind === kind)?.title ?? kind
   const values = (body.values ?? {}) as Record<string, string | null>
   if (name === 'profiles/check' && kind === 'forgejo' && values.FORGEJO_URL === 'https://gitlab.com') throw fail('profiles.isGitlab', { host: 'gitlab.com' })
+  if (name === 'profiles/check' && kind === 'jira' && values.JIRA_MCP_TOKEN === 'no-site') throw fail('jira.mcpSite', {})
   if (name === 'profiles/projects') {
     const profile = state.profiles.profiles.find((each) => each.id === body.id)
     const query = String(body.query ?? '').toLowerCase()

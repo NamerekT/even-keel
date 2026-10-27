@@ -24,15 +24,16 @@ Jira has no CI: CI and PR mode come from the project's git remote.
 
 ## Plugin
 
-On `/tools`, add `jira@even-keel` to the project. It brings `jira:task` and the official [Atlassian Rovo MCP server](https://support.atlassian.com/atlassian-rovo-mcp-server/docs/configuring-authentication-via-api-token/) (`https://mcp.atlassian.com/v2/mcp`). The server takes the same API token in a Basic header; the gateway builds that header from the profile's `JIRA_EMAIL` and `JIRA_TOKEN`, and sessions see only the local gateway.
+On `/tools`, add `jira@even-keel` to the project. It brings `jira:task` and the official [Atlassian Rovo MCP server](https://support.atlassian.com/atlassian-rovo-mcp-server/docs/configuring-authentication-via-api-token/) (`https://mcp.atlassian.com/v2/mcp`). It needs a separate **Atlassian MCP V2 token (optional)** in the Jira profile (`JIRA_MCP_TOKEN`). The gateway builds its Basic header from `JIRA_EMAIL` and `JIRA_MCP_TOKEN`; REST still uses `JIRA_TOKEN`. Sessions see only the local gateway. Without the MCP token the package reports the missing `JIRA_MCP_TOKEN`; projects without the plugin do not need it.
 
-Two things only the Atlassian organization admin can do, otherwise the server gives a session no Jira tools:
+Set up MCP authentication in this order:
 
-- turn on API token authentication for the Rovo MCP server in the organization's settings;
-- the token must be one with scopes: with a classic token the server answers with Teamwork Graph tools only. Give it the Jira scopes Atlassian lists for the MCP server (`read:jira:agent-interface`, `write:jira:agent-interface`, `search:jira:agent-interface`) on top of what the adapter needs.
+1. Ask the organization admin to turn on **API token** authentication in the organization's settings: Connectors → Atlassian MCP server → Authentication.
+2. [Create a token for the Atlassian MCP V2 application, with all scopes](https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all), using the profile's e-mail. A classic REST token or a scoped token for the Jira application cannot replace it.
+3. Enter it in the profile and press **Check**. Even Keel calls `getAccessibleAtlassianResources` and requires the profile's site in the result. An empty list or another site means the token has no access: create it again after enabling API token authentication. `tools/list` can succeed even for a token whose Jira calls fail.
 
 A community server was not chosen: the official one accepts the API token as it is and keeps up with Jira's API.
 
-For sessions started by hand, add the Even Keel marketplace and run `claude plugin install jira@even-keel --scope project`, and supply `JIRA_BASIC_AUTH` — the base64 of `e-mail:token` — in the session environment. Leave `brief` on auto: the plugin then reads the issue itself.
+For sessions started by hand, add the Even Keel marketplace and run `claude plugin install jira@even-keel --scope project`, and supply `JIRA_BASIC_AUTH` — the base64 of `e-mail:MCP-token`, using the separate Atlassian MCP V2 token — in the session environment. Leave `brief` on auto: the plugin then reads the issue itself.
 
 End-to-end Jira and MCP checks are tracked in [What has not been verified](../../docs/unverified.md#jira-cloud).

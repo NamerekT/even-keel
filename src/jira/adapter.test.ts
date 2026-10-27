@@ -20,16 +20,18 @@ describe('Jira adapter registration', () => {
   })
 
   it('keeps the profile out of the sessions', () => {
-    expect(sessionBase({ ...VALUES, PATH: 'bin' })).toEqual({ PATH: 'bin' })
+    expect(sessionBase({ ...VALUES, JIRA_MCP_TOKEN: 'mcp-token', PATH: 'bin' })).toEqual({ PATH: 'bin' })
   })
 
   it('hands the gateway the Basic header of the e-mail and the token, and names what is missing', () => {
     const entry = JSON.parse(readFileSync(new URL('../../plugins/jira/.mcp.json', import.meta.url), 'utf8')).mcpServers.jira
-    const keys = keysOf('jira', entry, trackerKeyRules(), VALUES)
+    const keys = keysOf('jira', entry, trackerKeyRules(), { ...VALUES, JIRA_MCP_TOKEN: 'mcp-token' })
     expect(keys.missing).toEqual([])
-    expect(keys.names).toEqual(['JIRA_EMAIL', 'JIRA_TOKEN'])
-    const header = `Basic ${Buffer.from('john.doe@example.com:example-token').toString('base64')}`
+    expect(keys.names).toEqual(['JIRA_EMAIL', 'JIRA_MCP_TOKEN'])
+    const header = `Basic ${Buffer.from('john.doe@example.com:mcp-token').toString('base64')}`
     expect(substitute(entry, keys.values)).toMatchObject({ headers: { Authorization: header } })
-    expect(keysOf('jira', entry, trackerKeyRules(), { JIRA_EMAIL: VALUES.JIRA_EMAIL }).missing).toEqual(['JIRA_TOKEN'])
+    expect(keysOf('jira', entry, trackerKeyRules(), VALUES).missing).toEqual(['JIRA_MCP_TOKEN'])
+    expect(() => jira.setup({ JIRA_MCP_TOKEN: 'mcp-token' }, {})).toThrow()
+    expect(jira.setup({ ...VALUES, JIRA_MCP_TOKEN: 'mcp-token' }, {})).toBeDefined()
   })
 })

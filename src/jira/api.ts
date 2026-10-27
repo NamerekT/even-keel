@@ -5,6 +5,7 @@ import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 export const JIRA_URL = 'JIRA_URL'
 export const JIRA_EMAIL = 'JIRA_EMAIL'
 export const JIRA_TOKEN = 'JIRA_TOKEN'
+export const JIRA_MCP_TOKEN = 'JIRA_MCP_TOKEN'
 
 /** Where Atlassian routes the REST calls of a token with scopes: the site's own address refuses such a token. */
 const GATEWAY = 'https://api.atlassian.com/ex/jira'
