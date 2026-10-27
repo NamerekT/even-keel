@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { guard, tokenForm, type GuardSettings } from './guard.js'
+import { guard, isOAuthCallback, oauthCallbackCookie, tokenForm, type GuardSettings } from './guard.js'
+import { oauthCallbackPage } from './profiles/oauth-response.js'
 
 const MAX_REPORTED = 100
 
@@ -7,6 +8,7 @@ export function guardedServer(settings: () => GuardSettings, handle: (request: I
   const reported = new Set<string>()
   return createServer((request, response) => {
     const current = settings()
+    const callback = isOAuthCallback({ method: request.method ?? 'GET', url: request.url ?? '/' })
     const verdict = guard(current, {
       method: request.method ?? 'GET',
       url: request.url ?? '/',
@@ -27,12 +29,20 @@ export function guardedServer(settings: () => GuardSettings, handle: (request: I
         reported.add(verdict.reason)
         console.warn(`guard: refused ${request.method} ${request.url?.split('?')[0]}: ${verdict.reason}`)
       }
+      if (callback) {
+        oauthCallbackPage(response, verdict.status)
+        return
+      }
       if (verdict.status === 401 && current.token !== null && request.method === 'GET' && !(request.url ?? '/').startsWith('/api/')) {
         response.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(tokenForm(current.language))
         return
       }
       response.writeHead(verdict.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end(verdict.reason)
       return
+    }
+    if (current.token !== null && request.method === 'POST' && request.url?.split('?')[0] === '/api/profiles/oauth/start') {
+      response.setHeader('set-cookie', oauthCallbackCookie(current.token))
+      response.setHeader('cache-control', 'no-store')
     }
     handle(request, response).catch((error: unknown) => {
       if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
