@@ -12,6 +12,7 @@ import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAc
 import { forgetKeyOrganization, loadKeyOrganizations, saveKeyOrganization } from './account/organizations.js'
 import { executionOfChoices, transportOf } from './account/transport.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
+import { currentAccount } from './account/current.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
@@ -810,12 +811,7 @@ const sessionAccount = (sessionId: string | null, at: string | null): string | n
 }
 
 /** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
-const accountNow = (key = account.view.active) => {
-  const view = account.view
-  const entry = view.accounts.find((each) => each.key === key)
-  const email = entry?.status?.loggedIn === true ? entry.status.email : null
-  return { id: accountId(key, email), ready: email !== null && launchBlock(view, key) === undefined }
-}
+const accountNow = (key = account.view.active) => currentAccount(account.view, key)
 
 const contextWindows = new ContextWindows({
   probe: async (key, model, task) => {
