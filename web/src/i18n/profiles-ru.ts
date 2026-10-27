@@ -2,7 +2,7 @@ import type { RightsUse } from './ru.js'
 
 export const profilesRu = {
     title: 'Профили трекеров и CI',
-    hint: 'Проект работает на профиле своего трекера. Профиль трекера по умолчанию идёт и сессиям, запущенным вручную (env ~/.claude/settings.json), и CI GitHub Actions проектов других трекеров. CI Forgejo берёт профиль Forgejo на хосте своего remote.',
+    hint: 'Проект работает на профиле своего трекера. Профиль трекера по умолчанию идёт и сессиям, запущенным вручную (env ~/.claude/settings.json), и CI GitHub Actions проектов других трекеров. CI Forgejo берёт профиль Forgejo на хосте своего remote, CI GitLab — профиль GitLab своего сервера.',
     none: 'Профилей нет: без профиля цепочка не читает задачи трекера.',
     add: 'Добавить профиль',
     addGitlab: 'Добавить профиль GitLab',

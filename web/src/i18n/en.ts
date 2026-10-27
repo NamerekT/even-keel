@@ -212,7 +212,7 @@ export const en: Messages = {
     heading: 'Status',
     trim: 'Trim the tools',
     trimHint:
-      'Chain sessions start without claude.ai skills and plugins, and the service bundled skills (hiddenSkills in the config) work only through /name. Settings files stay as they are. Applies from the next launch.',
+      'Chain sessions start without claude.ai skills and plugins, and the skills of "Hidden skills" below work only through /name. Settings files stay as they are. Applies from the next launch.',
     unattended: 'Unattended',
     unattendedHint:
       'For when nobody will answer, e.g. overnight. Sessions ask no questions: a task held by one is committed on its branch unmerged, the question is left in the task and the task goes to Backlog. A session idle for 10 minutes without Done is skipped.',
@@ -598,7 +598,7 @@ export const en: Messages = {
     signedIn: (login: string) => `signed in as ${login}`,
     trackerField: 'Project in the tracker',
     projectHint: (title: string) => `Its identifier in ${title} becomes the key of the tasks, their branches and the stats.`,
-    repoPlaceHint: 'owner/name; its issues become the tasks.',
+    repoPlaceHint: 'The path from its address: owner/name on GitHub, group/project on GitLab; its issues become the tasks.',
     team: 'Team key',
     teamHint: (title: string) => `The team's key in ${title}, as in its issue ids: ENG-12.`,
     match: (key: string, name: string) => `${key} — ${name}`,
@@ -903,7 +903,7 @@ export const en: Messages = {
       'Off: a session without a tracker task fixes a red main, and the working session is stopped until it is done, then goes on with a note. On: the chain creates a fix task and takes it after the current one. The same for a failed check of main.',
     pullRequests: 'Pull requests instead of merging (experimental)',
     pullRequestsHint:
-      'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; reviews asking for changes, a failed CI or a conflict go back to the task\'s session. Experimental, use at your own risk: only opening, closing and merging on GitHub ran live; Forgejo, GitLab merge requests and the feedback to the session never ran against a real repository.',
+      'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request (a merge request on GitLab) and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; review comments, a failed CI or a conflict go back to the task\'s session. Experimental, use at your own risk: it ran live on GitHub, Forgejo and GitLab, but on few repositories so far.',
     pullNoRemote: 'The repository has no remote on GitHub, GitLab or Forgejo to open pull requests on: add one to it.',
     pullUnsupported: (host: string) => `${host} is not supported for pull requests: only GitHub, GitLab and Forgejo are.`,
     pullNoToken: (forge: string, remote: string) => `No ${forge} profile has a token for the remote ${remote}: add one.`,
@@ -912,7 +912,7 @@ export const en: Messages = {
     pullProfileIdle: 'A profile is added here once the remote of the pull requests has none with a token.',
     remoteProfile: (kind: string) => `${kind} profile`,
     remoteProfileHint:
-      'Whose token the CI of the project\'s remote and its pull requests use. Automatic: GitHub takes the project\'s tracker profile when it is a GitHub one, else the default GitHub profile; Forgejo takes the default profile on the remote\'s host.',
+      'Whose token the CI of the project\'s remote and its pull requests use. Automatic: GitHub takes the project\'s tracker profile when it is a GitHub one, else the default GitHub profile; Forgejo takes the default profile on the remote\'s host; GitLab takes the project\'s tracker profile when it is a GitLab one on that server, else the default profile there.',
     remoteAuto: 'Automatic',
     remoteGone: 'A removed profile (automatic)',
     fillMilestone: 'Give the active milestone to tasks without one',
@@ -960,7 +960,7 @@ export const en: Messages = {
       "Places in other trackers or profiles whose tasks join this project's chain, in the same repository. Each is read by its own profile and chain rules (the profile's, then the project's own). There are no blocks across trackers.",
     feedsNone: (tracker: string) => `None: the chain takes tasks only from ${tracker}, as set above. A feed adds the tasks of another tracker or profile.`,
     feedKey: 'Key',
-    feedKeyHint: 'Task IDs of a GitHub feed are KEY-<number>; Huly and Linear keep their own. The prefix must be unique among projects and feeds.',
+    feedKeyHint: 'Task IDs of a GitHub or GitLab feed are KEY-<number>; Huly, Linear and Jira keep their own. The prefix must be unique among projects and feeds.',
     feedAdd: 'Add a feed',
     feedRemoveQuestion: (key: string) => `Remove the feed ${key}? Its closed tasks stay on the page for 7 days.`,
     feedLocked: 'The chain has started tasks of this feed: its profile stays. Remove it and add another to change it.',
@@ -1069,7 +1069,7 @@ export const en: Messages = {
     providerHint: 'For projects that name none of their own.',
     modelHint:
       "As it goes to the CLI: opus, gpt-6.1-sol. For projects and tasks that name none of their own. Empty — the CLI's default: for Claude Code the model of settings.json, which an editor may have just changed.",
-    accountHint: 'For projects that name none of their own; the Claude Code one is also switched from the header. One per provider, no rotation on a spent limit.',
+    accountHint: 'For projects that name none of their own; also switched from the header, by moving Even Keel to another account on its card. One per provider, no rotation on a spent limit.',
     execution: 'Execution',
     executionOf: (provider: string) => `Execution on ${provider}`,
     executionHint:
