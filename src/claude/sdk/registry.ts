@@ -1,5 +1,4 @@
-import { mkdirSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Ask } from '../../sessions/ask.js'
 import type { AgentEntry, AgentStatus } from '../../sessions/agents.js'
@@ -41,14 +40,27 @@ export class SdkRegistry {
   }
 
   async list(account: string): Promise<SdkSession[]> {
-    const names = await readdir(this.sessionsDir).catch(() => [])
-    const texts = await Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => readFile(join(this.sessionsDir, name), 'utf8').catch(() => '')))
-    return texts.map(parseSdkSession).filter((session): session is SdkSession => session !== undefined && session.account === account)
+    let names: string[]
+    try {
+      names = readdirSync(this.sessionsDir)
+    } catch {
+      return []
+    }
+    return names.filter((name) => name.endsWith('.json')).map((name) => this.read(name.slice(0, -5)))
+      .filter((session): session is SdkSession => session !== undefined && session.account === account)
   }
 
   async get(sessionId: string): Promise<SdkSession | undefined> {
     if (!/^[\w-]+$/.test(sessionId)) return undefined
-    return parseSdkSession(await readFile(join(this.sessionsDir, `${sessionId}.json`), 'utf8').catch(() => ''))
+    return this.read(sessionId)
+  }
+
+  private read(sessionId: string): SdkSession | undefined {
+    try {
+      return parseSdkSession(readFileSync(join(this.sessionsDir, `${sessionId}.json`), 'utf8'))
+    } catch {
+      return undefined
+    }
   }
 
   save(session: SdkSession): void {
