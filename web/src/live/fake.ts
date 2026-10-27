@@ -395,9 +395,10 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (current.state !== null && params.has('protection')) current.state = withProtection(current.state, params.get('protection')!)
   const active = current.state?.chain.active[0]
-  if (['apiError', 'apiRetry', 'transient'].includes(params.get('chain') ?? '') && current.state !== null && active) {
+  if (['apiError', 'apiRetry', 'transient', 'streamError'].includes(params.get('chain') ?? '') && current.state !== null && active) {
     const agent = params.get('agent') ?? 'codex'
     const transient = params.get('chain') === 'transient'
+    const diagnostic = params.get('chain') === 'streamError' ? notice('opencode.streamError', {}) : undefined
     const error = transient || params.get('chain') === 'apiRetry' ? 'The model is at capacity. Try again later.' : 'The requested model is not supported.'
     const failed: SessionView = {
       ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : transient ? 'waiting' : 'error'),
@@ -405,13 +406,14 @@ export function createFakeSource(search: string): LiveSource {
       model: null,
       apiErrorKind: transient || params.get('chain') === 'apiRetry' ? 'transient' : 'error',
       apiError: error,
+      ...(diagnostic === undefined ? {} : { apiErrorNotice: diagnostic }),
       asking: false,
       ask: null,
       waitingFor: null,
       feed: [
         { at: ago(2), kind: 'text', text: 'Checking the chain order before the next edit.' },
         { at: ago(1), kind: 'tool', text: 'Read src/chain/order.ts' },
-        { at: ago(0), kind: 'error', text: error },
+        { at: ago(0), kind: 'error', text: error, ...(diagnostic === undefined ? {} : { notice: diagnostic }) },
       ],
       remoteUrl: null,
       remoteOff: 'no-bridge',
@@ -685,7 +687,7 @@ export function createFakeSource(search: string): LiveSource {
       if (sessionId.endsWith('999')) return null
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
-      if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
+      if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
       if (after === 0) return { lines: fakeTranscript(view?.ask ?? null), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },

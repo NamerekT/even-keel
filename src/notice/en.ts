@@ -212,6 +212,7 @@ export const en = {
     `opencode: ${p.task} was resumed as ${p.asked} but came up as the session ${p.got}`,
   'opencode.unknownSession': (p: { session: string }) => `opencode: Even Keel did not start the session ${p.session}`,
   'opencode.stillRunning': (p: { session: string }) => `opencode: the turn of ${p.session} was killed but is still running`,
+  'opencode.streamError': () => 'OpenCode reported a stream error and is waiting. Send a reply to retry, or choose “New session”.',
 
   'copilot.startFailed': (p: { task: string; cwd: string }) => `copilot: could not start ${p.task} in ${p.cwd}`,
   'copilot.resumeFailed': (p: { task: string; cwd: string }) => `copilot: could not resume ${p.task} in ${p.cwd}`,

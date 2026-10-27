@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { closeSync, existsSync, openSync, readdirSync, readFileSync } from 'node:fs'
-import { readFile, rm, stat } from 'node:fs/promises'
+import { appendFile, readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
@@ -19,6 +19,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { sessionList, sessionStamp } from './db.js'
 import { keepOwnInstructions, parseAuth, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
+import { OpenCodeLog } from './log.js'
 
 const run = promisify(execFile)
 
@@ -28,6 +29,8 @@ const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
 /** How long a live turn may write nothing before it is taken for hung (`hungEntry`): a long build or test run fits in. */
 export const TURN_HANG_MS = 30 * 60_000
+export const LOG_SILENCE_MS = 30_000
+const STREAM_ERROR_EVENT = 'even_keel_stream_error'
 /** Copilot's sign-in asks GitHub.com or Enterprise first; Enter takes GitHub.com. */
 const SELECT_DELAY_MS = 3_000
 
@@ -215,7 +218,7 @@ export interface TurnError {
 /** The error event a turn of the session ended on, read from the end of its output: an error is always the last event. */
 export function turnError(tail: string, sessionId: string): TurnError | undefined {
   const event = lastEvent(tail)
-  if (event?.type !== 'error' || event.sessionID !== sessionId || typeof event.timestamp !== 'number') return undefined
+  if (!['error', STREAM_ERROR_EVENT].includes(String(event?.type)) || event?.sessionID !== sessionId || typeof event.timestamp !== 'number') return undefined
   const error = event.error
   return { at: event.timestamp, error: typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : {} }
 }
@@ -238,6 +241,8 @@ function parse(line: string): Record<string, unknown> | undefined {
 }
 
 export class OpenCodeCli {
+  private readonly logs = new OpenCodeLog()
+
   constructor(
     private readonly bin: () => string,
     private readonly timeoutMs: number,
@@ -279,7 +284,16 @@ export class OpenCodeCli {
       sessions.map(async (session) => {
         const live = session.stopped !== true && (await this.turnLive(session))
         const entry = entryOf(session, live, OPENCODE)
+        if (live && lastEvent(await outputTail(session.out))?.type === STREAM_ERROR_EVENT) return { ...entry, status: 'idle' }
         const changed = live ? await lastChange(home, session) : undefined
+        if (changed !== undefined && Date.now() - changed >= LOG_SILENCE_MS) {
+          const error = await this.logs.error(join(home.dir, 'data', 'opencode', 'log', 'opencode.log'), session.sessionId, Math.max(changed, turnStartedAt(session.out) ?? 0))
+          // Recheck after the log read: another event or a changed row means the turn is no longer silent.
+          if (error !== undefined && await lastChange(home, session) === changed && await this.turnLive(session)) {
+            await appendFile(session.out, `\n${JSON.stringify({ type: STREAM_ERROR_EVENT, sessionID: session.sessionId, timestamp: error.at, error: { ...error.error, evenKeelStreamError: true } })}\n`)
+            return { ...entry, status: 'idle' }
+          }
+        }
         return changed === undefined ? entry : hungEntry(entry, changed, Date.now())
       }),
     )

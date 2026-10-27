@@ -263,7 +263,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
   const note =
-    session.apiError ??
+    (session.apiErrorNotice === undefined ? session.apiError : say(session.apiErrorNotice)) ??
     (waits
       ? t.session.waits(session.waitingFor!)
       : session.startupDialog !== null
@@ -574,7 +574,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
                 </Fact>
               )}
             </FactList>
-            {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
+            {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
             <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} whole />
           </>
         )}

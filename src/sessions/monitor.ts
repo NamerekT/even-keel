@@ -231,6 +231,7 @@ function toView(
     ask,
     apiError: summary.apiError?.text ?? null,
     apiErrorKind: summary.apiError?.kind ?? null,
+    ...(summary.apiError?.notice === undefined ? {} : { apiErrorNotice: summary.apiError.notice }),
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,

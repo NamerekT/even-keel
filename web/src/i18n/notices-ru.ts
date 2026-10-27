@@ -198,6 +198,7 @@ export const noticesRu: NoticeTexts = {
   'opencode.otherSession': (p) => `OpenCode: ${p.task} продолжали как ${p.asked}, а поднялась сессия ${p.got}`,
   'opencode.unknownSession': (p) => `OpenCode: сессию ${p.session} запускал не Even Keel`,
   'opencode.stillRunning': (p) => `OpenCode: ход ${p.session} убит, но ещё идёт`,
+  'opencode.streamError': () => 'OpenCode сообщил об ошибке потока и ждёт. Отправьте ответ для повтора или нажмите «Новая сессия».',
 
   'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
   'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,

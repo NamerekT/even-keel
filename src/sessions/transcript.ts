@@ -1,4 +1,5 @@
 import { isSpendingLimit } from '../limits/spending.js'
+import type { Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { mailIn } from './mail.js'
@@ -30,6 +31,8 @@ const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
 
 export interface FeedLine {
   at: string
+  /** A service diagnostic translated by the page. */
+  notice?: Notice
   /** `image` and `failed` only in a whole transcript: the result of call `tool` holds pictures, or is an error. */
   kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image' | 'failed'
   /**
@@ -103,7 +106,7 @@ export interface TranscriptSummary {
   feed: FeedLine[]
   remoteUrl: string | null
   remoteLost: boolean
-  apiError: { kind: ApiErrorKind; text: string; at: string } | null
+  apiError: { kind: ApiErrorKind; text: string; at: string; notice?: Notice } | null
   lastMessage: string | null
   checkpoint: string | null
   /** The path of the last response's `PULL REQUEST: <path>` line: PR mode's mark of a task done (BTN-205). */

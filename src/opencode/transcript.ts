@@ -1,6 +1,7 @@
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
+import { englishOf, notice } from '../notice/notice.js'
 import {
   callFacts,
   checkpointOf,
@@ -251,8 +252,10 @@ class SessionFold {
   private pushError(at: string, error: Json): void {
     const brief = flatten(errorText(error), TEXT_LIMIT)
     const kind = CREDIT_TEXT.test(brief) ? 'credit' : isTransientError(JSON.stringify(error)) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
-    this.apiError = { kind, text: brief, at }
-    this.addFeed({ at, kind: 'error', text: brief })
+    const diagnostic = error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
+    const text = diagnostic === undefined ? brief : englishOf(diagnostic)
+    this.apiError = { kind, text, at, ...(diagnostic === undefined ? {} : { notice: diagnostic }) }
+    this.addFeed({ at, kind: 'error', text, ...(diagnostic === undefined ? {} : { notice: diagnostic }) })
   }
 
   /** The chat's messages handed to the session, as the user's prompts, each id once; whether `text` held any. */
