@@ -215,6 +215,10 @@ Every handoff (limit, "New session", checkpoint, a returned task) leaves a snaps
 
 The dispatcher may stop waiting for a session (without touching it) if it is not mid-turn (`busy`/`waiting`): the current task got an open blocker from the same chain (the session postponed it itself, `postpone` in the log) or the user pressed "Skip" (`skip`). The chain does not take a skipped task until the user returns it or it leaves the chain in the tracker (closed, in Backlog). "Skip" is refused for any task whose session is mid-turn, also one released by "Stop": otherwise a restarted chain would launch the next task beside it instead of taking the live session again.
 
+## What the dispatcher owns (invariant 2)
+
+The tracker is the source of truth for statuses; the dispatcher keeps no status of its own. It owns only: the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup and those of them that left for an inactive status after their session's turn (`shelved`), cleanup warnings, unattended mode, the "trim the tools" switch, the questions it posted to the tracker, the pull requests it opened for tasks in PR mode, the GitHub issues it took into a tracker until they are closed (`docs/trackers.md`), the carries of release projects it holds after a conflict (in memory, "Carrying a release project forward") and the CI verdicts on main: the last green commit, the push it waits on (for the CI or for the project's own check) and the fix of a red main — the session it started for it, or the task it created — with the task whose session it stopped for the fix. Something new the dispatcher must remember goes on this list, never into a status.
+
 ## Unattended mode (`unattended`)
 
 A switch on `/settings`, the Chain group — for when nobody is there to answer, for example at night. Stored in `state/chain.json` (`unattended`, the command `chain/unattended` with `{ on }`); when on, there is the banner `UnattendedBanner`.
