@@ -1814,7 +1814,10 @@ let server = createEvenKeelServer({
         readerTasks.set(reader, updated)
         readerTasks.setTasks(reader, updated)
       }
-      hub.broadcast('state', getState())
+      // The read gives a task that entered the chain without a milestone the chain's one before the page shows it.
+      const refresh = refreshers.get(reader)
+      if (refresh === undefined) hub.broadcast('state', getState())
+      else await refresh()
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {

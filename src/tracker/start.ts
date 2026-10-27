@@ -126,6 +126,14 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     }
   }
 
+  const refreshing = new Map<string, Promise<void>>()
+  /** One job on the project at a time: a read or a fill asked for during another goes after it, so it sees the newer list. */
+  const queued = (project: string, job: () => Promise<void>): Promise<void> => {
+    const next = (refreshing.get(project) ?? Promise.resolve()).then(job)
+    refreshing.set(project, next)
+    return next
+  }
+
   const poller = new StatusPoller({
     link,
     watched: () => ownTasks().map((task) => task.id),
@@ -141,6 +149,8 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
         })
         tasksByProject.set(project, updated)
         dispatcher.setTasks(project, updated)
+        // A task a new status brings into the chain gets its milestone now, not at the next read.
+        void queued(project, () => fillMilestones(project).catch(report))
       }
       broadcast()
     },
@@ -151,13 +161,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   })
 
   const unknownByProject = new Map<string, string>()
-  const refreshing = new Map<string, Promise<void>>()
-  /** One read of the project at a time: a read asked for during another goes after it, so its list is the newer one. */
-  const refreshProject = (project: string): Promise<void> => {
-    const next = (refreshing.get(project) ?? Promise.resolve()).then(() => readProject(project))
-    refreshing.set(project, next)
-    return next
-  }
+  const refreshProject = (project: string): Promise<void> => queued(project, () => readProject(project))
   const reads = new Map<string, Promise<ChainTasks>>()
   /** The tracker's open tasks of the project; a read of the same tracker project by the same statuses under way is joined. */
   const chainTasks = (project: string, rules: ChainRules): Promise<ChainTasks> => {
