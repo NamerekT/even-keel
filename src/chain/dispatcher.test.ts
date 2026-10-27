@@ -1070,6 +1070,19 @@ describe('Dispatcher with a blocker in the backlog', () => {
     expect(dispatcher.view('XYZ')).toEqual({ tasks: [], blockers: [], current: undefined })
   })
 
+  it('previews the chain a task list would give without taking it', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setOutside('ABC', [task('XYZ-9', backlog)])
+    const before = [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1', 'XYZ-9'), task('ABC-5', backlog)]
+    dispatcher.setTasks('ABC', before)
+
+    const { tasks, blockers } = dispatcher.preview('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1', 'XYZ-9'), task('ABC-5', todo)])
+    expect(tasks.map((each) => each.id)).toEqual(['ABC-2', 'ABC-5'])
+    expect(blockers.map((each) => each.id)).toEqual(['ABC-1'])
+    expect(dispatcher.view('ABC').tasks.map((each) => each.id)).toEqual(['ABC-2'])
+    expect(dispatcher.orders()['ABC']?.backlog).toEqual(['ABC-5'])
+  })
+
   it('does not start a chain when every task left waits on the backlog', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1')])

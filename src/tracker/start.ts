@@ -29,7 +29,7 @@ export interface TrackerStartDeps {
   tasksByProject: { get(project: string): Task[] | undefined; has(project: string): boolean; set(project: string, tasks: Task[]): void }
   /** The tasks of the reader the chain started since then, closed ones included. */
   ranSince: (project: string, since: Date) => string[]
-  dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view'>
+  dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'preview'>
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
   /** The project's main branch, where a merged task branch lands. */
@@ -102,32 +102,32 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     onError: report,
   })
 
-  const fillMilestones = async (project: string): Promise<void> => {
+  /**
+   * The list with the milestone the filler gives each task it would bring into the chain without one, assigned in the
+   * tracker before the list is set: the page never shows such a task outside its milestone.
+   */
+  const withMilestones = async (project: string, tasks: Task[]): Promise<Task[]> => {
     if (!setsMilestones) {
-      if (!fillsMilestone(project) || unfilled.has(project)) return
-      unfilled.add(project)
-      console.warn(`config: ${view.title} cannot set the milestone of a task, fillMilestone of ${project} does nothing`)
-      return
+      if (fillsMilestone(project) && !unfilled.has(project)) {
+        unfilled.add(project)
+        console.warn(`config: ${view.title} cannot set the milestone of a task, fillMilestone of ${project} does nothing`)
+      }
+      return tasks
     }
-    const filled = await filler.sweep(project, dispatcher.view(project))
-    const tasks = tasksByProject.get(project) ?? []
-    const milestones = new Map(filled.map(({ task, like }) => [task, tasks.find((each) => each.id === like)?.milestone]))
-    if (filled.length > 0 && !stopped) {
-      const updated = tasks.map((task) => {
-        const milestone = milestones.get(task.id)
-        return milestone == null ? task : { ...task, milestone }
-      })
-      tasksByProject.set(project, updated)
-      dispatcher.setTasks(project, updated)
-      broadcast()
-    }
+    const filled = await filler.sweep(project, dispatcher.preview(project, tasks))
     for (const { task, like, milestone } of filled) {
       console.log(`${title}: put ${task} into the milestone ${milestone} of ${like}, it entered the chain without one`)
     }
+    if (filled.length === 0) return tasks
+    const milestones = new Map(filled.map(({ task, like }) => [task, tasks.find((each) => each.id === like)?.milestone]))
+    return tasks.map((task) => {
+      const milestone = milestones.get(task.id)
+      return milestone == null ? task : { ...task, milestone }
+    })
   }
 
   const refreshing = new Map<string, Promise<void>>()
-  /** One job on the project at a time: a read or a fill asked for during another goes after it, so it sees the newer list. */
+  /** One job on the project at a time: a read or a status change during another goes after it, so it works on the newer list. */
   const queued = (project: string, job: () => Promise<void>): Promise<void> => {
     const next = (refreshing.get(project) ?? Promise.resolve()).then(job)
     refreshing.set(project, next)
@@ -140,19 +140,24 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     intervalMs: TRACKER_POLL_MS,
     onChange: (changes) => {
       const byId = new Map(changes.map((change) => [change.id, change.to]))
-      for (const project of projects) {
+      const apply = async (project: string): Promise<void> => {
         const tasks = tasksByProject.get(project)
-        if (tasks === undefined || !tasks.some((task) => byId.has(task.id))) continue
-        const updated = tasks.flatMap((task) => {
-          const status = byId.has(task.id) ? byId.get(task.id) : task.status
-          return status ? [{ ...task, status }] : []
-        })
+        if (tasks === undefined) return
+        const updated = await withMilestones(
+          project,
+          tasks.flatMap((task) => {
+            const status = byId.has(task.id) ? byId.get(task.id) : task.status
+            return status ? [{ ...task, status }] : []
+          }),
+        )
+        if (stopped) return
         tasksByProject.set(project, updated)
         dispatcher.setTasks(project, updated)
-        // A task a new status brings into the chain gets its milestone now, not at the next read.
-        void queued(project, () => fillMilestones(project).catch(report))
+        broadcast()
       }
-      broadcast()
+      for (const project of projects) {
+        if (tasksByProject.get(project)?.some((task) => byId.has(task.id))) void queued(project, () => apply(project).catch(report))
+      }
     },
     onError: report,
     onRecovered: () => {
@@ -204,15 +209,15 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
       const unlisted = ranSince(project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
       const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
-      const shown = [...tasks, ...ran]
       if (stopped) return
       dispatcher.setOutside(project, [...parents, ...others])
+      const shown = await withMilestones(project, [...tasks, ...ran])
+      if (stopped) return
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
       const released = dispatcher.released(project)
       if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
-      await fillMilestones(project)
       if (!completes) return
       const open = shown.filter((task) => isOpen(task.status)).map((task) => task.id)
       for (const task of await closer.sweep(project, dispatcher.held(project), open)) {

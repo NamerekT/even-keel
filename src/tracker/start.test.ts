@@ -58,7 +58,7 @@ afterEach(() => {
 function start(projects: string[], connect: () => Promise<TaskSource>, overrides: Partial<TrackerStartDeps> = {}) {
   const view: TrackerView = { name: 'huly', kind: 'huly', title: 'Huly', projects, ready: false, health: { state: 'connecting', lastOkAt: null, error: null }, readAt: {} }
   const setup: TrackerSetup = { connect, issueUrl: () => null } as unknown as TrackerSetup
-  const dispatcher = { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => [], view: vi.fn() }
+  const dispatcher = { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => [], preview: vi.fn() }
   const refreshers = new Map<string, () => Promise<void>>()
   const deps: TrackerStartDeps = {
     repoOf: () => '/repo',
@@ -95,7 +95,7 @@ describe('startTracker', () => {
     const { view, refreshers } = start(['APP'], async () => ({
       chainTasks: async () => ({ tasks: [current()], statuses: ['Todo', 'Done'] }),
       tasks: async () => [current()], complete, close: async () => {},
-    }), { dispatcher: { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => ['APP-1'], view: vi.fn() } as unknown as TrackerStartDeps['dispatcher'] })
+    }), { dispatcher: { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => ['APP-1'], preview: (_project: string, tasks: TrackerTask[]) => ({ tasks, blockers: [], current: undefined }) } as unknown as TrackerStartDeps['dispatcher'] })
     await vi.waitFor(() => expect(view.completionFailures?.APP).toHaveLength(1))
     expect(view.completionFailures?.APP?.[0]).toEqual({ code: 'tracker.completeRefused', params: { task: 'APP-1' }, detail: 'jira: HTTP 400: Due date required' })
     refused = false
@@ -140,16 +140,19 @@ describe('startTracker', () => {
       fillsMilestone: () => true,
       broadcast,
     })
-    dispatcher.view.mockImplementation(() => ({ tasks: tasks.map(toTask), blockers: [], current: 'ABC-1' }))
+    dispatcher.preview.mockImplementation((_project: string, listed: TrackerTask[]) => ({ tasks: listed.map(toTask), blockers: [], current: 'ABC-1' }))
     await vi.waitFor(() => expect(setMilestone).toHaveBeenCalledWith('ABC-2', 'ABC-1'))
     await vi.waitFor(() => expect(broadcast).toHaveBeenCalled())
     const expected = assigned ? milestone : null
     expect(deps.tasksByProject.get('ABC')?.find((each) => each.id === 'ABC-2')?.milestone).toEqual(expected)
-    expect(dispatcher.setTasks.mock.lastCall?.[1].find((each: TrackerTask) => each.id === 'ABC-2')?.milestone).toEqual(expected)
+    // The list reaches the chain only with the assignment's outcome: never first without the milestone, then with it.
+    for (const [, listed] of dispatcher.setTasks.mock.calls) {
+      expect(listed.find((each: TrackerTask) => each.id === 'ABC-2')?.milestone).toEqual(expected)
+    }
     expect(chainTasks).toHaveBeenCalledTimes(1)
   })
 
-  it('fills the milestone of a task the status poll brings into the chain without waiting for the next read', async () => {
+  it('gives a task the status poll brings into the chain its milestone before the chain gets it', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const milestone = { label: 'v0.2', targetDate: 1_800_000_000_000 }
@@ -163,17 +166,19 @@ describe('startTracker', () => {
     const { dispatcher } = start(['ABC'], async () => ({ chainTasks, setMilestone, tasks: async () => current(), close: async () => {} }), {
       fillsMilestone: () => true,
     })
-    dispatcher.view.mockImplementation(() => {
-      const listed: TrackerTask[] = dispatcher.setTasks.mock.lastCall?.[1] ?? []
-      return { tasks: listed.filter((each) => each.status.name === 'Todo').map(toTask), blockers: [], current: 'ABC-1' }
-    })
+    dispatcher.preview.mockImplementation((_project: string, listed: TrackerTask[]) => ({
+      tasks: listed.filter((each) => each.status.name === 'Todo').map(toTask),
+      blockers: [],
+      current: 'ABC-1',
+    }))
     await vi.advanceTimersByTimeAsync(1_000)
     expect(setMilestone).not.toHaveBeenCalled()
 
     readied = true
     await vi.advanceTimersByTimeAsync(5_000)
     expect(setMilestone).toHaveBeenCalledExactlyOnceWith('ABC-2', 'ABC-1')
-    expect(dispatcher.setTasks.mock.lastCall?.[1].find((each: TrackerTask) => each.id === 'ABC-2')?.milestone).toEqual(milestone)
+    const entered = dispatcher.setTasks.mock.calls.map(([, listed]) => listed.find((each: TrackerTask) => each.id === 'ABC-2')).filter((each) => each.status.name === 'Todo')
+    expect(entered.map((each) => each.milestone)).toEqual([milestone])
     expect(chainTasks).toHaveBeenCalledTimes(1)
   })
 
