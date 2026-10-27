@@ -102,7 +102,7 @@ export function resolve(records: ProjectRecord[], rows: SettingRow[], task?: Tas
 }
 
 /** Puts what the task's labels set over the project's values; the warnings of labels that contradict each other. */
-function withLabels(values: Values, task: TaskLabels): string[] {
+export function withLabels(values: Values, task: TaskLabels): string[] {
   const parsers = new Set(DEFINITIONS.flatMap((definition) => (definition.taskLabel === undefined ? [] : [definition.taskLabel])))
   const warnings: string[] = []
   for (const name of parsers) {

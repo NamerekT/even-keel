@@ -64,6 +64,16 @@ describe('the file as rows', () => {
 })
 
 describe('resolve', () => {
+  it('applies the compaction label independently of run labels and inherits for handoff or clashes', () => {
+    const { records, rows } = rowsOf({ stats: { checkpointTokens: 180_000 }, projects: [project({ stats: { checkpointTokens: 160_000 } })] })
+    const task = (labels: string[]) => resolve(records, rows, { project: ABC, id: 'ABC-1', labels })
+    expect(task(['разрыв | компакция']).values[ABC]?.['stats.checkpointTokens']).toBe(999_999)
+    expect(task(['Разрыв | хендофф']).values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
+    expect(task([]).values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
+    const clash = task(['Разрыв | компакция', 'Разрыв | хендофф'])
+    expect(clash.values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
+    expect(clash.warnings).toHaveLength(1)
+  })
   it('takes the project row, then Even Keel, then the default, each entry of a qualified key on its own', () => {
     const { records, rows } = rowsOf({ models: { claude: 'sonnet' }, brief: false, projects: [project({ models: { codex: 'gpt-6.1-sol' } })] })
     const { shared, own, values } = resolve(records, rows)

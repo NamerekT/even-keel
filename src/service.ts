@@ -121,6 +121,7 @@ import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, ProjectForm, SessionView } from './state.js'
 import { withinWindow } from './stats/checkpoint.js'
+import { taskCheckpoint } from './stats/task-checkpoint.js'
 import { StatsReader } from './stats/reader.js'
 import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS, Writes } from './storage/database.js'
 import { keptDatabase } from './storage/owner.js'
@@ -530,7 +531,9 @@ let tallyRuns = tallyKey(tallyMode(), process.env)
 let tallyRestarts = Promise.resolve()
 /** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
 const pinnedCheckpoint = (project: string | undefined) =>
-  (project === undefined ? undefined : configStore.current.settings[project]?.checkpointTokens) ?? configStore.current.stats.checkpointTokens
+  project === undefined || configStore.current.settings[project] === undefined
+    ? configStore.current.stats.checkpointTokens
+    : configStore.current.settings[project].checkpointTokens
 // Tally knows a project by its key: projects that share one are one project of the stats, on the first one's repository.
 const stats = new StatsReader(
   tally.reader,
@@ -1749,7 +1752,9 @@ let server = createEvenKeelServer({
     if (run === undefined) return undefined
     const view = sessions.find((each) => each.sessionId === sessionId)
     const window = view?.contextWindow ?? configStore.current.context.window
-    const { first, source } = await stats.checkpoint(configStore.current.keys[run.project] ?? run.project, pinnedCheckpoint(run.project))
+    const task = tasksByProject.get(run.project)?.find((each) => each.id === run.task)
+    const pinned = taskCheckpoint(pinnedCheckpoint(run.project), task?.labels)
+    const { first, source } = await stats.checkpoint(configStore.current.keys[run.project] ?? run.project, pinned)
     const settings = configStore.current.settings[run.project]
     const shares = settings?.checkpointShares ?? configStore.current.stats.checkpointShares
     const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null)

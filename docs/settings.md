@@ -62,7 +62,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
 | `contextHandoffs` | G, P | P over G; `false` — the `checkpoint` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions.md`) | page, hand | `true` |
-| `stats.checkpointTokens` | G, P | P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand | `null` (calibrated per project) |
+| `stats.checkpointTokens` | G, P, T | T over P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand, task label | `null` (calibrated per project) |
 | `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, `docs/sessions.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
 | `tally` | G | — (`off`, `local`, `server`) | page (the setup's stats step and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
 | `updates.check`, `updates.notify` | G | — | page (the check also in the first run's setup, BTN-310), hand, service (`muteUpdates`) | true, true; the check is held during the first run (`docs/web.md`) |
@@ -297,6 +297,7 @@ there is no mapping table:
 
 - `run` — `<Provider> | <model>` or a bare `<Provider>` (`runLabelOf`): one label sets `provider` and `models.<provider>`.
   Read only while `modelLabels` is on, since older workspaces carry labels like `Sonnet`.
+- `checkpoint` — `Разрыв | компакция` pins the task's threshold to 999999; `Разрыв | хендофф` or no label inherits the project's threshold. Both together inherit it as well.
 - `effort` — `effort:<level>` (BTN-146), its own prefix so it never collides with a model label; no switch needed.
 - Two labels feeding the same setting with different values — a warning in the log and the project's value, as
   `runChoice` does now.

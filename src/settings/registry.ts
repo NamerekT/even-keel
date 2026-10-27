@@ -22,7 +22,7 @@ import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CON
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
 export type Kind = 'boolean' | 'integer' | 'number' | 'string' | 'enum' | 'list' | 'json'
-export type TaskLabel = 'run'
+export type TaskLabel = 'run' | 'checkpoint'
 
 /** Where a value is set, for the messages: the project's key (not its id) and the qualifier, `''` when the key has none. */
 export interface Place {
@@ -286,7 +286,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   // Off — the checkpoint hook asks for no handoff by context size, the agent's own compaction keeps the context (BTN-255).
   { key: 'contextHandoffs', kind: 'boolean', scopes: ['global', 'project'], lands: ['contextHandoffs', 'settings'], default: true, check: boolean('contextHandoffs') },
-  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global', 'project'], lands: ['stats', 'settings'], default: null, check: (value) => {
+  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global', 'project'], taskLabel: 'checkpoint', lands: ['stats', 'settings'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
     return value
   } },
@@ -412,6 +412,14 @@ export interface LabelParser {
 }
 
 export const LABEL_PARSERS: Readonly<Record<TaskLabel, LabelParser>> = {
+  checkpoint: {
+    read: (labels) => {
+      const found = labels.filter((label) => ['разрыв | компакция', 'разрыв | хендофф'].includes(label.trim().toLowerCase()))
+      const choices = new Set(found.map((label) => label.trim().toLowerCase()))
+      if (choices.size > 1) return { clash: found }
+      return { values: choices.has('разрыв | компакция') ? [{ key: 'stats.checkpointTokens', qualifier: '', value: 999_999 }] : [] }
+    },
+  },
   run: {
     switch: 'modelLabels',
     read: (labels) => {
