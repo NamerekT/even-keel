@@ -4,6 +4,7 @@ import { setLanguage, t } from '../i18n/index.js'
 import { fakeAccount, FAKE_LIMITS } from '../live/fakeAccounts.js'
 import { session } from '../live/fakeSessions.js'
 import { limitPlan, sessionStatus } from './sessionStatus.js'
+import { formatMoment } from '../format.js'
 
 const now = new Date('2026-01-01T12:00:00Z')
 const hold: LimitHold = { at: now.toISOString(), account: 'ci-key', resetsAt: null, lastReplyAt: null, then: 'relay', acted: null }
@@ -12,6 +13,15 @@ const accounts = fakeAccount('api', false, FAKE_LIMITS).accounts
 afterEach(() => setLanguage('en'))
 
 describe('session limit text', () => {
+  it.each(['en', 'ru'] as const)('shows a temporary refusal and its next retry in %s', (language) => {
+    setLanguage(language)
+    const view = { ...session('ABC-5', 0, 'waiting'), apiErrorKind: 'transient' as const }
+    expect(sessionStatus(view)).toBe(language === 'en' ? 'waiting to retry' : 'ждёт повтора')
+    const plan = limitPlan({ ...hold, resetsAt: '2026-01-01T12:15:00Z', then: 'resume' }, now, view, accounts)
+    expect(plan).toContain(formatMoment('2026-01-01T12:15:00Z', now))
+    expect(plan).toContain(language === 'en' ? 'same session' : 'эту же сессию')
+    expect(sessionStatus({ ...view, lamp: 'working' })).toBe(t.lamp.working)
+  })
   it.each(['en', 'ru'] as const)('does not ask for a reply while the tracker refuses closure (%s)', (language) => {
     setLanguage(language)
     const view = { ...session('ABC-5', 0, 'waiting'), asking: false, ask: null }

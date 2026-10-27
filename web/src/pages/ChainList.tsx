@@ -17,6 +17,7 @@ import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Mark } from '../ui/motion.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
+import { sessionStatus } from './sessionStatus.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
@@ -524,7 +525,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {fix ? null : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
+        {fix ? null : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />}
         {block.locked ? (
           link === null ? (
             <span className="block__key">{block.id}</span>

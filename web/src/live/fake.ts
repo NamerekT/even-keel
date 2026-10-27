@@ -395,24 +395,30 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (current.state !== null && params.has('protection')) current.state = withProtection(current.state, params.get('protection')!)
   const active = current.state?.chain.active[0]
-  if ((params.get('chain') === 'apiError' || params.get('chain') === 'apiRetry') && current.state !== null && active) {
+  if (['apiError', 'apiRetry', 'transient'].includes(params.get('chain') ?? '') && current.state !== null && active) {
     const agent = params.get('agent') ?? 'codex'
+    const transient = params.get('chain') === 'transient'
+    const error = transient || params.get('chain') === 'apiRetry' ? 'The model is at capacity. Try again later.' : 'The requested model is not supported.'
     const failed: SessionView = {
-      ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : 'error'),
+      ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : transient ? 'waiting' : 'error'),
       agent: ['claude', 'codex', 'opencode', 'copilot'].includes(agent) ? agent : 'codex',
       model: null,
-      apiErrorKind: 'error',
-      apiError: 'The model is at capacity. Try again later.',
+      apiErrorKind: transient || params.get('chain') === 'apiRetry' ? 'transient' : 'error',
+      apiError: error,
+      asking: false,
+      ask: null,
+      waitingFor: null,
       feed: [
         { at: ago(2), kind: 'text', text: 'Checking the chain order before the next edit.' },
         { at: ago(1), kind: 'tool', text: 'Read src/chain/order.ts' },
-        { at: ago(0), kind: 'error', text: 'The model is at capacity. Try again later.' },
+        { at: ago(0), kind: 'error', text: error },
       ],
       remoteUrl: null,
       remoteOff: 'no-bridge',
     }
     current.state.sessions = current.state.sessions.map((each) => each.task === 'ABC-5' ? failed : each)
-    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: failed.sessionId, since: ago(42) } }]
+    const limit = transient ? { at: ago(0), account: failed.account, resetsAt: new Date(Date.now() + 15 * 60_000).toISOString(), lastReplyAt: ago(1), then: 'resume' as const, acted: null } : undefined
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: failed.sessionId, since: ago(42), ...(limit === undefined ? {} : { limit }) } }]
   }
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
@@ -679,7 +685,7 @@ export function createFakeSource(search: string): LiveSource {
       if (sessionId.endsWith('999')) return null
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
-      if (after === 0 && view?.task === 'ABC-5' && (params.get('chain') === 'apiError' || params.get('chain') === 'apiRetry')) return { lines: view.feed, turn }
+      if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
       if (after === 0) return { lines: fakeTranscript(view?.ask ?? null), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },

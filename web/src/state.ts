@@ -173,7 +173,7 @@ export function waitingSessions(sessions: SessionView[], tasks: Task[], refused:
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions
-    .filter((view) => view.lamp === 'waiting' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
+    .filter((view) => view.lamp === 'waiting' && view.apiErrorKind !== 'transient' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
     .filter((view) => !refused.has(view.task) || needsReply(view))
     .sort((a, b) => since(a) - since(b))
 }

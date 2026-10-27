@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
 import { describeTool, flatten, lineCount, type EditSize, type TranscriptImage } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
+import { isTransientError } from '../sessions/transient.js'
 import {
   callFacts,
   checkpointOf,
@@ -104,10 +105,10 @@ export class RolloutFold {
       this.turnStartedAt = at
       this.pushWindow(payload.model_context_window)
     } else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
-    else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
+    else if (payload.type === 'error') this.pushError(at, errorText(payload.message), payload.codex_error_info)
     else if (payload.type === 'task_complete') {
       if (typeof payload.turn_id === 'string') this.endedTurn = payload.turn_id
-      if (record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
+      if (record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message), record(payload.error)?.codex_error_info)
     } else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item), this.endedTurn !== null && payload.turn_id === this.endedTurn)
   }
 
@@ -173,10 +174,11 @@ export class RolloutFold {
     if (images > 0) this.addFeed({ at, kind: 'image', text, tool: payload.call_id, images })
   }
 
-  private pushError(at: string, message: unknown): void {
+  private pushError(at: string, message: unknown, code?: unknown): void {
     const text = flatten(typeof message === 'string' ? message : 'error', TEXT_LIMIT)
     this.touch(at)
-    this.apiError = { kind: CREDIT_TEXT.test(text) ? 'credit' : LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
+    const transient = isTransientError(text) || (typeof code === 'string' && isTransientError(code))
+    this.apiError = { kind: CREDIT_TEXT.test(text) ? 'credit' : transient ? 'transient' : LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
     this.addFeed({ at, kind: 'error', text })
   }
 

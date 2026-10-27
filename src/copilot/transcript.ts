@@ -1,5 +1,6 @@
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
+import { isTransientError } from '../sessions/transient.js'
 import {
   callFacts,
   checkpointOf,
@@ -252,7 +253,8 @@ export class CopilotFold {
     const message = typeof data.message === 'string' && data.message !== '' ? data.message : typeof data.errorType === 'string' ? data.errorType : 'error'
     const brief = flatten(message, TEXT_LIMIT)
     const known = typeof data.errorType === 'string' ? ERROR_KINDS[data.errorType] : undefined
-    const kind = data.errorCode === 'billing_not_configured' || CREDIT_TEXT.test(brief) ? 'credit' : (known ?? (LIMIT_TEXT.test(brief) ? 'limit' : 'error'))
+    const transient = isTransientError(`${message} ${data.errorType ?? ''} ${data.errorCode ?? ''}`)
+    const kind = data.errorCode === 'billing_not_configured' || CREDIT_TEXT.test(brief) ? 'credit' : transient ? 'transient' : (known ?? (LIMIT_TEXT.test(brief) ? 'limit' : 'error'))
     this.apiError = { kind, text: brief, at }
     this.running.clear()
     this.addFeed({ at, kind: 'error', text: brief })

@@ -68,7 +68,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   return (
     <aside className="panel" aria-label={t.session.panel(block.id)}>
       <header className="panel__head">
-        <Lamp lamp={block.lamp} />
+        <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />
         <h2 className="panel__task">
           {isOwnName(block.id) ? (
             <>
@@ -274,7 +274,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
 
   return (
     <>
-      {note !== null && !(session.apiErrorKind === 'spend' && limit !== null) && <p className="notice notice--error">{note}</p>}
+      {note !== null && !(['spend', 'transient'].includes(session.apiErrorKind ?? '') && limit !== null) && <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>}
       {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session, state?.account.accounts ?? [])}</p>}
       <FactList>
         <Fact label={t.session.session}>

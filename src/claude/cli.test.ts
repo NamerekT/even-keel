@@ -169,6 +169,10 @@ describe('parseWarmAnswer', () => {
       'Credit balance is too low',
     )
   })
+
+  it('keeps the overload refusal from a failed fork for keep-warm to skip it', () => {
+    expect(() => parseWarmAnswer(JSON.stringify({ subtype: 'error_during_execution', is_error: true, errors: ['API Error: 529 overloaded_error'] }), null)).toThrow('overloaded_error')
+  })
 })
 
 describe('promptArg', () => {

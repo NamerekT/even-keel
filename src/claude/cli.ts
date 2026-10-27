@@ -356,13 +356,15 @@ export interface WarmResult {
   subtype?: string
   is_error?: boolean
   result?: unknown
+  errors?: string[]
   duration_ms?: number
   usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
 }
 
 export function warmSpend(answer: WarmResult, model: string | null): TurnSpend {
   if (answer.is_error === true || answer.subtype !== 'success') {
-    throw new Error(typeof answer.result === 'string' && answer.result !== '' ? answer.result : `the turn ended with ${answer.subtype ?? 'no result'}`)
+    const detail = [typeof answer.result === 'string' ? answer.result : '', ...(answer.errors ?? [])].filter(Boolean).join('; ')
+    throw new Error(detail || `the turn ended with ${answer.subtype ?? 'no result'}`)
   }
   const usage = answer.usage ?? {}
   return {

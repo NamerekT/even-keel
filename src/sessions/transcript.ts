@@ -1,4 +1,5 @@
 import { isSpendingLimit } from '../limits/spending.js'
+import { isTransientError } from './transient.js'
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { mailIn } from './mail.js'
 import {
@@ -19,11 +20,12 @@ import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
 /** `credit` — spent API credit; `spend` — a specified API spending cap, even when the CLI reports `unknown`. */
-export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'error'
+export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'transient' | 'error'
 
 const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
   ['rate_limit', 'limit'],
   ['billing_error', 'credit'],
+  ['overloaded_error', 'transient'],
 ])
 
 export interface FeedLine {
@@ -271,7 +273,7 @@ export class TranscriptFold {
 
     if (entry.isApiErrorMessage === true) {
       const text = flatten(blocks.map((block) => block.text ?? '').join(' '), TEXT_LIMIT) || String(entry.error)
-      this.apiError = { kind: isSpendingLimit(text) ? 'spend' : API_ERROR_KINDS.get(entry.error) ?? 'error', text, at }
+      this.apiError = { kind: isSpendingLimit(text) ? 'spend' : API_ERROR_KINDS.get(entry.error) ?? (isTransientError(text) ? 'transient' : 'error'), text, at }
       this.addFeed({ at, kind: 'error', text })
       return
     }

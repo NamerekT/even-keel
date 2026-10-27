@@ -52,6 +52,12 @@ describe('warmTasks', () => {
     expect(tasksOf([chain({ error: { code: 'chain.midTurn', params: { task: 'ABC-1' } } })])).toEqual([])
   })
 
+  it('includes a session scheduled for a resume; warmStep still excludes real limits', () => {
+    const current = { task: 'ABC-1', sessionId: 'session-1', since }
+    const limit = { at: since, account: 'global', resetsAt: since, lastReplyAt: since, then: 'resume' as const, acted: null }
+    expect(tasksOf([chain({ current: { ...current, limit } })])).toEqual([{ task: 'ABC-1', sessionId: 'session-1' }])
+  })
+
   it('takes the tasks waiting on their open pull request, by whichever session is live', () => {
     const reviews = [pull('ABC-2'), pull('ABC-3', { closed: 'merged' }), pull('ABC-1')]
     expect(tasksOf([chain()], reviews)).toEqual([
@@ -172,6 +178,21 @@ describe('KeepWarm', () => {
     clock.now = at('12:58')
     await keep.check()
     expect(pinged).toHaveLength(1)
+  })
+
+  it('skips an overloaded ping and can keep the cache warm when the provider recovers', async () => {
+    let attempts = 0
+    const { keep, clock, pinged, lines } = setup(async () => {
+      if (++attempts === 1) throw new Error('API Error: 529 overloaded_error')
+      return spend(30_000)
+    })
+    await keep.check()
+    expect(keep.warmedAt('session-1')).toBeNull()
+    clock.now = at('12:57')
+    await keep.check()
+    expect(pinged).toHaveLength(2)
+    expect(keep.warmedAt('session-1')).toBe('2026-10-26T12:57:00.000Z')
+    expect(lines[0]).toContain('skipped')
   })
 
   it('sends one ping at a time', async () => {

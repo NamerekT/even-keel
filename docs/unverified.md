@@ -11,6 +11,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
+| 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
@@ -187,6 +188,10 @@ Anthropic sometimes resets a five-hour window or all limits of an account ahead 
 Responses in fast mode are recorded (`speed = fast`), but none have appeared in the data, so `/stats` prices them as normal responses and their cost is understated (`docs/tally.md`).
 
 ## Sessions
+
+### Temporary model errors (BTN-498)
+
+Only Codex's `Selected model is at capacity. Please try a different model.` was reported from a real refusal (2026-10-27). Unit tests cover all four transcript formats, the `overloaded_error` and `server_is_overloaded` codes, 503/529 with an overload/unavailability message, a 15-minute retry doubling up to four hours, reset on success, cancellation by a human answer or a replacement, and keep-warm after an overloaded ping. The fake page checks the waiting lamp, next-attempt time, chat and replacement controls. Not run through a real provider outage: Claude, OpenCode and Copilot variants, Codex's code-only overload, a scheduled resume under the service, and a Claude keep-warm fork refused by the overload and later recovering. A refusal with an unknown spelling remains a permanent error and waits for a person; a misclassified refusal could resume unnecessarily. **Workaround:** answer from the chat, choose another model and use "New session", or pause the chain to stop automatic retries. No overload is manufactured against a live provider.
 
 ### A task closed by `NO CHANGES:` (EKR-10)
 
