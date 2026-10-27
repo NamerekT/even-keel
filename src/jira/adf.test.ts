@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import Markdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
+import remarkGfm from 'remark-gfm'
+import { withBrief } from '../chain/relay.js'
 import { adfToMarkdown, markdownToAdf, type AdfMark, type AdfNode } from './adf.js'
 
 const doc = (...content: AdfNode[]): AdfNode => ({ type: 'doc', version: 1, content })
@@ -6,6 +13,58 @@ const p = (...content: AdfNode[]): AdfNode => ({ type: 'paragraph', content })
 const text = (value: string, ...marks: AdfMark[]): AdfNode => (marks.length === 0 ? { type: 'text', text: value } : { type: 'text', text: value, marks })
 
 describe('adfToMarkdown', () => {
+  const render = (markdown: string) => renderToStaticMarkup(createElement(Markdown, {
+    remarkPlugins: [remarkGfm], rehypePlugins: [rehypeRaw, rehypeSanitize], children: markdown,
+  }))
+
+  it.each([
+    'git -C project merge --no-edit <your-branch>',
+    '*stars* and _underscores_ and **bold** and ~~strike~~',
+    '`literal code` and [label](target) and ![image](target)',
+    String.raw`C:\project\file &copy; &#65; <b>text</b>`,
+    'A trailing backslash \\',
+    '# Heading', '- item', '+ item', '1. item', '2) item', '> quote',
+    '---', '===', '~~~', '***', '[label]: target',
+  ])('keeps literal text through card rendering and the ADF round trip: %s', (value) => {
+    const adf = doc(p(text(value)))
+    const markdown = adfToMarkdown(adf)
+    const html = value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    expect(render(markdown)).toBe(`<p>${html}</p>`)
+    expect(markdownToAdf(markdown)).toEqual(adf)
+  })
+
+  it('escapes each line after a hard break without turning plain lines into blocks', () => {
+    const adf = doc(p(text('First'), { type: 'hardBreak' }, text('# heading'), { type: 'hardBreak' }, text('1. item')))
+    const markdown = adfToMarkdown(adf)
+    expect(render(markdown)).toBe('<p>First<br/>\n# heading<br/>\n1. item</p>')
+    expect(markdownToAdf(markdown)).toEqual(adf)
+  })
+
+  it('keeps real marks while escaping their literal content, leaving code unchanged', () => {
+    const value = '<branch> & *literal* _name_'
+    const adf = doc(
+      p(text(value, { type: 'strong' }), text(' '), text(value, { type: 'code' })),
+      { type: 'codeBlock', content: [text(value)] },
+    )
+    const markdown = adfToMarkdown(adf)
+    expect(render(markdown)).toBe('<p><strong>&lt;branch&gt; &amp; *literal* _name_</strong> <code>&lt;branch&gt; &amp; *literal* _name_</code></p>\n<pre><code>&lt;branch&gt; &amp; *literal* _name_\n</code></pre>')
+    expect(markdownToAdf(markdown)).toEqual(adf)
+  })
+
+  it('keeps an ordinary session brief readable', () => {
+    const description = adfToMarkdown(doc(p(text('Run git -C project merge --no-edit <your-branch>. Then check the result.'))))
+    expect(withBrief('ABC-1\n', { title: 'Merge the branch', description }, 'en')).toBe('ABC-1\n\nTask from the tracker: Merge the branch\n\nRun git -C project merge --no-edit \\<your-branch\\>. Then check the result.\n')
+  })
+
+  it.each<AdfMark>([
+    { type: 'strong' }, { type: 'em' }, { type: 'strike' },
+    { type: 'link', attrs: { href: 'https://example.com' } },
+  ])('round trips literal delimiters inside a real $type mark', (mark) => {
+    const value = '*single* **double** ~~strike~~ [label](target)'
+    const adf = doc(p(text(value, mark)))
+    expect(markdownToAdf(adfToMarkdown(adf))).toEqual(adf)
+  })
+
   it('turns headings, marks and links into Markdown', () => {
     const adf = doc(
       { type: 'heading', attrs: { level: 2 }, content: [text('Plan')] },
