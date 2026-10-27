@@ -149,6 +149,34 @@ describe('startTracker', () => {
     expect(chainTasks).toHaveBeenCalledTimes(1)
   })
 
+  it('fills the milestone of a task the status poll brings into the chain without waiting for the next read', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const milestone = { label: 'v0.2', targetDate: 1_800_000_000_000 }
+    let readied = false
+    const current = () => [
+      { ...task('ABC-1'), milestone },
+      { ...task('ABC-2'), status: readied ? task('ABC-2').status : { name: 'Backlog', category: 'UnStarted' as const } },
+    ]
+    const chainTasks = vi.fn(async () => ({ tasks: current(), statuses: ['Backlog', 'Todo'] }))
+    const setMilestone = vi.fn(async () => true)
+    const { dispatcher } = start(['ABC'], async () => ({ chainTasks, setMilestone, tasks: async () => current(), close: async () => {} }), {
+      fillsMilestone: () => true,
+    })
+    dispatcher.view.mockImplementation(() => {
+      const listed: TrackerTask[] = dispatcher.setTasks.mock.lastCall?.[1] ?? []
+      return { tasks: listed.filter((each) => each.status.name === 'Todo').map(toTask), blockers: [], current: 'ABC-1' }
+    })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(setMilestone).not.toHaveBeenCalled()
+
+    readied = true
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(setMilestone).toHaveBeenCalledExactlyOnceWith('ABC-2', 'ABC-1')
+    expect(dispatcher.setTasks.mock.lastCall?.[1].find((each: TrackerTask) => each.id === 'ABC-2')?.milestone).toEqual(milestone)
+    expect(chainTasks).toHaveBeenCalledTimes(1)
+  })
+
   it('reads the other projects of the profile when one of them is not in the tracker', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { view, dispatcher } = start(['APP', 'TSK'], async () => hulyLike(new Set(['APP'])))
