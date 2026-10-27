@@ -34,7 +34,7 @@ Behaviour written without a way to check it live gets an entry in `docs/unverifi
 
 The public documentation is `README.md`, `docs/guide/` (`features.md`, `setup.md`, `reference.md`) and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
 
-**Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. Documentation in the repository is in English; Huly tasks stay in Russian.
+**Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. The hook and a test hold this file to 13,000 bytes; only the user may raise the ceiling. Documentation in the repository is in English; Huly tasks stay in Russian.
 
 ## Stack
 

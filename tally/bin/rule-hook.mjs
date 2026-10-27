@@ -2,14 +2,14 @@
 // Claude Code hook: a session that edits a rule file is asked to log why in the rule history (tally/src/rule-hook.ts).
 // Usage in ~/.claude/settings.json, PostToolUse with the matcher "Edit|MultiEdit|Write" and Stop:
 //   node "<main checkout>/tally/bin/rule-hook.mjs"
-// It never fails a tool call or a stop: any error ends it silently.
+// It never rejects an edit; a Stop can be blocked once per file. Any error ends it silently.
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // Edits of files that cannot be rules end here, before TypeScript is loaded.
-const MAYBE_RULE = /\.claude|\.githooks|claude\.md$/i
+const MAYBE_RULE = /\.claude|\.githooks|(?:claude|agents)\.md$/i
 
 try {
   const input = JSON.parse(readFileSync(0, 'utf8'))

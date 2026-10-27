@@ -88,6 +88,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
+| 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
+
+### The instruction size ceiling in a Claude session (BTN-468)
+
+The hook executable has been checked with supplied PostToolUse and Stop payloads, including persisted state, but not called by a live Claude session for this ceiling. Check in a scratch project with the existing global hook: grow a `CLAUDE.md` or nested `AGENTS.md` beyond 13,000 bytes with Edit and Write, log the session's reason, then end the turn. The edit should succeed, the model should receive the guidance, and Stop should block once despite the journal row. Reduce an already oversized file and confirm no size reminder or size block. If a future CLI omits `tool_response.originalFile`, the size check stays silent; the Vitest ceiling test still covers Even Keel's two instruction files.
 
 ### Tracker call diagnostics
 
