@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { ProfileKindView, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -19,6 +19,7 @@ export interface Grant {
 export type GrantChoice = Grant | null | undefined
 
 interface McpProps {
+  children: ReactNode
   kind: ProfileKindView
   profile: ProfileView | undefined
   /** The draft the grant is bound to, as `profiles/check` takes it. */
@@ -29,7 +30,7 @@ interface McpProps {
 }
 
 /** The MCP part of a tracker profile (BTN-475): connect through OAuth, the state of the stored grant, and GitHub's OAuth App. */
-export function ProfileMcp({ kind, profile, body, values, grant, onGrant }: McpProps) {
+export function ProfileMcp({ kind, profile, body, values, grant, onGrant, children }: McpProps) {
   const { query } = useLive()
   const [waiting, setWaiting] = useState<string | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
@@ -168,6 +169,10 @@ export function ProfileMcp({ kind, profile, body, values, grant, onGrant }: McpP
             {t.profiles.mcp.keep}
           </button>
         )}
+      </div>
+      <div className="profile-mcp__fallback">
+        <span className="settings__hint">{t.profiles.mcp.fallback}</span>
+        {children}
       </div>
     </section>
   )
