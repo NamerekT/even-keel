@@ -200,6 +200,10 @@ function restart(state: EvenKeelState, project: string, task: string, confirmati
   if (active === undefined || current === null) throw fail('chain.notCurrent', { task })
   const view = state.sessions.find((each) => each.task === task)
   if (view === undefined) throw fail('chain.noSession', { task })
+  if (current.limit?.resetsAt != null && view.apiErrorKind !== 'transient') {
+    const entry = state.account.accounts.find((each) => each.key === view.account)
+    throw fail('chain.limitSpent', { until: current.limit.resetsAt, account: entry?.name ?? entry?.status?.email ?? view.account ?? undefined, provider: view.agent })
+  }
   const confirmed = restartConfirmation(confirmation)
   if (confirmed !== undefined && (confirmed.sessionId !== view.sessionId || confirmed.since !== view.silentSince)) throw fail('chain.restartChanged', { task })
   if ((view.lamp === 'working' || view.waitingFor !== null) && !silentRestart(view.sessionId, view.silentSince, confirmed, Date.now())) throw fail('chain.midTurn', { task })

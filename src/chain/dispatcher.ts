@@ -29,6 +29,7 @@ import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from 
 import type { HandoffSession } from './relay.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
+import { requireLimit } from './limitNotice.js'
 
 export {
   emptyChainState,
@@ -312,8 +313,7 @@ export class Dispatcher {
     if (current.sessionId === null) throw fail('chain.launching', { task })
     guardRestart(this.deps, task, current.sessionId, confirmed)
     this.requireLaunches(project, task)
-    const reset = this.deps.limitReset(project, task)
-    if (reset !== null) throw fail('chain.limitSpent', { until: reset })
+    requireLimit(this.deps, project, task)
     const session = this.deps.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId

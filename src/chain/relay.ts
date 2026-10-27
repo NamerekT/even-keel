@@ -138,6 +138,8 @@ export interface LimitHold {
 export interface AccountNow {
   id: string | null
   ready: boolean
+  label?: string
+  provider?: string
 }
 
 export function holdOf(session: LimitedSession, account: string | null, fallbackReset: string | null): LimitHold {

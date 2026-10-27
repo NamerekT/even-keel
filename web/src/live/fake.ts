@@ -274,16 +274,20 @@ function fakeState(
 }
 
 function fakeLimit(kind: string | null): { limit: LimitHold } | Record<string, never> {
-  if (kind === null || (!KEY_LIMIT_AGENTS[kind] && kind !== 'relay' && kind !== 'resume' && kind !== 'unknown')) return {}
+  if (kind === null || (!KEY_LIMIT_AGENTS[kind] && kind !== 'relay' && kind !== 'resume' && kind !== 'unknown' && kind !== 'codex' && kind !== 'codexLong')) return {}
   const credit = !!KEY_LIMIT_AGENTS[kind] && kind !== 'copilotMonthly'
   const resetsAt = kind === 'spend' ? '2026-11-01T00:00:00.000Z' : kind === 'unknown' || credit ? null : new Date(Date.now() + 95 * 60_000).toISOString()
-  const account = KEY_LIMIT_AGENTS[kind] ? 'ci-key' : 'john@example.com'
+  const account = KEY_LIMIT_AGENTS[kind] ? 'ci-key' : kind.startsWith('codex') ? 'codex' : 'john@example.com'
   return {
     limit: { at: ago(3), account, resetsAt, lastReplyAt: ago(4), then: kind === 'resume' ? 'resume' : 'relay', acted: null },
   }
 }
 
 function limitedSession(view: SessionView, kind: string): SessionView {
+  if (kind === 'codex' || kind === 'codexLong') return {
+    ...view, agent: 'codex', account: 'codex', model: 'gpt-6.1-sol', remoteUrl: null, remoteOff: null,
+    apiErrorKind: 'limit', apiError: 'You have hit your usage limit. Try again after the reset.', lastActivityAt: ago(3),
+  }
   const agent = KEY_LIMIT_AGENTS[kind]
   if (agent) {
     const credit = kind !== 'copilotMonthly'
@@ -346,6 +350,11 @@ export function createFakeSource(search: string): LiveSource {
     link,
   }
   const language = params.get('lang')
+  if (params.get('limit')?.startsWith('codex') && !KEY_LIMIT_AGENTS[params.get('limit')!] && current.state !== null) {
+    current.state.account = fakeAccount('codex', idle, FAKE_LIMITS)
+    const entry = current.state.account.accounts.find((each) => each.key === 'codex')!
+    entry.name = params.get('limit') === 'codexLong' ? 'Build account for the documentation and integration project with a deliberately long display name' : 'Build account'
+  }
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')

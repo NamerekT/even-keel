@@ -1,4 +1,5 @@
-import { localized, t } from './i18n/index.js'
+import { language, t } from './i18n/index.js'
+import { localMoment } from './moment.js'
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -14,12 +15,8 @@ export function formatSpan(until: string, now: Date): string {
   return `${Math.floor(ms / MINUTE)}${minute}`
 }
 
-const CLOCK = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
-const DATED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
-
 export function formatMoment(at: string, now: Date): string {
-  const moment = new Date(at)
-  return moment.toDateString() === now.toDateString() ? CLOCK().format(moment) : DATED().format(moment)
+  return localMoment(at, now, language)
 }
 
 export function formatAgo(at: string, now: Date): string {
