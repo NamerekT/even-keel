@@ -12,6 +12,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | ---: | --- | --- | --- |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
+| 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode chain sessions using Protection | a command or tracker deletion tool may run despite a configured deny |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
@@ -118,6 +119,18 @@ arguments, settings inheritance and API verdicts are covered by tests.
 If an agent ignores a native rule, equivalent destructive actions can still run. Inspect server rules directly,
 enforce protection there, and use a sandbox when available. A rule is not a security boundary. Check denial with
 harmless commands against a local bare remote; do not test destructive pushes or deletions on a real repository.
+
+### OpenCode Protection (BTN-486)
+
+The installed OpenCode 1.18.25 accepts the generated config and lists its command and Huly tool denies in the build
+agent after the default allow (`debug agent build --pure`, [verified.md](verified.md)). Unit tests cover group switches,
+custom command patterns, gateway tool names, settings inheritance and the v15 → v16 config migration. Not checked:
+an actual chain call denied before execution, Huly deletion denied through the real gateway, account and project
+permission merges (especially later broad allows and agent-specific overrides), and changing a project's custom
+rules on the running service then launching a new session without a restart. If native matching differs from the
+assumed command shape, an equivalent action can run. Check with harmless commands, disposable files and a local
+bare remote; use a fake tracker tool that records attempted calls. Keep server-side branch protection enabled.
+The follow-up live check is BTN-500, blocked by BTN-486.
 
 ### API spending cap recovery
 

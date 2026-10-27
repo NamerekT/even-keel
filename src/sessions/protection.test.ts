@@ -52,7 +52,7 @@ describe('session protection', () => {
   })
 
   it('disables one group, keeps the rest and adds native rules without duplicates', () => {
-    const rules = protectionRules({ disabled: ['forcePush'], claude: ['Write(.env)', 'Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'] })
+    const rules = protectionRules({ disabled: ['forcePush'], claude: ['Write(.env)', 'Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'], opencode: [] })
     expect(rules.claude.some(rule => rule.includes('--force'))).toBe(false)
     expect(rules.codex).toContainEqual(['terraform', 'destroy'])
     expect(rules.claude.filter(rule => rule === 'Write(.env)')).toHaveLength(1)

@@ -181,7 +181,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalid()
     const fields = value as Record<string, unknown>
     for (const [key, entries] of Object.entries(fields)) {
-      if (!['disabled', 'claude', 'codex', 'copilot'].includes(key) || !Array.isArray(entries)) throw invalid()
+      if (!['disabled', 'claude', 'codex', 'copilot', 'opencode'].includes(key) || !Array.isArray(entries)) throw invalid()
       if (key === 'codex') {
         if (entries.some(entry => !Array.isArray(entry) || entry.length === 0 || entry.some(arg => typeof arg !== 'string' || arg.length === 0))) throw invalid()
       } else if (entries.some(entry => typeof entry !== 'string' || entry.trim() === '')) throw invalid()

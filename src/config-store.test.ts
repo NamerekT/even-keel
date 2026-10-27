@@ -87,7 +87,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(config.current.settings['id-abc']).toEqual({
       branch: 'master',
       prompt: 'Mind Library.',
-      protection: { disabled: [], claude: [], codex: [], copilot: [] },
+      protection: { disabled: [], claude: [], codex: [], copilot: [], opencode: [] },
       beforeStart: ['npm ci'],
       check: ['npm test'],
       afterGreen: [],

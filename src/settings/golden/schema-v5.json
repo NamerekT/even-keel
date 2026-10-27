@@ -100,7 +100,8 @@
         "disabled": [],
         "claude": [],
         "codex": [],
-        "copilot": []
+        "copilot": [],
+        "opencode": []
       },
       "checkpointTokens": null,
       "checkpointShares": {
@@ -146,7 +147,8 @@
         "disabled": [],
         "claude": [],
         "codex": [],
-        "copilot": []
+        "copilot": [],
+        "opencode": []
       },
       "checkpointTokens": null,
       "checkpointShares": {
@@ -220,7 +222,8 @@
     "disabled": [],
     "claude": [],
     "codex": [],
-    "copilot": []
+    "copilot": [],
+    "opencode": []
   },
   "cacheTtl": null,
   "contextHandoffs": true,

@@ -19,6 +19,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { sessionList, sessionStamp } from './db.js'
 import { keepOwnInstructions, parseAuth, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
+import { protectionRules } from '../sessions/protection.js'
 import { OpenCodeLog } from './log.js'
 
 const run = promisify(execFile)
@@ -81,8 +82,15 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: st
  * gateway's servers and none of the project's own, the skills and the OpenCode plugins of the project's plugin
  * packages, and `external_directory` allowed, which a merge into the main checkout from a worktree needs.
  */
-export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins'>, projectServers: string[], skillDirs: string[], plugins: string[] = []): string {
-  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission: { external_directory: 'allow' } }
+export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection'>, projectServers: string[], skillDirs: string[], plugins: string[] = []): string {
+  const huly = start.mcp?.filter(server => server.plugin === 'huly' || server.name === 'huly').map(gatewayName)
+  const rules = protectionRules(start.protection, [], undefined, huly).opencode
+  const permission = {
+    external_directory: 'allow',
+    ...(rules.bash.length > 0 ? { bash: Object.fromEntries(rules.bash.map(pattern => [pattern, 'deny'])) } : {}),
+    ...Object.fromEntries(rules.tools.map(tool => [tool, 'deny'])),
+  }
+  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission }
   if (start.mcp !== undefined) {
     const own = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
     const gateway = Object.fromEntries(start.mcp.map((server) => [gatewayName(server), { type: 'remote', url: server.url, enabled: true }]))

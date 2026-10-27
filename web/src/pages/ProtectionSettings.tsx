@@ -4,8 +4,8 @@ import { protectionMessages } from '../i18n/protection.js'
 import { FieldHead, FieldNote, Section, SwitchField } from './settingsParts.js'
 import { protectionDraft, protectionOf, protectionText } from './protectionDraft.js'
 
-const AGENTS = { claude: 'Claude Code', codex: 'Codex', copilot: 'Copilot' } as const
-const EXAMPLES: Record<keyof typeof AGENTS, string> = { claude: 'Bash(git reset --hard*)', codex: '["git", "reset", "--hard"]', copilot: 'shell(git reset --hard:*)' }
+const AGENTS = { claude: 'Claude Code', codex: 'Codex', copilot: 'Copilot', opencode: 'OpenCode' } as const
+const EXAMPLES: Record<keyof typeof AGENTS, string> = { claude: 'Bash(git reset --hard*)', codex: '["git", "reset", "--hard"]', copilot: 'shell(git reset --hard:*)', opencode: 'git reset --hard*' }
 
 export function ProtectionSettings({ value, shared, onChange, error = null }: { value: string; shared?: Protection; onChange: (value: string) => void; error?: Notice | null }) {
   const text = protectionMessages()

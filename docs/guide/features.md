@@ -17,12 +17,16 @@ Copilot rule of your own is written `shell(<command>:*)` for a prefix; a `*` any
 a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
 in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a
 refspec of another branch, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
-checked command by command. Huly deletion rules apply to Claude and Copilot. OpenCode receives no Protection rules.
+checked command by command. Huly deletion rules apply to Claude, Copilot and OpenCode. OpenCode receives command
+glob denies and tracker tool denies in its session configuration. Its additional rules are command patterns, one
+per line: `*` matches any text and `?` one character (for example, `git reset --hard*`). Its default patterns cover
+the same push and recursive-delete spellings as Claude's groups. Other spellings and shell wrappers may escape
+them; the last matching OpenCode permission wins, and agent-specific permissions can override them.
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
 Rules can reduce accidental actions; they are not an OS sandbox.
 
-Your own deny files keep working next to Protection: the agent reads them, Protection is added on top, and a deny
-outweighs an allow. Even Keel does not copy them; the `/tools` page shows what reaches a chain session. A `deny` or
+The agent reads your own deny files alongside Protection. Claude Code and Codex let a deny outweigh an allow;
+OpenCode uses the permission order described above. Even Keel does not copy them; the `/tools` page shows what reaches a chain session. A `deny` or
 `ask` only in the main checkout's `.claude/settings.local.json` does not — a task worktree does not read that file —
 and the page marks it with where to move it. Codex's own `.rules` files of the project's Codex account and the
 `.codex/rules/` committed on the branch are listed under **Codex rules**.
