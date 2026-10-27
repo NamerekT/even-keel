@@ -35,6 +35,8 @@ export const noticesRu: NoticeTexts = {
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
   'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',
   'jira.incomplete': () => 'Заполните в профиле Jira («Трекеры и CI») адрес сайта, почту и API-токен.',
+  'jira.mcpSite': () => 'Токен MCP не видит этот сайт Jira. В настройках организации включите аутентификацию API-токенами для сервера Atlassian MCP, затем создайте токен Atlassian MCP V2 заново.',
+  'jira.mcpToken': () => 'Сервер Atlassian MCP отклонил токен MCP. В настройках организации включите аутентификацию API-токенами, затем создайте новый токен Atlassian MCP V2 для этой почты.',
   'jira.blocksType': (p) =>
     `В Jira нет типа связи Blocks (есть: ${p.types || 'никаких'}), а Even Keel выстраивает цепь по нему. Верните это имя типу связи в настройках Jira, Issue linking.`,
   text: (p) => p.text,

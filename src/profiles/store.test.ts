@@ -72,6 +72,13 @@ describe('profile store', { timeout: 60_000 }, () => {
     expect(await readProfiles(db)).toEqual(next)
   })
 
+  it('preserves the optional Jira MCP token separately from the REST token', async () => {
+    const values = { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: 'rest-token', JIRA_MCP_TOKEN: 'mcp-token' }
+    const set = { profiles: [profile('jira', 'jira', true, values)], links: {} }
+    await saveProfiles(db, set)
+    expect(await readProfiles(db)).toEqual(set)
+  })
+
   it("keeps each profile's chain rules and each extra feed's profile (BTN-66)", async () => {
     const set = {
       profiles: [{ ...profile('a', 'github', true), rules: { active: ['open'], excludedLabels: ['wontfix'] } }, profile('c', 'huly', true, HULY_ENV)],

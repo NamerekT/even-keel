@@ -1,5 +1,6 @@
 import type { ProfileAccount, TrackerProject } from '../tracker/source.js'
-import { JiraApi, siteUrl } from './api.js'
+import { JiraApi, JIRA_MCP_TOKEN, siteUrl } from './api.js'
+import { checkJiraMcp } from './mcp.js'
 
 /** The most a `projects` answer lists. */
 const LIMIT = 50
@@ -7,6 +8,7 @@ const LIMIT = 50
 /** The profile is named by the site: one account may sign in to several. */
 export async function jiraAccount(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<ProfileAccount> {
   const { user } = await JiraApi.open(values, timeoutMs, fetchImpl)
+  if (values[JIRA_MCP_TOKEN]) await checkJiraMcp(values, timeoutMs, fetchImpl)
   const host = new URL(siteUrl(values)).hostname.replace(/\.atlassian\.net$/, '')
   return { login: user.emailAddress || user.displayName, name: `Jira · ${host}`, expiresAt: null }
 }
