@@ -1,0 +1,186 @@
+import { composerRu } from './composer-ru.js'
+import { plural } from './plural.js'
+import type { ToolCounts } from './ru.js'
+
+const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
+const counted = (one: string, few: string, many: string) => (count: number) => `${count} ${forms(one, few, many)(count)}`
+/** The parts that are not empty, joined with commas, the first letter capital. */
+const sentence = (parts: string[]) => {
+  const text = parts.filter((part) => part !== '').join(', ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+export const sessionRu = {
+  launches: {
+    launch: 'Запуск цепочкой',
+    restart: 'Перезапуск',
+    checkpoint: 'По контрольной точке',
+    manual: 'Запущена вручную',
+  },
+  relayed: {
+    limit: 'Новая после лимита',
+    mainFixed: 'Новая после починки main',
+    review: 'Новая после отзыва на pull request',
+    returned: 'Новая после возврата задачи',
+  },
+  replaced: {
+    restart: 'заменена вручную',
+    checkpoint: 'поставила контрольную точку',
+  },
+  replacedRelay: {
+    limit: 'упёрлась в лимит',
+    mainFixed: 'заменена после починки main',
+    review: 'заменена после отзыва на pull request',
+    returned: 'заменена после возврата задачи',
+  },
+  remote: {
+    starting: 'Remote Control поднимается — ссылка будет через пару секунд.',
+    disabled: 'Remote Control выключен: в /config папки аккаунта нет «remoteControlAtStartup».',
+    'no-bridge': 'Сессия не подняла Remote Control — отсюда её не открыть.',
+    lost: 'Remote Control отвалился — с телефона не открыть. Не довела задачу — «Новая сессия».',
+    'api-key': 'На API-ключе Remote Control нет: он требует входа в claude.ai. Ответить сессии — из чата здесь или в трекере.',
+  },
+  panel: (task: string) => `Сессия задачи ${task}`,
+  closePanel: 'Закрыть панель',
+  skipped: 'пропущена',
+  none: 'Сессии по этой задаче ещё не было.',
+  onlyIn: (account: string) => `\nRemote Control покажет её только в аккаунте ${account}`,
+  openRemote: 'Открыть сессию через Remote Control',
+  openPull: (number: number) => `Открыть pull request #${number} задачи в новой вкладке`,
+  restartTitle: 'Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в трекере не меняется.',
+  restart: 'Новая сессия',
+  skippedTitle: 'Задача пропущена — цепочка её не берёт, пока не вернёшь.',
+  skipCurrent: 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в трекере и сессия не меняются.',
+  skipOther: 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в трекере не меняется.',
+  skipFix: 'Цепочка перестанет ждать починку и продолжит задачи; следующий красный main запустит новую. Сессия не меняется.',
+  skipCarry: 'Цепочка перестанет ждать перенос и продолжит задачи; конфликт ждёт на странице релизного проекта. Сессия не меняется.',
+  interrupted: 'остановлена до починки main',
+  skip: 'Пропустить',
+  midTurn: 'идёт ход — замена и пропуск после него',
+  silent: (since: string, restartAt: string, hungAt: string) =>
+    `Молчит с ${since}. «Новая сессия» сможет оборвать ход с подтверждением с ${restartAt}; без подтверждения — в ${hungAt}, если тишина продолжится.`,
+  confirmSilent: (since: string) => `Сессия молчит с ${since}. Оборвать ход и начать новую сессию?`,
+  interruptRestart: 'Оборвать и начать новую',
+  held: {
+    launching: 'Пока нельзя: сессия ещё запускается. Станет доступна, когда она поднимется и закончит ход.',
+    replacing: 'Пока нельзя: идёт замена сессии. Станет доступна, когда новая поднимется и закончит ход.',
+    midTurn: 'Пока нельзя: идёт ход. Станет доступна, когда сессия закончит ход.',
+    noSession: 'Пока нельзя: у задачи нет живой сессии. Станет доступна, когда цепочка её запустит.',
+    notCurrent: 'Пока нельзя: цепочка сейчас не на этой задаче. Станет доступна, когда цепочка возьмёт её и запустит сессию.',
+    skipped: 'Задача пропущена: верни её, и кнопка станет доступна, когда цепочка возьмёт задачу и запустит сессию.',
+  },
+  start: {
+    title: {
+      launch: 'Запуск сессии',
+      handover: 'Передача задачи',
+      boot: 'Сессия загружается',
+      answer: 'Сессия думает',
+    },
+    text: {
+      launch: 'Готовим рабочую копию и запускаем агента.',
+      handover: 'Старая сессия останавливается, новая стартует с передачей дел.',
+      boot: 'Агент поднимается: настройки, плагины, MCP-серверы.',
+      answer: 'Сессия запущена и готовит первый ответ.',
+    },
+    steps: ['Подготовка', 'Загрузка', 'Первый ответ'],
+  },
+  account: (account: string) => `Аккаунт: ${account}`,
+  waits: (what: string) => `Ждёт: ${what}`,
+  startupDialog: (what: string) =>
+    `Сессия висит на диалоге Claude Code до первого хода, и в фоне на него некому ответить: ${what}. Уберите причину и нажмите «Новая сессия».`,
+  hung: (since: string) =>
+    `Ход ничего не пишет с ${since}, а его процесс жив: он считается зависшим. Напишите сессии или нажмите «Новая сессия» — и то и другое сначала остановит ход.`,
+  session: 'Сессия',
+  time: 'Время',
+  cache: 'Кэш',
+  context: 'Контекст',
+  ttl: (ttl: string) => `срок ${ttl}`,
+  tokens: 'Токены',
+  input: 'ввод',
+  output: 'вывод',
+  cacheRead: 'чтение кэша',
+  cacheWrite: 'запись кэша',
+  model: 'Модель',
+  provider: 'провайдер',
+  modelOf: 'модель',
+  modelFrom: 'По последнему ответу сессии в транскрипте',
+  modelYet: 'Сессия ещё не ответила: модель видна с первого ответа',
+  limitUnknown: 'Время сброса лимита неизвестно — новая сессия запустится, как только сменишь аккаунт.',
+  creditEmpty: 'кончился кредит',
+  spendEmpty: 'лимит трат',
+  spendUntil: (at: string | null) => at === null ? 'Достигнут лимит трат API' : `Лимит трат API до ${at}`,
+  spendWait: (at: string | null) =>
+    `${at === null ? 'Время сброса лимита трат API неизвестно.' : `Лимит трат API сбросится ${at}.`} Диспетчер проверяет ключ каждые 5 минут и продолжит раньше, если лимит поднимут. Можно также сменить аккаунт.`,
+  creditOut:
+    'На ключе API кончился кредит. Диспетчер проверяет его раз в 5 минут и продолжит после пополнения; смена аккаунта сразу запустит новую сессию.',
+  limitResume: (at: string) => `После сброса лимита в ${at} диспетчер продолжит эту сессию — кэш ещё будет тёплым.`,
+  limitRelay: (at: string) =>
+    `После сброса лимита в ${at} (или сразу после смены аккаунта) диспетчер запустит новую сессию в той же рабочей папке.`,
+  list: 'Сессии по задаче',
+  resets: (count: number, breakdown: string) => ` · сбросов контекста: ${count} (${breakdown})`,
+  compacted: (count: number) => ` · компакций: ${count}`,
+  resumed: (count: number) => ` · продолжена после лимита${count > 1 ? ` ×${count}` : ''}`,
+  answered: (count: number) => ` · получила ответ${count > 1 ? ` ×${count}` : ''}`,
+  current: 'сейчас',
+  postponed: (blockers: string) => `отложена: ждёт ${blockers}`,
+  dialog: (id: string) => `Сессия ${id}`,
+  closeDialog: 'Закрыть окно сессии',
+  notFound: 'Транскрипт этой сессии не найден.',
+  started: 'Запущена',
+  lastTurn: 'Последний ход',
+  worked: 'Работала',
+  endContext: 'Контекст в конце',
+  place: 'Ветка и папка',
+  feed: 'Ход работы',
+  feedEmpty: 'Сессия ещё ничего не сделала.',
+  transcript: 'Весь транскрипт',
+  transcriptTitle: 'Транскрипт',
+  transcriptDialog: (id: string) => `Транскрипт сессии ${id}`,
+  closeTranscript: 'Закрыть транскрипт',
+  showMore: 'Показать целиком',
+  showLess: 'Свернуть',
+  chat: {
+    open: 'Чат',
+    title: 'Чат',
+    picture: 'Картинка',
+    openPicture: (name: string) => `Открыть ${name}`,
+    share: {
+      title: 'Файлы от сессии',
+      download: (name: string) => `Скачать ${name}`,
+      gone: 'файла уже нет',
+      goneTip: 'Файла уже нет — его worktree убран — или он лежит вне папок сессии',
+    },
+    waiting: 'Сессия ждёт ответа — открыть чат',
+    idle: 'Открыть чат с сессией',
+    placeholder: 'Ответ сессии… Enter — отправить, Shift+Enter — новая строка',
+    touchPlaceholder: 'Ответ сессии…',
+    send: 'Отправить',
+    attach: 'Приложить файлы',
+    drop: 'Отпустите, чтобы приложить файлы',
+    tools: {
+      read: 'Прочитал',
+      edit: 'Отредактировал',
+      write: 'Записал',
+      search: 'Искал',
+      ran: 'Запустил команду',
+      summary: (counts: ToolCounts) =>
+        sentence([
+          counts.edit === 0 ? '' : `отредактировал ${counts.edit === 1 ? 'файл' : counted('файл', 'файла', 'файлов')(counts.edit)}`,
+          counts.read === 0 ? '' : `прочитал ${counts.read === 1 ? 'файл' : counted('файл', 'файла', 'файлов')(counts.read)}`,
+          counts.search === 0 ? '' : `искал${counts.search === 1 ? '' : ` ${counted('раз', 'раза', 'раз')(counts.search)}`}`,
+          counts.run === 0 ? '' : `запустил ${counts.run === 1 ? 'команду' : counted('команду', 'команды', 'команд')(counts.run)}`,
+          counts.other === 0 ? '' : `вызвал ${counts.other === 1 ? 'инструмент' : counted('инструмент', 'инструмента', 'инструментов')(counts.other)}`,
+        ]),
+      failed: (count: number) => `(${count} с ошибкой)`,
+      failure: 'ошибка',
+      interrupted: 'прервана с концом хода',
+      size: (added: number, removed: number) => `Добавлено строк: ${added}, удалено: ${removed}`,
+    },
+    head: {
+      branch: (name: string) => `Ветка ${name}`,
+      edits: (added: number, removed: number) => `Правки за сессию: +${added} −${removed} строк`,
+    },
+    ...composerRu,
+  },
+}
+
