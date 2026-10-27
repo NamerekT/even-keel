@@ -1,6 +1,6 @@
 {
   "name": "jira",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Jira Cloud for Even Keel sessions: the official Atlassian Rovo MCP server signed in with an API token, and the task skill.",
   "author": { "name": "Even Keel" },
   "keywords": ["jira", "atlassian", "issues", "tracker", "even-keel", "mcp"]

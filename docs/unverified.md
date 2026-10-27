@@ -51,9 +51,9 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
-| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects on Scrum or custom workflows | a task may not enter the chain or close, or an embedded picture has no name |
-| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Claude Code or Codex | a session cannot edit its issue's description or move a parent |
-| 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear, GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
+| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects on custom workflows | a task may not close, or an embedded picture has no name |
+| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Codex, or closing a parent | a session cannot move a parent |
+| 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Linear, GitHub profiles connected through OAuth (Jira fails until BTN-485) | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
@@ -432,9 +432,8 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ### Jira Cloud
 
-The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. The sign-in, paging, bulk reads, statuses, attachments, create fields and a chain of a company-managed Kanban project were checked on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). Still to check on a live site:
+The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. The sign-in, paging, bulk reads, statuses, attachments, create fields and a chain of a company-managed Kanban project were checked on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)); a company-managed Scrum template turned out to have no Backlog status at all. Still to check on a live site:
 
-- a Backlog status of a company-managed Scrum template is in the `new` category (the Kanban one is);
 - a media node's `alt` is the attachment's file name: only an attachment in the issue's list was seen, never one embedded in the description;
 - a site whose create screen lacks `priority` or `fixVersions` refuses them;
 - transitions on workflows that require screen fields; the live standard workflow accepted both the ready and Done transitions without extra fields.
@@ -443,14 +442,14 @@ If one is wrong, the profile check fails, the chain reads fewer issues, a task s
 
 ### Jira MCP plugin
 
-The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. An OpenCode chain session through the gateway read its issue, an attachment, commented and made a `Blocks` link the right way on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). Still to check: `editJiraIssue` and `transitionJiraIssue`, which that session had no reason to call, and a Claude Code or Codex session with the plugin. If one is wrong, a plugin session cannot record a decision in its issue or close a parent. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
+The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. An OpenCode chain session through the gateway read its issue, an attachment, commented and made a `Blocks` link the right way, and a Claude Code chain session read its issue, edited its description with `editJiraIssue` and commented, on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). Still to check: `transitionJiraIssue` — Claude Code's auto mode classifier refused the call as a write to an external system before it reached Jira — and a Codex session with the plugin. If one is wrong, a plugin session cannot close a parent. **Workaround:** close the parent in Jira yourself. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 
-The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`; no real provider has been used. Assumed:
+The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`. Rovo's side up to the token was checked live on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)): its token is refused on `v2/mcp` and taken on `v1/mcp`, so the Jira button fails until BTN-485, and an HTTPS callback other than `localhost` needs the organization admin to add its domain in Rovo MCP's domain settings. Assumed:
 
-- Rovo (`mcp.atlassian.com`) and Linear (`mcp.linear.app`) publish `/.well-known/oauth-authorization-server` on the MCP server's own origin, with S256 and a registration endpoint, and accept a public client registered with an `http://localhost:4747/…` or an HTTPS Tailscale callback;
-- the token endpoints accept `resource` (RFC 8707) and answer `token_type: Bearer`, with a refresh token; Rovo's access token passes `getAccessibleAtlassianResources` for the profile's site, and Atlassian lets the consent pick that site;
+- Linear (`mcp.linear.app`) publishes `/.well-known/oauth-authorization-server` on the MCP server's own origin, with S256 and a registration endpoint, and accepts a public client registered with an `http://localhost:4747/…` or an HTTPS Tailscale callback;
+- Linear's token endpoint accepts `resource` (RFC 8707) and answers `token_type: Bearer`, with a refresh token;
 - GitHub's MCP server (`api.githubcopilot.com/mcp/`) accepts the OAuth App's `gho_` token with the scopes `repo read:org`, and GitHub's `access_token` answer in JSON is enough (no refresh token, no expiry);
 - the browser's guard cookie reaches `GET /api/profiles/oauth/callback` on the provider's redirect (a top-level navigation, `SameSite=Lax`), and the page opened through Tailscale Service has the same `Host` as its `Origin`;
 - a refused refresh or a second 401 marks the grant for reconnecting, and a session's tool call meanwhile fails with an MCP error rather than hangs.
