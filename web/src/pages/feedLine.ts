@@ -1,4 +1,5 @@
 import type { FeedLine } from '../../../src/sessions/transcript.js'
+import { say } from '../i18n/index.js'
 
 /** The last part of a path, by either separator. */
 export function fileName(path: string): string {
@@ -9,5 +10,5 @@ export function fileName(path: string): string {
 export function feedText(line: FeedLine): string {
   const answers = Object.entries(line.answers?.answers ?? {}).map(([question, answer]) => `${question} → ${answer}`)
   const files = (line.files ?? []).map((file) => `📎 ${fileName(file)}`)
-  return [...answers, line.text, ...files].filter((part) => part !== '').join(' · ')
+  return [...answers, line.notice === undefined ? line.text : say(line.notice), ...files].filter((part) => part !== '').join(' · ')
 }

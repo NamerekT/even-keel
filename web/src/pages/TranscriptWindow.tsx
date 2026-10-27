@@ -5,7 +5,7 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
 import { formatElapsed, formatTokens } from '../format.js'
-import { localized, t } from '../i18n/index.js'
+import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { contextFill } from '../state.js'
@@ -348,7 +348,7 @@ function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   }
   if (line.kind === 'text') return <SessionMarkdown text={line.text} />
   if (line.kind === 'image') return <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />
-  return <span className="transcript__plain">{line.text}</span>
+  return <span className="transcript__plain">{line.notice === undefined ? line.text : say(line.notice)}</span>
 }
 
 /**

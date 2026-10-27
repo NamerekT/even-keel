@@ -68,6 +68,7 @@ export const opencode: AgentAdapter = {
           workdir: summary.workdir,
           branch: summary.gitBranch,
           apiError: summary.apiError?.text ?? null,
+          ...(summary.apiError?.notice === undefined ? {} : { apiErrorNotice: summary.apiError.notice }),
           account: null,
         }
       },

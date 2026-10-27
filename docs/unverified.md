@@ -66,6 +66,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode on Linux, macOS or a ChatGPT, Copilot, API-key account | sessions do not start, or a whole task runs on a wrong assumption |
 | 56 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode | the session stops on the error instead of waiting for the reset; on Zen, retries too early or too late |
 | 57 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
+| 57a | [OpenCode stream errors in the account log](#opencode-stream-errors-in-the-account-log-btn-497) | OpenCode with a silent failed request | a changed log format could leave the turn busy until the hang check |
 | 58 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with Copilot | the sign-in waits for good; sign in in a terminal |
 | 59 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
 | 60 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
@@ -353,6 +354,10 @@ Checked live with Codex 0.164.0 on Windows on 2026-10-25: a shell write of the n
 
 The install and the check that a plugin is already in a folder (`<CODEX_HOME>/plugins/cache/<marketplace>/<plugin>`) were run only on Windows. If the path differs, every first turn of a service run installs the plugin again, which costs a few seconds and changes nothing else.
 
+## OpenCode stream errors in the account log (BTN-497)
+
+After 30 seconds without an event or changed session row, the adapter reads newly appended account-log bytes for an `ERROR` / `stream error` belonging to that session and newer than its activity. A limit uses the existing limit recovery; another failure exposes a translated notice while preserving the live process for stop/resume. Parser and adapter tests cover attribution, incremental reads, persistence and classification. An isolated Windows process/SQLite check and fake-page screenshots cover the local path; a fresh real OpenCode provider refusal under the service has not been reproduced with this implementation. To verify, exhaust a free model in a test chain, confirm the limit lamp and retry plan, then confirm the old process is gone when the retry or account switch starts. Check an ordinary stream failure too. **Workaround:** answer from the chat or choose "New session" once the turn is idle; otherwise use the existing hang check.
+
 ## OpenCode
 
 ### OpenCode chain sessions under the service (BTN-214)
@@ -361,7 +366,7 @@ Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a scr
 
 ### A spent limit on OpenCode
 
-An OpenCode account signed in to ChatGPT or Copilot has its windows read from the provider (BTN-341, the entry below), so a limit waits for their reset; one on OpenCode Zen has none and no reset time, so the chain tries it again after 15 minutes, doubling the wait up to 4 hours while it keeps hitting the limit (BTN-342, `docs/chain.md`, exception 1). What a spent limit looks like in OpenCode's database was never seen: the fold takes a message's `error` as the API error, a text with `usage limit`, `rate limit`, `quota` or `too many requests`, a 429 `statusCode` or `FreeUsageLimitError` anywhere in it as a limit (`LIMIT_TEXT`, `limitError` in `src/opencode/transcript.ts`). Zen's spent free allowance is said to be a 429 `FreeUsageLimitError` by others' reports only. If it comes otherwise, the session stops like on any error; if OpenCode retries by itself, it hangs (below); how the chain holds a limit on OpenCode was not tried. Zen's free limits are published nowhere, so the waits are a guess: a limit that resets in minutes waits up to the next retry, a daily one is tried a few times in vain. **Workaround:** wait for the reset and press "New session".
+An OpenCode account signed in to ChatGPT or Copilot has its windows read from the provider (BTN-341, the entry below), so a limit waits for their reset; one on OpenCode Zen has none and no reset time, so the chain tries it again after 15 minutes, doubling the wait up to 4 hours while it keeps hitting the limit (BTN-342, `docs/chain.md`, exception 1). The fold recognizes limit text, a 429 `statusCode` or `FreeUsageLimitError`. On 2026-10-27 a real free-model refusal appeared only in the account log as `AI_APICallError: Free usage limit reached`, with no turn event or database error and a process that stayed alive. The log fallback above (BTN-497) covers that path locally; recovery from a fresh real refusal under the service and a limit stored in the database remain unverified. Zen's free limits are published nowhere, so the waits are a guess: a limit that resets in minutes waits up to the next retry, a daily one is tried a few times in vain. **Workaround:** wait for the reset and press "New session".
 
 ### OpenCode's Copilot limits (BTN-341)
 

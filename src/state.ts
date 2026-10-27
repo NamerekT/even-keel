@@ -44,6 +44,7 @@ export interface SessionView {
   ask: Ask | null
   apiError: string | null
   apiErrorKind: ApiErrorKind | null
+  apiErrorNotice?: Notice
   startedAt: string
   lastActivityAt: string | null
   contextTokens: number
@@ -72,6 +73,7 @@ export interface SessionRecord {
   workdir: string | null
   branch: string | null
   apiError: string | null
+  apiErrorNotice?: Notice
   /** The e-mail of the account the session ran on. */
   account: string | null
 }

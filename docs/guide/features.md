@@ -154,6 +154,8 @@ The **Chat** button of the current session opens its whole transcript with a rep
 
 If a turn stops on an API error, send a reply from the chat to resume the session. While the agent is still working or retrying the request, the usual rules for messages during a turn apply.
 
+If OpenCode stays silent for 30 seconds, Even Keel also checks its account log for a stream error from that session. A usage limit then follows the usual limit wait; another stream error shows a translated message and lets you send a reply or choose **New session**. Without such an error, the existing hang check still applies.
+
 If your reply cannot be delivered, Even Keel reports the failure and leaves the chain running. Send the reply again when the cause is resolved; Even Keel does not automatically retry a failed delivery.
 
 You can also write to a session while it works ("not there", "mind X too"): a hook of the [checkpoint](../../plugins/checkpoint) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile. A Claude session on the Agent SDK transport needs no plugin for it: the message goes straight in and the session reads it once its current tool call ends.
