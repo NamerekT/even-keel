@@ -42,6 +42,7 @@ The release is the user's: no session bumps the version, tags or publishes. A pa
 5. The tag's push to `github` publishes the npm package of that version ("Publishing to npm" below): check that the workflow `Publish` went through and that `npm view even-keel version` names the release.
 6. A minor version also gets its branch, `git branch release/v0.2 v0.2.0` and a push of it to both remotes; then `even-keel-github` is switched to it, and so is `EKR`'s `branch`.
 7. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
+8. The GitHub repository's description and topics are settings, not files: no push changes them. If the README's top changed in this release, they are brought in line with it the same day (`gh repo edit NamerekT/even-keel --description … --add-topic …`), never before step 4, or they promise what `main` does not have yet.
 
 ## Publishing to npm
 
