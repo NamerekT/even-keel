@@ -12,7 +12,8 @@ const RETRY_PATTERN =
 export function resetTimeOf(text: string, at: string): string | null {
   const spending = spendingReset(text, at)
   if (spending !== null) return spending
-  const match = (RESET_PATTERN.exec(text) ?? RETRY_PATTERN.exec(text))?.groups
+  const claude = RESET_PATTERN.exec(text)
+  const match = (claude ?? RETRY_PATTERN.exec(text))?.groups
   if (match === undefined) return null
   const { month: monthName, day: dayText, year: yearText, hour: hourText, minute: minuteText, meridiem, zone: zoneText } = match
   const zone = zoneText?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -25,7 +26,8 @@ export function resetTimeOf(text: string, at: string): string | null {
     const today = wallDate(since, zone)
     if (monthName === undefined) {
       let reset = wallToUtc(today.year, today.month, today.day, hour, minute, zone)
-      if (reset <= since) reset = wallToUtc(today.year, today.month, today.day + 1, hour, minute, zone)
+      // Codex names a bare time only for a reset on the same day, rounded down to the minute: one gone by has come already.
+      if (reset <= since && claude !== null) reset = wallToUtc(today.year, today.month, today.day + 1, hour, minute, zone)
       return new Date(reset).toISOString()
     }
     const month = MONTHS.indexOf(monthName.toLowerCase())

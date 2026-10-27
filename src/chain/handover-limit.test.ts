@@ -84,7 +84,7 @@ describe('Limit lifecycle in the service log', () => {
     limited['ABC-1'] = session({ lastReplyAt: '2026-09-26T14:29:00.000Z' })
     await check(dispatcher)
     expect(log[0]).toContain('next: resume')
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
     await check(dispatcher)
     expect(log).toHaveLength(2)
@@ -94,7 +94,7 @@ describe('Limit lifecycle in the service log', () => {
   it('logs a successful handoff with both session ids, then logs a new limit separately', async () => {
     const { dispatcher, limited, clock, log } = await running()
     await check(dispatcher)
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
     await check(dispatcher)
     expect(log).toHaveLength(2)
@@ -123,7 +123,7 @@ describe('Limit lifecycle in the service log', () => {
   it('does not claim continuation if the handoff fails', async () => {
     const { dispatcher, clock, log } = await running({ failRelay: true })
     await check(dispatcher)
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
     expect(log.some((line) => line.includes('continued after the limit'))).toBe(false)
     expect(log.at(-1)).toContain('paused:')

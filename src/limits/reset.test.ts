@@ -40,6 +40,13 @@ describe('resetTimeOf', () => {
     expect(resetTimeOf("You've hit your usage limit. Upgrade to Pro, or try again at 3:46 PM.", at)).toBe(new Date(2026, 9, 25, 15, 46).toISOString())
   })
 
+  it("keeps a bare Codex time just passed on its day: Codex rounds the reset down to the minute", () => {
+    const at = new Date(2026, 9, 27, 12, 55, 12).toISOString()
+    expect(resetTimeOf("You've hit your usage limit. Upgrade to Pro, or try again at 12:55 PM.", at)).toBe(
+      new Date(2026, 9, 27, 12, 55).toISOString(),
+    )
+  })
+
   it('gives up on text without a reset time or with an unknown zone', () => {
     expect(resetTimeOf('API Error: 529 overloaded', '2026-09-27T14:39:02.453Z')).toBeNull()
     expect(resetTimeOf('resets 7pm (Mars/Olympus)', '2026-09-27T14:39:02.453Z')).toBeNull()

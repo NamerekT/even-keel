@@ -4,6 +4,12 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A chain on Codex no longer stands still for a day after a usage limit. Codex gives the reset rounded down to the minute, so a new session started right at that time was refused again, and the time it named, already past, was taken for the next day. Now a reset given without a date that has just passed counts as today. After any limit the chain waits one more minute past the reset before it starts the next session. If the next session is refused again with a reset more than a minute in the past, the chain retries 10 minutes later.
+
 ## [0.1.3] - 2026-10-26
 
 ### Fixed
