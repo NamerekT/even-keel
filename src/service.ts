@@ -1136,6 +1136,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     return status === 'busy' || status === 'waiting'
   },
   midTurn: (task) => agentStatus(task) === 'busy',
+  silentSince: (task) => liveView(task)?.silentSince ?? null,
   shell: (task) => {
     const view = liveView(task)
     return view !== undefined && agents.find((agent) => agent.sessionId === view.sessionId)?.status === 'shell'
@@ -1370,7 +1371,7 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
     if (approved(task, session, prompt)) return session.sessionId
     const home = homeOf(session.account)
     const start = goOnWith(home, task, session, prompt)
-    const went = await agentOf(home).reply?.(home, session, start)
+    const went = liveView(task)?.hungSince != null ? undefined : await agentOf(home).reply?.(home, session, start)
     if (went != null) return went
     const started = Date.now()
     await stopIn(home, session)

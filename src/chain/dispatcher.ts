@@ -27,6 +27,8 @@ import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead, waitingBlockers } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import type { HandoffSession } from './relay.js'
+import type { SilentRestart } from '../sessions/silence.js'
+import { guardRestart } from './restartGuard.js'
 
 export {
   emptyChainState,
@@ -302,13 +304,13 @@ export class Dispatcher {
     return this.carries.of(from)
   }
 
-  restart(project: string, task: string): void {
+  restart(project: string, task: string, confirmed?: SilentRestart): void {
     this.requireProject(project)
     const chain = this.chainOf(project)
     const current = chain?.current?.task === task ? chain.current : null
     if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
     if (current.sessionId === null) throw fail('chain.launching', { task })
-    if (this.deps.busy(task)) throw fail('chain.midTurn', { task })
+    guardRestart(this.deps, task, current.sessionId, confirmed)
     this.requireLaunches(project, task)
     const reset = this.deps.limitReset(project, task)
     if (reset !== null) throw fail('chain.limitSpent', { until: reset })
@@ -316,6 +318,12 @@ export class Dispatcher {
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
     this.work = this.work.then(() => {
+      try {
+        guardRestart(this.deps, task, replaced, confirmed)
+      } catch (error) {
+        console.warn(englishOf(noticeOf(error)))
+        return
+      }
       this.unhold(chain)
       return this.handovers.replace(chain, current, replaced, session)
     })

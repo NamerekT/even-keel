@@ -48,6 +48,7 @@ export interface SetupOptions {
   /** Whether the service has read its account folders since its start; absent — it has. */
   accountsRead?: boolean
   busy?: Set<string>
+  silentSince?: Record<string, string>
   waiting?: Set<string>
   /** Sessions whose turn has ended while their own background command runs: busy and mid-turn to the chain. */
   shell?: Set<string>
@@ -116,6 +117,7 @@ export function setup(options: SetupOptions = {}) {
     liveSession: (id) => live[id],
     blocked: () => (typeof options.blocked === 'string' ? textNotice(options.blocked) : options.blocked),
     busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
+    silentSince: (id) => options.silentSince?.[id] ?? null,
     midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),
     shell: (id) => shell.has(id),
     asked: (id) => options.asked?.[id] ?? null,

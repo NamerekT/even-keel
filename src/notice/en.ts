@@ -50,6 +50,9 @@ export const en = {
   'chain.notOpen': (p: { task: string; project: string }) => `chain: ${p.task} is not an open task of ${p.project}`,
   'chain.launching': (p: { task: string }) => `chain: ${p.task} is still launching; try again in a moment`,
   'chain.midTurn': (p: { task: string }) => `chain: ${p.task} is mid-turn; wait until its session stops`,
+  'chain.restartChanged': (p: { task: string }) => `${p.task}: the session or its last write changed. Check the session and confirm New session again.`,
+  'chain.silentTurn': (p: { task: string; since: string; restartAt: string; hungAt: string }) =>
+    `${p.task} has written nothing since ${p.since}. New session can interrupt the turn with confirmation from ${p.restartAt}; it becomes available without confirmation at ${p.hungAt} if silence continues.`,
   'chain.notCurrent': (p: { task: string }) => `chain: ${p.task} is not the current task of a chain`,
   'chain.limitSpent': (p: { until: string }) => `chain: the usage limit is spent until ${p.until}; switch the account or wait`,
   'session.transient': () => 'waiting to retry',

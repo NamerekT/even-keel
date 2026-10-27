@@ -59,6 +59,7 @@ describe('entryOf', () => {
       cwd: 'C:\\repos\\example',
       account: 'codex',
       startedAt: 1_790_000_000_000,
+      processStartedAt: 1_790_000_000_000,
       pid: 4242,
       status: 'busy',
       state: 'working',

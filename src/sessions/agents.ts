@@ -12,7 +12,7 @@ export interface AgentEntry {
   cwd: string
   kind: string
   startedAt: number
-  /** Claude's per-process initialization time; a resumed job may have an earlier `startedAt`. */
+  /** Per-process initialization time; a resumed job may have an earlier `startedAt`. */
   processStartedAt?: number
   sessionId: string
   name?: string
@@ -26,7 +26,9 @@ export interface AgentEntry {
   ask?: Ask
   /** The turn ended and no process is left, yet the session goes on with the next `resume` (Codex). */
   resting?: boolean
-  /** Since when (ms) the turn whose process lives on has written nothing: taken for hung, the session is idle (OpenCode). */
+  /** The last write of a live working turn, including streamed output (Unix ms). */
+  silentSince?: number
+  /** Since when (ms) the turn whose process lives on has written nothing: taken for hung, the session is idle. */
   hungSince?: number
   /** A message goes into the live session mid-turn by `Agent.reply`, and it takes it in that turn: no mailbox needed (an SDK session). */
   steers?: boolean

@@ -270,6 +270,7 @@ export interface DispatcherDeps {
   /** Why no session of the project starts now; `task` — the one about to start, its label may pick another agent. */
   blocked: (project: string, task?: string) => Notice | undefined
   busy: (task: string) => boolean
+  silentSince?: (task: string) => string | null
   midTurn: (task: string) => boolean
   /**
    * The session's turn has ended and only its own background command runs (`shell`); `busy` and `midTurn` count it

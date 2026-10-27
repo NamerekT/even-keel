@@ -27,8 +27,8 @@ const run = promisify(execFile)
 const APPEAR_TIMEOUT_MS = 120_000
 const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
-/** How long a live turn may write nothing before it is taken for hung (`hungEntry`): a long build or test run fits in. */
-export const TURN_HANG_MS = 30 * 60_000
+export { hungEntry, TURN_HANG_MS } from '../sessions/silence.js'
+import { hungEntry } from '../sessions/silence.js'
 export const LOG_SILENCE_MS = 30_000
 const STREAM_ERROR_EVENT = 'even_keel_stream_error'
 /** Copilot's sign-in asks GitHub.com or Enterprise first; Enter takes GitHub.com. */
@@ -413,17 +413,6 @@ export class OpenCodeCli {
     const found = (await sessionList(home.dir)).find((session) => session.title === title && session.createdAt >= since && samePath(session.directory, cwd))
     return found?.id
   }
-}
-
-/**
- * A live turn that has written nothing for `TURN_HANG_MS` — no row of its session in `opencode.db` changed and no event
- * came out — is taken for hung (a request OpenCode retries for good, a tool that never returns): the session is idle,
- * so the user may answer it or press "New session", and keeps its `pid`, so either ends the turn first. Nothing stops
- * it on its own (invariant 1).
- */
-export function hungEntry(entry: AgentEntry, lastChange: number, now: number): AgentEntry {
-  if (entry.status !== 'busy' || now - lastChange < TURN_HANG_MS) return entry
-  return { ...entry, status: 'idle', hungSince: lastChange }
 }
 
 /**

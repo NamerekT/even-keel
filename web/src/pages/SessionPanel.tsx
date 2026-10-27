@@ -5,6 +5,7 @@ import { CLAUDE } from '../../../src/claude/name.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
+import { TURN_HANG_MS, TURN_RESTART_MS, type SilentRestart } from '../../../src/sessions/silence.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
@@ -18,6 +19,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -132,6 +134,8 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const [chatting, setChatting] = useState(false)
+  const [confirmation, setConfirmation] = useState<SilentRestart | null>(null)
+  const now = useNow(1_000)
   const fix = isOwnName(block.id)
   // The row of a fix or a carry is one of its episodes; the service knows it by its name.
   const body = { project: taskProject(state, block.id), task: fix ? fixTaskOf(block.id) : block.id }
@@ -146,6 +150,14 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   if (talking !== null) lastTalking.current = talking
   const chatSession = talking ?? (chatting ? lastTalking.current : null)
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
+  const quietSince = live?.lamp === 'working' && live.waitingFor === null ? live.silentSince ?? null : null
+  const quietAt = quietSince === null ? null : Date.parse(quietSince)
+  const earlyRestart = quietAt !== null && now.getTime() - quietAt >= TURN_RESTART_MS
+  const quietText = quietAt === null ? null : t.session.silent(
+    formatMoment(quietSince!, now),
+    formatMoment(new Date(quietAt + TURN_RESTART_MS).toISOString(), now),
+    formatMoment(new Date(quietAt + TURN_HANG_MS).toISOString(), now),
+  )
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
@@ -160,7 +172,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
           ? t.session.held.midTurn
           : null
   const restartHeld =
-    wait ??
+    (earlyRestart && !starting ? null : midTurn && quietText !== null && !starting ? quietText : wait) ??
     (block.skipped ? t.session.held.skipped : !block.current ? t.session.held.notCurrent : live === null ? t.session.held.noSession : null)
 
   // The runs of the commits a fix of main went from and landed, beside its chat.
@@ -190,11 +202,15 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
         )}
         {block.open && (
           <PanelButton
-            tip={t.session.restartTitle}
+            tip={earlyRestart ? quietText! : t.session.restartTitle}
             held={restartHeld}
             sending={sending}
             busy={replacing.on}
             onClick={async () => {
+              if (earlyRestart && quietSince !== null && live !== null) {
+                setConfirmation({ sessionId: live.sessionId, since: quietSince })
+                return
+              }
               if (await send('chain/restart', body)) replacing.begin()
             }}
           >
@@ -222,8 +238,25 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
               {t.session.skip}
             </PanelButton>
           ))}
-        {midTurn && !starting && <span className="panel__hint">{t.session.midTurn}</span>}
+        {midTurn && !starting && quietText === null && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
+      {quietText !== null && !starting && <p className="notice">{quietText}</p>}
+      {confirmation !== null && (
+        <ConfirmDialog
+          title={t.session.restart}
+          question={t.session.confirmSilent(formatMoment(confirmation.since, now))}
+          confirm={t.session.interruptRestart}
+          cancel={t.common.cancel}
+          busy={sending}
+          onClose={() => setConfirmation(null)}
+          onConfirm={() => {
+            void send('chain/restart', { ...body, confirmed: confirmation }).then((ok) => {
+              setConfirmation(null)
+              if (ok) replacing.begin()
+            })
+          }}
+        />
+      )}
       {remoteOff !== null && !starting && (
         <p className="panel__remote-off" title={session?.account == null ? undefined : t.session.account(session.account)}>
           {remoteOff}

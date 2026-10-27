@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
@@ -189,6 +190,10 @@ Anthropic sometimes resets a five-hour window or all limits of an account ahead 
 Responses in fast mode are recorded (`speed = fast`), but none have appeared in the data, so `/stats` prices them as normal responses and their cost is understated (`docs/tally.md`).
 
 ## Sessions
+
+### Silent turn recovery (BTN-496)
+
+The shared five-minute confirmed replacement and thirty-minute hang rule is covered by unit tests for Claude Code, Codex and Copilot file activity, OpenCode's database/output stamp, resumed processes, stale confirmations and the dispatcher handoff. Page states can be reproduced with `?chain=silent-short`, `?chain=silent` and `?chain=hung`. Not yet run against a genuinely stalled model request on every CLI and the Claude SDK: that their transcript timestamps keep tracking all real output and that the existing stop/handoff path ends the silent turn before a new agent starts. A long silent but healthy tool can qualify too; the five-minute action is deliberately confirmed and neither threshold stops the session automatically. **Workaround:** leave a healthy long command running, or confirm "New session" once its silence is unexpected. Screenshot checks and the controlled local activity check are recorded in `verified.md`; they do not claim a provider outage was reproduced.
 
 ### Temporary model errors (BTN-498)
 
