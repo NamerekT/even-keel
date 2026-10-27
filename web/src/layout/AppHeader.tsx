@@ -1,0 +1,39 @@
+import { useLayoutEffect, useRef } from 'react'
+import { CliVersionBanner } from './CliVersionBanner.js'
+import { ConfigBanner } from './ConfigBanner.js'
+import { Header } from './Header.js'
+import { LinkBanner } from './LinkBanner.js'
+import { PackagesBanner } from './PackagesBanner.js'
+import { UnattendedBanner } from './UnattendedBanner.js'
+import { UsageBanner } from './UsageBanner.js'
+
+/** One measured sticky stack: all viewport-bound panels inherit its height, including during banner motion. */
+export function AppHeader() {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = ref.current!
+    const app = element.parentElement!
+    const measure = () => app.style.setProperty('--header-height', `${element.getBoundingClientRect().height}px`)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      app.style.removeProperty('--header-height')
+    }
+  }, [])
+
+  return (
+    <div className="app__header" ref={ref}>
+      <Header />
+      <div className="app__banners">
+        <LinkBanner />
+        <UsageBanner />
+        <CliVersionBanner />
+        <ConfigBanner />
+        <UnattendedBanner />
+        <PackagesBanner />
+      </div>
+    </div>
+  )
+}

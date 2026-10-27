@@ -69,7 +69,8 @@
   --radius-inner: calc(var(--radius) - 1px);
   --radius-outer: calc(var(--radius) + 1px);
   --gutter: 16px;
-  --header-height: 52px;
+  --header-row-height: 52px;
+  --header-height: var(--header-row-height);
   --column: min(94vw, 2400px);
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, monospace;
@@ -331,7 +332,7 @@ input[type='radio']:disabled {
   grid-template-columns: auto 1fr auto;
   grid-template-areas: 'nav limits aside';
   gap: 8px 20px;
-  min-height: var(--header-height);
+  min-height: var(--header-row-height);
 }
 
 .header__nav {

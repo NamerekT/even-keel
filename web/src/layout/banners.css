@@ -73,3 +73,59 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+.app__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  overflow-anchor: none;
+}
+
+.app__banners {
+  max-height: 40dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.banner-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-appear) ease-out;
+  overflow-anchor: none;
+}
+
+.banner-slot--shown {
+  grid-template-rows: 1fr;
+}
+
+.banner-slot__clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.banner-slot .banner {
+  border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  transform: translateY(-100%);
+  transition: transform var(--motion-appear) ease-out;
+}
+
+.banner-slot--shown .banner {
+  transform: translateY(0);
+}
+
+@starting-style {
+  .banner-slot--shown {
+    grid-template-rows: 0fr;
+  }
+  .banner-slot--shown .banner {
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner-slot,
+  .banner-slot .banner,
+  .banner__chevron {
+    transition: none;
+  }
+}

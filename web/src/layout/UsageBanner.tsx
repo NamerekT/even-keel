@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { usageNotice } from '../state.js'
+import { Banner } from './Banner.js'
 
 const DISMISSED_KEY = 'even-keel.usageNotice.dismissed'
 
@@ -9,7 +10,7 @@ export function UsageBanner() {
   const { state } = useLive()
   const [dismissed, setDismissed] = useState(readDismissed)
   const notice = state === null ? null : usageNotice(state.usage)
-  if (notice === null || notice.key === dismissed) return null
+  if (notice === null || notice.key === dismissed) return <Banner />
 
   const dismiss = () => {
     setDismissed(notice.key)
@@ -19,14 +20,14 @@ export function UsageBanner() {
   }
 
   return (
-    <div className={`banner banner--${notice.tone}`} role="alert">
+    <Banner tone={notice.tone}>
       <div className="banner__inner">
         <span>{notice.text}</span>
         <button type="button" className="button" onClick={dismiss}>
           {t.common.hide}
         </button>
       </div>
-    </div>
+    </Banner>
   )
 }
 

@@ -4,17 +4,11 @@ import type { EvenKeelState } from '../../src/state.js'
 import { pickLanguage, say, setLanguage, setProjectLabels, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
 import { BasementSlot } from './layout/Basement.js'
-import { ConfigBanner } from './layout/ConfigBanner.js'
-import { UnattendedBanner } from './layout/UnattendedBanner.js'
-import { Header } from './layout/Header.js'
-import { LinkBanner } from './layout/LinkBanner.js'
+import { AppHeader } from './layout/AppHeader.js'
 import { LoginDialog } from './layout/LoginDialog.js'
-import { PackagesBanner } from './layout/PackagesBanner.js'
 import { EventToasts } from './layout/EventToasts.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateProgressToast, UpdateResultToast, UpdateToast, UpdateWindow } from './layout/Updates.js'
-import { UsageBanner } from './layout/UsageBanner.js'
-import { CliVersionBanner } from './layout/CliVersionBanner.js'
 import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
@@ -61,13 +55,7 @@ export function App() {
   return (
     <div className="app" key={language}>
       <ActivityBar />
-      <Header />
-      <LinkBanner />
-      <UsageBanner />
-      <CliVersionBanner />
-      <ConfigBanner />
-      <UnattendedBanner />
-      <PackagesBanner />
+      <AppHeader />
       <main className="content">
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? t.app.noServer : t.app.connecting}</p>
