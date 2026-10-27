@@ -1,14 +1,12 @@
-/* The help panel of the project page (BTN-368): the chain's marks and the head's signs. */
+/* Samples use the same components and classes as their places on the page. */
 
 .page-help__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
+  flex: none;
+  min-width: 0;
 }
 
-.page-help__section + .page-help__section {
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--border);
+.page-help > .panel__head {
+  flex: none;
 }
 
 .page-help__marks,
@@ -27,21 +25,27 @@
 }
 
 .page-help__mark {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-8);
+  color: var(--fg);
+}
+
+.page-help__mark > .lamp {
+  margin: var(--space-4) auto 0;
 }
 
 .page-help__hints,
 .page-help__signs {
   flex-direction: column;
-  gap: var(--space-8);
+  gap: var(--space-12);
   color: var(--fg-muted);
 }
 
 .page-help__sign {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 40px minmax(0, 1fr);
   align-items: start;
   gap: var(--space-8);
 }
@@ -51,8 +55,60 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 20px;
+  min-height: 20px;
+  min-width: 0;
+  max-width: 100%;
   color: var(--fg-muted);
+}
+
+.page-help__sign--wide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.page-help__sample .queue-toggle__label {
+  max-width: none;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.page-help__sample .queue-toggle,
+.page-help__sample .hblock {
+  height: auto;
+  min-height: 34px;
+  max-width: 100%;
+}
+
+.page-help__sample .account-toggle__label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.page-help__sample .queue-toggle__dot { flex: none; }
+.page-help__sample .hblock__seg { min-width: 0; }
+.page-help__sample .forge { margin: 0; }
+.page-help__current { color: var(--lamp-working); }
+
+.page-help__action {
+  --fill: 42%;
+  gap: var(--space-12);
+}
+
+.page-help__estimate {
+  position: relative;
+  --estimate: 0.65;
+  width: 96px;
+  height: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-muted);
+}
+
+.page-help__sample .side-tabs {
+  width: auto;
 }
 
 .page-help__sample .icon,

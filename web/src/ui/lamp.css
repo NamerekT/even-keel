@@ -1,0 +1,28 @@
+/* State signs remain legible when two lamp colours look alike. */
+.lamp__sign {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lamp--working .lamp__sign,
+.lamp--stopped .lamp__sign {
+  fill: currentColor;
+  stroke: none;
+}
+
+.lamp--working .lamp__sign { color: var(--surface); }
+.lamp--stopped .lamp__sign { color: var(--lamp-waiting); }
+.lamp--waiting .lamp__sign { stroke: var(--on-bright); }
+.lamp--handoff .lamp__sign { stroke: var(--lamp-working); }
+
+.lamp.lamp--handoff {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}

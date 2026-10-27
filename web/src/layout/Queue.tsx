@@ -27,29 +27,39 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
         title={t.queue.title}
         onClick={() => setOpen(!open)}
       >
-        <span className="queue-toggle__dot" aria-hidden="true" />
-        <QueueIcon />
-        <span className="queue-toggle__label">
-          {active.length === 0
-            ? t.queue.chain
-            : active.map(({ project }, index) => {
-                const name = projectName(state, project)
-                return (
-                  <span key={project} className={name === null ? 'queue-toggle__key' : 'queue-toggle__name'}>
-                    {index > 0 && ' · '}
-                    {name ?? projectLabel(state, project)}
-                  </span>
-                )
-              })}
-        </span>
-        {queue.length > 0 && (
-          <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
-            +{queue.length}
-          </span>
-        )}
+        <QueueContents state={state} />
       </button>
       {open && <QueuePanel state={state} />}
     </div>
+  )
+}
+
+/** Shared with the legend so names, counts and marks match the header. */
+export function QueueContents({ state }: { state: EvenKeelState }) {
+  const { active, queue } = state.chain
+  return (
+    <>
+      <span className="queue-toggle__dot" aria-hidden="true" />
+      <QueueIcon />
+      <span className="queue-toggle__label">
+        {active.length === 0
+          ? t.queue.chain
+          : active.map(({ project }, index) => {
+              const name = projectName(state, project)
+              return (
+                <span key={project} className={name === null ? 'queue-toggle__key' : 'queue-toggle__name'}>
+                  {index > 0 && ' · '}
+                  {name ?? projectLabel(state, project)}
+                </span>
+              )
+            })}
+      </span>
+      {queue.length > 0 && (
+        <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
+          +{queue.length}
+        </span>
+      )}
+    </>
   )
 }
 
