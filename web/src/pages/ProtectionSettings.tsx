@@ -4,19 +4,22 @@ import { protectionMessages } from '../i18n/protection.js'
 import { FieldHead, FieldNote, Section, SwitchField } from './settingsParts.js'
 import { protectionDraft, protectionOf, protectionText } from './protectionDraft.js'
 
+const AGENTS = { claude: 'Claude Code', codex: 'Codex', copilot: 'Copilot' } as const
+const EXAMPLES: Record<keyof typeof AGENTS, string> = { claude: 'Bash(git reset --hard*)', codex: '["git", "reset", "--hard"]', copilot: 'shell(git reset --hard:*)' }
+
 export function ProtectionSettings({ value, shared, onChange, error = null }: { value: string; shared?: Protection; onChange: (value: string) => void; error?: Notice | null }) {
   const text = protectionMessages()
   const inherited = value === '' && shared !== undefined
   const draft = protectionDraft(inherited ? protectionText(shared) : value)
   const edit = (fields: Partial<typeof draft>) => onChange(JSON.stringify({ ...draft, ...fields }))
   return <Section title={text.title} hint={text.hint}>
-    {shared !== undefined && <SwitchField className="settings__field" label={text.inherit} hint={text.hint} checked={inherited} onChange={on => onChange(on ? '' : protectionText(shared))} />}
-    {PROTECTION_GROUPS.map(group => <SwitchField key={group} className="settings__field" label={text.groups[group] + (group === 'deleteTracker' ? ' (Claude, Copilot)' : '')} hint={text.groupHint} checked={!draft.disabled.includes(group)} disabled={inherited} onChange={on => edit({ disabled: on ? draft.disabled.filter(item => item !== group) : [...draft.disabled, group] })} />)}
+    {shared !== undefined && <SwitchField className="settings__field" label={text.inherit} hint={text.inheritHint} checked={inherited} onChange={on => onChange(on ? '' : protectionText(shared))} />}
+    {PROTECTION_GROUPS.map(group => <SwitchField key={group} className="settings__field" label={text.groups[group]} hint={text.groupHints[group]} checked={!draft.disabled.includes(group)} disabled={inherited} onChange={on => edit({ disabled: on ? draft.disabled.filter(item => item !== group) : [...draft.disabled, group] })} />)}
     <details>
       <summary>{text.custom}</summary>
-      {(['claude', 'codex', 'copilot'] as const).map(agent => <div className="settings__field" key={agent}>
-        <FieldHead label={agent === 'claude' ? 'Claude Code' : agent === 'codex' ? 'Codex' : 'Copilot'} hint={text.native} htmlFor={`protection-${agent}`} />
-        <textarea id={`protection-${agent}`} rows={3} value={draft[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
+      {(Object.keys(AGENTS) as (keyof typeof AGENTS)[]).map(agent => <div className="settings__field" key={agent}>
+        <FieldHead label={AGENTS[agent]} hint={text.native[agent]} htmlFor={`protection-${agent}`} />
+        <textarea id={`protection-${agent}`} rows={3} value={draft[agent]} placeholder={EXAMPLES[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
       </div>)}
     </details>
     <FieldHead label={text.limitsLabel} hint={text.limits} />
