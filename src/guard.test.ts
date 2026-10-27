@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createHmac } from 'node:crypto'
 import { guard, guardHosts, guardToken, isLoopbackHost, TOKEN_COOKIE, type GuardRequest, type GuardSettings } from './guard.js'
 
 const TOKEN = 'f00dfeedcafe0123456789ab'
@@ -94,6 +95,32 @@ describe('guard: Origin', () => {
 })
 
 describe('guard: token', () => {
+  const callback = '/api/profiles/oauth/callback'
+  const oauthCookie = (expires = Date.now() + 600_000, token = TOKEN) =>
+    `even-keel-oauth=${expires}.${createHmac('sha256', token).update(`oauth-callback:${expires}`).digest('base64url')}`
+
+  it('accepts the separate callback cookie only on the exact GET callback', () => {
+    const cookie = oauthCookie()
+    expect(guard(open, fromNetwork({ url: `${callback}?code=code&state=state`, cookie }))).toEqual({ kind: 'pass' })
+    for (const url of ['/', '/api/state', `${callback}/extra`, '/api/profiles/oauth/start']) {
+      expect(guard(open, fromNetwork({ url, cookie }))).toMatchObject({ kind: 'refuse', status: 401 })
+    }
+    expect(guard(open, fromNetwork({ method: 'POST', url: callback, cookie }))).toMatchObject({ kind: 'refuse', status: 401 })
+    expect(guard(open, fromNetwork({ url: callback, authorization: `Bearer ${cookie.split('=')[1]}` }))).toMatchObject({ kind: 'refuse', status: 401 })
+  })
+
+  it('refuses an expired, forged or old-token callback cookie', () => {
+    for (const cookie of [oauthCookie(Date.now() - 1), oauthCookie(Date.now() + 600_000, 'other-token-0123456789'), 'even-keel-oauth=forged', `even-keel-oauth=${TOKEN}`]) {
+      expect(guard(open, fromNetwork({ url: callback, cookie }))).toMatchObject({ kind: 'refuse', status: 401 })
+    }
+  })
+
+  it('checks Host and Origin before the callback cookie too', () => {
+    const cookie = oauthCookie()
+    expect(guard(open, fromNetwork({ url: callback, host: 'evil.example.net', cookie }))).toMatchObject({ kind: 'refuse', status: 403 })
+    expect(guard(open, fromNetwork({ url: callback, origin: 'https://evil.example.net', cookie }))).toMatchObject({ kind: 'refuse', status: 403 })
+  })
+
   it('does not ask a request from this machine for it', () => {
     expect(guard(open, request({ host: 'pult.example.com', remote: '::ffff:127.0.0.1' }))).toEqual({ kind: 'pass' })
     expect(guard(open, request({ host: '192.0.2.1:4747', remote: '192.0.2.1', local: '192.0.2.1' }))).toMatchObject({ kind: 'refuse', status: 403 })

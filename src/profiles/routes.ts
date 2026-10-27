@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fail } from '../notice/notice.js'
 import { callbackUrl, type OAuthClient } from './oauth-protocol.js'
 import type { OAuthStatus } from './oauth.js'
+import { oauthCallbackPage } from './oauth-response.js'
 
 /** The trackers' profiles of the same tab; a project is named by its key. */
 export interface ProfilesControl {
@@ -51,7 +52,7 @@ function oauthOf(profiles: ProfilesControl): NonNullable<ProfilesControl['oauth'
 }
 
 export async function oauthCallback(profiles: ProfilesControl, params: URLSearchParams, response: ServerResponse): Promise<void> {
-  // The original dialog polls the attempt; the redirect URL never carries codes or tokens.
+  // The original dialog polls the attempt; the final URL never carries codes or tokens.
   await oauthOf(profiles).finish(params).catch(() => {})
-  response.writeHead(303, { location: '/settings#trackers', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' }).end()
+  oauthCallbackPage(response)
 }

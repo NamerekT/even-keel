@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { fail } from './notice/notice.js'
 
 /**
@@ -46,6 +46,9 @@ export type GuardVerdict =
   | { kind: 'enter'; location: string; cookie: string }
 
 export const TOKEN_COOKIE = 'even-keel-token'
+export const OAUTH_CALLBACK_PATH = '/api/profiles/oauth/callback'
+const OAUTH_COOKIE = 'even-keel-oauth'
+const OAUTH_SECONDS = 600
 const TOKEN_SHAPE = /^[A-Za-z0-9._~+/=-]{16,}$/
 const COOKIE_DAYS = 365
 const LOOPBACK_NAMES = ['localhost', '127.0.0.1', '::1']
@@ -92,6 +95,7 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
   if (same(cookieOf(request.cookie), token) || same(bearerOf(request.authorization), token)) return { kind: 'pass' }
 
   const url = new URL(request.url, 'http://localhost')
+  if (isOAuthCallback(request) && validOAuthCookie(request.cookie, token)) return { kind: 'pass' }
   const offered = url.searchParams.get('token')
   if (request.method === 'GET' && offered !== null && same(offered, token)) {
     url.searchParams.delete('token')
@@ -102,6 +106,26 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
     }
   }
   return { kind: 'refuse', status: 401, reason: `${request.remote} came without a valid token; open the page once with ?token=` }
+}
+
+export function isOAuthCallback(request: Pick<GuardRequest, 'method' | 'url'>): boolean {
+  return request.method === 'GET' && request.url.split('?')[0] === OAUTH_CALLBACK_PATH
+}
+
+/** A short-lived credential with no authority outside the browser callback. */
+export function oauthCallbackCookie(token: string): string {
+  const expires = Date.now() + OAUTH_SECONDS * 1000
+  return `${OAUTH_COOKIE}=${expires}.${oauthSignature(token, expires)}; Path=${OAUTH_CALLBACK_PATH}; HttpOnly; SameSite=Lax; Max-Age=${OAUTH_SECONDS}`
+}
+
+function validOAuthCookie(header: string | undefined, token: string): boolean {
+  const [expiry, signature] = cookieOf(header, OAUTH_COOKIE)?.split('.') ?? []
+  const expires = Number(expiry)
+  return Number.isSafeInteger(expires) && expires > Date.now() && same(signature, oauthSignature(token, expires))
+}
+
+function oauthSignature(token: string, expires: number): string {
+  return createHmac('sha256', token).update(`oauth-callback:${expires}`).digest('base64url')
 }
 
 function bare(host: string): string {
@@ -136,10 +160,10 @@ function unmapped(address: string): string {
   return address.replace(/^::ffff:/i, '')
 }
 
-function cookieOf(header: string | undefined): string | undefined {
+function cookieOf(header: string | undefined, cookieName = TOKEN_COOKIE): string | undefined {
   for (const part of header?.split(';') ?? []) {
     const [name, ...value] = part.trim().split('=')
-    if (name === TOKEN_COOKIE) return value.join('=')
+    if (name === cookieName) return value.join('=')
   }
   return undefined
 }
