@@ -1,5 +1,5 @@
-import { mkdirSync } from 'node:fs'
-import { open, readdir, readFile } from 'node:fs/promises'
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { open, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AgentEntry } from '../sessions/agents.js'
 import { writeAtomic } from '../storage/atomic.js'
@@ -37,14 +37,27 @@ export class TurnRegistry {
   }
 
   async list(account: string): Promise<CodexSession[]> {
-    const names = await readdir(this.sessionsDir).catch(() => [])
-    const texts = await Promise.all(names.filter((name) => name.endsWith('.json')).map((name) => readFile(join(this.sessionsDir, name), 'utf8').catch(() => '')))
-    return texts.map(parseSession).filter((session): session is CodexSession => session !== undefined && session.account === account)
+    let names: string[]
+    try {
+      names = readdirSync(this.sessionsDir)
+    } catch {
+      return []
+    }
+    return names.filter((name) => name.endsWith('.json')).map((name) => this.read(name.slice(0, -5)))
+      .filter((session): session is CodexSession => session !== undefined && session.account === account)
   }
 
   async get(sessionId: string): Promise<CodexSession | undefined> {
     if (!/^[\w-]+$/.test(sessionId)) return undefined
-    return parseSession(await readFile(join(this.sessionsDir, `${sessionId}.json`), 'utf8').catch(() => ''))
+    return this.read(sessionId)
+  }
+
+  private read(sessionId: string): CodexSession | undefined {
+    try {
+      return parseSession(readFileSync(join(this.sessionsDir, `${sessionId}.json`), 'utf8'))
+    } catch {
+      return undefined
+    }
   }
 
   save(session: CodexSession): void {

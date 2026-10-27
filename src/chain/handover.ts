@@ -134,7 +134,10 @@ export class Handovers {
       this.moved(chain, current, move, sessionId, session.sessionId)
       return true
     } catch (error) {
-      this.halt(chain, noticeOf(error))
+      if (move === 'answer') {
+        settle(current)
+        this.deps.save(this.state)
+      } else this.halt(chain, noticeOf(error))
       return this.undelivered(current.task, session, englishOf(noticeOf(error)))
     }
   }

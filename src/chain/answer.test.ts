@@ -41,6 +41,28 @@ const refusal = (act: () => void): string | undefined => {
 }
 
 describe('Dispatcher on an answer', () => {
+  it('returns a failed state write without pausing or replaying the answer, and allows a retry', async () => {
+    let attempts = 0
+    const { dispatcher, journal, log } = await running({
+      reply: async () => {
+        if (++attempts === 1) throw Object.assign(new Error('session state locked'), { code: 'EPERM' })
+        return 'old-session'
+      },
+    })
+    expect(await dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'Answer: Blue')).toBe(false)
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
+    const current = dispatcher.state.active[0]!.current!
+    for (const key of ['starting', 'move', 'answering', 'reply', 'ask']) expect(current).not.toHaveProperty(key)
+    expect(journal).toEqual([])
+    expect(log.join('\n')).toContain('the answer did not reach the session old-session')
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await dispatcher.idle()
+    expect(attempts).toBe(1)
+    expect(await dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'Answer: Blue')).toBe(true)
+    expect(attempts).toBe(2)
+    expect(journal.at(-1)).toMatchObject({ reason: 'answer' })
+  })
+
   it('resumes the waiting session with the reply and journals it', async () => {
     const { dispatcher, relays, journal, clock } = await running()
     clock.now = new Date('2026-09-26T13:00:00Z')
