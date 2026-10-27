@@ -220,16 +220,29 @@ describe('gitlabPulls', () => {
     expect(asked[0]!.body).toEqual({ source_branch: 'abc-7/task', target_branch: 'trunk', title: 'Fix the parser', description: 'Closes #7' })
   })
 
-  it('reads opened and locked as open, merged, closed, and a conflict while the check is done or not', async () => {
+  it('reads opened and locked as open, merged, closed, and a checked conflict', async () => {
     const state = (change: object) => forge({ 'GET /merge_requests/9': request(change) }).forge.state(9)
     expect(await state({})).toEqual({ state: 'open', mergeable: true, head: 'a1' })
     expect(await state({ state: 'locked', detailed_merge_status: 'checking' })).toEqual({ state: 'open', mergeable: null, head: 'a1' })
     expect(await state({ detailed_merge_status: 'conflict' })).toMatchObject({ mergeable: false })
-    expect(await state({ has_conflicts: true, detailed_merge_status: 'unchecked' })).toMatchObject({ mergeable: false })
+    expect(await state({ has_conflicts: true })).toMatchObject({ mergeable: false })
     expect(await state({ detailed_merge_status: 'not_approved' })).toMatchObject({ mergeable: true })
     expect(await state({ detailed_merge_status: undefined, merge_status: 'unchecked' })).toMatchObject({ mergeable: null })
     expect((await state({ state: 'merged' })).state).toBe('merged')
     expect((await state({ state: 'closed' })).state).toBe('closed')
+  })
+
+  it.each(['unchecked', 'checking', 'preparing'])('waits for %s despite a stale conflict flag after a push', async (status) => {
+    const routes = { 'GET /merge_requests/9': request({ has_conflicts: true, detailed_merge_status: status }) }
+    const { forge: pulls } = forge(routes)
+    expect(await pulls.state(9)).toEqual({ state: 'open', mergeable: null, head: 'a1' })
+    routes['GET /merge_requests/9'] = request({ has_conflicts: false, detailed_merge_status: 'mergeable' })
+    expect(await pulls.state(9)).toEqual({ state: 'open', mergeable: true, head: 'a1' })
+  })
+
+  it.each(['unchecked', 'checking', 'preparing'])('waits for legacy merge_status %s despite a stale conflict flag', async (status) => {
+    const { forge: pulls } = forge({ 'GET /merge_requests/9': request({ has_conflicts: true, detailed_merge_status: undefined, merge_status: status }) })
+    expect((await pulls.state(9)).mergeable).toBeNull()
   })
 
   const SINCE = '2026-10-18T10:00:00Z'
