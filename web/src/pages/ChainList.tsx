@@ -367,7 +367,7 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
       <span className="archived__head">
-        {!isOwnName(block.id) && <Lamp lamp={block.lamp} />}
+        <Lamp lamp={block.lamp} />
         <Link to={{ hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
           {block.id}
         </Link>
@@ -525,7 +525,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {fix ? null : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />}
+        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />}
         {block.locked ? (
           link === null ? (
             <span className="block__key">{block.id}</span>
@@ -609,7 +609,7 @@ function Block(props: BlockProps) {
   )
 }
 
-function LockIcon() {
+export function LockIcon() {
   return (
     <svg className="block__lock" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
       <rect x="2" y="5.5" width="8" height="5.5" rx="1" />
@@ -618,7 +618,7 @@ function LockIcon() {
   )
 }
 
-function PlayIcon() {
+export function PlayIcon() {
   return (
     <svg className="block__play" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
       <path d="M3.5 2.2v7.6L10 6z" />
