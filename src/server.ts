@@ -50,8 +50,8 @@ import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
-import { profileDraftOf } from './profiles/request.js'
-import type { ProfileDraft } from './profiles/service.js'
+import { PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
+export type { ProfilesControl } from './profiles/routes.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
@@ -195,20 +195,6 @@ export interface TallyControl {
   set(mode: TallyMode, server: TallyServerDraft | null): Promise<void>
 }
 
-/** The trackers' profiles of the same tab (`src/profiles/`); a project is named by its key. */
-export interface ProfilesControl {
-  check(draft: ProfileDraft): Promise<CheckResult>
-  /** Returns the profile's id. */
-  save(draft: ProfileDraft & { name: string }): Promise<string>
-  remove(id: string): void
-  setDefault(id: string): void
-  /** The chain rules of the profile's projects (BTN-66); refused when one of them would clash. */
-  setRules(id: string, rules: ProfileRules): void
-  /** `null` — the project runs on its tracker's default profile. */
-  link(project: string, profile: string | null): void
-  projects(id: string, query: string): Promise<TrackerProject[]>
-}
-
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -344,9 +330,7 @@ const COMMANDS: Record<string, Command> = {
 
 /** POST calls that answer with their own result rather than the state. */
 const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) => Promise<unknown>> = {
-  'profiles/check': ({ profiles }, body) => profiles.check(profileDraftOf(body)),
-  'profiles/save': async ({ profiles }, body) => ({ id: await profiles.save({ ...profileDraftOf(body), name: typeof body.name === 'string' ? body.name : '' }) }),
-  'profiles/projects': ({ profiles }, body) => profiles.projects(textOf(body.id, 'id'), typeof body.query === 'string' ? body.query : ''),
+  ...PROFILE_QUERIES,
   'changelog/open': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'open' }),
   'changelog/again': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'again' }),
   'changelog/add': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'add' }),

@@ -116,6 +116,7 @@ import { isInside } from './paths.js'
 import { defaultProfile, keyPool, profileFor, profileKinds, serverProfile } from './profiles/model.js'
 import { checkProfileRules, projectRules } from './profiles/rules.js'
 import { Profiles } from './profiles/service.js'
+import { profilesControl } from './profiles/control.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
@@ -1687,30 +1688,10 @@ let server = createEvenKeelServer({
       await applyTally()
     },
   },
-  profiles: {
-    check: (draft) => profiles.check(draft),
-    save: async (draft) => {
-      const id = await profiles.save(draft)
-      console.log(`page: the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} is saved`)
-      return id
-    },
-    remove: (id) => {
-      const name = profiles.current().profiles.find((profile) => profile.id === id)?.name
-      profiles.remove(id)
-      console.log(`page: the profile ${name} is removed`)
-    },
-    setDefault: (id) => profiles.setDefault(id),
-    setRules: (id, rules) => {
-      profiles.setRules(id, rules)
-      console.log(`page: the chain rules of the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} are saved`)
-    },
-    link: (project, profile) => {
+  profiles: profilesControl(profiles, (project) => {
       if (!Object.hasOwn(configStore.current.projects, project)) throw fail('config.unknownProject', { key: project })
       if (lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
-      profiles.link(project, profile)
-    },
-    projects: (id, query) => profiles.projects(id, query),
-  },
+  }),
   launches: () => launches,
   sessionRecord: async (sessionId) => {
     for (const home of homes.list()) {
