@@ -126,7 +126,7 @@ export function gitlabPulls(settings: GitlabPullSettings, timeoutMs: number, fet
       // `locked` — the merge is going on.
       const state = request.state === 'merged' ? 'merged' : request.state === 'closed' ? 'closed' : 'open'
       const status = request.detailed_merge_status ?? request.merge_status ?? ''
-      const mergeable = request.has_conflicts === true || status === 'conflict' ? false : UNCHECKED.has(status) ? null : true
+      const mergeable = UNCHECKED.has(status) ? null : request.has_conflicts === true || status === 'conflict' ? false : true
       return { state, mergeable, head: request.sha }
     },
 
