@@ -4,6 +4,8 @@ import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
 import { INSTRUCTION_FILES, repoRulesOf, SKILL_FOLDERS, type RepoRules } from '../agent/projectRules.js'
 import { CLAUDE } from '../claude/name.js'
+import { PROTECTION_FILE } from '../codex/protection.js'
+import { parseCodexRules, type CodexRule } from '../codex/rules.js'
 import type { Git } from '../git/types.js'
 import type { SessionReach } from '../packages/model.js'
 import { samePath } from '../paths.js'
@@ -19,6 +21,7 @@ type Json = Record<string, unknown>
 /** Tool attachments come in the first lines; MCP servers connect a little after the first answer. */
 const HEAD_LINES = 400
 const WORKTREE_DIR = '--claude-worktrees-'
+const CODEX_RULES = '.codex/rules'
 /** How many of the last touched transcripts are compared by their start. */
 const RECENT = 8
 
@@ -43,6 +46,8 @@ export interface ToolsPlaces {
   mode: string
   /** What the project's packages bring: a local-only setting of any other plugin or server is left out. */
   reach: SessionReach
+  /** The folder of the project's Codex account (`CODEX_HOME`), whose `rules/` its Codex sessions read; none without one. */
+  codexHome?: string
 }
 
 /**
@@ -89,18 +94,20 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 
-  const [received, rules, docs] = await Promise.all([
+  const [received, rules, docs, codexProject] = await Promise.all([
     readNewest(places.homes, repo),
     readRepoRules(places.git, repo, places.branch),
     readBranchDocs(places.git, repo, places.branch),
+    readBranchCodexRules(places.git, repo, places.branch),
   ])
+  const codexUser = places.codexHome === undefined ? [] : readFolderCodexRules(join(places.codexHome, 'rules'))
   const known = { user: new Set(dirNames(join(places.globalDir, 'skills'))), project: new Set(dirNames(join(repo, '.claude', 'skills'))) }
 
   return {
     project,
     repo,
     trim: places.trim,
-    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)] }).filter(
+    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)], codexUser, codexProject }).filter(
       (row) => !forPackageOff(row, places.reach),
     ),
     accounts,
@@ -121,6 +128,34 @@ export async function readBranchDocs(git: Git, repo: string, branch: string): Pr
 export async function readRepoRules(git: Git, repo: string, branch: string): Promise<RepoRules | null> {
   const result = await git(repo, ['ls-tree', '-r', '--name-only', branch, '--', ...INSTRUCTION_FILES, ...SKILL_FOLDERS])
   return result.code === 0 ? repoRulesOf(result.out.split('\n')) : null
+}
+
+/**
+ * Codex's own rules committed in `.codex/rules/` on the branch: a task worktree has them, Codex reads them as the
+ * project's layer. Even Keel's generated file there is Protection, not the project's own; read only.
+ */
+export async function readBranchCodexRules(git: Git, repo: string, branch: string): Promise<CodexRule[]> {
+  const listed = await git(repo, ['ls-tree', '--name-only', branch, '--', `${CODEX_RULES}/`])
+  if (listed.code !== 0) return []
+  const files = listed.out.split('\n').map((line) => line.trim()).filter(isOwnRulesFile)
+  const texts = await Promise.all(files.map((file) => git(repo, ['show', `${branch}:${file}`])))
+  return texts.flatMap((text) => (text.code === 0 ? parseCodexRules(text.out) : []))
+}
+
+function readFolderCodexRules(dir: string): CodexRule[] {
+  return fileNames(dir)
+    .filter(isOwnRulesFile)
+    .flatMap((file) => {
+      try {
+        return parseCodexRules(readFileSync(join(dir, file), 'utf8'))
+      } catch {
+        return []
+      }
+    })
+}
+
+function isOwnRulesFile(file: string): boolean {
+  return file.endsWith('.rules') && !file.endsWith(PROTECTION_FILE)
 }
 
 function projectSettings(repo: string): { project: Json | undefined; local: Json | undefined } {

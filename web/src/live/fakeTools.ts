@@ -1,4 +1,5 @@
 import type { ReceivedView, SettingRow, ToolsView } from '../../../src/tools/model.js'
+import { strictest, type CodexDecision } from '../../../src/codex/rules.js'
 import { forPackageOff } from '../../../src/tools/settings.js'
 
 const HIDDEN = 'user-invocable-only'
@@ -29,6 +30,11 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
     row('permission', 'mcp__plugin_huly_huly__add_issue_label', { local: 'allow' }),
     row('plugin', 'design@knowledge-work-plugins', { local: 'on' }),
     row('permission', 'mcp__strata__strata_search', { local: 'allow' }),
+    row('permission', 'Bash(git push --force *)', { local: 'deny' }),
+    row('permission', 'Bash(npm publish *)', odd ? {} : { local: 'ask' }),
+    row('codex', 'git status', { user: 'allow' }),
+    row('codex', 'git [push|fetch]', odd ? { user: 'allow' } : { user: 'allow', project: 'deny' }),
+    row('codex', 'npm publish', { project: 'ask' }),
   ].filter((each) => Object.keys(each.values).length > 0 && !forPackageOff(each, REACH))
 
   return {
@@ -55,7 +61,8 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
 }
 
 function row(kind: SettingRow['kind'], name: string, values: SettingRow['values']): SettingRow {
-  return { kind, name, values, session: values.chain ?? values.project ?? values.user ?? null }
+  const session = kind === 'codex' ? (strictest([values.project, values.user].filter((each) => each !== undefined) as CodexDecision[]) ?? null) : null
+  return { kind, name, values, session: session ?? values.chain ?? values.project ?? values.user ?? null }
 }
 
 function received(repo: string, project: string, bloated: boolean): ReceivedView {

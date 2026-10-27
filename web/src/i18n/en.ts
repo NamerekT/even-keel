@@ -1218,11 +1218,14 @@ export const en: Messages = {
     problems: 'Problems',
     problemsNone: 'Everything reaches the sessions: settings get there, MCP servers connect.',
     problem: {
+      localDeny: 'Denies and asks only in settings.local.json — chain sessions run without them: a worktree does not read that file, and Even Keel does not carry them over',
       unreached: 'Will not reach the session — a session in a worktree does not read settings.local.json of the main checkout',
       claudeai: 'claude.ai skills in the last session',
       mcpFailed: 'MCP servers that failed to connect',
     },
     problemFix: {
+      localDeny:
+        'Fix: move the rule to the project’s .claude/settings.json (it is committed and a worktree reads it), or add it to “Additional agent rules” of Protection in the project’s or the shared settings.',
       unreached:
         'Fix: move the setting to the project’s .claude/settings.json (it is committed and a worktree reads it), or to the settings Even Keel passes to chain sessions through --settings.',
       claudeai: 'Fix: turn on “Trim the tools” in Settings → Sessions — chain sessions then start with claude.ai skills and plugins off. The list is from the last session, so it may predate the switch.',
@@ -1233,7 +1236,9 @@ export const en: Messages = {
     },
     find: 'Find a setting',
     onlyDiff: 'Only differences',
-    section: { claude: 'claude.ai and mode', plugin: 'Plugins', skill: 'Skills', permission: 'Permissions' },
+    section: { claude: 'claude.ai and mode', plugin: 'Plugins', skill: 'Skills', permission: 'Permissions', codex: 'Codex rules' },
+    codexNote:
+      'Codex’s own .rules files: U — rules/ of the project’s Codex account folder, P — .codex/rules/ committed on the branch. Protection is not listed: Even Keel lays it on top, and a deny outweighs an allow.',
     shown: (shown: number, total: number) => (shown === total ? String(total) : `${shown} of ${total}`),
     nothingShown: 'Nothing matches.',
     legend: 'U — user, P — project, L — settings.local.json (a session in a worktree does not read it), EK — Even Keel. Bold — what reaches the session, struck — overridden.',
@@ -1242,6 +1247,8 @@ export const en: Messages = {
     effect: { wins: 'reaches the session', same: 'same value', overridden: 'overridden', unread: 'a worktree session does not read it' },
     hidden: '/name only',
     notInSession: 'not reached',
+    localDenied: (value: string) => `${value} — not reached`,
+    localDenyTip: 'Only settings.local.json has this rule: chain sessions run without it. Move it to the project’s .claude/settings.json or to “Additional agent rules” of Protection.',
     missing: 'not set in this project',
     received: 'Last session',
     noSession: 'No session transcripts of this project yet.',

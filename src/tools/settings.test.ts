@@ -58,6 +58,25 @@ describe('settingRows', () => {
       { kind: 'permission', name: 'WebFetch', values: { local: 'allow' }, session: null },
     ])
   })
+
+  it("lists Codex's own rules of the account and the branch, the strictest reaching the session", () => {
+    const rows = settingRows({
+      codexUser: [
+        { pattern: 'git push', decision: 'allow' },
+        { pattern: 'npm publish', decision: 'allow' },
+        { pattern: 'npm publish', decision: 'ask' },
+      ],
+      codexProject: [
+        { pattern: 'git push', decision: 'deny' },
+        { pattern: 'rm -rf', decision: 'deny' },
+      ],
+    })
+    expect(rows).toEqual([
+      { kind: 'codex', name: 'git push', values: { user: 'allow', project: 'deny' }, session: 'deny' },
+      { kind: 'codex', name: 'npm publish', values: { user: 'ask' }, session: 'ask' },
+      { kind: 'codex', name: 'rm -rf', values: { project: 'deny' }, session: 'deny' },
+    ])
+  })
 })
 
 describe('forPackageOff', () => {

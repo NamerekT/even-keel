@@ -2,15 +2,16 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
-import { HIDDEN, filterRows, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
+import { HIDDEN, filterRows, localDeny, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
 
-type Section = 'claude' | 'plugin' | 'skill' | 'permission'
+type Section = 'claude' | 'plugin' | 'skill' | 'permission' | 'codex'
 
 const SECTIONS: [Section, SettingKind[]][] = [
   ['claude', ['sync', 'mode']],
   ['plugin', ['plugin']],
   ['skill', ['skill']],
   ['permission', ['permission']],
+  ['codex', ['codex']],
 ]
 
 export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[]; query: string; onlyDiff: boolean }) {
@@ -24,9 +25,17 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
         if (all.length === 0) return null
         const rows = filterRows(all, { query, onlyDiff })
         const scopes = usedScopes(all)
-        const chip = Math.max(...all.flatMap((row) => row.cells.map((cell) => (cell === null ? 0 : valueText(cell.session).length))))
+        const chip = Math.max(...all.flatMap((row) => row.cells.map((cell) => (cell === null ? 0 : cellText(cell).length))))
         return (
-          <MatrixSection key={section} title={t.tools.section[section]} shown={rows.length} total={all.length} projects={projects} chip={chip}>
+          <MatrixSection
+            key={section}
+            title={t.tools.section[section]}
+            note={section === 'codex' ? t.tools.codexNote : undefined}
+            shown={rows.length}
+            total={all.length}
+            projects={projects}
+            chip={chip}
+          >
             {rows.map((row) => (
               <tr key={row.key}>
                 <th scope="row">
@@ -46,6 +55,8 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
 
 interface SectionProps {
   title: string
+  /** A line under the title, for a section whose scopes mean something else than the legend says. */
+  note?: string
   shown: number
   total: number
   projects: string[]
@@ -54,13 +65,14 @@ interface SectionProps {
   children: ReactNode
 }
 
-function MatrixSection({ title, shown, total, projects, chip, children }: SectionProps) {
+function MatrixSection({ title, note, shown, total, projects, chip, children }: SectionProps) {
   const label = useProjectLabel()
   return (
     <details className="tools__section" open>
       <summary className="tools__summary">
         {title} <span className="tools__count">{t.tools.shown(shown, total)}</span>
       </summary>
+      {note !== undefined && <p className="tools__muted">{note}</p>}
       {shown === 0 ? (
         <p className="tools__muted">{t.tools.nothingShown}</p>
       ) : (
@@ -97,12 +109,19 @@ export function Chip({ tone, title, children }: { tone: Tone; title?: string; ch
   )
 }
 
+/** A deny or an ask only `settings.local.json` has names itself: "not reached" alone hides that the session runs unguarded. */
+function cellText(row: SettingRow): string {
+  return localDeny(row) ? t.tools.localDenied(row.values.local!) : valueText(row.session)
+}
+
 function SettingCell({ row, scopes }: { row: SettingRow; scopes: ToolScope[] }) {
   const marks = scopeMarks(row)
   return (
     <span className="tools__cell">
       <span className="tools__value">
-        <Chip tone={tone(row.session)}>{valueText(row.session)}</Chip>
+        <Chip tone={tone(row.session)} title={localDeny(row) ? t.tools.localDenyTip : undefined}>
+          {cellText(row)}
+        </Chip>
       </span>
       <span className="tools__scopes">
         {scopes.map((scope) => {

@@ -21,6 +21,12 @@ checked command by command. Huly deletion rules apply to Claude and Copilot. Ope
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
 Rules can reduce accidental actions; they are not an OS sandbox.
 
+Your own deny files keep working next to Protection: the agent reads them, Protection is added on top, and a deny
+outweighs an allow. Even Keel does not copy them; the `/tools` page shows what reaches a chain session. A `deny` or
+`ask` only in the main checkout's `.claude/settings.local.json` does not — a task worktree does not read that file —
+and the page marks it with where to move it. Codex's own `.rules` files of the project's Codex account and the
+`.codex/rules/` committed on the branch are listed under **Codex rules**.
+
 Before launching a project's session, Even Keel reads the main branch's protection on GitHub and Forgejo, using the
 configured branch name and remote profiles. Missing protection, failed verification and potential administrator
 bypasses appear on the project page beside a link to the server's branch rules. Enable rules blocking force pushes

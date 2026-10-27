@@ -1776,6 +1776,7 @@ let server = createEvenKeelServer({
     if (repo === undefined) return undefined
     const list = homes.list()
     const used = projectsByAccount(configStore.current, Object.keys(configStore.current.projects))
+    const codexKey = runSettings(configStore.current, project).accounts[CODEX]
     const view = await readToolsView(project, {
       repo,
       branch: branchOf(project),
@@ -1788,6 +1789,7 @@ let server = createEvenKeelServer({
       hidden: configStore.current.hiddenSkills,
       mode: agentOf(homes.find(claudeAccount()) ?? homes.global).mode,
       reach: packages.reach(project),
+      codexHome: list.find((home) => home.agent === CODEX && home.key === codexKey)?.dir,
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }

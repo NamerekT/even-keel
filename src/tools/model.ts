@@ -3,13 +3,20 @@ import type { RepoRules } from '../agent/projectRules.js'
 /** Where a setting of a session comes from: `chain` — what Even Keel passes with `--settings` and `--permission-mode`. */
 export type ToolScope = 'user' | 'project' | 'local' | 'chain'
 
-export type SettingKind = 'sync' | 'plugin' | 'skill' | 'permission' | 'mode'
+/**
+ * `codex` — a rule of Codex's own `.rules` files: `user` is the `rules/` of the project's Codex account folder,
+ * `project` the `.codex/rules/` committed on the branch. Even Keel's generated file is Protection and is not listed.
+ */
+export type SettingKind = 'sync' | 'plugin' | 'skill' | 'permission' | 'mode' | 'codex'
 
 export interface SettingRow {
   kind: SettingKind
   name: string
   values: Partial<Record<ToolScope, string>>
-  /** What a session in a task worktree gets; `null` — only `settings.local.json` sets it, and a worktree does not read the main checkout's one. */
+  /**
+   * What a session in a task worktree gets; `null` — only `settings.local.json` sets it, and a worktree does not read
+   * the main checkout's one. A Codex rule gets the strictest of its values.
+   */
   session: string | null
 }
 
