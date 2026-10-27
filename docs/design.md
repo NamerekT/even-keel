@@ -101,7 +101,7 @@ Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx
 
 Before the merge, for every screen the task built or changed:
 
-1. Shoot it with `npm run shot` (`docs/web.md`) in the dark theme at 1600×1000 and at 390×844, and each of its states the fake data can show (empty, an error, a long name); then once in the light theme, which only must not break.
+1. Shoot it with `npm run shot` (`docs/web.md`) in the dark theme at 1600×1000 and at 390×844, and each of its states the fake data can show (empty, an error, a long name); then once in the light theme, which only must not break. What the screen hides until a click — a `<details>`, a tab, a menu, a dialog — is opened with `--click` and shot open: a control nobody shot is a control nobody checked (BTN-449 merged unstyled text fields under a closed `<details>`).
 2. Open each picture and answer every line; a "no" is fixed before the merge, not noted:
    - Is any part of the screen empty while the content is squeezed or glued to one side?
    - Does every title read as a title, larger and bolder than the text under it, and every group sit in a card?
