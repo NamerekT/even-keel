@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
+import type { TranscriptImage } from '../sessions/entry.js'
 import { databaseFile } from './home.js'
 import type { MessageRow, PartRow } from './transcript.js'
 
@@ -7,7 +8,8 @@ import type { MessageRow, PartRow } from './transcript.js'
  * Reads of an account's `opencode.db` (SQLite in WAL mode, written by every OpenCode process of the account): each read
  * opens the file read-only and closes it at once, so Even Keel never holds it. A tool's output and metadata are left
  * in the file: the feed needs neither, and they make most of a part's size. Only the chat's message the `checkpoint`
- * package's plugin kept in the metadata, `evenKeel.mail`, is read.
+ * package's plugin kept in the metadata, `evenKeel.mail`, and a count of image attachments are read. Images themselves
+ * are read separately by session and call id, without depending on the original file.
  */
 export interface SessionRows {
   messages: MessageRow[]
@@ -27,6 +29,16 @@ const MAIL = `json_extract(data, '$.state.metadata.evenKeel.mail')`
 const STRIPPED = `json_remove(data, '$.state.output', '$.state.metadata', '$.state.attachments')`
 const PART_DATA = `case when ${MAIL} is null then ${STRIPPED}
   else json_set(${STRIPPED}, '$.state.metadata', json_object('evenKeel', json_object('mail', ${MAIL}))) end`
+const IMAGE_TYPE = `json_extract(attachment.value, '$.mime')`
+const IMAGE_URL = `json_extract(attachment.value, '$.url')`
+const IMAGE_HEADER = `('data:' || ${IMAGE_TYPE} || ';base64,')`
+const IMAGE_WHERE = `attachment.type = 'object'
+  and json_extract(part.data, '$.type') = 'tool'
+  and json_extract(attachment.value, '$.type') = 'file'
+  and ${IMAGE_TYPE} like 'image/%'
+  and substr(${IMAGE_URL}, 1, length(${IMAGE_HEADER})) = ${IMAGE_HEADER}
+  and length(${IMAGE_URL}) > length(${IMAGE_HEADER})`
+const IMAGE_COUNT = `(select count(*) from json_each(part.data, '$.state.attachments') as attachment where ${IMAGE_WHERE})`
 
 export async function sessionRows(dir: string, sessionId: string): Promise<SessionRows | undefined> {
   return withDatabase(dir, (db) => {
@@ -36,10 +48,21 @@ export async function sessionRows(dir: string, sessionId: string): Promise<Sessi
       .prepare('select id, time_created as at, data from message where session_id = ? order by time_created, id')
       .all(sessionId) as unknown as MessageRow[]
     const parts = db
-      .prepare(`select id, message_id as message, time_created as at, ${PART_DATA} as data from part where session_id = ? order by id`)
+      .prepare(`select id, message_id as message, time_created as at, ${PART_DATA} as data, ${IMAGE_COUNT} as images from part where session_id = ? order by id`)
       .all(sessionId) as unknown as PartRow[]
     return { messages, parts, stamp: stampOf(db, sessionId) }
   })
+}
+
+/** Picture `index` of a tool result, kept in OpenCode's database after its source file is gone. */
+export async function sessionImage(dir: string, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined> {
+  if (!Number.isInteger(index) || index < 0) return undefined
+  return withDatabase(dir, (db) => db.prepare(
+    `select ${IMAGE_TYPE} as type, substr(${IMAGE_URL}, length(${IMAGE_HEADER}) + 1) as data
+       from part, json_each(part.data, '$.state.attachments') as attachment
+      where part.session_id = ? and json_extract(part.data, '$.callID') = ? and ${IMAGE_WHERE}
+      order by part.id, attachment.key limit 1 offset ?`,
+  ).get(sessionId, tool, index) as TranscriptImage | undefined)
 }
 
 /** When the session's rows last changed; `undefined` — the folder has no such session. */

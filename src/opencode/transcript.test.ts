@@ -20,6 +20,23 @@ const prompt = message('msg_01', 0, { role: 'user', model: { providerID: 'openco
 const promptText = part('prt_01', 'msg_01', 0, { type: 'text', text: 'DEMO-1' })
 
 describe('foldSession', () => {
+  it('adds tool result pictures to the whole transcript without exposing their data', () => {
+    const rows = [message('msg_02', 2, step({ input: 10 }))]
+    const projected = [{ ...part('prt_02', 'msg_02', 2, {
+      type: 'tool', tool: 'read', callID: 'c1',
+      state: { status: 'completed', input: { filePath: `${CWD}/.temp/inbox/shot.png` } },
+    }), images: 1 }]
+    const whole = foldSession(rows, projected, Infinity, true)
+    expect(whole.feed).toEqual([
+      expect.objectContaining({ kind: 'tool', tool: 'c1' }),
+      expect.objectContaining({ kind: 'image', tool: 'c1', images: 1, text: `${CWD}/.temp/inbox/shot.png` }),
+    ])
+    expect(whole.action?.kind).toBe('tool')
+    expect(foldSession(rows, projected).feed.some((line) => line.kind === 'image')).toBe(false)
+    const browser = [{ ...projected[0]!, data: JSON.stringify({ type: 'tool', tool: 'browser_screenshot', callID: 'c2', state: { status: 'completed' } }), images: 2 }]
+    expect(foldSession(rows, browser, Infinity, true).feed[1]).toMatchObject({ kind: 'image', tool: 'c2', images: 2, text: '' })
+  })
+
   it('starts the turn at the prompt and takes the model, the folder and the context of the last step', () => {
     const summary = foldSession(
       [
