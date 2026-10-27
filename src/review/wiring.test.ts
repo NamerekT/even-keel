@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { SESSION_MARK } from './model.js'
 import { reviewDeps } from './wiring.js'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -71,4 +72,34 @@ it('polls a GitLab merge request: its state, its notes and the failed pipelines 
   expect(check.state).toEqual({ state: 'open', mergeable: false, head: 'task-head' })
   expect(check.remarks.map((remark) => remark.key)).toEqual(['note:31'])
   expect(check.failed.map((run) => run.id)).toEqual([2])
+})
+
+it("does not give a session its own note on its merge request as a remark, open or closed (BTN-442)", async () => {
+  const at = '2026-10-25T10:00:00Z'
+  const later = '2026-10-25T11:00:00Z'
+  let state = 'opened'
+  const routes: Record<string, unknown> = {
+    '/merge_requests/7/discussions?per_page=100&page=1': [
+      { id: 'd1', notes: [{ id: 34, type: null, body: `The red pipeline is expected.\n\n${SESSION_MARK}`, author: { id: 1, username: 'root' }, created_at: later, system: false }] },
+      { id: 'd2', notes: [{ id: 35, type: null, body: 'Rename it', author: { id: 1, username: 'root' }, created_at: later, system: false }] },
+    ],
+    '/members/all/1': { access_level: 50 },
+  }
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    const path = String(input).replace('https://gitlab.com/api/v4/projects/group%2Fapp', '')
+    const body = path === '/merge_requests/7' ? { iid: 7, web_url: 'https://gitlab.com/group/app/-/merge_requests/7', state, sha: 'head' } : routes[path]
+    return new Response(JSON.stringify(body ?? []), { status: body === undefined && !path.startsWith('/pipelines') ? 404 : 200 })
+  })
+  const deps = reviewDeps({
+    git: async () => ({ code: 0, out: 'remote.origin.url git@gitlab.com:group/app.git' }),
+    repo: () => 'D:/repos/app', main: () => 'dev', on: () => true,
+    token: () => 'fake-token', complete: async () => {}, now: () => new Date(at), timeoutMs: 1_000,
+  })
+  const pull = {
+    task: 'ABC-7', remote: 'origin', number: 7, branch: 'abc-7/task',
+    url: 'https://gitlab.com/group/app/-/merge_requests/7', at, pushedAt: at, markAt: null, seen: [],
+  }
+  expect((await deps.check('p1', pull)).remarks.map((remark) => remark.key)).toEqual(['note:35'])
+  state = 'closed'
+  expect((await deps.check('p1', pull)).remarks.map((remark) => remark.key)).toEqual(['note:35'])
 })

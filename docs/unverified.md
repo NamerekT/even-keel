@@ -28,6 +28,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex, Copilot, OpenCode on Linux, macOS | a stopped turn goes on, or a reused pid is killed |
 | 16 | [Forgejo token rights for pull requests](#forgejo-token-rights-for-pull-requests-ekr-9) | PR mode on Forgejo with a token made by the guide | the comments of the conversation are not read, or the open is refused |
 | 16a | [Retrying a pull request after fixing access](#retrying-a-pull-request-after-fixing-access-btn-407) | PR mode paused after a refused open | the pull request stays unopened after Resume |
+| 16b | [A session's own comment on its pull request](#a-sessions-own-comment-on-its-pull-request-btn-442) | PR mode with sessions that comment on their pull request | the session gets its own comment back as a remark once |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
@@ -241,6 +242,10 @@ Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message wai
 ### Retrying a pull request after fixing access (BTN-407)
 
 Covered by dispatcher tests: Start or Resume on `review.notOpened` forgets only the current task's refused mark and retries it without touching its session; another refusal pauses with its new cause and is not retried on each tick. Not checked live: changing the project's remote profile or renewing its token after a real forge refusal, then pressing Resume on the running service. If the new credentials are not picked up, the chain pauses again. **Workaround:** check the profile's access and answer the task's session in the chat to have it mark again, or restart the service to forget the refused mark.
+
+### A session's own comment on its pull request (BTN-442)
+
+Covered by tests: a remark whose text holds `<!-- even-keel:session -->` is not feedback and not in the note of a pull request closed unmerged, a marked line comment is dropped alone. Seen live before the fix (BTN-415, a self-managed GitLab): a session's note on its merge request, posted through the `gitlab` MCP plugin with the same token as Even Keel, came back to it by `--resume`. Not checked live: that a session told by the PR-mode prompt puts the mark into a comment it posts through a forge's MCP server, and that each forge keeps an HTML comment in the body its API returns. If a session leaves the mark out, its comment comes back to it once as a remark, as before the fix, and a closed pull request's note for the next launch counts it. **Workaround:** none needed for one wasted turn; if a session keeps answering itself, stop the chain and tell it in the chat not to comment on its pull request.
 
 ### Forgejo token rights for pull requests (EKR-9)
 
