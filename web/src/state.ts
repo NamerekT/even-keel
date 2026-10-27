@@ -15,6 +15,7 @@ import { accountName } from './accountName.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 import { shownWork } from './work.js'
+import { taskLamp } from './taskLamp.js'
 
 export interface AccountBadge {
   kind: 'in' | 'out' | 'login' | 'unknown'
@@ -788,11 +789,3 @@ function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>, fixes: 
   return [...never, ...ran]
 }
 
-/** The tracker's status first: a finished session lights a task done only when the task is done. */
-function taskLamp(task: Task | undefined, session: SessionView | null): BlockLamp {
-  if (task?.status.category === 'Won') return 'done'
-  if (task?.status.category === 'Lost') return 'canceled'
-  if (session === null) return task?.status.category === 'UnStarted' ? 'backlog' : 'ahead'
-  if (session.checkpoint && (session.lamp === 'waiting' || session.lamp === 'finished')) return 'handoff'
-  return session.lamp === 'finished' ? 'stopped' : session.lamp
-}
