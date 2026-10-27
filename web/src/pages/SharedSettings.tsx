@@ -365,7 +365,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           errorOf={errorOf}
           marks={marks}
         />
-        <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
+        <Section title={t.settings.milestones} hint={`${t.settings.milestonesHint} ${t.shared.forProjects}`}>
           <MilestoneFields
             level="shared"
             rules={chain}
