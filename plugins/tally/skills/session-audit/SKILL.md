@@ -35,7 +35,7 @@ SQL
 - Steps — the agent's long commands (tests, builds, merges): `step_runs_x` — a run (`step`, empty — no rule, then `signature`; `started_at`, `seconds`, `mode`, `end_by`, `outcome` — `fail`/`timeout`/`killed`, `cold` — the first in its worktree and branch, `task`, `project`), `step_weeks` — by project, step and UTC week: `n`, `p50`, `p90`, `max`, `cold`, `failed`; `step_growth` — a week against the previous week with runs: `prev_p50`/`prev_p90` and `grew_p50`/`grew_p90` (grew ≥ 1.5× and by ≥ 10 s with ≥ 5 runs on both sides).
 - The rest: `rule_imports` (the reasons logged for rule edits: target, purpose, reason, task — only if the user installed Tally's rule hook), `stuck_spans` (spans with the classifier's cause and note — only if the classifier is configured), `tool_calls`, `signs`, `limit_shares`, `handoffs` and `handoff_notes`, `compactions` (section 8).
 
-The schema in full is in `tally/CLAUDE.md` of Even Keel's checkout; read its section only when a column here is not enough.
+The schema in full is in `docs/tally.md` of Even Keel's checkout; read its section only when a column here is not enough.
 
 **What comes from the tracker.** `title`, `status`, `labels`, `related`, `rework` (the label `Переделка`), `estimate_h`, `priority`, `component` and `done` are fetched from Huly, hourly; a task from another tracker has only the title Even Keel's launch log gave. Check first what the project has:
 

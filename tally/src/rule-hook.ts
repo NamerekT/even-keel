@@ -98,7 +98,7 @@ function format(session: string, journal: string, files: string[], next: number)
     `append one JSON line per set of edits to ${journal}, after the last line (Read it, then Edit with the last line as old_string; Write only if it does not exist), ` +
     `with id ${next}, the next free one: ${JSON.stringify(example)}. ` +
     `action: ${IMPORT_ACTIONS.join(' | ')}; atPrecision: ${IMPORT_PRECISIONS.join(' | ')}; purpose: one or more of ${RULE_PURPOSES.join(', ')}; ` +
-    'summary and reason in the language of the lines already there. The format is `ruleHistory` in tally/CLAUDE.md.'
+    'summary and reason in the language of the lines already there. The format is `ruleHistory` in docs/tally.md of Even Keel.'
   )
 }
 

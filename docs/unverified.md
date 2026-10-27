@@ -178,7 +178,7 @@ Anthropic sometimes resets a five-hour window or all limits of an account ahead 
 
 ### Fast mode in statistics
 
-Responses in fast mode are recorded (`speed = fast`), but none have appeared in the data, so `/stats` prices them as normal responses and their cost is understated (`tally/CLAUDE.md`).
+Responses in fast mode are recorded (`speed = fast`), but none have appeared in the data, so `/stats` prices them as normal responses and their cost is understated (`docs/tally.md`).
 
 ## Sessions
 
@@ -314,7 +314,7 @@ Seen in rollouts: an `add` with the file's `content` (2026-10-18), and 146 `upda
 
 ### Codex stats (BTN-170)
 
-Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones; on 0.164.0 (2026-10-25), the 12 finished chain sessions of a day had in Tally exactly their `token_usage_record` responses and token sums, and the turn refused at a limit, which writes one record and two equal `token_count` lines, was counted once. Never seen: a non-zero `cache_write_input_tokens` — it is assumed to be inside `input_tokens` and is subtracted from it; a rollout in `archived_sessions/`; a 0.162 rollout that has `token_count` lines without a matching `token_usage_record` (the fallback was run only on 0.148 files). If one of these differs, a Codex response is counted twice or its input is off. **Workaround:** none needed for the chain; compare `/stats` with the `usage` in the rollout and fix `src/rollout.ts` (`tally/CLAUDE.md`).
+Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones; on 0.164.0 (2026-10-25), the 12 finished chain sessions of a day had in Tally exactly their `token_usage_record` responses and token sums, and the turn refused at a limit, which writes one record and two equal `token_count` lines, was counted once. Never seen: a non-zero `cache_write_input_tokens` — it is assumed to be inside `input_tokens` and is subtracted from it; a rollout in `archived_sessions/`; a 0.162 rollout that has `token_count` lines without a matching `token_usage_record` (the fallback was run only on 0.148 files). If one of these differs, a Codex response is counted twice or its input is off. **Workaround:** none needed for the chain; compare `/stats` with the `usage` in the rollout and fix `src/rollout.ts` (`docs/tally.md`).
 
 ### Plugin hooks that block (BTN-180)
 

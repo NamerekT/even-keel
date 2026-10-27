@@ -1,6 +1,6 @@
 {
   "name": "tally",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A session audit over Even Keel's stats (Tally): a skill that compares a recent period of a project's sessions with an earlier one — before and after a rule edit, a model or a checkpoint threshold — finds what got slower or more expensive, reviews handoffs and context compactions, and proposes what to change. It only reads the database, through the bin/sql.mjs launcher, which finds Even Keel's checkout by EVEN_KEEL_HOME, the folders above the plugin, or the running service (EVEN_KEEL_URL).",
   "author": {
     "name": "Even Keel"
