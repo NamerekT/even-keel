@@ -1,10 +1,15 @@
-import { fail } from '../notice/notice.js'
 import type { ProfilesControl } from './routes.js'
 import type { Profiles } from './service.js'
 
 /** Profile commands of the page; project locking stays with the service. */
 export function profilesControl(profiles: Profiles, checkLink: (project: string) => void): ProfilesControl {
   return {
+    oauth: {
+      start: (draft, redirect, client) => profiles.connectMcp(draft, redirect, client),
+      status: (flow) => profiles.oauth.status(flow),
+      cancel: (flow) => profiles.oauth.forget(flow),
+      finish: (params) => profiles.oauth.finish(params),
+    },
     check: (draft) => profiles.check(draft),
     save: async (draft) => {
       const id = await profiles.save(draft)

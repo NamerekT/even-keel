@@ -346,6 +346,7 @@ const packages: Packages = new Packages({
   addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
   poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, project, configStore.current.trackers[project]!, configStore.current.feeds[project]),
+  oauth: (project, server, url) => profiles.gateway(serverProfile(profiles.current(), project, configStore.current.trackers[project]!, configStore.current.feeds[project] ?? [], server)?.id, server, url),
   port: mcpPort,
   log: (line) => console.log(line),
   onChange: () => {

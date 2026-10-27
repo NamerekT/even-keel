@@ -223,6 +223,7 @@ export const STEPS: readonly string[] = [
     seen_at      text not null
   );
   `,
+  `alter table tracker_profiles add column mcp_oauth text not null default 'null';`,
 ]
 
 /** The version this code reads and writes. */

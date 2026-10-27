@@ -103,6 +103,21 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
     expect(lines).toEqual([expect.stringMatching(/^mcp gateway: huly\/huly started in \d+ s$/)])
   })
 
+  it('uses profile OAuth, retries a 401 once and never forwards the old Basic header', async () => {
+    const seen: string[] = []
+    upstream = createServer((req, res) => {
+      seen.push(req.headers.authorization ?? '')
+      res.writeHead(seen.length === 1 ? 401 : 200, { 'content-type': 'application/json' }).end('{}')
+    })
+    await new Promise<void>((resolve) => upstream!.listen(0, '127.0.0.1', resolve))
+    const port = (upstream.address() as { port: number }).port
+    const token = vi.fn(async (rejected?: string) => rejected === undefined ? 'old' : 'new')
+    const url = await start({ entry: { url: `http://127.0.0.1:${port}`, headers: { Authorization: 'Basic private' } }, npm: null, env: {}, oauth: { token, refused: vi.fn() } })
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'tools/list' })).status).toBe(200)
+    expect(seen).toEqual(['Bearer old', 'Bearer new'])
+    expect(token).toHaveBeenLastCalledWith('old')
+  })
+
   it('proxies a remote server with the headers of its entry', async () => {
     let seen: Record<string, unknown> = {}
     upstream = createServer((req, res) => {

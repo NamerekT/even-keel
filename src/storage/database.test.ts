@@ -530,6 +530,36 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     expect(logs).toEqual([])
   })
 
+  it('of version 15 has the schema step 15 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 13))
+    try {
+      await frozen.exec(fixture(15))
+      expect(await databaseVersion(frozen)).toBe(15)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it("of version 15 is read with a profile's MCP OAuth grant (BTN-475)", async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(15))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      expect(await databaseVersion(opened.db)).toBe(DATABASE_VERSION)
+      const profiles = (await readProfiles(opened.db)).profiles
+      expect(profiles.map((each) => each.mcpOAuth?.accessToken ?? null)).toEqual([null, 'gho_example_access', null])
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
   /** Version 12 brought to the current schema, `more` run on it first; the tracker rows by project, `null` the shared one. */
   async function trackersOfV12(more = '') {
     const dataDir = dataDirOf(databaseDirOf(stateDir))

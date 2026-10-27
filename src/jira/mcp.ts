@@ -11,9 +11,9 @@ interface RpcReply {
 }
 
 /** Checks real site access: tools/list succeeds even for tokens that cannot call Jira tools. */
-export async function checkJiraMcp(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch): Promise<void> {
+export async function checkJiraMcp(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch, authorization?: string): Promise<void> {
   const headers = new Headers({
-    authorization: `Basic ${basicAuth(values[JIRA_EMAIL]!, values[JIRA_MCP_TOKEN]!)}`,
+    authorization: authorization ?? `Basic ${basicAuth(values[JIRA_EMAIL]!, values[JIRA_MCP_TOKEN]!)}`,
     accept: 'application/json, text/event-stream',
     'content-type': 'application/json',
   })

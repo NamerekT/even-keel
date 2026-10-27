@@ -159,6 +159,40 @@
   display: block;
 }
 
+/* The MCP grant of a tracker profile (BTN-475): a box of its own between the token fields and the name. */
+.profile-mcp {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.profile-mcp__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.profile-mcp__head .ui-label {
+  margin: 0;
+}
+
+.profile-mcp__hint {
+  margin: 0;
+}
+
+.profile-mcp .notice {
+  margin: 0;
+}
+
+.profile-mcp__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
 @media (max-width: 760px) {
   .profile-form .add-package__foot {
     flex-wrap: wrap;
