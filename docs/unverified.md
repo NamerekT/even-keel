@@ -97,7 +97,9 @@ Timeout and slow-call diagnostics are covered by tests but have not been observe
 What Codex's rules hold and miss, Copilot's rules as Even Keel writes them (they missed the very command they name,
 BTN-463), the remote audit's verdicts for tokens without access, and the page's warnings are in
 [`verified.md`](verified.md). Not checked live: Claude CLI/SDK deny rules from the chain's `--settings` (no harness
-could be staged, see `verified.md`), Huly deletion rules on Claude and Copilot, Copilot's rules after BTN-463, Codex
+could be staged, see `verified.md`), Huly deletion rules on Claude and Copilot (the server names Copilot gives the plugin gateway and the standalone
+server), Copilot's rules as Even Keel writes them after BTN-463 (`shell(<prefix>:*)`; the form itself held by hand,
+the generated set from a chain launch and the `rm -rf` ones were not run), Codex
 under Windows session 0 and slot reuse, classic GitHub protection, a server actually rejecting a destructive push,
 the page's band for a remote after a real launch, and a project's own Protection rules over the shared ones reaching
 a new session without a restart. The adapter arguments, settings inheritance and API verdicts are covered by tests.

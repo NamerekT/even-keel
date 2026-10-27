@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ownServers, sessionOf, turnArgs, turnEnded } from './cli.js'
 
-const place = { cwd: 'C:\\work\\demo', dirs: ['C:\\work\\main'], disabled: [] }
+const place = { cwd: 'C:\\work\\demo', dirs: ['C:\\work\\main'], disabled: [], remotes: [] }
 
 describe('turnArgs', () => {
   it('gives a new session its id and its task as the name, and resumes one by its id', () => {
