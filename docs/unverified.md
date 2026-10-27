@@ -446,7 +446,7 @@ The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtla
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 
-The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`. Rovo's side up to the token was checked live on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)): its token is refused on `v2/mcp` and taken on `v1/mcp`, so the Jira button fails until BTN-485, and an HTTPS callback other than `localhost` needs the organization admin to add its domain in Rovo MCP's domain settings. Assumed:
+The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`. Rovo's side up to the token was checked live on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)): discovery on the root of `mcp.atlassian.com` gets an old authorization server whose token `v2/mcp` refuses, so the Jira button fails until BTN-485 follows `v2/mcp`'s protected-resource metadata, and an HTTPS callback other than `localhost` needs the organization admin to add its domain in Rovo MCP's domain settings. Assumed:
 
 - Linear (`mcp.linear.app`) publishes `/.well-known/oauth-authorization-server` on the MCP server's own origin, with S256 and a registration endpoint, and accepts a public client registered with an `http://localhost:4747/…` or an HTTPS Tailscale callback;
 - Linear's token endpoint accepts `resource` (RFC 8707) and answers `token_type: Bearer`, with a refresh token;
