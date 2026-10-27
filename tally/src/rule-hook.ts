@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { IMPORT_ACTIONS, IMPORT_PRECISIONS, RULE_PURPOSES } from '../../src/stats/rule-imports.js'
 import { parseImports } from './rule-imports.js'
 import { ruleFileOf, type RuleFile } from './rules.js'
+import { editedInstructionSize, INSTRUCTION_LIMIT, instructionSizeNotice, isInstructionFile } from './rule-hook-size.js'
 
 // A Claude Code hook (PostToolUse on Edit/MultiEdit/Write, and Stop) asking a session that edited rule files to
 // say why in the rule history; without the why an audit sees the change but cannot judge it. Entry: tally/bin/rule-hook.mjs.
@@ -12,6 +13,8 @@ export interface HookState {
   files: string[]
   // The files the last blocked stop was about: a stop is blocked again only for files edited since.
   blocked: string[]
+  oversized?: Record<string, number>
+  sizeBlocked?: string[]
 }
 
 export interface HookPlace {
@@ -24,6 +27,7 @@ export interface HookInput {
   session_id?: string
   tool_name?: string
   tool_input?: { file_path?: unknown }
+  tool_response?: { originalFile?: unknown; type?: unknown }
   stop_hook_active?: boolean
 }
 
@@ -33,9 +37,10 @@ const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write'])
 const SESSION_ID = /^[\w-]+$/
 const STALE_MS = 30 * 24 * 3600 * 1000
 
-// The same files the Tally snapshot takes, except memory: sessions write it all the time.
-export function hookRuleFile(path: string, home: string): RuleFile | null {
+// Snapshot rule files except memory, plus instruction files of other agents and nested config folders.
+export function hookRuleFile(path: string, home: string): Pick<RuleFile, 'display' | 'kind'> | null {
   const file = ruleFileOf(path, home)
+  if (file === null && isInstructionFile(path)) return { display: path.replaceAll('\\', '/'), kind: 'claude_md' }
   return file === null || file.kind === 'memory' ? null : file
 }
 
@@ -57,29 +62,47 @@ export function afterEdit(input: HookInput, state: HookState, journal: string | 
   const path = input.tool_input?.file_path
   if (!EDIT_TOOLS.has(input.tool_name ?? '') || typeof path !== 'string') return { state, context: null }
   const file = hookRuleFile(path, place.home)
-  if (file === null || state.files.includes(file.display)) return { state, context: null }
+  if (file === null) return { state, context: null }
+  const size = editedInstructionSize(input, path)
+  let next = state
+  let warning: string | null = null
+  if (size !== null) {
+    const oversized = { ...state.oversized }
+    if (size.after > INSTRUCTION_LIMIT && size.after > size.before) {
+      oversized[file.display] = size.after
+      warning = instructionSizeNotice({ [file.display]: size.after })
+    } else if (size.after <= INSTRUCTION_LIMIT || size.after < size.before) {
+      delete oversized[file.display]
+    }
+    next = { ...state, oversized }
+  }
+  if (state.files.includes(file.display)) return { state: next, context: warning }
   const session = input.session_id ?? ''
   const context =
     `Rule file changed: ${file.display}. Before you end the turn, log why in the rule history — ` +
     `${format(session, place.journal, [file.display], journalCheck(journal ?? '', session).next)} ` +
     'If this session already has a line there, add the file to its files instead of a new line.'
-  return { state: { ...state, files: [...state.files, file.display] }, context }
+  return { state: { ...next, files: [...state.files, file.display] }, context: warning === null ? context : `${context}\n${warning}` }
 }
 
 export function beforeStop(input: HookInput, state: HookState, journal: string | null, place: HookPlace): { state: HookState; reason: string | null } {
   const fresh = state.files.filter((file) => !state.blocked.includes(file))
-  if (input.stop_hook_active === true || fresh.length === 0) return { state, reason: null }
+  const oversized = Object.fromEntries(Object.entries(state.oversized ?? {}).filter(([file]) => !state.sizeBlocked?.includes(file)))
+  const hasSizeWarning = Object.keys(oversized).length > 0
+  if (input.stop_hook_active === true || (fresh.length === 0 && !hasSizeWarning)) return { state, reason: null }
   const session = input.session_id ?? ''
   const { logged, errors, next, taken } = journalCheck(journal ?? '', session)
-  if (logged && taken.length === 0) return { state, reason: null }
+  const needsJournal = fresh.length > 0 && (!logged || taken.length > 0)
+  if (!needsJournal && !hasSizeWarning) return { state, reason: null }
   const broken = errors.length === 0 ? '' : ` Lines of this session there do not parse: ${errors.join('; ')}.`
   const ask = logged
     ? `This session changed rule files (${state.files.join(', ')}), and its line in the rule history has id ${taken.join(', ')}, which another line has too. ` +
       `Give it id ${next}, the next free one${taken.length > 1 ? ', and the ones after it to the others' : ''}, and keep it after the last line of ${place.journal}. `
     : `This session changed rule files (${state.files.join(', ')}), and the rule history has no line with its id in sessions.${broken} ` +
       `Add it now — ${format(session, place.journal, state.files, next)} `
-  const reason = ask + 'Then end the turn as before: if your last message ended with a CHECKPOINT: line, end with it again. This reminder comes once.'
-  return { state: { ...state, blocked: [...state.files] }, reason }
+  const reason = (needsJournal ? ask : '') + (hasSizeWarning ? `${instructionSizeNotice(oversized)} ` : '') +
+    'Then end the turn as before: if your last message ended with a CHECKPOINT: line, end with it again. This reminder comes once.'
+  return { state: { ...state, blocked: [...state.files], ...(hasSizeWarning ? { sizeBlocked: [...new Set([...(state.sizeBlocked ?? []), ...Object.keys(oversized)])] } : {}) }, reason }
 }
 
 function format(session: string, journal: string, files: string[], next: number): string {
@@ -119,9 +142,10 @@ export function runHook(raw: unknown, { root, env, home }: HookEnv): object | nu
   const state = readState(stateFile)
 
   if (input.hook_event_name === 'PostToolUse') {
-    const next = afterEdit(input, state ?? EMPTY_STATE, readText(place.journal), place)
+    const previous = state ?? EMPTY_STATE
+    const next = afterEdit(input, previous, readText(place.journal), place)
+    if (next.state !== previous) writeState(stateFile, next.state, state === null)
     if (next.context === null) return null
-    writeState(stateFile, next.state, state === null)
     return { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: next.context } }
   }
   if (input.hook_event_name === 'Stop' && state !== null) {
@@ -158,7 +182,8 @@ function readState(path: string): HookState | null {
   try {
     const raw = JSON.parse(text) as Partial<HookState>
     const list = (value: unknown) => (Array.isArray(value) ? value.filter((each): each is string => typeof each === 'string') : [])
-    return { files: list(raw.files), blocked: list(raw.blocked) }
+    const oversized = Object.fromEntries(Object.entries(raw.oversized ?? {}).filter(([, bytes]) => typeof bytes === 'number' && Number.isFinite(bytes) && bytes > INSTRUCTION_LIMIT))
+    return { files: list(raw.files), blocked: list(raw.blocked), ...(raw.oversized === undefined ? {} : { oversized }), ...(raw.sizeBlocked === undefined ? {} : { sizeBlocked: list(raw.sizeBlocked) }) }
   } catch {
     return null
   }
