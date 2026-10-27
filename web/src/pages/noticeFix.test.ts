@@ -3,6 +3,9 @@ import { notice } from '../../../src/notice/notice.js'
 import { fieldFixOf, noticeFixOf, untrustedOf } from './noticeFix.js'
 
 describe('noticeFixOf', () => {
+  it('opens the merged task refused by its tracker', () => {
+    expect(noticeFixOf(notice('tracker.completeRefused', { task: 'ABC-1' }))).toEqual({ to: 'tracker', task: 'ABC-1' })
+  })
   it('sends a wrong main branch to the repository tab of the project', () => {
     expect(noticeFixOf(notice('git.noBranch', { project: 'ABC', branch: 'dev', repo: 'D:/abc' }))).toEqual({ to: 'project', tab: 'repo' })
     expect(noticeFixOf(notice('forward.foreign', { from: 'ABC', into: 'ABD' }))).toEqual({ to: 'project', tab: 'repo' })

@@ -35,12 +35,23 @@ describe('MergeCloser', () => {
     await dispatcher.idle()
 
     const merged = new Set<string>()
-    const closer = new MergeCloser({ merged: async (_project, task) => merged.has(task), complete: (task) => tracker.complete!(task) })
+    let refused = true
+    const closer = new MergeCloser({ merged: async (_project, task) => merged.has(task), complete: (task) => {
+      if (refused) throw new Error('Due date required')
+      return tracker.complete!(task)
+    } })
     expect(await closer.sweep('ABC', dispatcher.held('ABC'))).toEqual([])
     expect(adapter.statuses.get('ABC-1')).toEqual(todo)
 
     merged.add('ABC-1')
+    expect(await closer.sweep('ABC', dispatcher.held('ABC'))).toEqual([])
+    expect(closer.failures('ABC')).toHaveLength(1)
+    await refresh()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    refused = false
     expect(await closer.sweep('ABC', dispatcher.held('ABC'))).toEqual(['ABC-1'])
+    expect(closer.failures('ABC')).toEqual([])
     expect(adapter.statuses.get('ABC-1')).toEqual(done)
 
     await refresh()
@@ -116,8 +127,25 @@ describe('MergeCloser', () => {
     })
     expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
     expect(errors).toHaveLength(1)
+    expect(closer.failures('ABC')).toEqual([{ code: 'tracker.completeRefused', params: { task: 'ABC-1' }, detail: 'tracker: refused' }])
     fail = false
     expect(await closer.sweep('ABC', ['ABC-1'])).toEqual(['ABC-1'])
     expect(completed).toEqual(['ABC-1'])
+    expect(closer.failures('ABC')).toEqual([])
+  })
+
+  it('forgets refusals of tasks no longer held, separately for each reader', async () => {
+    const closer = new MergeCloser({ merged: async () => true, complete: async () => { throw new Error('Required field') } })
+    await closer.sweep('ABC', ['ABC-1'])
+    await closer.sweep('XYZ', ['XYZ-1'])
+    await closer.sweep('ABC', [])
+    expect(closer.failures('ABC')).toEqual([])
+    expect(closer.failures('XYZ')).toHaveLength(1)
+  })
+
+  it('does not call a git failure a tracker refusal', async () => {
+    const closer = new MergeCloser({ merged: async () => { throw new Error('git unavailable') }, complete: async () => true })
+    await closer.sweep('ABC', ['ABC-1'])
+    expect(closer.failures('ABC')).toEqual([])
   })
 })

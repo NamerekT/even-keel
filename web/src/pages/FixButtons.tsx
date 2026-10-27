@@ -3,7 +3,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { projectOfPath, projectPath } from '../state.js'
+import { issueLink, projectOfPath, projectPath } from '../state.js'
 import { type NoticeFix, noticeFixOf } from './noticeFix.js'
 import { openTab, projectScope, SETTINGS_HASH, SHARED_SCOPE } from './settingsStore.js'
 
@@ -15,6 +15,11 @@ export function NoticeFixButton({ project, notice }: { project: string | null; n
 
 export function FixButton({ project, fix, className = 'button button--small notice-fix' }: { project: string | null; fix: NoticeFix; className?: string }) {
   const go = useFix()
+  const { state } = useLive()
+  if (fix.to === 'tracker') {
+    const url = state === null ? null : issueLink(state.trackerUrls, fix.task)
+    return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
+  }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
   const target = fix.to === 'project' ? (fix.project ?? project) : null
   if (fix.to === 'project' && target === null) return null
@@ -41,6 +46,7 @@ export function useFix() {
   const { state } = useLive()
   return (fix: Exclude<NoticeFix, { to: 'resume' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
+    if (fix.to === 'tracker') return
     if (fix.to === 'shared') {
       openTab(SHARED_SCOPE, fix.tab)
       return void navigate('/settings')

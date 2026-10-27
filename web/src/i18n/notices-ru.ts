@@ -31,6 +31,8 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
 export const noticesRu: NoticeTexts = {
+  'tracker.closePending': () => 'трекер не даёт закрыть',
+  'tracker.completeRefused': (p) => `Задача ${p.task} влита, но трекер не даёт её закрыть. Заполните требуемое поле или закройте задачу в трекере вручную. Even Keel повторит попытку автоматически. Ответ трекера`,
   'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
   'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
+import { completionNotices } from '../completion.js'
 import { useCommand } from '../live/useCommand.js'
 import {
   cardTask,
@@ -43,7 +44,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const call = emptyCall(state, project)
   const pages = call === null ? [] : projectPages(state, project)
-  const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
+  const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? completionNotices(state, project)[0] ?? failure
 
   return (
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>

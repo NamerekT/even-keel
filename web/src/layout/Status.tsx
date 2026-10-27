@@ -4,13 +4,14 @@ import type { SessionView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
+import { completionTasks } from '../completion.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
 
 export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
   const { state } = useLive()
-  const waiting = waitingSessions(sessions, tasks)
+  const waiting = waitingSessions(sessions, tasks, completionTasks(state))
   const first = waiting[0]
   if (first === undefined) return null
 

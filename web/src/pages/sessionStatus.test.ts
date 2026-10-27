@@ -12,6 +12,12 @@ const accounts = fakeAccount('api', false, FAKE_LIMITS).accounts
 afterEach(() => setLanguage('en'))
 
 describe('session limit text', () => {
+  it.each(['en', 'ru'] as const)('does not ask for a reply while the tracker refuses closure (%s)', (language) => {
+    setLanguage(language)
+    const view = { ...session('ABC-5', 0, 'waiting'), asking: false, ask: null }
+    expect(sessionStatus(view, true)).toBe(language === 'en' ? 'tracker refused closure' : 'трекер не даёт закрыть')
+    expect(sessionStatus({ ...view, asking: true }, true)).toBe(t.lamp.waiting)
+  })
   it.each(['claude', 'codex', 'opencode', 'copilot'])('uses the %s session account to recognize a key without Remote Control', (agent) => {
     const view = { ...session('ABC-5', 0, 'limit'), agent, account: 'ci-key', remoteOff: null }
     expect(limitPlan(hold, now, view, accounts)).toBe(t.session.creditOut)

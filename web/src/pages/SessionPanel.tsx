@@ -9,6 +9,7 @@ import type { ContextScale, SessionRecord, SessionView } from '../../../src/stat
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { agentLabel } from '../accountName.js'
+import { completionTasks, needsReply } from '../completion.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
@@ -148,7 +149,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
-  const waiting = !aside && talking?.lamp === 'waiting'
+  const waiting = !aside && talking?.lamp === 'waiting' && (!completionTasks(state).has(talking.task) || needsReply(talking))
   // Why "New session" and "Skip" cannot be pressed now and when they can, for their tips.
   const wait =
     replacing.on || block.start?.phase === 'handover'
@@ -258,6 +259,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
 function SessionBody({ session, limit, scale, whole }: { session: SessionView; limit: LimitHold | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
   const { state } = useLive()
+  const refused = completionTasks(state).has(session.task) && !needsReply(session)
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
   const note =
@@ -276,7 +278,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
       {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session, state?.account.accounts ?? [])}</p>}
       <FactList>
         <Fact label={t.session.session}>
-          <dd className={`panel__state panel__state--${session.lamp}`}>{sessionStatus(session)}</dd>
+          <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
         </Fact>
         <Fact label={t.session.time}>
           <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
