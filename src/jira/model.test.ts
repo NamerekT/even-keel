@@ -5,6 +5,13 @@ import { earliestVersion, jiraPriority, jiraStatus, priorityFor, toCard, toTrack
 const ORDER = ['Highest', 'High', 'Medium', 'Low', 'Lowest']
 
 describe('jiraStatus', () => {
+  it('recognizes the untranslated backlog name while keeping the localized display name', () => {
+    expect(jiraStatus({ ...BACKLOG, name: 'Бэклог', untranslatedName: 'Backlog' })).toEqual({ name: 'Бэклог', category: 'UnStarted' })
+    expect(jiraStatus({ ...TODO, name: 'Backlog', untranslatedName: 'To Do' })).toEqual({ name: 'Backlog', category: 'ToDo' })
+    expect(jiraStatus({ name: 'Backlog', statusCategory: { key: 'new' } })).toEqual({ name: 'Backlog', category: 'UnStarted' })
+    expect(jiraStatus({ name: 'Backlog', untranslatedName: null, statusCategory: { key: 'new' } })).toEqual({ name: 'Backlog', category: 'UnStarted' })
+  })
+
   it('goes by the status category, and a new status named Backlog is the backlog', () => {
     expect(jiraStatus(TODO)).toEqual({ name: 'To Do', category: 'ToDo' })
     expect(jiraStatus(BACKLOG)).toEqual({ name: 'Backlog', category: 'UnStarted' })

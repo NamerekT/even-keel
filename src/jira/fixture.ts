@@ -1,9 +1,9 @@
 import type { JiraIssue, JiraRef, JiraStatus } from './model.js'
 
-export const TODO: JiraStatus = { id: '10001', name: 'To Do', statusCategory: { key: 'new' } }
-export const BACKLOG: JiraStatus = { id: '10000', name: 'Backlog', statusCategory: { key: 'new' } }
-export const PROGRESS: JiraStatus = { id: '3', name: 'In Progress', statusCategory: { key: 'indeterminate' } }
-export const DONE: JiraStatus = { id: '10002', name: 'Done', statusCategory: { key: 'done' } }
+export const TODO: JiraStatus = { id: '10001', name: 'To Do', untranslatedName: 'To Do', statusCategory: { key: 'new' } }
+export const BACKLOG: JiraStatus = { id: '10000', name: 'Backlog', untranslatedName: 'Backlog', statusCategory: { key: 'new' } }
+export const PROGRESS: JiraStatus = { id: '3', name: 'In Progress', untranslatedName: 'In Progress', statusCategory: { key: 'indeterminate' } }
+export const DONE: JiraStatus = { id: '10002', name: 'Done', untranslatedName: 'Done', statusCategory: { key: 'done' } }
 
 export const ref = (key: string, status: JiraStatus = TODO): JiraRef => ({ key, fields: { summary: `Issue ${key}`, status } })
 

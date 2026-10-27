@@ -431,14 +431,14 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ### Jira Cloud
 
-The adapter is built from the Jira Cloud REST v3 documentation and checked against fixtures only; no live site has run through it. Assumed and to check on a live site:
+The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. Still to check on a live site:
 
 - a classic token signs in on the site, and a token with scopes is refused there and accepted through `api.atlassian.com/ex/jira/<cloudId>`, the cloud id coming from `<site>/_edge/tenant_info` without sign-in;
 - `POST /search/jql` pages with `nextPageToken`, and `POST /issue/bulkfetch` returns the found issues and lists the missing keys in `issueErrors` instead of failing;
 - the statuses of `/project/<key>/statuses` cover a team-managed project too, and a Backlog status of a company-managed Scrum template is in the `new` category;
 - a media node's `alt` is the attachment's file name, and `/attachment/content/<id>?redirect=false` returns the bytes rather than a redirect body;
-- `/issue/createmeta/<key>/issuetypes` answers with `issueTypes` (or `values`), and the create screen takes `priority` and `fixVersions` — a site whose screen lacks either refuses the create;
-- a transition to a Done-category status needs no screen fields; a workflow that asks for a resolution or a comment on the way refuses it.
+- the create screen takes `priority` and `fixVersions` — the live create omitted both; a site whose screen lacks either refuses them;
+- transitions on workflows that require screen fields; the live standard workflow accepted both the ready and Done transitions without extra fields.
 
 If one is wrong, the profile check fails, the chain reads fewer issues, a task stays open after the merge, or a file on the card does not open. **Workaround:** close the task in Jira by hand; for the create, turn `ci.fixTask` off.
 
