@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { fixTaskOf, isCarryName, isFixName, isOwnName } from '../../../src/chain/fix.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -7,6 +7,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import { TURN_HANG_MS, TURN_RESTART_MS, type SilentRestart } from '../../../src/sessions/silence.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
+import type { Notice } from '../../../src/notice/notice.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { agentLabel } from '../accountName.js'
@@ -30,7 +31,9 @@ import { useTip } from '../ui/useTip.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
-import { limitPlan, sessionStatus } from './sessionStatus.js'
+import { sessionStatus } from './sessionStatus.js'
+import { LimitNotice } from './LimitNotice.js'
+import type { LimitRefusal } from './limitMessages.js'
 import './facts.css'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
@@ -52,6 +55,15 @@ interface Props {
 export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
+  const [refusal, setRefusal] = useState<(LimitRefusal & { sessionId: string | undefined }) | null>(null)
+  const sessionId = block.session?.sessionId
+  const onFailure = useCallback((failure: Notice | null) => {
+    setRefusal(failure?.code === 'chain.limitSpent' ? { notice: failure, at: new Date().toISOString(), sessionId } : null)
+  }, [sessionId])
+  const recovered = block.session?.lamp === 'working' || block.session?.lamp === 'finished'
+  useEffect(() => {
+    if (recovered) setRefusal(null)
+  }, [recovered])
   const remoteUrl = block.session?.remoteUrl ?? null
   const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
   // The current session is read and answered in the chat window, opened from the actions.
@@ -101,7 +113,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
       )}
-      <Actions block={block} scale={scale} ci={ci} />
+      <Actions block={block} scale={scale} ci={ci} onFailure={onFailure} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
@@ -112,7 +124,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
       ) : block.session === null ? (
         block.sessions.length === 0 && <p className="placeholder">{t.session.none}</p>
       ) : (
-        <SessionBody session={block.session} limit={block.limit} scale={scale} whole={!chat} />
+        <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} whole={!chat} />
       )}
       {block.sessions.length > 0 && (
         <SessionList rows={block.sessions} current={block.session?.sessionId ?? null} onOpen={setOpened} />
@@ -130,8 +142,14 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   )
 }
 
-function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale; ci: boolean }) {
+function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: ContextScale; ci: boolean; onFailure: (failure: Notice | null) => void }) {
   const { send, sending, failure } = useCommand()
+  const lastFailure = useRef(failure)
+  useEffect(() => {
+    if (lastFailure.current === failure) return
+    lastFailure.current = failure
+    onFailure(failure)
+  }, [failure, onFailure])
   const { state } = useLive()
   const [chatting, setChatting] = useState(false)
   const [confirmation, setConfirmation] = useState<SilentRestart | null>(null)
@@ -262,7 +280,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
           {remoteOff}
         </p>
       )}
-      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      {failure !== null && failure.code !== 'chain.limitSpent' && <p className="notice notice--error">{say(failure)}</p>}
       {chatting && chatSession !== null && (
         <Suspense fallback={null}>
           <TranscriptWindow
@@ -289,12 +307,13 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   )
 }
 
-function SessionBody({ session, limit, scale, whole }: { session: SessionView; limit: LimitHold | null; scale: ContextScale; whole: boolean }) {
+function SessionBody({ session, limit, refusal = null, scale, whole }: { session: SessionView; limit: LimitHold | null; refusal?: LimitRefusal | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
   const { state } = useLive()
   const refused = completionTasks(state).has(session.task) && !needsReply(session)
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
+  const limited = limit !== null || refusal !== null || ['limit', 'credit', 'spend'].includes(session.apiErrorKind ?? '')
   const note =
     (session.apiErrorNotice === undefined ? session.apiError : say(session.apiErrorNotice)) ??
     (waits
@@ -307,8 +326,8 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
 
   return (
     <>
-      {note !== null && !(['spend', 'transient'].includes(session.apiErrorKind ?? '') && limit !== null) && <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>}
-      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session, state?.account.accounts ?? [])}</p>}
+      {note !== null && !limited && <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>}
+      {limited && <LimitNotice session={session} hold={limit} refusal={refusal} />}
       <FactList>
         <Fact label={t.session.session}>
           <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>

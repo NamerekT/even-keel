@@ -63,7 +63,7 @@ export function EventToasts() {
 
 /** The title names its projects by their ids, shown through `ProjectLinks`. */
 function textOf(event: PageEvent): { title: string; body: string } {
-  if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.events.limitBody }
+  if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.session.limitEvent }
   if (event.kind === 'red') return { title: t.events.red(event.project), body: t.events.redBody(event.commit) }
   if (event.kind === 'ciRed') return { title: t.events.ciRed(event.project, t.ci.kinds[event.ci]), body: t.events.ciRedBody(event.commit) }
   if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }

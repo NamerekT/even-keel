@@ -1,6 +1,7 @@
 import { fail, NoticeError } from '../notice/notice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import type { HandoffSession } from './relay.js'
+import { requireLimit } from './limitNotice.js'
 
 export function answerable(
   state: ChainState,
@@ -26,7 +27,6 @@ export function answerable(
   }
   const reason = deps.blocked(project, task)
   if (reason !== undefined) throw new NoticeError(reason)
-  const reset = deps.limitReset(project, task)
-  if (reset !== null) throw fail('chain.limitSpent', { until: reset })
+  requireLimit(deps, project, task)
   return { chain, current, session, midTurn: false }
 }

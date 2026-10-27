@@ -4,6 +4,7 @@ import { en } from './en.js'
 import { fieldsEn, type FieldTexts } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
 import { ru, type Messages } from './ru.js'
+import { localMoment } from '../moment.js'
 
 export type { Messages }
 
@@ -27,12 +28,19 @@ export function setProjectLabels(next: Readonly<Record<string, string>>): void {
 
 // A server message in the page's language.
 export function say(notice: Notice): string {
-  return withLabels(renderNotice(notice, t.notice), labels)
+  return withLabels(sayIds(notice), labels)
 }
 
 // The same, its projects still by their ids, for `ProjectLinks` to make links of them (BTN-319).
 export function sayIds(notice: Notice): string {
-  return renderNotice(notice, t.notice)
+  return renderNotice(notice, {
+    ...t.notice,
+    'chain.limitSpent': (p) => t.notice['chain.limitSpent']({
+      ...p,
+      until: localMoment(p.until, new Date(), language),
+      provider: p.provider === undefined ? undefined : (t.account.agents as Record<string, string>)[p.provider] ?? p.provider,
+    }),
+  })
 }
 
 const FIELDS: Record<Language, FieldTexts> = { en: fieldsEn, ru: fieldsRu }

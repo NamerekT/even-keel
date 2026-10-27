@@ -16,8 +16,8 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(unknown)).toEqual({ to: 'project', tab: 'sessions' })
   })
 
-  it('sends a spent limit and a lost sign-in to the accounts', () => {
-    expect(noticeFixOf(notice('chain.limitSpent', { until: '12:00' }))).toEqual({ to: 'accounts' })
+  it('sends a spent limit to the project pool and a lost sign-in to the accounts', () => {
+    expect(noticeFixOf(notice('chain.limitSpent', { until: '12:00' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('account.signedOut', {}))).toEqual({ to: 'accounts' })
   })
 
