@@ -12,7 +12,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | ---: | --- | --- | --- |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
-| 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode chain sessions using Protection | a command or tracker deletion tool may run despite a configured deny |
+| 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode sessions with build-agent permission overrides | agent permissions can override Protection; the correction needs a live recheck |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
@@ -122,15 +122,18 @@ harmless commands against a local bare remote; do not test destructive pushes or
 
 ### OpenCode Protection (BTN-486)
 
-The installed OpenCode 1.18.25 accepts the generated config and lists its command and Huly tool denies in the build
-agent after the default allow (`debug agent build --pure`, [verified.md](verified.md)). Unit tests cover group switches,
-custom command patterns, gateway tool names, settings inheritance and the v15 → v16 config migration. Not checked:
-an actual chain call denied before execution, Huly deletion denied through the real gateway, account and project
-permission merges (especially later broad allows and agent-specific overrides), and changing a project's custom
-rules on the running service then launching a new session without a restart. If native matching differs from the
-assumed command shape, an equivalent action can run. Check with harmless commands, disposable files and a local
-bare remote; use a fake tracker tool that records attempted calls. Keep server-side branch protection enabled.
-The follow-up live check is BTN-500, blocked by BTN-486.
+BTN-500 checked OpenCode 1.18.25 on Windows: actual tool denials for the default command patterns, group switches,
+custom `*`/`?` patterns, Huly deletion tools through the real gateway, broad account/project allows, and shared and
+project rules saved on the running service reaching fresh chain sessions without a restart
+([verified.md](verified.md), Sessions). The local provider emitted predetermined tool calls; no model refusal was
+counted as Protection. A safe `rm` executable and MCP stub recorded calls; git pushes used a disposable bare remote.
+
+**Known failure, BTN-501:** `agent.build.permission` in either the account or project config can override the
+session's denies. A project build-agent `*`/bash allow executed a force push, reached the `rm` stub and both Huly
+deletion stubs; account build-agent bash and explicit MCP-tool allows did too. Top-level broad allows did not bypass
+the denies. Recheck the correction against these same calls before claiming the conflict is resolved. Linux/macOS,
+other agents/subagents and equivalent command spellings remain unchecked. **Workaround:** remove conflicting
+build-agent allows, retain server-side branch protection and use disposable targets when checking native rules.
 
 ### API spending cap recovery
 

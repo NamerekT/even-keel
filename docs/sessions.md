@@ -120,10 +120,18 @@ recursive-delete targets. They do not cover every equivalent spelling or shell w
 The [OpenCode permissions documentation](https://opencode.ai/docs/permissions/) and the installed 1.18.25 source
 (`permission/index.ts`, `core/src/util/wildcard.ts`) agree: `*` matches any text, `?` one character, and the last
 matching permission wins. Backslashes normalize to slashes and matching ignores case on Windows. Agent-specific
-permissions can override the config's permissions; these are native guardrails, not a sandbox. The installed CLI's
-`debug agent build --pure` reads the generated denies after its default allow (see [verified.md](verified.md)); actual
-chain calls, account/project overrides, MCP denial and restart-free settings changes remain
-[unverified](unverified.md#opencode-protection-btn-486). No package plugin is needed for these native rules.
+permissions can override the config's permissions; these are native guardrails, not a sandbox. Checked live on
+Windows with OpenCode 1.18.25 (BTN-500): all seven group switches, push flags in both common orders, force/delete
+refspecs, recursive-delete targets, custom `*`/`?` patterns, and Huly deletion tools through the real gateway. The
+provider emitted tool calls against a local bare remote and safe recording stubs. Deletion tools are removed from
+the offered tool set; forced calls become unavailable-tool results, while reads and updates reach the MCP stub.
+Top-level account/project broad allows leave the denies effective. Shared and project rules saved through the
+running service's page reached new chain sessions without a restart; a project's rule list replaced the shared one.
+However, account or project `agent.build.permission` allows overrode bash and MCP denies in real calls (BTN-501).
+Remove conflicting build-agent allows until corrected. Results are in [verified.md](verified.md); the unresolved
+conflict and remaining platforms are in [unverified.md](unverified.md#opencode-protection-btn-486).
+No package plugin is needed for these native rules. The retained **OpenCode Protection** test project and
+`.temp/btn-500/README.md` in the main checkout describe how to repeat the safe check.
 
 Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
 folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.
