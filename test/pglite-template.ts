@@ -3,21 +3,44 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import type { TestProject } from 'vitest/node'
+import { openDatabase, STEPS } from '../src/storage/database.js'
+import { copyTemplate, templateFiles, type TemplateFiles } from './copy-template.js'
+
+export interface DatabaseTemplate extends TemplateFiles {
+  dump: string
+}
 
 declare module 'vitest' {
   export interface ProvidedContext {
-    pgliteTemplate: { dir: string; dump: string }
+    pgliteTemplate: DatabaseTemplate
+    databaseTemplates: { sqlite: DatabaseTemplate; current: DatabaseTemplate }
   }
 }
 
-/** One fresh PGlite cluster per test run, as a folder and as a dump, for `test/pglite.ts` to start new databases from. */
+/** Real schema steps run here, outside the test workers and their template mocks. */
 export default async function setup(project: TestProject): Promise<() => void> {
   const root = mkdtempSync(join(tmpdir(), 'even-keel-pglite-'))
-  const dir = join(root, 'pgdata')
-  const dump = join(root, 'fresh.tar')
-  const db = await PGlite.create({ dataDir: dir })
-  writeFileSync(dump, Buffer.from(await (await db.dumpDataDir('none')).arrayBuffer()))
-  await db.close()
-  project.provide('pgliteTemplate', { dir, dump })
-  return () => rmSync(root, { recursive: true, force: true })
+  const cleanup = () => rmSync(root, { recursive: true, force: true })
+  const save = async (name: string, db: PGlite): Promise<DatabaseTemplate> => {
+    const dump = join(root, `${name}.tar`)
+    try {
+      writeFileSync(dump, Buffer.from(await (await db.dumpDataDir('none')).arrayBuffer()))
+    } finally {
+      await db.close()
+    }
+    return { ...templateFiles(join(root, name)), dump }
+  }
+  try {
+    const fresh = await save('fresh', await PGlite.create({ dataDir: join(root, 'fresh') }))
+    await copyTemplate(fresh, join(root, 'sqlite'))
+    const sqlite = await save('sqlite', await openDatabase(join(root, 'sqlite'), STEPS.slice(0, 1)))
+    await copyTemplate(sqlite, join(root, 'current'))
+    const current = await save('current', await openDatabase(join(root, 'current')))
+    project.provide('pgliteTemplate', fresh)
+    project.provide('databaseTemplates', { sqlite, current })
+    return cleanup
+  } catch (error) {
+    cleanup()
+    throw error
+  }
 }
