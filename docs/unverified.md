@@ -51,7 +51,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
-| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Codex | a session cannot record a decision in its issue |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Linear, GitHub profiles connected through OAuth (Jira fails until BTN-485) | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
@@ -428,10 +427,6 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ## Trackers
-
-### Jira MCP plugin
-
-The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. An OpenCode chain session through the gateway read its issue, an attachment, commented and made a `Blocks` link the right way, a Claude Code chain session read its issue, edited its description with `editJiraIssue` and commented, and an OpenCode one moved another issue to Done with `transitionJiraIssue`, on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)); in Claude Code the auto mode classifier refused that call as a write to an external system before it reached Jira. Still to check: a Codex session with the plugin. If it fails, a Codex session cannot record a decision in its issue. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 
