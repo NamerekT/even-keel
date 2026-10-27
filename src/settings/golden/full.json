@@ -215,6 +215,9 @@
         ],
         "copilot": [
           "write(.env)"
+        ],
+        "opencode": [
+          "terraform destroy*"
         ]
       },
       "checkpointTokens": 150000,
@@ -284,6 +287,9 @@
         ],
         "copilot": [
           "write(.env)"
+        ],
+        "opencode": [
+          "terraform destroy*"
         ]
       },
       "checkpointTokens": 150000,
@@ -341,6 +347,9 @@
         ],
         "copilot": [
           "write(.env)"
+        ],
+        "opencode": [
+          "terraform destroy*"
         ]
       },
       "checkpointTokens": 150000,
@@ -398,6 +407,9 @@
         ],
         "copilot": [
           "write(.env)"
+        ],
+        "opencode": [
+          "terraform destroy*"
         ]
       },
       "checkpointTokens": 150000,
@@ -477,6 +489,9 @@
     ],
     "copilot": [
       "write(.env)"
+    ],
+    "opencode": [
+      "terraform destroy*"
     ]
   },
   "cacheTtl": "1h",

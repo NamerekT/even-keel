@@ -111,7 +111,8 @@
         ],
         "copilot": [
           "write(.env)"
-        ]
+        ],
+        "opencode": []
       },
       "checkpointTokens": null,
       "checkpointShares": {
@@ -178,7 +179,8 @@
         ],
         "copilot": [
           "write(.env)"
-        ]
+        ],
+        "opencode": []
       },
       "checkpointTokens": null,
       "checkpointShares": {
@@ -263,7 +265,8 @@
     ],
     "copilot": [
       "write(.env)"
-    ]
+    ],
+    "opencode": []
   },
   "cacheTtl": null,
   "contextHandoffs": true,

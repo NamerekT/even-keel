@@ -19,7 +19,7 @@ export const FULL = {
   language: 'ru',
   promptLanguage: 'en',
   hiddenSkills: ['loop', ' simplify '],
-  protection: { disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'] },
+  protection: { disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'], opencode: ['terraform destroy*'] },
   cacheTtl: '1h',
   contextHandoffs: false,
   keepWarm: 3,

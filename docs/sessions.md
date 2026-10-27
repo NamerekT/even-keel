@@ -88,7 +88,8 @@ Built on the research below (BTN-213) and checked on Copilot CLI 1.0.98 on Windo
 ## Protection
 
 `src/sessions/protection.ts` defines seven default deny groups. `protection` has `disabled` (group ids), `claude`
-(permission strings), `codex` (arrays of literal command-prefix arguments), and `copilot` (tool rules). Fields inherit
+(permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode`
+(bash command glob patterns). Fields inherit
 from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
 `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and `deleteTracker`. Sessions → Protection
 edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
@@ -102,10 +103,26 @@ Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` bef
 command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
 `shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch and a
 `+main` refspec cannot be caught on Copilot short of `shell(git push:*)`, which denies every push. Huly deletion rules
-name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy; the Huly group's hint says it reaches Claude Code and Copilot only. Each group's hint names what it denies, and
-each agent's field of additional rules has its own hint and an example placeholder. OpenCode receives
-no Protection rules and the page says so. An agent without a sandbox and without Even Keel rules gets a warning linking
+name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy. Each group's hint names what it denies, and
+each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking
 to the project's session settings.
+
+OpenCode receives the seven groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
+`permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`.
+Plugin and standalone Huly servers use their actual gateway names; without a package list, the conventional
+`plugin_huly_huly` and `huly` names cover the account's own servers. Reading and updating tracker records stay allowed.
+`external_directory: "allow"` still permits the merge into the main checkout. Additional `protection.opencode` rules
+are command patterns, one per line in the editor (for example, `git reset --hard*`); no tool-name wrapper is needed.
+They share the command patterns of Claude's groups, including `+` and `:` push refspecs and paths starting with the
+recursive-delete targets. They do not cover every equivalent spelling or shell wrapper.
+
+The [OpenCode permissions documentation](https://opencode.ai/docs/permissions/) and the installed 1.18.25 source
+(`permission/index.ts`, `core/src/util/wildcard.ts`) agree: `*` matches any text, `?` one character, and the last
+matching permission wins. Backslashes normalize to slashes and matching ignores case on Windows. Agent-specific
+permissions can override the config's permissions; these are native guardrails, not a sandbox. The installed CLI's
+`debug agent build --pure` reads the generated denies after its default allow (see [verified.md](verified.md)); actual
+chain calls, account/project overrides, MCP denial and restart-free settings changes remain
+[unverified](unverified.md#opencode-protection-btn-486). No package plugin is needed for these native rules.
 
 Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
 folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.

@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import {
   hungEntry,
   parseJsonc,
@@ -63,9 +64,35 @@ describe('skillDirs', () => {
 describe('sessionConfig', () => {
   const server = { name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/huly' }
 
+  it('passes command denies and Huly tool denies using the actual gateway names', () => {
+    const mcp = [server, { ...server, plugin: null }, { ...server, name: 'tracker' }, { ...server, name: 'other', plugin: null }]
+    const protection = { ...DEFAULT_PROTECTION, opencode: ['terraform destroy*', 'terraform destroy*'] }
+    const config = JSON.parse(sessionConfig({ mcp, protection }, [], []))
+    expect(config.permission.external_directory).toBe('allow')
+    for (const pattern of ['git push --force*', 'git push * --force*', 'git push * +*', 'git push --mirror*', 'git push * --delete*', 'git push * :*', 'rm -rf /*', 'rm -fr ~*', 'rm -rf $HOME*', 'rm -rf ..*', 'terraform destroy*']) {
+      expect(config.permission.bash[pattern]).toBe('deny')
+    }
+    for (const gateway of ['plugin_huly_huly', 'huly', 'plugin_huly_tracker']) {
+      for (const tool of ['delete_issue', 'delete_project', 'delete_attachment', 'delete_issue_template', 'delete_activity_reply']) expect(config.permission[`${gateway}_${tool}`]).toBe('deny')
+      expect(config.permission[`${gateway}_get_issue`]).toBeUndefined()
+    }
+    expect(config.permission.other_delete_issue).toBeUndefined()
+    expect(Object.keys(config.permission.bash).filter(pattern => pattern === 'terraform destroy*')).toHaveLength(1)
+  })
+
+  it('honours disabled groups and keeps additional command patterns when every group is off', () => {
+    const protection = { ...DEFAULT_PROTECTION, disabled: [...PROTECTION_GROUPS], opencode: ['git reset --hard*'] }
+    expect(JSON.parse(sessionConfig({ mcp: [server], protection }, [], [])).permission).toEqual({ external_directory: 'allow', bash: { 'git reset --hard*': 'deny' } })
+    expect(JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [])).permission).toEqual({ external_directory: 'allow' })
+    const config = JSON.parse(sessionConfig({ mcp: [server], protection: { ...DEFAULT_PROTECTION, disabled: ['forcePush', 'deleteTracker'] } }, [], []))
+    expect(Object.keys(config.permission)).toEqual(['external_directory', 'bash'])
+    expect(Object.keys(config.permission.bash).some(pattern => pattern.includes('--force') || pattern.includes('+'))).toBe(false)
+    expect(config.permission.bash['git push --mirror*']).toBe('deny')
+  })
+
   it("turns the project's own servers off and puts the gateway's in their place", () => {
     const config = JSON.parse(sessionConfig({ mcp: [server] }, ['local-db'], []))
-    expect(config.permission).toEqual({ external_directory: 'allow' })
+    expect(config.permission.external_directory).toBe('allow')
     expect(config.mcp).toEqual({
       'local-db': { enabled: false },
       plugin_huly_huly: { type: 'remote', url: server.url, enabled: true },

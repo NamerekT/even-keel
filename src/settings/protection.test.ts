@@ -6,11 +6,11 @@ const raw = { projects: [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'hu
 describe('Protection settings', () => {
   it('inherits individual fields and keeps a project override when the shared value changes', () => {
     const config = parseConfig({ ...raw, protection: { claude: ['Write(.env)'] }, projects: [{ ...raw.projects[0], protection: { disabled: ['deleteTracker'] } }] })
-    expect(config.settings.p?.protection).toEqual({ disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [], copilot: [] })
+    expect(config.settings.p?.protection).toEqual({ disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [], copilot: [], opencode: [] })
   })
 
   it('rejects unknown groups and malformed native command prefixes', () => {
-    for (const protection of [{ disabled: ['unknown'] }, { codex: [[]] }, { codex: ['git'] }, { claude: [3] }, { typo: [] }]) {
+    for (const protection of [{ disabled: ['unknown'] }, { codex: [[]] }, { codex: ['git'] }, { claude: [3] }, { opencode: [3] }, { opencode: [' '] }, { typo: [] }]) {
       expect(() => parseConfig({ ...raw, protection })).toThrow()
     }
   })
@@ -18,7 +18,7 @@ describe('Protection settings', () => {
   it('round trips global and project edits through the forms', () => {
     const config = parseConfig(raw)
     const forms = formsOf(config)
-    const protection = { disabled: ['forcePush'], claude: [], codex: [['terraform', 'destroy']], copilot: [] }
+    const protection = { disabled: ['forcePush'], claude: [], codex: [['terraform', 'destroy']], copilot: [], opencode: ['terraform destroy*'] }
     const shared = withSharedForm(raw, { ...forms.shared, protection }, forms.shared)
     expect(parseConfig(shared).protection).toEqual(protection)
     const form = forms.projects.p!
