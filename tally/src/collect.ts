@@ -119,7 +119,10 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const changes = await refreshRuleChanges(db)
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
-    const turned = await refreshTurns(db)
+    const turned = await refreshTurns(db, rollouts, (path, error) => {
+      failed++
+      log(`tally: turns of ${path}: ${(error as Error).message}`)
+    })
     const stepped = await refreshSteps(db, config.steps)
     const tasks = await refreshTasks(db, hulyOf, log)
     const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, log)
