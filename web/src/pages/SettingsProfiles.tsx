@@ -136,9 +136,9 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
             <span className="tools__chip tools__chip--lost">{t.profiles.pullsRefused}</span>
           </Tipped>
         )}
-        {profile.mcpOAuth?.state === 'reconnect' && (
-          <Tipped tip={t.profiles.mcp.revoked} focusable inline>
-            <span className="tools__chip tools__chip--lost">{t.profiles.mcp.revokedChip}</span>
+        {profile.mcpOAuth !== undefined && (
+          <Tipped tip={profile.mcpOAuth.state === 'reconnect' ? t.profiles.mcp.revoked : t.profiles.mcp.hint} focusable inline>
+            <span className={`chip ${profile.mcpOAuth.state === 'reconnect' ? 'chip--paused' : ''}`}>{profile.mcpOAuth.state === 'reconnect' ? t.profiles.mcp.revokedChip : t.profiles.mcp.connected}</span>
           </Tipped>
         )}
       </div>

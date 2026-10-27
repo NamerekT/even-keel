@@ -2,7 +2,7 @@ import type { PGlite } from '@electric-sql/pglite'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
 import { FORGEJO_PROFILE } from '../ci/forgejo-profile.js'
 import { openDatabase, Writes } from '../storage/database.js'
@@ -78,6 +78,7 @@ describe('Profiles', { timeout: 60_000 }, () => {
     )
   })
   afterEach(async () => {
+    vi.unstubAllGlobals()
     await writes.settled()
     await db.close()
   })
@@ -108,6 +109,42 @@ describe('Profiles', { timeout: 60_000 }, () => {
   }
 
   describe('check', () => {
+    it('checks stored Jira OAuth instead of the fallback MCP token, refreshing when needed', async () => {
+      const account = vi.fn(async () => ({ login: 'john@example.com', name: 'Jira', expiresAt: null }))
+      const stored: TrackerProfile = { ...profile('jira-profile', 'rest', true), kind: 'jira', values: {
+        JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john@example.com', JIRA_TOKEN: 'rest', JIRA_MCP_TOKEN: 'old-fallback',
+      }, mcpOAuth: { server: 'https://mcp.atlassian.com/v2/mcp', clientId: 'client', tokenEndpoint: 'https://auth.atlassian.com/token',
+        redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.atlassian.com/v2/mcp',
+        accessToken: 'old', refreshToken: 'refresh', expiresAt: 0 } }
+      const request = vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('/token')) return Response.json({ access_token: 'renewed', token_type: 'Bearer', expires_in: 3600 })
+        expect(new Headers(init?.headers).get('authorization')).toBe('Bearer renewed')
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'notifications/initialized') return new Response(null, { status: 202 })
+        return Response.json({ jsonrpc: '2.0', id: body.id, result: body.method === 'initialize' ? { protocolVersion: '2025-06-18' }
+          : { content: [{ type: 'text', text: JSON.stringify([{ url: stored.values.JIRA_URL }]) }] } })
+      })
+      vi.stubGlobal('fetch', request)
+      const profiles = make({ profiles: [stored], links: {} }, { kinds: { jira: {
+        ...ciFake, title: 'Jira', variables: Object.keys(stored.values), hostVariables: ['JIRA_URL'], complete: () => true, account,
+      } } })
+      await profiles.check({ id: stored.id, kind: 'jira', values: {} })
+      expect(account).toHaveBeenCalledWith(expect.not.objectContaining({ JIRA_MCP_TOKEN: expect.anything() }), 1000)
+      expect(request).toHaveBeenCalledTimes(4)
+      expect(profiles.current().profiles[0]!.mcpOAuth?.accessToken).toBe('renewed')
+      await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Saved OAuth' })
+      expect(profiles.current().profiles[0]).toMatchObject({ name: 'Saved OAuth', values: { JIRA_MCP_TOKEN: 'old-fallback' }, mcpOAuth: { accessToken: 'renewed' } })
+      request.mockResolvedValueOnce(Response.json({}, { status: 401 }))
+      request.mockResolvedValueOnce(Response.json({ error: 'invalid_grant' }, { status: 400 }))
+      await expect(profiles.check({ id: stored.id, kind: 'jira', values: {} })).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+      expect(profiles.view().profiles[0]!.mcpOAuth?.state).toBe('reconnect')
+      await expect(profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Refused edit' })).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+      expect(profiles.current().profiles[0]!.name).toBe('Saved OAuth')
+      await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Token fallback', oauth: null })
+      expect(account).toHaveBeenLastCalledWith(expect.objectContaining({ JIRA_MCP_TOKEN: 'old-fallback' }), 1000)
+      expect(profiles.current().profiles[0]!.mcpOAuth).toBeUndefined()
+    })
+
     it('reports a GitLab host as GitLab without an untranslated detail', async () => {
       const profiles = make(undefined, { kinds: profileKinds({}, { forgejo: FORGEJO_PROFILE }) })
       await expect(profiles.check({ kind: 'forgejo', values: { FORGEJO_URL: 'https://gitlab.com', FORGEJO_TOKEN: 'example-token' } }))

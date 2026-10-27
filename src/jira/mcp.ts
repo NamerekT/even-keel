@@ -68,7 +68,7 @@ export async function checkJiraMcp(values: Readonly<Record<string, string>>, tim
 }
 
 /** Streamable HTTP may return JSON or keep an SSE stream open after the reply. */
-async function rpcReply(response: Response, id: number): Promise<RpcReply> {
+export async function rpcReply(response: Response, id: number): Promise<RpcReply> {
   if (!response.headers.get('content-type')?.includes('text/event-stream')) {
     const reply = await response.json() as RpcReply
     if (reply.id !== id) throw new Error('jira MCP: unexpected reply id')
