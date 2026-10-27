@@ -131,13 +131,19 @@ function inlineNode(node: AdfNode, media: MediaLink): string {
 
 function marked(text: string, marks: AdfMark[]): string {
   const has = (type: string) => marks.find((mark) => mark.type === type)
-  let result = has('code') ? `\`${text}\`` : text
+  let result = has('code') ? `\`${text}\`` : escapeText(text)
   if (has('em')) result = `*${result}*`
   if (has('strong')) result = `**${result}**`
   if (has('strike')) result = `~~${result}~~`
   const link = has('link')
   if (link !== undefined && typeof link.attrs?.href === 'string') result = `[${result}](${link.attrs.href})`
   return result
+}
+
+function escapeText(text: string): string {
+  return text.replace(/[\\`*_[\]<>&~#!]/g, '\\$&')
+    .replace(/^([ \t]*)([-+=])/gm, '$1\\$2')
+    .replace(/^([ \t]*\d{1,9})([.)])(?=\s|$)/gm, '$1\\$2')
 }
 
 export function markdownToAdf(markdown: string): AdfNode {
@@ -227,7 +233,7 @@ function dedent(lines: string[]): string[] {
   return Number.isFinite(depth) ? [lines[0]!, ...lines.slice(1).map((line) => line.slice(depth))] : lines
 }
 
-const INLINE = /\\([\\`*_~[\]()#>!-])|`([^`]+)`|\*\*(.+?)\*\*|__(.+?)__|~~(.+?)~~|\*([^*\s][^*]*?)\*|(?<![\w])_([^_\s][^_]*?)_(?![\w])|\[([^\]]+)\]\((\S+?)\)|<(https?:\/\/[^\s>]+)>|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g
+const INLINE = /\\([!-/:-@[-`{-~])|`([^`]+)`|\*\*(.+?)\*\*|__(.+?)__|~~(.+?)~~|\*((?:\\.|[^*\\\s])(?:\\.|[^*\\])*?)\*|(?<![\w])_([^_\s][^_]*?)_(?![\w])|\[((?:\\.|[^\]\\])+)\]\((\S+?)\)|<(https?:\/\/[^\s>]+)>|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g
 
 function parseInline(text: string, marks: AdfMark[] = []): AdfNode[] {
   const nodes: AdfNode[] = []
