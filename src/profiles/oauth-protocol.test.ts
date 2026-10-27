@@ -29,7 +29,7 @@ function fixture(challenge = `Bearer resource_metadata="${resourceMetadata}"`) {
     return response()
   }) as unknown as typeof fetch
   const verify = vi.fn(async () => {})
-  const oauth = new McpOAuth({ fetch: request, get: () => undefined, put: async () => false, verify })
+  const oauth = new McpOAuth({ fetch: request, get: () => undefined, put: async () => false, verify, log: () => {} })
   return { resource, metadata, responses, request, oauth, verify }
 }
 
@@ -133,7 +133,7 @@ describe('MCP resource OAuth discovery', () => {
 
   it('keeps GitHub on its configured OAuth App without dynamic registration', async () => {
     const request = vi.fn(async () => Response.json({ access_token: 'github-access', token_type: 'bearer' })) as unknown as typeof fetch
-    const oauth = new McpOAuth({ fetch: request, get: () => undefined, put: async () => false, verify: async () => {} })
+    const oauth = new McpOAuth({ fetch: request, get: () => undefined, put: async () => false, verify: async () => {}, log: () => {} })
     const draft = { kind: 'github', values: {} }
     const start = await oauth.start(draft, redirect, { id: 'app-client', secret: 'app-secret' })
     const url = new URL(start.url)

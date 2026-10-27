@@ -1,4 +1,6 @@
 import { fail } from '../notice/notice.js'
+import { oauthHttpError } from './oauth-error.js'
+export { OAuthRefused } from './oauth-error.js'
 
 /** OAuth endpoints and tokens stay in the service, outside the environment and the page's state. */
 export interface OAuthRecord {
@@ -34,8 +36,6 @@ export interface Registration {
   redirect: string
 }
 
-export class OAuthRefused extends Error {}
-
 export function callbackUrl(value: string): string {
   let url: URL
   try { url = new URL(value) } catch { throw fail('profiles.oauthAddress', {}) }
@@ -46,11 +46,8 @@ export function callbackUrl(value: string): string {
 
 async function json(request: typeof fetch, url: string, init: RequestInit = {}): Promise<Record<string, unknown>> {
   const response = await request(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(20_000) })
-  const body = await response.json().catch(() => ({})) as Record<string, unknown>
-  if (!response.ok) {
-    if (response.status === 401 || body.error === 'invalid_grant' || body.error === 'invalid_client') throw new OAuthRefused()
-    throw fail('profiles.oauthFailed', {})
-  }
+  const body = (await response.json().catch(() => null) ?? {}) as Record<string, unknown>
+  if (!response.ok || body.error) throw oauthHttpError(response.status, body.error)
   return body
 }
 
@@ -113,7 +110,6 @@ export async function exchange(record: Omit<OAuthRecord, 'accessToken' | 'expire
   if (record.clientSecret) params.set('client_secret', record.clientSecret)
   if (record.resource) params.set('resource', record.resource)
   const data = await json(request, record.tokenEndpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: params.toString() })
-  if (data.error === 'bad_verification_code') throw new OAuthRefused()
   if (typeof data.access_token !== 'string' || !data.access_token || typeof data.token_type !== 'string' || data.token_type.toLowerCase() !== 'bearer') throw fail('profiles.oauthFailed', {})
   return {
     ...record, accessToken: data.access_token,

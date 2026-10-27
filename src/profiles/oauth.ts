@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { fail, noticeOf, type Notice } from '../notice/notice.js'
-import { callbackUrl, exchange, OAuthRefused, register, type OAuthClient, type OAuthRecord, type Registration } from './oauth-protocol.js'
+import { fail, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
+import { callbackUrl, exchange, MCP_OAUTH, OAuthRefused, register, type OAuthClient, type OAuthRecord, type Registration } from './oauth-protocol.js'
+import { oauthReason } from './oauth-error.js'
 export { MCP_OAUTH, type OAuthRecord } from './oauth-protocol.js'
 
 export interface OAuthDraft { id?: string; kind: string; values: Record<string, string | null> }
@@ -23,6 +24,7 @@ interface Deps {
   verify: (kind: string, values: Record<string, string | null>, token: string) => Promise<void>
   fetch?: typeof fetch
   now?: () => number
+  log: (line: string) => void
 }
 const binding = (draft: OAuthDraft) => createHash('sha256').update(JSON.stringify([draft.id ?? null, draft.kind, Object.entries(draft.values).sort(([a], [b]) => a.localeCompare(b))])).digest('hex')
 const random = () => randomBytes(32).toString('base64url')
@@ -42,7 +44,12 @@ export class McpOAuth {
   async start(draft: OAuthDraft, redirect: string, client?: OAuthClient): Promise<{ flow: string; url: string }> {
     this.prune()
     if (this.flows.size >= 32) throw fail('profiles.oauthFailed', {})
-    const registration = await register(draft.kind, callbackUrl(redirect), this.request, client)
+    let registration: Registration
+    try { registration = await register(draft.kind, callbackUrl(redirect), this.request, client) }
+    catch (error) {
+      this.report(draft.kind, 'registration', error, [...Object.values(draft.values), client?.secret])
+      throw error instanceof NoticeError ? error : fail('profiles.oauthFailed', {})
+    }
     const id = random()
     const verifier = random()
     const state = random()
@@ -61,15 +68,19 @@ export class McpOAuth {
     const flow = [...this.flows.values()].find((each) => each.oauthState === state)
     if (!flow || flow.used) throw fail('profiles.oauthExpired', {})
     flow.used = true
+    let step = 'code exchange'
+    let record: OAuthRecord | undefined
     try {
       if (params.has('error') || !params.get('code')) throw fail('profiles.oauthDenied', {})
       const { authorizationEndpoint: _, issuer, requireIssuer, scope: _scope, ...registration } = flow.registration
       if ((requireIssuer || params.has('iss')) && params.get('iss') !== issuer) throw fail('profiles.oauthFailed', {})
-      const record = await exchange(registration, { grant_type: 'authorization_code', code: params.get('code')!, code_verifier: flow.verifier, redirect_uri: registration.redirect }, this.request, this.now())
+      record = await exchange(registration, { grant_type: 'authorization_code', code: params.get('code')!, code_verifier: flow.verifier, redirect_uri: registration.redirect }, this.request, this.now())
+      step = 'grant verification'
       await this.deps.verify(flow.kind, flow.values, record.accessToken)
       flow.record = record
       flow.state = 'ready'
     } catch (error) {
+      this.report(flow.kind, step, error, [...Object.values(flow.values), params.get('code'), flow.oauthState, flow.verifier, flow.registration.clientSecret, record?.accessToken, record?.refreshToken])
       flow.state = 'failed'
       flow.error = error instanceof OAuthRefused ? noticeOf(fail('profiles.oauthDenied', {})) : noticeOf(fail('profiles.oauthFailed', {}))
       throw fail('profiles.oauthFailed', {})
@@ -98,19 +109,25 @@ export class McpOAuth {
     const renew = async (rejected?: string) => {
       if (!flow) return this.token(id, rejected)
       if (record.accessToken !== rejected && (record.expiresAt === null || record.expiresAt > this.now() + 30_000)) return record.accessToken
-      if (!record.refreshToken) throw new OAuthRefused()
-      record = await exchange(record, { grant_type: 'refresh_token', refresh_token: record.refreshToken }, this.request, this.now())
+      record = await this.refreshRecord(kind, record)
       flow.record = record
       return record.accessToken
     }
     let token: string | undefined
     try {
       token = await renew()
-      try { await this.deps.verify(kind, values, token) }
+      const verify = async () => {
+        try { await this.deps.verify(kind, values, token!) }
+        catch (error) {
+          this.report(kind, 'grant verification', error, [...Object.values(values), token, record.refreshToken, record.clientSecret])
+          throw error
+        }
+      }
+      try { await verify() }
       catch (error) {
         if (!(error instanceof OAuthRefused)) throw error
         token = await renew(token)
-        await this.deps.verify(kind, values, token)
+        await verify()
       }
     } catch (error) {
       if (error instanceof OAuthRefused) {
@@ -141,9 +158,8 @@ export class McpOAuth {
 
   private async refresh(id: string, record: OAuthRecord): Promise<string> {
     try {
-      if (!record.refreshToken) throw new OAuthRefused()
-      const next = await exchange(record, { grant_type: 'refresh_token', refresh_token: record.refreshToken }, this.request, this.now())
-      if (!await this.deps.put(id, record, next)) throw fail('profiles.oauthExpired', {})
+      const kind = Object.keys(MCP_OAUTH).find((kind) => MCP_OAUTH[kind]!.url === record.server) ?? 'unknown'
+      const next = await this.refreshRecord(kind, record, (next) => this.deps.put(id, record, next))
       return next.accessToken
     } catch (error) {
       if (error instanceof OAuthRefused) {
@@ -152,6 +168,23 @@ export class McpOAuth {
       }
       throw fail('profiles.oauthFailed', {})
     }
+  }
+
+  private async refreshRecord(kind: string, record: OAuthRecord, persist?: (next: OAuthRecord) => Promise<boolean>): Promise<OAuthRecord> {
+    let next: OAuthRecord | undefined
+    try {
+      if (!record.refreshToken) throw new OAuthRefused('No refresh token')
+      next = await exchange(record, { grant_type: 'refresh_token', refresh_token: record.refreshToken }, this.request, this.now())
+      if (persist && !await persist(next)) throw fail('profiles.oauthExpired', {})
+      return next
+    } catch (error) {
+      this.report(kind, 'refresh', error, [record.accessToken, record.refreshToken, record.clientSecret, next?.accessToken, next?.refreshToken])
+      throw error
+    }
+  }
+
+  private report(kind: string, step: string, error: unknown, secrets: (string | null | undefined)[]): void {
+    this.deps.log(`profiles: ${Object.hasOwn(MCP_OAUTH, kind) ? kind : 'unknown'} MCP OAuth ${step} failed: ${oauthReason(error, secrets)}`)
   }
 
   private flow(id: string): Flow {

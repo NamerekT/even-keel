@@ -25,11 +25,12 @@ function fixture() {
     return Response.json(data)
   }) as unknown as typeof fetch
   const verify = vi.fn(async () => {})
+  const log = vi.fn()
   const oauth = new McpOAuth({ fetch: request, now: () => now, get: () => record, put: async (_id, expected, next) => {
     if (record !== expected) return false
     record = next
     return true
-  }, verify })
+  }, verify, log })
   const connect = async () => {
     const start = await oauth.start(draft, redirect)
     const url = new URL(start.url)
@@ -37,10 +38,69 @@ function fixture() {
     record = oauth.completed(start.flow, draft)
     return start
   }
-  return { oauth, calls, request, verify, connect, record: () => record, tick: () => { now += 100_000 }, replace: (next?: OAuthRecord) => { record = next } }
+  return { oauth, calls, request, verify, log, connect, record: () => record, tick: () => { now += 100_000 }, replace: (next?: OAuthRecord) => { record = next } }
 }
 
 describe('profile MCP OAuth', () => {
+  it('logs an exchange HTTP reason once without response secrets or callback values', async () => {
+    const f = fixture()
+    const start = await f.oauth.start(draft, redirect)
+    const state = new URL(start.url).searchParams.get('state')!
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error: 'invalid_grant', error_description: `code=private-code state=${state}`, access_token: 'response-secret' }, { status: 400 }))
+    await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private-code' }))).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
+    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth code exchange failed: HTTP 400: invalid_grant']])
+    expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthDenied', params: {} } })
+  })
+
+  it('logs a grant check exception on one line, redacting known credentials and callback secrets', async () => {
+    const f = fixture()
+    const start = await f.oauth.start(draft, redirect)
+    const url = new URL(start.url)
+    const state = url.searchParams.get('state')!
+    f.verify.mockRejectedValueOnce(new Error(`MCP check: HTTP 503\naccess-one refresh-one rest-token private-code ${state}`))
+    await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private-code' }))).rejects.toThrow()
+    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth grant verification failed: MCP check: HTTP 503 [redacted] [redacted] [redacted] [redacted] [redacted]']])
+    expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthFailed', params: {} } })
+  })
+
+  it('logs registration exceptions without exposing draft credentials', async () => {
+    const f = fixture()
+    vi.mocked(f.request).mockRejectedValueOnce(new Error('registration unavailable\nrest-token'))
+    await expect(f.oauth.start(draft, redirect)).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
+    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth registration failed: registration unavailable [redacted]']])
+  })
+
+  it('redacts encoded code, verifier and GitHub client secret from a request exception', async () => {
+    const f = fixture()
+    const start = await f.oauth.start({ ...draft, kind: 'github' }, redirect, { id: 'client', secret: 'client secret/%' })
+    const state = new URL(start.url).searchParams.get('state')!
+    vi.mocked(f.request).mockImplementationOnce(async (_url, init) => { throw new Error(`Request failed: ${init?.body}`) })
+    await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private code/%' }))).rejects.toThrow()
+    expect(f.log).toHaveBeenCalledTimes(1)
+    const line = f.log.mock.calls[0]![0]
+    expect(line).toContain('github MCP OAuth code exchange failed: Request failed:')
+    for (const secret of ['private', 'client+secret', 'client%20secret', state]) expect(line).not.toContain(secret)
+    expect(line).toContain('code_verifier=[redacted]')
+  })
+
+  it.each([new Response('unavailable', { status: 502 }), Response.json(null, { status: 502 })])('keeps the HTTP status when an error has no JSON object', async (response) => {
+    const f = fixture()
+    const start = await f.oauth.start(draft, redirect)
+    vi.mocked(f.request).mockResolvedValueOnce(response)
+    await expect(f.oauth.finish(new URLSearchParams({ state: new URL(start.url).searchParams.get('state')!, code: 'code' }))).rejects.toThrow()
+    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth code exchange failed: HTTP 502']])
+  })
+
+  it.each([false, true])('logs a refused refresh for a stored or draft grant (draft: %s)', async (unsaved) => {
+    const f = fixture()
+    const start = await f.connect()
+    f.tick()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error: 'invalid_grant', refresh_token: 'refresh-one' }, { status: 400 }))
+    const result = unsaved ? f.oauth.check(start.flow, draft.kind, draft.values, draft) : f.oauth.token('p')
+    await expect(result).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth refresh failed: HTTP 400: invalid_grant']])
+  })
+
   it('checks and refreshes an unsaved grant without persisting it, keeping its original deadline', async () => {
     const f = fixture()
     const start = await f.connect()
@@ -100,7 +160,7 @@ describe('profile MCP OAuth', () => {
     expect(await Promise.all([f.oauth.token('p'), f.oauth.token('p')])).toEqual(['access-two', 'access-two'])
     expect(vi.mocked(f.request).mock.calls.length).toBe(before + 1)
     expect(f.record()?.refreshToken).toBe('refresh-two')
-    const restarted = new McpOAuth({ get: () => f.record(), put: async () => false, verify: async () => {}, now: () => 1_100_000 })
+    const restarted = new McpOAuth({ get: () => f.record(), put: async () => false, verify: async () => {}, now: () => 1_100_000, log: () => {} })
     expect(await restarted.token('p')).toBe('access-two')
     vi.mocked(f.request).mockResolvedValueOnce(Response.json({ access_token: 'access-three', refresh_token: 'refresh-three', token_type: 'Bearer', expires_in: 3600 }))
     expect(await f.oauth.token('p', 'access-two')).toBe('access-three')

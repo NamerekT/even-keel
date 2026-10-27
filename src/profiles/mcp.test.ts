@@ -5,6 +5,23 @@ import { OAuthRefused } from './oauth-protocol.js'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('MCP OAuth access check', () => {
+  it('keeps Jira probe cleanup when preserving a refusal with a session header', async () => {
+    const request = vi.fn(async (_url: unknown, init?: RequestInit) => init?.method === 'DELETE'
+      ? new Response(null, { status: 204 })
+      : Response.json({ error: 'invalid_token' }, { status: 401, headers: { 'mcp-session-id': 'probe' } }))
+    vi.stubGlobal('fetch', request)
+    await expect(checkMcpOAuth('jira', {}, 'access', 1000)).rejects.toThrow('HTTP 401: invalid_token')
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(request.mock.calls[1]![1]?.method).toBe('DELETE')
+    expect(new Headers(request.mock.calls[1]![1]?.headers).get('mcp-session-id')).toBe('probe')
+  })
+
+  it.each(['jira', 'linear', 'github'])('preserves the HTTP refusal reason for %s without response details', async (kind) => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'invalid_token', error_description: 'private-token' }, { status: 401 })))
+    await expect(checkMcpOAuth(kind, {}, 'access', 1000)).rejects.toThrow('HTTP 401: invalid_token')
+    await expect(checkMcpOAuth(kind, {}, 'access', 1000)).rejects.toBeInstanceOf(OAuthRefused)
+  })
+
   it.each(['linear', 'github'])('initializes %s with Bearer auth and closes the probe session', async (kind) => {
     const request = vi.fn(async (_url: unknown, init?: RequestInit) => {
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer access')
