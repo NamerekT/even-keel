@@ -5,7 +5,7 @@ description: Working a Jira Cloud issue through the Atlassian Rovo MCP server â€
 
 # Working a Jira issue
 
-Issues are reached through the `jira` MCP server (the Atlassian Rovo MCP server). If a tool is missing, tell the user instead of scripting against the API: without the admin's opt-in to API tokens, or with a classic token, the server offers no Jira tools at all.
+Issues are reached through the `jira` MCP server (the Atlassian Rovo MCP server). If a tool is missing or refuses a call, tell the user instead of scripting against the API. The organization admin must enable API token authentication before the user creates a separate Atlassian MCP V2 token; the REST token does not work here. A successful tools/list alone does not prove access: getAccessibleAtlassianResources must include the issue's site, and getJiraIssue must succeed.
 
 Even Keel runs the chain: it takes the open issues of the Jira project in order, starts a session on the first one, moves it to a Done-category status when its branch lands in `main`, cleans up and starts the next. The session does the issue and merges; everything else is Even Keel's.
 

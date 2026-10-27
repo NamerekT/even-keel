@@ -213,7 +213,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
           return (
             <Field
               key={field.name}
-              label={t.secrets.purpose[field.name] ?? field.name}
+              label={t.profiles.fieldLabels[field.name] ?? t.secrets.purpose[field.name] ?? field.name}
               hint={locked ? t.profiles.hostLocked : t.profiles.fieldHints[field.name] ? `${t.profiles.fieldHints[field.name]} (${field.name})` : field.name}
             >
               {(id) => (
@@ -237,7 +237,9 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
         </Field>
         {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}</p>}
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
-        {failure !== null && <div className="notice notice--error">{say(failure)}{failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}
+        {failure !== null && <div className="notice notice--error">{say(failure)}
+          {(failure.code === 'jira.mcpSite' || failure.code === 'jira.mcpToken') && <p><a href="https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all" target="_blank" rel="noreferrer">{t.profiles.createMcpToken}</a></p>}
+          {failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}
       </div>
       <footer className="add-package__foot">
         {onBack !== undefined && (
