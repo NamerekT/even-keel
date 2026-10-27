@@ -563,6 +563,14 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? wedged : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
   }
+  if (params.get('chain')?.startsWith('silent') && current.state !== null && active) {
+    const since = ago(params.get('chain') === 'silent-short' ? 2 : 6)
+    const base = session('ABC-5', contextTokens, 'working')
+    const feed = base.feed.filter((line) => line.at <= since)
+    const quiet: SessionView = { ...base, silentSince: since, lastActivityAt: since, waitingFor: null, feed, action: feed.at(-1) ?? null }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? quiet : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: quiet.sessionId, since: ago(80) } }]
+  }
   if (params.get('chain') === 'hung' && current.state !== null && active) {
     const hung: SessionView = { ...session('ABC-5', contextTokens, 'waiting'), agent: OPENCODE, waitingFor: null, hungSince: ago(35), lastActivityAt: ago(35) }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? hung : each))

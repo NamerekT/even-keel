@@ -1,4 +1,5 @@
 import { fail } from '../../../src/notice/notice.js'
+import { restartConfirmation, silentRestart } from '../../../src/sessions/silence.js'
 import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { isOwnName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
@@ -193,15 +194,17 @@ function skip(state: EvenKeelState, project: string, task: string): EvenKeelStat
   }
 }
 
-function restart(state: EvenKeelState, project: string, task: string): EvenKeelState {
+function restart(state: EvenKeelState, project: string, task: string, confirmation: unknown): EvenKeelState {
   const active = chainIn(state, project)
   const current = active?.current?.task === task ? active.current : null
   if (active === undefined || current === null) throw fail('chain.notCurrent', { task })
   const view = state.sessions.find((each) => each.task === task)
   if (view === undefined) throw fail('chain.noSession', { task })
-  if (view.lamp === 'working' || view.waitingFor !== null) throw fail('chain.midTurn', { task })
+  const confirmed = restartConfirmation(confirmation)
+  if (confirmed !== undefined && (confirmed.sessionId !== view.sessionId || confirmed.since !== view.silentSince)) throw fail('chain.restartChanged', { task })
+  if ((view.lamp === 'working' || view.waitingFor !== null) && !silentRestart(view.sessionId, view.silentSince, confirmed, Date.now())) throw fail('chain.midTurn', { task })
   const sessionId = crypto.randomUUID()
-  const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
+  const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, silentSince: null, hungSince: null, lastActivityAt: ago(0), startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
   const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
   return {
     ...state,
@@ -243,7 +246,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
   if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
-  if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
+  if (name === 'chain/restart') return restart(state, String(body.project), String(body.task), body.confirmed)
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'stats/tally') return fakeTally(state, body)

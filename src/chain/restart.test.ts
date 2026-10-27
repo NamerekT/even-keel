@@ -99,6 +99,38 @@ describe('Dispatcher on a restart', () => {
     expect(() => dispatcher.restart('ABC', 'ABC-2')).toThrow('chain: ABC-2 is not the current task of a chain')
   })
 
+  it('allows an explicitly confirmed five-minute silent turn through the usual handoff', async () => {
+    const since = '2026-09-26T11:55:00.000Z'
+    const { dispatcher, relays } = await running({ busy: new Set(['ABC-1']), silentSince: { 'ABC-1': since } })
+    dispatcher.restart('ABC', 'ABC-1', { sessionId: 'old-session', since })
+    await dispatcher.idle()
+    expect(relays).toHaveLength(1)
+  })
+
+  it('refuses missing, premature, stale and other-session confirmations and keeps skip locked', async () => {
+    const since = '2026-09-26T11:55:00.001Z'
+    const quiet = { 'ABC-1': since }
+    const { dispatcher, clock } = await running({ busy: new Set(['ABC-1']), silentSince: quiet })
+    const confirmation = { sessionId: 'old-session', since }
+    expect(() => dispatcher.restart('ABC', 'ABC-1', confirmation)).toThrow()
+    clock.now = new Date('2026-09-26T12:00:01Z')
+    expect(() => dispatcher.restart('ABC', 'ABC-1')).toThrow()
+    expect(() => dispatcher.restart('ABC', 'ABC-1', { ...confirmation, sessionId: 'another' })).toThrow()
+    quiet['ABC-1'] = '2026-09-26T12:00:00.000Z'
+    expect(() => dispatcher.restart('ABC', 'ABC-1', confirmation)).toThrow()
+    expect(() => dispatcher.skip('ABC', 'ABC-1')).toThrow()
+  })
+
+  it('does not interrupt if new output arrives before the queued replacement', async () => {
+    const since = '2026-09-26T11:55:00.000Z'
+    const quiet = { 'ABC-1': since }
+    const { dispatcher, relays } = await running({ busy: new Set(['ABC-1']), silentSince: quiet })
+    dispatcher.restart('ABC', 'ABC-1', { sessionId: 'old-session', since })
+    quiet['ABC-1'] = '2026-09-26T12:00:00.000Z'
+    await dispatcher.idle()
+    expect(relays).toEqual([])
+  })
+
   it('refuses while new sessions cannot start', async () => {
     const blocked = await running({ blocked: 'claude: sign-in in progress' })
     expect(() => blocked.dispatcher.restart('ABC', 'ABC-1')).toThrow('claude: sign-in in progress')

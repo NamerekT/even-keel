@@ -201,11 +201,11 @@ describe('a hung turn', () => {
   const now = Date.parse('2026-10-22T12:00:00Z')
 
   it('keeps a turn busy while it wrote something within the threshold', () => {
-    expect(hungEntry(busy, now - TURN_HANG_MS + 1, now)).toEqual(busy)
+    expect(hungEntry(busy, now - TURN_HANG_MS + 1, now)).toEqual({ ...busy, silentSince: now - TURN_HANG_MS + 1 })
   })
 
   it('takes a live turn silent past the threshold for hung: idle, with its process kept to be stopped', () => {
-    expect(hungEntry(busy, now - TURN_HANG_MS, now)).toEqual({ ...busy, status: 'idle', hungSince: now - TURN_HANG_MS })
+    expect(hungEntry(busy, now - TURN_HANG_MS, now)).toEqual({ ...busy, status: 'idle', silentSince: now - TURN_HANG_MS, hungSince: now - TURN_HANG_MS })
   })
 
   it('leaves a session alone that has no live turn', () => {

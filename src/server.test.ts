@@ -524,6 +524,8 @@ describe('Even Keel HTTP server', () => {
     await post('/api/chain/skip', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/unskip', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/restart', { project: 'ABC', task: 'ABC-1' })
+    const confirmed = { sessionId: 'quiet-session', since: '2026-10-27T11:00:00.000Z' }
+    await post('/api/chain/restart', { project: 'ABC', task: 'ABC-1', confirmed })
     await post('/api/chain/dismiss', { project: 'ABC', task: 'ABC-0' })
     await post('/api/chain/unattended', { on: true })
     await post('/api/chain/trim', { on: false })
@@ -537,7 +539,8 @@ describe('Even Keel HTTP server', () => {
       ['requeue', ['XYZ', 'OPS']],
       ['skip', 'ABC', 'ABC-1'],
       ['unskip', 'ABC', 'ABC-1'],
-      ['restart', 'ABC', 'ABC-1'],
+      ['restart', 'ABC', 'ABC-1', undefined],
+      ['restart', 'ABC', 'ABC-1', confirmed],
       ['dismiss', 'ABC', 'ABC-0'],
       ['setUnattended', true],
       ['setTrimTools', false],

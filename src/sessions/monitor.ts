@@ -7,6 +7,7 @@ import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobId
 import type { Ask } from './ask.js'
 import { ResumeHolds } from './holds.js'
 import { remoteLink } from './remote.js'
+import { TurnActivity } from './activity.js'
 
 export interface SessionMonitorOptions {
   /** The agent of an account folder, by `AccountHome.agent`. */
@@ -41,6 +42,7 @@ export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
   private readonly tails = new Map<string, SessionTail>()
   private readonly jobIds: JobIds = new Map()
+  private readonly activity = new TurnActivity()
   /** The sessions the chain is resuming: shown working, not finished, while the daemon respawns them. */
   readonly holds = new ResumeHolds()
   /** By account; `null` when its agent has no Remote Control. */
@@ -139,7 +141,6 @@ export class SessionMonitor {
       const homes = this.options.homes()
       const homeOf = new Map(homes.map((home) => [home.key, home]))
       const agents = steadyJobs((await Promise.all(homes.map((home) => this.agentsOf(home)))).flat(), this.jobIds)
-      this.options.onAgents(agents)
       this.holds.sweep(
         (sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent)),
         (sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent) && agent.status === 'busy'),
@@ -155,6 +156,9 @@ export class SessionMonitor {
       for (const id of this.tails.keys()) if (!live.has(id) && !tracked.has(id)) this.tails.delete(id)
       const reads = await Promise.allSettled([...this.tails.values()].map((tail) => tail.read()))
       for (const read of reads) if (read.status === 'rejected') this.options.onError(read.reason)
+      this.activity.sweep(live)
+      const dated = await Promise.all(agents.map((agent) => this.activity.read(agent, this.tails.get(agent.sessionId)!, Date.now())))
+      this.options.onAgents(dated)
       for (const [id, tail] of this.tails) {
         const compactions = tail.summary().compactions
         if (compactions > 0) this.compactions.set(id, compactions)
@@ -165,7 +169,7 @@ export class SessionMonitor {
         this.remoteEnabled.set(home.key, remote === undefined ? null : await remote.enabled(home))
       }
       const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.summary().gitBranch ?? null
-      const byTask = sessionsByTask(agents, this.options.projectKeys(), branchOf)
+      const byTask = sessionsByTask(dated, this.options.projectKeys(), branchOf)
       for (const [task, agent] of byTask) {
         const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
         const live = (await this.options.agentOf(home).remote?.bridge(home, agent)) ?? null
@@ -227,6 +231,7 @@ function toView(
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
     startupDialog: present ? (agent.startupDialog ?? null) : null,
     hungSince: present && agent.hungSince !== undefined ? new Date(agent.hungSince).toISOString() : null,
+    silentSince: present && agent.silentSince !== undefined ? new Date(agent.silentSince).toISOString() : null,
     asking: ask !== null,
     ask,
     apiError: summary.apiError?.text ?? null,

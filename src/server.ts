@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { restartConfirmation } from './sessions/silence.js'
 import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf } from './server-request.js'
 export { answerOf } from './server-request.js'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -81,7 +82,7 @@ export interface ChainControl {
   requeue(order: string[]): void
   skip(project: string, task: string): void
   unskip(project: string, task: string): void
-  restart(project: string, task: string): void
+  restart(project: string, task: string, confirmed?: import('./sessions/silence.js').SilentRestart): void
   dismiss(project: string, task: string): void
   setUnattended(on: boolean): void
   setTrimTools(on: boolean): void
@@ -266,7 +267,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'request.projectList')),
   'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
-  'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
+  'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body), restartConfirmation(body.confirmed)),
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),

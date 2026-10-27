@@ -38,6 +38,8 @@ export interface SessionView {
   startupDialog: string | null
   /** Since when its live turn has written nothing and is taken for hung (`AgentEntry.hungSince`); answering or "New session" ends it. */
   hungSince: string | null
+  /** Last write of a live working turn; shared by the countdown and the confirmed early restart. */
+  silentSince?: string | null
   /** The session waits on an `AskUserQuestion` the user has not answered. */
   asking: boolean
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */

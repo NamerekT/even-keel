@@ -5,6 +5,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { writeAtomic } from '../storage/atomic.js'
 import { SCHEMA_VERSION } from '../storage/schema.js'
 import { CODEX } from './name.js'
+import { turnStartedAt } from './process.js'
 
 /**
  * A Codex session Even Keel started. Codex has no list of its background sessions: each turn is a `codex exec`
@@ -109,7 +110,7 @@ export function entryOf(session: CodexSession, live: boolean, kind = CODEX): Age
   const { sessionId, name, cwd, account, startedAt } = session
   const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt }
   if (session.stopped === true) return { ...entry, state: 'stopped' }
-  if (live) return { ...entry, pid: session.pid, status: 'busy', state: 'working' }
+  if (live) return { ...entry, pid: session.pid, processStartedAt: turnStartedAt(session.out) ?? startedAt, status: 'busy', state: 'working' }
   return { ...entry, status: 'idle', state: 'working', resting: true }
 }
 
