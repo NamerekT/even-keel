@@ -100,10 +100,7 @@ export class Dispatcher {
   setTasks(project: string, tasks: Task[]): void {
     this.lists.listed.set(project, tasks)
     const rules = (task: Task) => this.deps.rules(project, task.id)
-    const admitted = tasks.filter((task) => admits(rules(task), task))
-    const chain = admitted.filter((task) => this.enters(project, task, rules(task)))
-    const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
-    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
+    const { chain, waiting } = this.sorted(project, tasks)
     const backlog = tasks.filter(
       (task) => !excludes(rules(task), task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
     )
@@ -144,6 +141,15 @@ export class Dispatcher {
       this.deps.save(this.state)
     }
     this.kick()
+  }
+
+  /** The tasks of the list the chain would take, and their open blockers outside it. */
+  private sorted(project: string, tasks: Task[]): { chain: Task[]; waiting: Task[] } {
+    const rules = (task: Task) => this.deps.rules(project, task.id)
+    const chain = tasks.filter((task) => admits(rules(task), task) && this.enters(project, task, rules(task)))
+    const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
+    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
+    return { chain, waiting }
   }
 
   private enters(project: string, task: Task, rules: ChainRules): boolean {
@@ -421,6 +427,13 @@ export class Dispatcher {
 
   view(project: string): ChainView {
     return this.lists.view(project)
+  }
+
+  /** The view `setTasks(project, tasks)` would give, the lists left as they are. */
+  preview(project: string, tasks: Task[]): ChainView {
+    const { chain, waiting } = this.sorted(project, tasks)
+    const outside = this.lists.outside.get(project) ?? []
+    return { tasks: chain, blockers: waiting.filter((task) => !outside.includes(task)), current: this.currentOf(project) }
   }
 
   check(): void {

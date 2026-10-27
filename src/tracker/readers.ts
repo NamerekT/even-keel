@@ -2,7 +2,7 @@ import type { Dispatcher } from '../chain/dispatcher.js'
 import type { ChainView } from '../chain/milestones.js'
 import type { Task } from './model.js'
 
-type Chain = Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view'>
+type Chain = Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view' | 'preview'>
 
 export interface ReaderTasksDeps {
   /** The project a reader serves: a feed's owner, a project itself. */
@@ -89,7 +89,17 @@ export class ReaderTasks implements Chain {
   }
 
   view(reader: string): ChainView {
-    const { tasks, blockers, current } = this.deps.dispatcher.view(this.deps.owner(reader))
+    return this.mine(reader, this.deps.dispatcher.view(this.deps.owner(reader)))
+  }
+
+  /** The reader's part of the view the chain would have once the reader's tasks are `tasks`. */
+  preview(reader: string, tasks: Task[]): ChainView {
+    const project = this.deps.owner(reader)
+    const all = this.deps.readers(project).flatMap((each) => (each === reader ? tasks : (this.chained.get(each) ?? [])))
+    return this.mine(reader, this.deps.dispatcher.preview(project, all))
+  }
+
+  private mine(reader: string, { tasks, blockers, current }: ChainView): ChainView {
     const mine = (task: Task) => this.deps.belongs(reader, task.id)
     return { tasks: tasks.filter(mine), blockers: blockers.filter(mine), current: current !== undefined && this.deps.belongs(reader, current) ? current : undefined }
   }

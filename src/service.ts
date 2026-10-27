@@ -1808,16 +1808,16 @@ let server = createEvenKeelServer({
       if (status === undefined) throw fail('task.cannotReady', { task })
       if (status === null) throw fail('task.pastBacklog', { task })
       const reader = readerFor(project!, task)
+      // A read, not a patch: the task enters the chain already in the milestone `fillMilestone` gives it.
+      const refresh = refreshers.get(reader)
+      if (refresh !== undefined) return refresh()
       const tasks = readerTasks.get(reader)
       if (tasks?.some((each) => each.id === task)) {
         const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
         readerTasks.set(reader, updated)
         readerTasks.setTasks(reader, updated)
       }
-      // The read gives a task that entered the chain without a milestone the chain's one before the page shows it.
-      const refresh = refreshers.get(reader)
-      if (refresh === undefined) hub.broadcast('state', getState())
-      else await refresh()
+      hub.broadcast('state', getState())
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {

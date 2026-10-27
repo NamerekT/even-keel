@@ -6,7 +6,12 @@ import { ReaderTasks } from './readers.js'
 
 /** ABC reads its own tasks and those of the feed `gh`, whose ids are `ABCGH-<n>`. */
 function setup(released: string[] = []) {
-  const calls: { setTasks: [string, string[]][]; setOutside: [string, string[]][]; setReleased: [string, string[]][] } = { setTasks: [], setOutside: [], setReleased: [] }
+  const calls: { setTasks: [string, string[]][]; setOutside: [string, string[]][]; setReleased: [string, string[]][]; preview: [string, string[]][] } = {
+    setTasks: [],
+    setOutside: [],
+    setReleased: [],
+    preview: [],
+  }
   const tasksByProject = new Map<string, Task[]>()
   const view: ChainView = { tasks: [task('ABC-1'), task('ABCGH-2')], blockers: [task('ABCGH-3')], current: 'ABCGH-2' }
   const join = new ReaderTasks({
@@ -21,6 +26,10 @@ function setup(released: string[] = []) {
       setReleased: (project, tasks) => void calls.setReleased.push([project, tasks.map((each) => each.id)]),
       held: () => ['ABCGH-2', ...released],
       view: () => view,
+      preview: (project, tasks) => {
+        calls.preview.push([project, tasks.map((each) => each.id)])
+        return { tasks, blockers: [], current: 'ABCGH-2' }
+      },
     },
   })
   return { join, calls, tasksByProject }
@@ -59,6 +68,14 @@ describe('ReaderTasks', () => {
     expect(join.view('gh')).toEqual({ tasks: [task('ABCGH-2')], blockers: [task('ABCGH-3')], current: 'ABCGH-2' })
   })
 
+  it("previews the chain with the reader's tasks replaced and the other readers' kept, and gives the reader its part", () => {
+    const { join, calls } = setup()
+    join.setTasks('ABC', [task('ABC-1')])
+    join.setTasks('gh', [task('ABCGH-2')])
+    expect(join.preview('ABC', [task('ABC-1'), task('ABC-3')])).toEqual({ tasks: [task('ABC-1'), task('ABC-3')], blockers: [], current: undefined })
+    expect(calls.preview).toEqual([['ABC', ['ABC-1', 'ABC-3', 'ABCGH-2']]])
+  })
+
   it('hands the released tasks to the chain once every reader with some has read them', () => {
     const { join, calls } = setup(['ABC-4', 'ABCGH-5'])
     join.setReleased('ABC', [task('ABC-4')])
@@ -88,7 +105,7 @@ describe('ReaderTasks', () => {
       readers: (project) => (project === 'ABC' && owner === 'ABC' ? ['ABC', 'gh'] : [project]),
       belongs: () => true,
       tasksByProject,
-      dispatcher: { setTasks: () => {}, setOutside: () => {}, released: () => [], setReleased: () => {}, held: () => [], view: () => ({ tasks: [], blockers: [], current: undefined }) },
+      dispatcher: { setTasks: () => {}, setOutside: () => {}, released: () => [], setReleased: () => {}, held: () => [], view: () => ({ tasks: [], blockers: [], current: undefined }), preview: () => ({ tasks: [], blockers: [], current: undefined }) },
     })
     join.set('ABC', [task('ABC-1')])
     join.set('gh', [task('ABCGH-2')])
