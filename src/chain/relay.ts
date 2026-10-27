@@ -12,6 +12,8 @@ export type { HandoffReason } from './prompts.js'
 export const WARM_CACHE_MS = 55 * 60_000
 const WARM_SHORT_CACHE_MS = 4 * 60_000
 const HANDOFF_STEPS = 10
+const RESET_MARGIN_MS = 60_000
+const STALE_RESET_PAUSE_MS = 10 * 60_000
 
 /** How long after its last reply an API session's cache stays warm: an hour's cache as a subscription's, else five minutes. */
 export function warmCacheMs(ttl: CacheTtl | null): number {
@@ -125,15 +127,28 @@ export function holdOf(session: LimitedSession, account: string | null, fallback
 
 export function withReset(hold: LimitHold, resetsAt: string | null, warmMs = WARM_CACHE_MS): LimitHold {
   const { account, lastReplyAt } = hold
-  const warmAtReset =
-    account !== null && resetsAt !== null && lastReplyAt !== null && Date.parse(resetsAt) - Date.parse(lastReplyAt) < warmMs
+  const release = releaseAt({ ...hold, resetsAt })
+  const warmAtReset = account !== null && release !== null && lastReplyAt !== null && release - Date.parse(lastReplyAt) < warmMs
   return { ...hold, resetsAt, then: warmAtReset ? 'resume' : 'relay' }
+}
+
+/**
+ * When the wait for a reset ends: a minute after the time the agent named, as Codex rounds it down to the minute
+ * (EKR-34). A reset over a minute gone by at the refusal means the window did not open when named, and a retry
+ * a minute on would only be refused again: the wait then lasts `STALE_RESET_PAUSE_MS` from the refusal.
+ */
+function releaseAt(hold: Pick<LimitHold, 'at' | 'resetsAt'>): number | null {
+  if (hold.resetsAt === null) return null
+  const release = Date.parse(hold.resetsAt) + RESET_MARGIN_MS
+  const at = Date.parse(hold.at)
+  return release > at ? release : at + STALE_RESET_PAUSE_MS
 }
 
 export function relayStep(hold: LimitHold, now: Date, account: AccountNow, warmMs = WARM_CACHE_MS): RelayStep {
   if (hold.acted !== null || !account.ready) return 'wait'
   const switched = hold.account !== null && account.id !== null && account.id !== hold.account
-  const reset = hold.resetsAt !== null && now.getTime() >= Date.parse(hold.resetsAt)
+  const release = releaseAt(hold)
+  const reset = release !== null && now.getTime() >= release
   if (!switched && !reset) return 'wait'
   const warm =
     !switched &&

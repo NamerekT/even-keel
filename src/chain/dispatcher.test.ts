@@ -797,7 +797,7 @@ describe('Dispatcher on a limit', () => {
     expect(polled.asked.at(-1)).toBe('global 2026-09-26T12:00:00.000Z')
     expect(relays).toEqual([])
 
-    clock.now = new Date('2026-09-26T14:00:00Z')
+    clock.now = new Date('2026-09-26T14:01:00Z')
     await check(dispatcher)
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
   })
@@ -815,7 +815,7 @@ describe('Dispatcher on a limit', () => {
     expect(warm.dispatcher.state.active[0]?.current?.limit?.resetsAt).toBeNull()
 
     warm.clock.now = new Date('2026-09-26T12:02:00Z')
-    credit.back = '2026-09-26T12:02:00.000Z'
+    credit.back = '2026-09-26T12:01:00.000Z'
     await check(warm.dispatcher)
     expect(warm.relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
 
@@ -823,7 +823,7 @@ describe('Dispatcher on a limit', () => {
     const cold = await running({ limitResetAfter: () => credit.back })
     cold.limited['ABC-1'] = out('2026-09-26T11:59:00.000Z')
     await check(cold.dispatcher)
-    cold.clock.now = new Date('2026-09-26T12:30:00Z')
+    cold.clock.now = new Date('2026-09-26T12:31:00Z')
     credit.back = '2026-09-26T12:30:00.000Z'
     await check(cold.dispatcher)
     expect(cold.relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
@@ -834,14 +834,14 @@ describe('Dispatcher on a limit', () => {
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)
 
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
 
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
     expect(relays[0]?.prompt).toContain('D:/work/abc/.claude/worktrees/abc-1')
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-2', since: '2026-09-26T12:00:00.000Z' })
     expect(journal.at(-1)).toEqual({
-      at: '2026-09-26T15:00:00.000Z',
+      at: '2026-09-26T15:01:00.000Z',
       project: 'ABC',
       task: 'ABC-1',
       sessionId: 'session-2',
@@ -860,7 +860,7 @@ describe('Dispatcher on a limit', () => {
     await check(dispatcher)
     expect(dispatcher.state.active[0]?.current?.limit?.then).toBe('resume')
 
-    clock.now = new Date('2026-09-26T15:00:10Z')
+    clock.now = new Date('2026-09-26T15:01:10Z')
     await check(dispatcher)
 
     expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
@@ -909,7 +909,7 @@ describe('Dispatcher on a limit', () => {
     const { dispatcher, limited, clock, relays } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
 
     limited['ABC-1'] = limitedSession('session-2', '2026-09-26T16:00:00.000Z', '2026-09-26T15:59:00.000Z')
@@ -917,7 +917,7 @@ describe('Dispatcher on a limit', () => {
     await check(dispatcher)
     expect(dispatcher.state.active[0]?.current?.limit).toMatchObject({ at: '2026-09-26T16:00:00.000Z', acted: null })
 
-    clock.now = new Date('2026-09-27T15:00:00Z')
+    clock.now = new Date('2026-09-27T15:01:00Z')
     await check(dispatcher)
     expect(relays.map((relay) => relay.sessionId)).toEqual(['session-1', 'session-2'])
   })
@@ -945,7 +945,7 @@ describe('Dispatcher on a limit', () => {
     const { dispatcher, limited, clock } = await running({ failRelay: true })
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     await check(dispatcher)
 
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: textNotice('claude: could not stop session-') })

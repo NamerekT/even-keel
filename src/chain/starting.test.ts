@@ -76,11 +76,11 @@ describe('Dispatcher marks a session that is starting', () => {
     limited['ABC-1'] = session
     dispatcher.check()
     await dispatcher.idle()
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     dispatcher.check()
     await dispatcher.idle()
 
-    expect(startings(saved)).toContain('2026-09-26T15:00:00.000Z')
+    expect(startings(saved)).toContain('2026-09-26T15:01:00.000Z')
     expect(dispatcher.state.active[0]?.current).toMatchObject({ sessionId: 'session-2' })
     expect(dispatcher.state.active[0]?.current?.starting).toBeUndefined()
   })

@@ -30,7 +30,7 @@ For repositories with heavy ignored caches (Unity's `Library`, big `node_modules
 
 ## Handoffs
 
-A session that hit the usage limit is resumed after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt.
+A session that hit the usage limit is resumed a minute after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt.
 
 The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](../../plugins/checkpoint) plugin asks for it once the context grows past a threshold, 200k tokens until the project's own statistics give a better one, and stops asking below 300k after three handoffs of a task — and when you press **New session** on the page.
 
