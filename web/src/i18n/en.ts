@@ -1,18 +1,13 @@
-import { composerEn } from './composer-en.js'
+import { sessionEn } from './session-en.js'
 import { ciEn, ciKindsEn } from './ci-en.js'
 import { profilesEn } from './profiles-en.js'
 import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
 import type { ContextResets } from '../state.js'
-import type { Messages, ToolCounts } from './ru.js'
+import type { Messages } from './ru.js'
 
 const forms = (one: string, other: string) => (count: number) => plural('en', count, { one, other })
 const counted = (one: string, other: string) => (count: number) => `${count} ${forms(one, other)(count)}`
-const sentence = (parts: string[]) => {
-  const text = parts.filter((part) => part !== '').join(', ')
-  return text.charAt(0).toUpperCase() + text.slice(1)
-}
-
 const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
 const fixes = counted('fix', 'fixes')
@@ -1398,175 +1393,7 @@ export const en: Messages = {
     more: 'More →',
     spark: (label: string) => `${label}, by day`,
   },
-  session: {
-    launches: {
-      launch: 'Chain launch',
-      restart: 'Restart',
-      checkpoint: 'From a checkpoint',
-      manual: 'Started by hand',
-    },
-    relayed: {
-      limit: 'New after the limit',
-      mainFixed: 'New after main was fixed',
-      review: 'New after the pull request feedback',
-      returned: 'New after the task came back',
-    },
-    replaced: {
-      restart: 'replaced by hand',
-      checkpoint: 'set a checkpoint',
-    },
-    replacedRelay: {
-      limit: 'hit the usage limit',
-      mainFixed: 'replaced after main was fixed',
-      review: 'replaced after the pull request feedback',
-      returned: 'replaced after the task came back',
-    },
-    remote: {
-      starting: 'Remote Control is starting — the link comes in a couple of seconds.',
-      disabled: 'Remote Control is off: /config of the account folder has no “remoteControlAtStartup”.',
-      'no-bridge': "The session didn't start Remote Control — it can't be opened from here.",
-      lost: "Remote Control dropped — can't be opened from the phone. If the task isn't done — “New session”.",
-      'api-key': 'No Remote Control on an API key: it needs a claude.ai sign-in. Answer the session from the chat here or in the tracker.',
-    },
-    panel: (task: string) => `Session of task ${task}`,
-    closePanel: 'Close the panel',
-    skipped: 'skipped',
-    none: 'No session for this task yet.',
-    onlyIn: (account: string) => `\nRemote Control shows it only in account ${account}`,
-    openRemote: 'Open the session through Remote Control',
-    openPull: (number: number) => `Open pull request #${number} of the task in a new tab`,
-    restartTitle: "Stops this session and starts a new one in the same working folder with a handoff. The tracker status doesn't change.",
-    restart: 'New session',
-    skippedTitle: "The task is skipped — the chain won't take it until you restore it.",
-    skipCurrent: "The chain stops waiting for the task and takes the next one. The tracker status and the session don't change.",
-    skipOther: "The chain won't take the task until you restore it. The tracker status doesn't change.",
-    skipFix: 'The chain stops waiting for the fix and goes on with the tasks; the next red main starts a new fix. The session does not change.',
-    skipCarry: 'The chain stops waiting for the carry and goes on with the tasks; the conflict waits on the release project’s page. The session does not change.',
-    interrupted: 'stopped until main is fixed',
-    skip: 'Skip',
-    midTurn: 'mid-turn — replace and skip after it',
-    held: {
-      launching: 'Not yet: the session is still starting. Available once it is up and has finished its turn.',
-      replacing: 'Not yet: the session is being replaced. Available once the new one is up and has finished its turn.',
-      midTurn: 'Not yet: the session is mid-turn. Available once it finishes the turn.',
-      noSession: 'Not yet: the task has no live session. Available once the chain starts one.',
-      notCurrent: 'Not yet: the chain is not on this task. Available once the chain takes it and starts its session.',
-      skipped: 'The task is skipped: restore it, and the button is available once the chain takes it and starts its session.',
-    },
-    start: {
-      title: {
-        launch: 'Starting a session',
-        handover: 'Handing the task over',
-        boot: 'Session booting',
-        answer: 'Session thinking',
-      },
-      text: {
-        launch: 'Preparing the working copy and starting the agent.',
-        handover: 'The old session stops, the new one starts with a handoff.',
-        boot: 'The agent is coming up: settings, plugins, MCP servers.',
-        answer: 'The session is up and working on its first answer.',
-      },
-      steps: ['Prepare', 'Boot', 'First answer'],
-    },
-    account: (account: string) => `Account: ${account}`,
-    waits: (what: string) => `Waiting for ${what}`,
-    startupDialog: (what: string) =>
-      `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,
-    hung: (since: string) =>
-      `The turn has written nothing since ${since} while its process lives on: it is taken for hung. Write to the session or press "New session" — either stops the turn first.`,
-    session: 'Session',
-    time: 'Time',
-    cache: 'Cache',
-    context: 'Context',
-    ttl: (ttl: string) => `lifetime ${ttl}`,
-    tokens: 'Tokens',
-    input: 'input',
-    output: 'output',
-    cacheRead: 'cache read',
-    cacheWrite: 'cache write',
-    model: 'Model',
-    provider: 'provider',
-    modelOf: 'model',
-    modelFrom: "By the session's last answer in its transcript",
-    modelYet: 'The session has not answered yet: the model shows from its first answer',
-    limitUnknown: 'The limit reset time is unknown — a new session starts as soon as you switch the account.',
-    creditEmpty: 'out of credit',
-    spendEmpty: 'spending limit',
-    spendUntil: (at: string | null) => at === null ? 'API spending limit reached' : `API spending limit until ${at}`,
-    spendWait: (at: string | null) =>
-      `${at === null ? 'The API spending limit reset time is unknown.' : `The API spending limit resets at ${at}.`} The dispatcher checks the key every 5 minutes and continues sooner if the limit is raised. You can also switch the account.`,
-    creditOut:
-      'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up; switching the account starts a new session at once.',
-    limitResume: (at: string) => `After the limit resets at ${at} the dispatcher continues this session — the cache will still be warm.`,
-    limitRelay: (at: string) =>
-      `After the limit resets at ${at} (or right after an account switch) the dispatcher starts a new session in the same working folder.`,
-    list: 'Sessions of the task',
-    resets: (count: number, breakdown: string) => ` · context resets: ${count} (${breakdown})`,
-    compacted: (count: number) => ` · compactions: ${count}`,
-    resumed: (count: number) => ` · resumed after the limit${count > 1 ? ` ×${count}` : ''}`,
-    answered: (count: number) => ` · answered${count > 1 ? ` ×${count}` : ''}`,
-    current: 'now',
-    postponed: (blockers: string) => `postponed: waits for ${blockers}`,
-    dialog: (id: string) => `Session ${id}`,
-    closeDialog: 'Close the session window',
-    notFound: 'The transcript of this session is not found.',
-    started: 'Started',
-    lastTurn: 'Last turn',
-    worked: 'Worked',
-    endContext: 'Context at the end',
-    place: 'Branch and folder',
-    feed: 'Activity',
-    feedEmpty: "The session hasn't done anything yet.",
-    transcript: 'Whole transcript',
-    transcriptTitle: 'Transcript',
-    transcriptDialog: (id: string) => `Transcript of session ${id}`,
-    closeTranscript: 'Close the transcript',
-    showMore: 'Show more',
-    showLess: 'Show less',
-    chat: {
-      open: 'Chat',
-      title: 'Chat',
-      picture: 'Picture',
-      openPicture: (name: string) => `Open ${name}`,
-      share: {
-        title: 'Files from the session',
-        download: (name: string) => `Download ${name}`,
-        gone: 'no longer there',
-        goneTip: 'The file is no longer there — its worktree was cleaned up — or it lies outside the session’s folders',
-      },
-      waiting: 'The session waits for a reply — open the chat',
-      idle: 'Open the chat with the session',
-      placeholder: 'Reply to the session… Enter to send, Shift+Enter for a new line',
-      touchPlaceholder: 'Reply to the session…',
-      send: 'Send',
-      attach: 'Attach files',
-      drop: 'Drop the files to attach them',
-      tools: {
-        read: 'Read',
-        edit: 'Edited',
-        write: 'Wrote',
-        search: 'Searched',
-        ran: 'Ran a command',
-        summary: (counts: ToolCounts) =>
-          sentence([
-            counts.edit === 0 ? '' : `edited ${counts.edit === 1 ? 'a file' : counted('file', 'files')(counts.edit)}`,
-            counts.read === 0 ? '' : `read ${counts.read === 1 ? 'a file' : counted('file', 'files')(counts.read)}`,
-            counts.search === 0 ? '' : `searched${counts.search === 1 ? '' : ` ${counts.search} times`}`,
-            counts.run === 0 ? '' : `ran ${counts.run === 1 ? 'a command' : counted('command', 'commands')(counts.run)}`,
-            counts.other === 0 ? '' : `used ${counts.other === 1 ? 'a tool' : counted('tool', 'tools')(counts.other)}`,
-          ]),
-        failed: (count: number) => `(${count} failed)`,
-        failure: 'failed',
-        interrupted: 'cut off by the end of the turn',
-        size: (added: number, removed: number) => `${added} ${forms('line', 'lines')(added)} added, ${removed} removed`,
-      },
-      head: {
-        branch: (name: string) => `Branch ${name}`,
-        edits: (added: number, removed: number) => `Edits of the session: +${added} −${removed} lines`,
-      },
-      ...composerEn,
-    },
-  },
+  session: sessionEn,
   changelog: {
     button: 'Changelog draft of the milestone',
     title: (milestone: string) => `Changelog · ${milestone}`,
