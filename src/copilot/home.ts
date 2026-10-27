@@ -14,9 +14,12 @@ const TOKEN_FILE = 'even-keel.json'
 /** The variables the CLI takes a token from, in its order; each beats the stored sign-in. */
 export const TOKEN_KEYS = ['COPILOT_GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'] as const
 
-/** What every Copilot command gets on top of the base: the account's folder and token, and no self-update. */
+/**
+ * What every Copilot command gets on top of the base: the account's folder and token, no self-update, and
+ * `EVEN_KEEL_AGENT`, by which the checkpoint package's hooks answer in the shape Copilot takes (BTN-467).
+ */
 export function copilotEnv(base: NodeJS.ProcessEnv, dir: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...base, COPILOT_HOME: dir, COPILOT_AUTO_UPDATE: 'false' }
+  const env: NodeJS.ProcessEnv = { ...base, COPILOT_HOME: dir, COPILOT_AUTO_UPDATE: 'false', EVEN_KEEL_AGENT: 'copilot' }
   for (const key of TOKEN_KEYS) delete env[key]
   const token = tokenOf(dir)
   if (token !== null) env.COPILOT_GITHUB_TOKEN = token

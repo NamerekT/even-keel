@@ -71,7 +71,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
-| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | known (BTN-467): a chat message sent mid-turn is lost, no handoff on a full context |
+| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message sent mid-turn is lost, no handoff on a full context; resend it between turns |
 | 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot in a repository with its own MCP servers | the project's server starts beside the gateway's |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
@@ -379,7 +379,7 @@ Whole tasks ran as chain sessions of the Windows service on the machine's own si
 
 ### Hooks and plugins in Copilot sessions
 
-The checkpoint package's hooks from `--plugin-dir` run at every step of a chain session, and plugin skills load ([`verified.md`](verified.md), "Copilot"). What they hand back on `PostToolUse` does not reach the model: Copilot drops `hookSpecificOutput.additionalContext` there (BTN-467), so a chat message taken mid-turn is lost, the context nudge never comes and a standard is not given after a read. Unchecked: a `Stop` block's reason as the next prompt, repository hooks from `.claude/settings.json`, an actual threshold crossing. **Workaround:** keep Copilot for short tasks; send messages between turns, and resend one sent mid-turn.
+The checkpoint package's hooks from `--plugin-dir` run at every step of a chain session, and plugin skills load ([`verified.md`](verified.md), "Copilot"). Copilot drops `hookSpecificOutput.additionalContext` on `PostToolUse` and takes a top-level `additionalContext` on every event (a probe plugin, `verified.md`), so since BTN-467 Even Keel starts Copilot with `EVEN_KEEL_AGENT=copilot` and the hooks answer in the top-level shape there (`contextOutput`, covered by tests). Not yet seen: the package's own mail, context nudge and standard reaching a Copilot model that way, a `Stop` block's reason becoming the next prompt, repository hooks from `.claude/settings.json`, an actual threshold crossing. Check from a terminal: the plugin with `--plugin-dir`, `EVEN_KEEL_AGENT=copilot` and `EVEN_KEEL_URL` on a stub whose `/mail` answers one message on the first `PostToolUse` and one on the first `Stop`; ask for a file's contents and look for both messages in the answer. If either is missing, the mail is marked delivered and lost. **Workaround:** keep Copilot for short tasks; send messages between turns, and resend one sent mid-turn.
 
 ### MCP servers in Copilot sessions
 
