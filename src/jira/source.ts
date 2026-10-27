@@ -166,7 +166,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const keys = [...new Set(ids.filter((id) => parseTaskId(id) !== null))]
       const issues: JiraIssue[] = []
       for (let at = 0; at < keys.length; at += PAGE) {
-        // An id Jira no longer has is in `issueErrors`, not a failure of the call.
+        // An id Jira does not have is left out of `issues`, not a failure of the call (live: `issueErrors` stayed empty).
         const page = await api.rest<{ issues: JiraIssue[] }>('/issue/bulkfetch', 'POST', { issueIdsOrKeys: keys.slice(at, at + PAGE), fields: TASK_FIELDS })
         issues.push(...page.issues)
       }
