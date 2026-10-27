@@ -84,7 +84,9 @@ from the shared level; a project's field replaces the shared one, including an e
 edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
 OS sandbox or a guarantee against equivalent commands.
 
-Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport.
+Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport. The
+harness refusing a shared and a project rule in a `--bg` chain session, the project's saved on the running service,
+is in [`verified.md`](verified.md) (Sessions); the SDK transport is not checked live.
 Copilot receives `--deny-tool` alongside `--allow-all-tools`. Its `shell(...)` rules are the same literal prefixes as
 Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` before each turn): Copilot matches a
 command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
