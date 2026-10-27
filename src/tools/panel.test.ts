@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
-import { chainSettings, readBranchDocs, readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
+import { chainSettings, readBranchCodexRules, readBranchDocs, readRepoRules, readToolsView, type ToolsPlaces } from './panel.js'
 
 describe('readToolsView', () => {
   let root: string
@@ -102,5 +102,38 @@ describe('readRepoRules', () => {
     writeFileSync(join(repo, 'notes.md'), 'not committed')
     expect(await readBranchDocs(runGit, repo, 'trunk')).toEqual(['README.MD', 'docs/design.md'])
     expect(await readBranchDocs(runGit, repo, 'missing')).toBeNull()
+  })
+
+  it("reads the Codex rules committed on the branch, without Even Keel's generated file", async () => {
+    const git = (...args: string[]) => runGit(repo, args)
+    await git('init', '-q', '-b', 'trunk')
+    mkdirSync(join(repo, '.codex', 'rules'), { recursive: true })
+    writeFileSync(join(repo, '.codex', 'rules', 'team.rules'), 'prefix_rule(pattern=["git", "push"], decision="forbidden")\n')
+    writeFileSync(join(repo, '.codex', 'rules', 'even-keel.generated.rules'), 'prefix_rule(pattern=["rm", "-rf"], decision="forbidden")\n')
+    writeFileSync(join(repo, '.codex', 'rules', 'notes.md'), 'prefix_rule(pattern=["ls"])\n')
+    await git('add', '-A')
+    await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-qm', 'rules')
+    writeFileSync(join(repo, '.codex', 'rules', 'local.rules'), 'prefix_rule(pattern=["npm"], decision="prompt")\n')
+    expect(await readBranchCodexRules(runGit, repo, 'trunk')).toEqual([{ pattern: 'git push', decision: 'deny' }])
+    expect(await readBranchCodexRules(runGit, repo, 'missing')).toEqual([])
+  })
+})
+
+describe('readToolsView with Codex', () => {
+  let root: string
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'tools-codex-'))
+  })
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it("lists the rules of the project's Codex account folder", async () => {
+    const codexHome = join(root, 'codex')
+    mkdirSync(join(codexHome, 'rules'), { recursive: true })
+    writeFileSync(join(codexHome, 'rules', 'default.rules'), 'prefix_rule(pattern=["git", "status"], decision="allow")\n')
+    writeFileSync(join(codexHome, 'rules', 'old.bak'), 'prefix_rule(pattern=["ls"], decision="allow")\n')
+    const git: ToolsPlaces['git'] = async () => ({ code: 128, out: '' })
+    const places: ToolsPlaces = { repo: root, branch: 'main', git, globalDir: root, configs: [], accounts: [], homes: [], trim: false, hidden: [], mode: 'auto', reach: { plugins: [], servers: [] }, codexHome }
+    const view = await readToolsView('ABC', places)
+    expect(view.settings.filter((row) => row.kind === 'codex')).toEqual([{ kind: 'codex', name: 'git status', values: { user: 'allow' }, session: 'allow' }])
   })
 })

@@ -2,7 +2,7 @@ import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src
 
 export const HIDDEN = 'user-invocable-only'
 
-const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission']
+const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission', 'codex']
 const SCOPES: ToolScope[] = ['user', 'project', 'local', 'chain']
 /** What a worktree session reads, the strongest first: the main checkout's `settings.local.json` is not among them. */
 const SESSION_SCOPES: ToolScope[] = ['chain', 'project', 'user']
@@ -51,8 +51,9 @@ export function filterRows<T extends SettingRow>(rows: MatrixRow<T>[], { query, 
 
 export type ScopeEffect = 'wins' | 'same' | 'overridden' | 'unread'
 
+/** The winner is the strongest scope with the session's value: a Codex rule's strictest decision may sit in a weaker one. */
 export function scopeMarks(row: SettingRow): { scope: ToolScope; value: string; effect: ScopeEffect }[] {
-  const winner = SESSION_SCOPES.find((scope) => row.values[scope] !== undefined)
+  const winner = SESSION_SCOPES.find((scope) => row.values[scope] !== undefined && row.values[scope] === row.session)
   return SCOPES.flatMap((scope) => {
     const value = row.values[scope]
     if (value === undefined) return []
@@ -66,31 +67,39 @@ export function usedScopes(rows: MatrixRow<SettingRow>[]): ToolScope[] {
   return SCOPES.filter((scope) => rows.some((row) => row.cells.some((cell) => cell?.values[scope] !== undefined)))
 }
 
+/** A deny or an ask only `settings.local.json` has: a chain session runs without it, and Even Keel does not carry it over. */
+export function localDeny(row: SettingRow): boolean {
+  return row.kind === 'permission' && row.session === null && (row.values.local === 'deny' || row.values.local === 'ask')
+}
+
 export interface Problems {
+  localDeny: SettingRow[]
   unreached: SettingRow[]
   claudeai: string[]
   mcpFailed: string[]
 }
 
 export function problemsOf(view: ToolsView): Problems {
+  const lost = view.settings.filter((row) => row.session === null)
   return {
-    unreached: view.settings.filter((row) => row.session === null),
+    localDeny: lost.filter(localDeny),
+    unreached: lost.filter((row) => !localDeny(row)),
     claudeai: (view.received?.skills ?? []).filter((skill) => skill.source === 'claudeai').map((skill) => skill.name),
     mcpFailed: (view.received?.mcp ?? []).filter((server) => server.failed).map((server) => server.name),
   }
 }
 
 export function problemCount(problems: Problems): number {
-  return problems.unreached.length + problems.claudeai.length + problems.mcpFailed.length
+  return problems.localDeny.length + problems.unreached.length + problems.claudeai.length + problems.mcpFailed.length
 }
 
-export const PROBLEM_KINDS = ['unreached', 'claudeai', 'mcpFailed'] as const
+export const PROBLEM_KINDS = ['localDeny', 'unreached', 'claudeai', 'mcpFailed'] as const
 
 export interface SharedProblem {
   kind: (typeof PROBLEM_KINDS)[number]
   name: string
   projects: string[]
-  /** The setting of the first project that has it, for `unreached`. */
+  /** The setting of the first project that has it, for `unreached` and `localDeny`. */
   row: SettingRow | null
 }
 
@@ -100,7 +109,7 @@ export function sharedProblems(views: ToolsView[]): SharedProblem[] {
     const problems = problemsOf(view)
     for (const kind of PROBLEM_KINDS) {
       const entries: [string, SettingRow | null][] =
-        kind === 'unreached' ? problems.unreached.map((row) => [row.name, row]) : problems[kind].map((name) => [name, null])
+        kind === 'unreached' || kind === 'localDeny' ? problems[kind].map((row) => [row.name, row]) : problems[kind].map((name) => [name, null])
       for (const [name, row] of entries) {
         const key = `${kind}\u0000${row?.kind ?? ''}\u0000${name}`
         const entry = found.get(key) ?? { kind, name, projects: [], row }

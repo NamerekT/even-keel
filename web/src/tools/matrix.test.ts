@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SettingRow, ToolsView } from '../../../src/tools/model.js'
-import { filterRows, hiddenSkills, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone, usedScopes } from './matrix.js'
+import { filterRows, hiddenSkills, localDeny, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone, usedScopes } from './matrix.js'
 
 function row(kind: SettingRow['kind'], name: string, values: SettingRow['values'], session = values.chain ?? values.project ?? values.user ?? null): SettingRow {
   return { kind, name, values, session }
@@ -56,6 +56,13 @@ describe('scopeMarks', () => {
     ])
   })
 
+  it('lets the strictest Codex rule win wherever it is set', () => {
+    expect(scopeMarks(row('codex', 'git push', { user: 'deny', project: 'allow' }, 'deny'))).toEqual([
+      { scope: 'user', value: 'deny', effect: 'wins' },
+      { scope: 'project', value: 'allow', effect: 'overridden' },
+    ])
+  })
+
   it('has no winner for a row that does not reach the session', () => {
     expect(scopeMarks(row('permission', 'Bash(x)', { local: 'allow' }))).toEqual([{ scope: 'local', value: 'allow', effect: 'unread' }])
   })
@@ -97,8 +104,21 @@ describe('problemsOf', () => {
         },
       }),
     )
-    expect(found).toEqual({ unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'] })
+    expect(found).toEqual({ localDeny: [], unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'] })
     expect(problemCount(found)).toBe(3)
+  })
+
+  it('names a deny or an ask only settings.local.json has apart from the rest that does not reach the session', () => {
+    const denied = row('permission', 'Bash(git push *)', { local: 'deny' })
+    const asked = row('permission', 'Bash(npm publish *)', { local: 'ask' })
+    const allowed = row('permission', 'Bash(x)', { local: 'allow' })
+    const reached = row('permission', 'Agent', { user: 'deny', local: 'deny' })
+    const found = problemsOf(view('A', [denied, asked, allowed, reached]))
+    expect(found.localDeny).toEqual([denied, asked])
+    expect(found.unreached).toEqual([allowed])
+    expect(problemCount(found)).toBe(3)
+    expect(localDeny(denied)).toBe(true)
+    expect(localDeny(reached)).toBe(false)
   })
 
   it('finds nothing in a clean view without a session', () => {

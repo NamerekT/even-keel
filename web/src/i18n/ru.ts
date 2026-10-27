@@ -816,11 +816,14 @@ export const ru = {
     problems: 'Проблемы',
     problemsNone: 'Всё доходит: настройки попадают в сессии, MCP-серверы подключаются.',
     problem: {
+      localDeny: 'Запреты и вопросы только в settings.local.json — сессии цепочки работают без них: worktree этот файл не читает, а Even Keel их не переносит',
       unreached: 'Не дойдёт до сессии — settings.local.json основного чекаута сессия в worktree не читает',
       claudeai: 'Навыки claude.ai в последней сессии',
       mcpFailed: 'MCP-серверы, которые не подключились',
     },
     problemFix: {
+      localDeny:
+        'Как чинить: перенести правило в .claude/settings.json проекта (он в git, worktree его читает) или добавить в «Дополнительные правила агентов» «Защиты» в настройках проекта или в общих.',
       unreached:
         'Как чинить: перенести настройку в .claude/settings.json проекта (он в git, worktree его читает) или в настройки, которые Even Keel передаёт сессиям цепочки через --settings.',
       claudeai:
@@ -832,7 +835,9 @@ export const ru = {
     },
     find: 'Найти настройку',
     onlyDiff: 'Только различия',
-    section: { claude: 'claude.ai и режим', plugin: 'Плагины', skill: 'Навыки', permission: 'Разрешения' },
+    section: { claude: 'claude.ai и режим', plugin: 'Плагины', skill: 'Навыки', permission: 'Разрешения', codex: 'Правила Codex' },
+    codexNote:
+      'Собственные файлы .rules Codex: П — rules/ папки аккаунта Codex этого проекта, Пр — .codex/rules/, закоммиченный на ветке. «Защиты» здесь нет: Even Keel кладёт её сверху, а запрет сильнее разрешения.',
     shown: (shown: number, total: number) => (shown === total ? String(total) : `${shown} из ${total}`),
     nothingShown: 'Ничего не подходит.',
     legend: 'П — пользователь, Пр — проект, Л — settings.local.json (сессия в worktree его не читает), EK — Even Keel. Жирным — что дошло до сессии, зачёркнуто — перебито.',
@@ -841,6 +846,8 @@ export const ru = {
     effect: { wins: 'доходит до сессии', same: 'то же значение', overridden: 'перебито', unread: 'сессия в worktree не читает' },
     hidden: 'только /имя',
     notInSession: 'не дойдёт',
+    localDenied: (value: string) => `${value} — не дойдёт`,
+    localDenyTip: 'Это правило есть только в settings.local.json: сессии цепочки работают без него. Перенесите его в .claude/settings.json проекта или в «Дополнительные правила агентов» «Защиты».',
     missing: 'не задано в этом проекте',
     received: 'Последняя сессия',
     noSession: 'Транскриптов сессий этого проекта пока нет.',

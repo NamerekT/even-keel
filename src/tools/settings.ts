@@ -1,3 +1,4 @@
+import { strictest, type CodexDecision, type CodexRule } from '../codex/rules.js'
 import type { SessionReach } from '../packages/model.js'
 import type { SettingKind, SettingRow, ToolScope } from './model.js'
 
@@ -22,7 +23,7 @@ export const DEFAULT_HIDDEN_SKILLS = [
 
 const HIDDEN = 'user-invocable-only'
 const SYNC_KEYS = ['syncClaudeAiSkills', 'syncClaudeAiPlugins']
-const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission']
+const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission', 'codex']
 const SESSION_SCOPES: ToolScope[] = ['chain', 'project', 'user']
 const BEHAVIORS = ['allow', 'deny', 'ask']
 const MCP_RULE = /^mcp__(.+?)(?:__|$)/
@@ -48,6 +49,9 @@ export interface SettingSources {
   chainMode?: string
   /** `allowedTools` of the main checkout in `.claude.json`. */
   localAllowed?: string[]
+  /** The rules of the project's Codex account folder and of the branch's `.codex/rules/`. */
+  codexUser?: CodexRule[]
+  codexProject?: CodexRule[]
 }
 
 export function settingRows(sources: SettingSources): SettingRow[] {
@@ -70,8 +74,17 @@ export function settingRows(sources: SettingSources): SettingRow[] {
   }
   if (sources.chainMode !== undefined) put('mode', 'defaultMode', 'chain', sources.chainMode)
   for (const rule of sources.localAllowed ?? []) put('permission', rule, 'local', 'allow')
+  for (const [scope, rules] of [['user', sources.codexUser], ['project', sources.codexProject]] as const) {
+    for (const { pattern, decision } of rules ?? []) {
+      const before = rows.get(`codex\u0000${pattern}`)?.values[scope] as CodexDecision | undefined
+      put('codex', pattern, scope, strictest(before === undefined ? [decision] : [before, decision])!)
+    }
+  }
 
-  for (const row of rows.values()) row.session = SESSION_SCOPES.map((scope) => row.values[scope]).find((value) => value !== undefined) ?? null
+  for (const row of rows.values()) {
+    const values = SESSION_SCOPES.map((scope) => row.values[scope]).filter((value) => value !== undefined)
+    row.session = (row.kind === 'codex' ? strictest(values as CodexDecision[]) : values[0]) ?? null
+  }
   return [...rows.values()].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name))
 }
 
