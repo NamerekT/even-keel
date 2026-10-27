@@ -154,6 +154,8 @@ A task's row in the chain shows its live session: a ring for the prompt cache th
 
 What each lamp and shape of a row means, and each sign of the header that has no words on it — the limit rings, the account dot, the gear — is in the **?** tab after **Settings** at the right of the project page. It opens beside the chain, so you can check one against the other.
 
+Notices under the header stay with it as you scroll, with a dividing line between them. The project settings panel leaves room for them and keeps its save button in view. When there are many notices, their area scrolls separately. Notices slide open and closed; reduced motion in your system settings disables that animation.
+
 ## Chat with the session
 
 On a computer, Enter sends a reply and Shift+Enter starts a new line; Ctrl+Enter and Cmd+Enter also send. In a question's "Other" field, Enter goes to the next question or submits the last one, while Shift+Enter starts a new line. Selecting an option never advances by itself. Enter that confirms IME input does not send. On a phone or tablet, Enter starts a new line: use the buttons to send or go to the next question.

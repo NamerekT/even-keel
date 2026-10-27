@@ -3,6 +3,7 @@ import type { CliVersionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { cliSummary } from './cliVersions.js'
+import { Banner } from './Banner.js'
 
 const DISMISSED_KEY = 'even-keel.cliVersions.dismissed'
 
@@ -16,7 +17,7 @@ export function CliVersionBanner() {
   const [dismissed, setDismissed] = useState(readDismissed)
   const [open, setOpen] = useState(false)
   const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed)
-  if (shown.length === 0) return null
+  if (shown.length === 0) return <Banner />
 
   const dismiss = () => {
     const next = { ...dismissed, ...Object.fromEntries(shown.map((each) => [keyOf(each), each.installed])) }
@@ -27,7 +28,7 @@ export function CliVersionBanner() {
   }
 
   return (
-    <div className="banner banner--warn" role="alert">
+    <Banner tone="warn">
       <div className="banner__inner">
         <span>{cliSummary(shown)}</span>
         <span className="banner__actions">
@@ -49,7 +50,7 @@ export function CliVersionBanner() {
           </ul>
         )}
       </div>
-    </div>
+    </Banner>
   )
 }
 
