@@ -51,8 +51,8 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
-| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects | issues, blockers or versions may not reach the chain, a task may not close, or a file may not open |
-| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin | a session gets no Jira tools and cannot read or update its issue |
+| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects on Scrum or custom workflows | a task may not enter the chain or close, or an embedded picture has no name |
+| 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Claude Code or Codex | a session cannot edit its issue's description or move a parent |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear, GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
@@ -432,20 +432,18 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ### Jira Cloud
 
-The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. Still to check on a live site:
+The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. The sign-in, paging, bulk reads, statuses, attachments, create fields and a chain of a company-managed Kanban project were checked on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). Still to check on a live site:
 
-- a classic token signs in on the site, and a token with scopes is refused there and accepted through `api.atlassian.com/ex/jira/<cloudId>`, the cloud id coming from `<site>/_edge/tenant_info` without sign-in;
-- `POST /search/jql` pages with `nextPageToken`, and `POST /issue/bulkfetch` returns the found issues and lists the missing keys in `issueErrors` instead of failing;
-- the statuses of `/project/<key>/statuses` cover a team-managed project too, and a Backlog status of a company-managed Scrum template is in the `new` category;
-- a media node's `alt` is the attachment's file name, and `/attachment/content/<id>?redirect=false` returns the bytes rather than a redirect body;
-- the create screen takes `priority` and `fixVersions` — the live create omitted both; a site whose screen lacks either refuses them;
+- a Backlog status of a company-managed Scrum template is in the `new` category (the Kanban one is);
+- a media node's `alt` is the attachment's file name: only an attachment in the issue's list was seen, never one embedded in the description;
+- a site whose create screen lacks `priority` or `fixVersions` refuses them;
 - transitions on workflows that require screen fields; the live standard workflow accepted both the ready and Done transitions without extra fields.
 
 If one is wrong, the profile check fails, the chain reads fewer issues, a task stays open after the merge, or a file on the card does not open. **Workaround:** close the task in Jira by hand; for the create, turn `ci.fixTask` off.
 
 ### Jira MCP plugin
 
-The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. The plugin's `.mcp.json` and the gateway's Basic header use `JIRA_EMAIL:JIRA_MCP_TOKEN` and are checked by tests; a session through that gateway remains unchecked. Still to check there: the Jira tool names the `jira:task` skill uses (`getJiraIssue`, `editJiraIssue`, `createJiraIssueLink`, `addOrEditJiraIssueComment`, `transitionJiraIssue`…), and the direction of a `Blocks` link made by `createJiraIssueLink`, which the skill tells the session to read back. If any is wrong, a plugin session cannot read or update its issue or files the link the wrong way. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
+The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. An OpenCode chain session through the gateway read its issue, an attachment, commented and made a `Blocks` link the right way on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). Still to check: `editJiraIssue` and `transitionJiraIssue`, which that session had no reason to call, and a Claude Code or Codex session with the plugin. If one is wrong, a plugin session cannot record a decision in its issue or close a parent. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 
