@@ -103,12 +103,30 @@ describe('relayStep', () => {
   })
 
   it('hands the task to a new session when the cache has gone cold by the reset', () => {
-    expect(relayStep(hold(), new Date('2026-09-27T17:20:00Z'), ready)).toBe('relay')
+    expect(relayStep(hold(), new Date('2026-09-27T17:21:00Z'), ready)).toBe('relay')
+  })
+
+  it('lets go only a minute after the reset the agent named', () => {
+    expect(relayStep(hold(), new Date('2026-09-27T17:20:00Z'), ready)).toBe('wait')
+    expect(relayStep(hold(), new Date('2026-09-27T17:20:59Z'), ready)).toBe('wait')
+    expect(relayStep(hold(), new Date('2026-09-27T17:21:00Z'), ready)).toBe('relay')
+  })
+
+  it('lets go a minute after a reset named just before the refusal, as Codex rounds it down', () => {
+    const rounded = hold({ at: '2026-10-27T11:55:12.000Z', resetsAt: '2026-10-27T11:55:00.000Z' })
+    expect(relayStep(rounded, new Date('2026-10-27T11:55:59Z'), ready)).toBe('wait')
+    expect(relayStep(rounded, new Date('2026-10-27T11:56:00Z'), ready)).toBe('relay')
+  })
+
+  it('pauses ten minutes after a refusal that names a reset over a minute gone', () => {
+    const stale = hold({ at: '2026-10-27T11:56:05.000Z', resetsAt: '2026-10-27T11:55:00.000Z' })
+    expect(relayStep(stale, new Date('2026-10-27T12:06:04Z'), ready)).toBe('wait')
+    expect(relayStep(stale, new Date('2026-10-27T12:06:05Z'), ready)).toBe('relay')
   })
 
   it('resumes the same session while its cache is still warm on the same account', () => {
     const warm = hold({ resetsAt: '2026-09-27T15:00:00.000Z' })
-    expect(relayStep(warm, new Date('2026-09-27T15:00:30Z'), ready)).toBe('resume')
+    expect(relayStep(warm, new Date('2026-09-27T15:01:00Z'), ready)).toBe('resume')
   })
 
   it('treats a cache as cold 55 minutes after the last reply', () => {
@@ -127,7 +145,7 @@ describe('relayStep', () => {
 
   it('never resumes when the account at the limit is unknown', () => {
     const warm = hold({ account: null, resetsAt: '2026-09-27T15:00:00.000Z' })
-    expect(relayStep(warm, new Date('2026-09-27T15:00:30Z'), ready)).toBe('relay')
+    expect(relayStep(warm, new Date('2026-09-27T15:01:00Z'), ready)).toBe('relay')
   })
 
   it('waits only for an account switch when the reset time is unknown', () => {

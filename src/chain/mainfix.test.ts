@@ -471,7 +471,7 @@ describe('Dispatcher and the handover of a fix session', () => {
     await dispatcher.idle()
     expect(relays).toEqual([])
 
-    clock.now = new Date('2026-09-26T15:00:00Z')
+    clock.now = new Date('2026-09-26T15:01:00Z')
     dispatcher.check()
     await dispatcher.idle()
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-FIX', sessionId: 'session-2', reason: 'limit' }])
@@ -486,7 +486,7 @@ describe('Dispatcher and the handover of a fix session', () => {
     dispatcher.check()
     await dispatcher.idle()
 
-    clock.now = new Date('2026-09-26T15:00:10Z')
+    clock.now = new Date('2026-09-26T15:01:10Z')
     dispatcher.check()
     await dispatcher.idle()
     expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-2' }])
