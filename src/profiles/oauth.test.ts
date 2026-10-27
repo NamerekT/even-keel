@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { McpOAuth, type OAuthRecord } from './oauth.js'
+import { OAuthRefused } from './oauth-protocol.js'
 
 const draft = { kind: 'linear', values: { LINEAR_TOKEN: 'rest-token' } }
 const redirect = 'http://localhost:4747/api/profiles/oauth/callback'
@@ -23,11 +24,12 @@ function fixture() {
       ? { client_id: 'client' } : { access_token: 'access-one', refresh_token: 'refresh-one', token_type: 'Bearer', expires_in: 60 }
     return Response.json(data)
   }) as unknown as typeof fetch
+  const verify = vi.fn(async () => {})
   const oauth = new McpOAuth({ fetch: request, now: () => now, get: () => record, put: async (_id, expected, next) => {
     if (record !== expected) return false
     record = next
     return true
-  }, verify: async () => {} })
+  }, verify })
   const connect = async () => {
     const start = await oauth.start(draft, redirect)
     const url = new URL(start.url)
@@ -35,10 +37,34 @@ function fixture() {
     record = oauth.completed(start.flow, draft)
     return start
   }
-  return { oauth, calls, request, connect, record: () => record, tick: () => { now += 100_000 }, replace: (next?: OAuthRecord) => { record = next } }
+  return { oauth, calls, request, verify, connect, record: () => record, tick: () => { now += 100_000 }, replace: (next?: OAuthRecord) => { record = next } }
 }
 
 describe('profile MCP OAuth', () => {
+  it('checks and refreshes an unsaved grant without persisting it, keeping its original deadline', async () => {
+    const f = fixture()
+    const start = await f.connect()
+    f.replace()
+    f.tick()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ access_token: 'renewed', token_type: 'Bearer', expires_in: 3600 }))
+    const record = await f.oauth.check(start.flow, draft.kind, draft.values, draft)
+    expect(record.accessToken).toBe('renewed')
+    expect(f.oauth.completed(start.flow, draft)).toBe(record)
+    expect(f.record()).toBeUndefined()
+    expect(f.verify).toHaveBeenLastCalledWith(draft.kind, draft.values, 'renewed')
+    for (let i = 0; i < 5; i++) f.tick()
+    await expect(f.oauth.check(start.flow, draft.kind, draft.values, draft)).rejects.toMatchObject({ notice: { code: 'profiles.oauthExpired' } })
+  })
+
+  it('retries a rejected stored access token once and marks a second refusal for reconnecting', async () => {
+    const f = fixture()
+    await f.connect()
+    f.verify.mockRejectedValue(new OAuthRefused())
+    await expect(f.oauth.check('p', draft.kind, draft.values)).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+    expect(f.verify).toHaveBeenCalledTimes(3)
+    expect(f.record()?.reconnect).toBe(true)
+  })
+
   it('binds PKCE and the one-use callback to a draft without returning credentials', async () => {
     const f = fixture()
     const start = await f.oauth.start(draft, redirect)

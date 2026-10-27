@@ -11,7 +11,7 @@ import { cleanRules } from './rules.js'
 import { saveProfiles } from './store.js'
 import { McpOAuth, MCP_OAUTH, type OAuthRecord } from './oauth.js'
 import type { OAuthClient } from './oauth-protocol.js'
-import { checkJiraMcp } from '../jira/mcp.js'
+import { checkMcpOAuth } from './mcp.js'
 import type { GatewayOAuth } from '../packages/gateway.js'
 
 /** How often every profile is checked again: a revoked token turns its profile red and pauses its chains. */
@@ -87,7 +87,7 @@ export class Profiles {
         return true
       },
       verify: async (kind, values, token) => {
-        if (kind === 'jira') await checkJiraMcp(values as Record<string, string>, deps.timeoutMs, fetch, `Bearer ${token}`)
+        await checkMcpOAuth(kind, values as Record<string, string>, token, deps.timeoutMs)
       },
     })
   }
@@ -164,8 +164,7 @@ export class Profiles {
 
   async check(draft: ProfileDraft): Promise<CheckResult> {
     const { adapter, values } = this.valuesOf(draft)
-    this.oauthOf(draft, values)
-    const account = await this.account(adapter, values)
+    const { account } = await this.checkedAccount(draft, adapter, values)
     const duplicate = sameAccount(this.set, adapter, draft.kind, values, account.login, draft.id ?? null)
     return { login: account.login, name: account.name, expiresAt: account.expiresAt, duplicate: duplicate?.name ?? null }
   }
@@ -179,7 +178,7 @@ export class Profiles {
       const moved = adapter.hostVariables.some((name) => (stored.values[name] ?? '') !== (values[name] ?? ''))
       if (users.length > 0 && moved) throw fail('profiles.hostLocked', { profile: stored.name, projects: keysOf(users) })
     }
-    const account = await this.account(adapter, values)
+    const { account, oauth } = await this.checkedAccount(draft, adapter, values)
     const profile: TrackerProfile = {
       ...(stored?.rules === undefined ? {} : { rules: stored.rules }),
       id: stored?.id ?? randomUUID(),
@@ -189,7 +188,7 @@ export class Profiles {
       isDefault: stored?.isDefault ?? defaultProfile(this.set, draft.kind) === undefined,
       login: account.login,
       expiresAt: account.expiresAt,
-      ...(this.oauthOf(draft, values) === undefined ? {} : { mcpOAuth: this.oauthOf(draft, values) }),
+      ...(oauth === undefined ? {} : { mcpOAuth: oauth }),
     }
     const profiles = stored === undefined ? [...this.set.profiles, profile] : this.set.profiles.map((each) => (each.id === profile.id ? profile : each))
     this.checks.set(profile.id, { state: 'ok', error: null, at: this.now() })
@@ -313,7 +312,7 @@ export class Profiles {
     let account: ProfileAccount | undefined
     let check: ProfileCheck
     try {
-      account = await this.account(adapter, profile.values)
+      account = await this.account(adapter, restValues(profile.values, profile.mcpOAuth))
       check = { state: 'ok', error: null, at: this.now() }
     } catch (error) {
       const failure = noticeOf(error)
@@ -362,6 +361,15 @@ export class Profiles {
     }
   }
 
+  private async checkedAccount(draft: ProfileDraft, adapter: ProfileKind, values: Record<string, string>): Promise<{ account: ProfileAccount; oauth: OAuthRecord | undefined }> {
+    let oauth = this.oauthOf(draft, values)
+    const account = await this.account(adapter, restValues(values, oauth))
+    if (oauth) oauth = typeof draft.oauth === 'string'
+      ? await this.oauth.check(draft.oauth, draft.kind, values, { ...draft, values })
+      : await this.oauth.check(draft.id!, draft.kind, values)
+    return { account, oauth }
+  }
+
   /** Takes the new set, writes it behind and, for `kind`, puts its default profile's values into the sessions' settings. */
   private replace(set: ProfileSet, kind: string | null): void {
     this.set = set
@@ -404,6 +412,12 @@ export class Profiles {
 }
 
 const keysOf = (projects: [string, { key: string }][]): string => projects.map(([, project]) => project.key).join(', ')
+
+function restValues(values: Record<string, string>, oauth: OAuthRecord | undefined): Record<string, string> {
+  if (!oauth) return values
+  const { JIRA_MCP_TOKEN: _, ...rest } = values
+  return rest
+}
 
 function readText(file: string): string {
   try {

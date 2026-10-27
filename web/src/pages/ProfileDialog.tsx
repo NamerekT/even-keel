@@ -29,7 +29,14 @@ interface DialogProps {
 /** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
 export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const backdrop = useBackdropClose(dialog, onClose)
+  const [grant, setGrant] = useState<GrantChoice>(undefined)
+  const discard = (action: () => void) => {
+    if (grant != null && !window.confirm(t.profiles.mcp.discard)) return
+    setGrant(undefined)
+    action()
+  }
+  const close = () => discard(onClose)
+  const backdrop = useBackdropClose(dialog, close)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? fixed ?? null)
   const [gitlabHost, setGitlabHost] = useState<string | null>(null)
   const activeProfile = gitlabHost === null ? profile : undefined
@@ -51,7 +58,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
       aria-labelledby={title}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        close()
       }}
       {...backdrop}
     >
@@ -60,7 +67,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
           <h2 id={title} className="add-package__title">
             {activeProfile !== undefined ? t.profiles.editTitle(activeProfile.name) : view === undefined ? t.profiles.add : `${t.profiles.add} · ${view.title}`}
           </h2>
-          <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
+          <button type="button" className="panel__close" aria-label={t.packages.close} onClick={close}>
             ×
           </button>
         </header>
@@ -73,9 +80,12 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
             profile={activeProfile}
             stress={stress}
             host={gitlabHost ?? host}
-            onBack={activeProfile === undefined && fixed === undefined ? () => { setGitlabHost(null); setKind(null) } : undefined}
-            onGitlab={kinds.some((each) => each.kind === 'gitlab') ? (address) => { setGitlabHost(address); setKind('gitlab') } : undefined}
-            onClose={onClose}
+            onBack={activeProfile === undefined && fixed === undefined ? () => discard(() => { setGitlabHost(null); setKind(null) }) : undefined}
+            onGitlab={kinds.some((each) => each.kind === 'gitlab') ? (address) => discard(() => { setGitlabHost(address); setKind('gitlab') }) : undefined}
+            onClose={close}
+            onFinish={onClose}
+            grant={grant}
+            onGrant={setGrant}
             onSaved={onSaved}
           />
         )}
@@ -101,6 +111,9 @@ function KindStep({ kinds, onPick }: { kinds: ProfileKindView[]; onPick: (kind: 
 }
 
 interface FieldsProps {
+  grant: GrantChoice
+  onGrant: (grant: GrantChoice) => void
+  onFinish: () => void
   kind: ProfileKindView
   profile: ProfileView | undefined
   stress: RightsUse | undefined
@@ -144,7 +157,7 @@ function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | u
   )
 }
 
-function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, onSaved }: FieldsProps) {
+function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, onFinish, onSaved, grant, onGrant }: FieldsProps) {
   const { query } = useLive()
   const [alternative, setAlternative] = useState(() => alternativeOf(kind, profile))
   const [typed, setTyped] = useState<Record<string, string>>(() =>
@@ -158,9 +171,9 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const [busy, setBusy] = useState(false)
   const values = draftValues(kind, alternative, typed)
   const key = JSON.stringify(values)
-  const fresh = checked !== null && checked.values === key
+  const checkKey = JSON.stringify([values, grant])
+  const fresh = checked !== null && checked.values === checkKey
   const hostLocked = (profile?.projects.length ?? 0) > 0
-  const [grant, setGrant] = useState<GrantChoice>(undefined)
   const draft = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
   const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
 
@@ -178,9 +191,10 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   }
 
   const check = async () => {
+    setChecked(null)
     const result = await run<CheckResult>('profiles/check')
     if (result === null) return
-    setChecked({ values: key, result })
+    setChecked({ values: checkKey, result })
     if (name.trim() === '' || name === checked?.result.name) setName(result.name)
   }
 
@@ -190,7 +204,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
     const saved = await run<{ id: string }>('profiles/save', { name: name.trim() })
     if (saved === null) return
     onSaved?.(saved.id)
-    onClose()
+    onFinish()
   }
 
   return (
@@ -210,7 +224,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </div>
           </fieldset>
         )}
-        {shownFields(kind, alternative).map((field) => {
+        {shownFields(kind, alternative).filter((field) => kind.mcpOAuth !== true || field.name !== 'JIRA_MCP_TOKEN').map((field) => {
           const stored = profile?.fields.find((each) => each.name === field.name)
           const locked = hostLocked && kind.hostVariables.includes(field.name)
           return (
@@ -235,11 +249,20 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </Field>
           )
         })}
-        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} grant={grant} onGrant={setGrant} />}
+        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} grant={grant} onGrant={onGrant}>
+          {kind.fields.some((field) => field.name === 'JIRA_MCP_TOKEN') ? (
+            <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
+              {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
+                value={typed.JIRA_MCP_TOKEN ?? ''} autoComplete="off"
+                placeholder={profile?.fields.some((field) => field.name === 'JIRA_MCP_TOKEN' && field.set) ? t.profiles.kept : ''}
+                onChange={(event) => setTyped({ ...typed, JIRA_MCP_TOKEN: event.target.value })} />}
+            </Field>
+          ) : <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.sharedToken}</p>}
+        </ProfileMcp>}
         <Field label={t.profiles.name} hint={t.profiles.nameHint}>
           {(id) => <input id={id} className="add-package__input" value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />}
         </Field>
-        {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}</p>}
+        {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}{kind.mcpOAuth === true && (grant === undefined ? profile?.mcpOAuth !== undefined : grant !== null && grant.values === key) ? ` · ${t.profiles.mcp.checked}` : ''}</p>}
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
         {failure !== null && <div className="notice notice--error">{say(failure)}
           {(failure.code === 'jira.mcpSite' || failure.code === 'jira.mcpToken') && <p><a href="https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all" target="_blank" rel="noreferrer">{t.profiles.createMcpToken}</a></p>}
