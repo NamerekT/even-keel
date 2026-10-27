@@ -1,4 +1,5 @@
 import type { Language } from '../language.js'
+import { SESSION_MARK } from '../review/model.js'
 import { fill } from '../sessions/prompt.js'
 
 export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review' | 'returned'
@@ -106,6 +107,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
         '- Когда работа готова (и одобрена, если в проекте есть ревьюер): закоммить всю работу (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Файл описания не коммить: Even Keel читает его из worktree, а `.temp/` git игнорирует. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
         fill`- Если задача не требует правок в репозитории (исследование, работа уже в ${main}) — всё равно закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`, файл описания тогда не нужен: Even Keel закроет задачу без pull request.`,
+        fill`- Если пишешь комментарий в своём pull request (merge request) — добавь в его текст строку ${SESSION_MARK}: без неё Even Keel примет комментарий за замечание ревьюера и вернёт его тебе.`,
       ].join('\n'),
     review: {
       head: (url) => fill`На pull request ${url} пришли замечания:`,
@@ -205,6 +207,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,
         '- Once the work is done (and approved, where your project has a reviewer): commit all the work (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Do not commit the description file: Even Keel reads it from the worktree, and git ignores `.temp/`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
         fill`- If the task needs no change in the repository (research, work already in ${main}), still end the turn with the line \`PULL REQUEST: .temp/pull-request.md\`; the description file is not needed then: Even Keel closes the task without a pull request.`,
+        fill`- If you write a comment on your own pull request (merge request), put the line ${SESSION_MARK} into its text: without it Even Keel takes the comment for a reviewer's remark and gives it back to you.`,
       ].join('\n'),
     review: {
       head: (url) => fill`The pull request ${url} got feedback:`,

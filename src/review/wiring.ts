@@ -7,7 +7,7 @@ import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import { gitlabPulls } from './gitlab.js'
-import type { Forge } from './model.js'
+import { othersOnly, type Forge } from './model.js'
 import { closingOf, noToken, openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
 import type { PullRefusals } from './refusals.js'
 
@@ -81,9 +81,9 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const state = await forge.state(pull.number)
       if (state.state === 'merged') return { state, remarks: [], failed: [] }
       // A pull request closed unmerged: the task's next session gets every remark made on it (BTN-223).
-      if (state.state === 'closed') return { state, remarks: await forge.remarks(pull.number, pull.at, () => true), failed: [] }
+      if (state.state === 'closed') return { state, remarks: othersOnly(await forge.remarks(pull.number, pull.at, () => true)), failed: [] }
       const pushed = Date.parse(pull.pushedAt)
-      const remarks = await forge.remarks(pull.number, pull.pushedAt, (key, at) => Date.parse(at) > pushed && !pull.seen.includes(key))
+      const remarks = othersOnly(await forge.remarks(pull.number, pull.pushedAt, (key, at) => Date.parse(at) > pushed && !pull.seen.includes(key)))
       // A CI that does not answer leaves the poll to the remarks and the conflict.
       const runs = await (ciSource(target, token, timeoutMs)?.runs(RUNS_POLLED) ?? Promise.resolve([])).catch(() => [])
       return { state, remarks, failed: runs.filter((run) => run.commit === state.head && run.status === 'failure') }

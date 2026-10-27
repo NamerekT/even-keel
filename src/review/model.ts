@@ -114,6 +114,23 @@ export function said(remark: Remark): boolean {
   return remark.kind === 'changes' || remark.body.trim() !== '' || remark.comments.length > 0
 }
 
+/**
+ * The mark a session puts into what it writes on its own pull request (BTN-442): it often posts with the same token
+ * as Even Keel, so the author does not tell its words from a reviewer's. A forge hides it when it renders the text.
+ */
+export const SESSION_MARK = '<!-- even-keel:session -->'
+
+/** The remarks without the session's own words: a marked remark goes whole, a marked line comment goes alone. */
+export function othersOnly(remarks: Remark[]): Remark[] {
+  return remarks.flatMap((remark) => {
+    if (remark.body.includes(SESSION_MARK)) return []
+    const comments = remark.comments.filter((comment) => !comment.body.includes(SESSION_MARK))
+    if (comments.length === remark.comments.length) return [remark]
+    const left = { ...remark, comments }
+    return said(left) ? [left] : []
+  })
+}
+
 /** The remarks of a list sorted oldest first. */
 export function byTime(remarks: Remark[]): Remark[] {
   return [...remarks].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
