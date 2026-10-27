@@ -7,7 +7,7 @@ import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { findBinary } from '../paths.js'
 import { OpenCodeCli, resolveOpenCodeBinary, SESSION_MODE } from './cli.js'
-import { sessionList, sessionRows } from './db.js'
+import { sessionImage, sessionList, sessionRows } from './db.js'
 import { openCodeEnv, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
 import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
@@ -79,6 +79,7 @@ export const opencode: AgentAdapter = {
         return { lines: summary.feed.slice(after), turn: summary.turn }
       },
       transcripts: async (home) => (await sessionList(home.dir)).map((session) => session.id),
+      image: (home, sessionId, tool, index) => sessionImage(home.dir, sessionId, tool, index),
       usage: (home, at) => openCodeUsage(readAuth(home.dir), at, timeoutMs),
       authStatus: (home) => cli.authStatus(home),
       login: (home, method) => cli.login(home, method),

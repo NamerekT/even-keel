@@ -34,6 +34,8 @@ export interface PartRow {
   message: string
   at: number
   data: string
+  /** Pictures in the tool's stored attachments; the database leaves their data out of the fold. */
+  images?: number
 }
 
 const FEED_SIZE = 30
@@ -233,6 +235,10 @@ class SessionFold {
     else if (part.tool.endsWith('get_issue')) this.advanceStage('task')
     if (this.whole) Object.assign(line, callFacts(name, input, sizeOf(part.tool, record(state.input) ?? {})), typeof part.callID === 'string' ? { tool: part.callID } : {})
     this.addAction(line)
+    if (this.whole && typeof part.callID === 'string' && (row.images ?? 0) > 0) {
+      const text = name === 'Read' && typeof input.file_path === 'string' ? input.file_path : ''
+      this.addFeed({ at, kind: 'image', text, tool: part.callID, images: row.images })
+    }
     // The checkpoint package's plugin keeps what it put after the output in the call's metadata, which no tool writes;
     // the output itself is never read, so a tool that prints the mark from a file fakes no message.
     const mail = record(record(state.metadata)?.evenKeel)?.mail

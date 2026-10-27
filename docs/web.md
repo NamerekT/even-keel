@@ -54,6 +54,8 @@ Reference for sessions: the interface, translation, config reloading and fake st
 - `POST /api/session/answer` takes `{project, task, sessionId, ask, answers, text, files: [{name, data}]}`: `ask` is the open question's `tool_use` id or `null` for a plain-text question, `answers` maps the question text to the answer (labels joined with `, ` for `multiSelect`, the Other text as is), `data` is base64. The route alone accepts a body up to 64 MB. Refusals are the codes of `Dispatcher.answerable` (`docs/chain.md`).
 - The page installs as an app (`web/public/manifest.webmanifest`, `icon-*.png` icons are renders of `favicon.svg`, the `maskable` one has the mark with a margin for cropping). There is no service worker: the service serves a fresh `dist/web` anyway. The install button in Chrome appears only in a secure context: `localhost` or HTTPS; not on a bare `http://<IP>`.
 
+OpenCode tool-result pictures use the same transcript thumbnails and viewer (BTN-481). Its whole fold emits `image` lines from the count of image attachments stored in `opencode.db`; its `Agent.image` reads the selected base64 attachment by session and call id (`sessionImage`, `docs/sessions.md`, "OpenCode"). The original file and worktree are not needed. Checked with a saved real `read` result in an isolated transcript window at desktop and mobile sizes.
+
 ## Language (BTN-57, `src/language.ts`: `en`, `ru`)
 
 - On the project page, `ProjectNotices` shows pause and ordering errors once per distinct notice (`projectErrors`, `sameNotice`), with settings and PR-mode fixes in the same band. A failed chain-control command stays by its controls.
