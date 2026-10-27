@@ -70,9 +70,9 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
-| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
-| 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
+| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
+| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | known (BTN-467): a chat message sent mid-turn is lost, no handoff on a full context |
+| 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot in a repository with its own MCP servers | the project's server starts beside the gateway's |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
 | 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
@@ -96,15 +96,16 @@ Timeout and slow-call diagnostics are covered by tests but have not been observe
 ### Protection across agent transports and remote servers
 
 What Codex's rules hold and miss, Copilot's rules as Even Keel writes them (they missed the very command they name,
-BTN-463), the remote audit's verdicts for tokens without access, the page's warnings, and Claude's deny rules from
-a `--bg` chain session's `--settings` (a shared rule and a project's rule saved on the running service, both refused
-by the harness) are in [`verified.md`](verified.md). Not checked live: Claude deny rules in an SDK session (the same
-`--settings` through the Agent SDK), Huly deletion rules on Claude and Copilot (the server names Copilot gives the plugin gateway and the standalone
-server), Copilot's rules from a chain launch (the generated set held in the sandbox, its `rm -rf` ones only in their
-shape with `echo`: the model refused to run `rm -rf` itself), Codex
-under Windows session 0 and slot reuse, classic GitHub protection, a server actually rejecting a destructive push,
-the page's band for a remote after a real launch, and a project's own Protection rules over the shared ones reaching
-a new session of an agent other than Claude Code without a restart. The adapter arguments, settings inheritance and API verdicts are covered by tests.
+BTN-463) and from a chain launch of the service (a project's rule saved on the running service, the real remote's
+rules, the Huly deletion rule through the gateway), the remote audit's verdicts for tokens without access, the page's
+warnings, and Claude's deny rules from a `--bg` chain session's `--settings` (a shared rule and a project's rule saved
+on the running service, both refused by the harness) are in [`verified.md`](verified.md). Not checked live: Claude
+deny rules in an SDK session (the same `--settings` through the Agent SDK), Huly deletion rules on Claude and on
+Copilot's standalone `huly` server, Copilot's `rm -rf` rules on a real call (held only in their shape with `echo`: the
+model refused to run `rm -rf` itself), Codex under Windows session 0 and slot reuse, classic GitHub protection, a
+server actually rejecting a destructive push, the page's band for a remote after a real launch, and a project's own
+Protection rules over the shared ones reaching a new session of an agent other than Claude Code and Copilot without a restart. The adapter
+arguments, settings inheritance and API verdicts are covered by tests.
 If an agent ignores a native rule, equivalent destructive actions can still run. Inspect server rules directly,
 enforce protection there, and use a sandbox when available. A rule is not a security boundary. Check denial with
 harmless commands against a local bare remote; do not test destructive pushes or deletions on a real repository.
@@ -369,15 +370,15 @@ Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL
 
 ### Copilot chain sessions under the service (BTN-215)
 
-Checked on Copilot CLI 1.0.98 on Windows from a terminal, on the machine's own sign-in: a launch with `--session-id`, a resume, the transcript and the Tally rows. Never run as a chain session of the Windows service, never on a folder with a token, never through a whole task (commits, a merge into the main checkout through `--add-dir`), never on Linux or macOS. The service runs in session 0, and whether your `copilot login`, kept in the Windows credential store, reaches a process there was not tried: if it does not, a folder without a token has no sign-in under the service, and its first turn fails with Copilot's error. **Workaround:** add the Copilot account with a fine-grained token instead, or run the task on another provider (a run label).
+Whole tasks ran as chain sessions of the Windows service on the machine's own sign-in, which reached session 0 ([`verified.md`](verified.md), "Copilot"). Never run on a folder with a token, never resumed inside the chain (a resume was checked from a terminal only), never on Linux or macOS, where the sign-in sits in another store and may not reach a service. **Workaround:** add the Copilot account with a fine-grained token, or run the task on another provider (a run label).
 
 ### Hooks and plugins in Copilot sessions
 
-The checkpoint package's command hooks from `--plugin-dir` were checked on Copilot CLI 1.0.98 on Windows on 2026-10-25: `cli-check` received `/mail` and `/checkpoint` requests for its session. Repository hooks from `.claude/settings.json`, plugin skill loading, an actual checkpoint threshold crossing and mail delivery into the running turn remain unchecked. If those paths fail, a Copilot session may not hand over on a full context or receive chat messages until its turn ends. **Workaround:** keep Copilot for short tasks; send messages between turns.
+The checkpoint package's hooks from `--plugin-dir` run at every step of a chain session, and plugin skills load ([`verified.md`](verified.md), "Copilot"). What they hand back on `PostToolUse` does not reach the model: Copilot drops `hookSpecificOutput.additionalContext` there (BTN-467), so a chat message taken mid-turn is lost, the context nudge never comes and a standard is not given after a read. Unchecked: a `Stop` block's reason as the next prompt, repository hooks from `.claude/settings.json`, an actual threshold crossing. **Workaround:** keep Copilot for short tasks; send messages between turns, and resend one sent mid-turn.
 
 ### MCP servers in Copilot sessions
 
-The packages' servers reach Copilot through `--additional-mcp-config`, and the project's own servers are turned off one by one with `--disable-mcp-server`, since Copilot has no strict mode; this was read from `--help`, not run. If a flag is taken otherwise, a session either lacks the tracker's tools or starts the project's own server beside the gateway's. **Workaround:** take the project's `.mcp.json` servers out while it runs on Copilot.
+The packages' servers reach a Copilot chain session through `--additional-mcp-config` and their tools are called ([`verified.md`](verified.md), "Copilot"). The project's own servers are turned off one by one with `--disable-mcp-server`, since Copilot has no strict mode; this was read from `--help`, not run: the repository of the check had no `.mcp.json`. If the flag is taken otherwise, a session starts the project's own server beside the gateway's. **Workaround:** take the project's `.mcp.json` servers out while it runs on Copilot.
 
 ### A spent Copilot budget
 
