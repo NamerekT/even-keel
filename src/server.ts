@@ -2,13 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { restartConfirmation } from './sessions/silence.js'
 import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf } from './server-request.js'
 export { answerOf } from './server-request.js'
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ModelList } from './agent/contract.js'
 import { formatEvent, type EventHub } from './events.js'
-import { guard, tokenForm, type GuardSettings } from './guard.js'
+import type { GuardSettings } from './guard.js'
+import { guardedServer } from './server-guard.js'
 import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
 import {
   isTaskId,
@@ -348,7 +349,6 @@ const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
 const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
-const MAX_REPORTED = 100
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -379,44 +379,6 @@ export function createBlockedServer(deps: { guard: () => GuardSettings; publicDi
     if (path.startsWith('/api/')) sendJson(response, 503, { error: englishOf(deps.reason), notice: deps.reason })
     else if (request.method === 'GET') await serveStatic(deps.publicDir, path, response)
     else response.writeHead(405).end()
-  })
-}
-
-function guardedServer(settings: () => GuardSettings, handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>): Server {
-  const reported = new Set<string>()
-  return createServer((request, response) => {
-    const current = settings()
-    const verdict = guard(current, {
-      method: request.method ?? 'GET',
-      url: request.url ?? '/',
-      host: request.headers.host,
-      origin: request.headers.origin,
-      cookie: request.headers.cookie,
-      authorization: request.headers.authorization,
-      remote: request.socket.remoteAddress,
-      local: request.socket.localAddress,
-    })
-    if (verdict.kind === 'enter') {
-      response.writeHead(303, { location: verdict.location, 'set-cookie': verdict.cookie, 'cache-control': 'no-store' }).end()
-      return
-    }
-    if (verdict.kind === 'refuse') {
-      // One line per distinct refusal: a rebinding page may retry endlessly.
-      if (!reported.has(verdict.reason) && reported.size < MAX_REPORTED) {
-        reported.add(verdict.reason)
-        console.warn(`guard: refused ${request.method} ${request.url?.split('?')[0]}: ${verdict.reason}`)
-      }
-      if (verdict.status === 401 && current.token !== null && request.method === 'GET' && !(request.url ?? '/').startsWith('/api/')) {
-        response.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(tokenForm(current.language))
-        return
-      }
-      response.writeHead(verdict.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end(verdict.reason)
-      return
-    }
-    handle(request, response).catch((error: unknown) => {
-      if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
-      response.end(String(error))
-    })
   })
 }
 
