@@ -214,6 +214,9 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       for (const task of await closer.sweep(project, dispatcher.held(project), open)) {
         console.log(`${title}: closed ${task}, its branch is merged into main`)
       }
+      if (stopped) return
+      view.completionFailures ??= {}
+      view.completionFailures[project] = closer.failures(project)
       if (!closesParents) return
       for (const task of await parentCloser.sweep(parents, tasks)) {
         console.log(`${title}: closed ${task}, all its subtasks are closed`)

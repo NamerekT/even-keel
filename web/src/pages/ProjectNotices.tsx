@@ -3,6 +3,7 @@ import { ProtectionWarnings, protectionAgents, remoteProtectionWarnings } from '
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { completionNotices } from '../completion.js'
 import { useCommand } from '../live/useCommand.js'
 import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
 import { Band, FoldBand } from '../ui/blocks.js'
@@ -19,7 +20,7 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
   const tasks = warningTasks(state.chain.leftovers[project] ?? [], rows)
   const tone = forwardTone(state.forwards[project])
   const count = tasks.length + (tone !== null && tone !== 'error' ? 1 : 0)
-  const errors = projectErrors(state.chain.projects[project]?.error ?? null, chainStatus(state.chain, project))
+  const errors = [...projectErrors(state.chain.projects[project]?.error ?? null, chainStatus(state.chain, project)), ...completionNotices(state, project)]
   const summary = [
     ...(tasks.length > 0 ? [t.project.cleanupSummary(tasks.slice(0, 3).join(', ') + (tasks.length > 3 ? '…' : ''))] : []),
     ...(tone !== null && tone !== 'error' ? [forwardSummary(state, project)] : []),

@@ -45,6 +45,8 @@ The rules of which statuses are in work, which are closed and which labels a tas
 
 Errors above the chain always stay visible. Several cleanup and carry warnings share a folded row with their count and a short summary; open it for the individual actions. One warning stays open. When several closed tasks have cleanup warnings, **Done for all** dismisses them together; warnings on tasks still shown in the chain keep their own **Done** button.
 
+If a task is merged but its tracker refuses to close it, the project page and card show the tracker's response and **Open in the tracker**. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically every 30 seconds and continues the chain once the task closes. This wait is shown separately from a session waiting for your reply.
+
 **Give the active milestone to tasks without one** assigns the current task's milestone to a task entering the chain without one, or the earliest milestone in the chain when the current task has none. The backlog's "will stand here" preview uses that milestone too. If the assignment would put a blocker after a task it holds, the task keeps no milestone. A successful assignment appears on the page in the same refresh; a milestone you later change or clear is left alone.
 
 ## Several trackers for one project

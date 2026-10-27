@@ -16,6 +16,7 @@ import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 import { shownWork } from './work.js'
 import { taskLamp } from './taskLamp.js'
+import { completionTasks, needsReply } from './completion.js'
 
 export interface AccountBadge {
   kind: 'in' | 'out' | 'login' | 'unknown'
@@ -168,11 +169,12 @@ export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: strin
   return state.tasks.filter((task) => task.project === project)
 }
 
-export function waitingSessions(sessions: SessionView[], tasks: Task[]): SessionView[] {
+export function waitingSessions(sessions: SessionView[], tasks: Task[], refused: ReadonlySet<string> = new Set()): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions
     .filter((view) => view.lamp === 'waiting' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
+    .filter((view) => !refused.has(view.task) || needsReply(view))
     .sort((a, b) => since(a) - since(b))
 }
 
@@ -457,7 +459,7 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   return {
     id,
     title: isFixName(id) ? t.chain.fix : isCarryName(id) ? t.chain.carry(carryLabel(state, id)) : (task?.title ?? null),
-    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null),
+    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null, completionTasks(state).has(id)),
     next: current === undefined && next !== undefined,
     ...(next === undefined && { held: skipped.includes(id) ? 'skipped' : 'blocked' }),
   }
@@ -578,6 +580,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const shut = closedOrder(closed, state.taskSessions, [...ended.values()])
   // A task waiting on its pull request is out of the chain: its row stands between the closed tasks and the open ones.
   const pulls = [...reviews.keys()].filter((id) => !shut.includes(id) && !open.includes(id)).sort(byNumber)
+  const refused = completionTasks(state)
 
   const blocks = [...shut, ...pulls, ...open].map((id): ChainBlock => {
     const episode = ended.get(id)
@@ -593,7 +596,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     // Delivering an answer stops the session for a few seconds; to the page it is already at work on it.
     const session = seen !== null && running?.task === id && running.answering ? { ...seen, lamp: 'working' as const, ask: null } : seen
     const sessions = state.taskSessions[id] ?? []
-    const lamp = taskLamp(task, session)
+    const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     const work = shownWork(state, project, id)
     return {

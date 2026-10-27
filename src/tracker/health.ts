@@ -1,3 +1,5 @@
+import type { Notice } from '../notice/notice.js'
+
 export type TrackerLinkState = 'off' | 'connecting' | 'live' | 'down'
 
 export interface TrackerHealth {
@@ -19,6 +21,8 @@ export interface TrackerView {
   health: TrackerHealth
   /** When each reader's tasks were last read in full, by its id (a project's, or a feed's); one not read yet has none. */
   readAt: Record<string, string>
+  /** Refused closes of merged tasks, by reader; retried on the next full read. In memory only. */
+  completionFailures?: Record<string, Notice[]>
 }
 
 export const worthBroadcast = (before: TrackerHealth, after: TrackerHealth): boolean =>

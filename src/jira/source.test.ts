@@ -134,6 +134,17 @@ describe('Jira task source', () => {
     expect(calls[2]!.body).toMatchObject({ issueIdsOrKeys: ['ABC-1', 'ABC-9'] })
   })
 
+  it('passes both validator messages and field errors through a refused Done transition, then retries', async () => {
+    const before = { body: { fields: { status: PROGRESS } } }
+    const transitions = { body: { transitions: [{ id: '31', name: 'Finish', to: DONE }] } }
+    const { source } = await connect([
+      before, transitions, { status: 400, body: { errorMessages: ['Due date required'], errors: { duedate: 'Set a due date' } } },
+      before, transitions, { status: 204 },
+    ])
+    await expect(source.complete!('ABC-1')).rejects.toThrow('jira: HTTP 400: Due date required; duedate: Set a due date')
+    expect(await source.complete!('ABC-1')).toBe(true)
+  })
+
   it('closes through the first transition to a Done status, and says why when there is none', async () => {
     const { source, calls, lines } = await connect([
       { body: { fields: { status: PROGRESS } } },

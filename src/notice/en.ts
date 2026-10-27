@@ -34,6 +34,8 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The English texts of the server's messages: the log and the English page both read them.
 export const en = {
+  'tracker.closePending': () => 'tracker refused closure',
+  'tracker.completeRefused': (p: { task: string }) => `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically. Tracker response`,
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',

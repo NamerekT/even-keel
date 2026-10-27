@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
+import * as merged from '../git/merged.js'
 import type { TrackerView } from './health.js'
 import { toTask, type TrackerTask } from './model.js'
 import { TrackerNotFound, type TaskSource, type TrackerSetup } from './source.js'
@@ -78,6 +79,32 @@ function start(projects: string[], connect: () => Promise<TaskSource>, overrides
 }
 
 describe('startTracker', () => {
+  it.each([false, true])('publishes a refused merged-task close and clears it after recovery (manual: %s)', async (manual) => {
+    vi.spyOn(merged, 'branchMerged').mockResolvedValue(true)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    let refused = true
+    let closed = false
+    const current = () => ({ ...task('APP-1'), status: closed ? { name: 'Done', category: 'Won' as const } : task('APP-1').status })
+    const complete = vi.fn(async () => {
+      if (refused) throw new Error('jira: HTTP 400: Due date required')
+      const moved = !closed
+      closed = true
+      return moved
+    })
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [current()], statuses: ['Todo', 'Done'] }),
+      tasks: async () => [current()], complete, close: async () => {},
+    }), { dispatcher: { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => ['APP-1'], view: vi.fn() } as unknown as TrackerStartDeps['dispatcher'] })
+    await vi.waitFor(() => expect(view.completionFailures?.APP).toHaveLength(1))
+    expect(view.completionFailures?.APP?.[0]).toEqual({ code: 'tracker.completeRefused', params: { task: 'APP-1' }, detail: 'jira: HTTP 400: Due date required' })
+    refused = false
+    closed = manual
+    await refreshers.get('APP')!()
+    expect(view.completionFailures?.APP).toEqual([])
+    expect(closed).toBe(true)
+  })
+
   it('logs repeated status poll failures once and logs recovery once', async () => {
     vi.useFakeTimers()
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})

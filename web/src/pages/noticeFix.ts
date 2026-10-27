@@ -10,7 +10,7 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again.
  */
-export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' } | { to: 'resume' }
+export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' } | { to: 'resume' } | { to: 'tracker'; task: string }
 
 const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
@@ -53,6 +53,7 @@ export function untrustedOf(notice: Notice | null | undefined): Untrusted | null
 /** The place a notice is fixed at: its own, or that of its first reason (the items, then the cause); `null` — none on the page. */
 export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null {
   if (notice === null || notice === undefined) return null
+  if (notice.code === 'tracker.completeRefused') return { to: 'tracker', task: notice.params.task }
   const own = BY_CODE[notice.code]
   if (own !== undefined) return own
   for (const item of notice.items ?? []) {
