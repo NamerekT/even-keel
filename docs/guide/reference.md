@@ -117,3 +117,5 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `trimTools` | `true` | the **Trim the tools** switch in **Settings → Sessions**: chain sessions get no claude.ai skills and plugins, and the `hiddenSkills` only through `/name` |
 
 Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; GitLab's are `Opened` and `Closed`; Jira's are the project's workflow statuses; Linear's are the team's workflow states), as in the example.
+
+On localized Jira sites, use the displayed workflow names in explicit status lists. The default rules recognize a translated Backlog by its original name. Automatically created Jira tasks use the standard Task type by its original name, or the first available standard type; epics and subtasks are excluded.

@@ -45,6 +45,67 @@ describe('connectJira', () => {
 })
 
 describe('Jira task source', () => {
+  it('resolves search statuses without untranslated names against the project catalog', async () => {
+    const backlog = { id: BACKLOG.id, name: 'Бэклог', statusCategory: { key: 'new' } }
+    const todo = { id: TODO.id, name: 'К выполнению', statusCategory: { key: 'new' } }
+    const { source, calls, remaining } = await connect([
+      { body: [{ statuses: [{ ...backlog, untranslatedName: 'Backlog' }, { ...todo, untranslatedName: 'To Do' }] }] },
+      { body: { issues: [issue('ABC-1', { status: todo, fixVersions: [{ id: '20', name: 'v1' }] })] } },
+      { body: { issues: [issue('ABC-2', { status: backlog })] } },
+      PRIORITIES,
+    ])
+    const result = await source.chainTasks('project-id', notTerminal)
+    expect(calls[3]!.body).toMatchObject({ jql: 'project = "ABC" AND status in (10001) ORDER BY key' })
+    expect(result.tasks.map((task) => task.status)).toEqual([{ name: 'К выполнению', category: 'ToDo' }, { name: 'Бэклог', category: 'UnStarted' }])
+    expect(result.statuses).toEqual(['Бэклог', 'К выполнению'])
+    expect(remaining()).toBe(0)
+  })
+
+  it('resolves bulk issue statuses and reloads the catalog on the next call', async () => {
+    const raw = () => issue('ABC-1', { status: { id: BACKLOG.id, name: 'Бэклог', statusCategory: { key: 'new' } } })
+    const { source, remaining } = await connect([
+      { body: { issues: [raw()] } }, PRIORITIES,
+      { body: [{ statuses: [{ ...BACKLOG, name: 'Бэклог', untranslatedName: 'Backlog' }] }] },
+      { body: { issues: [raw()] } },
+      { body: [{ statuses: [{ ...BACKLOG, name: 'Бэклог', untranslatedName: 'Ready' }] }] },
+    ])
+    expect((await source.tasks(['ABC-1']))[0]!.status).toEqual({ name: 'Бэклог', category: 'UnStarted' })
+    expect((await source.tasks(['ABC-1']))[0]!.status.category).toBe('ToDo')
+    expect(remaining()).toBe(0)
+  })
+
+  it('readies a localized backlog using the catalog when the issue omits untranslatedName', async () => {
+    const backlog = { id: BACKLOG.id, name: 'Бэклог', statusCategory: { key: 'new' } }
+    const todo = { id: TODO.id, name: 'К выполнению', statusCategory: { key: 'new' } }
+    const { source, calls } = await connect([
+      { body: { fields: { status: backlog } } },
+      { body: [{ statuses: [{ ...backlog, untranslatedName: 'Backlog' }, { ...todo, untranslatedName: 'To Do' }] }] },
+      { body: { transitions: [{ id: '10', name: 'Бэклог', to: { ...backlog } }, { id: '11', name: 'К выполнению', to: todo }] } },
+      { status: 204 },
+    ])
+    expect(await source.ready!('ABC-1')).toEqual({ name: 'К выполнению', category: 'ToDo' })
+    expect(calls.at(-1)!.body).toEqual({ transition: { id: '11' } })
+  })
+
+  it('resolves card and linked statuses by project and keeps the localized names', async () => {
+    const raw = () => ({ id: BACKLOG.id, name: 'Бэклог', statusCategory: { key: 'new' } })
+    const { source, calls, remaining } = await connect([
+      { body: issue('ABC-1', { status: raw(), parent: { key: 'ABC-2', fields: { summary: 'Parent', status: raw() } }, issuelinks: [
+        { type: { name: 'Blocks' }, inwardIssue: { key: 'XYZ-1', fields: { summary: 'Blocker', status: raw() } } },
+      ] }) },
+      { body: { comments: [], total: 0 } },
+      { body: [{ statuses: [{ ...BACKLOG, untranslatedName: 'Backlog' }] }] },
+      { body: [{ statuses: [{ ...BACKLOG, untranslatedName: 'Ready' }] }] },
+      PRIORITIES,
+    ])
+    const card = await source.card!('ABC-1')
+    expect(card.status).toEqual({ name: 'Бэклог', category: 'UnStarted' })
+    expect(card.parent!.status.category).toBe('UnStarted')
+    expect(card.blockedBy[0]!.status).toEqual({ name: 'Бэклог', category: 'ToDo' })
+    expect(calls.slice(4, 6).map((call) => call.url)).toEqual([`${SITE}/rest/api/3/project/ABC/statuses`, `${SITE}/rest/api/3/project/XYZ/statuses`])
+    expect(remaining()).toBe(0)
+  })
+
   it('reads the open issues by status id, the closed ones of their versions and the children of epics', async () => {
     const epic = issue('ABC-4', { issuetype: { hierarchyLevel: 1 } })
     const { source, calls, remaining } = await connect([
@@ -125,6 +186,40 @@ describe('Jira task source', () => {
     expect(calls[5]!.body).toEqual({
       fields: { project: { key: 'ABC' }, issuetype: { id: '3' }, summary: 'Fix main', description: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Red' }] }] }, priority: { id: '2' }, fixVersions: [{ id: '20' }] },
     })
+  })
+
+  it.each([
+    { field: 'issueTypes', taskName: 'Задача', untranslatedName: 'Task', expected: '3' },
+    { field: 'values', taskName: 'Task', untranslatedName: undefined, expected: '3' },
+    { field: 'values', taskName: 'Task', untranslatedName: null, expected: '3' },
+    { field: 'issueTypes', taskName: 'Task', untranslatedName: 'Custom', expected: '2' },
+  ])('creates the standard type $expected from $field using its untranslated name', async ({ field, taskName, untranslatedName, expected }) => {
+    const { source, calls } = await connect([
+      { body: { [field]: [
+        { id: 'epic', name: 'Эпик', untranslatedName: 'Epic', hierarchyLevel: 1 },
+        { id: 'subtask', name: 'Подзадача', hierarchyLevel: 0, subtask: true },
+        { id: 'unknown', name: 'Unknown' },
+        { id: '2', name: 'История', untranslatedName: 'Story', hierarchyLevel: 0 },
+        { id: '3', name: taskName, untranslatedName, hierarchyLevel: 0 },
+      ] } },
+      PRIORITIES,
+      { body: { key: 'ABC-10' } },
+      { body: { fields: { status: TODO } } },
+    ])
+    expect(await source.create!({ project: 'project-id', title: 'Fix CI', description: 'Red', priority: 'none', milestoneOf: null })).toBe('ABC-10')
+    expect(calls[4]!.body).toMatchObject({ fields: { issuetype: { id: expected } } })
+  })
+
+  it('refuses creation when no standard issue type is available', async () => {
+    const { source, calls } = await connect([
+      { body: { issueTypes: [
+        { id: '1', name: 'Эпик', hierarchyLevel: 1 },
+        { id: '2', name: 'Подзадача', subtask: true, hierarchyLevel: -1 },
+        { id: '3', name: 'Unknown' },
+      ] } },
+    ])
+    await expect(source.create!({ project: 'project-id', title: 'Fix CI', description: '', priority: 'none', milestoneOf: null })).rejects.toThrow('no issue type')
+    expect(calls).toHaveLength(3)
   })
 
   it('fills, offers and moves versions', async () => {

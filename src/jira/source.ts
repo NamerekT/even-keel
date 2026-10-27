@@ -18,6 +18,7 @@ import {
   type JiraAttachment,
   type JiraComment,
   type JiraIssue,
+  type JiraRef,
   type JiraStatus,
   type JiraVersion,
 } from './model.js'
@@ -82,8 +83,9 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   }
 
   /** Jira lists only sub-tasks on an issue: the children of an epic are the issues with it as their `parent`. */
-  async function converted(issues: JiraIssue[]): Promise<TrackerTask[]> {
+  async function converted(issues: JiraIssue[], catalogs?: Map<string, Promise<JiraStatus[]>>): Promise<TrackerTask[]> {
     const names = await order()
+    await resolveStatuses(issues, catalogs)
     const epics = issues.filter(hasChildIssues).map((issue) => issue.key)
     const children = new Map<string, number>()
     for (let at = 0; at < epics.length; at += PARENTS_CHUNK) {
@@ -98,6 +100,22 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   async function statusesOf(key: string): Promise<JiraStatus[]> {
     const types = await api.rest<{ statuses: JiraStatus[] }[]>(`/project/${encodeURIComponent(key)}/statuses`)
     return [...new Map(types.flatMap((type) => type.statuses).map((status) => [status.id, status])).values()]
+  }
+
+  /** Issue responses omit untranslatedName; keep the display name and resolve the original by status id. */
+  async function resolveStatuses(refs: readonly JiraRef[], catalogs = new Map<string, Promise<JiraStatus[]>>()): Promise<void> {
+    for (const ref of refs) {
+      const status = ref.fields.status
+      if (status.untranslatedName != null) continue
+      const key = parseTaskId(ref.key)!.project
+      let catalog = catalogs.get(key)
+      if (catalog === undefined) {
+        catalog = statusesOf(key)
+        catalogs.set(key, catalog)
+      }
+      const original = (await catalog).find((each) => each.id === status.id)
+      status.untranslatedName = original?.untranslatedName ?? original?.name
+    }
   }
 
   const versionsOf = (key: string) => api.rest<JiraVersion[]>(`/project/${encodeURIComponent(key)}/versions`)
@@ -120,8 +138,12 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 
   async function ready(id: string): Promise<TaskStatus | null> {
     const { fields } = await issueOf(id, ['status'])
+    const catalogs = new Map<string, Promise<JiraStatus[]>>()
+    await resolveStatuses([{ key: id, fields }], catalogs)
     if (jiraStatus(fields.status).category !== 'UnStarted') return null
-    const to = (await transitionsOf(id)).find((each) => jiraStatus(each.to).category === 'ToDo')
+    const transitions = await transitionsOf(id)
+    await resolveStatuses(transitions.map((each) => ({ key: id, fields: { summary: '', status: each.to } })), catalogs)
+    const to = transitions.find((each) => jiraStatus(each.to).category === 'ToDo')
     if (to === undefined) throw new Error(`jira: ${id} has no transition from ${fields.status.name} to a ready status`)
     await transition(id, to)
     return jiraStatus(to.to)
@@ -137,7 +159,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const versions = [...new Set(issues.flatMap((issue) => (issue.fields.fixVersions ?? []).map((version) => version.id)))]
       const closed = where(false)
       const others = versions.length === 0 || closed.length === 0 ? [] : await search(`project = "${key}" AND status in (${closed.join(', ')}) AND fixVersion in (${versions.join(', ')}) ORDER BY key`)
-      return { tasks: await converted([...issues, ...others]), statuses: [...new Set(statuses.map((status) => status.name))] }
+      return { tasks: await converted([...issues, ...others], new Map([[key, Promise.resolve(statuses)]])), statuses: [...new Set(statuses.map((status) => status.name))] }
     },
 
     async tasks(ids) {
@@ -175,6 +197,8 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 
     async card(id) {
       const [issue, comments] = await Promise.all([issueOf(id, CARD_FIELDS), commentsOf(id)])
+      const links = issue.fields.issuelinks ?? []
+      await resolveStatuses([issue, ...[issue.fields.parent, ...links.flatMap((link) => [link.inwardIssue, link.outwardIssue])].filter((ref): ref is JiraRef => ref != null)])
       return toCard(issue, comments, await order())
     },
 
@@ -221,8 +245,8 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     async create(task) {
       const key = keyOf(task.project)
       const { issueTypes, values } = await api.rest<{ issueTypes?: IssueType[]; values?: IssueType[] }>(`/issue/createmeta/${encodeURIComponent(key)}/issuetypes`)
-      const types = (issueTypes ?? values ?? []).filter((type) => type.subtask !== true && (type.hierarchyLevel ?? 0) === 0)
-      const type = types.find((each) => sameName(each.name, 'Task')) ?? types[0]
+      const types = (issueTypes ?? values ?? []).filter((type) => type.subtask !== true && type.hierarchyLevel === 0)
+      const type = types.find((each) => sameName(each.untranslatedName ?? each.name, 'Task')) ?? types[0]
       if (type === undefined) throw new Error(`jira: project ${key} has no issue type to create a task with`)
       const priority = priorityFor(task.priority, await prioritiesOf())
       const like = task.milestoneOf !== null && parseTaskId(task.milestoneOf)?.project === key ? earliestVersion((await issueOf(task.milestoneOf, ['fixVersions'])).fields.fixVersions) : null
@@ -302,6 +326,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 interface IssueType {
   id: string
   name: string
+  untranslatedName?: string | null
   subtask?: boolean
   hierarchyLevel?: number
 }

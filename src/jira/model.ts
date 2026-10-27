@@ -6,6 +6,7 @@ import { adfToMarkdown, type AdfNode, type MediaLink } from './adf.js'
 export interface JiraStatus {
   id: string
   name: string
+  untranslatedName?: string | null
   statusCategory: { key: string }
 }
 
@@ -76,10 +77,10 @@ const RELATES = 'Relates'
  * for a backlog: Jira Software's backlog column is a `new` status named Backlog, so a `new` status of that name is the
  * backlog and stays out of the chain by default.
  */
-export function jiraStatus(status: Pick<JiraStatus, 'name' | 'statusCategory'>): TaskStatus {
+export function jiraStatus(status: Pick<JiraStatus, 'name' | 'untranslatedName' | 'statusCategory'>): TaskStatus {
   switch (status.statusCategory.key) {
     case 'new':
-      return { name: status.name, category: sameName(status.name, 'Backlog') ? 'UnStarted' : 'ToDo' }
+      return { name: status.name, category: sameName(status.untranslatedName ?? status.name, 'Backlog') ? 'UnStarted' : 'ToDo' }
     case 'indeterminate':
       return { name: status.name, category: 'Active' }
     case 'done':
