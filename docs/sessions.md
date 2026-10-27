@@ -102,7 +102,10 @@ Other Codex project configuration retains its normal trust requirements. Checked
 Responses server sending a harmless `echo` tool call: a `forbidden` prefix was rejected under bypass in the account
 and project config layers. [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes:
 defaults cover push flags immediately after `git push` or after a configured remote, and literal dangerous `rm`
-targets. Other argument orders, force/deletion refspecs, expanded paths, shell variants and MCP are not covered.
+targets. Codex compares whole arguments, so it also gets, for each remote and the project's main branch (`mainBranch`
+of `SessionStart`), `+<branch>`, `+HEAD:<branch>` and `:<branch>`, and the targets `C:\`, `D:\`, `~/`, `$HOME/`,
+`../`, `/*` (BTN-462); Copilot does not, its parsing of a `:` or `*` inside a prefix being unchecked. Other argument
+orders, refspecs of other branches, expanded paths, shell variants and MCP are not covered.
 Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
 
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)

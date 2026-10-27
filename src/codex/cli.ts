@@ -150,7 +150,7 @@ export class CodexCli {
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     const { name, cwd } = start
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection)
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
@@ -161,7 +161,7 @@ export class CodexCli {
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection)
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })

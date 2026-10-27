@@ -30,6 +30,26 @@ describe('session protection', () => {
     expect(rules.copilot).toEqual(expect.arrayContaining(['shell(git push -f:*)', 'shell(git push origin -f:*)', 'shell(rm -rf /:*)', 'shell(rm -fr ~:*)', 'plugin_huly_huly(delete_issue)']))
   })
 
+  it('forbids on Codex the main branch refspecs on every remote and the other spellings of rm targets', () => {
+    const rules = protectionRules(DEFAULT_PROTECTION, ['origin', 'github'], 'dev')
+    for (const remote of ['origin', 'github']) {
+      expect(rules.codex).toContainEqual(['git', 'push', remote, '+dev'])
+      expect(rules.codex).toContainEqual(['git', 'push', remote, '+HEAD:dev'])
+      expect(rules.codex).toContainEqual(['git', 'push', remote, ':dev'])
+    }
+    for (const flags of ['-rf', '-fr']) {
+      for (const target of ['C:\\', 'D:\\', '~/', '$HOME/', '../', '/*']) expect(rules.codex).toContainEqual(['rm', flags, target])
+    }
+    expect(rules.codex).not.toContainEqual(['git', 'push', 'origin', '+main'])
+  })
+
+  it('keeps the refspec rules with their groups', () => {
+    const rules = protectionRules({ ...DEFAULT_PROTECTION, disabled: ['forcePush'] }, ['origin'], 'main')
+    expect(rules.codex).not.toContainEqual(['git', 'push', 'origin', '+main'])
+    expect(rules.codex).toContainEqual(['git', 'push', 'origin', ':main'])
+    expect(protectionRules(DEFAULT_PROTECTION, ['origin']).codex.some(rule => rule[3]?.startsWith('+'))).toBe(false)
+  })
+
   it('disables one group, keeps the rest and adds native rules without duplicates', () => {
     const rules = protectionRules({ disabled: ['forcePush'], claude: ['Write(.env)', 'Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'] })
     expect(rules.claude.some(rule => rule.includes('--force'))).toBe(false)

@@ -21,16 +21,28 @@ const remove = (targets: string[]) => commands(
   ['-rf', '-fr'].flatMap(flags => targets.map(target => `rm ${flags} ${target}*`)),
   ['-rf', '-fr'].flatMap(flags => targets.map(target => ['rm', flags, target])),
 )
+/**
+ * Codex compares whole arguments, so `C:\` or `+main` slips past `C:` or `-f`. These spellings stay Codex's: Claude's
+ * patterns already cover them, and Copilot's parsing of a `:` or `*` inside a prefix was never checked.
+ */
+const codexOnly = (prefixes: string[][]): Rules => ({ claude: [], codex: prefixes, copilot: [] })
+const removeSpelled = (targets: string[]) => codexOnly(['-rf', '-fr'].flatMap(flags => targets.map(target => ['rm', flags, target])))
+const refspec = (forms: string[], remotes: readonly string[]) => codexOnly(remotes.flatMap(remote => forms.map(form => ['git', 'push', remote, form])))
+const merge = (...parts: Rules[]): Rules => ({ claude: parts.flatMap(part => part.claude), codex: parts.flatMap(part => part.codex), copilot: parts.flatMap(part => part.copilot) })
 
-/** Codex and Copilot match literal command prefixes; the remote names cover the usual `git push <remote> <flag>` order too. */
-export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = []): Rules {
+/**
+ * Codex and Copilot match literal command prefixes; the remote names cover the usual `git push <remote> <flag>` order too,
+ * and with the project's main branch Codex also gets the refspecs that force-push or delete it.
+ */
+export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string): Rules {
+  const refspecs = (forms: (branch: string) => string[]) => refspec(branch === undefined ? [] : forms(branch), remotes)
   const groups: Record<(typeof PROTECTION_GROUPS)[number], Rules> = {
-    forcePush: push(['--force', '--force-with-lease', '-f'], remotes),
+    forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`])),
     mirrorPush: push(['--mirror'], remotes),
-    deleteRemote: push(['--delete', '-d'], remotes),
-    deleteRoot: remove(['/', 'C:', 'D:']),
-    deleteHome: remove(['~', '$HOME']),
-    deleteParent: remove(['..']),
+    deleteRemote: merge(push(['--delete', '-d'], remotes), refspecs(main => [`:${main}`])),
+    deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', '/*'])),
+    deleteHome: merge(remove(['~', '$HOME']), removeSpelled(['~/', '$HOME/'])),
+    deleteParent: merge(remove(['..']), removeSpelled(['../'])),
     deleteTracker: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]) },
   }
   groups.forcePush.claude.push('Bash(git push * +*)')
