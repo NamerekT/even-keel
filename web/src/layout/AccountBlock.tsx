@@ -46,10 +46,7 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
       >
         {/* A group per account: its kind colours only its own dot, so the groups sit side by side, never one in another. */}
         <span className={`account-block__group account-toggle--${badge.kind}`}>
-          <span className="hblock__seg">
-            <span className="queue-toggle__dot" aria-hidden="true" />
-            <span className="account-toggle__label">{badge.label}</span>
-          </span>
+          <AccountName account={account} />
           <BlockLimits entry={active} limits={limits} now={now} spend={spend} />
         </span>
         <OtherRings account={account} />
@@ -66,9 +63,20 @@ function others(view: AccountView): AccountEntry[] {
 }
 
 /** The active account's colour, the same as its card's, for the dot before its name. */
-function activeStyle(view: AccountView): CSSProperties {
+export function activeStyle(view: AccountView): CSSProperties {
   const active = view.accounts.find((entry) => entry.key === view.active)
   return seriesStyle(active === undefined ? null : entrySlot(view, active))
+}
+
+/** The account name and its colour, shared by the header and legend. */
+export function AccountName({ account }: { account: AccountView }) {
+  const badge = accountBadge(account)
+  return (
+    <span className={`hblock__seg account-toggle--${badge.kind}`} style={activeStyle(account)}>
+      <span className="queue-toggle__dot" aria-hidden="true" />
+      <span className="account-toggle__label">{badge.label}</span>
+    </span>
+  )
 }
 
 function BlockLimits({ entry, limits, now, spend }: { entry: AccountEntry | undefined; limits: RateLimits | null; now: Date; spend: Spend }) {
