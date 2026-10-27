@@ -7,7 +7,13 @@
 
 **You write the tickets. It takes the night shift.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time with [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) or [GitHub Copilot](https://github.com/github/copilot-cli) while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
 
-**And it shows what each change did.** Built-in statistics show what every task cost, where sessions got stuck and how full their context ran, and compare before and after every change to your rule files.
+**Already inside, so you don't glue five tools together:**
+
+- **Usage limits.** A spent 5-hour or weekly limit is waited out: the session is resumed after the reset while its prompt cache is warm, or handed to a fresh one — no work lost, no 3 a.m. restart.
+- **A full context, your way.** A session past its context threshold writes a handoff note and a fresh one takes over in the same worktree — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/reference.md#configuration). The statistics count both, and the session audit skill compares what each cost on your own tasks.
+- **What each task cost.** Built-in statistics (optional): cost and time per task, where sessions got stuck, how full the context ran, and before/after every change to your rule files.
+- **Every account on one page.** Claude, Codex, OpenCode and Copilot — subscriptions and API keys — each with its limits or spend and what runs on it right now. You pick the account a project runs on.
+- **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent: Claude Code gets your `AGENTS.md`, Codex your `CLAUDE.md`.
 
 It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues (GitLab.com or your own server) and Jira Cloud.
 
@@ -32,14 +38,13 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **Several trackers per project.** Tasks from a second tracker or account — say the GitHub issues others file next to your private Huly project — join the same chain.
 - **Release branches.** A second chain on the same tracker project takes a released version's milestone in its own clone, and its fixes are merged forward into your development branch while that chain stands.
 - **A session per task**, in its own git worktree. The session does the task and merges; Even Keel closes the task, cleans up and starts the next. A task with nothing to merge (already done, research) the session marks `NO CHANGES: <why>`, and Even Keel closes it all the same.
-- **Limits and long contexts.** A spent limit is waited out and the session resumed; a session whose context grew too large hands over to a fresh one in the same worktree.
 - **Questions** wait for you in the page's chat, as a tracker comment or in Claude's Remote Control. You can also write to a session while it works.
 - **Unattended mode** for nights: sessions ask nothing and park what a question holds.
 - **CI.** The next task waits for the CI's verdict on `main`, and a red `main` is fixed first. No CI — your own check commands.
 - **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo, or a merge request on GitLab; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
-- **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page; OpenCode accounts on ChatGPT, GitHub Copilot, an API key or its free models; GitHub Copilot CLI accounts on your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
-- **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules, and a session audit skill that reads them and proposes what to change.
+- **Accounts, one per project and provider.** OpenCode signs in with ChatGPT, GitHub Copilot, an API key or runs its free models; the Copilot CLI with your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
+- **A session audit skill** reads the statistics and proposes what to change in your rules.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
 
 | A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
