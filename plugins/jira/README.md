@@ -36,4 +36,4 @@ A community server was not chosen: the official one accepts the API token as it 
 
 For sessions started by hand, add the Even Keel marketplace and run `claude plugin install jira@even-keel --scope project`, and supply `JIRA_BASIC_AUTH` — the base64 of `e-mail:MCP-token`, using the separate Atlassian MCP V2 token — in the session environment. Leave `brief` on auto: the plugin then reads the issue itself.
 
-End-to-end Jira and MCP checks are tracked in [What has not been verified](../../docs/unverified.md#jira-cloud).
+The live Jira and MCP checks are logged in [What has been verified](../../docs/verified.md#trackers); what is still open is in [What has not been verified](../../docs/unverified.md#jira-mcp-plugin).

@@ -51,7 +51,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
-| 37e | [Jira Cloud](#jira-cloud) | Jira Cloud sites whose create screen lacks priority or versions | a red main's fix task is not filed |
 | 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Codex | a session cannot record a decision in its issue |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Linear, GitHub profiles connected through OAuth (Jira fails until BTN-485) | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
@@ -429,10 +428,6 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ## Trackers
-
-### Jira Cloud
-
-The adapter is built from the Jira Cloud REST v3 documentation. Localized status metadata, issue responses without `untranslatedName`, chain reads, bulk reads, cards and creation of the localized standard Task type followed by a ready transition were checked on 2026-10-27 (BTN-473, [verified log](verified.md#trackers)). A translated Backlog name is covered by fixtures; the live project's status is still named `Backlog`. The sign-in, paging, bulk reads, statuses, attachments, create fields and a chain of a company-managed Kanban project were checked on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)); a company-managed Scrum template turned out to have no Backlog status at all. A pasted picture's media node, a create screen without `priority` and `fixVersions`, and a Done transition with a required field were checked the same day. Still to check on a live site: the create without those fields on the screen by an account that is not a site admin — the admin's create set both anyway. If Jira refuses it, a task Even Keel creates (a red main's fix task) is not filed. **Workaround:** turn `ci.fixTask` off, or put the fields back on the create screen.
 
 ### Jira MCP plugin
 
