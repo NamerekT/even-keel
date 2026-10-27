@@ -11,7 +11,8 @@ export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'de
 const DELETE_TOOLS = ['issue', 'project', 'component', 'milestone', 'label', 'comment', 'attachment', 'issue_template', 'drawing', 'activity_reply', 'related_issue_space_target'].map(name => `delete_${name}`)
 
 interface Rules { claude: string[]; codex: string[][]; copilot: string[] }
-const commands = (patterns: string[], prefixes: string[][]): Rules => ({ claude: patterns.map(pattern => `Bash(${pattern})`), codex: prefixes, copilot: patterns.map(pattern => `shell(${pattern})`) })
+/** Copilot, like Codex, matches a command's leading words (`shell(<prefix>:*)`); a `*` anywhere else matches nothing. */
+const commands = (patterns: string[], prefixes: string[][]): Rules => ({ claude: patterns.map(pattern => `Bash(${pattern})`), codex: prefixes, copilot: prefixes.map(prefix => `shell(${prefix.join(' ')}:*)`) })
 const push = (flags: string[], remotes: readonly string[]) => commands(
   flags.flatMap(flag => [`git push ${flag}*`, `git push * ${flag}*`]),
   flags.flatMap(flag => [['git', 'push', flag], ...remotes.map(remote => ['git', 'push', remote, flag])]),
@@ -21,7 +22,7 @@ const remove = (targets: string[]) => commands(
   ['-rf', '-fr'].flatMap(flags => targets.map(target => ['rm', flags, target])),
 )
 
-/** Codex matches literal argv prefixes; the remote names cover the usual `git push <remote> <flag>` order too. */
+/** Codex and Copilot match literal command prefixes; the remote names cover the usual `git push <remote> <flag>` order too. */
 export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = []): Rules {
   const groups: Record<(typeof PROTECTION_GROUPS)[number], Rules> = {
     forcePush: push(['--force', '--force-with-lease', '-f'], remotes),
@@ -33,9 +34,7 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     deleteTracker: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]) },
   }
   groups.forcePush.claude.push('Bash(git push * +*)')
-  groups.forcePush.copilot.push('shell(git push * +*)')
   groups.deleteRemote.claude.push('Bash(git push * :*)')
-  groups.deleteRemote.copilot.push('shell(git push * :*)')
   const enabled = PROTECTION_GROUPS.filter(group => !value.disabled.includes(group)).map(group => groups[group])
   const unique = <T>(values: T[]): T[] => [...new Map(values.map(value => [JSON.stringify(value), value])).values()]
   return {

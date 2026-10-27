@@ -85,8 +85,12 @@ edits them. New launches read current values; running processes are left alone. 
 OS sandbox or a guarantee against equivalent commands.
 
 Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport.
-Copilot receives `--deny-tool` alongside `--allow-all-tools`. Huly deletion rules name the plugin gateway and standalone
-server. Codex cannot deny MCP calls through execpolicy; the Huly group is labelled Claude/Copilot. OpenCode receives
+Copilot receives `--deny-tool` alongside `--allow-all-tools`. Its `shell(...)` rules are the same literal prefixes as
+Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` before each turn): Copilot matches a
+command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
+`shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch and a
+`+main` refspec cannot be caught on Copilot short of `shell(git push:*)`, which denies every push. Huly deletion rules
+name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy; the Huly group is labelled Claude/Copilot. OpenCode receives
 no Protection rules and the page says so. An agent without a sandbox and without Even Keel rules gets a warning linking
 to the project's session settings.
 

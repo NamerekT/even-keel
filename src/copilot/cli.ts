@@ -64,6 +64,8 @@ export interface TurnPlace {
   dirs: string[]
   /** The MCP servers to turn off: the project's, the account's and the plugins' own. */
   disabled: string[]
+  /** The folder's git remotes, for the Protection rules of `git push <remote> <flag>`. */
+  remotes: string[]
 }
 
 /**
@@ -80,7 +82,7 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'p
     '--no-auto-update',
     '--no-ask-user',
     `--${SESSION_MODE}`,
-    ...(start.protection === undefined ? [] : protectionRules(start.protection).copilot.flatMap(rule => ['--deny-tool', rule])),
+    ...(start.protection === undefined ? [] : protectionRules(start.protection, place.remotes).copilot.flatMap(rule => ['--deny-tool', rule])),
     ...(session.resume ? [`--resume=${session.id}`] : ['--session-id', session.id, '--name', name]),
     ...(model === null ? [] : ['--model', model]),
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),
@@ -221,7 +223,7 @@ export class CopilotCli {
    */
   private async turn(home: AccountHome, start: SessionStart, cwd: string, session: { id: string; resume: boolean }, failure: Notice): Promise<{ pid: number; out: string; at: number }> {
     const dirs = [await mainCheckout(cwd)].filter((dir): dir is string => dir !== null)
-    const place: TurnPlace = { cwd, dirs, disabled: ownServers(cwd, home.dir, start.plugins) }
+    const place: TurnPlace = { cwd, dirs, disabled: ownServers(cwd, home.dir, start.plugins), remotes: await remotesOf(cwd) }
     const at = Date.now()
     const out = this.registry.turnFile(start.name, at)
     const transcript = eventsFile(home.dir, session.id)
@@ -260,6 +262,10 @@ async function mainCheckout(cwd: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+async function remotesOf(cwd: string): Promise<string[]> {
+  return run('git', ['-C', cwd, 'remote'], { timeout: GIT_TIMEOUT_MS, windowsHide: true }).then(({ stdout }) => stdout.split(/\s+/).filter(Boolean), () => [])
 }
 
 async function size(file: string): Promise<number> {
