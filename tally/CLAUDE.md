@@ -17,7 +17,7 @@ The collector of session stats: it reads the transcripts of every account (Claud
 - **A schema change is a new step** at the end of `STEPS` (`src/migrations.ts`) and `TALLY_SCHEMA_VERSION` + 1 in the root's `src/stats/tally-schema.ts`; a view a step changes is redefined in full inside it. Never edit `schema.sql` or a merged step, never remove one.
 - The `audit_*` columns never change: the audit skill's queries rely on them, and `create or replace view` takes no column in the middle — something new goes into a separate view.
 - A new GPT model is a new price key in `tally.config.json`, never a shorter prefix such as `gpt-6`: one prefix would give every unlisted model of the family one price, and they differ 100×.
-- Codex, OpenCode and Copilot write only `messages` and `sessions`, no `lines`: signs, turns, steps and tool calls parse Claude's format.
+- Codex, OpenCode and Copilot write no `lines`: signs, steps and tool calls parse Claude's format. Codex turns are read directly from rollouts; OpenCode and Copilot have no turn times.
 - Tests are vitest next to the code; SQL views run on in-memory PGlite (`migrate`). Cost, `limit_shares`, the Huly time reports and LiteLLM are checked by a live run.
 
 ## Traps

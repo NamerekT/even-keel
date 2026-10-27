@@ -119,11 +119,18 @@ describe('the shipped tally.config.json', () => {
     shipped.prices.filter((price) => model.startsWith(price.model)).sort((a, b) => b.model.length - a.model.length)[0]
 
   it('prices the models Codex runs by their own entry, with the long prompt over 272k', () => {
-    for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+    for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
       expect(priceOf(model)?.model).toBe(model)
       expect(priceOf(model)?.longPrompt?.over).toBe(272_000)
     }
     expect(priceOf('gpt-5.4-mini')).toMatchObject({ model: 'gpt-5.4-mini', input: 0.75, output: 4.5, longPrompt: null })
+  })
+
+  it('uses the official Terra standard and long-context rates', () => {
+    expect(priceOf('gpt-6.1-terra')).toMatchObject({
+      input: 1, output: 5, cacheRead: 0.05, cacheWrite5m: 1.25,
+      longPrompt: { over: 272000, input: 2, output: 7.5, cacheRead: 0.1, cacheWrite5m: 2.5 },
+    })
   })
 
   it("leaves Codex's hidden models unpriced without a log line", () => {

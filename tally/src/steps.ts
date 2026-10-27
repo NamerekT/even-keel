@@ -1,6 +1,9 @@
 import { askModel, costRows, excerptOf, llmSettings, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
 import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
+import type { Source } from './load.js'
+import { rolloutSession } from './rollout.js'
+import { readRolloutTurns, rolloutTurnsKey } from './rollout-turns.js'
 import { fetchTasks, reportTimes } from './huly.js'
 import { byCredentials, type HulyOf } from './huly-profiles.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
@@ -28,13 +31,31 @@ export async function refreshSigns(db: TallyDb, rules: SignRules): Promise<{ ses
   return { sessions, spans }
 }
 
-export async function refreshTurns(db: TallyDb): Promise<number> {
+export async function refreshTurns(
+  db: Pick<TallyDb, 'turnStates' | 'writeTurns' | 'sessionEntries'>,
+  rollouts: Source[] = [],
+  onReadError?: (path: string, error: unknown) => void,
+): Promise<number> {
   let sessions = 0
+  const paths = new Map(rollouts.map((source) => [rolloutSession(source.path), source.path]))
   for (const state of await db.turnStates()) {
+    const path = paths.get(state.sessionId)
+    if (path === undefined && state.key?.startsWith('codex:')) continue
     const launched = state.launchReason != null
-    const key = turnsKey(launched)
+    const key = path === undefined ? turnsKey(launched) : rolloutTurnsKey(launched)
     if (state.key === key && state.signedAt === state.lastAt) continue
-    await db.writeTurns(state.sessionId, state.lastAt, key, turnsOf(await db.sessionEntries(state.sessionId), launched))
+    let turns
+    if (path === undefined) turns = turnsOf(await db.sessionEntries(state.sessionId), launched)
+    else {
+      try {
+        turns = await readRolloutTurns(path, launched)
+      } catch (error) {
+        if (onReadError === undefined) throw error
+        onReadError(path, error)
+        continue
+      }
+    }
+    await db.writeTurns(state.sessionId, state.lastAt, key, turns)
     sessions++
   }
   return sessions
