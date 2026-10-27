@@ -14,7 +14,7 @@ describe('copilot home', () => {
     dir = mkdtempSync(join(tmpdir(), 'copilot-'))
     writeToken(dir, 'github_pat_11AAAAAAA0demo')
     const env = copilotEnv({ PATH: 'x', GH_TOKEN: 'gho_other', GITHUB_TOKEN: 'ghu_other' }, dir)
-    expect(env).toMatchObject({ PATH: 'x', COPILOT_HOME: dir, COPILOT_AUTO_UPDATE: 'false', COPILOT_GITHUB_TOKEN: 'github_pat_11AAAAAAA0demo' })
+    expect(env).toMatchObject({ PATH: 'x', COPILOT_HOME: dir, COPILOT_AUTO_UPDATE: 'false', COPILOT_GITHUB_TOKEN: 'github_pat_11AAAAAAA0demo', EVEN_KEEL_AGENT: 'copilot' })
     expect(env.GH_TOKEN).toBeUndefined()
     expect(env.GITHUB_TOKEN).toBeUndefined()
   })

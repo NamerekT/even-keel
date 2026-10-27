@@ -4,7 +4,7 @@
 // going; before AskUserQuestion it turns the question down, so that the question does not hang next to an
 // unread message. Subagents are left alone: the message waits for the main thread.
 import { readFileSync } from "node:fs";
-import { mailOf } from "./evenkeel.mjs";
+import { contextOutput, mailOf } from "./evenkeel.mjs";
 
 function readInput() {
   try {
@@ -19,7 +19,7 @@ function outputOf(hookEvent, event, message) {
   if (event === "AskUserQuestion") {
     return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: message } };
   }
-  return { hookSpecificOutput: { hookEventName: hookEvent, additionalContext: message } };
+  return contextOutput(hookEvent, message);
 }
 
 async function main() {

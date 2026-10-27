@@ -32,9 +32,9 @@ beforeAll(async () => {
 
 afterAll(() => server.close());
 
-function run(script, input, evenKeel = url) {
+function run(script, input, evenKeel = url, env = {}) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [join(HOOKS, script)], { env: { ...process.env, EVEN_KEEL_URL: evenKeel } });
+    const child = spawn(process.execPath, [join(HOOKS, script)], { env: { ...process.env, EVEN_KEEL_URL: evenKeel, EVEN_KEEL_AGENT: undefined, ...env } });
     let stdout = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.on("close", (code) => resolve({ code, stdout }));
@@ -63,6 +63,17 @@ const agents = {
     ...extra,
   }),
 };
+
+/** What Copilot CLI 1.0.98 sends; Even Keel marks its sessions with EVEN_KEEL_AGENT. */
+const copilot = (session, event, extra) => ({
+  hook_event_name: event,
+  session_id: session,
+  timestamp: 1793063766379,
+  cwd: "D:\\repo",
+  traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+  ...extra,
+});
+const runCopilot = (script, input) => run(script, input, url, { EVEN_KEEL_AGENT: "copilot" });
 
 const checkpoint = (context) => ({ project: "ABC", task: "ABC-1", handoffs: 0, first: 200_000, source: "default", context });
 const sessions = [];
@@ -224,6 +235,50 @@ describe.each(Object.entries(agents))("the standards hook on %s input", (_agent,
     expect(await run("standard-gate.mjs", edit(session, "web/src/Panel.test.tsx"))).toEqual({ code: 0, stdout: "" });
     expect(await run("standard-gate.mjs", edit(session, "src/server.ts"))).toEqual({ code: 0, stdout: "" });
     expect(await run("standard-gate.mjs", edit(session, "web/src/Panel.tsx"), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
+  });
+});
+
+// Copilot drops hookSpecificOutput.additionalContext on PostToolUse and takes a top-level one on every event.
+describe("hooks on copilot input", () => {
+  const toolUse = (session) => copilot(session, "PostToolUse", { tool_name: "powershell", tool_input: { command: "npm test" }, tool_result: { resultType: "success" } });
+  let repo;
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "standards-hook-"));
+    mkdirSync(join(repo, "docs"));
+    writeFileSync(join(repo, "docs", "design.md"), "# Design\n\nCards, not text dumps.\n");
+  });
+  afterAll(() => {
+    rmSync(repo, { recursive: true, force: true });
+    for (const id of sessions) rmSync(join(tmpdir(), "claude-context-checkpoint", `${id}.standards.json`), { force: true });
+  });
+
+  it("puts a chat message into the context as a top-level additionalContext before and after a tool call", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/mail`, { message: "Use the other parser." });
+    expect(JSON.parse((await runCopilot("mailbox.mjs", toolUse(session))).stdout)).toEqual({ additionalContext: "Use the other parser." });
+    const before = await runCopilot("mailbox.mjs", copilot(session, "PreToolUse", { tool_name: "view", tool_input: {} }));
+    expect(JSON.parse(before.stdout)).toEqual({ additionalContext: "Use the other parser." });
+  });
+
+  it("keeps the turn going at a stop with the message as the reason", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/mail`, { message: "One more thing." });
+    expect(JSON.parse((await runCopilot("mailbox.mjs", copilot(session, "Stop", {}))).stdout)).toEqual({ decision: "block", reason: "One more thing." });
+  });
+
+  it("nudges with a top-level additionalContext once the context passes the threshold", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/checkpoint`, checkpoint(205_000));
+    const nudged = JSON.parse((await runCopilot("context-checkpoint.mjs", toolUse(session))).stdout);
+    expect(nudged).toEqual({ additionalContext: expect.stringMatching(/~205k tokens/) });
+  });
+
+  it("gives a standard's document as a top-level additionalContext after the first read", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/standards`, { standards: [{ doc: "docs/design.md", files: ["web/src/**/*.tsx"] }] });
+    const read = { ...copilot(session, "PostToolUse", { tool_name: "view", tool_input: { path: join(repo, "web/src/Panel.tsx") }, tool_result: {} }), cwd: repo };
+    const given = JSON.parse((await runCopilot("standard-gate.mjs", read)).stdout);
+    expect(given).toEqual({ additionalContext: expect.stringContaining("Cards, not text dumps.") });
   });
 });
 

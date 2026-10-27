@@ -6,7 +6,7 @@
 // threshold and how many handoffs the task has had come from Even Keel, which reads the
 // transcript of either agent (nudges.mjs); a session Even Keel did not start is left alone.
 import { readFileSync } from "node:fs";
-import { checkpointNote } from "./evenkeel.mjs";
+import { checkpointNote, contextOutput } from "./evenkeel.mjs";
 
 function readInput() {
   try {
@@ -21,7 +21,7 @@ async function main() {
   if (!input || input.agent_id || !input.session_id) return;
   const note = await checkpointNote(input.session_id);
   if (note === null) return;
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: note } }));
+  process.stdout.write(JSON.stringify(contextOutput("PostToolUse", note)));
 }
 
 // No Even Keel, or no answer in time, must never break the tool call.

@@ -1,4 +1,4 @@
-// What the hooks ask Even Keel about a session, shared by the hook commands of Claude Code and Codex and by
+// What the hooks ask Even Keel about a session, shared by the hook commands of Claude Code, Codex and Copilot and by
 // OpenCode's plugin (../opencode/checkpoint.mjs): the checkpoint nudge due now, the chat's waiting messages, the
 // check before a merge, the project's standards and whether the turn wrote the handoff note at its end.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -9,6 +9,16 @@ import { markOf, nudge, planOf } from "./nudges.mjs";
 export const STATE_DIR = join(tmpdir(), "claude-context-checkpoint");
 
 const base = () => (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
+
+/**
+ * A hook's output that puts `text` into the model's context. Copilot drops `hookSpecificOutput.additionalContext` on
+ * PostToolUse and takes a top-level `additionalContext` on every event; Even Keel marks its sessions with
+ * EVEN_KEEL_AGENT. Claude Code and Codex get the shape of their own docs.
+ */
+export function contextOutput(hookEvent, text, env = process.env) {
+  if (env.EVEN_KEEL_AGENT === "copilot") return { additionalContext: text };
+  return { hookSpecificOutput: { hookEventName: hookEvent, additionalContext: text } };
+}
 
 function loadMark(sessionId) {
   try {

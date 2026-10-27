@@ -5,7 +5,7 @@
 // PULL REQUEST mark is sent back while the standard's check is not done, as the merge is refused (merges.mjs). A
 // subagent keeps marks of its own. A session Even Keel did not start, or a project without standards, is left alone.
 import { readFileSync } from "node:fs";
-import { checkOf, STATE_DIR, standardsOf } from "./evenkeel.mjs";
+import { checkOf, contextOutput, STATE_DIR, standardsOf } from "./evenkeel.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt, standardsRefusal, wantsPullRequest } from "./standards.mjs";
 
 function readInput() {
@@ -23,7 +23,7 @@ async function onTool(input, root) {
   if (standards.length === 0) return null;
   const found = standardsAt(moment, input.tool_name, input.tool_input, root, standards, givenStore(STATE_DIR, input.session_id, input.agent_id));
   if (found === null) return null;
-  if (found.give !== undefined) return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: found.give } };
+  if (found.give !== undefined) return contextOutput("PostToolUse", found.give);
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: found.deny } };
 }
 
