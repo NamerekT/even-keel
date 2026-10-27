@@ -89,6 +89,40 @@ export class McpOAuth {
 
   forget(id: string): void { this.flows.delete(id) }
 
+  /** Checks the selected grant, refreshing it on expiry or one upstream rejection. */
+  async check(id: string, kind: string, values: Record<string, string>, draft?: OAuthDraft): Promise<OAuthRecord> {
+    const flow = draft === undefined ? undefined : this.flow(id)
+    const initial = draft === undefined ? this.deps.get(id) : this.completed(id, draft)
+    if (!initial || initial.reconnect) throw fail('profiles.oauthReconnect', {})
+    let record = initial
+    const renew = async (rejected?: string) => {
+      if (!flow) return this.token(id, rejected)
+      if (record.accessToken !== rejected && (record.expiresAt === null || record.expiresAt > this.now() + 30_000)) return record.accessToken
+      if (!record.refreshToken) throw new OAuthRefused()
+      record = await exchange(record, { grant_type: 'refresh_token', refresh_token: record.refreshToken }, this.request, this.now())
+      flow.record = record
+      return record.accessToken
+    }
+    let token: string | undefined
+    try {
+      token = await renew()
+      try { await this.deps.verify(kind, values, token) }
+      catch (error) {
+        if (!(error instanceof OAuthRefused)) throw error
+        token = await renew(token)
+        await this.deps.verify(kind, values, token)
+      }
+    } catch (error) {
+      if (error instanceof OAuthRefused) {
+        if (flow) flow.record = { ...record, reconnect: true }
+        else if (token) await this.refused(id, token)
+        throw fail('profiles.oauthReconnect', {})
+      }
+      throw error
+    }
+    return flow?.record ?? this.deps.get(id)!
+  }
+
   async token(id: string, rejected?: string): Promise<string> {
     const record = this.deps.get(id)
     if (!record || record.reconnect) throw fail('profiles.oauthReconnect', {})

@@ -193,6 +193,13 @@
   gap: var(--space-8);
 }
 
+.profile-mcp__fallback {
+  display: grid;
+  gap: var(--space-8);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-12);
+}
+
 @media (max-width: 760px) {
   .profile-form .add-package__foot {
     flex-wrap: wrap;
