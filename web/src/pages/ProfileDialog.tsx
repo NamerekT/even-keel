@@ -26,7 +26,7 @@ interface DialogProps {
   onSaved?: (id: string) => void
 }
 
-/** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
+/** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Check and save. */
 export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [grant, setGrant] = useState<GrantChoice>(undefined)
@@ -126,7 +126,7 @@ interface FieldsProps {
 }
 
 interface Checked {
-  /** The values the check was of: Save is open while the fields still hold them. */
+  /** The values the check was of: unchanged fields can reuse its result. */
   values: string
   result: CheckResult
 }
@@ -177,11 +177,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const draft = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
   const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
 
-  const run = async <T,>(route: string, extra: Record<string, unknown> = {}): Promise<T | null> => {
+  const run = async <T,>(action: () => Promise<T>): Promise<T | null> => {
     setBusy(true)
     setFailure(null)
     try {
-      return await query<T>(route, { ...draft, ...oauth, ...extra })
+      return await action()
     } catch (error) {
       setFailure(noticeOf(error))
       return null
@@ -192,16 +192,21 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
 
   const check = async () => {
     setChecked(null)
-    const result = await run<CheckResult>('profiles/check')
-    if (result === null) return
+    const result = await query<CheckResult>('profiles/check', { ...draft, ...oauth })
     setChecked({ values: checkKey, result })
     if (name.trim() === '' || name === checked?.result.name) setName(result.name)
+    return result
   }
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (!fresh) return
-    const saved = await run<{ id: string }>('profiles/save', { name: name.trim() })
+    if (busy) return
+    const saved = await run(async () => {
+      const result = fresh ? checked.result : await check()
+      if (!fresh && result.duplicate !== null) return null
+      const saveName = name.trim() === '' || name === checked?.result.name ? result.name : name.trim()
+      return query<{ id: string }>('profiles/save', { ...draft, ...oauth, name: saveName })
+    })
     if (saved === null) return
     onSaved?.(saved.id)
     onFinish()
@@ -209,7 +214,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
 
   return (
     <form className="add-package__form profile-form" onSubmit={(event) => void save(event)}>
-      <div className="add-package__body">
+      <div className="add-package__body" inert={busy}>
         <Rights kind={kind} stress={stress} />
         {kind.alternatives.length > 1 && (
           <fieldset className="add-package__field">
@@ -278,11 +283,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
         <button type="button" className="button" onClick={onClose}>
           {t.packages.cancel}
         </button>
-        <button type="button" className="button" disabled={busy} onClick={() => void check()}>
-          {busy ? t.profiles.checking : t.profiles.check}
+        <button type="button" className="button" disabled={busy} onClick={() => void run(check)}>
+          {t.profiles.check}
         </button>
-        <button type="submit" className="button button--primary" disabled={!fresh || busy}>
-          {t.profiles.save}
+        <button type="submit" className="button button--primary" disabled={busy}>
+          {busy ? t.profiles.checking : t.profiles.save}
         </button>
       </footer>
     </form>
