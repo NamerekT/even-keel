@@ -188,6 +188,7 @@ Pull request mode sits here, as in `unverified.md`.
 
 | Behaviour | Where | Date | Versions | Task, commit | Result | Session |
 | --- | --- | --- | --- | --- | --- | --- |
+| Jira profile check with separate REST and MCP tokens: REST alone accepted, the Atlassian MCP V2 token accepted with the profile site in `getAccessibleAtlassianResources` (`data.resources`), the REST token in the MCP field refused with `jira.mcpToken`; profile dialog and its token creation link inspected in dark desktop/mobile and light desktop | a live Jira Cloud site and the official MCP v2 endpoint; `dev:fake` for the dialog | 2026-10-27 | MCP protocol 2025-06-18 | BTN-472 | with a caveat: a chain session through the gateway remains open in `unverified.md` | — |
 | The tracker's vocabulary on three projects with an empty chain, one per tracker: the route answered for each and the panel's rule lists offered the tracker's statuses and labels | the workstation | 2026-10-18 | Huly, GitHub, Linear | EVK-1, `9703041f` | whole | |
 | `milestoneTasks` on Huly: the milestones of a project by label, their issues and the newest chat message of each (BTN `v0.1`: 178 tasks, 172 in `Won`) | the workstation | 2026-10-18 | Huly | BTN-142, `46aa976d` | whole | |
 | The expiry of a classic GitHub token read from the `github-authentication-token-expiration` header | GitHub | 2026-10-18 | GitHub | BTN-200, `273f8344` | whole (the fine-grained one is the row below) | |
