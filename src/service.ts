@@ -903,8 +903,9 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 }
 
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
-const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection'> => ({
+const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch'> => ({
   protection: (project === undefined ? undefined : configStore.current.settings[project]?.protection) ?? configStore.current.protection,
+  ...(project === undefined ? {} : { mainBranch: branchOf(project) }),
   ...(home.agent !== CLAUDE && configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
   ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
 })

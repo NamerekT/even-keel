@@ -9,12 +9,14 @@ apply when a session starts; running sessions keep their existing settings.
 Claude Code receives permission deny rules; Copilot receives tool deny rules. Codex receives command-prefix rules,
 which also work in its full-access mode. Codex and Copilot match literal command prefixes only: defaults cover common
 push flag orders (`git push -f`, `git push origin -f` for each of the project's remotes) and literal recursive-delete
-targets. Other argument orders, refspecs, shell expansions and, on Codex, MCP calls are outside those rules: on Copilot
+targets. On Codex they also cover the refspecs that force-push or delete the project's main branch on each remote
+(`git push origin +main`, `+HEAD:main`, `:main`) and the other spellings of those targets (`C:\`, `~/`, `$HOME/`,
+`../`, `/*`). Other argument orders, refspecs, shell expansions and, on Codex, MCP calls are outside those rules: on Copilot
 `git push origin main --force` and a `+main` refspec still run, and only denying every `git push` would stop them. A
 Copilot rule of your own is written `shell(<command>:*)` for a prefix; a `*` anywhere else in it matches nothing. What does not hold on Codex, as seen live: a command with a redirection (`2>&1`, `> file`),
 a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
 in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a
-`+main` refspec, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
+refspec of another branch, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
 checked command by command. Huly deletion rules apply to Claude and Copilot. OpenCode receives no Protection rules.
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
 Rules can reduce accidental actions; they are not an OS sandbox.

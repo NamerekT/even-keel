@@ -77,6 +77,8 @@ export interface SessionStart {
   bypassSandbox?: boolean
   /** Native deny rules resolved from the current shared and project Protection settings. */
   protection?: import('../sessions/protection.js').Protection
+  /** Optional. The project's main branch, for the Protection rules that forbid force-pushing or deleting it by a refspec. */
+  mainBranch?: string
   /**
    * Optional. The MCP servers of the project's packages, all behind Even Keel's gateway (`src/packages/`): the session
    * gets these and no other. `undefined` — the agent's own configuration decides.
