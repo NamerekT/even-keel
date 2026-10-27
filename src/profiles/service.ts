@@ -78,6 +78,7 @@ export class Profiles {
   constructor(private readonly deps: ProfilesDeps) {
     this.set = deps.set
     this.oauth = new McpOAuth({
+      log: deps.log,
       get: (id) => this.profile(id)?.mcpOAuth,
       put: async (id, expected, next) => {
         const current = this.profile(id)
