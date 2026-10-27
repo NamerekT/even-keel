@@ -1,5 +1,6 @@
 import type { ChainRules } from '../chain/rules.js'
 import type { TrackerAdapter } from '../tracker/source.js'
+import type { OAuthRecord } from './oauth-protocol.js'
 
 /**
  * The chain rules a tracker profile may set (BTN-66): its statuses and labels, which differ from tracker to tracker. The
@@ -30,6 +31,8 @@ export interface TrackerProfile {
   expiresAt: string | null
   /** The chain rules of its projects, between the shared ones and a project's own; none — it sets none. */
   rules?: ProfileRules
+  /** MCP-only credentials: never part of the key pool or agent settings. */
+  mcpOAuth?: OAuthRecord
 }
 
 export interface ProfileSet {

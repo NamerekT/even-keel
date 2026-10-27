@@ -36,6 +36,13 @@ describe('profile store', { timeout: 60_000 }, () => {
   })
   afterEach(() => db.close())
 
+  it('round-trips MCP OAuth separately from the profile key pool', async () => {
+    const item = profile('oauth', 'linear', true, { LINEAR_TOKEN: 'rest' })
+    item.mcpOAuth = { server: 'https://mcp.linear.app/mcp', clientId: 'client', tokenEndpoint: 'https://mcp.linear.app/token', redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.linear.app/mcp', accessToken: 'access', refreshToken: 'refresh', expiresAt: 123456 }
+    await saveProfiles(db, { profiles: [item], links: {} })
+    expect((await readProfiles(db)).profiles).toEqual([item])
+  })
+
   const importFrom = (env: Record<string, string | undefined>) =>
     importProfiles({ db, env, adapters: ADAPTERS, trackers: { [ABC]: 'huly', [XYZ]: 'github', [LMN]: 'huly' }, log: (line) => logs.push(line) })
 

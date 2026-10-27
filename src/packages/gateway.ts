@@ -37,6 +37,17 @@ export interface GatewayTarget {
   npm: string | null
   /** Variables a stdio server gets on top of its entry's `env`. */
   env: Record<string, string>
+  oauth?: GatewayOAuth
+}
+
+export interface GatewayOAuth {
+  token(rejected?: string): Promise<string>
+  refused(token: string): Promise<void>
+}
+
+/** OAuth replaces only Authorization; other headers and their required keys still apply. */
+export function withoutAuthorization(entry: ServerEntry): ServerEntry {
+  return { ...entry, headers: Object.fromEntries(Object.entries(stringsOf(entry.headers)).filter(([name]) => name.toLowerCase() !== 'authorization')) }
 }
 
 export interface GatewayDeps {
@@ -112,7 +123,7 @@ export class McpGateway {
     try {
       if (req.method === 'POST') body = await readBody(req)
       const { entry } = target
-      if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers), body)
+      if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers), body, target.oauth)
       if (typeof entry.command !== 'string') return void res.writeHead(404).end()
       local = true
       const mode = target.npm === null ? undefined : HTTP_MODES[target.npm]
@@ -330,7 +341,7 @@ class Bridge {
   }
 }
 
-async function proxy(req: IncomingMessage, res: ServerResponse, url: string, headers: Record<string, string>, body: Buffer | undefined): Promise<void> {
+async function proxy(req: IncomingMessage, res: ServerResponse, url: string, headers: Record<string, string>, body: Buffer | undefined, oauth?: GatewayOAuth): Promise<void> {
   const forward: Record<string, string> = {}
   for (const name of FORWARD) {
     const value = req.headers[name]
@@ -340,12 +351,21 @@ async function proxy(req: IncomingMessage, res: ServerResponse, url: string, hea
   res.on('close', () => abort.abort())
   // The client may have left while a shared server was still coming up.
   if (req.socket.destroyed) abort.abort()
-  const response = await fetch(url, {
+  const send = (authorization?: string) => fetch(url, {
     method: req.method,
-    headers: { ...forward, ...headers },
+    headers: { ...forward, ...(oauth ? stringsOf(withoutAuthorization({ headers }).headers) : headers), ...(authorization === undefined ? {} : { authorization: `Bearer ${authorization}` }) },
     body: body === undefined ? undefined : new Uint8Array(body),
     signal: abort.signal,
+    redirect: 'error',
   })
+  let token = await oauth?.token()
+  let response = await send(token)
+  if (oauth && response.status === 401) {
+    await response.body?.cancel()
+    token = await oauth.token(token)
+    response = await send(token)
+    if (response.status === 401) await oauth.refused(token)
+  }
   const back: Record<string, string> = {}
   for (const name of BACK) {
     const value = response.headers.get(name)

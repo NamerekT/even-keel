@@ -136,6 +136,11 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
             <span className="tools__chip tools__chip--lost">{t.profiles.pullsRefused}</span>
           </Tipped>
         )}
+        {profile.mcpOAuth?.state === 'reconnect' && (
+          <Tipped tip={t.profiles.mcp.revoked} focusable inline>
+            <span className="tools__chip tools__chip--lost">{t.profiles.mcp.revokedChip}</span>
+          </Tipped>
+        )}
       </div>
       <div className="profile-row__actions">
         <button type="button" className="profile-row__action" aria-haspopup="dialog" disabled={sending} onClick={onEdit}>

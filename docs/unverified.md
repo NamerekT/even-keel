@@ -53,6 +53,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37e | [Jira Cloud](#jira-cloud) | Jira Cloud projects | issues, blockers or versions may not reach the chain, a task may not close, or a file may not open |
 | 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin | a session gets no Jira tools and cannot read or update its issue |
+| 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear, GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
@@ -445,6 +446,18 @@ If one is wrong, the profile check fails, the chain reads fewer issues, a task s
 ### Jira MCP plugin
 
 The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtlassianResources` check and refusal when the REST token is used for MCP were checked on 2026-10-27 (BTN-472, [verified log](verified.md#trackers)). MCP v2 returned `data.resources` with `cloudId`, site URL and product access. The plugin's `.mcp.json` and the gateway's Basic header use `JIRA_EMAIL:JIRA_MCP_TOKEN` and are checked by tests; a session through that gateway remains unchecked. Still to check there: the Jira tool names the `jira:task` skill uses (`getJiraIssue`, `editJiraIssue`, `createJiraIssueLink`, `addOrEditJiraIssueComment`, `transitionJiraIssue`…), and the direction of a `Blocks` link made by `createJiraIssueLink`, which the skill tells the session to read back. If any is wrong, a plugin session cannot read or update its issue or files the link the wrong way. **Workaround:** remove the plugin from the project and leave `brief` on auto, so the prompt carries the issue; record decisions in Jira yourself.
+
+### MCP through OAuth on a tracker profile (BTN-475)
+
+The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`; no real provider has been used. Assumed:
+
+- Rovo (`mcp.atlassian.com`) and Linear (`mcp.linear.app`) publish `/.well-known/oauth-authorization-server` on the MCP server's own origin, with S256 and a registration endpoint, and accept a public client registered with an `http://localhost:4747/…` or an HTTPS Tailscale callback;
+- the token endpoints accept `resource` (RFC 8707) and answer `token_type: Bearer`, with a refresh token; Rovo's access token passes `getAccessibleAtlassianResources` for the profile's site, and Atlassian lets the consent pick that site;
+- GitHub's MCP server (`api.githubcopilot.com/mcp/`) accepts the OAuth App's `gho_` token with the scopes `repo read:org`, and GitHub's `access_token` answer in JSON is enough (no refresh token, no expiry);
+- the browser's guard cookie reaches `GET /api/profiles/oauth/callback` on the provider's redirect (a top-level navigation, `SameSite=Lax`), and the page opened through Tailscale Service has the same `Host` as its `Origin`;
+- a refused refresh or a second 401 marks the grant for reconnecting, and a session's tool call meanwhile fails with an MCP error rather than hangs.
+
+If one is wrong, the button ends in "MCP OAuth did not complete" or the profile's row says "MCP access lost" soon after; sessions get no tracker tools while REST keeps working. **Workaround:** disconnect OAuth in the profile and use the MCP token (Jira: Atlassian MCP V2 token; GitHub, Linear: the profile's token).
 
 ### Two profiles of one tracker (BTN-200)
 

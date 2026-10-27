@@ -25,8 +25,8 @@ const KINDS: ProfileKindView[] = [
     help: 'https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials',
     tracker: true,
   },
-  { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new' },
-  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security' },
+  { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new', mcpOAuth: true },
+  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpOAuth: true },
   { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/' },
   {
     kind: 'jira',
@@ -41,6 +41,7 @@ const KINDS: ProfileKindView[] = [
     hostVariables: ['JIRA_URL'],
     alternatives: [],
     help: 'https://id.atlassian.com/manage-profile/security/api-tokens',
+    mcpOAuth: true,
   },
   {
     kind: 'forgejo',
@@ -177,6 +178,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     login: 'john.doe@example.com', expiresAt: null,
     check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
     projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+    ...(mode === 'jira-oauth' ? { mcpOAuth: { state: 'connected' as const } } : mode === 'jira-revoked' ? { mcpOAuth: { state: 'reconnect' as const } } : {}),
   }
   if (mode?.startsWith('jira')) return { profiles: [jira], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, gitlab, jira, forgejo] : [huly, github, forgejo], kinds: KINDS }
@@ -222,6 +224,14 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   const values = (body.values ?? {}) as Record<string, string | null>
   if (name === 'profiles/check' && kind === 'forgejo' && values.FORGEJO_URL === 'https://gitlab.com') throw fail('profiles.isGitlab', { host: 'gitlab.com' })
   if (name === 'profiles/check' && kind === 'jira' && values.JIRA_MCP_TOKEN === 'no-site') throw fail('jira.mcpSite', {})
+  // The consent window is about:blank and the grant is ready at the first poll.
+  if (name === 'profiles/oauth/start') {
+    const client = body.client as { id?: string; secret?: string } | undefined
+    if (kind === 'github' && (!client?.id || !client.secret)) throw fail('profiles.oauthClient', {})
+    return { flow: 'fake-flow', url: 'about:blank' }
+  }
+  if (name === 'profiles/oauth/status') return { state: 'ready', error: null }
+  if (name === 'profiles/oauth/cancel') return {}
   if (name === 'profiles/projects') {
     const profile = state.profiles.profiles.find((each) => each.id === body.id)
     const query = String(body.query ?? '').toLowerCase()
@@ -259,6 +269,7 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     deniedPulls: [],
     rules: stored?.rules ?? {},
     projectIds: stored?.projectIds ?? [],
+    ...(typeof body.oauth === 'string' ? { mcpOAuth: { state: 'connected' as const } } : body.oauth === null || stored?.mcpOAuth === undefined ? {} : { mcpOAuth: stored.mcpOAuth }),
   }
   const profiles = stored === undefined ? [...view.profiles, profile] : view.profiles.map((each) => (each.id === id ? profile : each))
   return { ...state, profiles: { ...view, profiles } }

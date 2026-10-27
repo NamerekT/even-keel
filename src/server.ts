@@ -50,7 +50,7 @@ import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
-import { PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
+import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
 export type { ProfilesControl } from './profiles/routes.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
@@ -329,7 +329,7 @@ const COMMANDS: Record<string, Command> = {
 }
 
 /** POST calls that answer with their own result rather than the state. */
-const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) => Promise<unknown>> = {
+const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>> = {
   ...PROFILE_QUERIES,
   'changelog/open': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'open' }),
   'changelog/again': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'again' }),
@@ -422,6 +422,8 @@ function guardedServer(settings: () => GuardSettings, handle: (request: Incoming
 async function route(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://localhost')
   const path = url.pathname
+
+  if (request.method === 'GET' && path === '/api/profiles/oauth/callback') return oauthCallback(deps.profiles, url.searchParams, response)
 
   if (request.method === 'GET' && path === '/api/state') {
     sendJson(response, 200, deps.getState())
@@ -664,7 +666,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   if (query !== undefined) {
     let result: unknown
     try {
-      result = await query(deps, await readJsonBody(request, MAX_BODY_BYTES))
+      result = await query(deps, await readJsonBody(request, MAX_BODY_BYTES), request)
     } catch (error) {
       sendFailure(response, error)
       return

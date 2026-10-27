@@ -12,5 +12,6 @@ export function profileDraftOf(body: Record<string, unknown>): ProfileDraft {
     values[name] = value
   }
   if (body.id !== undefined && (typeof body.id !== 'string' || body.id === '')) throw fail('request.required', { field: 'id' })
-  return { ...(body.id === undefined ? {} : { id: body.id }), kind: body.kind, values }
+  if (body.oauth !== undefined && body.oauth !== null && (typeof body.oauth !== 'string' || !body.oauth)) throw fail('request.required', { field: 'oauth' })
+  return { ...(body.id === undefined ? {} : { id: body.id }), kind: body.kind, values, ...(body.oauth === undefined ? {} : { oauth: body.oauth as string | null }) }
 }

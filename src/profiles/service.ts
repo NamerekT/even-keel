@@ -9,6 +9,10 @@ import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '..
 import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, type ProfileKinds, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
 import { cleanRules } from './rules.js'
 import { saveProfiles } from './store.js'
+import { McpOAuth, MCP_OAUTH, type OAuthRecord } from './oauth.js'
+import type { OAuthClient } from './oauth-protocol.js'
+import { checkJiraMcp } from '../jira/mcp.js'
+import type { GatewayOAuth } from '../packages/gateway.js'
 
 /** How often every profile is checked again: a revoked token turns its profile red and pauses its chains. */
 export const RECHECK_MS = 15 * 60_000
@@ -56,6 +60,8 @@ export interface ProfileDraft {
   id?: string
   kind: string
   values: ProfileValues
+  /** A completed browser grant, or null to return to the profile's API token. */
+  oauth?: string | null
 }
 
 /**
@@ -64,12 +70,57 @@ export interface ProfileDraft {
  * `env` of the global `settings.json`.
  */
 export class Profiles {
+  readonly oauth: McpOAuth
   private set: ProfileSet
   private readonly checks = new Map<string, ProfileCheck>()
   private timer: NodeJS.Timeout | undefined
 
   constructor(private readonly deps: ProfilesDeps) {
     this.set = deps.set
+    this.oauth = new McpOAuth({
+      get: (id) => this.profile(id)?.mcpOAuth,
+      put: async (id, expected, next) => {
+        const current = this.profile(id)
+        if (current?.mcpOAuth !== expected) return false
+        this.replace({ ...this.set, profiles: this.set.profiles.map((each) => each.id === id ? { ...each, mcpOAuth: next } : each) }, null)
+        await this.deps.writes.settled()
+        return true
+      },
+      verify: async (kind, values, token) => {
+        if (kind === 'jira') await checkJiraMcp(values as Record<string, string>, deps.timeoutMs, fetch, `Bearer ${token}`)
+      },
+    })
+  }
+
+  async connectMcp(draft: ProfileDraft, redirect: string, client?: OAuthClient): Promise<{ flow: string; url: string }> {
+    const { values } = this.valuesOf(draft)
+    return this.oauth.start({ ...draft, values }, redirect, client)
+  }
+
+  gateway(id: string | undefined, kind: string, url: unknown): GatewayOAuth | undefined {
+    const profile = id === undefined ? undefined : this.profile(id)
+    const record = profile?.mcpOAuth
+    if (!profile || profile.kind !== kind || !record || typeof url !== 'string') return undefined
+    const expected = MCP_OAUTH[kind]?.url
+    if (!expected || record.server !== expected) return undefined
+    try {
+      const target = new URL(url)
+      const source = new URL(expected)
+      if (target.origin !== source.origin || target.pathname !== source.pathname || target.username || target.password) return undefined
+    } catch { return undefined }
+    return { token: (rejected) => this.oauth.token(profile.id, rejected), refused: (token) => this.oauth.refused(profile.id, token) }
+  }
+
+  private oauthOf(draft: ProfileDraft, values: Record<string, string>): OAuthRecord | undefined {
+    if (draft.oauth === null) return undefined
+    if (typeof draft.oauth === 'string') return this.oauth.completed(draft.oauth, { ...draft, values })
+    const stored = draft.id === undefined ? undefined : this.profile(draft.id)
+    if (stored?.mcpOAuth && JSON.stringify(values) !== JSON.stringify(stored.values)) {
+      // A new REST identity must not keep the previous MCP identity silently.
+      const identity = this.deps.kinds[draft.kind]?.hostVariables ?? []
+      if (identity.some((key) => values[key] !== stored.values[key])) throw fail('profiles.oauthExpired', {})
+    }
+    return stored?.mcpOAuth
   }
 
   current(): ProfileSet {
@@ -96,6 +147,7 @@ export class Profiles {
         deniedPulls: this.deps.deniedPulls?.(profile.id) ?? [],
         rules: profile.rules ?? {},
         projectIds: this.projectsOn(profile).map(([id]) => id),
+        ...(profile.mcpOAuth === undefined ? {} : { mcpOAuth: { state: profile.mcpOAuth.reconnect ? 'reconnect' as const : 'connected' as const } }),
       })),
       kinds: Object.entries(this.deps.kinds).map(([kind, each]) => ({
         kind,
@@ -105,12 +157,14 @@ export class Profiles {
         hostVariables: [...each.hostVariables],
         alternatives: (each.alternatives ?? []).map((names) => [...names]),
         help: each.help,
+        ...(MCP_OAUTH[kind] === undefined ? {} : { mcpOAuth: true }),
       })),
     }
   }
 
   async check(draft: ProfileDraft): Promise<CheckResult> {
     const { adapter, values } = this.valuesOf(draft)
+    this.oauthOf(draft, values)
     const account = await this.account(adapter, values)
     const duplicate = sameAccount(this.set, adapter, draft.kind, values, account.login, draft.id ?? null)
     return { login: account.login, name: account.name, expiresAt: account.expiresAt, duplicate: duplicate?.name ?? null }
@@ -127,6 +181,7 @@ export class Profiles {
     }
     const account = await this.account(adapter, values)
     const profile: TrackerProfile = {
+      ...(stored?.rules === undefined ? {} : { rules: stored.rules }),
       id: stored?.id ?? randomUUID(),
       kind: draft.kind,
       name: draft.name.trim() || account.name,
@@ -134,10 +189,12 @@ export class Profiles {
       isDefault: stored?.isDefault ?? defaultProfile(this.set, draft.kind) === undefined,
       login: account.login,
       expiresAt: account.expiresAt,
+      ...(this.oauthOf(draft, values) === undefined ? {} : { mcpOAuth: this.oauthOf(draft, values) }),
     }
     const profiles = stored === undefined ? [...this.set.profiles, profile] : this.set.profiles.map((each) => (each.id === profile.id ? profile : each))
     this.checks.set(profile.id, { state: 'ok', error: null, at: this.now() })
     this.replace({ ...this.set, profiles }, profile.isDefault ? profile.kind : null)
+    if (typeof draft.oauth === 'string') this.oauth.forget(draft.oauth)
     return profile.id
   }
 
@@ -276,6 +333,7 @@ export class Profiles {
     if (adapter === undefined) throw fail('profiles.unknownKind', { kind: draft.kind })
     const stored = draft.id === undefined ? undefined : this.profile(draft.id)
     if (draft.id !== undefined && stored === undefined) throw fail('profiles.unknown', {})
+    if (stored !== undefined && stored.kind !== draft.kind) throw fail('profiles.unknownKind', { kind: draft.kind })
     const merged: Record<string, string | undefined> = { ...stored?.values }
     for (const [name, value] of Object.entries(draft.values)) {
       if (value === null) delete merged[name]

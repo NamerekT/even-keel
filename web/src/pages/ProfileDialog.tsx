@@ -8,6 +8,7 @@ import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { alternativeOf, draftValues, hostValues, shownFields } from './profileForm.js'
+import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
 import './profiles.css'
 
 interface DialogProps {
@@ -159,13 +160,15 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const key = JSON.stringify(values)
   const fresh = checked !== null && checked.values === key
   const hostLocked = (profile?.projects.length ?? 0) > 0
-  const body = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
+  const [grant, setGrant] = useState<GrantChoice>(undefined)
+  const draft = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
+  const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
 
   const run = async <T,>(route: string, extra: Record<string, unknown> = {}): Promise<T | null> => {
     setBusy(true)
     setFailure(null)
     try {
-      return await query<T>(route, { ...body, ...extra })
+      return await query<T>(route, { ...draft, ...oauth, ...extra })
     } catch (error) {
       setFailure(noticeOf(error))
       return null
@@ -232,6 +235,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </Field>
           )
         })}
+        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} grant={grant} onGrant={setGrant} />}
         <Field label={t.profiles.name} hint={t.profiles.nameHint}>
           {(id) => <input id={id} className="add-package__input" value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />}
         </Field>

@@ -6,7 +6,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { bringsServer, Probes, projectPackages } from './check.js'
-import { McpGateway, type GatewayTarget } from './gateway.js'
+import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, enabledPackages, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -55,6 +55,7 @@ export interface PackagesDeps {
   baseEnv: () => NodeJS.ProcessEnv
   /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project id. */
   poolOf: (project: string) => NodeJS.ProcessEnv
+  oauth?: (project: string, server: string, url: unknown) => GatewayOAuth | undefined
   port: number
   log: (line: string) => void
   /** The view or what a project is held on changed. */
@@ -419,7 +420,7 @@ export class Packages {
       agent: this.deps.agentOf(project),
       installing: this.installing,
       errors: this.errors,
-      keys: (server, entry) => keysOf(server, entry, this.deps.rules, this.deps.poolOf(project)),
+      keys: (server, entry) => keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, this.deps.poolOf(project)),
       probe: (name, install, server) => this.probes.result(project, name, install, server),
       tracker: this.deps.tracker(project),
     })
@@ -445,9 +446,11 @@ export class Packages {
     const record = this.file.packages[route.name]
     const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
     if (server === undefined) return null
-    const entry = applySettings(server.entry, { ...record?.settings, ...this.file.projects[project]?.settings[route.name] })
+    let entry = applySettings(server.entry, { ...record?.settings, ...this.file.projects[project]?.settings[route.name] })
+    const oauth = this.deps.oauth?.(project, route.server, entry.url)
+    if (oauth) entry = withoutAuthorization(entry)
     const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
-    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env }
+    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, ...(oauth === undefined ? {} : { oauth }) }
   }
 
   /** `null` — the versions are those of the current install: nothing new is kept. */

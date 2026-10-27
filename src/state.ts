@@ -709,6 +709,7 @@ export interface ProfilesView {
 
 /** A tracker's or a CI's profile (`src/profiles/`); a secret's value never leaves the service. */
 export interface ProfileView {
+  mcpOAuth?: { state: 'connected' | 'reconnect' }
   id: string
   kind: string
   name: string
@@ -765,6 +766,7 @@ export interface CiRemote {
 }
 
 export interface ProfileKindView {
+  mcpOAuth?: boolean
   kind: string
   title: string
   /** A tracker's kind; else a CI's (Forgejo): no project runs on its profiles, a remote's CI takes one by its host. */
