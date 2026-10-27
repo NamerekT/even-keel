@@ -36,9 +36,10 @@ describe('session protection', () => {
       expect(rules.codex).toContainEqual(['git', 'push', remote, '+dev'])
       expect(rules.codex).toContainEqual(['git', 'push', remote, '+HEAD:dev'])
       expect(rules.codex).toContainEqual(['git', 'push', remote, ':dev'])
+      for (const form of ['+dev:dev', '+dev:refs/heads/dev', '+HEAD:refs/heads/dev', ':refs/heads/dev']) expect(rules.codex).toContainEqual(['git', 'push', remote, form])
     }
     for (const flags of ['-rf', '-fr']) {
-      for (const target of ['C:\\', 'D:\\', '~/', '$HOME/', '../', '/*']) expect(rules.codex).toContainEqual(['rm', flags, target])
+      for (const target of ['C:\\', 'D:\\', 'C:/', 'D:/', '~/', '~/*', '$HOME/', '$HOME/*', '../', '../*', '/*']) expect(rules.codex).toContainEqual(['rm', flags, target])
     }
     expect(rules.codex).not.toContainEqual(['git', 'push', 'origin', '+main'])
   })

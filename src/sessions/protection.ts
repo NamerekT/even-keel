@@ -37,12 +37,12 @@ const merge = (...parts: Rules[]): Rules => ({ claude: parts.flatMap(part => par
 export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string): Rules {
   const refspecs = (forms: (branch: string) => string[]) => refspec(branch === undefined ? [] : forms(branch), remotes)
   const groups: Record<(typeof PROTECTION_GROUPS)[number], Rules> = {
-    forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`])),
+    forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`, `+${main}:${main}`, `+${main}:refs/heads/${main}`, `+HEAD:refs/heads/${main}`])),
     mirrorPush: push(['--mirror'], remotes),
-    deleteRemote: merge(push(['--delete', '-d'], remotes), refspecs(main => [`:${main}`])),
-    deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', '/*'])),
-    deleteHome: merge(remove(['~', '$HOME']), removeSpelled(['~/', '$HOME/'])),
-    deleteParent: merge(remove(['..']), removeSpelled(['../'])),
+    deleteRemote: merge(push(['--delete', '-d'], remotes), refspecs(main => [`:${main}`, `:refs/heads/${main}`])),
+    deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', 'C:/', 'D:/', '/*'])),
+    deleteHome: merge(remove(['~', '$HOME']), removeSpelled(['~/', '~/*', '$HOME/', '$HOME/*'])),
+    deleteParent: merge(remove(['..']), removeSpelled(['../', '../*'])),
     deleteTracker: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]) },
   }
   groups.forcePush.claude.push('Bash(git push * +*)')
