@@ -4,7 +4,7 @@
   gap: 10px;
 }
 
-/* A standard: a box a tone deeper than its section, its fields one under another. */
+/* A standard: a box a tone deeper than its section with an outline, its fields one under another. */
 .standard {
   display: flex;
   flex-direction: column;
@@ -12,6 +12,7 @@
   padding: 12px 14px;
   border-radius: var(--radius-control);
   background: var(--surface-muted);
+  border: 1px solid var(--border);
 }
 
 .standard__field {
