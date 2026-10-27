@@ -90,7 +90,8 @@ Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` bef
 command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
 `shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch and a
 `+main` refspec cannot be caught on Copilot short of `shell(git push:*)`, which denies every push. Huly deletion rules
-name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy; the Huly group is labelled Claude/Copilot. OpenCode receives
+name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy; the Huly group's hint says it reaches Claude Code and Copilot only. Each group's hint names what it denies, and
+each agent's field of additional rules has its own hint and an example placeholder. OpenCode receives
 no Protection rules and the page says so. An agent without a sandbox and without Even Keel rules gets a warning linking
 to the project's session settings.
 
