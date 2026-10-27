@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { fail, noticeOf, type Notice } from '../notice/notice.js'
-import { callbackUrl, exchange, MCP_OAUTH, OAuthRefused, register, type OAuthClient, type OAuthRecord, type Registration } from './oauth-protocol.js'
+import { callbackUrl, exchange, OAuthRefused, register, type OAuthClient, type OAuthRecord, type Registration } from './oauth-protocol.js'
 export { MCP_OAUTH, type OAuthRecord } from './oauth-protocol.js'
 
 export interface OAuthDraft { id?: string; kind: string; values: Record<string, string | null> }
@@ -49,7 +49,7 @@ export class McpOAuth {
     const url = new URL(registration.authorizationEndpoint)
     url.search = new URLSearchParams({ response_type: 'code', client_id: registration.clientId, redirect_uri: registration.redirect, state, code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' }).toString()
     if (registration.resource) url.searchParams.set('resource', registration.resource)
-    const scope = MCP_OAUTH[draft.kind]?.scope
+    const scope = registration.scope
     if (scope) url.searchParams.set('scope', scope)
     this.flows.set(id, { expires: this.now() + 10 * 60_000, binding: binding(draft), values: draft.values, kind: draft.kind, oauthState: state, verifier, registration, used: false, state: 'waiting', error: null })
     return { flow: id, url: url.href }
@@ -63,8 +63,8 @@ export class McpOAuth {
     flow.used = true
     try {
       if (params.has('error') || !params.get('code')) throw fail('profiles.oauthDenied', {})
-      const { authorizationEndpoint: _, ...registration } = flow.registration
-      if (params.has('iss') && params.get('iss') !== new URL(registration.server).origin) throw fail('profiles.oauthFailed', {})
+      const { authorizationEndpoint: _, issuer, requireIssuer, scope: _scope, ...registration } = flow.registration
+      if ((requireIssuer || params.has('iss')) && params.get('iss') !== issuer) throw fail('profiles.oauthFailed', {})
       const record = await exchange(registration, { grant_type: 'authorization_code', code: params.get('code')!, code_verifier: flow.verifier, redirect_uri: registration.redirect }, this.request, this.now())
       await this.deps.verify(flow.kind, flow.values, record.accessToken)
       flow.record = record

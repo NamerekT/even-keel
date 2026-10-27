@@ -16,7 +16,10 @@ function fixture() {
   const calls: { url: string; init?: RequestInit }[] = []
   const request = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init })
-    const data = String(url).includes('.well-known') ? metadata : String(url).endsWith('/register')
+    if (String(url) === 'https://mcp.linear.app/mcp') return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer resource_metadata="https://mcp.linear.app/.well-known/oauth-protected-resource/mcp", scope="read write"' } })
+    const data = String(url).includes('oauth-protected-resource')
+      ? { resource: 'https://mcp.linear.app/mcp', authorization_servers: [metadata.issuer], scopes_supported: ['read', 'write'] }
+      : String(url).includes('.well-known') ? metadata : String(url).endsWith('/register')
       ? { client_id: 'client' } : { access_token: 'access-one', refresh_token: 'refresh-one', token_type: 'Bearer', expires_in: 60 }
     return Response.json(data)
   }) as unknown as typeof fetch
@@ -73,6 +76,12 @@ describe('profile MCP OAuth', () => {
     expect(f.record()?.refreshToken).toBe('refresh-two')
     const restarted = new McpOAuth({ get: () => f.record(), put: async () => false, verify: async () => {}, now: () => 1_100_000 })
     expect(await restarted.token('p')).toBe('access-two')
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ access_token: 'access-three', refresh_token: 'refresh-three', token_type: 'Bearer', expires_in: 3600 }))
+    expect(await f.oauth.token('p', 'access-two')).toBe('access-three')
+    const params = new URLSearchParams(vi.mocked(f.request).mock.calls.at(-1)![1]!.body as string)
+    expect(params.get('refresh_token')).toBe('refresh-two')
+    expect(params.get('resource')).toBe('https://mcp.linear.app/mcp')
+    expect(f.record()?.refreshToken).toBe('refresh-three')
   })
 
   it('marks revoked grants for reconnection but keeps transient failures retryable', async () => {

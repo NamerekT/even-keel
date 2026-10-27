@@ -52,7 +52,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37f | [Jira MCP plugin](#jira-mcp-plugin) | Jira projects with the plugin on Codex | a session cannot record a decision in its issue |
-| 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Linear, GitHub profiles connected through OAuth (Jira fails until BTN-485) | the connection does not complete, or sessions lose tracker tools; use the MCP token |
+| 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear and GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
@@ -435,9 +435,10 @@ The profile's separate REST and Atlassian MCP V2 tokens, live `getAccessibleAtla
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 
-The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`. Rovo's side up to the token was checked live on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)): discovery on the root of `mcp.atlassian.com` gets an old authorization server whose token `v2/mcp` refuses, so the Jira button fails until BTN-485 follows `v2/mcp`'s protected-resource metadata, and an HTTPS callback other than `localhost` needs the organization admin to add its domain in Rovo MCP's domain settings. Assumed:
+The flow, the refresh and the gateway's Bearer header are checked by tests against fake providers (`src/profiles/oauth.test.ts`, `oauth-protocol.test.ts`, `src/packages/gateway.test.ts`), and the dialog on `dev:fake`. Rovo's v2 flow through protected-resource metadata, consent, token exchange, refresh rotation and MCP access was checked by probes on 2026-10-27 (BTN-416, [verified log](verified.md#trackers)). BTN-485 applies that discovery in the service; its implementation's discovery and public-client registration with the advertised scopes passed against live Jira and Linear on the same date. Assumed:
 
-- Linear (`mcp.linear.app`) publishes `/.well-known/oauth-authorization-server` on the MCP server's own origin, with S256 and a registration endpoint, and accepts a public client registered with an `http://localhost:4747/…` or an HTTPS Tailscale callback;
+- the updated Jira profile button completes consent and its callback through the browser guard; whether v2 needs the same organization-admin domain allowlist as the older authorization server for an HTTPS callback other than `localhost` remains unchecked;
+- Linear accepts consent and returns a code for its registered public client with an `http://localhost:4747/…` or an HTTPS Tailscale callback (discovery, S256, issuer requirement and localhost registration are checked);
 - Linear's token endpoint accepts `resource` (RFC 8707) and answers `token_type: Bearer`, with a refresh token;
 - GitHub's MCP server (`api.githubcopilot.com/mcp/`) accepts the OAuth App's `gho_` token with the scopes `repo read:org`, and GitHub's `access_token` answer in JSON is enough (no refresh token, no expiry);
 - the browser's guard cookie reaches `GET /api/profiles/oauth/callback` on the provider's redirect (a top-level navigation, `SameSite=Lax`), and the page opened through Tailscale Service has the same `Host` as its `Origin`;
