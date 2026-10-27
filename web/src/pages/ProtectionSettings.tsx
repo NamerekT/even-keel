@@ -19,7 +19,7 @@ export function ProtectionSettings({ value, shared, onChange, error = null }: { 
       <summary>{text.custom}</summary>
       {(Object.keys(AGENTS) as (keyof typeof AGENTS)[]).map(agent => <div className="settings__field" key={agent}>
         <FieldHead label={AGENTS[agent]} hint={text.native[agent]} htmlFor={`protection-${agent}`} />
-        <textarea id={`protection-${agent}`} rows={3} value={draft[agent]} placeholder={EXAMPLES[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
+        <textarea id={`protection-${agent}`} className="settings__text settings__text--mono" rows={3} value={draft[agent]} placeholder={EXAMPLES[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
       </div>)}
     </details>
     <FieldHead label={text.limitsLabel} hint={text.limits} />
