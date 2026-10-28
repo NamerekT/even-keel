@@ -36,6 +36,13 @@ describe('withinWindow', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 400_000, { first: 50, late: 60, hard: 70 }, 'claude')).toMatchObject({ late: 240_000, hard: 280_000 })
   })
 
+  it('keeps the first threshold of a Claude session before its compaction, and only the share for another agent', () => {
+    const shares = { first: 90, late: 92, hard: 95 }
+    expect(withinWindow({ first: 250_000, source: 'calibrated' }, 250_000, shares, 'claude')).toMatchObject({ first: 188_000, source: 'window' })
+    expect(withinWindow({ first: 250_000, source: 'calibrated' }, 250_000, DEFAULT_SHARES, 'claude')).toMatchObject({ first: 180_000, source: 'window' })
+    expect(withinWindow({ first: 250_000, source: 'calibrated' }, 250_000, shares, 'codex')).toMatchObject({ first: 225_000, source: 'window' })
+  })
+
   it('leaves the shares alone for an agent whose compaction is not measured, and a pinned threshold alone for Claude', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'codex')).toMatchObject({ late: 212_000, hard: 237_000 })
     expect(withinWindow({ first: 999_999, source: 'config' }, 250_000, DEFAULT_SHARES, 'claude')).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
