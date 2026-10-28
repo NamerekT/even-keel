@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { noticeOf } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskMilestone, TaskPriority } from '../tracker/model.js'
@@ -13,6 +13,17 @@ const inMilestone = (m: TaskMilestone, id: string, ...blockedBy: string[]): Task
 const withPriority = (priority: TaskPriority, id: string, ...blockedBy: string[]): Task => ({ ...task(id, ...blockedBy), priority })
 
 describe('chainOrder', () => {
+  it('does not compare every remaining pair when ordering a large archive', () => {
+    const tasks = Array.from({ length: 512 }, (_, index) => task(`ABC-${512 - index}`))
+    const compare = vi.spyOn(Intl.Collator.prototype, 'compare', 'get')
+    try {
+      expect(chainOrder(tasks)).toEqual(tasks.map((each) => each.id).toReversed())
+      expect(compare.mock.calls.length).toBeLessThan(512 * Math.ceil(Math.log2(512)) * 4)
+    } finally {
+      compare.mockRestore()
+    }
+  })
+
   it('orders independent tasks by number', () => {
     expect(chainOrder([task('ABC-10'), task('ABC-2'), task('ABC-1')])).toEqual(['ABC-1', 'ABC-2', 'ABC-10'])
   })
@@ -47,6 +58,13 @@ describe('chainOrder', () => {
   it('lets a blocker override the preferred order', () => {
     const tasks = [task('ABC-1'), task('ABC-2', 'ABC-3'), task('ABC-3')]
     expect(chainOrder(tasks, ['ABC-2', 'ABC-1', 'ABC-3'])).toEqual(['ABC-1', 'ABC-3', 'ABC-2'])
+  })
+})
+
+describe('newly ready tasks', () => {
+  it('puts a newly unblocked task ahead of lower-ranked tasks already ready', () => {
+    const tasks = [task('ABC-1'), task('ABC-2', 'ABC-4'), task('ABC-3'), task('ABC-4')]
+    expect(chainOrder(tasks, ['ABC-2', 'ABC-4', 'ABC-3', 'ABC-1'])).toEqual(['ABC-4', 'ABC-2', 'ABC-3', 'ABC-1'])
   })
 })
 
