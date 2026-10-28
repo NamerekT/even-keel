@@ -1,0 +1,13 @@
+{
+  "version": 18,
+  "sessionId": "00000000-0000-4000-8000-0000000000d1",
+  "name": "ABC-3",
+  "cwd": "C:\\repos\\example-project\\.claude\\worktrees\\abc-3",
+  "account": "team-api",
+  "startedAt": 1790000000000,
+  "executor": 5100,
+  "pipe": "\\\\.\\pipe\\even-keel-sdk-00000000000040008000000000000d1",
+  "cli": 5101,
+  "model": "sonnet",
+  "bridge": "cse_01EXAMPLE"
+}

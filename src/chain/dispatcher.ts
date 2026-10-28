@@ -530,6 +530,7 @@ export class Dispatcher {
   }
 
   private release(chain: ActiveChain, reason: ReleaseReason, blockers: string[]): void {
+    shelve(this.state, this.deps, chain.project, chain.current!, reason, blockers)
     const { task, sessionId } = chain.current!
     if (sessionId !== null) {
       const entry: LaunchEntry = { at: this.deps.now().toISOString(), project: chain.project, task, sessionId, reason }
@@ -744,10 +745,10 @@ export class Dispatcher {
         delete chain.limitUntil
         delete chain.slotWait
         delete chain.ciWait
-        const current: CurrentTask = { task, sessionId: returned.sessionId, since }
+        const current: CurrentTask = { task, sessionId: returned.session.sessionId, since }
         this.take(chain, current)
         this.deps.save(this.state)
-        await this.handovers.handOverCurrent(chain, current, returned, 'returned')
+        await this.handovers.handOverCurrent(chain, current, returned.session, returned.reason, returned.extra)
         return
       }
 

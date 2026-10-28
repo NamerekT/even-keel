@@ -25,7 +25,8 @@ export interface CurrentTask {
   ask?: string
 }
 
-export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review' | 'returned'
+export type ReturnReason = 'returned' | 'unblocked' | 'unskipped'
+export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review' | ReturnReason
 
 export interface ActiveChain {
   project: string
@@ -77,7 +78,7 @@ export interface ChainState {
   skipped: Record<string, string[]>
   leftovers: Record<string, Leftover[]>
   released: Record<string, string[]>
-  /** Released tasks that left the chain for an inactive status after their session's turn (BTN-245): back, they get a new session. */
+  /** Released tasks whose resting session may be replaced when they return to the chain. */
   shelved: Record<string, Shelved[]>
   unattended: boolean
   /** Chain sessions start without claude.ai skills and plugins and with the hidden skills only for `/name`. */
@@ -139,11 +140,14 @@ export interface SessionFix {
   report: string
 }
 
-/** The session a task left behind when it went to an inactive status, and when; one someone talked to since is not replaced. */
+/** A resting session left behind by a released task; one someone talked to since is not replaced. */
 export interface Shelved {
   task: string
   sessionId: string
   at: string
+  /** Absent for a task that left for an inactive status, including older records. */
+  reason?: ReleaseReason
+  blockers?: string[]
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -155,7 +159,7 @@ export type ReleaseReason = 'postpone' | 'skip'
 export type FixOutcome = 'landed' | 'dropped' | 'carried'
 
 /** Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. */
-export type RelayCause = 'limit' | 'mainFixed' | 'review' | 'returned'
+export type RelayCause = 'limit' | 'mainFixed' | 'review' | ReturnReason
 
 export interface LaunchEntry {
   at: string
