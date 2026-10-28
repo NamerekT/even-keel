@@ -3,6 +3,11 @@
  * Selectors start with `.chain`: this file loads before styles.css, and its rules must win over the base `.block` ones.
  */
 
+.chain .block__side {
+  min-width: 0;
+  max-width: min(40ch, 100%);
+}
+
 @property --sweep {
   syntax: '<angle>';
   inherits: false;

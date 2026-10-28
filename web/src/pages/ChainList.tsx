@@ -10,6 +10,7 @@ import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, BlockMetrics, CacheRing } from '../ui/BlockMetrics.js'
 import { IntoChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
 import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
@@ -571,9 +572,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.runLabels.map((label) => (
-          <span key={label} className="tag" title={t.card.roles.model}>
-            {label}
-          </span>
+          <RunLabelTag key={label} label={label} />
         ))}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
