@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseConfig } from '../config.js'
 import { noticeOf } from '../notice/notice.js'
 import { memoryDatabase } from '../storage/memory.js'
+import { currentConfig } from '../storage/migrations.js'
 import { SCHEMA_VERSION } from '../storage/schema.js'
 import { stateValue } from '../storage/service-state.js'
 import { IMPORTED_SUFFIX } from '../storage/state-files.js'
@@ -91,7 +92,7 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     await prepareSettings({ db: other, file, log: () => {} })
     await importConfig(other, JSON.parse(exported))
     expect(settingsText(await readSettings(other))).toBe(settingsText(before))
-    expect(parseConfig(JSON.parse(exported))).toEqual(parseConfig(FULL))
+    expect(parseConfig(JSON.parse(exported))).toEqual(parseConfig(currentConfig(FULL)))
   })
 
   it('puts the file whole in place of the stored settings', async () => {

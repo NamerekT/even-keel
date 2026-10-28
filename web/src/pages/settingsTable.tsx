@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react'
+import { Fragment, useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
 import { PlusIcon, TrashIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
@@ -89,12 +89,14 @@ export function RowsTable({
   columns,
   rows,
   empty,
+  rowNote,
   onChange,
 }: {
   label: string
   columns: readonly Column[]
   rows: readonly (readonly string[])[]
   empty: string
+  rowNote?: (row: readonly string[]) => ReactNode
   onChange: (rows: string[][]) => void
 }) {
   const id = useId()
@@ -153,32 +155,39 @@ export function RowsTable({
             </tr>
           )}
           {rows.map((row, at) => (
-            <tr key={at}>
-              {columns.map((column, each) => (
-                <td key={each}>
-                  <Cell
-                    column={column}
-                    value={row[each]!}
-                    label={`${column.title}, ${t.settings.row(at + 1)}`}
-                    taken={each === 0 ? keys.filter((_, index) => index !== at) : []}
-                    listId={listId(each)}
-                    invalid={row[each]!.trim() === '' || (each === 0 && keys.some((key, index) => index !== at && key.trim() === row[0]!.trim()))}
-                    onChange={(value) => put(at, each, value)}
-                  />
+            <Fragment key={at}>
+              <tr>
+                {columns.map((column, each) => (
+                  <td key={each}>
+                    <Cell
+                      column={column}
+                      value={row[each]!}
+                      label={`${column.title}, ${t.settings.row(at + 1)}`}
+                      taken={each === 0 ? keys.filter((_, index) => index !== at) : []}
+                      listId={listId(each)}
+                      invalid={row[each]!.trim() === '' || (each === 0 && keys.some((key, index) => index !== at && key.trim() === row[0]!.trim()))}
+                      onChange={(value) => put(at, each, value)}
+                    />
+                  </td>
+                ))}
+                <td className="rows__action">
+                  <button
+                    type="button"
+                    className="rows__button"
+                    title={t.settings.remove(row[0] || t.settings.row(at + 1))}
+                    aria-label={t.settings.remove(row[0] || t.settings.row(at + 1))}
+                    onClick={() => onChange(rows.filter((_, index) => index !== at).map((each) => [...each]))}
+                  >
+                    <TrashIcon />
+                  </button>
                 </td>
-              ))}
-              <td className="rows__action">
-                <button
-                  type="button"
-                  className="rows__button"
-                  title={t.settings.remove(row[0] || t.settings.row(at + 1))}
-                  aria-label={t.settings.remove(row[0] || t.settings.row(at + 1))}
-                  onClick={() => onChange(rows.filter((_, index) => index !== at).map((each) => [...each]))}
-                >
-                  <TrashIcon />
-                </button>
-              </td>
-            </tr>
+              </tr>
+              {rowNote !== undefined && (
+                <tr className="rows__note">
+                  <td colSpan={columns.length + 1}>{rowNote(row)}</td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
         {full && (
