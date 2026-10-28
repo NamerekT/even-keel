@@ -76,6 +76,8 @@ export interface AccountLogin {
 }
 
 export interface AccountView {
+  /** Result of an explicit Add account check; hidden folders are never polled as accounts. */
+  globalCheck?: { agent: string; account: { key: string; status: AccountStatus } | null }
   /** The account holding the Even Keel role: the shared provider's entry of the shared pool, Claude's or Codex's. */
   active: string
   accounts: AccountEntry[]
@@ -207,13 +209,12 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
 export function removeProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
-  if (target.global) return notice(target.agent === CLAUDE ? 'account.globalKept' : 'account.codexHomeKept', {})
   if (key === view.active) return notice('account.activeKept', {})
   const named = view.pool.filter((entry) => entry.account === key)
   if (named.some((entry) => entry.project === null)) return notice('account.sharedPool', {})
   if (named.length > 0) return notice('account.projectPool', { projects: [...new Set(named.map((entry) => entry.project!))] })
   if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
-  const user = view.apps.find((app) => app.account === key)
+  const user = target.global ? undefined : view.apps.find((app) => app.account === key)
   if (user !== undefined) return notice('account.usedByApp', { app: APP_LABELS[user.app] })
   return undefined
 }

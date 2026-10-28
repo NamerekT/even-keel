@@ -34,7 +34,7 @@ export default async function setup(project: TestProject): Promise<() => void> {
     const fresh = await save('fresh', await PGlite.create({ dataDir: join(root, 'fresh') }))
     await copyTemplate(fresh, join(root, 'sqlite'))
     const sqlite = await save('sqlite', await openDatabase(join(root, 'sqlite'), STEPS.slice(0, 1)))
-    await copyTemplate(sqlite, join(root, 'current'))
+    await copyTemplate(fresh, join(root, 'current'))
     const current = await save('current', await openDatabase(join(root, 'current')))
     project.provide('pgliteTemplate', fresh)
     project.provide('databaseTemplates', { sqlite, current })

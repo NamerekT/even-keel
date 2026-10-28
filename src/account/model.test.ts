@@ -408,8 +408,8 @@ describe('the Codex folders', () => {
     expect(switchProblem(codex, 'codex')).toBeUndefined()
   })
 
-  it("keeps Codex's own folder and lets an added one go", () => {
-    expect(removeProblem(codex, 'codex')).toMatchObject({ code: 'account.codexHomeKept' })
+  it('lets both an unused global registration and an added folder go', () => {
+    expect(removeProblem(codex, 'codex')).toBeUndefined()
     expect(removeProblem(codex, 'work')).toBeUndefined()
   })
 })
@@ -487,9 +487,9 @@ describe('removeProblem', () => {
     expect(removeProblem(view({ accounts: [entry({}), entry({ key: 'work', global: false, sessions: ['ABC-1', 'ABC-2'] })] }), 'work')).toBeUndefined()
   })
 
-  it('keeps the active and the global folder', () => {
+  it('keeps the active account and a running sign-in, allowing an unused global registration to go', () => {
     expect(say(removeProblem(view({ active: 'work' }), 'work'))).toMatch(/active/)
-    expect(removeProblem(view({ active: 'work' }), 'global')).toMatchObject({ code: 'account.globalKept' })
+    expect(removeProblem(view({ active: 'work' }), 'global')).toBeUndefined()
     const login = { agent: 'claude', target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false }
     expect(say(removeProblem(view({ login }), 'work'))).toMatch(/sign-in/)
   })

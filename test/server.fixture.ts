@@ -36,6 +36,8 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     setTrimTools: record('setTrimTools'),
   }
   const account: AccountControl = {
+    discoverGlobal: async (...args) => { record('discoverGlobal')(...args) },
+    useGlobal: async (...args) => { record('useGlobal')(...args) },
     add: (agent) => {
       if (calls.some(([name]) => name === 'add')) throw new Error('claude: a sign-in is already running')
       calls.push(['add', agent])

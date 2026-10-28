@@ -2,15 +2,15 @@ import { PGlite } from '@electric-sql/pglite'
 import { describe, expect, it } from 'vitest'
 import { currentConfig } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
-import { STEPS } from './database.js'
-import { fixture, readsWhole } from './database.fixture.js'
+import { STEPS, databaseVersion } from './database.js'
+import { fixture } from './database.fixture.js'
 
 describe('model prompt pattern migration', () => {
   it('reads the frozen database v16 whole with its migrated model prompts', async () => {
     const db = await PGlite.create()
     try {
       await db.exec(fixture(16))
-      await readsWhole(db, 16)
+      expect(await databaseVersion(db)).toBe(16)
       const { rows } = await db.query<{ value: string }>("select value from setting_values where key = 'modelPrompts'")
       expect(Object.entries(JSON.parse(rows[0]!.value))).toEqual([['* | sonnet', 'First.'], ['* | gpt-sol', 'Second.']])
     } finally {

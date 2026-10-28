@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 0c | [Explicit global account registration](#explicit-global-account-registration) | New installations and upgrades with existing CLI sign-ins | A hidden account appears automatically, an upgrade loses one, or removal signs the CLI out |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on Linux and macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
 | 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode on Linux/macOS, other agents/subagents and equivalent command spellings | permissions or shell parsing may differ from the checked Windows build-agent calls |
@@ -192,6 +193,10 @@ A marketplace added from a local path is read from its folder, so an update of t
 It counts a folder trusted when the global `~/.claude.json` or the `.claude.json` of the shared Claude account's folder trusts it: `claude` started with an account folder's `CLAUDE_CONFIG_DIR` records the accepted dialog in that folder's file only (seen live on 22.10.2026, BTN-300). It does not check Codex's trust at all. The warning does not hold the add: if you trusted the folder under the account the chain runs on, add it anyway. Not seen: a folder that passes the check but is not trusted for the chain's account, pausing the chain at its first launch. The second command, for a terminal of another user than the service's (BTN-310: `runas /user:<user> "cmd /k cd /d <folder> && claude"` on Windows, `sudo -u <user> -H claude` elsewhere), was never run: assumed, `runas` asks for that user's password and opens a console in its profile, so the trust lands in that user's `~/.claude.json`; a service on a built-in account (LocalSystem, a user without a password) cannot be reached this way, and a folder path with `&` or `%` breaks the `cmd` line. **Workaround:** if it does, sign in to the machine as the service's user, or open `claude` in the folder from any shell of that user, and accept the dialog.
 
 ## Accounts
+
+### Explicit global account registration
+
+BTN-543 adds explicit registration of the global Claude and Codex folders. Fresh/upgrade database transitions, persistence, backup, shared-pool assignment, a stale sign-in choice and removal without logout are covered by unit tests; the dialog is checked with fake data ([verified.md](verified.md#accounts)). The real CLI sandbox check belongs to BTN-542: start fresh with CLI folders already signed in, confirm no accounts or limit polling before Add account, add the existing identity and a separate account from setup and Accounts, remove a global registration and confirm the CLI is still signed in, then upgrade a copy of an old installation and confirm its formerly visible accounts remain. **Workaround:** use a managed account added through the dialog until this check is complete.
 
 ### Staying signed in after a reboot (EKR-15)
 

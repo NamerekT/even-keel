@@ -92,6 +92,8 @@ export interface ChainControl {
 }
 
 export interface AccountControl {
+  discoverGlobal(agent: string): Promise<void>
+  useGlobal(agent: string): Promise<void>
   /** `method` — the agent's way to sign in, for an agent with several (`Agent.login`). */
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
@@ -296,6 +298,8 @@ const COMMANDS: Record<string, Command> = {
   'updates/seen': ({ settings }) => settings.closeUpdateResult(),
   'account/add': ({ account }, body) =>
     account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'), body.method === undefined ? undefined : textOf(body.method, 'method')),
+  'account/discover': ({ account }, body) => account.discoverGlobal(textOf(body.agent, 'agent')),
+  'account/global': ({ account }, body) => account.useGlobal(textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(
       typeof body.name === 'string' ? body.name : '',
