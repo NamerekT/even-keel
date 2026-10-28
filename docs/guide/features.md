@@ -291,6 +291,8 @@ The gear in the header has a dot when something is wrong and a **Status** row le
 
 What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict, a task that left the chain with its work not committed or not merged — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
 
+In a session's usage-limit notice, press the **?** attached to the project settings button for the account and instructions on starting sooner. Press it again, press Escape or click outside to close the tip. Earlier messages expand below the button.
+
 A carry conflict's notification goes away once an agent is assigned, and a conflict assigned automatically gets no notification. If you **Skip** the agent's session while the conflict remains, the notification returns.
 
 ## In the tray (Windows)
