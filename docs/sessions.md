@@ -117,6 +117,13 @@ are command patterns, one per line in the editor (for example, `git reset --hard
 They share the command patterns of Claude's groups, including `+` and `:` push refspecs and paths starting with the
 recursive-delete targets. They do not cover every equivalent spelling or shell wrapper.
 
+When any Protection rule is active, `sessionConfig` also loads Even Keel's built-in `protection-plugin` last, after
+the package plugins. Its config hook runs after OpenCode has merged the account, project and inline configuration.
+It appends the active native denies to both the top-level permissions and every configured agent's permissions,
+including `build`. Existing matching keys are removed before reinsertion: assigning an existing key would retain
+its position before a later wildcard allow. Scalar permissions become a `*` entry; unrelated rules keep their
+order. Account and project files are untouched. With every group off and no custom rules, no overlay is loaded.
+
 The [OpenCode permissions documentation](https://opencode.ai/docs/permissions/) and the installed 1.18.25 source
 (`permission/index.ts`, `core/src/util/wildcard.ts`) agree: `*` matches any text, `?` one character, and the last
 matching permission wins. Backslashes normalize to slashes and matching ignores case on Windows. Agent-specific
@@ -127,11 +134,13 @@ provider emitted tool calls against a local bare remote and safe recording stubs
 the offered tool set; forced calls become unavailable-tool results, while reads and updates reach the MCP stub.
 Top-level account/project broad allows leave the denies effective. Shared and project rules saved through the
 running service's page reached new chain sessions without a restart; a project's rule list replaced the shared one.
-However, account or project `agent.build.permission` allows overrode bash and MCP denies in real calls (BTN-501).
-Remove conflicting build-agent allows until corrected. Results are in [verified.md](verified.md); the unresolved
-conflict and remaining platforms are in [unverified.md](unverified.md#opencode-protection-btn-486).
-No package plugin is needed for these native rules. The retained **OpenCode Protection** test project and
-`.temp/btn-500/README.md` in the main checkout describe how to repeat the safe check.
+The build-agent override found there was corrected in BTN-501: scalar, broad, explicit MCP-tool and late wildcard
+allows from either layer leave Protection denies effective. The source and compiled transport were checked live;
+neither the `rm` stub nor the deletion MCP stubs received the denied calls. Results are in
+[verified.md](verified.md); remaining platforms and subagents are in
+[unverified.md](unverified.md#opencode-protection-btn-486). No separately installed package is needed. The retained
+**OpenCode Protection** test project and `.temp/btn-500/README.md` and `.temp/btn-501/README.md` in the main checkout
+describe how to repeat the safe checks.
 
 Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
 folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.

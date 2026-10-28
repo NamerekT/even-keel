@@ -5,10 +5,11 @@ Every environment variable and every setting. How to set Even Keel up is in [set
 ### Protection setting
 
 `protection` is shared and per project, edited in **Sessions → Protection**. Its default is
-`{ "disabled": [], "claude": [], "codex": [], "copilot": [] }`: all built-in groups on, no extra native rules.
+`{ "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] }`: all built-in groups on, no extra native rules.
 `disabled` lists groups to turn off: `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`,
 `deleteParent`, `deleteTracker`. The other fields add native deny rules: Claude permission strings, Codex arrays of
-command arguments (for example `["terraform", "destroy"]`), and Copilot tool strings. A project's field replaces its
+command arguments (for example `["terraform", "destroy"]`), Copilot tool strings, and OpenCode bash command glob
+patterns (for example `git reset --hard*`). A project's field replaces its
 shared counterpart; omitted fields inherit. New launches only; see [coverage and limits](features.md#protection).
 
 ## Task labels
