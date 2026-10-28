@@ -201,12 +201,12 @@ a.backlog__key:hover {
   transform: translateX(calc(-100% - 32px));
   pointer-events: none;
   transition:
-    transform 0.28s ease-in,
-    opacity 0.28s ease-in,
-    height 0.2s ease 0.28s,
-    margin 0.2s ease 0.28s,
-    padding 0.2s ease 0.28s,
-    border-width 0.2s ease 0.28s;
+    transform 0.16s ease-in,
+    opacity 0.16s ease-in,
+    height 0.12s ease 0.16s,
+    margin 0.12s ease 0.16s,
+    padding 0.12s ease 0.16s,
+    border-width 0.12s ease 0.16s;
 }
 
 .block.block--ghost,
