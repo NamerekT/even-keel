@@ -11,12 +11,13 @@ export function useProjectLabel(): (project: string) => string {
  * A project as the page names it: its key and, when the config gives one, its name after it. Without a name, a key
  * another project has comes with what tells the two apart (`projectLabel`).
  */
-export function ProjectLabel({ project, nameClass = 'project-name' }: { project: string; nameClass?: string }) {
+export function ProjectLabel({ project, nameClass = 'project-name', keyClass }: { project: string; nameClass?: string; keyClass?: string }) {
   const { state } = useLive()
   const name = state === null ? null : projectName(state, project)
+  const key = name === null ? projectLabel(state, project) : (state?.projectKeys[project] ?? project)
   return (
     <>
-      {name === null ? projectLabel(state, project) : (state?.projectKeys[project] ?? project)}
+      {keyClass === undefined ? key : <span className={keyClass}>{key}</span>}
       {name !== null && <span className={nameClass}>{name}</span>}
     </>
   )
