@@ -1,0 +1,24 @@
+.rows__note > td {
+  padding: var(--space-8) var(--space-12);
+  background: var(--surface-muted);
+}
+
+.model-prompts__matches {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  overflow-wrap: anywhere;
+}
+
+.model-prompts__matches p {
+  margin: 0;
+}
+
+.model-prompts__warning {
+  color: var(--warn-fg);
+}
+
+@media (max-width: 760px) {
+  .model-prompts {
+    --model-prompt-width: 55%;
+  }
+}

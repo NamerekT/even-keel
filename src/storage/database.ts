@@ -224,6 +224,11 @@ export const STEPS: readonly string[] = [
   );
   `,
   `alter table tracker_profiles add column mcp_oauth text not null default 'null';`,
+  `
+  update setting_values
+     set value = coalesce((select json_object_agg('* | ' || key, value)::text from json_each(value::json)), '{}')
+   where key = 'modelPrompts';
+  `,
 ]
 
 /** The version this code reads and writes. */

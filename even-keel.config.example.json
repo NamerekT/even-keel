@@ -1,5 +1,5 @@
 {
-  "version": 16,
+  "version": 17,
   "protection": { "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] },
   "allowedHosts": [],
   "parallel": 1,
@@ -53,6 +53,6 @@
   "execution": { "claude": "auto", "codex": "sandbox" },
   "modelLabels": false,
   "modelPrompts": {
-    "sonnet": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label."
+    "* | *sonnet*": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label."
   }
 }

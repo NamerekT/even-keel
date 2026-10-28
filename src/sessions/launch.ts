@@ -1,4 +1,5 @@
 import { runLabelText, type RunLabel, type Task } from '../tracker/model.js'
+import { modelPromptMatches } from './model-prompts.js'
 
 /** What a project's sessions run on, the shared values filled in under its own (`runSettings`). */
 export interface RunSettings {
@@ -50,7 +51,6 @@ export function runChoice(task: Labelled | undefined, run: RunSettings, hasAccou
   return own(label.provider, label.model)
 }
 
-// The prompt of a model is looked up by its name as the CLI gets it; a model left to the CLI has none.
 export function launchPlan(
   task: Labelled | undefined,
   prompt: string,
@@ -59,7 +59,6 @@ export function launchPlan(
   hasAccount: (provider: string, account: string) => boolean,
 ): LaunchPlan {
   const choice = runChoice(task, run, hasAccount)
-  const name = choice.model?.toLowerCase()
-  const extra = name === undefined ? undefined : Object.entries(prompts).find(([model]) => model.toLowerCase() === name)?.[1]
-  return { ...choice, prompt: extra === undefined ? prompt : `${prompt}\n\n${extra}` }
+  const extra = Object.entries(prompts).filter(([pattern]) => modelPromptMatches(pattern, choice.provider, choice.model)).map(([, text]) => text)
+  return { ...choice, prompt: [prompt, ...extra].join('\n\n') }
 }
