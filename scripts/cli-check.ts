@@ -175,7 +175,7 @@ async function run(options: Options): Promise<void> {
     },
     onCliChange: () => {},
   })
-  const home = new AccountHomes(process.env, accountsRoot(process.env)).find(options.account)
+  const home = new AccountHomes(process.env, accountsRoot(process.env)).all().find((home) => home.key === options.account)
   if (home === undefined || home.agent !== options.agent) throw new Error(`cli-check: no ${options.agent} account folder named ${options.account}`)
   console.log(`${adapter.title} ${version} on ${home.key} (${home.dir}), model ${options.model ?? "the CLI's default"}`)
 

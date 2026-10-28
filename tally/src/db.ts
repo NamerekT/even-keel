@@ -1,4 +1,5 @@
 import pg from 'pg'
+import { stat } from 'node:fs/promises'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
 import type { ClosedState } from './closed-tasks.js'
@@ -369,7 +370,18 @@ export class TallyDb implements Store {
   }
 
   async forgetFilesExcept(paths: string[]): Promise<number> {
-    const result = await this.client.query('delete from files where not (path = any($1::text[]))', [paths])
+    const candidates = await this.client.query<{ path: string }>('select path from files where not (path = any($1::text[]))', [paths])
+    const missing: string[] = []
+    for (const { path } of candidates.rows) {
+      try {
+        await stat(path)
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === 'ENOENT' || code === 'ENOTDIR') missing.push(path)
+      }
+    }
+    if (missing.length === 0) return 0
+    const result = await this.client.query('delete from files where path = any($1::text[])', [missing])
     return result.rowCount ?? 0
   }
 

@@ -256,6 +256,8 @@ The windows of every subscription account are read every 5 minutes: Claude Code'
 
 A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)) or your own: spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
 
+Statistics include history from existing account folders, including the global Claude and Codex folders even if you have not added those accounts in Even Keel. A folder left out of a scan keeps its reading progress while its files still exist, so changing the scan does not force that history to reload.
+
 Task time includes Codex turns from its saved session files, including older sessions whose files are still available. Visible synchronous question waits are excluded from active time; waits the session file does not show remain included. OpenCode and Copilot currently contribute spend without turn times.
 
 "Where the spend goes" and the task table group models by tier: Opus, Sonnet, Haiku and Fable for Claude; Sol, Luna, Astra and Terra for OpenAI. Versions within a tier count together; OpenAI models without a known tier appear as GPT.

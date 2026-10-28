@@ -77,6 +77,11 @@ export class AccountHomes {
     return this.list().find((home) => home.key === key)
   }
 
+  /** Existing history folders, including global folders not registered for running sessions. */
+  all(): AccountHome[] {
+    return [...this.list(), ...this.availableGlobals()]
+  }
+
   availableGlobals(): AccountHome[] {
     return [this.global, this.codex].filter((home) => existsSync(home.dir) && !this.registration.keys.has(home.key))
   }
