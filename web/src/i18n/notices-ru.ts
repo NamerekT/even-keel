@@ -302,6 +302,8 @@ export const noticesRu: NoticeTexts = {
 
   'task.noTracker': (p) => `${p.task} не обслуживает ни один подключённый трекер`,
   'task.cannotReady': (p) => `трекер ${p.task} не умеет переводить задачи в Todo`,
+  'task.cannotRelabel': (p) => `трекер ${p.task} не умеет менять метки`,
+  'task.relabelFailed': (p) => `не удалось изменить метки ${p.task}; проверьте права профиля трекера на изменение задач и меток и повторите попытку`,
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
   'task.cannotMoveMilestone': (p) => `трекер ${p.task} не умеет менять веху задачи`,
   'tracker.noProject': (p) => `проект ${p.project} не обслуживает ни один подключённый трекер`,

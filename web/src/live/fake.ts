@@ -74,7 +74,7 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
-  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true }
+  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true, relabel: true }
   const readAt = (minutes: number) => Object.fromEntries(projects.map((project) => [project, ago(minutes)]))
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
@@ -83,7 +83,7 @@ function fakeHuly(state: TrackerLinkState): TrackerView {
 
 /** The trackers of ABC's task feeds: GitHub has read its feed, Linear not yet. */
 function fakeFeedTrackers(): TrackerView[] {
-  const view = { ready: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }
+  const view = { ready: true, relabel: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }
   return [
     { ...view, name: GITHUB_PROFILE, kind: 'github', title: 'GitHub · johndoe', projects: ['feed-abc-gh'], readAt: { 'feed-abc-gh': ago(1) } },
     { ...view, name: LINEAR_PROFILE, kind: 'linear', title: 'Linear · work', projects: ['feed-abc-lin'], readAt: {} },

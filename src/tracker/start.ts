@@ -68,6 +68,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       closesParents = completes && tracker.children !== undefined
       setsMilestones = tracker.setMilestone !== undefined
       view.ready = tracker.ready !== undefined
+      view.relabel = tracker.relabel !== undefined
       return tracker
     },
     timeoutMs: TRACKER_TIMEOUT_MS,
