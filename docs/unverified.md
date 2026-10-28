@@ -36,6 +36,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 16b | [A session's own comment on its pull request](#a-sessions-own-comment-on-its-pull-request-btn-442) | PR mode with sessions that comment on their pull request | the session gets its own comment back as a remark once |
 | 16c | [A resolved GitLab conflict while mergeability is checked](#a-resolved-gitlab-conflict-while-mergeability-is-checked-btn-441) | PR mode on GitLab after resolving a conflict | the session gets the resolved conflict once more |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
+| 17a | [A task returned after a blocker or skip](#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks | an idle session may still be adopted and hold the chain |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
 | 20a | [API spending cap recovery](#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |
@@ -317,6 +318,10 @@ On Windows `claude stop` was seen to leave the `bash.exe` of a `run_in_backgroun
 ### A task back from Backlog after a question in a comment (BTN-245)
 
 Covered by tests only: a session that asks in a tracker comment, moves its task to Backlog and ends its turn; the user answers and moves the task to Todo; the chain stops the old session and starts a new one with a handoff (`relay` in the launch log) whose prompt sends it to the comments (`docs/chain.md`, exception 9). Assumed: the live view gives the old session as not mid-turn with no `AskUserQuestion` (the BTN-243 case showed `waiting` with `ask: null`), and its feed gets no prompt line after the task left. If the CLI keeps a status the chain reads as mid-turn, or writes a prompt line of its own, the old session is adopted and the chain waits as before. **Workaround:** "New session" on the task's card, with the answer in the description.
+
+### A task returned after a blocker or skip (BTN-547)
+
+Covered by dispatcher tests: postpone for a blocker inside or outside the chain, the blocker's Done and cleanup, Skip followed by Unskip, the same state loaded from the database, and recovery of an interrupted handover with its reason and blocker text. Busy sessions, open questions and prompts or answers after release keep the old session. The launch cause and snapshot reason distinguish `unblocked` and `unskipped`. Not yet run through the live service with a real agent: verify that the old idle session stops and a new session reads the handoff on the same branch, including across a service restart. If a provider's feed looks like a newer conversation, the old session is adopted and the task may wait. **Workaround:** use "New session" on the returned task; the saved work stays in its worktree.
 
 ### Claude daemon replacement from the service (BTN-250)
 

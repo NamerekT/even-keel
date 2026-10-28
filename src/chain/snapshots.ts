@@ -4,7 +4,7 @@ import type { HandoffReason } from './prompts.js'
 
 const NOTE_LIMIT = 512 * 1024
 
-export type SnapshotReason = 'relay' | 'restart' | 'checkpoint'
+export type SnapshotReason = 'relay' | 'restart' | 'checkpoint' | 'unblocked' | 'unskipped'
 
 /** What a handoff gave the new session, kept for Tally: the note gets overwritten by the next handoff and goes with the worktree. */
 export interface HandoffSnapshot {

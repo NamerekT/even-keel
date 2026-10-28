@@ -185,9 +185,9 @@ describe('Dispatcher in PR mode', () => {
     expect(launched).toEqual([])
   })
 
-  it('does not try a refused mark again on Skip and Unskip or Stop and Start, only a new turn', async () => {
+  it('waits for a new mark after Skip and Unskip replace the session, or Stop and Start adopt it', async () => {
     const { pulls, tries } = refusing()
-    const { dispatcher, handoffs } = await running({ reviews: pulls.deps })
+    const { dispatcher, handoffs, live, relays } = await running({ reviews: pulls.deps })
 
     dispatcher.skip('ABC', 'ABC-1')
     dispatcher.unskip('ABC', 'ABC-1')
@@ -199,8 +199,11 @@ describe('Dispatcher in PR mode', () => {
     await dispatcher.idle()
     expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
     expect(tries.count).toBe(1)
+    expect(relays).toMatchObject([{ kind: 'relay', reason: 'unskipped' }])
 
-    handoffs['ABC-1'] = handoff('old-session', MARK, '2026-09-26T12:10:00.000Z')
+    const sessionId = dispatcher.state.active[0]!.current!.sessionId!
+    live['ABC-1'] = sessionId
+    handoffs['ABC-1'] = handoff(sessionId, MARK, '2026-09-26T12:10:00.000Z')
     dispatcher.check()
     await dispatcher.idle()
     expect(tries.count).toBe(2)
