@@ -41,7 +41,7 @@ export function Header() {
                 /
               </span>
               <span className="header__crumb">
-                <ProjectLabel project={project} />
+                <ProjectLabel project={project} keyClass="header__crumb-key" />
               </span>
             </>
           )}

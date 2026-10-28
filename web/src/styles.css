@@ -360,10 +360,20 @@ input[type='radio']:disabled {
   color: var(--fg-muted);
 }
 
+/* A long project name takes the room left by the brand and the section links and ends in an ellipsis there (BTN-504): the queue stays readable, the crumb never runs over it.
+   The crumb holds the muted colour, so the ellipsis is muted; the key keeps its own colour. */
 .header__crumb {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
   font-family: var(--mono);
   font-weight: 600;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.header__crumb-key {
+  color: var(--fg);
 }
 
 /* Sets the section links apart from the brand and the project crumb, which are as quiet and would read as one subtitle with them (BTN-348). */
