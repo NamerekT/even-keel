@@ -11,8 +11,8 @@ describe('noticesEn', () => {
     expect(englishOf(notice('account.usedByApp', { app: 'VS Code' }))).toMatch(/^claude: /)
   })
 
-  it('names Codex and keeps the prefixes the Russian texts keep', () => {
-    expect(page(notice('account.codexHomeKept', {}))).toMatch(/^Codex: Codex's own folder/)
+  it("names Codex and keeps the prompt's area prefix", () => {
+    expect(page(notice('account.codexHomeKept', {}))).toMatch(/^Codex's own account/)
     expect(page(notice('prompt.empty', { before: 'x', value: 'null' }))).toMatch(/^prompt: /)
   })
 })

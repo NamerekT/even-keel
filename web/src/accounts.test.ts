@@ -134,25 +134,27 @@ describe('accountGroups', () => {
   it('keeps the accounts that cannot work last inside a group', () => {
     expect(groups([of('spent', 'claude', { needsLogin: true }), of('work', 'claude')], 'none')).toEqual([
       ['claude', ['work', 'spent']],
-      ['codex', []],
     ])
   })
 
-  it('puts the empty groups after those with accounts, so on the page two of them share a row', () => {
+  it('omits providers without accounts even when their CLI is available', () => {
     expect(groups([of('zen', 'opencode'), of('global', 'claude')])).toEqual([
       ['claude', ['global']],
       ['opencode', ['zen']],
-      ['codex', []],
     ])
   })
 
-  it('lists an addable provider with no account as an empty group, and an agent it does not know after the rest', () => {
+  it('lists an unknown agent after populated known providers', () => {
     expect(accountGroups({ ...view([of('global', 'claude'), of('other', 'gemini'), of('zen', 'opencode')]) }, now).map((group) => group.agent)).toEqual([
       'claude',
       'opencode',
       'gemini',
-      'codex',
-      'copilot',
+    ])
+  })
+
+  it('puts every account at work before idle accounts, including one that needs sign-in', () => {
+    expect(groups([of('idle', 'claude'), of('busy', 'claude', { sessions: ['session'], needsLogin: true })], 'none')).toEqual([
+      ['claude', ['busy', 'idle']],
     ])
   })
 

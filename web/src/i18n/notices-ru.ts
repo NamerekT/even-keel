@@ -211,14 +211,14 @@ export const noticesRu: NoticeTexts = {
   'account.alreadyActive': (p) => `${p.key} уже активен`,
   'account.removing': (p) => `${p.account} удаляется — сначала отмените удаление`,
   'account.needsLogin': (p) => `в ${p.account} сначала нужно войти`,
-  'account.globalKept': () => 'глобальный аккаунт живёт в ~/.claude и отсюда не удаляется',
+  'account.globalKept': () => 'собственный аккаунт Claude Code отсюда не удаляется',
   'account.activeKept': () => 'активный аккаунт не удалить — сначала переключитесь на другой',
   'account.sharedPool': () => 'этот аккаунт выбран аккаунтом Claude Code в общих настройках — сначала выберите там другой',
   'account.projectPool': (p) => `этот аккаунт выбран аккаунтом Claude Code в настройках проектов ${list(p.projects)} — сначала выберите там другой`,
   'account.signInRunning': () => 'в этот аккаунт идёт вход',
   'account.usedByApp': (p) => `этот аккаунт использует ${p.app} — сначала переключите его на другой`,
   'account.codexApp': () => 'приложения работают на Claude Code — аккаунт Codex им не отдать',
-  'account.codexHomeKept': () => 'собственная папка Codex (CODEX_HOME или ~/.codex) отсюда не удаляется',
+  'account.codexHomeKept': () => 'собственный аккаунт Codex отсюда не удаляется',
   'account.secondFree': (p) =>
     `вход прошёл, но на бесплатном плане, а бесплатный аккаунт здесь уже есть — ${p.account}. Условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов, поэтому из новой папки выполнен выход, она удалена и ничего не добавлено. Войдите аккаунтом с подпиской или переведите этот на платный план и войдите снова`,
   'account.sameFree': (p) =>

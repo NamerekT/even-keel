@@ -227,7 +227,7 @@ export const en = {
   'account.alreadyActive': (p: { key: string }) => `claude: ${p.key} is already active`,
   'account.removing': (p: { account: string }) => `claude: ${p.account} is being removed; keep it first`,
   'account.needsLogin': (p: { account: string }) => `claude: ${p.account} needs a login first`,
-  'account.globalKept': () => 'claude: the global account lives in ~/.claude and is not removed from here',
+  'account.globalKept': () => "Claude Code's own account cannot be removed from here",
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
   'account.sharedPool': () => 'claude: the shared settings pick this account as their account on Claude Code; pick another one there first',
   'account.projectPool': (p: { projects: string[] }) =>
@@ -235,7 +235,7 @@ export const en = {
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',
-  'account.codexHomeKept': () => "codex: Codex's own folder (CODEX_HOME or ~/.codex) is not removed from here",
+  'account.codexHomeKept': () => "Codex's own account cannot be removed from here",
   'account.secondFree': (p: { account: string }) =>
     `codex: the sign-in went through, but on the free plan, and ${p.account} is already the free account here; OpenAI's terms do not allow several free accounts to get round the limits, so the new folder was signed out and removed and nothing was added. Sign in with a paid account, or move this one to a paid plan and sign in again`,
   'account.sameFree': (p: { account: string }) =>
