@@ -30,11 +30,11 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     const { mailbox, later } = await box()
     const posted = mailbox.post('ABC-1', SESSION, 'Use the other parser.', ['C:\\repo\\.temp\\inbox\\a.png'])
     expect(posted).toMatchObject({ task: 'ABC-1', sessionId: SESSION, fate: 'waiting', event: null, files: ['C:\\repo\\.temp\\inbox\\a.png'] })
-    expect(mailbox.take(OTHER, 'PostToolUse')).toEqual([])
+    expect(mailbox.take(OTHER)).toEqual([])
     later(5)
-    const taken = mailbox.take(SESSION, 'PostToolUse')
+    const taken = mailbox.settle(mailbox.take(SESSION), 'delivered', 'PostToolUse')
     expect(taken.map((mail) => [mail.text, mail.fate, mail.event, mail.settledAt])).toEqual([['Use the other parser.', 'delivered', 'PostToolUse', '2026-10-18T10:00:05.000Z']])
-    expect(mailbox.take(SESSION, 'Stop')).toEqual([])
+    expect(mailbox.settle(mailbox.take(SESSION), 'delivered', 'Stop')).toEqual([])
   })
 
   it('outlives the service: a new mailbox on the same database sees what waits', async () => {
@@ -43,13 +43,25 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     expect((await reopened()).waiting().map((mail) => mail.text)).toEqual(['one'])
   })
 
+  it('reserves without persisting delivery and releases reservations after a restart or failed response', async () => {
+    const { mailbox, reopened } = await box()
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    const taken = mailbox.take(SESSION)
+    expect(mailbox.waiting()).toEqual([])
+    expect(mailbox.take(SESSION)).toEqual([])
+    expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
+    expect((await reopened()).waiting().map((mail) => mail.text)).toEqual(['one'])
+    mailbox.release(taken)
+    expect(mailbox.take(SESSION).map((mail) => mail.text)).toEqual(['one'])
+  })
+
   it('writes every change through to the database', async () => {
     const { mailbox, reopened, later } = await box()
     for (const text of ['a', 'b', 'c']) mailbox.post('ABC-1', SESSION, text, ['C:\\repo\\.temp\\inbox\\a.png'])
     mailbox.settle(mailbox.waiting().slice(0, 1), 'returned')
     mailbox.dismiss(SESSION)
     later(5)
-    mailbox.take(SESSION, 'Stop')
+    mailbox.settle(mailbox.take(SESSION), 'delivered', 'Stop')
     const again = await reopened()
     expect(again.of(SESSION)).toEqual(mailbox.of(SESSION))
     expect(again.of(SESSION).map((mail) => [mail.text, mail.fate, mail.event])).toEqual([
@@ -62,7 +74,7 @@ describe('Mailbox', { timeout: 30_000 }, () => {
   it('knows a session listens only once its hook asked', async () => {
     const { mailbox } = await box()
     expect(mailbox.listens(SESSION)).toBe(false)
-    mailbox.take(SESSION, 'PreToolUse')
+    mailbox.take(SESSION)
     expect(mailbox.listens(SESSION)).toBe(true)
     expect(mailbox.listens(OTHER)).toBe(false)
   })
@@ -71,7 +83,7 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     const { mailbox } = await box()
     const first = mailbox.post('ABC-1', SESSION, 'one', [])
     const second = mailbox.post('ABC-1', SESSION, 'two', [])
-    mailbox.take(SESSION, 'Stop')
+    mailbox.settle(mailbox.take(SESSION), 'delivered', 'Stop')
     const third = mailbox.post('ABC-1', SESSION, 'three', [])
     expect(mailbox.settle([first, second, third], 'returned').map((mail) => mail.text)).toEqual(['three'])
     expect(mailbox.of(SESSION).map((mail) => [mail.text, mail.fate])).toEqual([
@@ -85,7 +97,7 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     const { mailbox } = await box()
     for (const text of ['a', 'b', 'c', 'd']) {
       mailbox.post('ABC-1', SESSION, text, [])
-      mailbox.take(SESSION, 'PostToolUse')
+      mailbox.settle(mailbox.take(SESSION), 'delivered', 'PostToolUse')
     }
     const returned = mailbox.post('ABC-1', SESSION, 'back', [])
     mailbox.settle([returned], 'returned')
@@ -98,7 +110,7 @@ describe('Mailbox', { timeout: 30_000 }, () => {
   it('forgets settled messages after a week', async () => {
     const { mailbox, reopened, later } = await box()
     mailbox.post('ABC-1', SESSION, 'old', [])
-    mailbox.take(SESSION, 'Stop')
+    mailbox.settle(mailbox.take(SESSION), 'delivered', 'Stop')
     mailbox.post('ABC-1', SESSION, 'still waiting', [])
     later(8 * 24 * 60 * 60)
     mailbox.post('ABC-1', SESSION, 'fresh', [])

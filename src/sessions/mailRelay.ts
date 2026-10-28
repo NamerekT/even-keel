@@ -57,11 +57,29 @@ async function resumed(relay: MailRelay, task: string, sessionId: string, waitin
   relay.changed()
 }
 
-/** The hook's call: the text for what waits for the session, now delivered on `event`, or `null` when nothing waits. */
-export function mailFor(relay: MailRelay, sessionId: string, event: MailEvent): string | null {
-  const taken = relay.mailbox.take(sessionId, event)
+export interface HookMail {
+  message: string
+  /** Called once the HTTP response finishes, or fails before it finishes. */
+  finish: (delivered: boolean) => void
+}
+
+/** Reserves the hook's text until the HTTP response is sent; `null` when nothing waits. */
+export function mailFor(relay: MailRelay, sessionId: string, event: MailEvent): HookMail | null {
+  const taken = relay.mailbox.take(sessionId)
   if (taken.length === 0) return null
-  relay.log(`chain: ${taken[0]!.task}: the hook of the session ${sessionId} took ${taken.length} message(s) from the page on ${event}`)
-  relay.changed()
-  return mailMessage(taken, event, relay.language())
+  let finished = false
+  return {
+    message: mailMessage(taken, event, relay.language()),
+    finish: (delivered) => {
+      if (finished) return
+      finished = true
+      if (delivered) {
+        relay.mailbox.settle(taken, 'delivered', event)
+        relay.log(`chain: ${taken[0]!.task}: the hook of the session ${sessionId} took ${taken.length} message(s) from the page on ${event}`)
+        relay.changed()
+      } else {
+        relay.mailbox.release(taken)
+      }
+    },
+  }
 }

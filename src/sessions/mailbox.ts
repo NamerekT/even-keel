@@ -73,26 +73,27 @@ export class Mailbox {
     return { ...mail }
   }
 
-  /** The hook's call: what waits for the session, now delivered on `event`. */
-  take(sessionId: string, event: MailEvent): Mail[] {
+  /** Reserves the hook's mail until its HTTP response finishes; stored rows still wait. */
+  take(sessionId: string): Mail[] {
     this.heard.add(sessionId)
-    return this.settle(
-      this.waiting().filter((mail) => mail.sessionId === sessionId),
-      'delivered',
-      event,
-    )
+    return this.claim(this.waiting().filter((mail) => mail.sessionId === sessionId))
   }
 
   waiting(): Mail[] {
     return this.mails.filter((mail) => mail.fate === 'waiting' && !this.claimed.has(mail.id)).map((mail) => ({ ...mail }))
   }
 
-  /** Holds waiting mail for a queued resume, so hooks and timers cannot deliver it a second time. Not persisted. */
+  /** Holds waiting mail for a hook or queued resume, so neither can deliver it a second time. Not persisted. */
   claim(mails: Mail[]): Mail[] {
     const ids = new Set(mails.map((mail) => mail.id))
     const claimed = this.waiting().filter((mail) => ids.has(mail.id))
     for (const mail of claimed) this.claimed.add(mail.id)
     return claimed
+  }
+
+  /** A failed hook response leaves its messages available for the next hook or resume. */
+  release(mails: Mail[]): void {
+    for (const mail of mails) this.claimed.delete(mail.id)
   }
 
   /** Gives `fate` to those of `mails` that still wait and returns them. */

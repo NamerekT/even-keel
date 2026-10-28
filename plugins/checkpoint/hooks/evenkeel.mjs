@@ -109,7 +109,7 @@ export async function mailOf(sessionId, event) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ event }),
-    signal: AbortSignal.timeout(event === "Stop" ? 5000 : 2000),
+    signal: AbortSignal.timeout(5000),
   });
   if (!response.ok) return null;
   const message = (await response.json())?.message;
