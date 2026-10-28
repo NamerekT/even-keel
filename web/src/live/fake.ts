@@ -573,7 +573,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
   }
   if (params.get('chain')?.startsWith('silent') && current.state !== null && active) {
-    const since = ago(params.get('chain') === 'silent-short' ? 2 : 6)
+    const since = ago(params.get('chain') === 'silent-short' ? 1 : 6)
     const base = session('ABC-5', contextTokens, 'working')
     const feed = base.feed.filter((line) => line.at <= since)
     const quiet: SessionView = { ...base, silentSince: since, lastActivityAt: since, waitingFor: null, feed, action: feed.at(-1) ?? null }

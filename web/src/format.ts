@@ -29,6 +29,11 @@ export function formatAgo(at: string, now: Date): string {
   return t.time.ago(`${Math.floor(ms / DAY)} ${day}`)
 }
 
+/** How long a session has been quiet, coarse: "2 min", "27 min". */
+export function formatQuiet(ms: number): string {
+  return `${Math.max(1, Math.floor(ms / MINUTE))} ${t.units.minute}`
+}
+
 export function formatTokens(tokens: number): string {
   if (tokens < 1_000) return String(tokens)
   const thousands = Math.round(tokens / 1_000)
