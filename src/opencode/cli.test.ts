@@ -104,12 +104,29 @@ describe('sessionConfig', () => {
     const config = JSON.parse(sessionConfig({}, ['local-db'], ['/packages/huly/skills']))
     expect(config.mcp).toBeUndefined()
     expect(config.skills).toEqual({ paths: ['/packages/huly/skills'] })
-    expect(config.plugin).toBeUndefined()
+    expect(config.plugin).toHaveLength(1)
   })
 
   it("loads the plugin packages' OpenCode plugins", () => {
     const config = JSON.parse(sessionConfig({}, [], [], ['file:///packages/checkpoint/opencode/checkpoint.mjs']))
-    expect(config.plugin).toEqual(['file:///packages/checkpoint/opencode/checkpoint.mjs'])
+    expect(config.plugin[0]).toBe('file:///packages/checkpoint/opencode/checkpoint.mjs')
+    expect(config.plugin).toHaveLength(2)
+  })
+
+  it('loads the built-in permission overlay last, with exactly the active Protection rules', () => {
+    const config = JSON.parse(sessionConfig({ mcp: [server] }, [], []))
+    const [file, rules] = config.plugin.at(-1)
+    expect(file).toMatch(/\/opencode\/protection-plugin\.(ts|js)$/)
+    expect(rules.bash).toContain('git push --force*')
+    expect(rules.tools).toContain('plugin_huly_huly_delete_issue')
+
+    const protection = { ...DEFAULT_PROTECTION, disabled: [...PROTECTION_GROUPS], opencode: ['echo BLOCK_*'] }
+    const custom = JSON.parse(sessionConfig({ protection }, [], []))
+    expect(custom.plugin.at(-1)[1]).toEqual({ bash: ['echo BLOCK_*'], tools: [] })
+    const off = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], []))
+    expect(off.plugin).toBeUndefined()
+    const packagesOnly = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [], ['file:///packages/checkpoint.mjs']))
+    expect(packagesOnly.plugin).toEqual(['file:///packages/checkpoint.mjs'])
   })
 })
 

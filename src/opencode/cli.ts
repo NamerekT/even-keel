@@ -80,7 +80,8 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: st
 /**
  * The config a chain session gets on top of the account's and the project's (`OPENCODE_CONFIG_CONTENT`): the
  * gateway's servers and none of the project's own, the skills and the OpenCode plugins of the project's plugin
- * packages, and `external_directory` allowed, which a merge into the main checkout from a worktree needs.
+ * packages, and `external_directory` allowed, which a merge into the main checkout from a worktree needs. The
+ * built-in config hook reapplies Protection after agent-specific permissions have been merged.
  */
 export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection'>, projectServers: string[], skillDirs: string[], plugins: string[] = []): string {
   const huly = start.mcp?.filter(server => server.plugin === 'huly' || server.name === 'huly').map(gatewayName)
@@ -97,7 +98,10 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'pro
     config.mcp = { ...own, ...gateway }
   }
   if (skillDirs.length > 0) config.skills = { paths: skillDirs }
-  if (plugins.length > 0) config.plugin = plugins
+  const overlay = rules.bash.length > 0 || rules.tools.length > 0
+    ? [[new URL(import.meta.url.endsWith('.ts') ? './protection-plugin.ts' : './protection-plugin.js', import.meta.url).href, rules]]
+    : []
+  if (plugins.length > 0 || overlay.length > 0) config.plugin = [...plugins, ...overlay]
   return JSON.stringify(config)
 }
 
