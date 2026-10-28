@@ -2,7 +2,7 @@ import { compareMilestones } from '../../../src/chain/order.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
-import type { MilestoneChoice, TaskMilestone } from '../../../src/tracker/model.js'
+import { runLabelOf, type MilestoneChoice, type TaskMilestone } from '../../../src/tracker/model.js'
 
 const DESCRIPTION = `## Goal
 
@@ -64,7 +64,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     ? []
     : [
         ...(task.question ? [{ name: 'Вопрос', role: 'question' as const }] : []),
-        ...(number % 2 === 0 ? [{ name: 'Opus', role: 'model' as const }] : []),
+        ...task.labels.map((name) => ({ name, role: runLabelOf(name) === null ? null : 'model' as const })),
         { name: 'UI', role: null },
       ]
   return {

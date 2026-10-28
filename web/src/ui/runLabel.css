@@ -1,0 +1,24 @@
+.run-label {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.run-label__provider {
+  flex: none;
+}
+
+@supports (text-box: trim-both cap alphabetic) {
+  .run-label > span {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+.run-label__model {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-block: var(--space-4);
+  margin-block: calc(-1 * var(--space-4));
+}

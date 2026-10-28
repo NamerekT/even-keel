@@ -71,6 +71,8 @@ A project's tasks can come from more than one tracker: its own, plus **task feed
 
 Sequential within a project, not across them: `parallel` lets that many chains on different projects run at once (one by default). Other projects wait in a queue and start as soon as a chain ends. The usage limit stays shared: every running chain takes tasks until the window is used up, then they all wait for the reset.
 
+Run labels in the chain and task card keep the provider's spelling and show only the model name after the last `/`: `OpenCode | opencode/deepseek-v4.1-flash-free` appears as `OpenCode | deepseek-v4.1-flash-free`. Hover for the full tracker label. If space is tight, only the model is shortened with an ellipsis.
+
 ## Sessions
 
 For Claude background sessions, Even Keel checks process creation times to discard stale session records and leave another process that reused a session's or saved child's process number running. If the operating system cannot report a creation time, it keeps the previous process-number check.
