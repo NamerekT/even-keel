@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 /** `.backlog__row--leaving` in backlog.css: the row slides out of the backlog before the copy sets off. */
-const LEAVE_MS = 280
-const FLIGHT_MS = 560
+const LEAVE_MS = 160
+const FLIGHT_MS = 320
 
 interface Props {
   task: string
