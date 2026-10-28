@@ -4,10 +4,9 @@ import { createServer } from 'node:http'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/credit.js'
+import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS } from './account/service-defaults.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
-import { checkApiKey, checkGitHubToken, checkOpenAiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { forgetKeyOrganization, loadKeyOrganizations, saveKeyOrganization } from './account/organizations.js'
 import { executionOfChoices, transportOf } from './account/transport.js'
@@ -168,21 +167,6 @@ const WORK_TICK_MS = 15_000
 const WORK_TTL_MS = 60_000
 /** How often the labelled GitHub issues and the ones taken in are looked at (BTN-262). */
 const INTAKE_TICK_MS = 2 * 60_000
-const KEY_CHECK_MS = 60 * 60_000
-const KEY_CHECK_TIMEOUT_MS = 15_000
-const CREDIT_CHECK_MS = 5 * 60_000
-/**
- * The key and credit checks by whose key it is (`keyProvider`). GitHub has no way to ask about a token's AI credits: a
- * Copilot account waits out spent credit by its monthly allowance instead (`Agent.keyUsage`, BTN-341).
- */
-const KEY_CHECKS = { anthropic: checkApiKey, openai: checkOpenAiKey, github: checkGitHubToken }
-const CREDIT_CHECKS = {
-  anthropic: checkCredit,
-  openai: checkOpenAiCredit,
-  github: async (): Promise<CreditVerdict> => ({ state: 'unknown', reason: 'GitHub does not tell the AI credits of a token' }),
-}
-const APP_POLL_MS = 5_000
-const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
 const OWNERS_RESCAN_MS = 5 * 60_000
 const CONFIG_POLL_MS = 2_000
