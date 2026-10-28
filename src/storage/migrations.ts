@@ -99,6 +99,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v14 → v15: additive Protection settings; omitted fields keep the built-in defaults.
   // v15 → v16: additive OpenCode Protection patterns; omitted fields inherit an empty custom list.
   // v16 → v17: model prompt keys become provider / model patterns.
+  // v17 → v18: restamp for optional release reasons and blockers in shelved tasks, and their handover causes.
   if (packages !== undefined && packages.version < SCHEMA_VERSION) {
     const record = asRecord(packages)
     rewrite(packages, jsonText(stamped(packages.version < 14 ? packageOverrides(record) : record)))

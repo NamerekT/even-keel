@@ -1,8 +1,9 @@
 import type { Language } from '../language.js'
 import { SESSION_MARK } from '../review/model.js'
 import { fill } from '../sessions/prompt.js'
+import type { ReturnReason } from './model.js'
 
-export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review' | 'returned'
+export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
 
 /** What a session is told of its pull request's feedback (BTN-205). */
 export interface ReviewTexts {
@@ -52,6 +53,7 @@ export interface PromptTexts {
   shared: (text: string) => string
   project: (text: string) => string
   why: Record<HandoffReason, string>
+  blockersClosed: (blockers: string[]) => string
   workdir: (path: string) => string
   transcript: (path: string) => string
   note: (path: string) => string
@@ -141,7 +143,10 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       review: 'Продолжение: прошлая сессия по этой задаче открыла pull request, на него пришли замечания, а её кэш уже остыл — замечания отрабатываешь ты.',
       returned:
         'Продолжение: прошлая сессия по этой задаче закончила ход и увела задачу из цепочки — скорее всего, с вопросом пользователю. Пользователь вернул её в цепочку: ответ — в описании задачи или в комментариях к ней после вопроса. Прочитай эти комментарии в трекере, даже если навык трекера велит не читать ленту задачи. Прошлая сессия остановлена, задачу доводишь ты.',
+      unblocked: 'Продолжение: прошлая сессия отложила задачу из-за блокера и закончила ход. Блокеры больше не держат задачу, цепочка вернулась к ней. Прошлая сессия остановлена; продолжи её работу с передачей.',
+      unskipped: 'Продолжение: задачу отпустили через «Пропустить», теперь вернули в цепочку. Прошлая сессия закончила ход и остановлена; продолжи её работу с передачей.',
     },
+    blockersClosed: (blockers) => fill`Закрытые блокеры: ${blockers.join(', ')}. Прочитай описание задачи и результаты этих блокеров перед продолжением.`,
     workdir: (path) => fill`- Рабочая папка: ${path} — работай в ней, новый worktree не создавай.`,
     transcript: (path) => fill`- Транскрипт прошлой сессии: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
     note: (path) => fill`- Записка о передаче: ${path} — прочитай её первой: что сделано, что осталось, следующая команда.`,
@@ -241,7 +246,10 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       review: 'Continuation: the previous session on this task opened a pull request, it got feedback, and that session\'s cache has gone cold; you work the feedback.',
       returned:
         'Continuation: the previous session on this task ended its turn and let the task leave the chain, most likely with a question to the user. The user brought the task back into the chain: the answer is in the task\'s description or in its comments after the question. Read those comments in the tracker, even where the tracker\'s skill says not to read the task\'s activity. The previous session is stopped; you finish the task.',
+      unblocked: 'Continuation: the previous session postponed the task for a blocker and ended its turn. The blockers no longer hold the task and the chain returned to it. The previous session is stopped; continue its work from the handoff.',
+      unskipped: 'Continuation: the task was released with Skip and has now been returned to the chain. The previous session ended its turn and is stopped; continue its work from the handoff.',
     },
+    blockersClosed: (blockers) => fill`Closed blockers: ${blockers.join(', ')}. Read the task description and these blockers\' results before continuing.`,
     workdir: (path) => fill`- Working folder: ${path} — work in it, do not create a new worktree.`,
     transcript: (path) => fill`- Transcript of the previous session: ${path} — do not read it whole; grep it if something is missing.`,
     note: (path) => fill`- Handoff note: ${path} — read it first: what is done, what is left, the next command.`,

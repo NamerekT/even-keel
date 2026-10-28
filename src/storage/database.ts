@@ -229,6 +229,12 @@ export const STEPS: readonly string[] = [
      set value = coalesce((select json_object_agg('* | ' || key, value)::text from json_each(value::json)), '{}')
    where key = 'modelPrompts';
   `,
+  `
+  create table global_accounts (account text primary key);
+  insert into service_state (name, value)
+    select 'accounts.adoptLegacy', 'true'
+    where current_setting('even_keel.migration_from', true)::integer > 0;
+  `,
 ]
 
 /** The version this code reads and writes. */
@@ -271,6 +277,7 @@ async function migrateDatabase(db: PGlite, where: string, steps: readonly string
   refuseNewer(where, from, known)
   for (let version = Math.max(from, SQLITE_VERSIONS); version < known; version++) {
     await db.transaction(async (tx) => {
+      await tx.query("select set_config('even_keel.migration_from', $1, true)", [String(from)])
       if (version === SQLITE_VERSIONS && from === 0) {
         await tx.exec(VERSION_TABLE)
         await tx.query('insert into schema_version (version) values (0)')

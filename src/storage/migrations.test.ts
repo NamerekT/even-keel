@@ -71,6 +71,16 @@ describe('upgradeStorage', () => {
   }
   const originals = () => ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json'].map((name) => text(join(dir, name)))
 
+  it('restamps v17 while preserving inactive-status shelves without a release reason', async () => {
+    await cp(join(root, 'test', 'fixtures', 'schema-v17'), dir, { recursive: true })
+    const before = json(state('chain.json'))
+    before.shelved = { [before.active[0].project]: [{ task: 'ABC-1', sessionId: 'old-session', at: '2026-10-01T09:00:00.000Z' }] }
+    put(state('chain.json'), before)
+    upgrade()
+    expect(json(state('chain.json'))).toEqual({ ...before, version: SCHEMA_VERSION })
+    expect(json(state('chain.json.v17.bak'))).toEqual(before)
+  })
+
   describe('v1 to v2', () => {
     it('turns the projects object into an array of records in the same order, each with a GUID', () => {
       putV1()

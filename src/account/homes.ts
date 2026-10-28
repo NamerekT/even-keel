@@ -30,8 +30,8 @@ export interface AccountHome {
 }
 
 /**
- * The account folders: Claude Code's global `~/.claude` once it exists and one `CLAUDE_CONFIG_DIR` per account under the
- * root; Codex's own folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it — and one
+ * The account folders: explicitly registered global folders and one `CLAUDE_CONFIG_DIR` per account under the
+ * root; Codex's own folder (`CODEX_HOME` or `~/.codex`) when registered, and one
  * `CODEX_HOME` per account under the Codex root (BTN-176). A folder's name is its key across both roots: a Codex folder
  * named like a Claude one is left out, and a new one is named apart from both.
  */
@@ -46,6 +46,7 @@ export class AccountHomes {
     codexRoot = codexAccountsRoot(env),
     openCodeRoot = openCodeAccountsRoot(env),
     copilotRoot = copilotAccountsRoot(env),
+    private readonly registration = { keys: new Set<string>(), save: async (_key: string, _added: boolean): Promise<void> => {} },
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
     this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
@@ -63,9 +64,9 @@ export class AccountHomes {
     const openCode = this.folders(OPENCODE).filter((name) => !claude.includes(name) && !codex.includes(name))
     const copilot = this.folders(COPILOT).filter((name) => !claude.includes(name) && !codex.includes(name) && !openCode.includes(name))
     return [
-      ...(existsSync(this.global.dir) ? [this.global] : []),
+      ...(this.registered(this.global) ? [this.global] : []),
       ...claude.map((name) => this.home(CLAUDE, name)),
-      ...(existsSync(this.codex.dir) ? [this.codex] : []),
+      ...(this.registered(this.codex) ? [this.codex] : []),
       ...codex.map((name) => this.home(CODEX, name)),
       ...openCode.map((name) => this.home(OPENCODE, name)),
       ...copilot.map((name) => this.home(COPILOT, name)),
@@ -76,8 +77,27 @@ export class AccountHomes {
     return this.list().find((home) => home.key === key)
   }
 
+  /** Existing history folders, including global folders not registered for running sessions. */
+  all(): AccountHome[] {
+    return [...this.list(), ...this.availableGlobals()]
+  }
+
+  availableGlobals(): AccountHome[] {
+    return [this.global, this.codex].filter((home) => existsSync(home.dir) && !this.registration.keys.has(home.key))
+  }
+
+  async register(home: AccountHome): Promise<void> {
+    if (!this.availableGlobals().some((each) => each.key === home.key)) throw fail('account.unknown', { key: home.key })
+    await this.registration.save(home.key, true)
+    this.registration.keys.add(home.key)
+  }
+
+  private registered(home: AccountHome): boolean {
+    return this.registration.keys.has(home.key) && existsSync(home.dir)
+  }
+
   ownerOf(configDir: string | null): string | undefined {
-    if (configDir === null) return GLOBAL_ACCOUNT
+    if (configDir === null) return this.find(GLOBAL_ACCOUNT)?.key
     return this.list().find((home) => samePath(home.dir, configDir))?.key
   }
 
@@ -199,8 +219,12 @@ export class AccountHomes {
     return this.env.CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(this.global.dir, '.claude.json')
   }
 
-  remove(home: AccountHome): void {
-    if (home.global) throw fail('account.globalKept', {})
+  async remove(home: AccountHome): Promise<void> {
+    if (home.global) {
+      await this.registration.save(home.key, false)
+      this.registration.keys.delete(home.key)
+      return
+    }
     rmSync(home.dir, { recursive: true, force: true, maxRetries: 3 })
   }
 
