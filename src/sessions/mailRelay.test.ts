@@ -126,11 +126,31 @@ describe('mailFor', { timeout: 30_000 }, () => {
   it('gives the hook what waits, with the lead of its event, and nothing the second time', async () => {
     const { deps, mailbox, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     const { id } = mailbox.post('ABC-1', SESSION, 'Use the other parser.', [])
-    const message = mailFor(deps, SESSION, 'Stop')
-    expect(message).toContain(`<even-keel-message id="${id}">`)
-    expect(message).toContain('Use the other parser.')
+    const delivery = mailFor(deps, SESSION, 'Stop')!
+    expect(delivery.message).toContain(`<even-keel-message id="${id}">`)
+    expect(delivery.message).toContain('Use the other parser.')
+    expect(changes()).toBe(0)
+    expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
+    delivery.finish(true)
+    delivery.finish(false)
     expect(changes()).toBe(1)
     expect(mailFor(deps, SESSION, 'PostToolUse')).toBeNull()
     expect(mailbox.listens(SESSION)).toBe(true)
+  })
+
+  it('releases only the failed response and ignores its late finish after another hook takes the mail', async () => {
+    const { deps, mailbox, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    const first = mailFor(deps, SESSION, 'PreToolUse')!
+    expect(mailFor(deps, SESSION, 'Stop')).toBeNull()
+    first.finish(false)
+    const next = mailFor(deps, SESSION, 'PostToolUse')!
+    first.finish(true)
+    expect(mailFor(deps, SESSION, 'Stop')).toBeNull()
+    expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
+    expect(changes()).toBe(0)
+    next.finish(true)
+    expect(mailbox.of(SESSION)[0]?.event).toBe('PostToolUse')
+    expect(changes()).toBe(1)
   })
 })

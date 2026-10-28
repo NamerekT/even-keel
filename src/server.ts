@@ -42,6 +42,7 @@ import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
+import type { HookMail } from './sessions/mailRelay.js'
 import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
@@ -231,10 +232,10 @@ export interface ServerDeps {
    */
   mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[] } | undefined
   /**
-   * For the mailbox hook: the chat's messages that waited for the session, delivered now on `event`, as one text;
+   * For the mailbox hook: reserves the chat's messages until the response finishes, as one text;
    * `null` — none wait; `undefined` for a session the chain did not start (BTN-181).
    */
-  mail: (sessionId: string, event: MailEvent) => string | null | undefined
+  mail: (sessionId: string, event: MailEvent) => HookMail | null | undefined
   /**
    * For the permission hook started at `since` (ms): the user's decision on the tool call the session waits to have
    * approved; `null` — not yet; `undefined` for a session the chain did not start, or a call whose dialog is gone (BTN-269).
@@ -589,17 +590,38 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const mail = /^\/api\/sessions\/([^/]+)\/mail$/.exec(path)
   if (request.method === 'POST' && mail !== null) {
-    let message: string | null | undefined
+    let delivery: HookMail | null | undefined
     try {
       const body = await readJsonBody(request, MAX_BODY_BYTES)
       if (!HOOK_EVENTS.includes(body.event as MailEvent)) throw fail('request.required', { field: 'event' })
-      message = deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
+      delivery = deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
     } catch (error) {
       sendFailure(response, error)
       return
     }
-    if (message === undefined) response.writeHead(404).end()
-    else sendJson(response, 200, { message })
+    if (delivery === undefined) response.writeHead(404).end()
+    else {
+      const finish = (delivered: boolean) => {
+        response.off('finish', sent)
+        response.off('close', closed)
+        response.off('error', closed)
+        delivery?.finish(delivered)
+      }
+      const sent = () => finish(true)
+      const closed = () => finish(false)
+      response.once('finish', sent)
+      response.once('close', closed)
+      response.once('error', closed)
+      if (response.destroyed) closed()
+      else {
+        try {
+          sendJson(response, 200, { message: delivery?.message ?? null })
+        } catch (error) {
+          closed()
+          throw error
+        }
+      }
+    }
     return
   }
 

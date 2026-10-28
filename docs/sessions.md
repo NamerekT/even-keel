@@ -248,7 +248,9 @@ A session that steers — an SDK session, `AgentEntry.steers` — needs no mailb
 - at `Stop` — `{ decision: "block", reason }`, so the session carries on instead of ending its turn;
 - before `AskUserQuestion` — `permissionDecision: "deny"` with the message as the reason: the question does not go out next to an unread message, and the session asks again only if it still needs to.
 
-A subagent's call (`agent_id` in the hook's input) is left alone, so the message waits for the main thread. With no service or no answer in time (2 s, 5 s at `Stop`) the hook prints nothing and the tool call goes on.
+A subagent's call (`agent_id` in the hook's input) is left alone, so the message waits for the main thread. With no service or no answer in time (5 s for every event, within the hook's 10 s budget) the hook prints nothing and the tool call goes on.
+
+The HTTP handler reserves mail in memory (`Mailbox.take`, BTN-522) while the stored rows remain `waiting`, excluded from other hooks and settlement timers. It marks them `delivered` and publishes the change only on the response's `finish`. A connection closed or failed before `finish` releases the reservation for the next hook or resume; a service restart also releases it. This acknowledges sending the HTTP response, not the CLI applying its contents. Checked with the real mailbox hook and delayed HTTP responses on Windows ([verified.md](verified.md#sessions)).
 
 The text (`mailMessage` in `src/sessions/mail.ts`) is a lead for the event in the prompt language — "the user wrote to you from Even Keel's chat while you were working", "so your turn is not over yet" at `Stop`, "your question did not go out" before a question — then each message as `<even-keel-message id="N">` around its `replyPrompt` (the words and the paths of files saved into `.temp/inbox/`). The `Stop` lead also asks the session to repeat its previous final `NO CHANGES:`, `CHECKPOINT:` or `PULL REQUEST:` line after answering, if the message has not changed the task's outcome. The folds still take the mark from the latest response: an old mark cannot override a new outcome.
 

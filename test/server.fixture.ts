@@ -5,11 +5,11 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { EventHub } from '../src/events.js'
 import { guardHosts } from '../src/guard.js'
-import { createEvenKeelServer, type AccountControl, type ChainControl } from '../src/server.js'
+import { createEvenKeelServer, type AccountControl, type ChainControl, type ServerDeps } from '../src/server.js'
 
 export const STANDARD = { doc: 'docs/design.md', files: ['web/**/*.tsx'], except: ['**/*.test.*'], shots: true }
 
-export async function serverFixture() {
+export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
   const publicDir = mkdtempSync(join(tmpdir(), 'even-keel-public-'))
   writeFileSync(join(publicDir, 'index.html'), '<title>Even Keel</title>')
   const hub = new EventHub()
@@ -122,7 +122,7 @@ export async function serverFixture() {
     checkpoint: async (id) =>
       id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 } : undefined,
     mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master', standards: [STANDARD] } : undefined),
-    mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? `mail on ${event}` : null),
+    mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? { message: `mail on ${event}`, finish: () => {} } : null),
     tools: async (project) => (project === 'ABC' ? { project } : undefined),
     vocabulary: async (id) => {
       if (id === 'down') throw new Error('github: HTTP 502')
@@ -165,6 +165,7 @@ export async function serverFixture() {
       compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
     },
     guard: () => ({ hosts: guardHosts('127.0.0.1', []), token: null }),
+    ...overrides,
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
