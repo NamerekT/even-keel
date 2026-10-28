@@ -1,4 +1,5 @@
 import { Skipped } from '../github/trust.js'
+import { resolveLabels } from '../tracker/labels.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GitlabApi, GitlabHttpError } from './api.js'
@@ -213,6 +214,15 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     async vocabulary(project) {
       const path = pathOf(project)
       return { statuses: [...GITLAB_STATUSES], labels: (await labelsOf(path)).map((label) => label.name), milestones: (await milestonesOf(path)).map((milestone) => milestone.title) }
+    },
+
+    async relabel(id, change) {
+      const { path, base } = addressOf(id)
+      const issue = await rawIssue(id)
+      const selected = await resolveLabels(issue.labels.map((name) => ({ name })), change, await labelsOf(path),
+        (name) => api.rest<{ name: string }>(`${projectBase(path)}/labels`, 'POST', { name, color: '#808080' }))
+      const saved = await api.rest<GitlabIssue>(base, 'PUT', { labels: selected.map((label) => label.name).join(',') })
+      return saved.labels
     },
 
     async isPublic(project) {

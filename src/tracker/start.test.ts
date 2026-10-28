@@ -79,6 +79,15 @@ function start(projects: string[], connect: () => Promise<TaskSource>, overrides
 }
 
 describe('startTracker', () => {
+  it.each([false, true])('publishes label-write support after connecting (supported: %s)', async (supported) => {
+    const { view } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},
+      ...(supported ? { relabel: async () => [] } : {}),
+    }))
+    await vi.waitFor(() => expect(view.health.state).toBe('live'))
+    expect(view.relabel).toBe(supported)
+  })
+
   it.each([false, true])('publishes a refused merged-task close and clears it after recovery (manual: %s)', async (manual) => {
     vi.spyOn(merged, 'branchMerged').mockResolvedValue(true)
     vi.spyOn(console, 'error').mockImplementation(() => {})

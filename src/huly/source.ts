@@ -3,6 +3,7 @@ import type { TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { quietModelNoise } from './quiet.js'
+import { relabelHuly, type HulyLabelClient } from './labels.js'
 import {
   cardLinks,
   closingStatus,
@@ -36,7 +37,7 @@ interface ChatMessageDoc {
   createdOn: number
 }
 
-interface PlatformClient {
+interface PlatformClient extends HulyLabelClient {
   findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
   findOne<T>(cls: string, query: Query, options?: { sort?: Record<string, 1 | -1> }): Promise<T | undefined>
   updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>, retrieve?: boolean): Promise<unknown>
@@ -290,6 +291,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status: status._id })
       return toStatus(status)
     },
+
+    relabel: async (identifier, change) => relabelHuly(client, await findIssue(identifier), change),
     async comment(identifier, body) {
       const issue = await findIssue(identifier)
       const message = jsonToMarkup(markdownToMarkup(body))

@@ -1,4 +1,5 @@
 import { sameName } from '../chain/rules.js'
+import { changedLabels } from '../tracker/labels.js'
 import { fail } from '../notice/notice.js'
 import { commentsAfterId } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
@@ -219,6 +220,13 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     },
 
     ready,
+
+    async relabel(id, change) {
+      const issue = await issueOf(id, ['labels'])
+      const labels = changedLabels(issue.fields.labels ?? [], change)
+      await api.rest(issuePath(id), 'PUT', { fields: { labels } })
+      return (await issueOf(id, ['labels'])).fields.labels ?? []
+    },
 
     async comment(id, body) {
       return (await api.rest<{ id: string }>(`${issuePath(id)}/comment`, 'POST', { body: markdownToAdf(body) })).id
