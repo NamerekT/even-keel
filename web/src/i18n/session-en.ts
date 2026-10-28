@@ -105,7 +105,8 @@ export const sessionEn = {
   modelFrom: "By the session's last answer in its transcript",
   modelYet: 'The session has not answered yet: the model shows from its first answer',
   limitUnknown: 'The limit reset time is unknown. Changing the task’s account starts a new session.',
-  limitAccount: (provider: string, account: string) => `${provider} account “${account}”. Change this provider’s account in the project’s pool (shared or own) under Project settings → Sessions, or change the task’s provider label.`,
+  limitGuide: 'How to start sooner',
+  limitAccount: (provider: string, account: string) => `Changing the task’s account starts it sooner. ${provider} account “${account}”. Change this provider’s account in the project’s pool (shared or own) under Project settings → Sessions, or change the task’s provider label.`,
   limitDetails: (count: number) => `Earlier messages · ${count}`,
   limitEvent: 'Open the session to see the affected account and how to change its project pool.',
   creditEmpty: 'out of credit',
@@ -117,7 +118,7 @@ export const sessionEn = {
     'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up.',
   limitResume: (at: string) => `After the limit resets at ${at} the dispatcher continues this session — the cache will still be warm.`,
   limitRelay: (at: string) =>
-    `After the limit resets at ${at} the dispatcher starts a new session in the same working folder. Changing the task’s account starts it sooner.`,
+    `After the limit resets at ${at} the dispatcher starts a new session in the same working folder.`,
   list: 'Sessions of the task',
   resets: (count: number, breakdown: string) => ` · context resets: ${count} (${breakdown})`,
   compacted: (count: number) => ` · compactions: ${count}`,

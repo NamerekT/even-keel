@@ -5,12 +5,10 @@
 }
 
 .limit-notice__latest,
-.limit-notice__account,
 .limit-notice__details p {
   margin: 0;
 }
 
-.limit-notice__account,
 .limit-notice__details {
   margin-top: var(--space-8);
   font-size: var(--text-13);
@@ -19,6 +17,11 @@
 .limit-notice__details summary {
   min-height: 24px;
   cursor: pointer;
+}
+
+.limit-notice__action {
+  width: 100%;
+  margin-top: var(--space-8);
 }
 
 .limit-notice__details ol {
