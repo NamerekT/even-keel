@@ -133,6 +133,16 @@ describe('the shipped tally.config.json', () => {
     })
   })
 
+  it('prices paid and free DeepSeek V4.1 Flash at the same off-peak API rates', () => {
+    for (const model of ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-free']) {
+      expect(priceOf(model)).toEqual({
+        model: 'deepseek-v4.1-flash',
+        input: 0.15, output: 0.6, cacheRead: 0.003, cacheWrite5m: 0.15, cacheWrite1h: 0,
+        longPrompt: null,
+      })
+    }
+  })
+
   it("leaves Codex's hidden models unpriced without a log line", () => {
     expect(shipped.unpriced).toEqual(['codex-auto-review', 'gpt-reserve'])
     expect(unpricedToLog(['codex-auto-review', 'gpt-7', 'gpt-reserve'], shipped.unpriced)).toEqual(['gpt-7'])
