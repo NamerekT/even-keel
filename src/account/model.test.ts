@@ -369,7 +369,12 @@ describe('folderName', () => {
 describe('accountId', () => {
   it('ties the e-mail to its folder, so the same e-mail elsewhere is another account', () => {
     expect(accountId('work', 'jane@example.com')).toBe('work/jane@example.com')
-    expect(accountId('work', null)).toBeNull()
+  })
+
+  it('uses the folder itself for an account without an email', () => {
+    expect(accountId('machine', null)).toBe('machine')
+    expect(accountId('other', null)).not.toBe(accountId('machine', null))
+    expect(accountId('machine', 'john@example.com')).not.toBe(accountId('machine', null))
   })
 })
 
