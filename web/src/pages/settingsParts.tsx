@@ -1,4 +1,4 @@
-import { Fragment, useId, type CSSProperties, type ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { CheckpointShares, ConfigView } from '../../../src/state.js'
@@ -7,7 +7,6 @@ import { CheckIcon, InheritIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
-import { providerName } from './settingsRun.js'
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
 export type RuleKey = (typeof RULE_KEYS)[number]
@@ -236,50 +235,6 @@ export function FieldNote({ error }: { error: Notice | null }) {
     <span className="settings__error" role="alert">
       {sayAtField(error)}
     </span>
-  )
-}
-
-/**
- * The settings kept per provider as a table: a row per provider, a column per setting, so one setting lines up across providers.
- * A cell holds its control without a visible name — the column heads name them; `cell` gives it an accessible one.
- * Too narrow for the columns (a phone), every cell takes its column's name over its control instead.
- */
-export function ProviderGrid({
-  columns,
-  providers,
-  cell,
-}: {
-  columns: readonly { key: string; label: string; hint: string }[]
-  providers: readonly string[]
-  /** `null` — the provider has no such setting. */
-  cell: (column: string, provider: string) => ReactNode | null
-}) {
-  return (
-    <div className="provider-grid">
-      <div className="provider-grid__table" style={{ '--columns': columns.length } as CSSProperties}>
-        <span className="provider-grid__corner" />
-        {columns.map((column) => (
-          <span key={column.key} className="settings__head-row provider-grid__head">
-            <span className="settings__label">{column.label}</span>
-            <HelpTip text={column.hint} />
-          </span>
-        ))}
-        {providers.map((provider) => (
-          <Fragment key={provider}>
-            <span className="provider-grid__name">{providerName(provider)}</span>
-            {columns.map((column) => {
-              const control = cell(column.key, provider)
-              return (
-                <div key={column.key} className={control === null ? 'provider-grid__cell provider-grid__cell--none' : 'provider-grid__cell'}>
-                  <FieldHead label={column.label} hint={column.hint} />
-                  {control ?? <span className="provider-grid__none">—</span>}
-                </div>
-              )
-            })}
-          </Fragment>
-        ))}
-      </div>
-    </div>
   )
 }
 

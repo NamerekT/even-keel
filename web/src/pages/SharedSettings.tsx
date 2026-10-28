@@ -22,7 +22,6 @@ import {
   linesOf,
   marksOf,
   minutesOf,
-  ProviderGrid,
   Row,
   RULE_KEYS,
   rulesOf,
@@ -45,7 +44,8 @@ import { TrackerIcon } from '../ui/icons.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
-import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerValues } from './settingsRun.js'
+import { ProviderChoices } from './ProviderChoices.js'
 import { ModelOffers } from './ModelOffers.js'
 import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
@@ -278,7 +278,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldNote error={errorOf(key)} />
     </Row>
   )
-  // A model and a pick in a cell of the provider table: its column names it. The model is typed freely, the account's list only offered.
+  // The model is typed freely; the account is picked from the offered folders.
   const model = (key: string, label: string, offers: readonly string[]) => (
     <div className={marks.box(key)}>
       <input
@@ -384,8 +384,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     models: () => (
       <>
         <Section title={t.shared.sections.agent}>
-          {select('provider', t.settings.provider, providerOptions(offered), t.shared.providerHint)}
-          <ProviderGrid
+          <ProviderChoices
+            label={t.settings.provider}
+            hint={t.shared.providerHint}
+            className={marks.box('provider')}
+            note={<>{marks.note('provider', (value) => providerName(String(value)))}<FieldNote error={errorOf('provider')} /></>}
+            chosen={text('provider')}
+            onPick={(provider) => edit('provider', provider)}
             columns={[
               { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
               { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },

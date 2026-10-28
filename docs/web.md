@@ -105,6 +105,10 @@ Entry refusals are routed by code (`entryField` in `projectWizard.ts`), shared b
 a folder inside a repository is stored as the repository root. Config validation still checks the key and tracker
 fields; adding does not repeat the tracker's network check.
 
+### Choosing a provider
+
+The Agent section in project settings → Sessions and shared settings → Providers and models uses `ProviderChoices`: one block per offered provider, with its model and account (also execution and CLI version in shared settings). The block or its corner radio selects the default provider; editing its fields, opening help or picking a portalled account option does not. The selected block has an accent edge, tinted surface, accent title and filled check. The Provider caption holds its help, project inheritance and draft/error notes. Only the selected radio is in the Tab order; arrows wrap through offered providers, Home/End select the first/last, and Space/Enter select the focused radio. Other providers' fields remain editable because run labels can select them. Below 23em of available width, fields stack inside each block.
+
 ## Fake states (`npm run dev:fake`)
 
 Chain drag previews and optimistic drops share `withOrder` in `web/src/ui/chainOrder.ts`: `withWaiting` places each locked external blocker before its first dependent in the proposed order. `useChainDrag` measures every displayed row for `stackedTops`, including locked blockers and closed rows; drop targets and the submitted order still contain only chain tasks.
