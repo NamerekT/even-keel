@@ -4,6 +4,7 @@ import type { TaskControl } from '../server.js'
 import { cardOf } from './card.js'
 import type { TrackerLink } from './link.js'
 import type { ReaderTasks } from './readers.js'
+import { toTask } from './model.js'
 
 export interface TaskControlDeps {
   configuredProject(task: string): string | undefined
@@ -50,6 +51,27 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const tasks = readerTasks.get(reader)
       if (tasks?.some((each) => each.id === task)) {
         const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
+        readerTasks.set(reader, updated)
+        readerTasks.setTasks(reader, updated)
+      }
+      deps.broadcast()
+    },
+    relabel: async (task, change) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : linkFor(project, task)
+      if (link === undefined) throw fail('task.noTracker', { task })
+      let labels: string[] | undefined
+      try { labels = await link.run(async (tracker) => tracker.relabel?.(task, change)) } catch (error) {
+        throw fail('task.relabelFailed', { task }, {}, { cause: error })
+      }
+      if (labels === undefined) throw fail('task.cannotRelabel', { task })
+      const reader = readerFor(project!, task)
+      // Labels can admit a task to the chain: fill its milestone through the same read as `ready`.
+      const refresh = refreshers.get(reader)
+      if (refresh !== undefined) return refresh()
+      const tasks = readerTasks.get(reader)
+      if (tasks !== undefined) {
+        const updated = tasks.map((each) => each.id === task ? toTask({ ...each, labels }) : each)
         readerTasks.set(reader, updated)
         readerTasks.setTasks(reader, updated)
       }

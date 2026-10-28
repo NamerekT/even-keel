@@ -56,6 +56,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear and GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
+| 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly, GitHub, GitLab, Linear and Jira profiles | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -522,6 +523,18 @@ The carry session asked for at the conflict itself (`carryAgent` or unattended m
 ### GitHub issues taken into the tracker (BTN-262)
 
 The intake (`docs/trackers.md`, "Taking GitHub issues in") is covered by tests with a fake repository only, never run against GitHub. Assumed from GitHub's documentation: the REST answers of the labelled issues, their comments with `author_association`, the matching tag refs and the releases by tag; that a fine-grained token with Issues: Read and write may comment and close; that comment ids grow with time, so the last one looked at marks where the next look starts. Assumed of the trackers: that a task created by `create` is found by `tasks` at once, and that a Huly comment written by Even Keel reads back with its first line as written, which keeps a copy from answering a session's question. If they are wrong, an issue is not taken in (a line `intake: …` in the service log says why), a comment is copied twice or not at all, or an issue stays open after its release. **Workaround:** take the issue into the tracker by hand and close it on GitHub by hand; clearing the project's label stops the intake without losing what it follows.
+
+### Writing task labels (BTN-507)
+
+Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Still to check separately on each provider:
+
+- Huly: on a scratch issue, remove an existing label and add an existing workspace label with different case plus a new one. Verify the workspace definition, references and issue label counter; repeat with a profile that cannot write labels.
+- GitHub: on a scratch repository issue, swap labels and create one through `relabel`, then check the issue and repository labels. Repeat with an Issues-read-only token.
+- GitLab: on a scratch project issue, reuse an ancestor-group label in another case, create a project label and swap issue labels. Repeat with a token that cannot write.
+- Linear: on a scratch team issue, reuse a workspace label, create a team label and swap labels. Verify a group is never attached and a refused mutation reaches the page as `task.relabelFailed`.
+- Jira: on a scratch issue, replace free labels and clear them, checking the result after Jira's empty update response; repeat with no edit permission.
+
+On each setup, call `POST /api/task/labels` for a loaded task (also one from a feed), check that `trackers[].relabel` is true and the state event already has the saved labels and their model/question meaning before the next poll. Assumed: the fixture shapes match the provider's deployed schema and collection triggers. If wrong, the labels or chain rules can be stale, a missing label is not created, or an operation fails after a partial change. **Workaround:** refresh and inspect the issue in its tracker, edit the labels there, then refresh the project. A new definition may remain after a refused assignment; check it before retrying.
 
 ### Your own skills as a package (BTN-339)
 

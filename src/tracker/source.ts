@@ -1,6 +1,7 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
+import type { LabelChange } from './labels.js'
 import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 export interface TaskFile {
@@ -77,6 +78,8 @@ export interface TaskSource {
    * Returns the new status; `null` — the task is not `UnStarted` and was left alone.
    */
   ready?(id: string): Promise<TaskStatus | null>
+  /** Optional. Removes then adds labels, ignoring case; creates missing labels and returns the saved names. */
+  relabel?(id: string, change: LabelChange): Promise<string[]>
   /**
    * Optional. Posts a Markdown comment on the task and returns its id. With `commentsAfter` Even Keel puts a session's
    * `AskUserQuestion` to the user in the tracker and passes the reply comment on to the session.
@@ -311,6 +314,7 @@ export interface Tracker {
   card?(id: string): Promise<TrackerCard>
   file?(id: string, file: string): Promise<TaskFile | null>
   ready?(id: string): Promise<TaskStatus | null>
+  relabel?(id: string, change: LabelChange): Promise<string[]>
   comment?(id: string, body: string): Promise<string>
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   create?(task: NewTask): Promise<string>
@@ -343,6 +347,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.card !== undefined) tracker.card = (id) => source.card!(id)
   if (source.file !== undefined) tracker.file = (id, file) => source.file!(id, file)
   if (source.ready !== undefined) tracker.ready = (id) => source.ready!(id)
+  if (source.relabel !== undefined) tracker.relabel = (id, change) => source.relabel!(id, change)
   if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
   if (source.create !== undefined) tracker.create = (task) => source.create!(task)

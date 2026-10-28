@@ -322,6 +322,8 @@ export const en = {
 
   'task.noTracker': (p: { task: string }) => `no connected tracker serves ${p.task}`,
   'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} cannot move it to Todo`,
+  'task.cannotRelabel': (p: { task: string }) => `the tracker of ${p.task} cannot change labels`,
+  'task.relabelFailed': (p: { task: string }) => `could not change labels of ${p.task}; check the tracker profile's permission to edit issues and labels, then try again`,
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
   'task.cannotMoveMilestone': (p: { task: string }) => `the tracker of ${p.task} cannot change its milestone`,
   'tracker.noProject': (p: { project: string }) => `no connected tracker serves the project ${p.project}`,

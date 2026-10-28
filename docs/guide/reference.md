@@ -11,6 +11,10 @@ Every environment variable and every setting. How to set Even Keel up is in [set
 command arguments (for example `["terraform", "destroy"]`), and Copilot tool strings. A project's field replaces its
 shared counterpart; omitted fields inherit. New launches only; see [coverage and limits](features.md#protection).
 
+## Task labels
+
+Automation clients can call `POST /api/task/labels` with a task ID in `task` and lists of label names in `add` and `remove`. Huly, GitHub, GitLab, Linear and Jira support it. Removals precede additions; names are matched without case and surrounding whitespace, and labels already present keep their spelling. Missing label definitions are created in the workspace, repository, project or team as appropriate; Jira uses free labels. The profile needs permission to edit issues and labels. Saved labels, including their effect on model selection and chain rules, appear in service state immediately. If the tracker refuses, refresh the task and check its labels before retrying: a multi-request operation may have partly completed. See the [adapter reference](../trackers.md) for details.
+
 ## Environment
 
 `.env` in the data folder: a clone's own folder, or for an install with npm `%LOCALAPPDATA%\even-keel`, `~/Library/Application Support/even-keel` or `~/.local/share/even-keel` (`$XDG_DATA_HOME/even-keel`). Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.

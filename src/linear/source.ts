@@ -1,5 +1,6 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
+import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
@@ -132,7 +133,7 @@ const PLACE_ISSUE = `mutation($id: String!, $input: IssueUpdateInput!) {
 // A workspace label has no team. A group only gathers labels and cannot go on an issue itself.
 const TEAM_LABELS = `query($team: ID!, $after: String) {
   issueLabels(first: ${PAGE}, after: $after, filter: { or: [{ team: { id: { eq: $team } } }, { team: { null: true } }] }) {
-    pageInfo { hasNextPage endCursor } nodes { name isGroup }
+    pageInfo { hasNextPage endCursor } nodes { id name isGroup }
   }
 }`
 
@@ -372,6 +373,48 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         after = issueLabels.pageInfo.hasNextPage ? issueLabels.pageInfo.endCursor : null
       } while (after !== null)
       return { statuses: team.states.map(linearStatus), labels: [...labels] }
+    },
+
+    async relabel(id, change) {
+      type Labeled = { id: string; team: { id: string }; labels: Connection<NamedLabel> }
+      const query = `query($filter: IssueFilter!, $after: String) { issues(filter: $filter, first: 1) {
+        nodes { id team { id } labels(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id name } } }
+      } }`
+      const issue = await oneIssue<Labeled>(id, query)
+      const current = [...issue.labels.nodes]
+      let after = issue.labels.pageInfo.hasNextPage ? issue.labels.pageInfo.endCursor : null
+      while (after !== null) {
+        const page = await graphql<{ issues: { nodes: Labeled[] } }>(query, { filter: byNumber(id), after })
+        const labels = page.issues.nodes[0]!.labels
+        current.push(...labels.nodes)
+        after = labels.pageInfo.hasNextPage ? labels.pageInfo.endCursor : null
+      }
+      const catalog: NamedLabel[] = []
+      do {
+        const page: { issueLabels: Connection<NamedLabel & { isGroup: boolean }> } = await graphql(TEAM_LABELS, { team: issue.team.id, after })
+        catalog.push(...page.issueLabels.nodes.filter((label) => !label.isGroup))
+        after = page.issueLabels.pageInfo.hasNextPage ? page.issueLabels.pageInfo.endCursor : null
+      } while (after !== null)
+      const selected = await resolveLabels(current, change, catalog, async (name) => {
+        const result = await graphql<{ issueLabelCreate: { success: boolean; issueLabel: NamedLabel } }>(`mutation($input: IssueLabelCreateInput!) {
+          issueLabelCreate(input: $input) { success issueLabel { id name } }
+        }`, { input: { name, teamId: issue.team.id } })
+        if (!result.issueLabelCreate.success) throw new Error('linear: label creation refused')
+        return result.issueLabelCreate.issueLabel
+      })
+      const result = await graphql<{ issueUpdate: { success: boolean; issue: { labels: Connection<NamedLabel> } } }>(`mutation($id: String!, $labels: [String!]!) {
+        issueUpdate(id: $id, input: { labelIds: $labels }) { success issue { labels(first: 100) { pageInfo { hasNextPage endCursor } nodes { name } } } }
+      }`, { id: issue.id, labels: selected.map((label) => label.id) })
+      if (!result.issueUpdate.success) throw new Error('linear: label update refused')
+      const saved = [...result.issueUpdate.issue.labels.nodes]
+      after = result.issueUpdate.issue.labels.pageInfo.hasNextPage ? result.issueUpdate.issue.labels.pageInfo.endCursor : null
+      while (after !== null) {
+        const page: { issues: { nodes: Labeled[] } } = await graphql(query, { filter: byNumber(id), after })
+        const labels = page.issues.nodes[0]!.labels
+        saved.push(...labels.nodes)
+        after = labels.pageInfo.hasNextPage ? labels.pageInfo.endCursor : null
+      }
+      return saved.map((label) => label.name)
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

@@ -156,6 +156,7 @@ export class Trackers {
       title,
       projects: plan.projects,
       ready: false,
+      relabel: false,
       health: { state: 'off', lastOkAt: null, error: null },
       readAt: {},
     }
