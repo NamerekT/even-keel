@@ -302,11 +302,16 @@ a.backlog__key:hover {
 }
 
 /* Under the side column (project.css), so the copy comes out from behind it, and under the header. */
-.flight {
+.flight-track {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 2;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.flight {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -317,7 +322,7 @@ a.backlog__key:hover {
   border-radius: var(--radius);
   box-shadow: var(--shadow-popover);
   pointer-events: none;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 .flight__key {

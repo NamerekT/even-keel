@@ -2,6 +2,8 @@
 
 Reference for sessions: entry into the chain, order, task worktrees, cleanup and the details of the exceptions to invariant 1. The invariants themselves are in `CLAUDE.md`.
 
+`chainOrder` keeps the ready tasks sorted by saved order, milestone, priority and number. It sorts the initial ready list once and inserts newly unblocked tasks by binary search, rather than scanning and comparing every ready task again for each result. This matters on the page too: `closedOrder` uses it to order the archive. A regression test bounds collation calls for a large independent archive (BTN-515).
+
 ## Entry into the chain
 
 - The rules are the `chain` setting (`src/chain/rules.ts`): a global top-level one and a project's own on top of it (a project is a path string or `{ "repo", "chain" }`; the project key replaces the global one entirely). Between them sit the rules of the tracker profile the project — or, for a feed's task, the feed — runs on (BTN-66, `rulesWith`/`projectRules` in `src/profiles/rules.ts`, `docs/settings.md`): `active`, `terminal`, `requiredLabels`, `excludedLabels`, each key the project's own, else the profile's, else the shared one. A profile save that would make a project or feed on it clash is refused; a clash made later by a project's own change leaves the profile's rules out, with one line in the log while it lasts. The page shows these lists by what they are about — a place per status, a rule per label, where each comes from (BTN-334, `docs/web.md`) — and stores them as the same lists.

@@ -57,6 +57,8 @@ Reference for sessions: the interface, translation, config reloading and fake st
 
 OpenCode tool-result pictures use the same transcript thumbnails and viewer (BTN-481). Its whole fold emits `image` lines from the count of image attachments stored in `opencode.db`; its `Agent.image` reads the selected base64 attachment by session and call id (`sessionImage`, `docs/sessions.md`, "OpenCode"). The original file and worktree are not needed. Checked with a saved real `read` result in an isolated transcript window at desktop and mobile sizes.
 
+The backlog flight's horizontal transform and opacity run through Web Animations, separately from the tracking shell (`.flight-track`): React renders cannot stall the horizontal motion. The shell follows the destination during scrolling and layout changes, writing its geometry only when it changes. A task that has entered the chain replaces its ghost immediately; the 250 ms linger is only for a preview abandoned without a move. `Project` memoizes `chainBlocks` by snapshot and project, so local preview and arrival changes do not rebuild the archive. The archive's ordering uses the sorted ready list described in `chain.md`. The browser regression check and motion frames are recorded in `verified.md` (BTN-515).
+
 ## Language (BTN-57, `src/language.ts`: `en`, `ru`)
 
 - On the project page, `ProjectNotices` shows pause and ordering errors once per distinct notice (`projectErrors`, `sameNotice`), with settings and PR-mode fixes in the same band. A failed chain-control command stays by its controls.

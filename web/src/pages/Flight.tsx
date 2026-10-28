@@ -20,41 +20,53 @@ interface Props {
  */
 export function Flight({ task, title, since, onLand }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLDivElement>(null)
   const land = useRef(onLand)
   land.current = onLand
 
   useEffect(() => {
-    let started: number | null = null
-    let fromX = 0
-    let frame = requestAnimationFrame(function step(now: number) {
-      const node = ref.current
-      const target = document.querySelector(`[data-block="${CSS.escape(task)}"]`)
-      if (node === null || target === null) return land.current()
-      if (now < since + LEAVE_MS) {
-        frame = requestAnimationFrame(step)
-        return
-      }
-      if (started === null) {
-        started = now
-        fromX = document.querySelector('.project__side')?.getBoundingClientRect().left ?? window.innerWidth
-      }
-      const progress = Math.min(1, (now - started) / FLIGHT_MS)
-      if (progress >= 1) return land.current()
+    const node = ref.current
+    const shell = track.current
+    const target = document.querySelector(`[data-block="${CSS.escape(task)}"]`)
+    if (node === null || shell === null || target === null) return land.current()
+    const fromX = document.querySelector('.project__side')?.getBoundingClientRect().left ?? window.innerWidth
+    let box = target.getBoundingClientRect()
+    const place = () => {
+      shell.style.transform = `translate(${box.left}px, ${box.top}px)`
+      node.style.width = `${box.width}px`
+      node.style.height = `${box.height}px`
+    }
+    place()
+    // The browser runs the horizontal motion; React work cannot hold up its frames.
+    const delay = Math.max(0, since + LEAVE_MS - performance.now())
+    const slide = node.animate([
+      { transform: `translateX(${fromX - box.left}px)` },
+      { transform: 'translateX(0)' },
+    ], { duration: FLIGHT_MS, delay, easing: 'cubic-bezier(0.333333, 1, 0.666667, 1)', fill: 'both' })
+    const fade = node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FLIGHT_MS / 2, delay, fill: 'both' })
+    slide.onfinish = () => land.current()
+    let frame = requestAnimationFrame(function step() {
+      if (!target.isConnected) return land.current()
       const to = target.getBoundingClientRect()
-      const eased = 1 - (1 - progress) ** 3
-      node.style.transform = `translate(${fromX + (to.left - fromX) * eased}px, ${to.top}px)`
-      node.style.width = `${to.width}px`
-      node.style.height = `${to.height}px`
-      node.style.opacity = String(Math.min(1, progress * 2))
+      if (to.left !== box.left || to.top !== box.top || to.width !== box.width || to.height !== box.height) {
+        box = to
+        place()
+      }
       frame = requestAnimationFrame(step)
     })
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      slide.cancel()
+      fade.cancel()
+    }
   }, [task, since])
 
   return createPortal(
-    <div ref={ref} className="flight" style={{ opacity: 0 }} aria-hidden="true">
-      <span className="flight__key">{task}</span>
-      <span className="flight__title">{title}</span>
+    <div ref={track} className="flight-track" aria-hidden="true">
+      <div ref={ref} className="flight" style={{ opacity: 0 }}>
+        <span className="flight__key">{task}</span>
+        <span className="flight__title">{title}</span>
+      </div>
     </div>,
     document.body,
   )

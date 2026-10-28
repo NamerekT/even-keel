@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
@@ -69,7 +69,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const navigate = useNavigate()
   const hash = decodeURIComponent(location.hash.slice(1))
   const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
-  const blocks = chainBlocks(state, key)
+  const blocks = useMemo(() => chainBlocks(state, key), [state, key])
   const entered = useRef<string | null>(null)
   // Once per arrival, so the cross keeps the panel closed; not where the panel would cover the whole page.
   // A link to the fix of main by its name opens the row of its episode.

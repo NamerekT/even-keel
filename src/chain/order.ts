@@ -18,28 +18,36 @@ export function chainOrder(tasks: Task[], preferred: string[] = []): string[] {
 
   const pending: Graph = new Map([...plan.blockers].map(([id, deps]) => [id, new Set([...deps, ...plan.earlier.get(id)!])]))
   const waiting = new Map<string, string[]>()
-  const ready = new Set<string>()
+  const ready: string[] = []
   for (const [id, deps] of pending) {
-    if (deps.size === 0) ready.add(id)
+    if (deps.size === 0) ready.push(id)
     for (const dep of deps) {
       const list = waiting.get(dep)
       if (list === undefined) waiting.set(dep, [id])
       else list.push(id)
     }
   }
+  ready.sort(compare)
   const order: string[] = []
   while (pending.size > 0) {
-    if (ready.size === 0) throw deadlock(pending, plan, tasks)
-    let next: string | undefined
-    for (const id of ready) if (next === undefined || compare(id, next) < 0) next = id
-    order.push(next!)
-    ready.delete(next!)
-    pending.delete(next!)
-    for (const id of waiting.get(next!) ?? []) {
+    const next = ready.shift()
+    if (next === undefined) throw deadlock(pending, plan, tasks)
+    order.push(next)
+    pending.delete(next)
+    for (const id of waiting.get(next) ?? []) {
       const deps = pending.get(id)
       if (deps === undefined) continue
-      deps.delete(next!)
-      if (deps.size === 0) ready.add(id)
+      deps.delete(next)
+      if (deps.size === 0) {
+        let low = 0
+        let high = ready.length
+        while (low < high) {
+          const mid = (low + high) >>> 1
+          if (compare(ready[mid]!, id) < 0) low = mid + 1
+          else high = mid
+        }
+        ready.splice(low, 0, id)
+      }
     }
   }
   return order

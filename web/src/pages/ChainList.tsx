@@ -62,7 +62,7 @@ interface Relation {
 }
 
 export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, ready, onCard }: Props) {
-  const { ghost, leaving } = useLingering(aimed)
+  const { ghost, leaving } = useLingering(aimed, chain)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -297,15 +297,17 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
 }
 
 /** The ghost stays a moment after the pointer leaves its button, to fold shut rather than vanish. */
-function useLingering(ghost: Ghost | null): { ghost: Ghost | null; leaving: boolean } {
+function useLingering(ghost: Ghost | null, chain: ChainBlock[]): { ghost: Ghost | null; leaving: boolean } {
   const [kept, setKept] = useState<Ghost | null>(null)
   if (ghost !== null && ghost.id !== kept?.id) setKept(ghost)
-  const gone = ghost === null && kept !== null
+  const taken = kept !== null && chain.some((block) => block.id === kept.id && block.open)
+  const gone = ghost === null && kept !== null && !taken
   useEffect(() => {
+    if (taken) setKept(null)
     if (!gone) return
     const timer = setTimeout(() => setKept(null), GHOST_MS)
     return () => clearTimeout(timer)
-  }, [gone])
+  }, [gone, taken])
   return gone ? { ghost: kept, leaving: true } : { ghost, leaving: false }
 }
 
