@@ -8,6 +8,7 @@ import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
+import { promptPatternOf } from '../sessions/model-prompts.js'
 import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import { placeholderIn } from '../sessions/prompt.js'
 import type { CheckpointShares, OwnKey } from '../state.js'
@@ -249,7 +250,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw fail('config.modelPrompts', {})
     const prompts: Record<string, string> = {}
     for (const [model, text] of Object.entries(value)) {
-      if (model.trim() === '') throw fail('config.modelPrompts', {})
+      if (promptPatternOf(model) === null) throw fail('config.modelPrompts', {})
       if (typeof text !== 'string' || text.trim() === '') throw fail('config.modelPromptEmpty', { model })
       const placeholder = placeholderIn(text)
       if (placeholder !== null) throw fail('config.modelPromptPlaceholder', { model, placeholder })

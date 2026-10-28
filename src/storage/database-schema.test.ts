@@ -4,6 +4,19 @@ import { databaseVersion, openDatabase, STEPS } from './database.js'
 import { fixture, schemaOf } from './database.fixture.js'
 
 describe('schema steps match the frozen database samples', { timeout: 120_000 }, () => {
+  it('of version 16 has the schema step 16 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 14))
+    try {
+      await frozen.exec(fixture(16))
+      expect(await databaseVersion(frozen)).toBe(16)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
   it('of version 3 has the tables step 3 makes', async () => {
     const frozen = await PGlite.create()
     const made = await openDatabase(undefined, STEPS.slice(0, 1))

@@ -77,7 +77,7 @@ const FAKE_LOGINS: Record<string, AccountLogin> = { [CODEX]: FAKE_DEVICE_LOGIN, 
 const FAKE_MODELS: Record<string, { models: string[]; complete: boolean }> = {
   [CLAUDE]: { models: ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'], complete: false },
   [CODEX]: { models: ['gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.6-terra'], complete: false },
-  [OPENCODE]: { models: ['opencode/big-pickle', 'opencode/deepseek-v4.1-flash-free'], complete: true },
+  [OPENCODE]: { models: ['opencode/big-pickle', 'opencode/deepseek-v4.1-flash-free', 'anthropic/claude-sonnet-5-5'], complete: true },
 }
 
 /** `models/list` of the account folder `key`, by its agent. */

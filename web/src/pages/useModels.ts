@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLive } from '../live/context.js'
 
 /** The service's answer to `models/list` (`ModelList` of `src/agent/contract.ts`). */
-type ModelAnswer = { models: string[]; complete: boolean } | null
+export type ModelAnswer = { models: string[]; complete: boolean } | null
 
 /**
  * The models of these account folders (by key) the model fields offer, asked as the panel opens and when an account
@@ -10,8 +10,13 @@ type ModelAnswer = { models: string[]; complete: boolean } | null
  * nothing, and nothing waits on it or shows an error (BTN-336).
  */
 export function useModels(accounts: readonly string[]): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(useModelCatalog(accounts)).map(([key, answer]) => [key, answer?.models ?? []]))
+}
+
+/** The same catalogue with completeness preserved for pattern previews. */
+export function useModelCatalog(accounts: readonly string[]): Record<string, ModelAnswer> {
   const { query } = useLive()
-  const [found, setFound] = useState<Record<string, string[]>>({})
+  const [found, setFound] = useState<Record<string, ModelAnswer>>({})
   const wanted = [...new Set(accounts.filter((account) => account !== ''))].sort()
   const key = wanted.join('\u0000')
 
@@ -20,7 +25,7 @@ export function useModels(accounts: readonly string[]): Record<string, string[]>
     for (const account of wanted) {
       query<ModelAnswer>('models/list', { account }).then(
         (answer) => {
-          if (live && answer !== null && answer.models.length > 0) setFound((previous) => ({ ...previous, [account]: answer.models }))
+          if (live) setFound((previous) => ({ ...previous, [account]: answer }))
         },
         () => {},
       )
