@@ -7,6 +7,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { taskProject } from '../state.js'
 import { Band } from '../ui/blocks.js'
+import { ButtonWithTip } from '../ui/ButtonWithTip.js'
 import { FixButton } from './FixButtons.js'
 import { limitMessages, type LimitRefusal } from './limitMessages.js'
 import './limitNotice.css'
@@ -25,10 +26,16 @@ export function LimitNotice({ session, hold, refusal }: { session: SessionView; 
     <Band
       tone={transient ? 'warn' : 'error'}
       className="limit-notice"
-      action={transient ? undefined : <FixButton project={taskProject(state, session.task)} fix={{ to: 'project', tab: 'sessions' }} />}
     >
       <p className="limit-notice__latest">{latest.text}</p>
-      {!transient && latest.kind !== 'refusal' && <p className="limit-notice__account">{t.session.limitAccount(agentLabel(session.agent), name)}</p>}
+      {!transient && (
+        <ButtonWithTip
+          className="limit-notice__action"
+          action={<FixButton project={taskProject(state, session.task)} fix={{ to: 'project', tab: 'sessions' }} />}
+          label={t.session.limitGuide}
+          tip={<><span className="tip__head">{t.session.limitGuide}</span><span>{t.session.limitAccount(agentLabel(session.agent), name)}</span></>}
+        />
+      )}
       {earlier.length > 0 && (
         <details className="limit-notice__details">
           <summary>{t.session.limitDetails(earlier.length)}</summary>

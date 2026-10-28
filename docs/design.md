@@ -79,6 +79,8 @@ Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx
 - **Modal** (BTN-114) — the page behind every modal `<dialog>` — the task card, the session window, the transcript and the chat, the media viewer — is dimmed and blurred alike, by `--scrim` and `--scrim-blur`; only the media viewer keeps its own, darker dimming. A new modal takes both tokens. A dialog is a card: title, content, the primary button at the bottom right.
 - **Targets** are at least 24 px (WCAG 2.5.8) and the header's 44 px up to 760 px, grown with padding or an invisible `::after`, never with the text.
 
+- **Action with help** — `ButtonWithTip` (`web/src/ui/ButtonWithTip.tsx`) joins an existing action button to a separate `?` button at its right edge. The main action keeps its handler; help uses `useTip` like `HelpTip`: only a press opens or closes it, Escape and a press outside close it, pointing and focus do nothing. Both buttons remain in the Tab order.
+
 ## Layout
 
 - **A page** is the title row — the 22 px title, its help tip, the page's actions at the right — and the content under it (`.page`). The column is the whole width (`--column`).
