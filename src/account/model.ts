@@ -186,8 +186,9 @@ export function folderName(email: string | null, taken: string[]): string {
   return `${base}-${index}`
 }
 
-export function accountId(key: string, email: string | null): string | null {
-  return email === null ? null : `${key}/${email}`
+/** Machine accounts have no profile email; their folder identifies them in the current view and the ledger alike. */
+export function accountId(key: string, email: string | null): string {
+  return email === null ? key : `${key}/${email}`
 }
 
 export function activeEntry(view: AccountView): AccountEntry | undefined {
