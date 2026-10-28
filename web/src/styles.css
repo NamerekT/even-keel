@@ -3033,6 +3033,10 @@ a.button.pull-button__link {
   font-size: var(--text-12);
 }
 
+.panel__quiet {
+  font-size: var(--text-13);
+}
+
 .panel__remote-off {
   margin: 0;
   color: var(--fg-muted);

@@ -5,10 +5,10 @@ import { CLAUDE } from '../../../src/claude/name.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
-import { TURN_HANG_MS, TURN_RESTART_MS, type SilentRestart } from '../../../src/sessions/silence.js'
+import { TURN_HANG_MS, TURN_RESTART_MS, shownSilence, type SilentRestart } from '../../../src/sessions/silence.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import { formatClock, formatMoment, formatTokens } from '../format.js'
+import { formatClock, formatMoment, formatQuiet, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { agentLabel } from '../accountName.js'
 import { completionTasks, needsReply } from '../completion.js'
@@ -17,7 +17,7 @@ import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { cacheTone, contextFill, contextResets, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
-import { Fact, FactList, SectionLabel } from '../ui/blocks.js'
+import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
@@ -168,11 +168,11 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
   if (talking !== null) lastTalking.current = talking
   const chatSession = talking ?? (chatting ? lastTalking.current : null)
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
-  const quietSince = live?.lamp === 'working' && live.waitingFor === null ? live.silentSince ?? null : null
+  const quietSince = live === null ? null : shownSilence(live.lamp, live.waitingFor, live.silentSince, now.getTime())
   const quietAt = quietSince === null ? null : Date.parse(quietSince)
   const earlyRestart = quietAt !== null && now.getTime() - quietAt >= TURN_RESTART_MS
   const quietText = quietAt === null ? null : t.session.silent(
-    formatMoment(quietSince!, now),
+    formatQuiet(now.getTime() - quietAt),
     formatMoment(new Date(quietAt + TURN_RESTART_MS).toISOString(), now),
     formatMoment(new Date(quietAt + TURN_HANG_MS).toISOString(), now),
   )
@@ -258,7 +258,7 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
           ))}
         {midTurn && !starting && quietText === null && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
-      {quietText !== null && !starting && <p className="notice">{quietText}</p>}
+      {quietText !== null && !starting && <Band tone="warn" className="panel__quiet">{quietText}</Band>}
       {confirmation !== null && (
         <ConfirmDialog
           title={t.session.restart}

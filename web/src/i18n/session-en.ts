@@ -56,8 +56,8 @@ export const sessionEn = {
   interrupted: 'stopped until main is fixed',
   skip: 'Skip',
   midTurn: 'mid-turn — replace and skip after it',
-  silent: (since: string, restartAt: string, hungAt: string) =>
-    `No new output since ${since}. New session can interrupt the turn with confirmation from ${restartAt}; without confirmation at ${hungAt}, if silence continues.`,
+  silent: (quiet: string, restartAt: string, hungAt: string) =>
+    `Silent for ${quiet}. New session — with confirmation from ${restartAt}, on its own at ${hungAt}.`,
   confirmSilent: (since: string) => `The session has written nothing since ${since}. Interrupt the turn and start a new session?`,
   interruptRestart: 'Interrupt and start new',
   held: {
