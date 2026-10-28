@@ -42,6 +42,8 @@ const ANSWER_MS = 300
 const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
 const DEVICE_MS = 8_000
+/** How long a started sign-in waits for the CLI's link, as the service's does: the dialog opens before it. */
+const LINK_MS = 1_500
 const START_STAGE_MS = 3_000
 /** How long a message waits in the fake mailbox before the hook takes it. */
 const MAIL_MS = 4_000
@@ -669,7 +671,9 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       const next = fakeCommand(state, name, body, launches)
-      const stages = name === 'chain/start' || name === 'chain/restart' ? startStages(state, next, String(body.project)) : [next]
+      const started = (name === 'account/renew' || name === 'account/add') && next.account.login !== state.account.login ? next.account.login : null
+      const waiting = started === null ? next : withAccount(next, { ...next.account, login: { ...started, urls: [], deviceCode: null, output: '' } })
+      const stages = name === 'chain/start' || name === 'chain/restart' ? startStages(state, next, String(body.project)) : [waiting]
       stages.forEach((stage, index) => {
         const show = () => {
           current = { ...current, state: stage }
@@ -684,6 +688,14 @@ export function createFakeSource(search: string): LiveSource {
           current = { ...current, state: fakeDeliverMail(current.state) }
           notify()
         }, MAIL_MS)
+      }
+      if (started !== null) {
+        setTimeout(() => {
+          const now = current.state
+          if (now === null || now.account.login?.startedAt !== started.startedAt || now.account.login.error !== null) return
+          current = { ...current, state: withAccount(now, { ...now.account, login: started }) }
+          notify()
+        }, LINK_MS)
       }
       if ((name === 'account/renew' || name === 'account/add') && deviceLogin(next.account)) {
         // The code goes on OpenAI's page, never through Even Keel: the sign-in ends by itself a while later.

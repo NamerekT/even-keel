@@ -480,9 +480,16 @@ interface StepsProps {
 export function LoginSteps({ login, device, sending, send }: StepsProps) {
   const [code, setCode] = useState('')
   const [opened, setOpened] = useState(false)
-  const [coding, setCoding] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const link = useRef<HTMLAnchorElement>(null)
+  const linked = login.urls.length > 0
   // A device sign-in whose code was not read keeps its output open: the code is only there.
   const outputOpen = device && login.deviceCode === null
+
+  // The dialog opens before the CLI prints the link and focuses the code field meanwhile; the link, once there, goes first.
+  useEffect(() => {
+    if (linked) link.current?.focus()
+  }, [linked])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -508,7 +515,8 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
     )
   }
 
-  const row = loginRow(login, { opened, coding })
+  // A focus alone is no step: the dialog puts it on the code field by itself.
+  const row = loginRow(login, { opened, coding: copied || code.trim() !== '' })
   const at = (each: LoginRow) => ({ className: `login-rows__row${each === row ? ' login-rows__row--on' : ''}`, 'aria-current': each === row ? ('step' as const) : undefined })
   const hint = device ? t.addAccount.picksUp : login.codeSent ? t.account.codeSent : null
   return (
@@ -520,8 +528,17 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
             <span className="login-rows__wait">{t.account.waitingLink}</span>
           ) : (
             <span className="login-rows__links">
-              {login.urls.map((url) => (
-                <a key={url} className="button login-rows__link" href={url} target="_blank" rel="noreferrer" onClick={() => setOpened(true)}>
+              {login.urls.map((url, index) => (
+                <a
+                  key={url}
+                  ref={index === 0 ? link : undefined}
+                  className="button login-rows__link"
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setOpened(true)}
+                  onAuxClick={() => setOpened(true)}
+                >
                   {new URL(url).host} ↗
                 </a>
               ))}
@@ -534,14 +551,13 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
         <li {...at('code')}>
           <span className="login-rows__label">{device ? t.addAccount.rows.deviceCode : t.addAccount.rows.code}</span>
           {device ? (
-            login.deviceCode !== null && <DeviceCode key={login.deviceCode} code={login.deviceCode} onCopy={() => setCoding(true)} />
+            login.deviceCode !== null && <DeviceCode key={login.deviceCode} code={login.deviceCode} onCopy={() => setCopied(true)} />
           ) : (
             <form className="login-rows__code" onSubmit={(event) => void submit(event)}>
               <input
                 className="account__input"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                onFocus={() => setCoding(true)}
                 placeholder={t.account.code}
                 aria-label={t.account.code}
                 autoComplete="off"
