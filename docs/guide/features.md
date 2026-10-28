@@ -25,9 +25,9 @@ checked command by command. Huly deletion rules apply to Claude, Copilot and Ope
 glob denies and tracker tool denies in its session configuration. Its additional rules are command patterns, one
 per line: `*` matches any text and `?` one character (for example, `git reset --hard*`). Its default patterns cover
 the same push and recursive-delete spellings as Claude's groups. Other spellings and shell wrappers may escape
-them; the last matching OpenCode permission wins. A build-agent allow in the account's or project's
-`agent.build.permission` can override both command and tracker-tool denies. Remove conflicting build-agent allows
-and keep server-side branch protection enabled. Top-level broad allows were checked and did not override Protection.
+them; the last matching OpenCode permission wins. Even Keel's built-in config hook appends active Protection denies
+after the account's and project's permissions, including `agent.build.permission`, so their broad or explicit
+allows do not override Protection. No extra package is needed. Keep server-side branch protection enabled.
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
 Rules can reduce accidental actions; they are not an OS sandbox.
 
