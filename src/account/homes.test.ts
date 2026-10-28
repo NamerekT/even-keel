@@ -87,7 +87,7 @@ describe('AccountHomes.list', () => {
     try {
       for (const name of ['john', 'john.lock', '.pending-1', 'global']) mkdirSync(join(root, name))
       const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: root, CODEX_HOME: join(root, 'no-codex') }, root, join(root, 'no-codex-accounts'))
-      expect(homes.list().map((home) => home.key)).toEqual(['global', 'john'])
+      expect(homes.list().map((home) => home.key)).toEqual(['john'])
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -105,11 +105,12 @@ describe('AccountHomes.list', () => {
     }
   })
 
-  it('adds the Codex folder once it exists, and no Claude folder takes its key', () => {
+  it('adds a global Codex folder explicitly, and no Claude folder takes its key', async () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       for (const name of ['john', 'codex', '.codex']) mkdirSync(join(root, name))
       const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: root, CODEX_HOME: join(root, '.codex') }, root, join(root, 'no-codex-accounts'))
+      for (const home of homes.availableGlobals()) await homes.register(home)
       expect(homes.list().map((home) => home.key)).toEqual(['global', 'john', 'codex'])
       expect(homes.find('codex')).toEqual({ key: 'codex', dir: join(root, '.codex'), global: true, agent: 'codex' })
     } finally {
@@ -124,7 +125,7 @@ describe('AccountHomes.list', () => {
       mkdirSync(join(root, 'john'))
       for (const name of ['work', 'john', 'codex', '.pending-1', 'work.lock', 'alice']) mkdirSync(join(codexRoot, name), { recursive: true })
       const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: root, CODEX_HOME: join(root, 'no-codex') }, root, codexRoot)
-      expect(homes.list().map((home) => home.key)).toEqual(['global', 'john', 'alice', 'work'])
+      expect(homes.list().map((home) => home.key)).toEqual(['john', 'alice', 'work'])
       expect(homes.find('work')).toEqual({ key: 'work', dir: join(codexRoot, 'work'), global: false, agent: 'codex' })
       expect(homes.find('john')?.agent).toBe('claude')
     } finally {

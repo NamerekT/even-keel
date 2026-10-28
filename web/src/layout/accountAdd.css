@@ -1,5 +1,14 @@
 /* The add-account dialog (BTN-352) over the `add-package` frame, and the sign-in rows it shares with the sign-in dialog. */
 
+.account-add__identity {
+  overflow-wrap: anywhere;
+}
+
+.account-add__cli-foot {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Four providers as two by two; the body already gives the side padding. */
 .add-package__kinds.account-add__providers {
   grid-template-columns: repeat(2, minmax(0, 1fr));

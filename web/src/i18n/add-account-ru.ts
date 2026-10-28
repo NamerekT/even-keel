@@ -1,4 +1,8 @@
 export const addAccount = {
+  checkingCli: 'Проверяем вход в CLI на этом компьютере…',
+  existingCli: 'На этом компьютере уже есть вход в CLI. Добавить его в Even Keel?',
+  useCli: 'Использовать этот вход',
+  removeGlobal: 'Убрать этот аккаунт из Even Keel? Папка CLI и вход на этом компьютере сохранятся.',
   title: 'Новый аккаунт',
   titleOf: (agent: string) => `Новый аккаунт ${agent}`,
   providerLead: 'Чей это аккаунт?',

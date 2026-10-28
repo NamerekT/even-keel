@@ -116,6 +116,7 @@ export class AccountWatcher {
   private read = false
   private absent: string[] = []
   private current: AccountLogin | null = null
+  private globalCheck: AccountView['globalCheck']
   private running: Running | undefined
   private output = ''
   private timer: NodeJS.Timeout | undefined
@@ -158,9 +159,10 @@ export class AccountWatcher {
       active: this.options.active(),
       accounts,
       login: this.current,
+      ...(this.globalCheck !== undefined && { globalCheck: this.globalCheck }),
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
-      pool: this.options.pool(),
+      pool: this.options.pool().filter((entry) => accounts.some((account) => account.key === entry.account && account.agent === entry.provider)),
       missing: this.absent,
     }
   }
@@ -224,6 +226,31 @@ export class AccountWatcher {
     }
     this.claimShared(this.options.homes.place(pending, agent))
     void this.refresh().catch((error: unknown) => this.options.onError(error))
+  }
+
+  async discoverGlobal(agent: string): Promise<void> {
+    this.globalCheck = { agent, account: null }
+    const home = this.options.homes.availableGlobals().find((each) => each.agent === agent)
+    if (home !== undefined && !this.options.missing().includes(agent)) {
+      const status = await this.options.agentOf(home).authStatus(home)
+      if (status.loggedIn) this.globalCheck = { agent, account: { key: home.key, status } }
+    }
+    this.options.onChange()
+  }
+
+  async useGlobal(agent: string): Promise<void> {
+    this.requireIdle()
+    await this.discoverGlobal(agent)
+    const candidate = this.globalCheck?.account
+    if (candidate === null || candidate === undefined) throw fail('account.unknown', { key: agent })
+    const refused = secondFreeProblem(this.view.accounts, agent, candidate.status)
+    if (refused !== undefined) throw new NoticeError(refused)
+    const home = this.options.homes.availableGlobals().find((each) => each.key === candidate.key)!
+    const shared = takesShared(this.options.pool(), this.options.homes.list(), home.agent)
+    await this.options.homes.register(home)
+    if (shared) this.options.makeShared(home.agent, home.key)
+    this.globalCheck = undefined
+    await this.refresh()
   }
 
   async addApiKey(name: string, key: string, agent: string): Promise<void> {
@@ -367,8 +394,8 @@ export class AccountWatcher {
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
-    if (status?.loggedIn === true && !isApiKey(status)) await this.options.agentOf(home).logout(home)
-    this.options.homes.remove(home)
+    if (!home.global && status?.loggedIn === true && !isApiKey(status)) await this.options.agentOf(home).logout(home)
+    await this.options.homes.remove(home)
     this.options.forget(key)
     this.keys.forget(key)
     this.credit.forget(key)
@@ -497,7 +524,7 @@ export class AccountWatcher {
 
   private discard(home: AccountHome): void {
     try {
-      this.options.homes.remove(home)
+      void this.options.homes.remove(home).catch((error: unknown) => this.options.onError(error))
     } catch (error) {
       this.options.onError(error)
     }

@@ -6,7 +6,8 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS } from './account/service-defaults.js'
 import { DaemonRefresh } from './account/daemon.js'
-import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
+import { accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
+import { openAccountHomes } from './account/globals.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { forgetKeyOrganization, loadKeyOrganizations, saveKeyOrganization } from './account/organizations.js'
 import { executionOfChoices, transportOf } from './account/transport.js'
@@ -299,7 +300,7 @@ const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
   (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
 )
-const homes = new AccountHomes(process.env, accountsRoot(process.env))
+const homes = await openAccountHomes(db, process.env)
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */

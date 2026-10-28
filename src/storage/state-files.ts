@@ -53,7 +53,13 @@ export async function prepareDatabase(options: PrepareOptions): Promise<StateDat
     return openStateDatabase(dir)
   }
   const files = readStateFiles(stateDir, log)
-  await importInto(dir, (tx) => (files === undefined ? Promise.resolve() : writeState(tx, files)), options)
+  const legacyAccounts = existsSync(join(stateDir, 'account.json'))
+  await importInto(dir, async (tx) => {
+    if (files !== undefined) await writeState(tx, files)
+    if (files !== undefined || legacyAccounts) {
+      await tx.query("insert into service_state (name, value) values ('accounts.adoptLegacy', 'true') on conflict do nothing")
+    }
+  }, options)
   if (files === undefined) return openStateDatabase(dir)
   keepImported(stateDir, Object.values(STATE_FILES), log)
   const { chain, questions, launches, handoffs } = files

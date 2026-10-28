@@ -172,7 +172,13 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
       : entry.key === 'codex' ? { ...entry, limits: { ...entry.limits!, sevenDay: { ...limits.sevenDay!, usedPercentage: 100 } } } : entry)
     return { ...base, accounts: mode === 'rows-noCodex' ? accounts.filter((entry) => entry.agent !== CODEX) : accounts }
   }
-  if (mode === 'empty') return { ...fakeAccount(null, idle, limits), accounts: [], active: 'global', apps: [], pool: [] }
+  if (mode === 'empty' || mode === 'cli' || mode === 'cli-long' || mode === 'cli-error') return {
+    ...fakeAccount(null, idle, limits), accounts: [], active: 'global', apps: [], pool: [],
+    ...(mode !== 'empty' && { globalCheck: { agent: CLAUDE, account: { key: 'global', status: {
+      ...FAKE_ACCOUNT, email: mode === 'cli-long' ? 'example-team-with-a-very-long-account-name@department.example.com' : FAKE_ACCOUNT.email,
+      ...(mode === 'cli-error' && { orgName: 'refused' }),
+    } } } }),
+  }
   const global = fakeEntry({ limits, projects: FAKE_PROJECTS, sessions: idle ? [] : ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'Scratch notes'] })
   const work = fakeEntry({
     key: 'jane.roe',
@@ -347,6 +353,17 @@ export function withAccount(state: EvenKeelState, account: AccountView): EvenKee
 }
 
 export function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
+  if (name === 'account/discover') {
+    const agent = String(body.agent)
+    return account.globalCheck?.agent === agent ? account : { ...account, globalCheck: { agent, account: null } }
+  }
+  if (name === 'account/global') {
+    const candidate = account.globalCheck?.account
+    if (candidate == null) throw fail('account.unknown', { key: String(body.agent) })
+    if (candidate.status.orgName === 'refused') throw fail('account.needsLogin', { account: candidate.status.email ?? '' })
+    const entry = fakeEntry({ key: candidate.key, agent: String(body.agent), status: candidate.status, global: true })
+    return { ...account, globalCheck: undefined, accounts: [...account.accounts, entry] }
+  }
   const key = String(body.account)
   if (name === 'account/add' || name === 'account/renew') {
     if (account.login !== null && account.login.error === null) throw fail('login.running', {})
