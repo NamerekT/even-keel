@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
+import { AccountHomes, accountsRoot, type AccountHome } from '../../src/account/homes.js'
+import { samePath } from '../../src/paths.js'
 import { taskSources } from '../../src/chain/launches.js'
 import type { LaunchEntry } from '../../src/chain/model.js'
 import { readSnapshots, type HandoffSnapshot } from '../../src/chain/snapshots.js'
@@ -41,7 +42,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
-  const homes = new AccountHomes(process.env, accountsRoot(process.env))
+  const homes = new AccountHomes(process.env, accountsRoot(process.env)).all()
   const { launches: journal, handoffs: saved, repos, closed } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
   const taskHomes = taskSources(journal)
@@ -67,24 +68,24 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     await db.syncPrices(config.prices)
 
     const projects = repos ?? trackedProjects(home, log)
-    const ruleScan = await ruleSources(homes.list(), projects.map((project) => project.repo), homedir(), log)
+    const ruleScan = await ruleSources(homes, projects.map((project) => project.repo), homedir(), log)
     const ruleFiles = ruleScan.sources
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
-    const accountDirs = new Map(homes.list().map((home) => [home.key, home.dir]))
+    const accountDirs = new Map(homes.map((home) => [home.key, home.dir]))
     const contextOf = (source: Source) => {
       const session = transcriptSession(source.path)
-      const dir = join(accountDirs.get(source.account) ?? homes.global.dir, 'file-history', session)
+      const dir = join(accountDirs.get(source.account)!, 'file-history', session)
       return { account: source.account, launches, rules: { ...rules, history: { session, dir, read: readBackup } } }
     }
-    const sources = await transcriptFiles(homes.list())
+    const sources = await transcriptFiles(homes)
     await backfillRules(db, sources, contextOf, CHUNK_BYTES, log)
     const stored = await db.files()
     let files = 0
     let lines = 0
     let failed = 0
-    const rollouts = await rolloutFiles(homes.list())
-    const openCode = openCodeSources(homes.list())
-    const copilot = await copilotSources(homes.list())
+    const rollouts = await rolloutFiles(homes)
+    const openCode = openCodeSources(homes)
+    const copilot = await copilotSources(homes)
     const loads = [
       ...sources.map((source) => () => loadFile(source, stored.get(source.path), db, contextOf(source), CHUNK_BYTES)),
       ...rollouts.map((source) => () => loadRollout(source, stored.get(source.path), db, { account: source.account, launches })),
@@ -102,7 +103,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
         log(`tally: ${paths[index]}: ${(error as Error).message}`)
       }
     }
-    const forgotten = paths.length > 0 ? await db.forgetFilesExcept(paths) : 0
+    const forgotten = await db.forgetFilesExcept(paths)
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(taskHomes)
     await db.syncClosedTasks(closedStates(closed, journal))
@@ -115,7 +116,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const handoffs = await refreshHandoffs(db, saved, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
     const versions = await snapshotRules(db, ruleScan, new Date())
-    const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
+    const history = await collectRuleHistory(db, homes, projects, homedir(), log)
     const changes = await refreshRuleChanges(db)
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
@@ -193,7 +194,7 @@ function trackedProjects(home: string, log: Log): TrackedProject[] {
   }
 }
 
-async function limitSnapshots(evenKeelUrl: string, stateDir: string, homes: AccountHomes, log: Log): Promise<Snapshot[]> {
+async function limitSnapshots(evenKeelUrl: string, stateDir: string, homes: AccountHome[], log: Log): Promise<Snapshot[]> {
   const url = process.env.EVEN_KEEL_URL ?? evenKeelUrl
   try {
     const response = await fetch(new URL('/api/state', url), { signal: AbortSignal.timeout(EVEN_KEEL_TIMEOUT_MS) })
@@ -204,7 +205,7 @@ async function limitSnapshots(evenKeelUrl: string, stateDir: string, homes: Acco
   }
   try {
     const raw: unknown = JSON.parse(readFileSync(join(stateDir, 'rate-limits.json'), 'utf8'))
-    return snapshotsOfFile(raw, (dir) => homes.ownerOf(dir))
+    return snapshotsOfFile(raw, (dir) => homes.find((home) => dir === null ? home.key === 'global' : samePath(home.dir, dir))?.key)
   } catch {
     return []
   }

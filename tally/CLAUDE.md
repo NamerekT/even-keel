@@ -24,6 +24,6 @@ The collector of session stats: it reads the transcripts of every account (Claud
 
 - The service runs the collector as a worker from the sources on disk: a merge reaches it at the next run, before a restart, so a new step migrates the live database while the page, on the old code, answers `newer` until the restart.
 - Try a new step on the embedded database of a temporary `EVEN_KEEL_STATE_DIR` first, with `TALLY_DB_HOST=` emptied: the user's environment may carry the server and its writer's password, and they outrank the folder.
-- A run by hand (`npm run tally`) only while the service does not hold the database. From a Claude Code session — only without `CLAUDE_CONFIG_DIR` (`env -u CLAUDE_CONFIG_DIR …`): with it the collector sees one account folder and rereads all the others from zero. From a worktree it needs `EVEN_KEEL_STATE_DIR=<main checkout>/state`, or it finds no projects.
+- A run by hand (`npm run tally`) only while the service does not hold the database. Unset the session's `CLAUDE_CONFIG_DIR`/`CODEX_HOME` override to include the default global folder. From a worktree it needs `EVEN_KEEL_STATE_DIR=<main checkout>/state`, or it finds no projects.
 - The collector never runs `claude -p /usage`: limits come from Even Keel, and an extra poll gives a 429 on the shared token.
 - Queries go through `node <main checkout>/tally/bin/sql.mjs "<sql>"` (`-f file`, `--csv`, `-n 0` for every row): read-only, times in UTC; the embedded database answers only while the service runs.
