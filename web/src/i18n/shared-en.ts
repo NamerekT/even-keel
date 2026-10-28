@@ -25,7 +25,7 @@ export const sharedEn = {
   ci: 'Check and CI',
   ciNote: 'For projects with no value of their own. The check commands, the commands after a green main, pull requests and the remote profiles are set per project.',
   forProjects: "For projects that don't set their own.",
-  providerHint: 'For projects that name none of their own.',
+  providerHint: 'For projects that name none of their own. Used for tasks without a run label; with run labels on, a task labelled with another provider runs on that one.',
   modelHint:
     "As it goes to the CLI: opus, gpt-6.1-sol. For projects and tasks that name none of their own. Empty — the CLI's default: for Claude Code the model of settings.json, which an editor may have just changed.",
   accountHint: 'For projects that name none of their own; also switched from the header, by moving Even Keel to another account on its card. One per provider, no rotation on a spent limit.',
