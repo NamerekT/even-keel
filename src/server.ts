@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
 import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf } from './server-request.js'
 export { answerOf } from './server-request.js'
@@ -113,6 +114,7 @@ export interface TaskControl {
   /** `undefined` — no connected tracker gives the file, or the task has no such file. */
   file(task: string, file: string): Promise<TaskFile | undefined>
   ready(task: string): Promise<void>
+  relabel(task: string, change: LabelChange): Promise<void>
   /** `milestone` is an id from the card's `milestones`; `null` — out of any. */
   moveMilestone(task: string, milestone: string | null): Promise<void>
   /** Reads the project's tasks from its tracker now, out of turn. */
@@ -274,6 +276,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'chain/refresh': ({ tasks }, body) => tasks.refresh(projectOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
+  'task/labels': ({ tasks }, body) => tasks.relabel(taskOf(body), { add: labelList(body.add, 'add'), remove: labelList(body.remove, 'remove') }),
   'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'session/mail/dismiss': ({ sessions }, body) => sessions.dismissMail(textOf(body.sessionId, 'sessionId')),
@@ -349,6 +352,11 @@ const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
 const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
+
+function labelList(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.some((label) => typeof label !== 'string' || label.trim() === '')) throw fail('request.required', { field })
+  return value as string[]
+}
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

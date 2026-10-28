@@ -1,5 +1,6 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
+import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
@@ -391,6 +392,49 @@ export async function connectGithub(
       const repo = repoOf(project)
       const labels = await collect<{ name: string }>(REPOSITORY_LABELS, { ...repo }, (data) => data.repository?.labels as Connection<{ name: string }>, `${repo.owner}/${repo.name}`)
       return { statuses: [...GITHUB_STATUSES], labels: labels.map((label) => label.name) }
+    },
+
+    async relabel(id, change) {
+      const query = `query($owner: String!, $name: String!, $number: Int!, $after: String) {
+        repository(owner: $owner, name: $name) { issue(number: $number) {
+          id labels(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id name } }
+        } }
+      }`
+      const { repo, issue } = await issueOf<{ id: string; labels: Connection<NamedLabel> }>(id, query)
+      const current = [...issue.labels.nodes]
+      let after = issue.labels.pageInfo.hasNextPage ? issue.labels.pageInfo.endCursor : null
+      while (after !== null) {
+        const page = await graphql<{ repository: { issue: { labels: Connection<NamedLabel> } } }>(query, { ...repo, number: parseTaskId(id)!.number, after })
+        current.push(...page.repository.issue.labels.nodes)
+        after = page.repository.issue.labels.pageInfo.hasNextPage ? page.repository.issue.labels.pageInfo.endCursor : null
+      }
+      const catalog: NamedLabel[] = []
+      let repositoryId = ''
+      do {
+        const page: { repository: { id: string; labels: Connection<NamedLabel> } } = await graphql(`query($owner: String!, $name: String!, $after: String) {
+          repository(owner: $owner, name: $name) { id labels(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id name } } }
+        }`, { ...repo, after })
+        repositoryId = page.repository.id
+        catalog.push(...page.repository.labels.nodes)
+        after = page.repository.labels.pageInfo.hasNextPage ? page.repository.labels.pageInfo.endCursor : null
+      } while (after !== null)
+      const selected = await resolveLabels(current, change, catalog, async (name) => {
+        const result = await graphql<{ createLabel: { label: NamedLabel } }>(`mutation($repository: ID!, $name: String!) {
+          createLabel(input: { repositoryId: $repository, name: $name, color: "808080" }) { label { id name } }
+        }`, { repository: repositoryId, name })
+        return result.createLabel.label
+      })
+      const result = await graphql<{ updateIssue: { issue: { labels: Connection<NamedLabel> } } }>(`mutation($id: ID!, $labels: [ID!]) {
+        updateIssue(input: { id: $id, labelIds: $labels }) { issue { labels(first: 100) { pageInfo { hasNextPage endCursor } nodes { name } } } }
+      }`, { id: issue.id, labels: selected.map((label) => label.id) })
+      const saved = [...result.updateIssue.issue.labels.nodes]
+      after = result.updateIssue.issue.labels.pageInfo.hasNextPage ? result.updateIssue.issue.labels.pageInfo.endCursor : null
+      while (after !== null) {
+        const page: { repository: { issue: { labels: Connection<NamedLabel> } } } = await graphql(query, { ...repo, number: parseTaskId(id)!.number, after })
+        saved.push(...page.repository.issue.labels.nodes)
+        after = page.repository.issue.labels.pageInfo.hasNextPage ? page.repository.issue.labels.pageInfo.endCursor : null
+      }
+      return saved.map((label) => label.name)
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

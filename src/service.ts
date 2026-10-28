@@ -136,7 +136,7 @@ import { TallyService } from './stats/tally.js'
 import { readToolsView } from './tools/panel.js'
 import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
-import { cardOf } from './tracker/card.js'
+import { taskControl } from './tracker/control.js'
 import type { TrackerLink } from './tracker/link.js'
 import { issueLink, parseTaskId, runLabelText, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
@@ -1783,57 +1783,11 @@ let server = createEvenKeelServer({
     const home = homes.find(key)
     return home === undefined ? null : models.of(home)
   },
-  tasks: {
-    card: async (task) => {
-      const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
-      if (link === undefined) return undefined
-      return link.run(async (tracker) => {
-        if (tracker.card === undefined) return undefined
-        const [card, milestones] = await Promise.all([tracker.card(task), tracker.milestones?.(task) ?? null])
-        return cardOf(card, rulesOf(project!, task), tracker.ready !== undefined, milestones)
-      })
-    },
-    file: async (task, file) => {
-      const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
-      if (link === undefined) return undefined
-      return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
-    },
-    ready: async (task) => {
-      const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
-      if (link === undefined) throw fail('task.noTracker', { task })
-      const status = await link.run(async (tracker) => tracker.ready?.(task))
-      if (status === undefined) throw fail('task.cannotReady', { task })
-      if (status === null) throw fail('task.pastBacklog', { task })
-      const reader = readerFor(project!, task)
-      // A read, not a patch: the task enters the chain already in the milestone `fillMilestone` gives it.
-      const refresh = refreshers.get(reader)
-      if (refresh !== undefined) return refresh()
-      const tasks = readerTasks.get(reader)
-      if (tasks?.some((each) => each.id === task)) {
-        const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
-        readerTasks.set(reader, updated)
-        readerTasks.setTasks(reader, updated)
-      }
-      hub.broadcast('state', getState())
-    },
-    // The milestone moves the task in the chain's order: the project is read anew rather than patched.
-    moveMilestone: async (task, milestone) => {
-      const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
-      if (link === undefined) throw fail('task.noTracker', { task })
-      const moved = await link.run(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
-      if (!moved) throw fail('task.cannotMoveMilestone', { task })
-      await refreshers.get(readerFor(project!, task))?.()
-    },
-    refresh: async (project) => {
-      // The page's refresh asks the forges too: otherwise a pull request is seen only by the minute's poll.
-      const [read] = await Promise.all([refreshProject(project), dispatcher.pollReviews(project)])
-      if (!read) throw fail('tracker.noProject', { project })
-    },
-  },
+  tasks: taskControl({
+    configuredProject, linkFor, rulesOf, readerFor, refreshers, readerTasks, refreshProject,
+    pollReviews: (project) => dispatcher.pollReviews(project),
+    broadcast: () => hub.broadcast('state', getState()),
+  }),
   changelog: async (project, milestone, op) => {
     if (!Object.hasOwn(configStore.current.projects, project)) throw fail('chain.unknownProject', { project })
     const view = await changelogs.run(project, milestone, op)

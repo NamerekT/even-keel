@@ -50,6 +50,22 @@ Reference for sessions: how the tracker layer, the adapters and the Claude Code 
 - A tracker call that times out logs its operation, elapsed time and request count; a successful call over half the timeout logs the same at most once per ten minutes per operation and profile. GitLab, GitHub, Linear and Jira count HTTP requests in each call separately and report the longest request's path without its query or upload secret; Huly reports the count as unavailable. The timeout error on the page is unchanged.
 - Status polling logs consecutive failures with the same error text (including its cause) once per profile; a changed error is logged again. The first successful poll after a failure logs `<profile title>: reads again`, even if no status changed. With no watched tasks, polling is skipped and does not count as recovery. Project refreshes keep their own failure state.
 
+### Writing task labels (BTN-507)
+
+The optional `TaskSource.relabel(id, { add, remove })` returns the saved label names. `trackerOf` forwards it only when present; a connected tracker publishes the capability as `trackers[].relabel` (absent in older snapshots means false). Remove first, then add; names are trimmed and compared with `toLocaleLowerCase`, as in `toTask`. Existing labels keep their spelling. Other labels stay attached. An empty add list can remove all labels.
+
+| Adapter | Label definitions and write |
+| --- | --- |
+| Huly | Workspace issue `TagElement`s; creates a missing definition in `core.space.Workspace`, using the default issue category or `tracker.category.Other`. Removes and adds `TagReference`s through collection operations, preserving the issue's label counter; returns the references read back. |
+| GitHub | Pages the issue and repository labels; creates missing repository labels with `createLabel`, then writes `updateIssue.labelIds` once and returns its labels, paging the remainder. |
+| GitLab | Reads the issue and project labels (ancestor group labels included); creates missing project labels, then replaces `labels` in one issue update and returns the saved names. |
+| Linear | Pages the issue labels and the team's available labels (workspace labels included, groups excluded); creates missing labels with the issue's `teamId`, then writes `issueUpdate.labelIds` once and returns its labels, paging the remainder. A mutation with `success: false` is a refusal. |
+| Jira | Labels are free strings: replaces `fields.labels` and reads the saved names back after Jira's empty update response. No definition is created. |
+
+`POST /api/task/labels` takes `{ task, add: string[], remove: string[] }`; both lists are required and an empty list is allowed. `taskControl` (`src/tracker/control.ts`) routes by the task's reader, including feeds. After a successful write it immediately refreshes the reader, as `ready` does: labels can admit a task to the chain, so `fillMilestone` must run before it enters. Without a refresher it patches the reader's task with `toTask`, updates the chain and broadcasts state, including the derived run labels and question flag. Neither path waits for the next tracker poll. The card itself is read afresh through its existing GET route. An unsupported adapter gives `task.cannotRelabel`; a failed read/create/write gives `task.relabelFailed`, with a fix link to tracker profiles. The underlying error remains the error's cause, not page text. A failed operation can have created a definition or changed some Huly references before the refusal; there is no transaction across tracker requests. Refresh the task before retrying.
+
+Fixtures cover all five adapters, case matching, missing definitions, pagination, clearing labels, failures, service state and HTTP validation. Live checks with each provider remain in [unverified.md](unverified.md#writing-task-labels-btn-507). Forgejo is not registered as a task tracker yet; its adapter is separate work.
+
 ## Profiles (BTN-200, `src/profiles/`)
 
 The profile dialog's primary action is **Check and save**: it checks new or changed values, then saves in the same operation. **Check** alone remains available without saving. A fresh check is reused; a duplicate warning from an automatic check stops the first save, and a second press with unchanged values accepts it. Errors stay in the dialog. Fields are inert until the operation ends, and a suggested name is sent with the first save unless the user supplied one.

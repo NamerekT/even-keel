@@ -29,6 +29,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'account.loginExpired': ACCOUNTS,
   'account.activeGone': ACCOUNTS,
   'profiles.paused': PROFILES,
+  'task.relabelFailed': PROFILES,
   'ci.noToken': PROFILES,
   'ci.denied': PROFILES,
   'review.denied': PROFILES,

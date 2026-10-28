@@ -24,6 +24,7 @@ describe('noticeFixOf', () => {
   it('sends a refused or missing token to Trackers and CI', () => {
     expect(noticeFixOf(notice('ci.noToken', { kind: 'forgejo' }))).toEqual({ to: 'shared', tab: 'trackers' })
     expect(noticeFixOf(notice('review.denied', { ci: 'Forgejo', status: 403 }))).toEqual({ to: 'shared', tab: 'trackers' })
+    expect(noticeFixOf(notice('task.relabelFailed', { task: 'ABC-1' }))).toEqual({ to: 'shared', tab: 'trackers' })
   })
 
   it('sends the page token to Interface', () => {
