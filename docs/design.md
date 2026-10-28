@@ -96,7 +96,7 @@ Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx
 - **Words, not internals.** A person reads labels; a variable name, a config path, a CLI flag, `/usage` or a raw id go into a tip or nowhere. A project is named by its label (`ProjectLabel`), never by its id.
 - **A table** only when its columns differ from row to row. A column that says the same thing in every row becomes one line above the table ("all read within a minute"), and only the rows that differ are marked.
 - **An empty state** says what is missing and has the button that adds it.
-- **Long text goes into a tip**; a card holds what is read at a glance.
+- **Long text goes into a tip**; a card holds what is read at a glance. Run labels use `RunLabelTag` in the chain and task card: the provider keeps its tracker spelling, the model hides everything through its last `/`, and `title` holds the full tracker label. Only the model takes an ellipsis when space runs out; the provider stays whole. The card's labels and role captions use the full property width.
 - **Order by what the person looks for first**: the state and the problem at the top, details under them, settings and rare actions last.
 
 ## The check

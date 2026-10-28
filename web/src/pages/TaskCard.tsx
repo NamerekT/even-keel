@@ -16,6 +16,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
 import './card.css'
@@ -228,12 +229,14 @@ function CardBody({ card, refused, work, onOpen, onChanged }: BodyProps) {
               </Prop>
             )}
             {card.labels.length > 0 && (
-              <Prop name={t.card.labels}>
+              <Prop name={t.card.labels} wide>
                 <ul className="task-card__chips">
-                  {card.labels.map((label) => (
+                  {card.labels.map((label) => label.role === 'model' ? (
+                    <RunLabelTag key={label.name} label={label.name} as="li" />
+                  ) : (
                     <li
                       key={label.name}
-                      className={label.role === null || label.role === 'model' ? 'tag' : `chip task-card__chip--${label.role}`}
+                      className={label.role === null ? 'tag' : `chip task-card__chip--${label.role}`}
                       title={label.role === null ? undefined : t.card.roles[label.role]}
                     >
                       {label.name}
@@ -312,9 +315,9 @@ function StatusPill({ status }: { status: TaskStatus }) {
   )
 }
 
-function Prop({ name, children }: { name: string; children: ReactNode }) {
+function Prop({ name, children, wide = false }: { name: string; children: ReactNode; wide?: boolean }) {
   return (
-    <div className="task-card__prop">
+    <div className={`task-card__prop${wide ? ' task-card__prop--wide' : ''}`}>
       <dt>{name}</dt>
       <dd>{children}</dd>
     </div>

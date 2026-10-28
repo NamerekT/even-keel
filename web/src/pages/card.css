@@ -195,6 +195,7 @@ html:has(.task-card[open]) {
 }
 
 .task-card__side {
+  min-width: 0;
   position: sticky;
   top: 0;
   display: flex;
@@ -429,6 +430,10 @@ html:has(.task-card[open]) {
 .task-card__prop dt {
   color: var(--fg-muted);
   font-size: var(--text-12);
+}
+
+.task-card__prop--wide {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .task-card__prop dd {
