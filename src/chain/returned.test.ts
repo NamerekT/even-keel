@@ -110,12 +110,12 @@ describe('Dispatcher with a task back from an inactive status', () => {
     expect(context.relays).toMatchObject([{ kind: 'relay', sessionId: 'old-session', reason: 'returned' }])
   })
 
-  it('does not remember a task released for an open blocker', async () => {
+  it('remembers a task released for an open blocker with its own reason', async () => {
     const context = setup({ state: runningState(), live: { 'ABC-1': 'old-session' } })
     context.dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-1', undefined, 'ABC-2')])
     await context.dispatcher.idle()
     expect(context.dispatcher.state.released).toEqual({ ABC: ['ABC-1'] })
-    expect(context.dispatcher.state.shelved).toEqual({})
+    expect(context.dispatcher.state.shelved).toEqual({ ABC: [{ task: 'ABC-1', sessionId: 'old-session', at: '2026-09-26T12:00:00.000Z', reason: 'postpone', blockers: ['ABC-2'] }] })
   })
 
   it('waits with the handover while no session may start', async () => {

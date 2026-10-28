@@ -22,6 +22,8 @@ export const sessionRu = {
     mainFixed: 'Новая после починки main',
     review: 'Новая после отзыва на pull request',
     returned: 'Новая после возврата задачи',
+    unblocked: 'Новая после закрытия блокеров',
+    unskipped: 'Новая после отмены пропуска',
   },
   replaced: {
     restart: 'заменена вручную',
@@ -32,6 +34,8 @@ export const sessionRu = {
     mainFixed: 'заменена после починки main',
     review: 'заменена после отзыва на pull request',
     returned: 'заменена после возврата задачи',
+    unblocked: 'заменена после закрытия блокеров',
+    unskipped: 'заменена после отмены пропуска',
   },
   remote: {
     starting: 'Remote Control поднимается — ссылка будет через пару секунд.',

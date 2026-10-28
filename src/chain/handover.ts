@@ -1,7 +1,7 @@
 import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import { LimitRetries } from '../limits/retry.js'
-import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move } from './model.js'
+import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move, ReturnReason } from './model.js'
 import { isOwnName } from './fix.js'
 import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession, type LimitedSession } from './relay.js'
 
@@ -21,8 +21,8 @@ function settle(current: CurrentTask): void {
 }
 
 // The session of a chain's current task that the dispatcher continues or replaces itself (invariant 1, exceptions
-// 1–3, 6 and 9): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
-// and when the task is back from an inactive status; and how long an unattended chain waits for a quiet one.
+// 1–3, 6 and 9–10): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
+// and when a released task returns; and how long an unattended chain waits for a quiet one.
 export class Handovers {
   private readonly transientRetries = new LimitRetries()
 
@@ -201,12 +201,12 @@ export class Handovers {
     return false
   }
 
-  /** `extra` — the feedback a `review` handover carries, kept in `reply` for a service restart to make the move again. */
+  /** `extra` is kept in `reply` so a service restart can repeat the handover with the same context. */
   async handOverCurrent(
     chain: ActiveChain,
     current: CurrentTask,
     session: HandoffSession,
-    reason: 'restart' | 'checkpoint' | 'review' | 'returned',
+    reason: 'restart' | 'checkpoint' | 'review' | ReturnReason,
     extra?: string,
   ): Promise<void> {
     delete current.limit
@@ -258,8 +258,8 @@ export class Handovers {
       else await this.handOverCurrent(chain, current, session, 'review', reply)
       return false
     }
-    if (move === 'restart' || move === 'returned') {
-      await this.handOverCurrent(chain, current, session, move)
+    if (move === 'restart' || move === 'returned' || move === 'unblocked' || move === 'unskipped') {
+      await this.handOverCurrent(chain, current, session, move, reply)
       return false
     }
     if (current.limit !== undefined) current.limit.acted = null
@@ -267,10 +267,11 @@ export class Handovers {
     return true
   }
 
-  /** The journal knows a task back from an inactive status as a `relay`: a handover for a cold cache, as after a limit. */
+  /** Returned tasks are relays with their own cause, like a handover after a cold limit. */
   private moved(chain: ActiveChain, current: CurrentTask, move: Move, sessionId: string, previous: string, at = current.starting!): void {
-    const reason = move === 'returned' ? 'relay' : move
-    const cause = move === 'relay' ? 'limit' : move === 'returned' ? 'returned' : move === 'review' && sessionId !== previous ? 'review' : undefined
+    const returned = move === 'returned' || move === 'unblocked' || move === 'unskipped'
+    const reason = returned ? 'relay' : move
+    const cause = move === 'relay' ? 'limit' : returned ? move : move === 'review' && sessionId !== previous ? 'review' : undefined
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at

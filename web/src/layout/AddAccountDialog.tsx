@@ -72,7 +72,7 @@ function wayIcon(provider: Provider, way: Way): ReactNode {
   return <AgentIcon agent={provider} />
 }
 
-const FOCUS = `.account-add__way input:checked, .add-package__kind:not([aria-disabled]), ${LOGIN_FOCUS}`
+const FOCUS = `.account-add__use-cli, .account-add__way input:checked, .add-package__kind:not([aria-disabled]), ${LOGIN_FOCUS}`
 
 function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const location = useLocation()
@@ -89,8 +89,21 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   // The step came from the provider pick here, so "Back" goes to it.
   const picked = (location.state as { picked?: unknown } | null)?.picked === true
   const provider = at.provider !== null && !cliMissing(account, at.provider) ? at.provider : null
+  const newAccount = new URLSearchParams(location.search).has('way')
+  const [checked, setChecked] = useState<string | null>(null)
+  useEffect(() => {
+    if (provider === null || newAccount || login !== null) return
+    let cancelled = false
+    setChecked(null)
+    void send('account/discover', { agent: provider }).then(() => {
+      if (!cancelled) setChecked(provider)
+    })
+    return () => { cancelled = true }
+  }, [provider, newAccount, login !== null])
+  const checking = provider !== null && !newAccount && checked !== provider
+  const candidate = !newAccount && checked === provider && account.globalCheck?.agent === provider ? account.globalCheck.account : null
   const shown = login === null ? provider : (PROVIDERS.find((each) => each === login.agent) ?? provider)
-  const step = login !== null ? 'login' : (provider ?? 'pick')
+  const step = login !== null ? 'login' : checking ? 'checking' : candidate != null ? 'existing' : `${provider ?? 'pick'}:${newAccount}`
 
   // Closing goes back over the entries the dialog pushed; one opened by its address has the dialog under them too, and
   // that entry is then replaced by the page alone.
@@ -196,6 +209,28 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
           </>
         ) : provider === null ? (
           <ProviderPick account={account} onPick={pick} />
+        ) : checking ? (
+          <div className="add-package__body" role="status">{t.addAccount.checkingCli}</div>
+        ) : candidate != null ? (
+          <>
+            <div className="add-package__body">
+              <p className="add-package__note">{t.addAccount.existingCli}</p>
+              <p className="add-package__label account-add__identity">{candidate.status.email ?? candidate.status.orgName ?? t.account.agents[provider]}</p>
+              {failure !== null && <p className="notice notice--error" role="alert">{say(failure)}</p>}
+            </div>
+            <footer className="add-package__foot account-add__cli-foot">
+              {picked && <button type="button" className="button" disabled={sending} onClick={() => void navigate(-1)}>← {t.account.back}</button>}
+              <span className="add-package__spacer" />
+              <button type="button" className="button" disabled={sending} onClick={() => void navigate(
+                { pathname: location.pathname, search: withAdd(location.search, provider, WAYS[provider][0]!.id) },
+                { state: { ...location.state, adding: depth + 1 } },
+              )}>{t.addAccount.otherAccount}</button>
+              <button type="button" className="button button--primary account-add__use-cli" disabled={sending} onClick={async () => {
+                before.current = account.accounts.map((entry) => entry.key)
+                if (await send('account/global', { agent: provider })) done()
+              }}>{t.addAccount.useCli}</button>
+            </footer>
+          </>
         ) : (
           <Ways
             provider={provider}

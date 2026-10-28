@@ -21,6 +21,8 @@ export const sessionEn = {
     mainFixed: 'New after main was fixed',
     review: 'New after the pull request feedback',
     returned: 'New after the task came back',
+    unblocked: 'New after the blockers closed',
+    unskipped: 'New after Skip was undone',
   },
   replaced: {
     restart: 'replaced by hand',
@@ -31,6 +33,8 @@ export const sessionEn = {
     mainFixed: 'replaced after main was fixed',
     review: 'replaced after the pull request feedback',
     returned: 'replaced after the task came back',
+    unblocked: 'replaced after the blockers closed',
+    unskipped: 'replaced after Skip was undone',
   },
   remote: {
     starting: 'Remote Control is starting — the link comes in a couple of seconds.',

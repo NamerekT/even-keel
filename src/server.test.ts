@@ -11,7 +11,6 @@ import { serverFixture, STANDARD } from '../test/server.fixture.js'
 import { textNotice } from './notice/notice.js'
 
 const refusal = (text: string) => ({ error: text, notice: textNotice(text) })
-const STANDARD = { doc: 'docs/design.md', files: ['web/**/*.tsx'], except: ['**/*.test.*'], shots: true }
 
 describe('Even Keel HTTP server', () => {
   let hub: EventHub
@@ -469,6 +468,15 @@ describe('Even Keel HTTP server', () => {
     expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
     expect((await post('/api/chain/nope')).status).toBe(404)
     expect(calls).toEqual([])
+  })
+
+  it('discovers and registers a CLI account only through explicit commands', async () => {
+    expect((await post('/api/account/discover', { agent: 'codex' })).status).toBe(200)
+    expect((await post('/api/account/global', { agent: 'codex' })).status).toBe(200)
+    expect(calls).toEqual([['discoverGlobal', 'codex'], ['useGlobal', 'codex']])
+    for (const path of ['/api/account/discover', '/api/account/global']) {
+      for (const body of [{}, { agent: 1 }]) expect((await post(path, body)).status).toBe(400)
+    }
   })
 
   it('drives the Claude sign-in through POST commands', async () => {

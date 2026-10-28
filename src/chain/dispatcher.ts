@@ -1,4 +1,4 @@
-import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import {
   newChain,
@@ -30,6 +30,7 @@ import type { HandoffSession } from './relay.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
 import { requireLimit } from './limitNotice.js'
+import { startTask } from './start.js'
 
 export {
   emptyChainState,
@@ -45,7 +46,6 @@ export {
 } from './model.js'
 
 const SLOT_RETRY_MS = 30_000
-const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
 export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
@@ -530,6 +530,7 @@ export class Dispatcher {
   }
 
   private release(chain: ActiveChain, reason: ReleaseReason, blockers: string[]): void {
+    shelve(this.state, this.deps, chain.project, chain.current!, reason, blockers)
     const { task, sessionId } = chain.current!
     if (sessionId !== null) {
       const entry: LaunchEntry = { at: this.deps.now().toISOString(), project: chain.project, task, sessionId, reason }
@@ -744,10 +745,10 @@ export class Dispatcher {
         delete chain.limitUntil
         delete chain.slotWait
         delete chain.ciWait
-        const current: CurrentTask = { task, sessionId: returned.sessionId, since }
+        const current: CurrentTask = { task, sessionId: returned.session.sessionId, since }
         this.take(chain, current)
         this.deps.save(this.state)
-        await this.handovers.handOverCurrent(chain, current, returned, 'returned')
+        await this.handovers.handOverCurrent(chain, current, returned.session, returned.reason, returned.extra)
         return
       }
 
@@ -765,34 +766,8 @@ export class Dispatcher {
       this.take(chain, current)
       this.deps.save(this.state)
       const feedback = own === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
-      try {
-        const { sessionId, fallback } =
-          fix !== undefined
-            ? { sessionId: await this.deps.launchFix(chain.project, task, fix.report) }
-            : carry !== undefined
-              ? { sessionId: await this.deps.launchCarry(chain.project, task, carry.report) }
-              : feedback !== undefined
-              ? await this.deps.launch(chain.project, task, feedback)
-              : await this.deps.launch(chain.project, task)
-        if (feedback !== undefined) this.reviews.delivered(chain.project, task)
-        this.deps.journal({
-          at: since,
-          project: chain.project,
-          task,
-          sessionId,
-          ...(own !== undefined && { commit: own.commit }),
-          ...(feedback !== undefined && { reason: 'review' as const }),
-          ...(fallback !== undefined && { fallback }),
-        })
-        current.sessionId = sessionId
-        delete current.starting
-        delete chain.slotWait
-        this.deps.save(this.state)
-      } catch (error) {
-        const failure = noticeOf(error)
-        if (this.state.unattended && SLOT_REFUSALS.has(failure.code)) this.waitForSlot(chain, task, failure)
-        else this.halt(chain, failure)
-      }
+      await startTask(this.state, this.deps, chain, current, fix, carry, feedback,
+        () => this.reviews.delivered(chain.project, task), (failure) => this.halt(chain, failure))
       return
     }
   }
@@ -829,12 +804,4 @@ export class Dispatcher {
     this.deps.save(this.state)
   }
 
-  /** The task never started, so it is not released: the chain picks it again once a slot frees up. */
-  private waitForSlot(chain: ActiveChain, task: string, refusal: Notice): void {
-    chain.current = null
-    const waiting = notice('slot.waiting', { task }, { items: refusal.items ?? [refusal] })
-    if (!sameNotice(chain.slotWait?.notice ?? null, waiting)) this.deps.log(`chain: ${chain.project}: ${englishOf(waiting)}`)
-    chain.slotWait = { notice: waiting, at: this.deps.now().toISOString() }
-    this.deps.save(this.state)
-  }
 }

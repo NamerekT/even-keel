@@ -450,6 +450,7 @@ export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
 }
 
 export function removeQuestion(entry: AccountEntry): string {
+  if (entry.global) return t.addAccount.removeGlobal
   const sessions = entry.sessions.join(', ')
   if (entry.apiKey) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
   return sessions === '' ? t.account.removeNow : t.account.removeWhenDone(sessions)

@@ -21,7 +21,10 @@ export const providerMap = (map: string, values: Values, providers: readonly str
 
 export const providerName = (provider: string): string => (t.settings.agents as Record<string, string>)[provider] ?? provider
 
-export const providerOptions = (providers: readonly string[] = PROVIDERS): { value: string; label: string }[] =>
+/** A pick of the provider the saved value already runs keeps that value, so picking back what was there is no change, "as shared" included. */
+export const pickedProvider = (picked: string, saved: string, shared: string): string => (picked === (saved || shared) ? saved : picked)
+
+export const providerOptions =(providers: readonly string[] = PROVIDERS): { value: string; label: string }[] =>
   providers.map((provider) => ({ value: provider, label: providerName(provider) }))
 
 /**
