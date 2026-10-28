@@ -94,6 +94,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
+| 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot machine sign-ins and model hints | Even Keel cannot verify the CLI identity, so its allowance and model list remain unavailable |
+
+### Copilot's machine token and model availability (BTN-516)
+
+The installed Copilot CLI's command surface and Even Keel's `authStatus` expose no signed-in identity. On 2026-10-28, `GET /user` with `gh auth token` returned 200, but `copilot_internal/v2/token` returned 403 without any editor-identification header; `/models` could not be called without the exchanged token. Do not use the GitHub CLI identity as a substitute for the Copilot CLI identity, and do not impersonate VS Code to unlock the endpoint. The machine allowance and model list remain unavailable until the CLI identity can be verified and the API is accessible without such a header. Linux, macOS, Windows service session 0, and paid-plan eligibility remain unchecked. **Workaround:** add a Copilot account with its own token for its existing usage support; leave its model field unset.
 
 ### The instruction size ceiling in a Claude session (BTN-468)
 
