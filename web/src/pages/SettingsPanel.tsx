@@ -18,7 +18,7 @@ import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import { folderLabel } from '../accountName.js'
-import { accountOptions, namedProviders, providerKeys, providerName } from './settingsRun.js'
+import { accountOptions, namedProviders, pickedProvider, providerKeys, providerName } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import {
   FieldHead,
@@ -455,7 +455,7 @@ export function SettingsPanel({
             inherit={inheritOf('provider', providerName(shared.provider))}
             note={notes('provider', (value) => value === '' ? t.settings.asShared(providerName(shared.provider)) : providerName(String(value)))}
             chosen={text('provider') || shared.provider}
-            onPick={(provider) => edit('provider', provider)}
+            onPick={(provider) => edit('provider', pickedProvider(provider, draft.base.provider as string, shared.provider))}
             columns={[
               { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
               { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
