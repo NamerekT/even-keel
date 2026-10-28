@@ -118,7 +118,7 @@ export function AccountRoles({ entry, view, sending, send, compact = false }: Ro
 }
 
 /** The Even Keel role on any account, moving the shared provider with it; the apps only on Claude's. */
-function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
+export function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
   const active = view.accounts.find((each) => each.key === view.active)
   const running = (view.loginBlock?.chains.length ?? 0) > 0
   const evenKeel: Role = {

@@ -163,6 +163,16 @@ function rawEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
+  if (mode === 'rows' || mode === 'rows-noCodex' || mode === 'rows-long') {
+    const base = fakeAccount('opencode', idle, limits)
+    const copilot = fakeAccount('copilot', idle, limits).accounts.filter((entry) => entry.agent === COPILOT && !entry.apiKey)
+    const lost = apiEntry('old-key', { name: 'Test API', needsLogin: true, sessions: ['Key session'] })
+    const accounts = [...base.accounts, ...copilot, lost].map((entry) => entry.key === 'global'
+      ? { ...entry, limits: { ...limits, fiveHour: null, sevenDay: { ...limits.sevenDay!, usedPercentage: 99 } }, ...(mode === 'rows-long' ? { name: 'Example organization account with a very long display name that needs truncation' } : {}) }
+      : entry.key === 'codex' ? { ...entry, limits: { ...entry.limits!, sevenDay: { ...limits.sevenDay!, usedPercentage: 100 } } } : entry)
+    return { ...base, accounts: mode === 'rows-noCodex' ? accounts.filter((entry) => entry.agent !== CODEX) : accounts }
+  }
+  if (mode === 'empty') return { ...fakeAccount(null, idle, limits), accounts: [], active: 'global', apps: [], pool: [] }
   const global = fakeEntry({ limits, projects: FAKE_PROJECTS, sessions: idle ? [] : ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'Scratch notes'] })
   const work = fakeEntry({
     key: 'jane.roe',

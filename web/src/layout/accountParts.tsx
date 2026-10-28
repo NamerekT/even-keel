@@ -384,7 +384,7 @@ function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sendin
  * Through what a Claude account's new sessions run, by `execution.claude`: a quiet line, since the setting on /settings
  * decides it; a subscription account carries Anthropic's rule on the Agent SDK in the tip.
  */
-export function TransportNote({ entry }: Pick<NotesProps, 'entry'>) {
+export function TransportNote({ entry, brief = false }: Pick<NotesProps, 'entry'> & { brief?: boolean }) {
   const { transport } = entry
   if (transport === undefined || entry.removing) return null
   return (
@@ -399,7 +399,7 @@ export function TransportNote({ entry }: Pick<NotesProps, 'entry'>) {
       align="start"
       focusable
     >
-      {t.account.transportVia(t.account.transport[transport])}
+      {brief ? t.account.transportShort[transport] : t.account.transportVia(t.account.transport[transport])}
     </Tipped>
   )
 }
@@ -449,7 +449,7 @@ export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
   )
 }
 
-function removeQuestion(entry: AccountEntry): string {
+export function removeQuestion(entry: AccountEntry): string {
   const sessions = entry.sessions.join(', ')
   if (entry.apiKey) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
   return sessions === '' ? t.account.removeNow : t.account.removeWhenDone(sessions)

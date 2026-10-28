@@ -16,7 +16,7 @@ export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLEleme
     if (!open || element === null || owner === null) return
     element.showPopover()
     place(element, owner.getBoundingClientRect())
-    element.querySelector<HTMLButtonElement>('button:not([aria-disabled="true"])')?.focus()
+    element.querySelector<HTMLButtonElement>('button:not([aria-disabled="true"])')?.focus({ preventScroll: true })
     const away = (event: Event) => {
       if (!(event.target instanceof Node && root.current?.contains(event.target))) setOpen(false)
     }

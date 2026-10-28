@@ -170,6 +170,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?huly=down\|connecting\|off` | the Huly link in the header and the Huly profile's state on Trackers and CI |
 | `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
 | `?account=secondFree` | a Codex sign-in refused as a second free account after the CLI said `Successfully logged in` (BTN-389) |
+| `?account=rows\|rows-noCodex\|rows-long\|empty` | provider rows on the page and in the drawer: rejected Test API key, shared ChatGPT pool, missing 5-hour reading, 99% weekly usage, an exhausted Codex window and OpenCode/Copilot token counts; `rows-noCodex` omits Codex while keeping it available in Add account, `rows-long` gives the active account a long display name, `empty` has no accounts. Combine with `lang=ru` for narrow translated rows |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
 | `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, counted in the card's sessions line and listed by their tab titles in its tip |
