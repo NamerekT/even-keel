@@ -468,7 +468,7 @@ export const en = {
     `config: ${p.project} and ${p.other} read the tracker project ${p.trackerProject}, and a task may enter both chains: split them by milestone (chain.requiredMilestones and chain.excludedMilestones)`,
   'config.keyElsewhere': (p: { key: string; project: string; other: string; trackerProject: string }) =>
     `config: ${p.project} and ${p.other} have the key ${p.key} on different repositories (${p.project} on ${p.trackerProject}), and the task ids of both would be the same: give one of them another key`,
-  'config.modelPrompts': () => 'config: modelPrompts must map the name of a model to a prompt',
+  'config.modelPrompts': () => 'config: modelPrompts (Model prompts) must map a provider or provider | model pattern to a prompt; use * for any string',
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'protection.fileConflict': () => 'Protection cannot write its rules: another file occupies their location. Rename that file, then retry the session',
   'config.protection': (p: { where: string }) => `Protection (${p.where}) must contain valid disabled groups and native deny rules`,

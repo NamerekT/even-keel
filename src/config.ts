@@ -76,7 +76,7 @@ export interface EvenKeelConfig {
   cli: Record<string, string>
   /** Whether the tasks' run labels are read, unless a project says otherwise. */
   modelLabels: boolean
-  /** Appended to the prompt of a new session by the name of its model, as the CLI gets it. */
+  /** Appended in order to new sessions matching each provider / model pattern (`*` matches any string). */
   modelPrompts: Record<string, string>
   /** Appended to the prompt of every new session of every project, before the project's own `prompt`; null — none. */
   prompt: string | null

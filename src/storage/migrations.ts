@@ -98,6 +98,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v13 → v14: package settings become user overrides, with defaults read from each install (BTN-434).
   // v14 → v15: additive Protection settings; omitted fields keep the built-in defaults.
   // v15 → v16: additive OpenCode Protection patterns; omitted fields inherit an empty custom list.
+  // v16 → v17: model prompt keys become provider / model patterns.
   if (packages !== undefined && packages.version < SCHEMA_VERSION) {
     const record = asRecord(packages)
     rewrite(packages, jsonText(stamped(packages.version < 14 ? packageOverrides(record) : record)))
@@ -141,7 +142,14 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const moved = version < 8 ? configV8(upgraded, active) : upgraded
   const owned = version < 13 ? trackersOwned(moved) : moved
   const protectedConfig = version < 15 ? configV15(owned) : owned
-  return version < 16 ? configV16(protectedConfig) : protectedConfig
+  const openCode = version < 16 ? configV16(protectedConfig) : protectedConfig
+  return version < 17 ? configV17(openCode) : openCode
+}
+
+/** v16 → v17: an old model key was provider-independent, even when its text happens to name a provider. */
+function configV17(raw: unknown): unknown {
+  if (!isRecord(raw) || !isRecord(raw.modelPrompts)) return raw
+  return { ...raw, modelPrompts: Object.fromEntries(Object.entries(raw.modelPrompts).map(([model, prompt]) => [`* | ${model}`, prompt])) }
 }
 
 /** v15 → v16: OpenCode rules are additive; keep the shared and project Protection overrides intact. */

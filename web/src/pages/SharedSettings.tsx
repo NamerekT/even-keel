@@ -47,6 +47,7 @@ import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import { ModelOffers } from './ModelOffers.js'
+import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
 import { useModels } from './useModels.js'
@@ -430,7 +431,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           </div>
           <div className={marks.box('modelPrompts')}>
             <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
-            <ModelPrompts value={text('modelPrompts')} onChange={(value) => edit('modelPrompts', value)} />
+            <ModelPrompts value={text('modelPrompts')} accounts={state.account} onChange={(value) => edit('modelPrompts', value)} />
             {marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)}
             <FieldNote error={errorOf('modelPrompts')} />
           </div>
@@ -674,22 +675,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         )}
       </div>
     </div>
-  )
-}
-
-/** A row per model with a prompt, in the order they were added; a row cleared while typing stays until its bin. */
-function ModelPrompts({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <RowsTable
-      label={t.shared.modelPrompts}
-      columns={[
-        { title: t.shared.promptModel, placeholder: 'opus', mono: true, width: '11em' },
-        { title: t.shared.promptText, placeholder: t.shared.promptAdd, multiline: true },
-      ]}
-      rows={JSON.parse(value) as string[][]}
-      empty={t.shared.none}
-      onChange={(rows) => onChange(JSON.stringify(rows))}
-    />
   )
 }
 

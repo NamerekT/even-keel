@@ -55,7 +55,7 @@ describe('runChoice', () => {
 
 describe('launchPlan', () => {
   const run: RunSettings = { provider: 'claude', models: { claude: 'opus' }, accounts: { claude: 'global' }, labels: true }
-  const prompts = { sonnet: 'You are Sonnet.', 'gpt-6.1-sol': 'You are Sol.' }
+  const prompts = { 'Claude | sonnet*': 'You are Sonnet.', '* | gpt-6.1-sol': 'You are Sol.' }
 
   it('keeps the prompt as is for a model without a configured prompt', () => {
     expect(launchPlan(undefined, 'ABC-1', run, prompts, () => true)).toMatchObject({ provider: 'claude', model: 'opus', prompt: 'ABC-1' })
@@ -68,5 +68,18 @@ describe('launchPlan', () => {
 
   it('appends no prompt for a model left to the CLI', () => {
     expect(launchPlan(undefined, 'ABC-1', { ...run, models: {} }, { ...prompts, '': 'never' }, () => true)).toMatchObject({ model: null, prompt: 'ABC-1' })
+  })
+
+  it('appends every matching prompt in table order, including provider-wide prompts on the CLI default', () => {
+    const prompts = { '*': 'Every session.', 'Claude | *sonnet*': 'Sonnet.', ' cLaUdE ': 'Claude.' }
+    const task = { id: 'ABC-1', runLabels: [{ provider: 'claude', model: 'claude-sonnet-5-5' }] }
+    expect(launchPlan(task, 'ABC-1', run, prompts, () => true).prompt).toBe('ABC-1\n\nEvery session.\n\nSonnet.\n\nClaude.')
+    expect(launchPlan(undefined, 'ABC-1', { ...run, models: {} }, prompts, () => true).prompt).toBe('ABC-1\n\nEvery session.\n\nClaude.')
+  })
+
+  it('matches the actual provider and model after account fallback', () => {
+    const task = { id: 'ABC-1', runLabels: [{ provider: 'codex', model: 'gpt-6.1-sol' }] }
+    const prompts = { Codex: 'Codex.', 'Claude | opus': 'Claude.' }
+    expect(launchPlan(task, 'ABC-1', run, prompts, () => false).prompt).toBe('ABC-1\n\nClaude.')
   })
 })
