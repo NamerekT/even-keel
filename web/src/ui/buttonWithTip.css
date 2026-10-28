@@ -1,0 +1,36 @@
+.button-with-tip {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.button-with-tip > .button {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.button-with-tip__help {
+  display: flex;
+  flex: 0 0 36px;
+}
+
+.button-with-tip .button-with-tip__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-6);
+  border-left: 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+.button-with-tip .button-with-tip__trigger > .icon:first-child {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.button-with-tip .button-with-tip__trigger:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
