@@ -5,15 +5,18 @@ import { readLines } from '../sessions/lines.js'
 import type { TranscriptSummary } from '../sessions/transcript.js'
 import { eventsFile } from './home.js'
 import { CopilotFold } from './transcript.js'
+import { withTurnError, type TurnError } from './errors.js'
 
 /** A Copilot session's `events.jsonl` read as it grows; a resume appends to the same file. */
 export class CopilotTail implements SessionTail {
   private fold = new CopilotFold()
   private offset = 0
+  private error: TurnError | undefined
 
   constructor(
     private readonly home: string,
     private agent: AgentEntry,
+    private readonly errorOf: (sessionId: string) => Promise<TurnError | undefined>,
   ) {}
 
   get path(): string | undefined {
@@ -21,18 +24,20 @@ export class CopilotTail implements SessionTail {
   }
 
   summary(): TranscriptSummary {
-    return this.fold.summary()
+    return withTurnError(this.fold.summary(), this.error)
   }
 
   follow(agent: AgentEntry): void {
     if (agent.sessionId !== this.agent.sessionId) {
       this.fold = new CopilotFold()
       this.offset = 0
+      this.error = undefined
     }
     this.agent = agent
   }
 
   async read(): Promise<void> {
+    this.error = await this.errorOf(this.agent.sessionId)
     const file = eventsFile(this.home, this.agent.sessionId)
     const size = await stat(file).then(
       (info) => info.size,

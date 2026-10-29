@@ -86,6 +86,8 @@ Built on the research below (BTN-213) and checked on Copilot CLI 1.0.98 on Windo
 - One transport only: the Agent SDK (BTN-239) is Claude's, so a Copilot folder, a token one too, has no transport (`transportOf` is `null`, its card says none), and the adapter has no `Agent.reply` and its entries do not steer. An answer or a limit resume is a new turn with `--resume` once the last one is over, as for Codex and OpenCode, and a chat message mid-turn waits for the mailbox or the turn's end.
 - What Copilot does not get yet: the checkpoint threshold, the chat mailbox and the standards come from the package's hooks in their top-level `additionalContext` shape, not yet seen reaching a Copilot model, nor a `Stop` block (`docs/unverified.md`); a stall watchdog, `Agent.write`.
 
+- Early CLI refusals (BTN-549): after a turn exits, `CopilotCli.error` reads the terminal plain-text `Error:` from its last output file. `withTurnError` supplements the tail, history and whole transcript even if `events.jsonl` is absent or holds only metadata. Registry sessions remain discoverable by transcript ownership without that file. A model refusal is an error, with a localized explanation and a button to the project's session settings; change Model or the task's model label, then choose New session. No model is substituted. A running turn, a successful result, later transcript activity or a replacement turn's output suppresses the old refusal. The live CLI check and page captures are logged in [verified.md](verified.md).
+
 ## Protection
 
 `src/sessions/protection.ts` defines seven default deny groups. `protection` has `disabled` (group ids), `claude`
