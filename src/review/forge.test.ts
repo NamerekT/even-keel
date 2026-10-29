@@ -224,7 +224,8 @@ describe('gitlabPulls', () => {
     const state = (change: object) => forge({ 'GET /merge_requests/9': request(change) }).forge.state(9)
     expect(await state({})).toEqual({ state: 'open', mergeable: true, head: 'a1' })
     expect(await state({ state: 'locked', detailed_merge_status: 'checking' })).toEqual({ state: 'open', mergeable: null, head: 'a1' })
-    expect(await state({ detailed_merge_status: 'conflict' })).toMatchObject({ mergeable: false })
+    expect(await state({ has_conflicts: true, detailed_merge_status: 'conflict' })).toMatchObject({ mergeable: false })
+    expect(await state({ has_conflicts: undefined, detailed_merge_status: 'conflict' })).toMatchObject({ mergeable: false })
     expect(await state({ has_conflicts: true })).toMatchObject({ mergeable: false })
     expect(await state({ detailed_merge_status: 'not_approved' })).toMatchObject({ mergeable: true })
     expect(await state({ detailed_merge_status: undefined, merge_status: 'unchecked' })).toMatchObject({ mergeable: null })
@@ -242,6 +243,23 @@ describe('gitlabPulls', () => {
 
   it.each(['unchecked', 'checking', 'preparing'])('waits for legacy merge_status %s despite a stale conflict flag', async (status) => {
     const { forge: pulls } = forge({ 'GET /merge_requests/9': request({ has_conflicts: true, detailed_merge_status: undefined, merge_status: status }) })
+    expect((await pulls.state(9)).mergeable).toBeNull()
+  })
+
+  it('waits while a push leaves a stale conflict status with no conflict flag', async () => {
+    // Seen on GitLab.com for minutes after each push, on GitLab CE for a second or two.
+    const stale = { has_conflicts: false, detailed_merge_status: 'conflict', merge_status: 'cannot_be_merged_recheck' }
+    const routes = { 'GET /merge_requests/9': request(stale) }
+    const { forge: pulls } = forge(routes)
+    expect((await pulls.state(9)).mergeable).toBeNull()
+    routes['GET /merge_requests/9'] = request({ ...stale, merge_status: 'cannot_be_merged' })
+    expect((await pulls.state(9)).mergeable).toBeNull()
+    routes['GET /merge_requests/9'] = request({ has_conflicts: false, detailed_merge_status: 'mergeable', merge_status: 'can_be_merged' })
+    expect((await pulls.state(9)).mergeable).toBe(true)
+  })
+
+  it('waits for a merge_status recheck even when the conflict flag is set', async () => {
+    const { forge: pulls } = forge({ 'GET /merge_requests/9': request({ has_conflicts: true, detailed_merge_status: 'conflict', merge_status: 'cannot_be_merged_recheck' }) })
     expect((await pulls.state(9)).mergeable).toBeNull()
   })
 
