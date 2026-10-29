@@ -1,8 +1,8 @@
 # Compaction versus handoff: protocol fixed before the first assignment
 
 Protocol date: 2026-10-29. This follows the [week-to-week comparison](compaction-week.md).
-No result is reported here. The first live assignment has not run at the time this protocol is committed;
-its UTC start time and the assignment log will be recorded below after the run, without changing these rules.
+No result is reported here. These rules were committed as `a4a280c2` before the first live assignment;
+the UTC start time and assignment log are recorded below. The rules have not changed after that run.
 
 ## Assignment and population
 
@@ -116,4 +116,15 @@ and execution are a separate [live check](../unverified.md#scheduled-break-label
 
 ## First run record
 
-Pending: append the UTC start, command, protocol commit, and retained log location after the first live run.
+First live run: **2026-10-29 07:54:08.847 UTC**, `npm run break-labels -- BTN`, using protocol/code
+commit `a4a280c2` and the running installation's data folder. It assigned 78 open tasks and finished
+at 07:54:21.861 UTC. The repeat started at 07:54:57.442 UTC: 78 existing assignments, zero writes,
+zero parity mismatches. This is assignment verification, not an interim outcome comparison.
+
+Retained outside git in the main checkout: `.temp/btn-505/preview.log`, `first-run.log`,
+`repeat-run.log`. Each successful assignment has its own timestamp. A read-only snapshot of the state
+database's launch history is retained as `rollout-deviations.json` with its helper script; it records
+two tasks that had already started before assignment, across all providers. Apply the Claude-only
+population rule during analysis, without losing these rollout records. Preserve these files for the
+deviation ledger: any task session started before its assignment is a rollout deviation even though
+the label now matches parity. Scheduler registration remains for the user.

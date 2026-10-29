@@ -547,7 +547,7 @@ The intake (`docs/trackers.md`, "Taking GitHub issues in") is covered by tests w
 
 ### Writing task labels (BTN-507)
 
-Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Still to check separately on each provider:
+Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Adding existing Huly workspace labels and preserving other labels was subsequently checked through the standalone assignment script ([verified log](verified.md#trackers)); creation, removal, different-case matching and refusals remain unverified live. Still to check separately on each provider:
 
 - Huly: on a scratch issue, remove an existing label and add an existing workspace label with different case plus a new one. Verify the workspace definition, references and issue label counter; repeat with a profile that cannot write labels.
 - GitHub: on a scratch repository issue, swap labels and create one through `relabel`, then check the issue and repository labels. Repeat with an Issues-read-only token.
