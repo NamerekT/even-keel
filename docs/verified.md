@@ -97,6 +97,11 @@ One row is one check.
 
 ## Sessions
 
+| Behaviour | Where | Date | Versions | Task, commit | Result | Session |
+| --- | --- | --- | --- | --- | --- | --- |
+| Chain `autoCompactWindow` in `--settings` overrides the account window: `/context` reports 300k with the override, then 250k without it on the same account; both local commands have zero model turns and zero cost, account settings unchanged | Windows workstation, direct CLI probes | 2026-10-29 | Claude Code 2.1.311 | BTN-394 | whole for CLI precedence; launch assembly and per-project measurement isolation also covered by tests | — |
+| Shared and project auto-compaction fields, inheritance, empty account-window choice, numeric edit and invalid input; dark desktop and narrow screens, light desktop | fake interface, Playwright headless shell | 2026-10-29 | current build | BTN-394 | whole; shots and answers retained in `.temp/shot/` and `.temp/design-check.md` | — |
+
 Pull request mode sits here, as in `unverified.md`.
 
 | Behaviour | Where | Date | Versions | Task, commit | Result | Session |

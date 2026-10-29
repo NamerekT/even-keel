@@ -95,6 +95,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "autoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -168,6 +169,7 @@
       },
       "modelLabels": false,
       "cacheTtl": null,
+      "autoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -278,6 +280,7 @@
     ]
   },
   "cacheTtl": null,
+  "autoCompactWindow": null,
   "contextHandoffs": true,
   "ci": {
     "guard": true,

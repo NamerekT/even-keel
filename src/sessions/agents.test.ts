@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedAsk, blockedOn, isLive, launchedModel, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedAsk, blockedOn, isLive, launchedModel, launchedSettings, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -93,6 +93,13 @@ describe('blockedOn', () => {
 })
 
 describe('launchedModel', () => {
+  it('retains the launch settings from the daemon job and ignores absent or incomplete flags', () => {
+    const settings = '{"autoCompactWindow":300000}'
+    expect(launchedSettings(JSON.stringify({ respawnFlags: ['--settings', settings] }))).toBe(settings)
+    expect(launchedSettings(JSON.stringify({ respawnFlags: ['--settings'] }))).toBeNull()
+    expect(launchedSettings(undefined)).toBeNull()
+  })
+
   it('reads the model a job was started with from the flags it respawns with', () => {
     const job = { tempo: 'active', respawnFlags: ['--mcp-config', '{"mcpServers":{}}', '--strict-mcp-config', '-n', 'BTN-1', '--model', 'opus[1m]'] }
     expect(launchedModel(JSON.stringify(job))).toBe('opus[1m]')

@@ -87,6 +87,7 @@ export interface EvenKeelConfig {
   hiddenSkills: string[]
   /** The prompt cache TTL of chain sessions (`promptCacheTtl`); null leaves the CLI's own choice. A project's own goes over it. */
   cacheTtl: CacheTtl | null
+  autoCompactWindow: number | null
   /** Handoffs by context size for every project without its own (BTN-255); what each ends up with is in `settings`. */
   contextHandoffs: boolean
   /** The shared `ci` keys and `fillMilestone`; what each project ends up with is in `settings`. */
@@ -306,6 +307,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     hiddenSkills: shared.hiddenSkills as string[],
     protection: shared.protection as Protection,
     cacheTtl: shared.cacheTtl as CacheTtl | null,
+    autoCompactWindow: shared.autoCompactWindow as number | null,
     contextHandoffs: shared.contextHandoffs as boolean,
     ci: ciOf(shared),
     fillMilestone: shared.fillMilestone as boolean,
@@ -357,6 +359,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     accounts: (own.accounts as Record<string, string> | undefined) ?? {},
     modelLabels: (own.modelLabels as boolean | undefined) ?? null,
     cacheTtl: values.cacheTtl as CacheTtl | null,
+    autoCompactWindow: values.autoCompactWindow as number | null,
     contextHandoffs: values.contextHandoffs as boolean,
     protection: values.protection as Protection,
     checkpointTokens: values['stats.checkpointTokens'] as number | null,

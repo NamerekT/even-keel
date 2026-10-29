@@ -26,6 +26,20 @@ function cacheOf(answers: Record<string, number | null | Error>) {
 }
 
 describe('ContextWindows', () => {
+  it('separates the windows of launch settings on the same account and model', async () => {
+    const cache = new ContextWindows({
+      probe: async (_account, _model, _task, settings) => settings === undefined ? 250_000 : JSON.parse(settings).autoCompactWindow,
+      stamp: async () => 'v1', recheckMs: 60_000, onError: () => {},
+    })
+    cache.peek('a', 'opus', 'ABC-1', '{"autoCompactWindow":300000}')
+    cache.peek('a', 'opus', 'XYZ-1', '{"autoCompactWindow":400000}')
+    cache.peek('a', 'opus', 'OLD-1')
+    await cache.idle()
+    expect(cache.peek('a', 'opus', 'ABC-1', '{"autoCompactWindow":300000}')).toBe(300_000)
+    expect(cache.peek('a', 'opus', 'XYZ-1', '{"autoCompactWindow":400000}')).toBe(400_000)
+    expect(cache.peek('a', 'opus', 'OLD-1')).toBe(250_000)
+  })
+
   it('knows nothing at first, asks the agent in the background, and answers from then on without asking again', async () => {
     const { cache, state } = windows({ opus: 250_000 })
     expect(cache.peek('mykey', 'opus')).toBeNull()

@@ -488,9 +488,9 @@ export function wireOwners(ctx: AccountsContext): TranscriptOwners {
 
 export function wireContextWindows(ctx: AccountsContext): ContextWindows {
   return new ContextWindows({
-    probe: async (key, model, task) => {
+    probe: async (key, model, _task, settings) => {
       const home = ctx.homeOf(key)
-      return (await ctx.agentOf(home).contextWindow?.(home, model, ctx.settingsFor(task))) ?? null
+      return (await ctx.agentOf(home).contextWindow?.(home, model, settings)) ?? null
     },
     stamp: async (key) => {
       const home = ctx.homeOf(key)
@@ -514,7 +514,7 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
       const projects = Object.keys(config.projects)
       return [...new Set([...projects.map((project) => fixStem(config.keys, project)), ...projects.map((project) => idPrefixOf(config, project))])]
     },
-    contextWindow: (key, model, task) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task)),
+    contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
     approval: (sessionId) => ctx.approvals.ask(sessionId),
     intervalMs: ctx.SESSION_POLL_MS,
     onAgents: (list) => {

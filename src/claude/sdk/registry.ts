@@ -25,6 +25,8 @@ export interface SdkSession {
   cli?: number
   /** The model it was started with, as it went to the CLI. */
   model: string | null
+  /** Original --settings for window probes after reconnecting or restarting the service. */
+  settings?: string
   /** The Remote Control session (`cse_…`) a resumed session goes back to. */
   bridge?: string
   stopped?: boolean
@@ -84,7 +86,7 @@ export function parseSdkSession(raw: string): SdkSession | undefined {
     return undefined
   }
   if (typeof value !== 'object' || value === null) return undefined
-  const { sessionId, name, cwd, account, startedAt, executor, pipe, cli, model, bridge, stopped } = value as Record<string, unknown>
+  const { sessionId, name, cwd, account, startedAt, executor, pipe, cli, model, settings, bridge, stopped } = value as Record<string, unknown>
   if (typeof sessionId !== 'string' || typeof name !== 'string' || typeof cwd !== 'string' || typeof account !== 'string') return undefined
   if (typeof startedAt !== 'number' || typeof executor !== 'number' || typeof pipe !== 'string') return undefined
   return {
@@ -97,6 +99,7 @@ export function parseSdkSession(raw: string): SdkSession | undefined {
     pipe,
     ...(typeof cli === 'number' ? { cli } : {}),
     model: typeof model === 'string' ? model : null,
+    ...(typeof settings === 'string' && { settings }),
     ...(typeof bridge === 'string' ? { bridge } : {}),
     ...(stopped === true ? { stopped } : {}),
   }
@@ -114,7 +117,7 @@ export interface SdkTurn {
  */
 export function sdkEntryOf(session: SdkSession, alive: boolean, turn: SdkTurn | null): AgentEntry {
   const { sessionId, name, cwd, account, startedAt, model } = session
-  const entry: AgentEntry = { id: sessionId, sessionId, kind: SDK_KIND, name, cwd, account, startedAt, ...(model !== null && { model }) }
+  const entry: AgentEntry = { id: sessionId, sessionId, kind: SDK_KIND, name, cwd, account, startedAt, ...(model !== null && { model }), ...(session.settings !== undefined && { settings: session.settings }) }
   if (session.stopped === true) return { ...entry, state: 'stopped' }
   if (!alive) return { ...entry, state: 'done' }
   const pid = session.cli ?? session.executor

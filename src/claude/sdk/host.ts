@@ -125,6 +125,7 @@ export class SdkSessions {
       executor,
       pipe,
       model: start.model,
+      ...(start.settings !== undefined && { settings: start.settings }),
       ...(resume?.bridge !== undefined && { bridge: resume.bridge }),
     }
     this.registry.save(session)

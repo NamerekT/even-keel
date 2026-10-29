@@ -21,6 +21,7 @@ export const FULL = {
   hiddenSkills: ['loop', ' simplify '],
   protection: { disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'], opencode: ['terraform destroy*'] },
   cacheTtl: '1h',
+  autoCompactWindow: 300_000,
   contextHandoffs: false,
   keepWarm: 3,
   context: { window: 1_000_000, danger: 90 },

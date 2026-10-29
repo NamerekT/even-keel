@@ -14,6 +14,13 @@ const session: SdkSession = {
 }
 
 describe('parseSdkSession', () => {
+  it('retains original launch settings through a saved record and the monitored entry', () => {
+    const settings = '{"autoCompactWindow":300000}'
+    const saved = parseSdkSession(JSON.stringify({ ...session, settings }))!
+    expect(saved.settings).toBe(settings)
+    expect(sdkEntryOf(saved, true, null).settings).toBe(settings)
+  })
+
   it('reads a saved session and drops what it does not know', () => {
     expect(parseSdkSession(JSON.stringify({ version: 10, ...session, bridge: 'cse_01', extra: 1 }))).toEqual({ ...session, bridge: 'cse_01' })
   })

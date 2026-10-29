@@ -44,6 +44,7 @@ export const fieldsRu: FieldTexts = {
   'config.modelPromptPlaceholder': (p) => `В промпте ${p.model} есть ${p.placeholder}, а промпт модели уходит в сессию как есть, без подстановок`,
   'config.hiddenSkills': () => 'По имени навыка на строку',
   'config.cacheTtl': () => '5 мин, 1 ч или пусто',
+  'config.autoCompactWindow': () => 'Положительное целое число токенов или пусто — окно аккаунта',
   'config.parallel': (p) => `Целое число от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
   'config.allowedHosts': () => 'По имени хоста на строку',

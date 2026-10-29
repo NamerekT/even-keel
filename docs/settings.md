@@ -57,6 +57,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
 | `protection` | G, P | fields merge; each project's native-rule or disabled-group list replaces the shared field | page, hand | all seven built-in groups on; no extra native rules. New launches only (`docs/sessions.md`, "Protection") |
 | `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's) | page, hand | `null` (the CLI's) |
+| `autoCompactWindow` | G, P | P over G; positive whole tokens; a project's `null` is its own value (the account's window). Claude chain sessions only; new launches take live edits, running sessions retain their launch settings | page, hand | `null` (the account's window) |
 | `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer (including a temporary model error awaiting retry) that its cache is kept warm (BTN-437, `docs/chain.md`); 0 — off | page, hand | 0, until its live check |
 | `allowedHosts` | G | — | page, hand | `[]` |
 | `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |

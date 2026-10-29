@@ -7,7 +7,7 @@ import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
 describe('withProjectSettings', () => {
   const base: ProjectSettings = {
     ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false },
-    ...{ changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
+    ...{ changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
   }
 
   it('writes the main branch only when it is not main', () => {
