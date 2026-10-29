@@ -71,7 +71,7 @@ const GROUPS = [
   { id: 'rules', keys: [...RULE_KEYS] },
   {
     id: 'models',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
@@ -122,6 +122,7 @@ const valuesOf = (form: SharedForm): Values => ({
   updatesCheck: form.updates.check,
   updatesNotify: form.updates.notify,
   fillMilestone: form.fillMilestone,
+  cliCheck: form.cliCheck,
   guard: form.ci.guard,
   kinds: form.ci.kinds,
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
@@ -169,6 +170,7 @@ function formOf(values: Values): SharedForm | undefined {
     autoCompactWindow,
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
+    cliCheck: values.cliCheck as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
     stats: {
@@ -422,6 +424,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                   )
             }}
           />
+          {check('cliCheck', t.shared.cliCheck, t.shared.cliCheckHint)}
         </Section>
         <Section title={t.shared.sections.prompts}>
           {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}

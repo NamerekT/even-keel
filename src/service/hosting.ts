@@ -64,6 +64,7 @@ type HostingContext = Pick<ServiceContext,
   | 'claudeAccount'
   | 'claudeConfigs'
   | 'cliCopies'
+  | 'cliChecks'
   | 'cliVersions'
   | 'configStore'
   | 'configuredProject'
@@ -205,6 +206,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
     cliCopies: ctx.cliCopies.view(),
+    cliChecks: ctx.cliChecks.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,
       task,

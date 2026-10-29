@@ -32,6 +32,15 @@ export function manifestEntry(manifest: unknown, version: string, platform: stri
   return { binary, checksum, size }
 }
 
+/** The version the native installer takes as the newest: `latest` holds it as plain text. */
+export async function claudeLatest(): Promise<string> {
+  const response = await fetch(`${RELEASES}/latest`, { signal: AbortSignal.timeout(30_000) })
+  if (!response.ok) throw new Error(`${RELEASES}/latest: HTTP ${response.status}`)
+  const version = (await response.text()).trim()
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`${RELEASES}/latest: not a version: ${JSON.stringify(version.slice(0, 40))}`)
+  return version
+}
+
 /** The version in `claude daemon status`; `null` — no daemon runs ("not running"). */
 export function daemonVersionOf(status: string): string | null {
   return /^version:\s*(\S+)/m.exec(status)?.[1] ?? null

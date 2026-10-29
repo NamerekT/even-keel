@@ -77,6 +77,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'ciTokenOf'
   | 'ciWatches'
   | 'claudeConfigs'
+  | 'cliLease'
   | 'cliCopies'
   | 'cliVersions'
   | 'configStore'
@@ -242,7 +243,7 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
     await ctx.requireModel(home, start)
     if (home.agent === CLAUDE && start.settings !== undefined) ctx.sayBlankedSecrets(home)
     try {
-      return await ctx.agentOf(home).launch(home, start)
+      return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, start))
     } catch (error) {
       const folder = project === undefined ? undefined : ctx.configStore.current.projects[project]
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username }
@@ -256,7 +257,7 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
     const blocked = ctx.cliCopies.blocked(home.agent)
     if (blocked) throw new NoticeError(blocked)
     await ctx.requireModel(home, start)
-    return ctx.agentOf(home).resume(home, session, start)
+    return ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, start))
   }
 }
 

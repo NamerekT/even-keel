@@ -152,7 +152,7 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -180,6 +180,7 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     contextHandoffs: contextHandoffs === undefined ? true : switchOf(contextHandoffs, 'contextHandoffs'),
     // A page from before the setting sends none: off, as the default, so nothing is written.
     keepWarm: keepWarm === undefined ? 0 : numberOf(keepWarm, 'keepWarm'),
+    cliCheck: cliCheck === undefined ? false : switchOf(cliCheck, 'cliCheck'),
     ci: ci === undefined ? DEFAULT_CI : ciOf(ci),
     fillMilestone: fillMilestone === undefined ? false : switchOf(fillMilestone, 'fillMilestone'),
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),

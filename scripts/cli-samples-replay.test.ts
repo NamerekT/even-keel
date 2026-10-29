@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { checkRolloutUsage, checkUsage } from './cli-check-support.js'
+import { checkRolloutUsage, checkUsage } from '../src/cli-check/support.js'
 import { loadSamples, replaySample, sampleSummary } from './cli-samples.js'
 
 const samples = loadSamples(join(import.meta.dirname, '../test/fixtures/cli'))

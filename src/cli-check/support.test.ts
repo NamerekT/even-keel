@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { notice } from '../src/notice/notice.js'
-import { checkCodexHookList, checkHookRequests, checkRolloutUsage, checkUsage } from './cli-check-support.js'
+import { notice } from '../notice/notice.js'
+import { checkCodexHookList, checkHookRequests, checkRolloutUsage, checkUsage } from './support.js'
 
 const tokenCount = (rate_limits: unknown) => JSON.stringify({ type: 'event_msg', timestamp: '2026-10-25T10:00:00Z', payload: { type: 'token_count', rate_limits } })
 const month = { used_percent: 100, window_minutes: 43200, resets_at: 1795000000 }
