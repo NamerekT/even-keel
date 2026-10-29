@@ -46,7 +46,7 @@ export type Tokens = Record<string, AccountTokens> | null
 export function useTokens(account: AccountView): Tokens {
   const { statsTokens } = useLive()
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
-  const wanted = account.accounts.some((entry) => limitsNote(entry) !== null)
+  const wanted = account.accounts.some((entry) => !spendsByKey(entry) && !limitSpans(entry.limits).some((span) => entry.limits?.[span] != null))
   return loadedData(useStatsAnswer(wanted ? `tokens|${tz}` : null, () => statsTokens(tz)))
 }
 

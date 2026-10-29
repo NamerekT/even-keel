@@ -9,6 +9,7 @@ import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 import type { Transport } from './transport.js'
+import type { AccountLevel } from './header-levels.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 /** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */
@@ -76,6 +77,8 @@ export interface AccountLogin {
 }
 
 export interface AccountView {
+  /** Launch choices by project for the header; other pages show only `active`, the Even Keel account. */
+  headerLevels?: Record<string, AccountLevel[]>
   /** Result of an explicit Add account check; hidden folders are never polled as accounts. */
   globalCheck?: { agent: string; account: { key: string; status: AccountStatus } | null }
   /** The account holding the Even Keel role: the shared provider's entry of the shared pool, Claude's or Codex's. */

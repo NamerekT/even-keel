@@ -1,4 +1,5 @@
 import { notice, textNotice } from '../../../src/notice/notice.js'
+import { prepareHeaderLevels, withHeaderLevels } from './fakeHeaderLevels.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { fixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
@@ -574,7 +575,9 @@ export function createFakeSource(search: string): LiveSource {
       { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, answers: 0, compactions: 1, replaced: { at: ago(70), how: 'checkpoint' } },
     ]
   }
+  if (current.state !== null) current.state = withHeaderLevels(prepareHeaderLevels(current.state, params.get('header')))
   const notify = () => {
+    if (current.state !== null) current.state = withHeaderLevels(current.state)
     for (const listener of listeners) listener()
   }
 

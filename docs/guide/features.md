@@ -242,6 +242,8 @@ Your own skills (`~/.claude/skills`, Codex's skills folder) reach only their own
 
 ## Accounts
 
+On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, including while the chain is paused or stopped. Hover or focus shows up to three distinct accounts in order: the task, the project's default and Even Keel's default. A coloured border and stack count mark a cascade; on phones the chip keeps the tightest usage window. Other pages show only Even Keel's account. Pressing the chip opens the full Accounts panel. Accounts without readable limits show token counts instead of empty limit rows.
+
 Accounts appear only after you add them. In **Add account**, choose a provider: if its CLI already has a sign-in on this machine, the dialog offers that identity or signing in with another account. Otherwise it opens the usual sign-in choices. The first account added for a provider takes its unused shared pool entry. Removing an added global CLI account from Even Keel keeps its folder and CLI sign-in. An update keeps global accounts that were already visible; a new installation starts without them.
 
 Your own Claude and Codex subscriptions — a personal and a work one, say — one config folder each. At most one Codex account may be on the free plan: OpenAI's terms do not allow several free accounts to get round the limits, so Even Keel refuses a second one ([docs/accounts.md](../accounts.md#the-codex-folders-btn-168-btn-176)).
