@@ -1,6 +1,7 @@
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
+import { isSpendingLimit } from '../limits/spending.js'
 import { englishOf, notice } from '../notice/notice.js'
 import {
   callFacts,
@@ -259,7 +260,7 @@ class SessionFold {
   private pushError(at: string, error: Json): void {
     const brief = flatten(errorText(error), TEXT_LIMIT)
     const full = JSON.stringify(error)
-    const kind = MODEL_REFUSAL.test(full) ? 'model' : CREDIT_TEXT.test(brief) || CREDIT_TEXT.test(full) ? 'credit' : isTransientError(full) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
+    const kind = MODEL_REFUSAL.test(full) ? 'model' : CREDIT_TEXT.test(brief) || CREDIT_TEXT.test(full) ? 'credit' : isSpendingLimit(brief) || isSpendingLimit(full) ? 'spend' : isTransientError(full) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
     const refused = /The '([^']+)' model is not supported/i.exec(full)?.[1]
     const diagnostic = kind === 'model' ? notice('chain.modelUnavailable', { model: this.model ?? (refused === undefined ? 'OpenAI' : `openai/${refused}`) }) : error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
     const text = diagnostic === undefined ? brief : englishOf(diagnostic)
