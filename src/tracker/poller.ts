@@ -43,7 +43,7 @@ export class StatusPoller {
     const watched = this.options.watched()
     if (watched.length === 0) return
     try {
-      const tasks = await this.options.link.run((source) => source.tasks(watched))
+      const tasks = await this.options.link.run((source) => source.tasks(watched), JSON.stringify(['tasks', ...watched]))
       const changes = diffStatuses(this.known, tasks, watched)
       for (const change of changes) {
         if (change.to === null) this.known.delete(change.id)

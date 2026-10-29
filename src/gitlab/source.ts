@@ -3,6 +3,7 @@ import { resolveLabels } from '../tracker/labels.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GitlabApi, GitlabHttpError } from './api.js'
+import { GitlabBatch, limitedMap } from './batch.js'
 import { GitlabHierarchy } from './hierarchy.js'
 import { GitlabUploads, uploadType } from './uploads.js'
 import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, ProjectMap, toCard, toTrackerTask, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabNote } from './model.js'
@@ -34,10 +35,19 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
   }
   const rawIssue = (id: string) => api.rest<GitlabIssue>(addressOf(id).base)
   const linksOf = (path: string, iid: number) => api.collect<GitlabLink>(`${projectBase(path)}/issues/${iid}/links`)
+  const batch = new GitlabBatch(api, hierarchy, linksOf)
   const notesOf = (id: string) => api.collect<GitlabNote>(`${addressOf(id).base}/notes?sort=asc&order_by=created_at`)
   const converted = async (issue: GitlabIssue, path: string): Promise<TrackerTask> => toTrackerTask(issue, await linksOf(path, issue.iid), projects, await hierarchy.read(path, issue.iid))
   const labelsOf = (path: string) => api.collect<{ name: string }>(`${projectBase(path)}/labels?include_ancestor_groups=true`)
   const milestonesOf = (path: string) => api.collect<GitlabMilestone>(`${projectBase(path)}/milestones?state=active&include_ancestors=true`)
+
+  async function convertedMany(issues: GitlabIssue[], path: string, enrich: (issue: GitlabIssue) => boolean = () => true): Promise<TrackerTask[]> {
+    const relations = await batch.read(path, issues.filter(enrich).map((issue) => issue.iid))
+    return issues.map((issue) => {
+      const row = relations.get(issue.iid)
+      return toTrackerTask(issue, row?.links ?? [], projects, row?.hierarchy)
+    })
+  }
 
   async function trustedNotes(id: string, notes: GitlabNote[]): Promise<GitlabNote[]> {
     const path = addressOf(id).path
@@ -78,24 +88,30 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
           issues.push(...others.filter((issue) => !open(gitlabStatus(issue.state))))
         }
       }
-      const tasks: TrackerTask[] = []
-      for (const issue of new Map(issues.map((issue) => [issue.id, issue])).values()) tasks.push(await converted(issue, path))
+      const tasks = await convertedMany([...new Map(issues.map((issue) => [issue.id, issue])).values()], path, (issue) => open(gitlabStatus(issue.state)))
       return { tasks, statuses: GITLAB_STATUSES.map((status) => status.name) }
     },
 
     async tasks(ids) {
-      const tasks: TrackerTask[] = []
-      for (const id of ids) {
+      const issues = await limitedMap(ids, async (id) => {
         const parsed = parseTaskId(id)
-        if (parsed === null || projects.pathOfKey(parsed.project) === undefined) continue
-        let issue: GitlabIssue
-        try { issue = await rawIssue(id) } catch (error) {
-          if (error instanceof TrackerNotFound) continue
+        if (parsed === null || projects.pathOfKey(parsed.project) === undefined) return null
+        try { return { issue: await rawIssue(id), path: addressOf(id).path } } catch (error) {
+          if (error instanceof TrackerNotFound) return null
           throw error
         }
-        tasks.push(await converted(issue, addressOf(id).path))
+      })
+      const groups = new Map<string, GitlabIssue[]>()
+      for (const row of issues) {
+        if (row === null) continue
+        const group = groups.get(row.path) ?? []
+        group.push(row.issue)
+        groups.set(row.path, group)
       }
-      return tasks
+      const tasks: TrackerTask[] = []
+      for (const [path, group] of groups) tasks.push(...await convertedMany(group, path, (issue) => issue.state === 'opened' || issue.milestone?.state === 'active'))
+      const byId = new Map(tasks.map((task) => [task.id, task]))
+      return ids.flatMap((id) => byId.has(id) ? [byId.get(id)!] : [])
     },
 
     async brief(id) {
@@ -203,8 +219,7 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       if (found === undefined) return []
       const issues = await api.collect<GitlabIssue>(`${projectBase(path)}/issues?state=all&milestone=${encodeURIComponent(found.title)}&scope=all`)
       const tasks = []
-      for (const issue of issues) {
-        const task = await converted(issue, path)
+      for (const task of await convertedMany(issues, path)) {
         const notes = await trustedNotes(task.id, await notesOf(task.id))
         tasks.push({ ...task, lastComment: notes.at(-1)?.body ?? null })
       }

@@ -20,6 +20,55 @@ afterEach(() => {
 })
 
 describe('TrackerLink', () => {
+  it('backs off repeated timeouts, logs once and counts them until that operation recovers', async () => {
+    vi.useFakeTimers()
+    const log = vi.fn()
+    const source = fakeSource()
+    let hangs = true
+    source.tasks = vi.fn(async () => hangs ? new Promise(() => {}) : []) as typeof source.tasks
+    const connect = vi.fn(async () => source)
+    const link = new TrackerLink({ name: 'gitlab', connect, timeoutMs: 1000, onDiagnostic: log })
+    const run = () => link.run((tracker) => tracker.tasks([]), 'tasks')
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const rejected = expect(run()).rejects.toThrow('call timed out')
+      await vi.advanceTimersByTimeAsync(1000)
+      await rejected
+      const calls = connect.mock.calls.length
+      await expect(run()).rejects.toThrow('call timed out')
+      expect(connect).toHaveBeenCalledTimes(calls)
+      await vi.advanceTimersByTimeAsync(attempt === 0 ? 20_000 : 40_000)
+    }
+    expect(log).toHaveBeenCalledTimes(1)
+    await link.run((tracker) => tracker.chainTasks('APP', {} as never))
+    expect(log).toHaveBeenCalledTimes(1)
+    hangs = false
+    await run()
+    expect(log).toHaveBeenLastCalledWith('gitlab: tasks reads again after 2 timeouts')
+    await run()
+    expect(log).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels HTTP work on timeout and lets a profile reset bypass the retry delay', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | null | undefined
+    const fetchImpl: typeof fetch = async (_, init) => new Promise((_, reject) => {
+      signal = init?.signal
+      signal?.addEventListener('abort', () => reject(signal?.reason), { once: true })
+    })
+    const api = new GitlabApi('https://example.com', 'fake', 5000, fetchImpl)
+    const source = fakeSource()
+    source.tasks = async () => { await api.request('/api/v4/issues'); return [] }
+    const log = vi.fn()
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000, onDiagnostic: log })
+    const rejected = expect(link.run((tracker) => tracker.tasks([]), 'tasks')).rejects.toThrow('call timed out')
+    await vi.advanceTimersByTimeAsync(1000)
+    await rejected
+    expect(signal?.aborted).toBe(true)
+    link.reset()
+    source.tasks = async () => []
+    await expect(link.run((tracker) => tracker.tasks([]), 'tasks')).resolves.toEqual([])
+  })
+
   it('logs timeout details without changing the health error', async () => {
     vi.useFakeTimers()
     const log = vi.fn()
