@@ -15,6 +15,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { hostname, homedir, userInfo } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import { accountsRoot, AccountHomes, type AccountHome } from '../src/account/homes.js'
 import { AGENTS } from '../src/agent/adapters.js'
@@ -29,13 +30,15 @@ import { codexBinaryIn, codexTarget } from '../src/codex/release.js'
 import { rolloutFile } from '../src/codex/rollout.js'
 import { COPILOT } from '../src/copilot/name.js'
 import { runGit } from '../src/git/run.js'
-import { stateDirOf } from '../src/locations.js'
+import { root, stateDirOf } from '../src/locations.js'
 import { englishOf, noticeOf } from '../src/notice/notice.js'
 import { OPENCODE } from '../src/opencode/name.js'
 import { isLive, type AgentEntry } from '../src/sessions/agents.js'
 import { replyPrompt, type Ask } from '../src/sessions/ask.js'
 import type { FeedLine } from '../src/sessions/transcript.js'
 import { checkCodexHookList, checkHookRequests, checkpointPackages, checkRolloutUsage, checkUsage, hookService, type HookRequest } from './cli-check-support.js'
+import { captureSnapshot } from './cli-sample-capture.js'
+import { anonymizeSample, saveSample, type CliSample } from './cli-samples.js'
 
 const USAGE = 'usage: npm run cli-check -- claude|codex|opencode|copilot <account> [version] [--model <model>] [--no-usage]'
 const NAME = 'cli-check'
@@ -207,6 +210,7 @@ async function run(options: Options): Promise<void> {
   const cwd = join(work, 'session')
   const repo = await step('the working folder', () => freshFolder(cwd), (repo) => (repo === null ? `${cwd}, no repository` : `${cwd}, a worktree of ${repo}`))
   let handle: SessionHandle | undefined
+  let sample: CliSample | undefined
   let hooks: Awaited<ReturnType<typeof hookService>> | undefined
   try {
     const packages = await step('the checkpoint package', () => checkpointPackages(work, options.agent))
@@ -224,7 +228,7 @@ async function run(options: Options): Promise<void> {
       }, (answer) => answer)
     }
     const settings = JSON.stringify({ env: { EVEN_KEEL_URL: hooks.url }, enabledPlugins: packages.otherPlugins(NAME, NAME, [readSettings(home.dir), readSettings(cwd), readSettings(cwd, 'settings.local.json')]) })
-    handle = await check(agent, home, options, version, { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, ...set, settings }, hooks.requests, (next) => (handle = next))
+    sample = await check(agent, home, options, version, { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, ...set, settings }, hooks.requests, (next) => (handle = next))
   } finally {
     if (handle !== undefined) await agent.stop(home, handle).catch(() => {})
     if (agent.stopDaemon !== undefined && agent.daemonVersion !== undefined) {
@@ -235,8 +239,18 @@ async function run(options: Options): Promise<void> {
     if (repo !== null) await dropFolder(repo, cwd)
   }
   if (options.usage && options.agent !== CODEX && CLI_USAGE.includes(options.agent)) {
-    await step('/usage shape', async () => checkUsage(await agent.usage!(home, new Date().toISOString())), (answer) => answer)
+    await step('/usage shape', async () => {
+      const answer = await agent.usage!(home, new Date().toISOString())
+      const expected = checkUsage(answer)
+      sample!.usage = { answer, expected }
+      return expected
+    }, (answer) => answer)
   } else if (options.agent !== CODEX) console.log(`skip  /usage shape — ${options.usage ? 'limits come from the provider API, not this CLI' : '--no-usage'}`)
+  await step('anonymized transcript sample', async () => {
+    const privateValues = [homedir(), userInfo().username, hostname(), home.dir, cwd,
+      ...Object.entries(process.env).filter(([key]) => /token|secret|password|api_?key/i.test(key)).map(([, value]) => value ?? '')]
+    return saveSample(join(root, 'test/fixtures/cli'), anonymizeSample(sample!, privateValues))
+  }, (file) => file)
 }
 
 function readSettings(dir: string, name = 'settings.json'): Record<string, unknown> | undefined {
@@ -254,7 +268,7 @@ async function check(
   start: SessionStart,
   hookRequests: HookRequest[],
   held: (handle: SessionHandle) => void,
-): Promise<SessionHandle> {
+): Promise<CliSample> {
   const { cwd } = start
   const entryOf = async (sessionId: string) => (await agent.sessions(home)).find((each) => each.sessionId === sessionId)
   const handleOf = (entry: AgentEntry): SessionHandle => ({ agentId: entry.id ?? entry.sessionId, sessionId: entry.sessionId })
@@ -287,6 +301,7 @@ async function check(
     const ended = found.status !== 'busy' && (found.resting === true || found.status === 'idle')
     return ended && summary.lastMessage?.includes(ANSWER) === true ? null : undefined
   }), (ask: Ask | null) => (ask === null ? `in text: ${tail.summary().lastMessage ?? ''}` : ask.questions.map((each) => each.question).join(' | ')))
+  const snapshots = [await step('capture the question transcript', () => captureSnapshot(home, entry.sessionId, tail, 'question'))]
 
   const reply = { from: 'page' as const, answers: asked === null ? {} : { [asked.questions[0]!.question]: ANSWER }, text: asked === null ? ANSWER : '', files: [] }
   const prompt = replyPrompt(reply, asked, 'en')
@@ -333,15 +348,17 @@ async function check(
       return undefined
     }
   }, 10_000).catch(() => checkHookRequests(hookRequests, [launched, resumed])), (answer) => answer)
+  let usage: CliSample['usage']
   if (options.agent === CODEX) {
-    await step('rate_limits shape in this session rollout', async () => {
+    const expected = await step('rate_limits shape in this session rollout', async () => {
       const file = await rolloutFile(home.dir, resumed)
       if (file === undefined) throw new Error(`no rollout for ${resumed}`)
       return checkRolloutUsage(readFileSync(file, 'utf8'))
     }, (answer) => answer)
+    usage = { expected }
   }
   // The page's context bar and the checkpoint threshold's cap read the window: Claude's from `/context`, Codex's from the rollout.
-  await step('the context window', async () => {
+  const contextWindow = await step('the context window', async () => {
     const asked = agent.contextWindow !== undefined
     const window = asked ? await agent.contextWindow!(home, options.model ?? '') : ((await agent.record(home, resumed))?.contextWindow ?? null)
     if (window === null) throw new Error(asked ? 'no window in the answer of /context' : 'no window in the transcript')
@@ -352,7 +369,8 @@ async function check(
     const after = await entryOf(resumed)
     if (after !== undefined && isLive(after)) throw new Error('still live')
   })
-  return handleOf(entry)
+  snapshots.push(await step('capture the answer transcript', () => captureSnapshot(home, resumed, tail, 'answer')))
+  return { provider: options.agent, version, snapshots, contextWindow, ...(usage === undefined ? {} : { usage }) }
 }
 
 run(parseArgs(process.argv.slice(2))).then(

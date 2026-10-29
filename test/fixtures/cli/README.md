@@ -1,0 +1,11 @@
+# Recorded CLI transcripts
+
+`npm run cli-check -- <provider> <account> [version]` adds anonymized, content-addressed captures here after a successful check. Keep every older version and capture. Each JSON contains the question and answer sources, their observed parser summaries, the context window probe, and limits evidence when the check reads it. JSONL remains JSONL inside `raw.jsonl`; OpenCode keeps the `messages` and `parts` rows returned by `sessionRows`, with their JSON `data` intact apart from anonymization.
+
+`scripts/cli-samples-replay.test.ts` replays every capture through the production folds and checks its expectations. `cli-sample-capture.test.ts` additionally feeds each phase through the production tails and the capture/save path, including SQLite for OpenCode. The privacy tests inject source paths, ids, emails, tokens, names and hosts and assert that none survives.
+
+The initial corpus was imported on 2026-10-29 from the retained transcripts of earlier successful live `cli-check` runs on Windows: Claude Code 2.1.310 and Codex 0.164.0 (2026-10-25), OpenCode 1.18.25 and Copilot 1.0.98 (2026-10-24). Question snapshots are prefixes ending at the recorded question (OpenCode: the corresponding message and its parts); answer snapshots are the complete stored session. Summary expectations were captured from the original sources before anonymization. Claude's external context window is from the retained successful check log; OpenCode's window was queried from the checked CLI's model list during import. Codex and Copilot record it in their transcripts. Only Codex's limits evidence was retained in these original sources; no Claude `/usage` response has been invented. These imports do not represent new CLI launches on the import date.
+
+Compare two recorded versions with `npm run cli-compare -- <provider> <old-version> <new-version>`. The result lists added and removed event types and field paths; changes in values alone are not schema differences.
+
+A fresh OpenCode 1.18.25 check on 2026-10-29 added a second capture of that version through the complete CLI check, including package hooks, the written answer and the external context window. See the live-check row in [`docs/verified.md`](../../../docs/verified.md).
