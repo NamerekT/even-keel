@@ -144,7 +144,13 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const owned = version < 13 ? trackersOwned(moved) : moved
   const protectedConfig = version < 15 ? configV15(owned) : owned
   const openCode = version < 16 ? configV16(protectedConfig) : protectedConfig
-  return version < 17 ? configV17(openCode) : openCode
+  const prompts = version < 17 ? configV17(openCode) : openCode
+  return version < 19 ? configV19(prompts) : prompts
+}
+
+/** v18 → v19: an omitted chain compaction window still uses the account's; no override is written. */
+function configV19(raw: unknown): unknown {
+  return isRecord(raw) ? stamped(raw) : raw
 }
 
 /** v16 → v17: an old model key was provider-independent, even when its text happens to name a provider. */

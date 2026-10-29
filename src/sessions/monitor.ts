@@ -20,7 +20,7 @@ export interface SessionMonitorOptions {
   keyLimits?: (account: string) => boolean
   projectKeys: () => string[]
   /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
-  contextWindow?: (account: string, model: string, task: string) => number | null
+  contextWindow?: (account: string, model: string, task: string, settings?: string) => number | null
   /** Optional. The tool call a waiting session's permission hook holds, as a question (BTN-269). */
   approval?: (sessionId: string) => Ask | null
   intervalMs: number
@@ -74,7 +74,7 @@ export class SessionMonitor {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
       const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
       const remote = { enabled, apiKey: this.options.apiKey(account) }
-      const windowOf = (model: string) => this.options.contextWindow?.(account, model, task) ?? null
+      const windowOf = (model: string) => this.options.contextWindow?.(account, model, task, tracked.agent.settings) ?? null
       const approval = tracked.present && tracked.agent.status === 'waiting' ? (this.options.approval?.(tracked.agent.sessionId) ?? null) : null
       const view = toView(task, tracked, remote, this.options.emailOf(account), now, windowOf, approval)
       return view.lamp === 'finished' && this.holds.held(view.sessionId) ? { ...view, lamp: 'working' as const } : view

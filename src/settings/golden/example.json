@@ -161,6 +161,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "autoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -210,6 +211,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "autoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -257,6 +259,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": null,
+      "autoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -343,6 +346,7 @@
     "opencode": []
   },
   "cacheTtl": null,
+  "autoCompactWindow": null,
   "contextHandoffs": true,
   "ci": {
     "guard": true,

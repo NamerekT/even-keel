@@ -6,10 +6,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
-import { upgradeStorage } from './migrations.js'
+import { currentConfig, upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 describe('upgradeStorage', () => {
+  it('upgrades v18 without writing a chain compaction override', () => {
+    const raw = { version: 18, projects: [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }] }
+    expect(currentConfig(raw)).toEqual({ ...raw, version: SCHEMA_VERSION })
+  })
+
   let dir: string
   let stateDir: string
   let configFile: string

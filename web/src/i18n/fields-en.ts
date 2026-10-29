@@ -48,6 +48,7 @@ export const fieldsEn = {
   'config.modelPromptPlaceholder': (p) => `The prompt of ${p.model} has ${p.placeholder}, but a model prompt goes to the session as it is, without substitutions`,
   'config.hiddenSkills': () => 'A skill name per line',
   'config.cacheTtl': () => '5 min, 1 h, or empty',
+  'config.autoCompactWindow': () => 'Positive whole tokens, or empty for the account window',
   'config.parallel': (p) => `A whole number from 1, not ${p.value}`,
   'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
   'config.allowedHosts': () => 'A host name per line',

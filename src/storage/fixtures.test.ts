@@ -39,6 +39,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.slots).toEqual({ [XYZ]: 2 })
     expect(config.settings[ABC]?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
     expect(config.settings[ABC]).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(config.autoCompactWindow).toBe(300_000)
+    expect(config.settings[ABC]?.autoCompactWindow).toBe(400_000)
+    expect(config.settings[XYZ]?.autoCompactWindow).toBeNull()
     expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
     expect(config).toMatchObject({
       provider: 'claude',
@@ -101,6 +104,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
   it('reads the record of an SDK session', () => {
     const session = parseSdkSession(readFileSync(sample('state/claude-sdk/sessions/00000000-0000-4000-8000-0000000000d1.json'), 'utf8'))
     expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000d1', name: 'ABC-3', account: 'team-api', executor: 5100, cli: 5101, bridge: 'cse_01EXAMPLE' })
+    expect(session?.settings).toBe('{"autoCompactWindow":400000}')
   })
 
   it('reads the packages naming projects by their ids', () => {

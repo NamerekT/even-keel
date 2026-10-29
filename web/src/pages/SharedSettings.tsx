@@ -73,7 +73,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -105,6 +105,7 @@ const valuesOf = (form: SharedForm): Values => ({
   promptLanguage: form.promptLanguage,
   hiddenSkills: form.hiddenSkills.join('\n'),
   cacheTtl: form.cacheTtl ?? '',
+  autoCompactWindow: form.autoCompactWindow === null ? '' : String(form.autoCompactWindow),
   keepWarm: String(form.keepWarm),
   allowedHosts: form.allowedHosts.join('\n'),
   window: String(form.context.window),
@@ -138,6 +139,8 @@ function formOf(values: Values): SharedForm | undefined {
   const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
+  const autoCompactWindow = text('autoCompactWindow').trim() === '' ? null : wholeOf(text('autoCompactWindow'), 1)
+  if (autoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days, keepWarm] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
@@ -163,6 +166,7 @@ function formOf(values: Values): SharedForm | undefined {
     protection,
     hiddenSkills: linesOf(text('hiddenSkills')),
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
+    autoCompactWindow,
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     allowedHosts: linesOf(text('allowedHosts')),
@@ -499,6 +503,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           </div>
         </Section>
         <Section title={t.shared.claude}>
+          <Row
+            className={marks.box('autoCompactWindow')}
+            label={t.shared.autoCompactWindow}
+            hint={t.shared.autoCompactWindowHint}
+            htmlFor={fieldId('autoCompactWindow')}
+            control={numberInput('autoCompactWindow', text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined, { placeholder: t.shared.autoCompactWindowAccount })}
+          >
+            {marks.note('autoCompactWindow', shown)}
+            <FieldNote error={text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
+          </Row>
           {select(
             'cacheTtl',
             t.shared.cacheTtl,

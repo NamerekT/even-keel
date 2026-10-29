@@ -43,12 +43,12 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
 }
@@ -256,6 +256,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('hiddenSkills', 'hiddenSkills', names(form.hiddenSkills)),
     value('protection', 'protection', form.protection),
     value('cacheTtl', 'cacheTtl', form.cacheTtl),
+    value('autoCompactWindow', 'autoCompactWindow', form.autoCompactWindow),
     value('contextHandoffs', 'contextHandoffs', form.contextHandoffs),
     value('keepWarm', 'keepWarm', form.keepWarm),
     value('ci', 'ci.guard', form.ci.guard),

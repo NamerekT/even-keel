@@ -181,6 +181,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     modelLabels: null,
     promptLanguage: state.config.shared.promptLanguage,
     cacheTtl: state.config.shared.cacheTtl,
+    autoCompactWindow: state.config.shared.autoCompactWindow,
     contextHandoffs: state.config.shared.contextHandoffs,
     checkpointTokens: state.config.shared.stats.checkpointTokens,
     checkpointShares: state.config.shared.stats.checkpointShares,

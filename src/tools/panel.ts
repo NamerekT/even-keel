@@ -65,12 +65,14 @@ export function chainSettings(
   cacheTtl: CacheTtl | null,
   secrets: readonly string[] = [],
   protection?: Protection,
+  autoCompactWindow: number | null = null,
 ): string {
   const always = {
     permissions: { deny: protectionRules(protection).claude },
     autoMemoryDirectory: sharedMemory(globalDir, repo),
     ...(Object.keys(plugins).length > 0 && { enabledPlugins: plugins }),
     ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),
+    ...(autoCompactWindow !== null && { autoCompactWindow }),
     ...(secrets.length > 0 && { env: Object.fromEntries(secrets.map((name) => [name, ''])) }),
   }
   if (!trim) return JSON.stringify(always)

@@ -11,7 +11,7 @@ import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
-import { blockedAsk, blockedOn, launchedModel, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
+import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
 import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls } from './calls.js'
@@ -453,8 +453,9 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
         return needs === null ? agent : { ...agent, startupDialog: needs }
       }
       const model = launchedModel(job)
+      const settings = launchedSettings(job)
       const ask = agent.status === 'waiting' ? blockedAsk(job, id) : null
-      return { ...agent, ...(model !== null && { model }), ...(ask !== null && { ask }) }
+      return { ...agent, ...(model !== null && { model }), ...(settings !== null && { settings }), ...(ask !== null && { ask }) }
     }),
   )
 }

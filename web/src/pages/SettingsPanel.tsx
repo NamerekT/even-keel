@@ -54,7 +54,7 @@ import { TrustWarning } from './TrustCommands.js'
 import { useModels } from './useModels.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
-import { CLI_TTL, formOf, profileOf, remoteKey, standardRows, switchOf, tokensOf, valuesOf } from './projectForm.js'
+import { CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, tokensOf, valuesOf } from './projectForm.js'
 import { ProjectStandards } from './ProjectStandards.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
@@ -94,7 +94,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -557,6 +557,24 @@ export function SettingsPanel({
         <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => edit('protection', value)} error={errorOf('protection')} />
         {notes('protection')}
         <Section title={t.settings.sections.context}>
+          <Row
+            className={marks.box(['ownAutoCompact', 'autoCompactWindow'])}
+            label={t.shared.autoCompactWindow}
+            hint={t.shared.autoCompactWindowHint}
+            htmlFor={fieldId('autoCompactWindow')}
+            inherit={ownInherit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) }, shared.autoCompactWindow === null ? t.shared.autoCompactWindowAccount : String(shared.autoCompactWindow))}
+            control={number(
+              'autoCompactWindow',
+              on('ownAutoCompact') ? text('autoCompactWindow') : shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow),
+              on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined,
+              (value) => ownEdit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) })('autoCompactWindow', value),
+              { placeholder: t.shared.autoCompactWindowAccount },
+            )}
+          >
+            {flagNote('ownAutoCompact')}
+            {marks.note('autoCompactWindow', (value) => (value as string).trim() === '' ? t.shared.autoCompactWindowAccount : value as string)}
+            <FieldNote error={on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
+          </Row>
           {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
           <Row
             className={marks.box(['ownCheckpoint', 'checkpointTokens'])}

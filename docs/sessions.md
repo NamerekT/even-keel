@@ -207,10 +207,19 @@ The session panel shows the model a session actually answers with (BTN-229, `Ses
 
 A session's context bar and the cap of its checkpoint threshold measure against the window its agent gives (`SessionView.contextWindow`); the `context.window` setting only stands in while there is none. `warn` and `danger` stay settings.
 
+`autoCompactWindow` sets a separate window in tokens for Claude chain sessions, shared and per project (project wins).
+An omitted project value inherits the shared one; explicit `null` selects the account's window even over a shared
+number. `chainSettings` sends a number as `autoCompactWindow` in `--settings`, and omits `null`. Live edits apply to
+new launches only; manual sessions retain the account's settings. The CLI precedence was [checked live](verified.md#sessions).
+Window probes use the session's original launch settings: daemon jobs supply their `respawnFlags`, SDK records
+retain `settings` across reconnects. The cache separates account, model and launch settings, so projects with different
+windows cannot share a measurement. Old records without launch settings use the account's window. The measured
+window feeds `withinWindow`: the checkpoint shares and the margins before Claude's own compaction move with it.
+
 - **Codex** writes it into the rollout: `model_context_window` of `task_started` and of every `token_count` (`RolloutFold`, 258400 for `gpt-6.1-sol` on 0.163.0). A finished session's record carries it too.
 - **Claude** gives it to `claude -p /context --output-format json --no-session-persistence --model <model>`, a local command with no turn: the `result` has the line `**Tokens:** 23.8k / 250k (10%)` (`parseContextWindow` in `src/claude/context.ts`). It answers the window the account's settings make, `autoCompactWindow` included: with 250k in `~/.claude/settings.json` every model answered 250k on 2.1.303, `opus[1m]` too. It runs spawned directly, never through Git Bash (`docs/accounts.md`), in the account's environment with the `--settings` of a chain session of the task's project.
 - The model asked about is the `--model` the session was started with, from `respawnFlags` of its `jobs/<id>/state.json` (`launchedModel`): the transcript names `claude-opus-5-5` for an `opus[1m]` launch. A session without a job file or a `--model` is asked about the transcript's model.
-- The answers are kept per account and model (`ContextWindows` in `src/agent/windows.ts`): the first session that needs one asks in the background and the bar shows the setting's window until the answer comes. Every 60 s the stamp is compared — the binary's path and change time and the account's `settings.json` change time (`windowStamp`); a new stamp asks again, a failed question is asked again a minute later and keeps the last answer.
+- The answers are kept per account, model and original launch settings (`ContextWindows` in `src/agent/windows.ts`): the first session that needs one asks in the background and the bar shows the fallback window until the answer comes. Every 60 s the stamp is compared — the binary's path and change time and the account's `settings.json` change time (`windowStamp`); a new stamp asks again with the original launch settings, a failed question is asked again a minute later and keeps the last answer.
 - `npm run cli-check` has a step for it: Claude's `/context`, Codex's window in the record of the check's session.
 
 ## Extra tools (BTN-74, `src/tools/`)

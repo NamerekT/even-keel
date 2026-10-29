@@ -55,6 +55,8 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
   promptLanguage: form.own.promptLanguage ?? '',
   cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
+  ownAutoCompact: form.own.autoCompactWindow !== undefined,
+  autoCompactWindow: form.autoCompactWindow === null ? '' : String(form.autoCompactWindow),
   contextHandoffs: switchText(form.own.contextHandoffs),
   ownCheckpoint: form.own['stats.checkpointTokens'] !== undefined,
   checkpointTokens: form.checkpointTokens === null ? '' : String(form.checkpointTokens),
@@ -69,6 +71,7 @@ export const switchOf = (text: string) => (text === '' ? undefined : text === 't
 export const CLI_TTL = 'cli'
 /** Empty — calibrated; `undefined` — not a whole number. */
 export const tokensOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
+export const compactWindowOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 1))
 
 /** A standard as the editor holds it: the masks as typed, a comma between them. */
 export interface StandardRow {
@@ -93,8 +96,9 @@ function ownOf(values: Values): OwnValues | undefined {
   const on = (key: string) => values[key] as boolean
   const waitMinutes = on('ownWait') ? minutesOf(text('wait')) : null
   const checkpointTokens = on('ownCheckpoint') ? tokensOf(text('checkpointTokens')) : null
+  const autoCompactWindow = on('ownAutoCompact') ? compactWindowOf(text('autoCompactWindow')) : null
   const shares = on('ownShares') ? sharesOf(values) : null
-  if (waitMinutes === undefined || checkpointTokens === undefined || shares === undefined) return undefined
+  if (waitMinutes === undefined || checkpointTokens === undefined || autoCompactWindow === undefined || shares === undefined) return undefined
   const kinds = values.kinds as readonly string[]
   const ttl = text('cacheTtl')
   const entries: [OwnKey, unknown][] = [
@@ -107,6 +111,7 @@ function ownOf(values: Values): OwnValues | undefined {
     ['fillMilestone', switchOf(text('fillMilestone'))],
     ['promptLanguage', text('promptLanguage') === '' ? undefined : text('promptLanguage')],
     ['cacheTtl', ttl === '' ? undefined : ttl === CLI_TTL ? null : ttl],
+    ['autoCompactWindow', on('ownAutoCompact') ? autoCompactWindow : undefined],
     ['contextHandoffs', switchOf(text('contextHandoffs'))],
     ['stats.checkpointTokens', on('ownCheckpoint') ? checkpointTokens : undefined],
     ['stats.checkpointShares.first', shares?.first],
@@ -165,6 +170,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
     modelLabels: labels === '' ? null : labels === 'true',
     promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
     cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
+    autoCompactWindow: ownOr(own, 'autoCompactWindow', shared.autoCompactWindow),
     protection: { ...(shared.protection ?? DEFAULT_PROTECTION), ...own.protection },
     contextHandoffs: ownOr(own, 'contextHandoffs', shared.contextHandoffs),
     checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),

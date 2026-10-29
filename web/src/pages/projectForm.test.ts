@@ -20,6 +20,19 @@ it("takes the shared handoffs by context unless the project's own switch says ot
   expect(formOf(valuesOf(own, {}), null, shared)).toMatchObject({ contextHandoffs: true, own: { contextHandoffs: true } })
 })
 
+it('keeps inherited, explicit account and numeric compaction windows distinct in the draft', () => {
+  const config = fakeConfig()
+  const shared = { ...config.shared, autoCompactWindow: 300_000 }
+  const form = { ...config.projects.ABC!, autoCompactWindow: 300_000, own: {} }
+  const values = valuesOf(form, {})
+  expect(formOf(values, null, shared)).toMatchObject({ autoCompactWindow: 300_000, own: {} })
+  expect(formOf({ ...values, ownAutoCompact: true, autoCompactWindow: '' }, null, shared)).toMatchObject({ autoCompactWindow: null, own: { autoCompactWindow: null } })
+  expect(formOf({ ...values, ownAutoCompact: true, autoCompactWindow: '400000' }, null, shared)).toMatchObject({ autoCompactWindow: 400_000, own: { autoCompactWindow: 400_000 } })
+  for (const invalid of ['0', '-1', '1.5', 'abc']) {
+    expect(formOf({ ...values, ownAutoCompact: true, autoCompactWindow: invalid }, null, shared)).toBeUndefined()
+  }
+})
+
 describe("the project form's standards", () => {
   it('go to the draft and back as they were', () => {
     const config = fakeConfig()

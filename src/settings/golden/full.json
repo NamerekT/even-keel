@@ -199,6 +199,7 @@
       },
       "modelLabels": false,
       "cacheTtl": "1h",
+      "autoCompactWindow": 300000,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -271,6 +272,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "autoCompactWindow": 300000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -331,6 +333,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "autoCompactWindow": 300000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -391,6 +394,7 @@
       "accounts": {},
       "modelLabels": null,
       "cacheTtl": "1h",
+      "autoCompactWindow": 300000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -495,6 +499,7 @@
     ]
   },
   "cacheTtl": "1h",
+  "autoCompactWindow": 300000,
   "contextHandoffs": false,
   "ci": {
     "guard": true,
