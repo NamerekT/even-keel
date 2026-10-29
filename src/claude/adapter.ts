@@ -8,6 +8,7 @@ import { PinnedCli } from '../agent/pinned.js'
 import { parseUsage } from '../limits/usage.js'
 import { findBinary } from '../paths.js'
 import { DEFAULT_LANGUAGE } from '../settings/defaults.js'
+import { WARM_CACHE_MS, warmCacheMs } from '../sessions/cache.js'
 import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from '../sessions/history.js'
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
@@ -139,6 +140,8 @@ export const claude: AgentAdapter = {
         const { cwd, prompt, model, settings, mcp, plugins } = start
         return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })
       },
+      // A subscription's cache lives an hour, a key's as `cacheTtl` wrote it.
+      warmMs: (cache, apiKey) => (apiKey ? warmCacheMs(cache?.ttl ?? null) : WARM_CACHE_MS),
       liveRecords,
       remote: {
         enabled: remoteAt,

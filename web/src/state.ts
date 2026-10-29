@@ -742,7 +742,7 @@ export function sessionElapsed(view: SessionView, now: Date): number {
   return Math.max(0, end - start)
 }
 
-const CACHE_TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
+const CACHE_TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '30m': 30 * 60_000, '1h': 60 * 60_000 }
 
 export function cacheFreshness(cache: CacheWindow, now: Date): { left: number; level: 'ok' | 'warn' | 'cold' } {
   const left = Math.max(0, Date.parse(cache.until) - now.getTime())

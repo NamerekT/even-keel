@@ -72,7 +72,8 @@ export interface TokenTotals {
   cacheWrite: number
 }
 
-export type CacheTtl = '5m' | '1h'
+/** A prompt cache's lifetime: Claude's five minutes or hour, Copilot's half hour (`docs/sessions.md`, "Every agent's cache"). */
+export type CacheTtl = '5m' | '30m' | '1h'
 
 export interface CacheWindow {
   ttl: CacheTtl
@@ -138,7 +139,7 @@ const NO_CHANGES_LINE = /^([`*_]*)NO CHANGES:([`*_]*)(.*)$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
 const ASK_TOOL = 'AskUserQuestion'
 const SHELLS =new Set(['Bash', 'PowerShell'])
-export const TTL_MS:Record<CacheTtl, number> ={ '5m': 5 * 60_000, '1h': 60 * 60_000 }
+export const TTL_MS:Record<CacheTtl, number> ={ '5m': 5 * 60_000, '30m': 30 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 
 export class TranscriptFold {

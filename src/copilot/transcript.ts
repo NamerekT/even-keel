@@ -1,3 +1,4 @@
+import { ttlWithin } from '../sessions/cache.js'
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
@@ -10,6 +11,7 @@ import {
   stageOfCommand,
   userLine,
   type ApiErrorKind,
+  type CacheWindow,
   type FeedLine,
   type Stage,
   type TokenTotals,
@@ -66,6 +68,7 @@ export class CopilotFold {
   private stage: Stage | null = null
   private contextTokens = 0
   private contextWindow: number | null = null
+  private cache: CacheWindow | null = null
   private tokens: TokenTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
   private apiError: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
@@ -93,7 +96,7 @@ export class CopilotFold {
     if (event === undefined || typeof event.type !== 'string' || typeof event.timestamp !== 'string') return
     const data = record(event.data) ?? {}
     const at = event.timestamp
-    if (event.type === 'session.usage_record') this.pushUsage(data, event.agentId === undefined)
+    if (event.type === 'session.usage_record') this.pushUsage(data, event.agentId === undefined, at)
     if (event.agentId !== undefined) return
     switch (event.type) {
       case 'session.start':
@@ -130,7 +133,7 @@ export class CopilotFold {
       contextTokens: this.contextTokens,
       contextWindow: this.contextWindow,
       compactions: 0,
-      cache: null,
+      cache: this.cache,
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: [...this.running.values()].at(-1) ?? null },
       action: this.action,
@@ -161,9 +164,10 @@ export class CopilotFold {
 
   /**
    * A model call's tokens: `inputTokens` is the whole prompt, the cache read and write included, so it is the context;
-   * `outputTokens` holds the reasoning. A subagent's calls count in the totals only.
+   * `outputTokens` holds the reasoning. A subagent's calls count in the totals only. `cacheExpiresAt` is the cache's
+   * end counted from the call's start, `duration` before the record; a call without it leaves the cache unknown.
    */
-  private pushUsage(data: Json, own: boolean): void {
+  private pushUsage(data: Json, own: boolean, at: string): void {
     const usage = record(data.usage)
     if (usage === undefined) return
     const prompt = count(usage.inputTokens)
@@ -176,6 +180,8 @@ export class CopilotFold {
       cacheWrite: this.tokens.cacheWrite + write,
     }
     if (!own) return
+    const until = typeof usage.cacheExpiresAt === 'string' ? Date.parse(usage.cacheExpiresAt) : NaN
+    this.cache = Number.isNaN(until) ? null : { ttl: ttlWithin(until - Date.parse(at) + count(usage.duration)), until: new Date(until).toISOString() }
     if (prompt > 0) this.contextTokens = prompt
     if (count(usage.maxPromptTokens) > 0) this.contextWindow = count(usage.maxPromptTokens)
     if (typeof usage.model === 'string' && usage.model !== '') this.model = usage.model
