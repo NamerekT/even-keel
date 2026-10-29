@@ -106,6 +106,25 @@ describe('Dispatcher on a limit', () => {
     expect(cold.relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
   })
 
+  it('journals a cold handover after spent credit as credit, not as a limit, through a restart', async () => {
+    const limitResetAfter = () => '2026-09-26T12:30:00.000Z'
+    const { dispatcher, limited, journal } = await running({ limitResetAfter })
+    limited['ABC-1'] = {
+      ...limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:00:00.000Z'),
+      limit: { at: '2026-09-26T12:00:00.000Z', text: 'Credit balance is too low', credit: true },
+      warmMs: warmCacheMs('5m'),
+    }
+    await check(dispatcher)
+    expect(dispatcher.state.active[0]?.current?.limit?.credit).toBe(true)
+
+    const restored = setup({ state: structuredClone(dispatcher.state), limited, limitResetAfter })
+    restored.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    restored.clock.now = new Date('2026-09-26T12:31:00Z')
+    await check(restored.dispatcher)
+    expect(restored.journal.at(-1)).toMatchObject({ reason: 'relay', cause: 'credit', previous: 'session-1' })
+    expect(journal.some((entry) => entry.cause === 'limit')).toBe(false)
+  })
+
   it('hands the task to a new session in the old worktree once the limit resets with a cold cache', async () => {
     const { dispatcher, limited, clock, relays, journal } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')

@@ -19,6 +19,7 @@ export const sessionRu = {
   },
   relayed: {
     limit: 'Новая после лимита',
+    credit: 'Новая после того, как на ключе кончились деньги',
     mainFixed: 'Новая после починки main',
     review: 'Новая после отзыва на pull request',
     returned: 'Новая после возврата задачи',
@@ -31,6 +32,7 @@ export const sessionRu = {
   },
   replacedRelay: {
     limit: 'упёрлась в лимит',
+    credit: 'на ключе кончились деньги',
     mainFixed: 'заменена после починки main',
     review: 'заменена после отзыва на pull request',
     returned: 'заменена после возврата задачи',

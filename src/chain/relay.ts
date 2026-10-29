@@ -121,7 +121,8 @@ export function warmSince(session: HandoffSession, now: number, warmMs = WARM_CA
 }
 
 export interface LimitedSession extends HandoffSession {
-  limit: { at: string; text: string }
+  /** `credit` — an API key out of money, not a usage limit. */
+  limit: { at: string; text: string; credit?: true }
   /** An overload refusal: retry the same session rather than waiting for an account's allowance. */
   transient?: true
   /** How long the cache stays warm after the last reply (`warmCacheMs`); absent — `WARM_CACHE_MS`, a subscription's. */
@@ -135,6 +136,8 @@ export interface LimitHold {
   lastReplyAt: string | null
   then: RelayAction
   acted: RelayAction | null
+  /** The key ran out of money: its handover is journaled with the cause `credit`. */
+  credit?: true
   /** Paid-usage stops retain their context when the stopped session disappears from the monitor. */
   overage?: { session: LimitedSession; stopped: boolean }
 }
@@ -148,7 +151,7 @@ export interface AccountNow {
 
 export function holdOf(session: LimitedSession, account: string | null, fallbackReset: string | null): LimitHold {
   const resetsAt = resetTimeOf(session.limit.text, session.limit.at) ?? fallbackReset
-  const hold: LimitHold = { at: session.limit.at, account, resetsAt: null, lastReplyAt: session.lastReplyAt, then: 'relay', acted: null }
+  const hold: LimitHold = { at: session.limit.at, account, resetsAt: null, lastReplyAt: session.lastReplyAt, then: 'relay', acted: null, ...(session.limit.credit ? { credit: true as const } : {}) }
   return withReset(hold, resetsAt, session.warmMs)
 }
 

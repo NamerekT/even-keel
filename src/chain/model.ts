@@ -158,8 +158,11 @@ export type ReleaseReason = 'postpone' | 'skip'
  */
 export type FixOutcome = 'landed' | 'dropped' | 'carried'
 
-/** Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. */
-export type RelayCause = 'limit' | 'mainFixed' | 'review' | ReturnReason
+/**
+ * Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. `credit` —
+ * the API key ran out of money.
+ */
+export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | ReturnReason
 
 export interface LaunchEntry {
   at: string

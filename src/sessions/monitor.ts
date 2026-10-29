@@ -124,7 +124,7 @@ export class SessionMonitor {
       return { ...session, transient: true, limit: { at: apiError.at, text: apiError.text } }
     }
     if (apiError === null || !waited.includes(apiError.kind) || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
-    const limited = { ...session, limit: { at: apiError.at, text: apiError.text } }
+    const limited = { ...session, limit: { at: apiError.at, text: apiError.text, ...(apiError.kind === 'credit' ? { credit: true as const } : {}) } }
     return apiKey ? { ...limited, warmMs: warmCacheMs(cache?.ttl ?? null) } : limited
   }
 
