@@ -1,0 +1,12 @@
+.account-overage { display: flex; align-items: center; min-height: 24px; font-size: var(--text-12); font-variant-numeric: tabular-nums; color: var(--fg-muted); overflow-wrap: anywhere; }
+.account-overage-chip {
+  display: inline-flex; flex: none; align-items: center; padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-pill); font-size: var(--text-12); font-weight: 600; white-space: nowrap;
+  text-box: trim-both ex alphabetic;
+  color: var(--lamp-waiting); background: color-mix(in srgb, var(--lamp-waiting) 14%, var(--surface));
+}
+@media (max-width: 760px) {
+  .account-overage { display: none; }
+  .account-who__name:has(.account-overage-chip) { flex-wrap: wrap; }
+  .account-who__name:has(.account-overage-chip) .accounts__email { flex: 1; min-width: min(100px, 100%); }
+}

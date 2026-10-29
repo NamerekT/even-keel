@@ -226,6 +226,7 @@ describe('limitsOfRateLimitInfo', () => {
 
   it('reads both windows a session reports, the utilization as a share', () => {
     expect(limitsOfRateLimitInfo(live)).toEqual({
+      overage: { source: 'claude-sdk', available: false, using: false },
       fiveHour: { usedPercentage: 60, resetsAt: '2026-10-23T11:10:00.000Z' },
       sevenDay: { usedPercentage: 45, resetsAt: '2026-10-29T15:00:00.000Z' },
     })
@@ -233,7 +234,7 @@ describe('limitsOfRateLimitInfo', () => {
 
   it('falls back to the one window the documented fields name', () => {
     const { unifiedWindows: _, ...documented } = live
-    expect(limitsOfRateLimitInfo(documented)).toEqual({ sevenDay: { usedPercentage: 45, resetsAt: '2026-10-29T15:00:00.000Z' } })
+    expect(limitsOfRateLimitInfo(documented)).toEqual({ overage: { source: 'claude-sdk', available: false, using: false }, sevenDay: { usedPercentage: 45, resetsAt: '2026-10-29T15:00:00.000Z' } })
   })
 
   it('takes a refused window without utilization for a spent one', () => {
@@ -242,9 +243,9 @@ describe('limitsOfRateLimitInfo', () => {
     })
   })
 
-  it('reads nothing from a model window, an overage or a malformed event', () => {
+  it('reads nothing from a model window or a malformed event, and keeps overage availability', () => {
     expect(limitsOfRateLimitInfo({ status: 'allowed_warning', rateLimitType: 'seven_day_opus', utilization: 0.8, resetsAt: 1793286000 })).toBeUndefined()
-    expect(limitsOfRateLimitInfo({ status: 'allowed', rateLimitType: 'overage' })).toBeUndefined()
+    expect(limitsOfRateLimitInfo({ status: 'allowed', rateLimitType: 'overage' })).toEqual({ overage: { source: 'claude-sdk', available: true } })
     expect(limitsOfRateLimitInfo({ status: 'allowed' })).toBeUndefined()
     expect(limitsOfRateLimitInfo({ status: 'allowed', unifiedWindows: { five_hour: { utilization: 'high', resetsAt: 1792753800 } } })).toBeUndefined()
     expect(limitsOfRateLimitInfo(null)).toBeUndefined()

@@ -5,7 +5,7 @@ import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { accountGroups, atWork, entrySlot, tightestWindow } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
-import { t } from '../i18n/index.js'
+import { overageTexts, t } from '../i18n/index.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
@@ -15,6 +15,7 @@ import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, spendsByKey, spendText, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
+import { OverageChip, OverageValue } from './Overage.js'
 import './accountRows.css'
 
 export interface RowsProps {
@@ -77,7 +78,7 @@ export function AccountGroups({ entries, ...props }: RowsProps & { entries?: Acc
         <div className="account-grid account-grid--head" aria-hidden="true" style={{ '--windows': columns.length } as CSSProperties}>
           <span>{t.stats.account}</span>{page && <span>{t.account.usedByLabel}</span>}
           <div className="account-window-heads">{columns.map((label) => <span key={label}>{label}</span>)}</div>
-          {page && <><span>{t.account.sessionsLabel}</span><span>{t.account.runsThrough}</span></>}
+          {page && <><span>{overageTexts().column}</span><span>{t.account.sessionsLabel}</span><span>{t.account.runsThrough}</span></>}
         </div>
         <ul className="account-rows">{rows.map((entry) => <li key={entry.key} style={seriesStyle(entrySlot(view, entry))}>
           <AccountRow entry={entry} {...props} spans={spans} counted={tokens} />
@@ -98,6 +99,7 @@ function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: Ac
     <div className="account-grid" style={{ '--windows': counted ? 2 : spans.length } as CSSProperties}>
       <div className="account-who">
         <div className="account-who__name"><AccountMark entry={entry} now={now} dot /><AccountName entry={entry} accounts={view.accounts} whole={!page} />
+          <OverageChip entry={entry} now={now} />
           {shared !== null && <Tipped className="account-shared" tip={shared} align="start" focusable inline>⇄</Tipped>}
           {page && plan !== null && <span className="tag account-plan">{plan}</span>}
         </div>
@@ -113,7 +115,7 @@ function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: Ac
         </Tipped>) : spendsByKey(entry) ? <Tipped className="account-spend" tip={t.account.todayTitle} focusable>{spendText(spend, entry.key)}</Tipped> :
           spans.map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
       </div>
-      {page && <><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
+      {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
     </div>
   </AccountRowMenu>

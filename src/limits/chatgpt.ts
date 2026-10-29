@@ -1,6 +1,7 @@
 import { notice } from '../notice/notice.js'
 import type { LimitWindow, RateLimits } from './model.js'
 import type { UsageAnswer } from './usage.js'
+import { chatGptCredits } from './overage.js'
 
 /** What Codex's `/status` asks: the windows of the ChatGPT subscription, shared by every client signed in to it. */
 export const CHATGPT_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
@@ -25,15 +26,15 @@ export interface ChatGptSignIn {
  */
 export function chatGptLimits(body: unknown, at: string): RateLimits | undefined {
   const limit = isRecord(body) ? body.rate_limit : undefined
-  if (!isRecord(limit)) return undefined
-  const windows = [limit.primary_window, limit.secondary_window].filter(isRecord)
-  if (windows.length === 0) return undefined
+  const overage = chatGptCredits(isRecord(body) ? body.credits : undefined, at)
+  const windows = isRecord(limit) ? [limit.primary_window, limit.secondary_window].filter(isRecord) : []
+  if (windows.length === 0 && overage === undefined) return undefined
   const of = (minutes: number) => {
     const found = windows.find((window) => window.limit_window_seconds === minutes * 60)
     return found === undefined ? null : windowOf(found, at)
   }
   const monthly = windows.some((window) => window.limit_window_seconds === MONTH * 60)
-  return { fiveHour: of(FIVE_HOURS), sevenDay: of(WEEK), ...(monthly ? { month: of(MONTH) } : {}), updatedAt: at, source: 'api' }
+  return { fiveHour: of(FIVE_HOURS), sevenDay: of(WEEK), ...(monthly ? { month: of(MONTH) } : {}), updatedAt: at, source: 'api', ...(overage !== undefined && { overage }) }
 }
 
 /** The ChatGPT account an access token is for, by its claim; `null` — not a token that says. */

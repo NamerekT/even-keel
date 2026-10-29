@@ -1,3 +1,5 @@
+import { claudeOverage, type Overage } from './overage.js'
+
 export interface LimitWindow {
   usedPercentage: number
   resetsAt: string
@@ -23,10 +25,12 @@ export interface RateLimits {
   source: 'usage' | 'statusline' | 'sdk' | 'api'
   /** The subscription the limits are of (`chatgpt:<account id>`): two folders with the same one share their limits. */
   pool?: string
+  /** Subscription extras, with a timestamp independent of the usage windows. Never used for scheduling. */
+  overage?: Overage
 }
 
 /** The windows a session reported: one it did not name stays as it was known. */
-export type SessionLimits = Partial<Pick<RateLimits, 'fiveHour' | 'sevenDay'>>
+export type SessionLimits = Partial<Pick<RateLimits, 'fiveHour' | 'sevenDay'>> & { overage?: Omit<Overage, 'updatedAt'> }
 
 const SESSION_WINDOWS = { five_hour: 'fiveHour', seven_day: 'sevenDay' } as const
 
@@ -34,11 +38,13 @@ const SESSION_WINDOWS = { five_hour: 'fiveHour', seven_day: 'sevenDay' } as cons
  * The account's windows out of a `rate_limit_event`'s `rate_limit_info`, sent by the CLI at each response: the
  * utilization is a share, the reset is in seconds. `unifiedWindows` (CLI 2.1.308, not in `sdk.d.ts`) holds both windows;
  * without it only the documented `rateLimitType` window is read, and a refused one without utilization is spent.
- * The models' and the overage windows are not shown.
+ * Model-specific windows are not shown. Extra usage keeps only the availability and use the event actually reports.
  */
 export function limitsOfRateLimitInfo(raw: unknown): SessionLimits | undefined {
   if (!isRecord(raw)) return undefined
   const limits: SessionLimits = {}
+  const overage = claudeOverage(raw)
+  if (overage !== undefined) limits.overage = overage
   if (isRecord(raw.unifiedWindows)) {
     for (const [type, span] of Object.entries(SESSION_WINDOWS)) {
       const window = sessionWindow(raw.unifiedWindows[type])
@@ -60,6 +66,7 @@ export function withSessionLimits(known: RateLimits | undefined, reported: Sessi
     sevenDay: reported.sevenDay ?? known?.sevenDay ?? null,
     updatedAt: at,
     source: 'sdk',
+    ...(reported.overage !== undefined ? { overage: { ...reported.overage, updatedAt: at } } : known?.overage !== undefined ? { overage: known.overage } : {}),
   }
 }
 
@@ -98,12 +105,16 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
   if (notBefore !== null && Date.parse(limits.updatedAt) < Date.parse(notBefore)) return null
   const live = (window: LimitWindow | null) => (window !== null && Date.parse(window.resetsAt) > now.getTime() ? window : null)
   const current = { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
+  if (notBefore !== null && current.overage !== undefined && Date.parse(current.overage.updatedAt) < Date.parse(notBefore)) delete current.overage
   return limits.month === undefined ? current : { ...current, month: live(limits.month) }
 }
 
 export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefined): RateLimits | undefined {
   if (a === undefined || b === undefined) return a ?? b
-  return Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
+  const latest = Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
+  const extra = a.overage === undefined ? b.overage : b.overage === undefined ? a.overage :
+    Date.parse(b.overage.updatedAt) > Date.parse(a.overage.updatedAt) ? b.overage : a.overage
+  return extra === undefined ? latest : { ...latest, overage: extra }
 }
 
 export function exhaustedReset(limits: RateLimits | null): string | null {

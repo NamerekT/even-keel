@@ -14,6 +14,7 @@ import { usePopover } from './usePopover.js'
 import { CompactLimit } from './accountRows.js'
 import { AccountLevels } from './AccountLevels.js'
 import './accountLevels.css'
+import { OverageChip } from './Overage.js'
 
 interface BlockProps {
   account: AccountView
@@ -36,6 +37,7 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
       aria-describedby={open || active === undefined ? undefined : 'account-card'} onClick={() => setOpen(!open)}>
       <span className={`account-block__group account-toggle--${badge.kind}`}>
         <AccountName account={selected} />
+        <OverageChip entry={active} now={now} plain />
         {levels.length > 1 && <span className="account-stack" aria-label={String(levels.length)}>
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m2 5 6-3 6 3-6 3Z M2 8l6 3 6-3 M2 11l6 3 6-3" /></svg>{levels.length}
         </span>}
@@ -95,7 +97,7 @@ export function AccountSheet({ account, now }: BlockProps) {
   const active = account.accounts.find((entry) => entry.key === account.active)
   return <div ref={rootRef}>
     <button type="button" className="gear__item account-sheet-button" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
-      {t.account.title}<CompactLimit entry={active} now={now} />
+      {t.account.title}<OverageChip entry={active} now={now} plain /><CompactLimit entry={active} now={now} />
       {account.accounts.some((entry) => entry.needsLogin || entry.error !== null) && <span className="account-problem-dot" aria-label={t.account.checkFailedShort} />}
       <span className="sheet__chevron" aria-hidden="true">›</span>
     </button>
