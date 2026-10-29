@@ -35,6 +35,7 @@ export interface SetupOptions {
   projects?: string[]
   parallel?: number
   blocked?: string | Notice
+  modelRefusal?: DispatcherDeps['modelRefusal']
   limited?: Record<string, LimitedSession>
   overage?: (task: string) => LimitedSession | undefined
   account?: AccountNow
@@ -117,6 +118,7 @@ export function setup(options: SetupOptions = {}) {
     },
     liveSession: (id) => live[id],
     blocked: () => (typeof options.blocked === 'string' ? textNotice(options.blocked) : options.blocked),
+    modelRefusal: options.modelRefusal,
     busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
     silentSince: (id) => options.silentSince?.[id] ?? null,
     midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),

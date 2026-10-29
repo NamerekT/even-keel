@@ -45,6 +45,7 @@ const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota|too many requests/i
 const LIMIT_TYPE = /FreeUsageLimitError/
 const CREDIT_TEXT = /insufficient_quota|exceeded your current quota|credit balance|no credits remaining|credit_balance_exhausted/i
+const MODEL_REFUSAL = /is not supported when using Codex with a ChatGPT account/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 
 /** OpenCode's own tools as Claude Code names them, with the input keys the feed reads. */
@@ -258,8 +259,9 @@ class SessionFold {
   private pushError(at: string, error: Json): void {
     const brief = flatten(errorText(error), TEXT_LIMIT)
     const full = JSON.stringify(error)
-    const kind = CREDIT_TEXT.test(brief) || CREDIT_TEXT.test(full) ? 'credit' : isTransientError(full) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
-    const diagnostic = error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
+    const kind = MODEL_REFUSAL.test(full) ? 'model' : CREDIT_TEXT.test(brief) || CREDIT_TEXT.test(full) ? 'credit' : isTransientError(full) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
+    const refused = /The '([^']+)' model is not supported/i.exec(full)?.[1]
+    const diagnostic = kind === 'model' ? notice('chain.modelUnavailable', { model: this.model ?? (refused === undefined ? 'OpenAI' : `openai/${refused}`) }) : error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
     const text = diagnostic === undefined ? brief : englishOf(diagnostic)
     this.apiError = { kind, text, at, ...(diagnostic === undefined ? {} : { notice: diagnostic }) }
     this.addFeed({ at, kind: 'error', text, ...(diagnostic === undefined ? {} : { notice: diagnostic }) })

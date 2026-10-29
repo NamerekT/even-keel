@@ -298,6 +298,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       return { sessionId, fallback }
     },
     liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
+    modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
     blocked: (project, task) => ctx.profileBlock(project) ?? ctx.pullBlock(project) ?? ctx.cliCopies.blocked(ctx.choiceFor(project, task).provider) ?? launchBlock(ctx.account.view, ctx.choiceFor(project, task).account),
     busy: (task) => {
       const status = ctx.agentStatus(task)

@@ -13,6 +13,7 @@ import { localized, say, t } from '../i18n/index.js'
 import { agentLabel } from '../accountName.js'
 import { completionTasks, needsReply } from '../completion.js'
 import { useNow } from '../layout/useNow.js'
+import { useNarrow } from '../layout/useNarrow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { cacheTone, contextFill, contextResets, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
@@ -311,6 +312,8 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
 function SessionBody({ session, limit, refusal = null, scale, whole }: { session: SessionView; limit: LimitHold | null; refusal?: LimitRefusal | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
   const { state } = useLive()
+  const narrow = useNarrow()
+  const chainShowsRefusal = !narrow && session.apiErrorNotice?.code === 'chain.modelUnavailable' && state?.chain.active.some(chain => chain.current?.sessionId === session.sessionId && chain.error?.code === 'chain.modelUnavailable')
   const refused = completionTasks(state).has(session.task) && !needsReply(session)
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
@@ -327,9 +330,9 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
 
   return (
     <>
-      {note !== null && !limited && (session.apiErrorNotice === undefined
-        ? <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>
-        : <Band tone={session.apiErrorKind === 'transient' ? 'warn' : 'error'} action={<NoticeFixButton project={taskProject(state, session.task)} notice={session.apiErrorNotice} />}>{note}</Band>)}
+      {note !== null && !limited && !chainShowsRefusal && (session.apiErrorNotice === undefined
+        ? <p className={`notice notice--${session.apiErrorKind === 'transient' || session.apiErrorKind === 'model' ? 'warn' : 'error'}`}>{note}</p>
+        : <Band tone={session.apiErrorKind === 'transient' || session.apiErrorKind === 'model' ? 'warn' : 'error'} action={<NoticeFixButton project={taskProject(state, session.task)} notice={session.apiErrorNotice} />}>{note}</Band>)}
       <LimitNotice active={limited} session={session} hold={limit} refusal={refusal} />
       <FactList>
         <Fact label={t.session.session}>

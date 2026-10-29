@@ -65,7 +65,7 @@ export class Dispatcher {
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
   ) {
-    this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error))
+    this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error, error.code === 'chain.modelUnavailable'))
     this.overage = new OverageStops(state, deps, (chain, error) => this.halt(chain, error))
     this.reviews = new Reviews(state, deps, this.handovers, {
       hold: (chain, error) => this.halt(chain, error, true),

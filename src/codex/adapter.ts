@@ -17,10 +17,9 @@ import { foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles }
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
 import { CodexUsage } from './usage.js'
+import { CODEX_CHECKED as CHECKED } from './version.js'
 
 const HISTORY_FEED = 5_000
-/** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '0.164.0'
 
 /**
  * Codex CLI through `codex exec --json`: a turn is a detached process, a session lives between turns in Even Keel's
