@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
+import { chatGptCredits } from '../limits/overage.js'
 import { describeTool, flatten, lineCount, type EditSize, type TranscriptImage } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
@@ -321,12 +322,15 @@ export function limitsOfRollout(text: string): RateLimits | undefined {
     const windows = [record(limits.primary), record(limits.secondary)]
     if (windows.every((window) => window === undefined)) continue
     const monthly = windows.some((window) => window?.window_minutes === MONTH)
+    const at = new Date(Date.parse(line.timestamp ?? '') || 0).toISOString()
+    const overage = chatGptCredits(limits.credits, at)
     return {
       fiveHour: windowOf(windows, FIVE_HOURS),
       sevenDay: windowOf(windows, WEEK),
       ...(monthly ? { month: windowOf(windows, MONTH) } : {}),
-      updatedAt: new Date(Date.parse(line.timestamp ?? '') || 0).toISOString(),
+      updatedAt: at,
       source: 'usage',
+      ...(overage !== undefined && { overage }),
     }
   }
   return undefined

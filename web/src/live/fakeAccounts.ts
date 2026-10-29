@@ -163,6 +163,18 @@ function rawEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
+  if (mode === 'overage' || mode === 'overage-long') {
+    const base = fakeAccount(mode === 'overage-long' ? 'rows-long' : 'rows', idle, limits)
+    const token = fakeAccount('copilot', idle, limits).accounts.find((entry) => entry.key === 'github')!
+    const credits = { source: 'chatgpt' as const, unit: 'credits' as const, balance: 12.4, available: true, unlimited: false, updatedAt: ago(1) }
+    return { ...base, accounts: [...base.accounts, token].map((entry) => {
+      if (entry.key === 'global') return { ...entry, working: true, limits: { ...entry.limits!, source: 'sdk', overage: { source: 'claude-sdk', using: true, available: true, updatedAt: ago(1) } } }
+      if (entry.key === 'codex') return { ...entry, working: true, sessions: ['OPS-1'], limits: { ...entry.limits!, overage: credits } }
+      if (entry.key === 'opencode-2') return { ...entry, limits: { ...entry.limits!, overage: credits } }
+      if (entry.key === 'github') return { ...entry, limits: { ...entry.limits!, overage: { source: 'github-quota', enabled: false, count: 0, updatedAt: ago(1) } } }
+      return entry
+    }) }
+  }
   if (mode === 'rows' || mode === 'rows-noCodex' || mode === 'rows-long') {
     const base = fakeAccount('opencode', idle, limits)
     const copilot = fakeAccount('copilot', idle, limits).accounts.filter((entry) => entry.agent === COPILOT && !entry.apiKey)

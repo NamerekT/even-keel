@@ -44,6 +44,8 @@ export interface AccountEntry {
   loginExpiresAt: string | null
   needsLogin: boolean
   sessions: string[]
+  /** At least one session in this folder is actively working, rather than resting or waiting for an answer. */
+  working?: boolean
   /** The projects whose sessions run on it by their provider's pool entry, their own or the shared one (`projectsByAccount`). */
   projects: string[]
   removing: boolean

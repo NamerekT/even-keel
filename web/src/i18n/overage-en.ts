@@ -1,0 +1,22 @@
+export const overageEn = {
+  column: 'Extra usage',
+  spending: 'on credits',
+  on: 'on',
+  off: 'off',
+  available: 'available',
+  unavailable: 'unavailable',
+  unlimited: 'unlimited',
+  credits: (value: string) => `${value} credits`,
+  spent: (value: string) => `${value} spent`,
+  count: (value: string) => `Extra allowance used: ${value}. The source does not give its dollar cost.`,
+  unknown: 'The provider has not reported extra usage for this account.',
+  autoReload: 'Automatic reload and its settings are not reported by this source.',
+  inferred: 'A session is working with an exhausted included window and available credits. Credit use is inferred, not a charge receipt.',
+  confirmed: 'A working session last reported using extra usage.',
+  sources: {
+    'claude-sdk': 'Claude session: extra usage availability; no balance or spending cap reported',
+    chatgpt: 'ChatGPT usage: remaining usage credits, not US dollars',
+    'github-quota': 'GitHub allowance: additional usage permission; no dollar budget reported',
+    'github-billing': 'GitHub billing: net paid Copilot usage this month; no budget reported',
+  },
+}
