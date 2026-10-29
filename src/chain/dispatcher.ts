@@ -31,6 +31,7 @@ import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
 import { requireLimit } from './limitNotice.js'
 import { startTask } from './start.js'
+import { OverageStops } from './overage.js'
 
 export {
   emptyChainState,
@@ -58,12 +59,14 @@ export class Dispatcher {
   private readonly lists: TaskLists
   private readonly cleanups: Cleanups
   private readonly waits: MainWait
+  private readonly overage: OverageStops
 
   constructor(
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
   ) {
     this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error))
+    this.overage = new OverageStops(state, deps, (chain, error) => this.halt(chain, error))
     this.reviews = new Reviews(state, deps, this.handovers, {
       hold: (chain, error) => this.halt(chain, error, true),
       letGo: (chain) => this.letGo(chain),
@@ -588,6 +591,7 @@ export class Dispatcher {
       const chain = this.state.active.find((each) => !seen.has(each))
       if (chain === undefined) return
       seen.add(chain)
+      if (!(await this.overage.guard(chain))) continue
       await this.step(chain)
     }
   }

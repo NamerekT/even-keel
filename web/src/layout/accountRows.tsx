@@ -15,7 +15,7 @@ import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, spendsByKey, spendText, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
-import { OverageChip, OverageValue } from './Overage.js'
+import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
 
 export interface RowsProps {
@@ -118,6 +118,7 @@ function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: Ac
       {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
     </div>
+    <OverageWarning entry={entry} view={view} />
   </AccountRowMenu>
 }
 

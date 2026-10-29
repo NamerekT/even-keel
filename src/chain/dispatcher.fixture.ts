@@ -36,6 +36,7 @@ export interface SetupOptions {
   parallel?: number
   blocked?: string | Notice
   limited?: Record<string, LimitedSession>
+  overage?: (task: string) => LimitedSession | undefined
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
@@ -76,7 +77,7 @@ export function setup(options: SetupOptions = {}) {
   const account: AccountNow = options.account ?? { id: 'john@example.com', ready: true }
   const limited: Record<string, LimitedSession> = options.limited ?? {}
   const handoffs: Record<string, HandoffSession> = {}
-  const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string }[] = []
+  const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string; stopped?: true }[] = []
   const launched: string[] = []
   const fixes: { project: string; name: string; report: string }[] = []
   const carries: { project: string; name: string; report: string }[] = []
@@ -125,6 +126,7 @@ export function setup(options: SetupOptions = {}) {
     journal: (entry) => journal.push(entry),
     now: () => clock.now,
     limited: (id) => limited[id],
+    overage: options.overage,
     handoff: (id) => handoffs[id],
     locate: async (session) => ({ ...session, ...options.located }),
     account: () => account,
@@ -136,7 +138,7 @@ export function setup(options: SetupOptions = {}) {
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
     resume: async (_task, session) => {
-      relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
+      relays.push({ kind: 'resume', task: '', sessionId: session.sessionId, ...(session.stopped && { stopped: true }) })
       return session.sessionId
     },
     reply: options.reply ?? (async (id, session, prompt) => {
@@ -145,7 +147,7 @@ export function setup(options: SetupOptions = {}) {
     }),
     relay: async (id, session, prompt, reason) => {
       if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
-      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason })
+      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason, ...(session.stopped && { stopped: true }) })
       return `session-${++counter}`
     },
     launchFix: async (project, name, report) => {

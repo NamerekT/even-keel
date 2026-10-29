@@ -1,8 +1,10 @@
-import type { AccountEntry } from '../../../src/account/model.js'
+import type { AccountEntry, AccountView } from '../../../src/account/model.js'
+import { notice } from '../../../src/notice/notice.js'
 import type { Overage } from '../../../src/limits/overage.js'
 import { usingOverage } from '../../../src/limits/overage.js'
 import { formatAgo } from '../format.js'
-import { language, overageTexts } from '../i18n/index.js'
+import { language, overageTexts, say } from '../i18n/index.js'
+import { Band } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import './overage.css'
 
@@ -26,6 +28,22 @@ function extraTip(extra: Overage | undefined, now: Date): string {
 
 export function OverageValue({ entry, now }: { entry: AccountEntry; now: Date }) {
   return <Tipped className="account-overage" tip={extraTip(entry.limits?.overage, now)} align="start" focusable>{overageValue(entry.limits?.overage)}</Tipped>
+}
+
+export function OverageWarning({ entry, view }: { entry: AccountEntry; view: AccountView }) {
+  const extra = entry.limits?.overage
+  const provider = extra?.source === 'claude-sdk' && extra.available === true ? 'claude' :
+    extra?.source === 'chatgpt' && (extra.available === true || extra.unlimited === true) ? 'chatgpt' :
+    extra?.source === 'github-quota' && extra.enabled === true ? 'github' : null
+  if (provider === null || entry.needsLogin) return null
+  const chain = view.pool.some((each) => each.account === entry.key) || entry.projects.length > 0
+  const tip = [say(notice('account.overagePolicy', {})), chain ? say(notice('account.overageAdvice', { provider })) : null].filter(Boolean).join(' ')
+  const url = provider === 'claude' ? 'https://claude.ai/settings/usage' : provider === 'chatgpt' ? 'https://chatgpt.com/codex/settings/usage' : 'https://github.com/settings/billing'
+  return <Band tone="warn" className="account-overage-warning" action={
+    <a className="button button--small" href={url} target="_blank" rel="noreferrer">{say(notice('account.overageSettings', {}))}</a>
+  }>
+    <Tipped focusable tip={tip} align="start">{say(notice('account.overageRisk', {}))}</Tipped>
+  </Band>
 }
 
 export function OverageChip({ entry, now, plain = false }: { entry: AccountEntry | undefined; now: Date; plain?: boolean }) {

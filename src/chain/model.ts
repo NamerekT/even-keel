@@ -287,6 +287,8 @@ export interface DispatcherDeps {
   journal: (entry: LaunchEntry) => void
   now: () => Date
   limited: (task: string) => LimitedSession | undefined
+  /** Fresh paid-usage evidence for this working session; never an account-wide list of sessions to stop. */
+  overage?: (task: string) => LimitedSession | undefined
   handoff: (task: string) => HandoffSession | undefined
   locate: (session: HandoffSession) => Promise<HandoffSession>
   /** The account a new session of the project (or of `task`) would start on. */
@@ -319,7 +321,7 @@ export interface DispatcherDeps {
   launchCarry: (project: string, name: string, report: string) => Promise<string>
   /** Whether the project's main branch has the commit: the carry's release commit is in. */
   carried: (project: string, commit: string) => Promise<boolean>
-  /** Stops a session, mid-turn too (`claude stop`): only for a red main, invariant 1's exception 7. */
+  /** Stops a session, mid-turn too: a red main or detected subscription overage (invariant 1). */
   stop: (session: HandoffSession) => Promise<void>
   /** Cleans up after the task; `pull` — after a task whose pull request was closed. */
   finish: (project: string, task: string, pull?: PullCleanup) => Promise<FinishOutcome>

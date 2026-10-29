@@ -37,7 +37,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   return (
     <div ref={root} className={`account-row${held.length === 0 ? ' account-row--unused' : ''}${fresh ? ' account-row--fresh' : ''}`}
       onClick={(event) => {
-        if (sending || (event.target as HTMLElement).closest('button, a, input, dialog, [role="menu"], .account-detail, .account-shared')) return
+        if (sending || (event.target as HTMLElement).closest('button, a, input, dialog, [role="menu"], .account-detail, .account-shared, .account-overage-warning')) return
         toggleMenu(event)
       }}>
       <button ref={button} type="button" className="account-row__button"

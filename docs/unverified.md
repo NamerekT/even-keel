@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 1b | [Paid subscription usage stops](#paid-subscription-usage-stops) | managed chain sessions with credits or permitted extra usage | detection may lag, stop may fail, or recovery may relaunch into paid usage |
 | 1a | [Subscription extra usage](#subscription-extra-usage-btn-532) | subscriptions with credits or paid overage | a chip may infer spending incorrectly, or credit data may lag |
 | 46a | [Header account after a labelled task closes](#header-account-after-a-labelled-task-closes-btn-539) | project chains using run labels | the header may lag behind the next launch choice |
 | 0d | [CLI copy consent and recovery](#cli-copy-consent-and-recovery) | All providers using Checked, especially new installations | Unexpected downloads, a chain starting before its copy is ready, or failure recovery losing the source choice |
@@ -216,7 +217,15 @@ The parsers and freshness/working-session guards have fixture tests; dark deskto
 - Copilot with extra usage permitted and a nonzero historical count, plus a token using the personal billing fallback with real net charges. Check that no historical bill is treated as current spending and no included gross charge is shown as paid.
 - Sign-in renewal, an unavailable source and stale data while the page is open. Ensure the source timestamp survives newer window-only readings and that old credit facts do not cross a new sign-in.
 
-Assumed: positive responses use the observed/documented field shapes, and a working ChatGPT session beyond an included window with available credits is spending them. If wrong, the amount may be absent or the chip may infer a charge incorrectly. **Workaround:** check spending and reload settings on the provider's billing page; the extra-usage display does not alter the chain's existing limit waits. Zen has no verified balance adapter and shows no balance.
+Assumed: positive responses use the observed/documented field shapes, and a working ChatGPT session beyond an included window with available credits is spending them. If wrong, the amount may be absent or the chip may infer a charge incorrectly. **Workaround:** check spending and reload settings on the provider's billing page. The display indicator is distinct from the [paid-usage stop policy](#paid-subscription-usage-stops). Zen has no verified balance adapter and shows no balance.
+
+### Paid subscription usage stops
+
+BTN-577 stops a managed chain's current live session after fresh direct or inferred paid-usage evidence, retains a limit hold and handoff, and waits for included allowance or another usable account. Fixture tests cover each provider source, freshness, historical/unknown data, shared ChatGPT pools, stop/wait/reset/account switch, paused chains, warm/cold recovery and service-restart snapshots. The warning on account cards was inspected with fake data ([live log](verified.md#accounts)); no actual paid stop was run.
+
+Manual task BTN-580, related to source check BTN-531, requires separate explicit consent before any paid request. Check Claude SDK direct `isUsingOverage`, Claude background `/usage`, Codex/OpenCode on ChatGPT with positive credits and an exhausted window, and Copilot/OpenCode on Copilot with exhausted monthly allowance and `overage_permitted`. Confirm one successful own-agent stop even mid-turn, no external session touched, no immediate relaunch, preserved worktree/branch/note, reset/account switch, warm resume/cold handoff and service restart during the wait or handoff. Switching within a shared ChatGPT pool must still wait. Unknown resets stay unknown; stale evidence, historical totals and a positive balance alone must not stop a session. Do not increase usage polling to create the scenario.
+
+Assumed: provider signals arrive in the observed shapes and each agent stops its real managed process. If wrong, spending may continue, a session may stop early, or recovery may lose context or relaunch while exhausted. A successful stop cannot undo charges before detection; SDK events follow requests and polls can lag by five minutes. **Workaround:** disable extra usage or automatic credit reload, or set a provider monthly spending cap where supported; stop/pause the chain and inspect the provider's usage before continuing. Pausing does not prevent detection from stopping a session already working, but holds automatic continuation. API-key policies and unknown Zen balances are unchanged.
 
 ### Explicit global account registration
 

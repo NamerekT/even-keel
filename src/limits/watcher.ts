@@ -55,7 +55,16 @@ export class LimitsWatcher {
 
   limits(account: string): RateLimits | null {
     if (this.options.apiKey(account)) return null
-    return currentLimits(newestOf(this.accounts.get(account)), new Date(), this.options.notBefore(account))
+    const now = new Date()
+    const own = currentLimits(newestOf(this.accounts.get(account)), now, this.options.notBefore(account))
+    if (!own?.pool?.startsWith('chatgpt:')) return own
+    let shared = own
+    for (const [key, known] of this.accounts) {
+      if (key === account || this.options.apiKey(key) || this.options.needsLogin(key)) continue
+      const other = currentLimits(newestOf(known), now, this.options.notBefore(key))
+      if (other?.pool === own.pool) shared = newestLimits(shared, other)!
+    }
+    return currentLimits(shared, now, this.options.notBefore(account))
   }
 
   /** The windows a session of the account reported between the polls, over the newest of what was known. */

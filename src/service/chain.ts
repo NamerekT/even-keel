@@ -29,6 +29,7 @@ import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../g
 import { fastForwardMain, syncMain } from '../git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from '../git/worktree.js'
 import { exhaustedReset } from '../limits/model.js'
+import { overageSession } from '../limits/overage-session.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { type RemovalFacts } from '../projects/removal.js'
 import { checkoutRemotes, remotePeers, repositoryIds, sameRepository } from '../projects/remotes.js'
@@ -320,6 +321,13 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     },
     now: () => new Date(),
     limited: (task) => ctx.monitor.limited(task),
+    overage: (task) => {
+      const session = ctx.monitor.handoff(task)
+      const entry = ctx.account.view.accounts.find((entry) => entry.key === session?.account)
+      const home = entry === undefined ? undefined : ctx.homes.find(entry.key)
+      const account = entry === undefined ? undefined : { ...entry, apiKey: entry.apiKey && (home === undefined || ctx.agentOf(home).keyUsage !== true) }
+      return overageSession(session, ctx.agents.find((agent) => agent.sessionId === session?.sessionId), account, new Date())
+    },
     handoff: (task) => {
       const session = ctx.monitor.handoff(task)
       return session === undefined ? undefined : { ...session, warmedAt: ctx.keepWarm.warmedAt(session.sessionId) }
@@ -344,7 +352,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
     relay: async (task, session, handoff, reason) => {
       const previous = ctx.homes.find(session.account)
-      if (previous !== undefined) await ctx.stopIn(previous, session)
+      if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
@@ -527,10 +535,10 @@ export function resumeWith(ctx: ChainContext, task: string, session: HandoffSess
     if (ctx.approved(task, session, prompt)) return session.sessionId
     const home = ctx.homeOf(session.account)
     const start = ctx.goOnWith(home, task, session, prompt)
-    const went = ctx.liveView(task)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, start)
+    const went = session.stopped || ctx.liveView(task)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, start)
     if (went != null) return went
     const started = Date.now()
-    await ctx.stopIn(home, session)
+    if (!session.stopped) await ctx.stopIn(home, session)
     const stopped = Date.now()
     await ctx.daemons.prepare(home)
     const sessionId = await ctx.resumeIn(home, session, start)
