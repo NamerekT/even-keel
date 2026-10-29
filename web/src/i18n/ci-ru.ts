@@ -13,7 +13,7 @@ export const ciRu = {
     success: 'зелёный',
     idle: 'прогонов нет',
   },
-  kinds: { forgejo: 'Forgejo', github: 'GitHub Actions', gitlab: 'GitLab CI' },
+  kinds: ciKindsRu,
   api: { ok: 'API отвечает', error: 'API не отвечает', off: 'не подключён' },
   checked: (ago: string) => `проверено ${ago}`,
   allRuns: 'Все прогоны',

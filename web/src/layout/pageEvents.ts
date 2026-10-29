@@ -19,8 +19,8 @@ export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
  */
 export type PageEvent =
   | { key: string; kind: 'limit'; project: string; until?: string }
-  | { key: string; kind: 'red'; project: string; commit: string }
-  | { key: string; kind: 'ciRed'; project: string; ci: CiKind; commit: string }
+  | { key: string; kind: 'red'; project: string; cis: CiKind[]; commit: string }
+  | { key: string; kind: 'ciRed'; project: string; cis: CiKind[]; commit: string }
   | { key: string; kind: 'ask'; project: string | null; task: string }
   | { key: string; kind: 'conflict'; project: string; into: string }
   | { key: string; kind: 'work'; project: string; task: string; path: string; files: number; ahead: number; backlog: boolean }
@@ -29,9 +29,13 @@ const short = (commit: string) => commit.slice(0, 7)
 
 export function pageEvents(state: EventsInput): PageEvent[] {
   const events: PageEvent[] = []
-  const red = (project: string, commit: string) => {
+  const red = (project: string, commit: string, blocks = true, ci?: CiKind) => {
     const key = `red|${project}|${short(commit)}`
-    if (!events.some((each) => each.key === key)) events.push({ key, kind: 'red', project, commit: short(commit) })
+    const existing = events.find((each) => each.key === key)
+    if (existing?.kind === 'red' || existing?.kind === 'ciRed') {
+      if (blocks) existing.kind = 'red'
+      if (ci !== undefined && !existing.cis.includes(ci)) existing.cis.push(ci)
+    } else events.push({ key, kind: blocks ? 'red' : 'ciRed', project, cis: ci === undefined ? [] : [ci], commit: short(commit) })
   }
   for (const chain of state.chain.active) {
     const { project, error } = chain
@@ -43,9 +47,7 @@ export function pageEvents(state: EventsInput): PageEvent[] {
     const settings = state.config.projects[project]?.ci ?? state.config.shared.ci
     for (const view of views) {
       if (view.current?.run.status !== 'failure') continue
-      const commit = short(view.current.run.commit)
-      if (settings.guard && settings.kinds.includes(view.kind)) red(project, commit)
-      else events.push({ key: `ciRed|${project}|${view.kind}|${view.remote}|${commit}`, kind: 'ciRed', project, ci: view.kind, commit })
+      red(project, view.current.run.commit, settings.guard && settings.kinds.includes(view.kind), view.kind)
     }
   }
   for (const [project, episodes] of Object.entries(state.fixes)) {
@@ -70,7 +72,17 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   return events
 }
 
-/** The events not among the keys of the last state; `seen` is `null` before the first state, whose events are old news. */
-export function freshEvents(seen: ReadonlySet<string> | null, events: PageEvent[]): PageEvent[] {
-  return seen === null ? [] : events.filter((each) => !seen.has(each.key))
+/** New occurrences and a CI failure that now holds the chain; the first state is old news. */
+export function freshEvents(seen: readonly PageEvent[] | null, events: PageEvent[]): PageEvent[] {
+  return seen === null ? [] : events.filter((each) => {
+    const previous = seen.find((old) => old.key === each.key)
+    return previous === undefined || (previous.kind === 'ciRed' && each.kind === 'red')
+  })
+}
+
+/** Refresh visible toasts in place; a dismissed occurrence only returns when it is fresh again. */
+export function toastEvents(shown: PageEvent[], events: PageEvent[], fresh: PageEvent[]): PageEvent[] {
+  const current = new Map(events.map((each) => [each.key, each]))
+  const kept = shown.flatMap((each) => current.get(each.key) ?? [])
+  return [...kept, ...fresh.filter((each) => !kept.some((old) => old.key === each.key))]
 }
