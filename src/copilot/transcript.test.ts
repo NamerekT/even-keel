@@ -54,6 +54,21 @@ describe('foldEvents', () => {
     expect(summary.lastMessage).toBe('The working tree is clean.')
   })
 
+  it('takes the cache from the last own call: its lifetime counted from the call start, its end as written', () => {
+    // As 1.0.98 writes it: `cacheExpiresAt` is 1800 s after the call started, `duration` milliseconds before the record.
+    const cached = (offset: number, duration: number, expires: string | null, extra: Record<string, unknown> = {}) =>
+      event(offset, 'session.usage_record', { usage: { model: 'gpt-6-luna', inputTokens: 100, outputTokens: 1, duration, ...(expires === null ? {} : { cacheExpiresAt: expires }) } }, extra)
+    const at = (seconds: number) => new Date(T0 + seconds * 1000).toISOString()
+    expect(foldEvents([start, prompt].join('\n')).cache).toBeNull()
+    // A two-minute call: its record is written 28 minutes before the expiry, still a half-hour cache.
+    expect(foldEvents([start, prompt, cached(200, 120_000, at(200 - 120 + 1800))].join('\n')).cache).toEqual({ ttl: '30m', until: at(1880) })
+    expect(foldEvents([start, prompt, cached(10, 900, at(10 + 300))].join('\n')).cache?.ttl).toBe('5m')
+    expect(foldEvents([start, prompt, cached(10, 900, at(10 + 12 * 3600))].join('\n')).cache?.ttl).toBe('1h')
+    // A subagent's call is not the session's cache; a later own call without the field leaves it unknown.
+    expect(foldEvents([start, prompt, cached(10, 900, at(1810)), cached(20, 900, at(5000), { agentId: 'sub' })].join('\n')).cache?.until).toBe(at(1810))
+    expect(foldEvents([start, prompt, cached(10, 900, at(1810)), cached(20, 900, null)].join('\n')).cache).toBeNull()
+  })
+
   it('shows a call without its result as the running tool and moves the stage by the command', () => {
     const summary = foldEvents([start, prompt, call(2, 'call_1', 'powershell', { command: 'npm test' })].join('\n'))
     expect(summary.turn?.tool).toBe('Shell npm test')

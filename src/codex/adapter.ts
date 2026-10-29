@@ -7,6 +7,7 @@ import { npmLatest } from '../agent/npm.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { findBinary } from '../paths.js'
+import { warmCacheMs } from '../sessions/cache.js'
 import { appServer } from './appserver.js'
 import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CODEX } from './name.js'
@@ -55,6 +56,8 @@ export const codex: AgentAdapter = {
     return {
       cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveCodexBinary(env()), env()), () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
       mode: SESSION_MODE,
+      // GPT-5.6 and later keep a cache 30 minutes at least; the rollout does not say.
+      warmMs: () => warmCacheMs('30m'),
       env: envOf,
       launch: (home, start) => usage.session(home, () => cli.launch(home, start)),
       resume: (home, { sessionId }, start) => usage.session(home, () => cli.resume(home, sessionId, start)),

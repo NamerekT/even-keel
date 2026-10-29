@@ -9,6 +9,7 @@ import { TurnRegistry } from '../codex/turns.js'
 import { askCopilot, askCopilotToken } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
+import { warmCacheMs } from '../sessions/cache.js'
 import { CopilotCli, resolveCopilotBinary, SESSION_MODE } from './cli.js'
 import { copilotEnv, eventsFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
@@ -98,6 +99,8 @@ export const copilot: AgentAdapter = {
       // As a session runs: without it a binary answers with the newer version it updated itself to.
       version: () => cli.version({ ...env(), COPILOT_AUTO_UPDATE: 'false' }),
       keyUsage: true,
+      // A call without `cacheExpiresAt` (`mai-code-1.1-flash`) is taken for GPT's half hour.
+      warmMs: (cache) => warmCacheMs(cache?.ttl ?? '30m'),
       usage: async (home, at) => {
         const token = tokenOf(home.dir)
         if (token !== null) return askCopilotToken(token, at, timeoutMs)

@@ -1,15 +1,15 @@
 import type { ChainState } from '../chain/model.js'
-import type { CacheTtl, TurnSpend } from '../state.js'
-import { TTL_MS, type CacheWindow } from './transcript.js'
+import type { TurnSpend } from '../state.js'
+import { TTL_MS, type CacheTtl, type CacheWindow } from './transcript.js'
 import { isTransientError } from './transient.js'
 
 /** How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. */
-const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '5m': 60_000 }
+const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_000, '5m': 60_000 }
 /**
  * The pings a miss costs: a ping reads the context at ~0.1× the input price, a miss writes it again at 2× (an hour's
- * cache) or 1.25× (five minutes').
+ * cache) or 1.25× (five minutes', and GPT's half hour).
  */
-const BREAK_EVEN: Record<CacheTtl, number> = { '1h': 20, '5m': 12 }
+const BREAK_EVEN: Record<CacheTtl, number> = { '1h': 20, '30m': 12, '5m': 12 }
 /** A ping that read less of its prompt from the cache missed it. */
 const HIT_SHARE = 0.9
 export const KEEP_WARM_TICK_MS = 30_000

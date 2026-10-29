@@ -2,23 +2,17 @@ import type { TaskPlace } from '../git/types.js'
 import type { Language } from '../language.js'
 import { resetTimeOf } from '../limits/reset.js'
 import { fail } from '../notice/notice.js'
+import { WARM_CACHE_MS } from '../sessions/cache.js'
 import { fill } from '../sessions/prompt.js'
-import type { CacheTtl, FeedLine } from '../sessions/transcript.js'
+import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS, type HandoffReason } from './prompts.js'
 
 export type { HandoffReason } from './prompts.js'
 
-export const WARM_CACHE_MS = 55 * 60_000
-const WARM_SHORT_CACHE_MS = 4 * 60_000
 const HANDOFF_STEPS = 10
 const RESET_MARGIN_MS = 60_000
 const STALE_RESET_PAUSE_MS = 10 * 60_000
-
-/** How long after its last reply an API session's cache stays warm: an hour's cache as a subscription's, else five minutes. */
-export function warmCacheMs(ttl: CacheTtl | null): number {
-  return ttl === '1h' ? WARM_CACHE_MS : WARM_SHORT_CACHE_MS
-}
 
 export function resumePrompt(language: Language): string {
   return PROMPTS[language].resume
@@ -112,12 +106,14 @@ export interface HandoffSession {
   noChanges?: string | null
   /** When a keep-warm ping last read the session's cache (BTN-437); absent or `null` — none did. */
   warmedAt?: string | null
+  /** How long the cache stays warm after the last reply, by the session's agent (`Agent.warmMs`); absent — `WARM_CACHE_MS`. */
+  warmMs?: number
 }
 
-/** Whether the session's cache is still warm: an hour's cache since its last answer or a later keep-warm ping. */
-export function warmSince(session: HandoffSession, now: number, warmMs = WARM_CACHE_MS): boolean {
+/** Whether the session's cache is still warm: within its window since its last answer or a later keep-warm ping. */
+export function warmSince(session: HandoffSession, now: number): boolean {
   const moments = [session.lastReplyAt, session.warmedAt].filter((at) => at != null).map((at) => Date.parse(at))
-  return moments.length > 0 && now - Math.max(...moments) < warmMs
+  return moments.length > 0 && now - Math.max(...moments) < (session.warmMs ?? WARM_CACHE_MS)
 }
 
 export interface LimitedSession extends HandoffSession {
@@ -125,8 +121,6 @@ export interface LimitedSession extends HandoffSession {
   limit: { at: string; text: string; credit?: true }
   /** An overload refusal: retry the same session rather than waiting for an account's allowance. */
   transient?: true
-  /** How long the cache stays warm after the last reply (`warmCacheMs`); absent — `WARM_CACHE_MS`, a subscription's. */
-  warmMs?: number
 }
 
 export interface LimitHold {

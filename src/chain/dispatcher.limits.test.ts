@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { textNotice } from '../notice/notice.js'
 import { active, pause, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { type Dispatcher } from './dispatcher.js'
-import { warmCacheMs, type LimitedSession } from './relay.js'
+import { warmCacheMs } from '../sessions/cache.js'
+import type { LimitedSession } from './relay.js'
 
 describe('Dispatcher on a limit', () => {
   const limitedSession = (sessionId: string, at: string, lastReplyAt: string): LimitedSession => ({

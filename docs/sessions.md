@@ -352,7 +352,7 @@ The `cacheTtl` key (`"5m"` | `"1h"`, absent or `null` — the CLI decides; `/set
 
 ### Every agent's cache (BTN-560, research)
 
-The chain keeps one warm window, `WARM_CACHE_MS` (55 minutes, `src/chain/relay.ts`), for every agent, and only a Claude session on a key gets a shorter one from its transcript. How long each agent's cache really lives, by the providers' documentation and by Tally: the share of the prompt read from the cache by the first request after a pause, counted over every response in Tally up to 2026-10-29. Short of 3 minutes every agent reads 95–98%; the base an agent reads after any pause is its system prompt and tools, cached across sessions (8–12k tokens for Codex).
+The chain takes a session's cache for warm by its agent's window (`Agent.warmMs`, BTN-563; below the table). How long each agent's cache really lives, by the providers' documentation and by Tally: the share of the prompt read from the cache by the first request after a pause, counted over every response in Tally up to 2026-10-29. Short of 3 minutes every agent reads 95–98%; the base an agent reads after any pause is its system prompt and tools, cached across sessions (8–12k tokens for Codex).
 
 | Agent | Lifetime | Known from | In the transcript | Can be set |
 | --- | --- | --- | --- | --- |
@@ -364,11 +364,12 @@ The chain keeps one warm window, `WARM_CACHE_MS` (55 minutes, `src/chain/relay.t
 | OpenCode on ChatGPT, Copilot or Anthropic | the model's own: 30 minutes for GPT-5.6 and later, 5 minutes for Claude by default | the providers' documentation only; we have no such sessions | no | OpenAI models: the model's `options.promptCacheOptions` in `opencode.json` |
 | Copilot (GPT-6 Luna) | 30 minutes | the transcript: `usage.cacheExpiresAt` of every `session.usage_record` is 1800 s after the call (351 of 354 calls; the other three, `mai-code-1.1-flash`, carry none); Tally (Copilot CLI 1.0.98): 3–8 min 97–100% (4), 57 min 0% with the whole prompt written again | yes: `cacheExpiresAt` | no flag in 1.0.98 |
 
-What follows for the chain, left to its own tasks:
+What follows for the chain (BTN-563). Each lifetime is taken less a margin (`warmCacheMs`, `src/sessions/cache.ts`): an hour is 55 minutes, half an hour 25, five minutes 4. The adapter's `warmMs` gives the window from the cache the transcript last wrote and whether the account is on a key; `SessionMonitor.handoff` puts it into `HandoffSession.warmMs`, and every warm check reads it there — a limit or credit resume (`holdOf`, `relayStep`), the fixed-`main` resume and the pull request feedback (`warmSince` in `src/chain/mainfix.ts` and `src/chain/reviews.ts`). A session the monitor no longer sees, and an agent without `warmMs`, get `WARM_CACHE_MS`, 55 minutes.
 
-- Codex and Copilot sessions are taken for warm 25 minutes too long: a limit resume, a reply to a question or a review answered between 30 and 55 minutes after the last answer resumes a cold session, and GPT-5.6 and later bill a cache write at 1.25 times the input (OpenAI's guide; on a subscription it is the limit that pays). DeepSeek outlives the window, so for it 55 minutes only errs on the safe side.
-- A Codex, OpenCode or Copilot account with a key gets the 4-minute window of a Claude key in `SessionMonitor.limited`: their transcripts carry no `cache`, and `warmCacheMs(null)` is the short one.
-- The fixed-`main` and pull request handoffs (`warmSince` in `src/chain/mainfix.ts` and `src/chain/reviews.ts`) take 55 minutes for every session, a Claude key's one included.
+- Claude: 55 minutes on a subscription, as before (the overage's five minutes are not told apart); on a key by the transcript's `ttl`, 4 minutes when none is written yet.
+- Codex: 25 minutes on any account; the rollout does not say, so it is known in advance.
+- Copilot: by `usage.cacheExpiresAt` of the session's last own `session.usage_record`, its lifetime counted from the call's start (`timestamp` less `duration`) and named by the longest of `5m`, `30m`, `1h` it outlives (`ttlWithin`). A last call without the field leaves `cache` empty and the window 25 minutes. The cache is also what the page's cache clock shows for a Copilot session.
+- OpenCode: 55 minutes: DeepSeek outlives it, so it only errs on the safe side. Its ChatGPT, Copilot and Anthropic providers are not told apart; they wait for sessions of their own.
 
 Keep-warm (below) is Claude's only. Codex could have one: `codex exec --ephemeral fork <id> <prompt>` forks a session and keeps no files. OpenCode's `run --fork` writes a session of its own, to be deleted afterwards as `Agent.write` does, and DeepSeek does not need one. Copilot 1.0.98 has no fork, so a ping would write into the waiting session itself.
 
