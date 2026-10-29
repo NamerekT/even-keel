@@ -35,6 +35,12 @@ export class ModelCatalog {
 
   constructor(private readonly deps: ModelCatalogDeps) {}
 
+  /** A provider refused a model after the list had allowed it; read that account again next time. */
+  invalidate(account: string): void {
+    this.kept.delete(account)
+    this.reading.delete(account)
+  }
+
   /** The account's list; `null` — its agent has none or did not answer. */
   async of(home: AccountHome): Promise<ModelList | null> {
     const kept = this.kept.get(home.key)
@@ -67,8 +73,10 @@ export class ModelCatalog {
       },
     )
     const kept = read.then((list) => {
-      this.kept.set(home.key, { list, at: this.deps.now() })
-      this.reading.delete(home.key)
+      if (this.reading.get(home.key) === kept) {
+        this.kept.set(home.key, { list, at: this.deps.now() })
+        this.reading.delete(home.key)
+      }
       return list
     })
     this.reading.set(home.key, kept)

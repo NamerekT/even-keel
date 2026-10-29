@@ -25,6 +25,32 @@ function catalog(answers: (ModelList | Error)[], now = { at: 0 }) {
 }
 
 describe('ModelCatalog', () => {
+  it('does not restore a stale in-flight list after invalidation', async () => {
+    let answer!: (list: ModelList) => void
+    let calls = 0
+    const models = new ModelCatalog({
+      list: () => ++calls === 1 ? new Promise(resolve => { answer = resolve }) : Promise.resolve(FREE),
+      title: () => 'OpenCode', name: () => 'Demo', now: () => 0, log: () => {},
+    })
+    const old = models.of(home)
+    models.invalidate(home.key)
+    expect(await models.of(home)).toEqual(FREE)
+    answer({ models: ['openai/denied'], complete: true })
+    await old
+    expect(await models.of(home)).toEqual(FREE)
+    expect(calls).toBe(2)
+  })
+
+  it('drops a refused account catalogue without affecting another account', async () => {
+    const { models, asked } = catalog([FREE, FREE, { models: ['openai/allowed'], complete: true }])
+    await models.of(home)
+    await models.of({ ...home, key: 'other' })
+    models.invalidate(home.key)
+    expect(await models.of(home)).toMatchObject({ models: ['openai/allowed'] })
+    await models.of({ ...home, key: 'other' })
+    expect(asked).toEqual([home.key, 'other', home.key])
+  })
+
   it('refuses Copilot models on OpenCode before asking even an unavailable catalogue', async () => {
     const { models, asked } = catalog([])
     expect(await models.refusal(home, 'DEMO-1', 'github-copilot/gpt-6.1')).toEqual({ code: 'chain.opencodeCopilot', params: {} })

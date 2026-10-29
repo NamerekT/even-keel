@@ -531,6 +531,12 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
       if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcast('state', ctx.getState())
     },
     onChange: (views) => {
+      for (const view of views) {
+        if (view.apiErrorKind !== 'model') continue
+        if (ctx.sessions.some(before => before.sessionId === view.sessionId && before.apiErrorKind === 'model' && before.apiError === view.apiError)) continue
+        const account = ctx.agents.find(agent => agent.sessionId === view.sessionId)?.account
+        if (account !== undefined) ctx.models.invalidate(account)
+      }
       ctx.sessions = views
       ctx.logStartupDialogs(views)
       ctx.hub.broadcast('state', ctx.getState())

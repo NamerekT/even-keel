@@ -34,6 +34,11 @@ export class Handovers {
 
   /** The current task's session on each step: a move a service restart cut short, a limit, a checkpoint. */
   async follow(chain: ActiveChain, current: CurrentTask): Promise<void> {
+    const refusal = current.sessionId === null ? undefined : this.deps.modelRefusal?.(current.task, current.sessionId)
+    if (refusal !== undefined && !this.deps.midTurn(current.task)) {
+      this.halt(chain, refusal)
+      return
+    }
     if (!(await this.recover(chain, current))) return
     if (!(await this.followLimit(chain, current))) await this.followCheckpoint(chain, current)
   }
@@ -125,6 +130,7 @@ export class Handovers {
   }
 
   unanswered(current: CurrentTask): boolean {
+    if (current.sessionId !== null && this.deps.modelRefusal?.(current.task, current.sessionId) !== undefined) return false
     const paidWait = current.limit?.acted === null && current.limit.overage !== undefined
     if (!this.state.unattended || paidWait || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
     const session = this.deps.handoff(current.task)

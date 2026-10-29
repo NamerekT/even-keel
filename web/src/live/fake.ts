@@ -385,16 +385,17 @@ export function createFakeSource(search: string): LiveSource {
   if (current.state !== null && params.has('protection')) current.state = withProtection(current.state, params.get('protection')!)
   if (current.state !== null) current.state = withCliCopies(current.state, params)
   const active = current.state?.chain.active[0]
-  if (['apiError', 'apiRetry', 'transient', 'streamError'].includes(params.get('chain') ?? '') && current.state !== null && active) {
+  if (['apiError', 'apiRetry', 'transient', 'streamError', 'modelError'].includes(params.get('chain') ?? '') && current.state !== null && active) {
     const agent = params.get('agent') ?? 'codex'
     const transient = params.get('chain') === 'transient'
-    const diagnostic = params.get('chain') === 'streamError' ? notice('opencode.streamError', {}) : undefined
+    const modelError = params.get('chain') === 'modelError'
+    const diagnostic = modelError ? notice('chain.modelUnavailable', { model: 'openai/gpt-6.1-sol' }) : params.get('chain') === 'streamError' ? notice('opencode.streamError', {}) : undefined
     const error = transient || params.get('chain') === 'apiRetry' ? 'The model is at capacity. Try again later.' : 'The requested model is not supported.'
     const failed: SessionView = {
-      ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : transient ? 'waiting' : 'error'),
+      ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : transient || modelError ? 'waiting' : 'error'),
       agent: ['claude', 'codex', 'opencode', 'copilot'].includes(agent) ? agent : 'codex',
       model: null,
-      apiErrorKind: transient || params.get('chain') === 'apiRetry' ? 'transient' : 'error',
+      apiErrorKind: modelError ? 'model' : transient || params.get('chain') === 'apiRetry' ? 'transient' : 'error',
       apiError: error,
       ...(diagnostic === undefined ? {} : { apiErrorNotice: diagnostic }),
       asking: false,
@@ -410,7 +411,7 @@ export function createFakeSource(search: string): LiveSource {
     }
     current.state.sessions = current.state.sessions.map((each) => each.task === 'ABC-5' ? failed : each)
     const limit = transient ? { at: ago(0), account: failed.account, resetsAt: new Date(Date.now() + 15 * 60_000).toISOString(), lastReplyAt: ago(1), then: 'resume' as const, acted: null } : undefined
-    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: failed.sessionId, since: ago(42), ...(limit === undefined ? {} : { limit }) } }]
+    current.state.chain.active = [{ ...active, ...(modelError && { paused: true, error: diagnostic! }), current: { task: 'ABC-5', sessionId: failed.sessionId, since: ago(42), ...(limit === undefined ? {} : { limit }) } }]
   }
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
@@ -707,7 +708,7 @@ export function createFakeSource(search: string): LiveSource {
       if (sessionId.endsWith('999')) return null
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
-      if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
+      if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError', 'modelError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
       if (after === 0) return { lines: fakeTranscript(view?.ask ?? null), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },

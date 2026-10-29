@@ -21,7 +21,7 @@ import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
 /** `credit` — spent API credit; `spend` — a specified API spending cap, even when the CLI reports `unknown`. */
-export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'transient' | 'error'
+export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'transient' | 'model' | 'error'
 
 const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
   ['rate_limit', 'limit'],

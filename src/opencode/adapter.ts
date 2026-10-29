@@ -15,6 +15,7 @@ import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
 import { openCodeUsage } from './usage.js'
+import { filterChatGptModels } from './models.js'
 
 const HISTORY_FEED = 5_000
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
@@ -95,7 +96,7 @@ export const opencode: AgentAdapter = {
       // `run -m` takes nothing but `<provider>/<model>` of a provider the account is signed in to; an empty list says nothing.
       models: async (home) => {
         const models = await cli.models(home)
-        return { models, complete: models.length > 0 }
+        return { models: await filterChatGptModels(models, readAuth(home.dir), timeoutMs, line => log(`${line} (${home.key})`)), complete: models.length > 0 }
       },
       contextWindow: async (home, model) => windowOf(await readFile(join(home.dir, 'cache', 'opencode', 'models.json'), 'utf8').catch(() => ''), model),
     }
