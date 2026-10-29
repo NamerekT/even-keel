@@ -346,6 +346,28 @@ What the CLI 2.1.302 binary does, in order of precedence: the `FORCE_PROMPT_CACH
 
 The `cacheTtl` key (`"5m"` | `"1h"`, absent or `null` — the CLI decides; `/settings`, the Claude Code group, and a project's own value in its panel, BTN-187) goes into the chain sessions' `--settings` as `promptCacheTtl` (`chainSettings` in `src/tools/panel.ts`), on every launch. It is live: the next launch takes the new value. It matters mostly on a key, where a chain waiting for a reply longer than 5 minutes otherwise writes the whole context again. Seen live on a key with `1h` (CLI 2.1.310, Haiku, a `--bg` and an SDK chain session, 2026-10-25): every cache write of both was `ephemeral_1h_input_tokens`, none 5-minute.
 
+### Every agent's cache (BTN-560, research)
+
+The chain keeps one warm window, `WARM_CACHE_MS` (55 minutes, `src/chain/relay.ts`), for every agent, and only a Claude session on a key gets a shorter one from its transcript. How long each agent's cache really lives, by the providers' documentation and by Tally: the share of the prompt read from the cache by the first request after a pause, counted over every response in Tally up to 2026-10-29. Short of 3 minutes every agent reads 95–98%; the base an agent reads after any pause is its system prompt and tools, cached across sessions (8–12k tokens for Codex).
+
+| Agent | Lifetime | Known from | In the transcript | Can be set |
+| --- | --- | --- | --- | --- |
+| Claude `--bg` on a subscription | 1 hour (5 minutes in overage) | the CLI binary (above); Tally, CLI and the VS Code extension: 30–60 min 89–96% (78 pauses), 60–90 min 26–31% (5) | yes: `ephemeral_1h_input_tokens` | yes: `cacheTtl` |
+| Claude `--bg` on an API key | 5 minutes, 1 hour with `cacheTtl: 1h` | the CLI binary; seen live with `1h` (above) | yes | yes: `cacheTtl` |
+| Claude through the Agent SDK | as `--bg`: the same CLI | Tally: a 59-minute pause read 98% (one, a subscription) | yes | yes: `cacheTtl`, through `--settings` |
+| Codex, every model we run (GPT-5.6 and later) | 30 minutes at least; OpenAI may keep it longer | OpenAI's prompt caching guide; Tally (codex-cli 0.162–0.164, ChatGPT sign-in): up to 15 min 91–100% (11 pauses), 35 min one 91% and one 32%, 51–95 min 17–50% (4) | no: the rollout has `cached_input_tokens`, and `cache_write_input_tokens` is always 0 | no: Codex 0.164.0 sends no `prompt_cache_options`; the API's `ttl` is `30m` or `12h` |
+| OpenCode on OpenCode Zen (DeepSeek V4.1 Flash, Big Pickle) | DeepSeek: hours to days | DeepSeek's context caching guide; Tally (OpenCode 1.18.25): 6–45 min 93–99% (4) | no: `cache.read`/`cache.write` only | no |
+| OpenCode on ChatGPT, Copilot or Anthropic | the model's own: 30 minutes for GPT-5.6 and later, 5 minutes for Claude by default | the providers' documentation only; we have no such sessions | no | OpenAI models: the model's `options.promptCacheOptions` in `opencode.json` |
+| Copilot (GPT-6 Luna) | 30 minutes | the transcript: `usage.cacheExpiresAt` of every `session.usage_record` is 1800 s after the call (351 of 354 calls; the other three, `mai-code-1.1-flash`, carry none); Tally (Copilot CLI 1.0.98): 3–8 min 97–100% (4), 57 min 0% with the whole prompt written again | yes: `cacheExpiresAt` | no flag in 1.0.98 |
+
+What follows for the chain, left to its own tasks:
+
+- Codex and Copilot sessions are taken for warm 25 minutes too long: a limit resume, a reply to a question or a review answered between 30 and 55 minutes after the last answer resumes a cold session, and GPT-5.6 and later bill a cache write at 1.25 times the input (OpenAI's guide; on a subscription it is the limit that pays). DeepSeek outlives the window, so for it 55 minutes only errs on the safe side.
+- A Codex, OpenCode or Copilot account with a key gets the 4-minute window of a Claude key in `SessionMonitor.limited`: their transcripts carry no `cache`, and `warmCacheMs(null)` is the short one.
+- The fixed-`main` and pull request handoffs (`warmSince` in `src/chain/mainfix.ts` and `src/chain/reviews.ts`) take 55 minutes for every session, a Claude key's one included.
+
+Keep-warm (below) is Claude's only. Codex could have one: `codex exec --ephemeral fork <id> <prompt>` forks a session and keeps no files. OpenCode's `run --fork` writes a session of its own, to be deleted afterwards as `Agent.write` does, and DeepSeek does not need one. Copilot 1.0.98 has no fork, so a ping would write into the waiting session itself.
+
 ### Keep-warm (BTN-437, `src/sessions/keepwarm.ts`, `Agent.warm`)
 
 Modelled on Flow's `/keepwarm` (MIT). When to ping and what keeps it safe is in `docs/chain.md` ("A keep-warm ping"); here — what the ping is. It is a fork of the session that writes nothing: the session's transcript, process and question stay as they are.
