@@ -18,6 +18,7 @@ export const sessionEn = {
   },
   relayed: {
     limit: 'New after the limit',
+    credit: 'New after the key ran out of credit',
     mainFixed: 'New after main was fixed',
     review: 'New after the pull request feedback',
     returned: 'New after the task came back',
@@ -30,6 +31,7 @@ export const sessionEn = {
   },
   replacedRelay: {
     limit: 'hit the usage limit',
+    credit: 'the key ran out of credit',
     mainFixed: 'replaced after main was fixed',
     review: 'replaced after the pull request feedback',
     returned: 'replaced after the task came back',

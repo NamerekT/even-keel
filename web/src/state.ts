@@ -200,7 +200,8 @@ export function contextResets(rows: TaskSession[]): ContextResets {
   const resets = { checkpoint: 0, limit: 0, relay: 0, restart: 0, compactions: 0, total: 0 }
   for (const row of rows) {
     if (row.how === 'checkpoint' || row.how === 'restart') resets[row.how]++
-    else if (row.how === 'relay') resets[(row.cause ?? 'limit') === 'limit' ? 'limit' : 'relay']++
+    // A key out of credit is the API account's limit: counted with the limits.
+    else if (row.how === 'relay') resets[row.cause === undefined || row.cause === 'limit' || row.cause === 'credit' ? 'limit' : 'relay']++
     resets.compactions += row.compactions ?? 0
   }
   resets.total = resets.checkpoint + resets.limit + resets.relay + resets.restart + resets.compactions

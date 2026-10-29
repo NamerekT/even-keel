@@ -276,7 +276,7 @@ export class Handovers {
   private moved(chain: ActiveChain, current: CurrentTask, move: Move, sessionId: string, previous: string, at = current.starting!): void {
     const returned = move === 'returned' || move === 'unblocked' || move === 'unskipped'
     const reason = returned ? 'relay' : move
-    const cause = move === 'relay' ? 'limit' : returned ? move : move === 'review' && sessionId !== previous ? 'review' : undefined
+    const cause = move === 'relay' ? (current.limit?.credit ? 'credit' : 'limit') : returned ? move : move === 'review' && sessionId !== previous ? 'review' : undefined
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at

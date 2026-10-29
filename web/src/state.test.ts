@@ -1459,12 +1459,13 @@ describe('contextResets', () => {
       row('checkpoint', { compactions: 2 }),
       row('relay'),
       row('relay', { cause: 'limit' }),
+      row('relay', { cause: 'credit' }),
       row('relay', { cause: 'review' }),
       row('restart'),
       row('launch', { compactions: 1 }),
       row('manual'),
     ])
-    expect(resets).toEqual({ checkpoint: 2, limit: 2, relay: 1, restart: 1, compactions: 3, total: 9 })
+    expect(resets).toEqual({ checkpoint: 2, limit: 3, relay: 1, restart: 1, compactions: 3, total: 10 })
   })
 
   it('words the breakdown by the kinds there are, the compactions apart', () => {
