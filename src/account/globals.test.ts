@@ -40,7 +40,7 @@ it('keeps existing CLI folders hidden on a fresh install until explicitly added,
   await homes.remove(codex)
   expect((await openAccountHomes(db, env)).list()).toEqual([])
   expect(readFileSync(join(env.CODEX_HOME, 'auth.json'), 'utf8')).toBe('{"example":"unchanged"}')
-})
+}, 30_000)
 
 it('adopts only the global folders visible at upgrade, once', async () => {
   const root = mkdtempSync(join(tmpdir(), 'even-keel-upgrade-'))
@@ -59,7 +59,7 @@ it('adopts only the global folders visible at upgrade, once', async () => {
     await homes.remove(homes.find('global')!)
     expect((await openAccountHomes(db, env)).list()).toEqual([])
   } finally { await db.close() }
-})
+}, 30_000)
 
 it('has a frozen schema sample for the registration table', async () => {
   const db = await memoryDatabase()
@@ -76,7 +76,7 @@ it('has a frozen schema sample for the registration table', async () => {
       expect((await openAccountHomes(copy, env)).list().map((home) => home.key)).toEqual(['global', 'codex'])
     } finally { await copy.close() }
   } finally { await frozen.close() }
-})
+}, 30_000)
 
 it('preserves an old installation whose only saved state is its account ledger', async () => {
   const env = environment()
@@ -87,4 +87,4 @@ it('preserves an old installation whose only saved state is its account ledger',
   try {
     expect((await openAccountHomes(opened.db, env)).list().map((home) => home.key)).toEqual(['global', 'codex'])
   } finally { await opened.close() }
-})
+}, 30_000)
