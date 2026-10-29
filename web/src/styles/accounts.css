@@ -1,0 +1,458 @@
+.accounts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accounts__columns,
+.limits--bare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.accounts__columns {
+  padding: 0 0 4px;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+/* The drawer's two parts, "At work" and "Others", under quiet heads; the second names the column of numbers on the right. */
+.accounts__part {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  padding: 10px 0 2px;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.accounts__part:first-child {
+  padding-top: 0;
+}
+
+/* Over the numbers, which stand left of the hidden "Here" button. */
+.accounts__part-free {
+  margin-left: auto;
+  margin-right: calc(var(--move-width) + 6px);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* One plain row per account: no band, no tint — its colour is the dot before the name. */
+.accounts__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.accounts__item:first-child {
+  border-top: 0;
+}
+
+.accounts__item--off .accounts__dot {
+  opacity: 0.4;
+}
+
+.accounts__free {
+  flex: none;
+  color: var(--fg);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.accounts__free--warm {
+  color: var(--warn-fg);
+}
+
+.accounts__free--full {
+  color: var(--lamp-error);
+}
+
+.accounts__none {
+  align-self: flex-start;
+  color: var(--fg-muted);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.accounts__free.accounts__none {
+  align-self: auto;
+  text-decoration: none;
+}
+
+/* Moving a role here is offered only on the row pointed at or in focus, so a column of idle accounts reads as names and numbers. */
+.roles--bare {
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.accounts,
+.accounts__part {
+  --move-width: 64px;
+}
+
+.roles__move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--move-width);
+  padding: 1px 4px 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-13);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.accounts__item:hover .roles__move,
+.accounts__item:focus-within .roles__move,
+.roles__move[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.roles__move:enabled:hover,
+.roles__move[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.roles__move:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.roles__move:disabled {
+  cursor: default;
+}
+
+.roles__move .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-muted);
+}
+
+@media (hover: none) {
+  .roles__move {
+    opacity: 1;
+  }
+}
+
+.accounts__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--series);
+}
+
+.account-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.account-mark__agent {
+  display: inline-flex;
+  color: var(--series);
+}
+
+.account-mark__agent .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.9;
+}
+
+.account-mark > .icon,
+.account-mark--dot .account-mark__agent {
+  color: var(--fg-muted);
+}
+
+.account-mark--dot {
+  gap: 6px;
+}
+
+.account-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 1px 8px 1px 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--series) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--series) 16%, transparent);
+  color: var(--fg);
+  font-size: var(--text-12);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.account-tag__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-tag::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--series);
+}
+
+.accounts__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.accounts__email {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accounts__domain {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.accounts__item--off .accounts__email {
+  color: var(--fg-muted);
+}
+
+.limits--bare .meter {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.accounts__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.accounts__note--warn {
+  color: var(--warn-fg);
+}
+
+.accounts__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.accounts__all {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.button--small {
+  padding: 2px 10px;
+  font-size: var(--text-13);
+}
+
+.accounts__confirm {
+  align-self: center;
+  font-size: var(--text-13);
+}
+
+
+.account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account__device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account__device-code {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  font-family: var(--mono);
+  font-size: var(--text-24);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
+.account__input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-16);
+}
+
+.account__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.account__output summary {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  cursor: pointer;
+}
+
+.account__output pre {
+  margin: 6px 0 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .header__inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'nav aside';
+    min-height: 48px;
+  }
+
+  .header__nav {
+    align-items: center;
+  }
+
+  .header__aside {
+    gap: 8px;
+  }
+
+  .header__limits {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    justify-self: stretch;
+  }
+
+  .header__limits .limits {
+    gap: 2px;
+  }
+
+  .header__limits .meter {
+    gap: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .header__limits .meter__top {
+    display: none;
+  }
+
+  .header__limits .meter__bar {
+    height: 2px;
+    border-radius: 0;
+    background: var(--border);
+  }
+
+  .meter {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .waiting {
+    position: relative;
+    padding: 2px;
+  }
+
+  .waiting::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+
+  .waiting__label {
+    display: none;
+  }
+
+  .header__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .system-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .system-toggle__dot {
+    top: 10px;
+    right: 10px;
+  }
+}
+
+.menu-sheet {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px max(var(--gutter), env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-popover);
+}
+
+@media (max-width: 380px) {
+  .meter__reset {
+    display: none;
+  }
+}

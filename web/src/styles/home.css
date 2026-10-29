@@ -1,0 +1,400 @@
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card__bar {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.card__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--series);
+}
+
+.card__count {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.card__count strong {
+  color: var(--fg);
+}
+
+.card__task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: var(--text-14);
+}
+
+.card__task .lamp {
+  align-self: center;
+}
+
+.card__task--empty,
+.card__task-label {
+  color: var(--fg-muted);
+}
+
+/* An empty card's joke, still like a quote in the project's color, with the punchline in full ink like the home meme. */
+.card__quip {
+  margin: 0;
+  padding: 1px 0 1px 10px;
+  border-left: 3px solid var(--series);
+  color: var(--fg-muted);
+  font-size: var(--text-14);
+}
+
+.card__punchline {
+  color: var(--fg);
+}
+
+.card__call {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.card__task-label {
+  font-size: var(--text-12);
+}
+
+.card__task-id {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.card__task-title {
+  flex-basis: 100%;
+  padding-left: 18px;
+}
+
+/* Two lines at most, so the cards of a row keep one height; the whole title is in the tip. */
+.card__task-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card__task-title--cut {
+  position: relative;
+  z-index: 1;
+}
+
+.card__error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--error-bg);
+  color: var(--error-fg);
+  font-size: var(--text-13);
+}
+
+.card__wait {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: var(--text-13);
+}
+
+.card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.card__foot .button,
+.card .pull-fix,
+.card .notice-fix {
+  position: relative;
+  z-index: 1;
+}
+
+.card .pull-fix,
+.card .notice-fix {
+  align-self: flex-end;
+}
+
+/* A chart is a card (`.ui-card`) */
+
+.chart__total,
+.chart__key-count,
+.chart__axis,
+.chart__day {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__total {
+  font-size: var(--text-13);
+}
+
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-13);
+}
+
+/* Projects in even columns; the key, the name and the count share one baseline, the count is a plaque. */
+.chart__legend--projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 24px;
+}
+
+/* `overflow-wrap: normal` keeps the key whole: with the body's `anywhere` it shrank letter by letter before the name. */
+.chart__key {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--mono);
+  overflow-wrap: normal;
+}
+
+.chart__key .chart__swatch {
+  align-self: center;
+}
+
+/* A project of the config leads to its page; the key and its name keep the row's layout inside the link. */
+.chart__key-link {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.chart__key-link:hover {
+  text-decoration: underline;
+}
+
+.chart__key .project-name {
+  overflow: hidden;
+  margin-left: 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart__key .chart__key-count {
+  flex: none;
+  margin-left: 2px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--text-12);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+@supports (text-box: trim-both cap alphabetic) {
+  .chart__key .chart__key-count {
+    padding-block: calc((18px - 1cap) / 2);
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+.chart__plot {
+  display: flex;
+  gap: 8px;
+}
+
+.chart__axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  font-size: var(--text-11);
+  line-height: 1;
+  text-align: right;
+}
+
+.chart__columns {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.chart__empty {
+  position: absolute;
+  inset: 0 0 20px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.chart__column {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+
+.chart__column:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-small);
+}
+
+.chart__track {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  border-top: 1px solid var(--surface-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.chart__column:hover .chart__track,
+.chart__column:focus-visible .chart__track {
+  background: var(--surface-muted);
+}
+
+.chart__stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  width: min(24px, 70%);
+}
+
+.chart__segment {
+  min-height: 2px;
+  flex-basis: 0;
+  background: var(--series);
+}
+
+.chart__segment:last-child {
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+}
+
+.chart__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--text-11);
+  line-height: 1.3;
+}
+
+.chart__month {
+  font-size: var(--text-11);
+}
+
+.chart__tip {
+  position: absolute;
+  top: 4px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 132px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--text-13);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart__tip--right {
+  left: 50%;
+}
+
+.chart__tip--left {
+  right: 50%;
+}
+
+.chart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart__tip-count {
+  margin-left: auto;
+  padding-left: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.chart__table summary {
+  width: fit-content;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  cursor: pointer;
+}
+
+.chart__table-scroll {
+  margin-top: 8px;
+  overflow-x: auto;
+}
+
+.chart__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__table th,
+.chart__table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--surface-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chart__table th[scope='row'],
+.chart__table thead th:first-child {
+  text-align: left;
+  font-weight: 400;
+}
