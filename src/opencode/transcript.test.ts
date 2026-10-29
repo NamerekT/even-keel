@@ -131,6 +131,23 @@ describe('foldSession', () => {
     }
   })
 
+  it.each([
+    ['the message', 'You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.', undefined],
+    ['the response body', 'Request failed.', 'You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.'],
+    ['the response body before a transient message', 'Service unavailable.', 'You have reached your specified API usage limits.'],
+  ])('recognizes a spending cap from %s in stored steps and terminal errors', (_source, text, body) => {
+    const error = {
+      name: 'APIError',
+      data: { message: text, statusCode: 400, isRetryable: false, responseBody: JSON.stringify({ error: { message: body } }) },
+    }
+    const stored = foldSession([prompt, message('msg_02', 2, step({}, { error }))], [promptText])
+    const terminal = foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error }])
+    for (const summary of [stored, terminal]) {
+      expect(summary.apiError).toMatchObject({ kind: 'spend', text })
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'error', text })
+    }
+  })
+
   it('shows an error a turn ended on in its place, and once when a step holds it too', () => {
     const unknown = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
     const again = message('msg_03', 10, { role: 'user' })
