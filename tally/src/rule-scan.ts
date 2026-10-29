@@ -20,7 +20,7 @@ export interface RuleSource {
 
 export interface RuleScan {
   sources: RuleSource[]
-  /** The repositories git listed this run, as rule keys start (`repoTail`). */
+  /** Project roots listed by git, and global files/complete trees inspected, all in rule-key form. */
   listed: string[]
 }
 
@@ -32,17 +32,36 @@ export interface FileInfo {
 // Real rule files on disk: each account folder (account copies of junctions are skipped, the global folder
 // has the originals) and the main checkout of each project, listed by git so ignored caches are never walked.
 export async function ruleSources(homes: AccountHome[], projects: string[], home: string, log: (message: string) => void): Promise<RuleScan> {
-  const paths: string[] = [join(home, '.claude.json')]
+  const paths: string[] = []
   const listed: string[] = []
-  await walk(join(home, '.githooks'), false, paths)
+  const inspect = (path: string) => {
+    paths.push(path)
+    const file = ruleFileOf(path, home)
+    if (file !== null) listed.push(file.key)
+  }
+  inspect(join(home, '.claude.json'))
+  await walk(join(home, '.githooks'), false, paths, listed, '~/.githooks')
   for (const account of homes) {
-    paths.push(join(account.dir, 'CLAUDE.md'), join(account.dir, 'settings.json'))
-    if (!account.global) paths.push(join(account.dir, '.claude.json'))
-    for (const name of ['skills', 'hooks', 'agents']) await walk(join(account.dir, name), account.global, paths)
+    inspect(join(account.dir, 'CLAUDE.md'))
+    inspect(join(account.dir, 'settings.json'))
+    if (!account.global) inspect(join(account.dir, '.claude.json'))
+    for (const name of ['skills', 'hooks', 'agents']) {
+      const suffix = '/scan/SKILL.md'
+      const probe = ruleFileOf(join(account.dir, name, 'scan', 'SKILL.md'), home)
+      const key = probe?.key.startsWith('~/') ? probe.key.slice(0, -suffix.length) : null
+      await walk(join(account.dir, name), account.global, paths, listed, key)
+    }
     for (const slug of await names(join(account.dir, 'projects'))) {
       const memory = join(account.dir, 'projects', slug, 'memory')
       if (!account.global && (await isLink(memory))) continue
-      for (const file of await names(memory)) if (file.toLowerCase().endsWith('.md')) paths.push(join(memory, file))
+      try {
+        const files = await readdir(memory)
+        const probe = ruleFileOf(join(memory, 'MEMORY.md'), home)
+        if (probe?.key.startsWith('~/')) listed.push(probe.key.slice(0, -'/memory.md'.length))
+        for (const file of files) if (file.toLowerCase().endsWith('.md')) paths.push(join(memory, file))
+      } catch {
+        // An unreadable memory folder is not evidence of deleted files.
+      }
     }
   }
   for (const repo of projects) {
@@ -112,24 +131,38 @@ export function skillsOf(sources: RuleSource[]): Map<string, RuleFile> {
   return skills
 }
 
-async function walk(dir: string, followLinks: boolean, paths: string[]): Promise<void> {
+async function walk(dir: string, followLinks: boolean, paths: string[], listed: string[], key: string | null): Promise<boolean> {
   let entries
   try {
     entries = await readdir(dir, { withFileTypes: true })
   } catch {
-    return
+    return false
   }
+  let complete = true
   for (const entry of entries) {
     const path = join(dir, entry.name)
     let isDir = entry.isDirectory()
     if (entry.isSymbolicLink()) {
-      if (!followLinks) continue
-      isDir = (await stat(path).catch(() => null))?.isDirectory() ?? false
+      if (!followLinks) {
+        complete = false
+        continue
+      }
+      const target = await stat(path).catch(() => null)
+      if (target === null) {
+        complete = false
+        continue
+      }
+      isDir = target.isDirectory()
     }
     if (isDir) {
-      if (!SKIPPED_DIRS.has(entry.name)) await walk(path, followLinks, paths)
+      if (!SKIPPED_DIRS.has(entry.name)) {
+        const scanned = await walk(path, followLinks, paths, listed, key === null ? null : `${key}/${entry.name.toLowerCase()}`)
+        if (!scanned) complete = false
+      }
     } else paths.push(path)
   }
+  if (complete && key !== null) listed.push(key)
+  return complete
 }
 
 async function names(dir: string): Promise<string[]> {
