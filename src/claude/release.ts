@@ -48,12 +48,12 @@ export function claudeBinaryIn(folder: string): string {
 }
 
 /** Downloads `version` for this machine into `into`, checked against the manifest's size and sha256. */
-export async function fetchClaude(version: string, into: string): Promise<void> {
+export async function fetchClaude(version: string, into: string, progress?: import('../agent/download.js').DownloadProgress): Promise<void> {
   const platform = claudePlatform(process.platform, process.arch, isMusl())
   if (platform === null) throw new Error(`Claude Code has no build for ${process.platform}-${process.arch}`)
   const { binary, checksum, size } = manifestEntry(await fetchJson(`${RELEASES}/${version}/manifest.json`), version, platform)
   const file = join(into, binary)
-  const got = await downloadFile(`${RELEASES}/${version}/${platform}/${binary}`, file, 'sha256')
+  const got = await downloadFile(`${RELEASES}/${version}/${platform}/${binary}`, file, 'sha256', progress, size)
   if (got.bytes !== size || got.hex !== checksum) throw new Error(`${binary} of ${version}: ${got.bytes} bytes, sha256 ${got.hex}; the manifest says ${size}, ${checksum}`)
   if (process.platform !== 'win32') await chmod(file, 0o755)
 }

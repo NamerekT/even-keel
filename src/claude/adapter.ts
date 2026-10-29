@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { Transport } from '../account/transport.js'
 import type { AgentAdapter } from '../agent/contract.js'
-import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
+import { cliCopy } from '../agent/copy.js'
+import { PinnedCli } from '../agent/pinned.js'
 import { parseUsage } from '../limits/usage.js'
 import { findBinary } from '../paths.js'
 import { DEFAULT_LANGUAGE } from '../settings/defaults.js'
@@ -11,7 +12,7 @@ import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile 
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
 import { TranscriptTail } from '../sessions/tail.js'
-import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
+import { addMarketplace, updateMarketplace, ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
 import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
 import { agentsFallback } from './instructions.js'
@@ -33,15 +34,16 @@ const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'] as c
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport, unattended, language, onLimits }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, transport, unattended, language, onLimits }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
       version,
       binary: claudeBinaryIn,
-      fetch: (into) => fetchClaude(version, into),
+      fetch: (into, progress) => fetchClaude(version, into, progress),
       log,
       onReady: onCliChange,
-      retryMs: PIN_RETRY_MS,
+      onChange: onCliProgress ?? onCliChange,
+      onFailure: onCliFailure,
     })
     const pinned = () => (env().EVEN_KEEL_CLAUDE_BIN || !checkedCli() ? undefined : copy.path())
     const envOf = (home: AccountHome) => claudeEnv(env(), home, pinned() !== undefined)
@@ -57,10 +59,11 @@ export const claude: AgentAdapter = {
             dir: join(workDir, 'cli', CLAUDE_SDK),
             version: sdkVersion,
             binary: sdkModuleIn,
-            fetch: (into) => fetchSdk(sdkVersion, into),
+            fetch: (into, progress) => fetchSdk(sdkVersion, into, progress),
             log,
             onReady: onCliChange,
-            retryMs: PIN_RETRY_MS,
+            onChange: onCliProgress ?? onCliChange,
+            onFailure: onCliFailure,
           })
     const sdk = new SdkSessions({
       dir: join(workDir, CLAUDE_SDK),
@@ -81,6 +84,9 @@ export const claude: AgentAdapter = {
       return false
     }
     return {
+      updateMarketplace: (home, marketplace, timeout) => updateMarketplace(envOf(home), marketplace, timeout, bin()),
+      addMarketplace: (home, dir, timeout) => addMarketplace(envOf(home), dir, timeout, bin()),
+      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveClaudeBinary(env()), env()), () => !!env().EVEN_KEEL_CLAUDE_BIN, 280 * 1_000_000, sdkCopy),
       mode: SESSION_MODE,
       env: envOf,
       launch: async (home, start) => {

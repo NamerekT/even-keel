@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { requestCli } from '../layout/CliCopies.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
@@ -197,7 +198,11 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   className="settings__text"
                   value={agent}
                   options={providerOptions().map((option) => (option.value === shared ? { ...option, label: t.wizard.sharedAgent(option.label) } : option))}
-                  onChange={(value) => set({ provider: value === shared ? '' : value })}
+                  onChange={(value) => {
+                    set({ provider: value === shared ? '' : value })
+                    const copy = state.cliCopies?.[value]
+                    if (copy?.source === 'checked' && copy.status !== 'ready') requestCli(value)
+                  }}
                 />
               }
             >

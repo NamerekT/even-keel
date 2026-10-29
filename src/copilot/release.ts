@@ -23,9 +23,9 @@ export function copilotBinaryIn(folder: string, platform: NodeJS.Platform = proc
  * Downloads the platform's npm package of `version` and unpacks it into `into`, checked against its sha512. The binary
  * runs a newer version the CLI updated itself to (`%LOCALAPPDATA%\copilot\pkg` on Windows) unless `COPILOT_AUTO_UPDATE=false`.
  */
-export async function fetchCopilot(version: string, into: string): Promise<void> {
+export async function fetchCopilot(version: string, into: string, progress?: import('../agent/download.js').DownloadProgress): Promise<void> {
   const name = copilotPackage(process.platform, process.arch, isMuslLinux())
   if (name === null) throw new Error(`GitHub Copilot has no build for ${process.platform}-${process.arch}`)
-  await fetchNpmPackage(name, version, into)
+  await fetchNpmPackage(name, version, into, progress)
   if (!existsSync(copilotBinaryIn(into))) throw new Error(`${name}@${version} has no ${copilotBinaryIn('')}`)
 }

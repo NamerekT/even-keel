@@ -17,6 +17,8 @@ const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
 const ACCOUNTS: NoticeFix = { to: 'accounts' }
 
 const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
+  'agent.copyMissing': { to: 'shared', tab: 'models' },
+  'agent.copyFailed': { to: 'shared', tab: 'models' },
   'git.noBranch': { to: 'project', tab: 'repo' },
   'git.wrongBranch': { to: 'project', tab: 'repo' },
   'forward.foreign': { to: 'project', tab: 'repo' },

@@ -19,6 +19,7 @@ import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fake
 import { withCarry } from './fakeCarry.js'
 import { withCompletionFailure } from './fakeCompletion.js'
 import { withProtection } from './fakeProtection.js'
+import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
 import { withMilestonePreview } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
@@ -405,6 +406,7 @@ export function createFakeSource(search: string): LiveSource {
     if (!params.has('profiles')) current.state.profiles = fakeProfiles('gitlab-ci')
   }
   if (current.state !== null && params.has('protection')) current.state = withProtection(current.state, params.get('protection')!)
+  if (current.state !== null) current.state = withCliCopies(current.state, params)
   const active = current.state?.chain.active[0]
   if (['apiError', 'apiRetry', 'transient', 'streamError'].includes(params.get('chain') ?? '') && current.state !== null && active) {
     const agent = params.get('agent') ?? 'codex'
@@ -671,6 +673,11 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       const next = fakeCommand(state, name, body, launches)
+      if (name === 'cli/download') setTimeout(() => {
+        if (current.state === null) return
+        current = { ...current, state: finishFakeCli(current.state, String(body.agent)) }
+        notify()
+      }, 3000)
       const started = (name === 'account/renew' || name === 'account/add') && next.account.login !== state.account.login ? next.account.login : null
       const waiting = started === null ? next : withAccount(next, { ...next.account, login: { ...started, urls: [], deviceCode: null, output: '' } })
       const stages = name === 'chain/start' || name === 'chain/restart' ? startStages(state, next, String(body.project)) : [waiting]

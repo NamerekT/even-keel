@@ -31,6 +31,8 @@ export interface AgentAdapter {
 }
 
 export interface AgentOptions {
+  onCliFailure?: () => Promise<void> | void
+  onCliProgress?: () => void
   /** Read at each call: `.env` changes on the fly. */
   env: () => NodeJS.ProcessEnv
   /** How long one call of the agent's CLI may take. */
@@ -161,6 +163,9 @@ export interface SessionTail {
 }
 
 export interface Agent {
+  cli?: ReturnType<typeof import('./copy.js').cliCopy>
+  updateMarketplace?(home: AccountHome, marketplace: string, timeoutMs: number): Promise<void>
+  addMarketplace?(home: AccountHome, dir: string, timeoutMs: number): Promise<void>
   /** The permission mode chain sessions run in, as the tools panel shows it. */
   readonly mode: string
   /** The environment the agent's commands run in for an account: the base plus what points the agent at the folder. */

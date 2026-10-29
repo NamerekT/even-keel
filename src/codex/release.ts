@@ -31,10 +31,10 @@ export function codexBinaryIn(folder: string, target: CodexTarget, platform: Nod
 }
 
 /** Downloads the platform's npm package of `version` (Apache-2.0) and unpacks it into `into`, checked against its sha512. */
-export async function fetchCodex(version: string, into: string): Promise<void> {
+export async function fetchCodex(version: string, into: string, progress?: import('../agent/download.js').DownloadProgress): Promise<void> {
   const target = codexTarget(process.platform, process.arch)
   if (target === null) throw new Error(`Codex has no build for ${process.platform}-${process.arch}`)
   const full = `${version}-${target.suffix}`
-  await fetchNpmPackage(PACKAGE, full, into)
+  await fetchNpmPackage(PACKAGE, full, into, progress)
   if (!existsSync(codexBinaryIn(into, target))) throw new Error(`${PACKAGE}@${full} has no ${codexBinaryIn('', target)}`)
 }

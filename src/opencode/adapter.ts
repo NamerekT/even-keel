@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
+import { cliCopy } from '../agent/copy.js'
 import { isMuslLinux } from '../agent/npm.js'
-import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
+import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { findBinary } from '../paths.js'
 import { OpenCodeCli, resolveOpenCodeBinary, SESSION_MODE } from './cli.js'
@@ -28,7 +29,7 @@ const CHECKED = '1.18.25'
 export const opencode: AgentAdapter = {
   title: 'OpenCode',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const copy =
       openCodePackage(process.platform, process.arch, isMuslLinux()) === null
         ? undefined
@@ -36,15 +37,17 @@ export const opencode: AgentAdapter = {
             dir: join(workDir, 'cli', OPENCODE),
             version,
             binary: (folder) => openCodeBinaryIn(folder),
-            fetch: (into) => fetchOpenCode(version, into),
+            fetch: (into, progress) => fetchOpenCode(version, into, progress),
             log,
             onReady: onCliChange,
-            retryMs: PIN_RETRY_MS,
+            onChange: onCliProgress ?? onCliChange,
+            onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => openCodeEnv(env(), home.dir)
     const bin = () => resolveOpenCodeBinary(env(), env().EVEN_KEEL_OPENCODE_BIN || !checkedCli() ? undefined : copy?.path())
     const cli = new OpenCodeCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, OPENCODE)))
     return {
+      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveOpenCodeBinary(env()), env()), () => !!env().EVEN_KEEL_OPENCODE_BIN, 170 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),

@@ -2,9 +2,11 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent,
 import { useLocation, useNavigate } from 'react-router'
 import type { AccountLogin, AccountView } from '../../../src/account/model.js'
 import { addDepth, addOf, dirty, freshKeys, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
-import { CLI_MISSING, cliMissing, deviceLogin, PROVIDERS, type Provider } from '../accounts.js'
+import { cliMissing, deviceLogin, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { useLive } from '../live/context.js'
+import { CliDownloadDialog } from './CliCopies.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
@@ -44,7 +46,12 @@ export function useOpenAdd(): (provider: Provider | null) => void {
  * so a reload and the browser's Back keep it; what is typed lives here, so stepping back and forth keeps it too.
  */
 export function AddAccountDialog({ account }: { account: AccountView }) {
-  const at = addOf(new URLSearchParams(useLocation().search))
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { state } = useLive()
+  const at = addOf(new URLSearchParams(location.search))
+  const copy = at?.provider ? state?.cliCopies?.[at.provider] : undefined
+  if (at?.provider && copy && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system)) return <CliDownloadDialog key={at.provider} provider={at.provider} stay onClose={() => void navigate({ pathname: location.pathname, search: withoutAdd(location.search) }, { replace: true })} />
   return at === null ? null : <AddDialog account={account} at={at} />
 }
 
@@ -297,15 +304,14 @@ function ProviderPick({ account, onPick }: { account: AccountView; onPick: (prov
               key={provider}
               type="button"
               className="add-package__kind"
-              aria-disabled={missing || undefined}
-              onClick={() => !missing && onPick(provider)}
+              onClick={() => onPick(provider)}
             >
               <span className="add-package__kind-icon">
                 <AgentIcon agent={provider} />
               </span>
               <span className="add-package__kind-title">{t.account.agents[provider]}</span>
               {missing && <span className="tag account-add__missing">{t.account.cliNotFound}</span>}
-              <span className="add-package__kind-hint">{missing ? say({ code: CLI_MISSING[provider], params: {} }) : t.account.providerHints[provider]}</span>
+              <span className="add-package__kind-hint">{t.account.providerHints[provider]}</span>
             </button>
           )
         })}

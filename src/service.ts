@@ -22,7 +22,7 @@ import { sessionBase, sessionSecrets, settingsSecrets } from './agent/env.js'
 import { ModelCatalog } from './agent/models.js'
 import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
-import { addMarketplace, updateMarketplace } from './claude/cli.js'
+import { copies } from './agent/copies.js'
 import { CLAUDE } from './claude/name.js'
 import { untrustedStart } from './claude/trust.js'
 import { CODEX } from './codex/name.js'
@@ -328,8 +328,8 @@ const packages: Packages = new Packages({
     return server === undefined ? undefined : { server, required: !briefOn(project) }
   },
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
-  updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
-  addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),
+  updateMarketplace: (marketplace) => agentOf(homes.global).updateMarketplace!(homes.global, marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
+  addMarketplace: (dir) => agentOf(homes.global).addMarketplace!(homes.global, dir, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
   poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, project, configStore.current.trackers[project]!, configStore.current.feeds[project]),
   oauth: (project, server, url) => profiles.gateway(serverProfile(profiles.current(), project, configStore.current.trackers[project]!, configStore.current.feeds[project] ?? [], server)?.id, server, url),
@@ -366,7 +366,9 @@ const runtimes = new Map<string, Agent>(
       workDir: stateDir,
       checkedCli: () => configStore.current.cli[name] !== 'system',
       log: (line) => console.log(line),
-      onCliChange: () => void cliVersions.check(),
+      onCliChange: () => { void cliVersions.check(); dispatcher.check(); hub.broadcast('state', getState()) },
+      onCliFailure: () => { configStore.saveCli(name, 'system') },
+      onCliProgress: () => hub.broadcast('state', getState()),
       transport: (home): string | null => transportOf(home.agent, configStore.current.execution[CLAUDE], account.apiKey(home.key)),
       unattended: () => configStore.current.unattended,
       language: () => configStore.current.language ?? promptLanguage(),
@@ -399,6 +401,8 @@ const sayBlankedSecrets = (home: AccountHome) => {
 }
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
 const launchIn = async (home: AccountHome, start: SessionStart, project: string | undefined) => {
+  const blocked = cliCopies.blocked(home.agent)
+  if (blocked) throw new NoticeError(blocked)
   if (project !== undefined) await protectionAudit.check(project)
   await requireModel(home, start)
   if (home.agent === CLAUDE && start.settings !== undefined) sayBlankedSecrets(home)
@@ -411,6 +415,8 @@ const launchIn = async (home: AccountHome, start: SessionStart, project: string 
   }
 }
 const resumeIn = async (home: AccountHome, session: SessionHandle, start: SessionStart) => {
+  const blocked = cliCopies.blocked(home.agent)
+  if (blocked) throw new NoticeError(blocked)
   await requireModel(home, start)
   return agentOf(home).resume(home, session, start)
 }
@@ -610,7 +616,7 @@ const cliVersions = new VersionWatcher({
     [...runtimes].flatMap(([name, agent]) => {
       const version = agent.version?.bind(agent)
       if (version === undefined) return []
-      return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version }]
+      return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), pending: () => agent.cli?.view().status === 'downloading' }]
     }),
   intervalMs: CLI_VERSION_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
@@ -630,6 +636,10 @@ const daemons = new DaemonRefresh({
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
+
+const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source),
+  () => { dispatcher.check(); hub.broadcast('state', getState()); void account.refresh() },
+  async () => { await cliVersions.check(); await account.refresh() })
 
 const secrets = new Secrets({
   catalog: secretCatalog(),
@@ -1111,7 +1121,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     return { sessionId, fallback }
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-  blocked: (project, task) => profileBlock(project) ?? pullBlock(project) ?? launchBlock(account.view, choiceFor(project, task).account),
+  blocked: (project, task) => profileBlock(project) ?? pullBlock(project) ?? cliCopies.blocked(choiceFor(project, task).provider) ?? launchBlock(account.view, choiceFor(project, task).account),
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
@@ -1528,6 +1538,7 @@ const getState = (): EvenKeelState => ({
   tallyHealth: tally.health(),
   updates: { ...releasesView(), ...updater.view() },
   cliVersions: [...cliVersions.view(), ...daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
+  cliCopies: cliCopies.view(),
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
     task,
@@ -1555,6 +1566,7 @@ const chainControl: ChainControl = new Proxy(dispatcher, {
 })
 
 let server = createEvenKeelServer({
+  cli: cliCopies,
   hub,
   publicDir: join(root, 'dist', 'web'),
   getState,

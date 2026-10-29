@@ -203,6 +203,7 @@ export interface TallyControl {
 }
 
 export interface ServerDeps {
+  cli?: { download(agent: string): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
   hub: EventHub
   publicDir: string
   getState: () => unknown
@@ -299,6 +300,10 @@ const COMMANDS: Record<string, Command> = {
   'account/add': ({ account }, body) =>
     account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'), body.method === undefined ? undefined : textOf(body.method, 'method')),
   'account/discover': ({ account }, body) => account.discoverGlobal(textOf(body.agent, 'agent')),
+  'cli/download': ({ cli }, body) => cli?.download(textOf(body.agent, 'agent')),
+  'cli/system': ({ cli }, body) => cli?.system(textOf(body.agent, 'agent')),
+  'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
+  'cli/check': ({ cli }) => cli?.check(),
   'account/global': ({ account }, body) => account.useGlobal(textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(

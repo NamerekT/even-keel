@@ -1,5 +1,9 @@
 # What Even Keel does
 
+## CLI copies
+
+**CLI version → Checked** runs sessions on Even Keel's own checked copy. A missing copy asks for consent with its version and approximate size when you choose a provider or add an account. Cancel keeps the choice; the chain waits. Blue progress bands under the header and on the agent card show downloaded bytes. **Installed** uses the CLI you manage. A failed download switches that provider to Installed and offers a retry; without a CLI, the card shows a copyable installation command and **Check again**. See [setup](setup.md#the-clis-it-depends-on).
+
 ## Project page legend
 
 Open **?** above the side panel for a legend grouped by location: the header, project row, tabs, task card and session strip. Its queue and account samples match the header. It explains task states separately from priority numbers, dependency counters, the cache ring, release-carry agents and context usage. State marks have different shapes as well as colours. Fix and release-carry rows show their state beside the row key.

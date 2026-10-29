@@ -14,6 +14,7 @@ import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
 import { addOf, legacyAdd } from './accountAdd.js'
 import { AddAccountDialog } from './layout/AddAccountDialog.js'
+import { CliConsent } from './layout/CliCopies.js'
 import { AccountsPage } from './pages/Accounts.js'
 import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
@@ -81,6 +82,7 @@ export function App() {
       {/* The add dialog walks its own sign-in in place. */}
       {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
       {state !== null && <AddAccountDialog account={state.account} />}
+      <CliConsent />
       <UpdateWindow />
       <ToastStack>
         <UpdateProgressToast />

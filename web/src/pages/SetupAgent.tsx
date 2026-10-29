@@ -1,11 +1,12 @@
 import { CLI_SOURCES, PINNED_PROVIDERS } from '../../../src/agent/providers.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { CLI_MISSING, PROVIDERS, readinessOf, type Provider } from '../accounts.js'
+import { PROVIDERS, readinessOf, type Provider } from '../accounts.js'
 import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
 import { AgentIcon } from '../layout/accountParts.js'
 import { useOpenAdd } from '../layout/AddAccountDialog.js'
+import { CliActions, requestCli } from '../layout/CliCopies.js'
 import { useCommand } from '../live/useCommand.js'
 import { Segmented } from '../stats/common.js'
 import { CheckIcon } from '../ui/icons.js'
@@ -25,21 +26,25 @@ export function AgentStep({ state, save, sending }: { state: EvenKeelState; save
       <p className="setup__lead">{t.setup.agentLead}</p>
       <ul className="setup-agents">
         {PROVIDERS.map((each) => (
-          <AgentCard key={each} state={state} provider={each} chosen={each === provider} disabled={sending} onPick={() => void save({ provider: each })} />
+          <AgentCard key={each} state={state} provider={each} chosen={each === provider} disabled={sending} onPick={async () => {
+            if (await save({ provider: each }) && each === provider) {
+              const copy = state.cliCopies?.[each]
+              if (copy?.source === 'checked' && copy.status !== 'ready') requestCli(each)
+            }
+          }} />
         ))}
       </ul>
       {PINNED_PROVIDERS.includes(provider) && (
         <Row
           className="setup__row"
           label={t.setup.cli}
-          // The download is agreed to here: its size is in the hint.
           hint={provider === CLAUDE ? `${cliHint} ${t.setup.cliSize}` : cliHint}
           control={
             <Segmented
               label={t.setup.cli}
               options={CLI_SOURCES.map((each): [string, string] => [each, t.setup.cliSources[each] ?? each])}
               value={shared.cli[provider] ?? CLI_SOURCES[0]!}
-              onChange={(value) => void save({ cli: { ...shared.cli, [provider]: value } })}
+              onChange={(value) => { void save({ cli: { ...shared.cli, [provider]: value } }) }}
             />
           }
         />
@@ -58,16 +63,14 @@ interface CardProps {
 
 /** The pick is the card's button stretched over it; the account's own button sits above it. */
 function AgentCard({ state, provider, chosen, disabled, onPick }: CardProps) {
-  const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')
-  const missing = ready.state === 'cliMissing'
   return (
-    <li className={missing ? 'setup-agent setup-agent--off' : 'setup-agent'} aria-current={chosen ? 'true' : undefined}>
-      <button type="button" className="setup-agent__pick" aria-pressed={chosen} disabled={disabled || missing} onClick={onPick}>
+    <li className="setup-agent" aria-current={chosen ? 'true' : undefined}>
+      <button type="button" className="setup-agent__pick" aria-pressed={chosen} disabled={disabled} onClick={onPick}>
         <span className="setup-agent__icon">
           <AgentIcon agent={provider} />
         </span>
         <span className="setup-agent__name">{t.account.agents[provider]}</span>
-        <span className="setup-agent__hint">{missing ? say({ code: CLI_MISSING[provider], params: {} }) : t.account.providerHints[provider]}</span>
+        <span className="setup-agent__hint">{t.account.providerHints[provider]}</span>
       </button>
       {chosen && <ChosenMark />}
       <div className="setup-agent__account">
@@ -79,6 +82,16 @@ function AgentCard({ state, provider, chosen, disabled, onPick }: CardProps) {
 
 /** The account of the provider's pool entry: its name with a check, or the one button that makes it so. */
 function AccountLine({ state, provider }: { state: EvenKeelState; provider: Provider }) {
+  const openAdd = useOpenAdd()
+  const copy = state.cliCopies?.[provider]
+  if (copy && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system)) return <CliActions provider={provider} onDownload={() => openAdd(provider)} />
+  return <>
+    {copy?.status === 'failed' && <CliActions provider={provider} onDownload={() => openAdd(provider)} />}
+    <ReadyAccountLine state={state} provider={provider} />
+  </>
+}
+
+function ReadyAccountLine({ state, provider }: { state: EvenKeelState; provider: Provider }) {
   const { send, sending, failure } = useCommand()
   const openAdd = useOpenAdd()
   const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')

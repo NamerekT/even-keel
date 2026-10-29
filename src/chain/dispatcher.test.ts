@@ -437,6 +437,19 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
   })
 
+  it('waits for an explicitly requested CLI copy and goes on when it is ready', async () => {
+    const options: SetupOptions = { blocked: notice('agent.copyMissing', { title: 'Codex' }) }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    options.blocked = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+  })
+
   it('resumes into the PR mode pause rather than refusing, and goes on once PR mode has a target', async () => {
     const notReady = notice('review.notReady', { project: 'ABC' }, { cause: notice('review.noRemote', { project: 'ABC' }) })
     const options: SetupOptions = {}

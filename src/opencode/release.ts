@@ -22,9 +22,9 @@ export function openCodeBinaryIn(folder: string, platform: NodeJS.Platform = pro
 }
 
 /** Downloads the platform's npm package of `version` (MIT) and unpacks it into `into`, checked against its sha512. */
-export async function fetchOpenCode(version: string, into: string): Promise<void> {
+export async function fetchOpenCode(version: string, into: string, progress?: import('../agent/download.js').DownloadProgress): Promise<void> {
   const name = openCodePackage(process.platform, process.arch, isMuslLinux())
   if (name === null) throw new Error(`OpenCode has no build for ${process.platform}-${process.arch}`)
-  await fetchNpmPackage(name, version, into)
+  await fetchNpmPackage(name, version, into, progress)
   if (!existsSync(openCodeBinaryIn(into))) throw new Error(`${name}@${version} has no ${openCodeBinaryIn('')}`)
 }
