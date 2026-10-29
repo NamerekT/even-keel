@@ -4,6 +4,8 @@ Reference for sessions: installing and running the service on different systems.
 
 The Tally stats collector runs inside the service (every 5 minutes, in its own thread), so no separate scheduler or cron task is needed.
 
+`src/service.ts` owns initialization order and live state. Its `service/` modules wire accounts and agents, chains and worktrees, trackers and intake, the HTTP/state view, stats and lifecycle. Their context uses live getters (and setters for mutable state), so callbacks see later-initialized components and the latest sessions, config and listening address; the modules import the context type only.
+
 ## What applies on the fly
 
 A restart is needed only for a new version of Even Keel (BTN-130). The service looks at the settings in its database (`ConfigStore`, `src/config-store.ts`) and at `.env` (`EnvFile`, `src/env-file.ts`), each every 2 s, and applies a change at once:
