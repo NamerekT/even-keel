@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { CliVersionBanner } from './CliVersionBanner.js'
+import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
 import { Header } from './Header.js'
 import { LinkBanner } from './LinkBanner.js'
@@ -30,6 +31,7 @@ export function AppHeader() {
         <LinkBanner />
         <UsageBanner />
         <CliVersionBanner />
+        <CliCopiesBanner />
         <ConfigBanner />
         <UnattendedBanner />
         <PackagesBanner />

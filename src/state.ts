@@ -491,6 +491,7 @@ export interface EvenKeelState {
   updates: UpdatesView
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
+  cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */

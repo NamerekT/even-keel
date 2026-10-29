@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { downloadFile, fetchJson } from './download.js'
+import { downloadFile, fetchJson, type DownloadProgress } from './download.js'
 
 const run = promisify(execFile)
 
@@ -23,10 +23,10 @@ export function npmDist(meta: unknown, version: string): { tarball: string; sha5
 }
 
 /** Downloads `name@version` from the npm registry and unpacks it into `into`, checked against the registry's sha512. */
-export async function fetchNpmPackage(name: string, version: string, into: string): Promise<void> {
+export async function fetchNpmPackage(name: string, version: string, into: string, progress?: DownloadProgress): Promise<void> {
   const { tarball, sha512 } = npmDist(await fetchJson(`${REGISTRY}/${name}/${version}`), version)
   const file = join(into, TARBALL)
-  const got = await downloadFile(tarball, file, 'sha512')
+  const got = await downloadFile(tarball, file, 'sha512', progress)
   if (got.base64 !== sha512) throw new Error(`${name}@${version}: sha512 ${got.base64}, the registry says ${sha512}`)
   // A relative archive and the folder as the cwd: GNU tar takes `C:` in a path for a remote host.
   await run(tarBinary(), ['-xzf', TARBALL, '--strip-components=1'], { cwd: into, timeout: UNPACK_TIMEOUT_MS, windowsHide: true })

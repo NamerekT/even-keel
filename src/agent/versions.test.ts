@@ -51,6 +51,20 @@ function watcher(agents: VersionedAgent[]) {
 }
 
 describe('VersionWatcher', () => {
+  it('retries pruning on every sweep and hides an unchecked version during download', async () => {
+    let pending = false
+    let pruned = 0
+    const entry = { ...agent('codex', 'codex-cli 0.160.0'), pending: () => pending, prune: async () => { pruned++ } }
+    const { watch } = watcher([entry])
+    await watch.check()
+    expect(watch.view()).toHaveLength(1)
+    pending = true
+    await watch.check()
+    expect(watch.view()).toEqual([])
+    expect(pruned).toBe(2)
+    pending = false
+    expect(watch.view()).toHaveLength(1)
+  })
   it('shows a CLI whose version differs from the checked one, older or newer, and not one that matches', async () => {
     const { watch, log, changes } = watcher([agent('claude', '2.1.303 (Claude Code)'), agent('codex', 'codex-cli 0.162.1')])
     await watch.check()

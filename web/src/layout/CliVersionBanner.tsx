@@ -16,7 +16,7 @@ export function CliVersionBanner() {
   const { state } = useLive()
   const [dismissed, setDismissed] = useState(readDismissed)
   const [open, setOpen] = useState(false)
-  const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed)
+  const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed && state?.cliCopies?.[each.agent]?.status !== 'downloading')
   if (shown.length === 0) return <Banner />
 
   const dismiss = () => {

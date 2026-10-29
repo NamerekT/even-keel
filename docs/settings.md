@@ -49,7 +49,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
 | `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`) |
-| `cli.<provider>` | G | — | page, hand | `checked` for every provider: `claude`, `codex`, and `opencode` and `copilot` since BTN-347 (BTN-250, `docs/sessions.md`) |
+| `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`) | `checked` for every provider; explicit download consent, chain waits for the copy; `system` uses the CLI installed by the user (`docs/sessions.md`) |
 | `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<pattern>` | G | — | page, hand | `{}` — ordered prompts matching `provider \| model` (`*` means any string, case ignored); a bare provider includes its CLI default. Schema v17 and database step 16 migrate legacy model keys to `* \| <model>` |
 | `language` | G | — | page, hand | `null` (the browser's) |

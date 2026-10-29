@@ -2,8 +2,9 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
+import { cliCopy } from '../agent/copy.js'
 import { isMuslLinux } from '../agent/npm.js'
-import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
+import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { askCopilotToken } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
@@ -30,7 +31,7 @@ const CHECKED = '1.0.98'
 export const copilot: AgentAdapter = {
   title: 'GitHub Copilot',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const copy =
       copilotPackage(process.platform, process.arch, isMuslLinux()) === null
         ? undefined
@@ -38,10 +39,11 @@ export const copilot: AgentAdapter = {
             dir: join(workDir, 'cli', COPILOT),
             version,
             binary: (folder) => copilotBinaryIn(folder),
-            fetch: (into) => fetchCopilot(version, into),
+            fetch: (into, progress) => fetchCopilot(version, into, progress),
             log,
             onReady: onCliChange,
-            retryMs: PIN_RETRY_MS,
+            onChange: onCliProgress ?? onCliChange,
+            onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => copilotEnv(env(), home.dir)
     const bin = () => resolveCopilotBinary(env(), env().EVEN_KEEL_COPILOT_BIN || !checkedCli() ? undefined : copy?.path())
@@ -49,6 +51,7 @@ export const copilot: AgentAdapter = {
     const cli = new CopilotCli(bin, timeoutMs, envOf, registry)
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
+      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveCopilotBinary(env()), env()), () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),

@@ -2,8 +2,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
+import { cliCopy } from '../agent/copy.js'
 import { runWithInput } from '../agent/oneturn.js'
-import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
+import { PinnedCli } from '../agent/pinned.js'
 import { findBinary } from '../paths.js'
 import { appServer } from './appserver.js'
 import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
@@ -26,7 +27,7 @@ const CHECKED = '0.164.0'
 export const codex: AgentAdapter = {
   title: 'Codex',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const target = codexTarget(process.platform, process.arch)
     const copy =
       target === null
@@ -35,10 +36,11 @@ export const codex: AgentAdapter = {
             dir: join(workDir, 'cli', CODEX),
             version,
             binary: (folder) => codexBinaryIn(folder, target),
-            fetch: (into) => fetchCodex(version, into),
+            fetch: (into, progress) => fetchCodex(version, into, progress),
             log,
             onReady: onCliChange,
-            retryMs: PIN_RETRY_MS,
+            onChange: onCliProgress ?? onCliChange,
+            onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => codexEnv(env(), home)
     const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
@@ -49,6 +51,7 @@ export const codex: AgentAdapter = {
       refresh: (home) => appServer(bin(), [], workDir, envOf(home), [['account/read', { refreshToken: true }]]),
     })
     return {
+      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveCodexBinary(env()), env()), () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => usage.session(home, () => cli.launch(home, start)),

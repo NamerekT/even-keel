@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 0d | [CLI copy consent and recovery](#cli-copy-consent-and-recovery) | All providers using Checked, especially new installations | Unexpected downloads, a chain starting before its copy is ready, or failure recovery losing the source choice |
 | 0c | [Explicit global account registration](#explicit-global-account-registration) | New installations and upgrades with existing CLI sign-ins | A hidden account appears automatically, an upgrade loses one, or removal signs the CLI out |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on Linux and macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
@@ -217,6 +218,10 @@ Anthropic sometimes resets a five-hour window or all limits of an account ahead 
 Responses in fast mode are recorded (`speed = fast`), but none have appeared in the data, so `/stats` prices them as normal responses and their cost is understated (`docs/tally.md`).
 
 ## Sessions
+
+### CLI copy consent and recovery
+
+BTN-544 makes binary resolution passive, adds explicit consent and byte progress, holds chain launches until a Checked copy is ready, and persists Installed on failure. Automated tests cover passive adapter probes, waiting/recovery, source changes, byte counts and retrying locked-folder cleanup. Browser fixtures cover consent, progress, failure, installation hints and Add account continuation. Real downloads and interrupted downloads under the service, the fallback with and without a system CLI, config-import/run-label selection and cleanup after an old Claude daemon releases its executable (including `claude-sdk`) still need the sandbox check of BTN-546. Run it with isolated state/account folders; verify network requests and source persistence through restart. Until then a download or lock failure may require selecting Installed or explicitly retrying from the page.
 
 ### Silent turn recovery (BTN-496)
 

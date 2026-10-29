@@ -9,7 +9,7 @@ import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
-import { connectionOf } from '../accounts.js'
+import { CLI_MISSING, connectionOf } from '../accounts.js'
 import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -21,6 +21,8 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
+import { CommandBlock } from '../ui/blocks.js'
+import { INSTALL } from './cliText.js'
 import { keyWord, ReplaceKeyDialog } from './ReplaceKeyDialog.js'
 import './accountAdd.css'
 
@@ -500,9 +502,11 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   if (login.error !== null) {
     // Refused for its plan: the CLI's output ends in a sign-in that went through, so it says when it was written.
     const refused = planRefused(login)
+    const missing = Object.entries(CLI_MISSING).find(([, code]) => code === login.error?.code)?.[0]
     return (
       <>
-        <p className="notice notice--error">{say(login.error)}</p>
+        <p className="notice notice--error">{missing ? say(login.error).split('\n\n')[0] : say(login.error)}</p>
+        {missing && <CommandBlock command={INSTALL[missing]!} />}
         <div className="account__actions">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send(...retryBody(login))}>
             {refused ? t.addAccount.otherAccount : t.common.retry}

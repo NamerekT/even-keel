@@ -8,6 +8,8 @@ export interface VersionedAgent {
   title: string
   checked: string
   installed(): boolean
+  prune?(): Promise<void>
+  pending?(): boolean
   /** What `<cli> --version` prints. */
   version(): Promise<string>
 }
@@ -48,6 +50,7 @@ export class VersionWatcher {
     try {
       let changed = false
       for (const agent of this.options.agents()) {
+        await agent.prune?.()
         const version = agent.installed() ? await this.ask(agent) : null
         if (version === undefined || version === (this.installed.get(agent.name) ?? null)) continue
         if (version === null) this.installed.delete(agent.name)
@@ -85,7 +88,8 @@ export class VersionWatcher {
     return undefined
   }
 
-  private viewOf({ name, title, checked }: VersionedAgent): CliVersionView | null {
+  private viewOf({ name, title, checked, pending }: VersionedAgent): CliVersionView | null {
+    if (pending?.()) return null
     const installed = this.installed.get(name)
     if (installed === undefined || installed === checked) return null
     return { agent: name, account: null, installed, checked, notice: notice('agent.uncheckedVersion', { title, installed, checked }) }

@@ -559,10 +559,10 @@ export class Dispatcher {
 
   /** A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12). */
   private cleared(chain: ActiveChain): boolean {
-    if (chain.error?.code !== 'review.notReady' || this.deps.blocked(chain.project) !== undefined) return false
+    if (!['review.notReady', 'agent.copyMissing'].includes(chain.error?.code ?? '') || this.deps.blocked(chain.project, chain.current?.task ?? this.nextOf(chain.project, this.lists.tasks.get(chain.project) ?? [])) !== undefined) return false
     chain.paused = false
     chain.error = null
-    this.deps.log(`chain: ${chain.project} goes on: PR mode has where to open pull requests`)
+    this.deps.log(`chain: ${chain.project} goes on: its launch requirement is ready`)
     this.deps.save(this.state)
     return true
   }
@@ -573,7 +573,7 @@ export class Dispatcher {
    */
   private admit(chain: ActiveChain): void {
     const reason = this.deps.blocked(chain.project)
-    if (reason !== undefined && reason.code !== 'review.notReady') throw new NoticeError(reason)
+    if (reason !== undefined && !['review.notReady', 'agent.copyMissing'].includes(reason.code)) throw new NoticeError(reason)
     chain.paused = reason !== undefined
     chain.error = reason ?? null
     if (reason !== undefined) this.deps.log(`chain: ${chain.project} paused: ${englishOf(reason)}`)

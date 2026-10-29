@@ -138,6 +138,11 @@ export class ConfigStore {
     this.write(withExecution(this.raw(), provider, mode))
   }
 
+  saveCli(provider: string, source: 'checked' | 'system'): void {
+    const form = this.view().shared
+    this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)
+  }
+
   /** Writes the given switches of `updates`, by the same rule as `saveProject`. */
   saveUpdates(patch: Partial<Pick<UpdateSettings, 'check' | 'notify'>>): void {
     this.write(withUpdates(this.raw(), patch))

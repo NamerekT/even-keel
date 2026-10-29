@@ -1,0 +1,10 @@
+.cli-copy { min-width: 0; }
+.cli-copy p { margin: 0 0 var(--space-8); }
+.cli-copy__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.cli-copy__progress { display: grid; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-control); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--fg); }
+.cli-copy progress { width: 100%; height: 8px; accent-color: var(--accent); }
+.cli-copy__bytes { font-size: var(--text-12); color: var(--fg-muted); }
+.banner__inner.cli-copy__banner { display: grid; gap: var(--space-12); width: 100%; }
+.banner.banner--info { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); color: var(--fg); }
+.add-package .cli-copy__actions { justify-content: flex-end; }
+.cli-copy__actions .button--primary { order: 1; }
