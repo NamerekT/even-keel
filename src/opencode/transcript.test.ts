@@ -106,6 +106,24 @@ describe('foldSession', () => {
     expect(foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error: quota }]).apiError).toMatchObject({ kind: 'credit' })
   })
 
+  it.each([
+    ['the provider response', 'You have no credits remaining. Add credits to continue.', { type: 'insufficient_quota', code: 'credit_balance_exhausted' }],
+    ['the message alone', 'You have no credits remaining. Add credits to continue.', undefined],
+    ['the quota type in the response body', 'Something went wrong.', { type: 'insufficient_quota' }],
+    ['the balance code before a transient message', 'Service unavailable.', { code: 'credit_balance_exhausted' }],
+  ])('recognizes exhausted credits from %s before retryable HTTP 429', (_source, text, body) => {
+    const error = {
+      name: 'APIError',
+      data: { message: text, statusCode: 429, isRetryable: true, responseBody: JSON.stringify({ error: body }) },
+    }
+    const stored = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error }))], [promptText])
+    const terminal = foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error }])
+    for (const summary of [stored, terminal]) {
+      expect(summary.apiError).toMatchObject({ kind: 'credit', text })
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'error', text })
+    }
+  })
+
   it('shows an error a turn ended on in its place, and once when a step holds it too', () => {
     const unknown = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
     const again = message('msg_03', 10, { role: 'user' })
