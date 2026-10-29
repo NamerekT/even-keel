@@ -44,7 +44,7 @@ Red is only an error or a limit; amber is a warning or a wait for the user; blue
 | `--text-24` | 600, tabular | the big number of a tile |
 | `--text-16` | 600 | a card's title |
 | `--text-14` | 400 / 600 | controls, a row's label, the value of a fact |
-| `--text-13` | 400 | secondary text, a tile's label, a hint under a field |
+| `--text-13` | 400 | secondary text, a tile's label, a hint under a field, error and warning bands |
 | `--text-12` | 400 / 600 | chips and tags, table heads |
 | `--text-11` | 400, uppercase, `letter-spacing: 0.04em` | a section label inside a card, a fact's label |
 

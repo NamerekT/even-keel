@@ -171,6 +171,12 @@
   color: var(--error-fg);
 }
 
+.ui-band--warn,
+.ui-band--error,
+.notice {
+  font-size: var(--text-13);
+}
+
 .ui-band__text {
   display: flex;
   flex: 1 1 20em;
