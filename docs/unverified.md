@@ -309,7 +309,7 @@ Replacing an API account's key (BTN-418, `docs/accounts.md`, "The key's organiza
 
 ### An API key out of credit (BTN-165)
 
-The refusal was seen live on 2026-10-29 (CLI 2.1.310, an Agent SDK session on a key at zero, [verified log](verified.md#claude-limits)): the CLI wrote `error: "billing_error"`, status 400 and "Credit balance is too low", Even Keel held the session as `credit` (`docs/chain.md`, exception 1), and switching the task's account handed it over to a new session. The check that the credit is back — one output token through `/v1/messages`, an answer of 2xx — was never run against a topped-up key: if it never says 2xx, the chain keeps waiting. **Workaround:** press "New session" on the task after the top-up, or switch the account.
+The refusal was seen live on 2026-10-29 (CLI 2.1.310, an Agent SDK and a `--bg` session on a key at zero, [verified log](verified.md#claude-limits)): the CLI wrote `error: "billing_error"`, status 400 and "Credit balance is too low", Even Keel held the session as `credit` (`docs/chain.md`, exception 1), and switching the task's account handed it over to a new session. The check that the credit is back — one output token through `/v1/messages`, an answer of 2xx — was never run against a topped-up key: if it never says 2xx, the chain keeps waiting. **Workaround:** press "New session" on the task after the top-up, or switch the account.
 
 ### The chat's turn line while an answer is delivered to Codex or after the chain stopped (BTN-188)
 
