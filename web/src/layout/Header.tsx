@@ -5,7 +5,6 @@ import { SETUP } from '../pages/setupSteps.js'
 import { projectOfPath } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
-import { Limits } from './Limits.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
 import { GearMenu, Waiting } from './Status.js'
@@ -69,13 +68,13 @@ export function Header() {
                 </div>
               </div>
             )}
-            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} />}
+            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} levels={project === undefined ? undefined : live.account.headerLevels?.[project]} />}
             <GearMenu now={now} />
           </div>
         )}
         {live !== null && narrow && (
           <div className="header__limits">
-            <Limits limits={live.limits} now={now} />
+            <AccountBlock account={live.account} limits={live.limits} now={now} levels={project === undefined ? undefined : live.account.headerLevels?.[project]} compact />
           </div>
         )}
       </div>

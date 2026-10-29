@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 46a | [Header account after a labelled task closes](#header-account-after-a-labelled-task-closes-btn-539) | project chains using run labels | the header may lag behind the next launch choice |
 | 0d | [CLI copy consent and recovery](#cli-copy-consent-and-recovery) | All providers using Checked, especially new installations | Unexpected downloads, a chain starting before its copy is ready, or failure recovery losing the source choice |
 | 0c | [Explicit global account registration](#explicit-global-account-registration) | New installations and upgrades with existing CLI sign-ins | A hidden account appears automatically, an upgrade loses one, or removal signs the CLI out |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on Linux and macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
@@ -193,6 +194,10 @@ If it is wrong: `npx even-keel` fails or the service does not start. Install fro
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
 
 ## The page
+
+### Header account after a labelled task closes (BTN-539)
+
+The server selector and fake page cover a saved session account, changed project settings, paused/stopped chains, fallback, deduplication, skipped/held tasks and the next ordered task after Done. The real service has not been watched while a labelled task closes and the next labelled task waits to start. Check that the header switches immediately on the tracker update, before launch, and keeps the current session's original folder after a settings change. **Workaround:** read the session's account and the project's Providers and models settings until this live check passes.
 
 ### The wizard's trust check
 

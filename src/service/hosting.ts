@@ -5,6 +5,7 @@ import { userInfo } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { answers } from '../account/network.js'
+import { headerLevels } from '../account/header-levels.js'
 import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
@@ -74,6 +75,9 @@ type HostingContext = Pick<ServiceContext,
   | 'forwards'
   | 'getState'
   | 'homes'
+  | 'owners'
+  | 'agents'
+  | 'hasAccount'
   | 'hub'
   | 'inHomes'
   | 'launches'
@@ -125,7 +129,7 @@ type HostingContext = Pick<ServiceContext,
 >
 
 export function wireGetState(ctx: HostingContext): () => EvenKeelState {
-  return (): EvenKeelState => ({
+  const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>): EvenKeelState => ({
     protection: ctx.protectionAudit.view,
     startedAt: ctx.startedAt,
     projects: Object.keys(ctx.configStore.current.projects),
@@ -137,7 +141,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       active: ctx.dispatcher.state.active,
       parallel: ctx.configStore.current.parallel,
       queue: ctx.dispatcher.state.queue,
-      projects: ctx.dispatcher.orders(),
+      projects: orders,
       skipped: ctx.dispatcher.state.skipped,
       leftovers: ctx.dispatcher.state.leftovers,
     },
@@ -152,7 +156,19 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     ),
     limits: ctx.limits.limits(ctx.activeAccount()),
     usage: ctx.limits.usage(ctx.activeAccount()),
-    account: ctx.account.view,
+    account: {
+      ...ctx.account.view,
+      headerLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, headerLevels({
+        shared: runSettings(ctx.configStore.current, undefined),
+        project: runSettings(ctx.configStore.current, project),
+        tasks: ctx.tasksByProject.get(project) ?? [],
+        order: orders[project]?.order ?? [],
+        current: ctx.dispatcher.state.active.find((chain) => chain.project === project)?.current ?? null,
+        holding: [...(ctx.dispatcher.state.skipped[project] ?? []), ...(orders[project]?.waiting ?? [])],
+        sessionAccount: (sessionId) => ctx.agents.find((entry) => entry.sessionId === sessionId)?.account ?? ctx.owners.of(sessionId),
+        hasAccount: ctx.hasAccount,
+      })])),
+    },
     trackers: ctx.trackers.views(),
     trackerUrls: {
       default: ctx.trackers.setupOf(null)?.issueUrl(null) ?? null,
@@ -205,6 +221,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     changelogs: ctx.changelogs.writtenTasks(),
     forwards: ctx.forwards.view(),
   })
+  return () => view(ctx.dispatcher.orders())
 }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {

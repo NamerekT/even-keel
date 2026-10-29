@@ -4,6 +4,8 @@ Reference for sessions: the interface, translation, config reloading and fake st
 
 ## Interface
 
+- The header account chip on `/p/<id>` follows the current session's saved account, otherwise the next launch choice even while stopped or paused. The server builds `AccountView.headerLevels` (`src/account/header-levels.ts`) through `runChoice`, with skipped and held tasks passed over by `nextTask`. It sends at most three distinct accounts: the task's override, the project's default and the shared default. An inherited default is labelled Even Keel. Every other route shows only the shared account. `AccountLevels` is read-only, uses one expanded card and two compact rows, and has no links, buttons or nested tips. A cascade adds an account-coloured chip border and stack count; the phone chip keeps the tightest window. The full accounts drawer is unchanged.
+
 - React + Vite in `web/`, built into `dist/web`, which the server serves; for client routes the server answers `index.html`.
 - The client takes state types from `src/state.ts` — only types there, no `node:*`.
 - A project page is `/p/<id>`, the project's GUID (BTN-132): links are built by `projectPath(project)` and the route is read back by `projectOfPath(state, param)` (`web/src/state.ts`). An older `/p/<KEY>` link is replaced by the id route of the first project of the key, with its search and hash (`ProjectRoute` in `web/src/App.tsx`).
@@ -211,6 +213,8 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 The project notice states are on `/p/ABC?forward=warnings`: a carry conflict above five cleanup warnings. Use `warnings-agent`, `warnings-waiting` or `warnings-push` for a sixth, informational warning; `warnings-held` for a held carry; `warnings-long` for a long project label; `warning` for one cleanup warning; `empty` for none. These fixtures live in `web/src/live/fakeCarry.ts` and support the existing dismiss and resolve commands. Combine with `chain=later` for an ordering error above them.
 
 ## Screenshots (`npm run shot`)
+
+Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.
 
