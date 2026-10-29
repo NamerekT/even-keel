@@ -2,6 +2,8 @@
 
 ## CLI copies
 
+During first-run setup, CLI downloads and sign-in state appear on the agent cards. System warnings about CLI versions and usage limits appear after setup. Usage warnings name each affected account in a shared or project account pool, including accounts of other providers; accounts that need sign-in show that on their card instead.
+
 **CLI version → Checked** runs sessions on Even Keel's own checked copy. A missing copy asks for consent with its version and approximate size when you choose a provider or add an account. Cancel keeps the choice; the chain waits. Blue progress bands under the header and on the agent card show downloaded bytes. **Installed** uses the CLI you manage. A failed download switches that provider to Installed and offers a retry; without a CLI, the card shows a copyable installation command and **Check again**. See [setup](setup.md#the-clis-it-depends-on).
 
 ## Project page legend

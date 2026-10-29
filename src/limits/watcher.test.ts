@@ -12,7 +12,7 @@ const LIMITS: UsageAnswer = {
 function watcherOf(
   answers: (() => UsageAnswer)[],
   online: () => boolean = () => true,
-  accounts: { ready: () => boolean; apiKey: () => boolean } = { ready: () => true, apiKey: () => false },
+  accounts: { ready: () => boolean; apiKey: () => boolean; needsLogin?: () => boolean } = { ready: () => true, apiKey: () => false },
 ) {
   const errors: string[] = []
   const asked: string[] = []
@@ -32,6 +32,7 @@ function watcherOf(
     accessExpired: () => false,
     ready: accounts.ready,
     apiKey: accounts.apiKey,
+    needsLogin: accounts.needsLogin ?? (() => false),
     onChange: () => {},
     onError: (error) => errors.push(String(error)),
   })
@@ -51,6 +52,36 @@ describe('LimitsWatcher', () => {
   afterEach(() => {
     vi.clearAllTimers()
     vi.useRealTimers()
+  })
+
+  it('does not ask a signed-out account, and starts polling after sign-in', async () => {
+    let needsLogin = true
+    const { watcher, asked, errors, poll } = watcherOf([() => LIMITS], () => true, {
+      ready: () => true, apiKey: () => false, needsLogin: () => needsLogin,
+    })
+    await poll()
+    expect(asked).toEqual([])
+    expect(errors).toEqual([])
+    needsLogin = false
+    await poll()
+    expect(asked).toEqual(['global'])
+    expect(watcher.usage('global').state).toBe('ok')
+  })
+
+  it('hides and forgets an unreadable poll when the account needs sign-in', async () => {
+    let needsLogin = false
+    const unread: UsageAnswer = { kind: 'unknown', reason: { code: 'usage.noSession', params: {} } }
+    const { watcher, asked, poll } = watcherOf([() => unread], () => true, {
+      ready: () => true, apiKey: () => false, needsLogin: () => needsLogin,
+    })
+    await poll()
+    expect(watcher.usage('global').state).toBe('unread')
+    needsLogin = true
+    expect(watcher.usage('global').state).toBe('waiting')
+    await poll()
+    needsLogin = false
+    expect(watcher.usage('global').state).toBe('waiting')
+    expect(asked).toEqual(['global'])
   })
 
   it('shows a failed /usage call only when the next poll fails too', async () => {

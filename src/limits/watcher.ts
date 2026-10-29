@@ -22,6 +22,8 @@ export interface LimitsWatcherOptions {
   ready: () => boolean
   /** An API account has no usage windows: it is not polled and shows no limits. */
   apiKey: (account: string) => boolean
+  /** A signed-out folder is not asked for limits; its account card already asks for sign-in. */
+  needsLogin: (account: string) => boolean
   onChange: () => void
   onError: (error: unknown) => void
 }
@@ -64,6 +66,7 @@ export class LimitsWatcher {
   }
 
   usage(account: string): UsageHealth {
+    if (this.options.needsLogin(account) || this.options.apiKey(account)) return WAITING
     return this.usageOff ?? this.accounts.get(account)?.health ?? WAITING
   }
 
@@ -120,7 +123,7 @@ export class LimitsWatcher {
 
   /** True when an account was skipped because its provider did not answer. */
   private async pollAll(): Promise<boolean> {
-    const homes = this.options.homes().filter((home) => !this.options.apiKey(home.key) && this.options.usage(home) !== undefined)
+    const homes = this.options.homes().filter((home) => !this.options.needsLogin(home.key) && !this.options.apiKey(home.key) && this.options.usage(home) !== undefined)
     const keys = new Set(homes.map((home) => home.key))
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
     let skipped = false
@@ -137,6 +140,7 @@ export class LimitsWatcher {
   }
 
   private async poll(home: AccountHome): Promise<void> {
+    if (this.options.needsLogin(home.key)) return
     const account = this.of(home.key)
     const at = new Date().toISOString()
     let answer: UsageAnswer
