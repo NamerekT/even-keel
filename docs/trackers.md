@@ -66,6 +66,10 @@ The optional `TaskSource.relabel(id, { add, remove })` returns the saved label n
 
 Fixtures cover all five adapters, case matching, missing definitions, pagination, clearing labels, failures, service state and HTTP validation. Live checks with each provider remain in [unverified.md](unverified.md#writing-task-labels-btn-507). Forgejo is not registered as a task tracker yet; its adapter is separate work.
 
+### Assigning experiment break labels (BTN-505)
+
+`npm run break-labels -- [--dry-run] <project key or GUID> ...` is a separate script, using the installation's database settings and profiles. A non-unique key is refused with the matching GUIDs. `src/stats/break-labels.ts` selects compaction for even task numbers and handoff for odd ones, including backlog and parents but excluding Won/Lost. It re-reads each task, preserves any existing break label (even both or a mismatch), and adds a missing label through `TaskSource.relabel`. JSON lines carry UTC time, project GUID, task ID/number, expected and actual labels and action. No page or service feature is added. The [preregistered protocol](posts/compaction-ab.md) defines analysis, deviations and an optional five-minute Windows schedule; the user registers it. The source checkout's dependencies are required.
+
 ## Profiles (BTN-200, `src/profiles/`)
 
 The profile dialog's primary action is **Check and save**: it checks new or changed values, then saves in the same operation. **Check** alone remains available without saving. A fresh check is reused; a duplicate warning from an automatic check stops the first save, and a second press with unchanged values accepts it. Errors stay in the dialog. Fields are inert until the operation ends, and a suggested name is sent with the first save unless the user supplied one.

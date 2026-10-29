@@ -61,6 +61,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira, Linear and GitHub profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37g | [Tracker call diagnostics](#tracker-call-diagnostics) | projects with slow tracker calls | the log may not explain a timeout; inspect the tracker and network directly |
 | 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly, GitHub, GitLab, Linear and Jira profiles | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
+| 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
@@ -146,6 +147,10 @@ and use disposable targets when checking native rules.
 ### API spending cap recovery
 
 The organization's actual refusal was seen on Claude CLI 2.1.310 on 2026-10-25: HTTP 400, `error: unknown`, "reached your specified API usage limits", and an explicit UTC date of renewed access. Parsing that refusal, waiting until its date, and early recovery on a successful key check are covered by tests; the panel and account card were checked on fake states. A real chain has not yet been left through the reset or a raised cap. The phrase "specified workspace API usage limits" is accepted defensively but has not been seen in a live refusal. If its actual wording differs or recovery fails, switch to an available account, or raise the cap and start a new session. Check both automatic recovery paths on a test project before relying on them unattended.
+
+### Scheduled break-label assignment
+
+The five-minute Windows Task Scheduler registration in [the experiment protocol](posts/compaction-ab.md) has not been installed or executed by a scheduler. Assignment logic has unit tests; the first live tracker run is recorded separately. A scheduler may use a different identity, Node path, working directory or data folder, or lack access to the state database. Check its first two runs, exit codes and append-only log before relying on it. **Workaround:** run `npm run break-labels -- BTN` manually from the installation's source checkout and retain its output. Other operating systems' schedulers have not been checked either.
 
 ## Platforms
 
