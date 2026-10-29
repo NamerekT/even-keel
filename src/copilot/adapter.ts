@@ -14,6 +14,7 @@ import { COPILOT } from './name.js'
 import { copilotBinaryIn, copilotPackage, fetchCopilot } from './release.js'
 import { CopilotTail } from './tail.js'
 import { foldEvents } from './transcript.js'
+import { withTurnError } from './errors.js'
 
 const HISTORY_FEED = 5_000
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
@@ -44,7 +45,8 @@ export const copilot: AgentAdapter = {
           })
     const envOf = (home: AccountHome) => copilotEnv(env(), home.dir)
     const bin = () => resolveCopilotBinary(env(), env().EVEN_KEEL_COPILOT_BIN || !checkedCli() ? undefined : copy?.path())
-    const cli = new CopilotCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, COPILOT)))
+    const registry = new TurnRegistry(join(workDir, COPILOT))
+    const cli = new CopilotCli(bin, timeoutMs, envOf, registry)
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
       mode: SESSION_MODE,
@@ -53,11 +55,12 @@ export const copilot: AgentAdapter = {
       resume: (home, { sessionId }, start) => cli.resume(home, sessionId, start),
       stop: (_home, { sessionId }) => cli.stop(sessionId),
       sessions: (home) => cli.sessions(home),
-      tail: (home, agent) => new CopilotTail(home.dir, agent),
+      tail: (home, agent) => new CopilotTail(home.dir, agent, (id) => cli.error(home, id)),
       record: async (home, sessionId) => {
         const text = await read(home, sessionId)
-        if (text === undefined) return undefined
-        const summary = foldEvents(text, HISTORY_FEED)
+        const error = await cli.error(home, sessionId)
+        if (text === undefined && error === undefined) return undefined
+        const summary = withTurnError(foldEvents(text ?? '', HISTORY_FEED), error, HISTORY_FEED)
         return {
           sessionId,
           startedAt: summary.firstActivityAt,
@@ -70,17 +73,19 @@ export const copilot: AgentAdapter = {
           workdir: summary.workdir,
           branch: summary.gitBranch,
           apiError: summary.apiError?.text ?? null,
+          ...(summary.apiError?.notice === undefined ? {} : { apiErrorNotice: summary.apiError.notice }),
           account: null,
         }
       },
       feed: async (home, sessionId, after) => {
         const text = await read(home, sessionId)
-        if (text === undefined) return undefined
-        const summary = foldEvents(text, Infinity, true)
+        const error = await cli.error(home, sessionId)
+        if (text === undefined && error === undefined) return undefined
+        const summary = withTurnError(foldEvents(text ?? '', Infinity, true), error, Infinity)
         return { lines: summary.feed.slice(after), turn: summary.turn }
       },
       feedFile: async (home, sessionId) => eventsFile(home.dir, sessionId),
-      transcripts: (home) => sessionIds(home.dir),
+      transcripts: async (home) => [...new Set([...(await sessionIds(home.dir)), ...(await registry.list(home.key)).map((entry) => entry.sessionId)])],
       authStatus: (home) => cli.authStatus(home),
       login: (home) => cli.login(home),
       logout: (home) => cli.logout(home),

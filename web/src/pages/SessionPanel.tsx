@@ -33,6 +33,7 @@ import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import { sessionStatus } from './sessionStatus.js'
 import { LimitNotice } from './LimitNotice.js'
+import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
 import './facts.css'
 
@@ -326,7 +327,9 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
 
   return (
     <>
-      {note !== null && !limited && <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>}
+      {note !== null && !limited && (session.apiErrorNotice === undefined
+        ? <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>
+        : <Band tone={session.apiErrorKind === 'transient' ? 'warn' : 'error'} action={<NoticeFixButton project={taskProject(state, session.task)} notice={session.apiErrorNotice} />}>{note}</Band>)}
       {limited && <LimitNotice session={session} hold={limit} refusal={refusal} />}
       <FactList>
         <Fact label={t.session.session}>

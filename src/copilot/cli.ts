@@ -16,6 +16,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
 import { protectionRules } from '../sessions/protection.js'
+import { modelRefusal, outputError, type TurnError } from './errors.js'
 
 const run = promisify(execFile)
 
@@ -191,6 +192,15 @@ export class CopilotCli {
     return Promise.all(sessions.map(async (session) => entryOf(session, session.stopped !== true && (await this.turnLive(session)), COPILOT)))
   }
 
+  async error(home: AccountHome, sessionId: string): Promise<TurnError | undefined> {
+    const session = await this.registry.get(sessionId)
+    if (session === undefined || session.account !== home.key || await this.turnLive(session)) return undefined
+    const text = outputError(await outputTail(session.out))
+    if (text === undefined) return undefined
+    const info = await stat(session.out).catch(() => undefined)
+    return info === undefined ? undefined : { at: info.mtime.toISOString(), text }
+  }
+
   /** `copilot --version`: `GitHub Copilot CLI 1.0.98.` */
   async version(env: NodeJS.ProcessEnv): Promise<string> {
     return (await run(this.bin(), ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
@@ -247,6 +257,8 @@ export class CopilotCli {
       if (child.pid !== undefined && ((await size(transcript)) > before || (exited && sessionOf(text) === session.id))) return { pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
+        const refusal = modelRefusal(outputError(text) ?? '')
+        if (refusal !== undefined) throw new NoticeError(refusal)
         throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
       }
       await delay(POLL_MS)

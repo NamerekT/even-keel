@@ -203,6 +203,7 @@ export const noticesRu: NoticeTexts = {
   'opencode.streamError': () => 'OpenCode сообщил об ошибке потока и ждёт. Отправьте ответ для повтора или нажмите «Новая сессия».',
 
   'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
+  'copilot.modelUnavailable': (p) => `Copilot не может использовать модель «${p.model}». Выберите доступную модель в поле «Модель» настроек сессий проекта (или смените метку модели задачи), затем нажмите «Новая сессия».`,
   'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,
   'copilot.unknownSession': (p) => `Copilot: сессию ${p.session} запускал не Even Keel`,
   'copilot.stillRunning': (p) => `Copilot: ход ${p.session} убит, но ещё идёт`,

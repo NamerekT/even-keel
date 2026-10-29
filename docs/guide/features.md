@@ -75,6 +75,8 @@ Run labels in the chain and task card keep the provider's spelling and show only
 
 ## Sessions
 
+If Copilot rejects an unavailable model before starting a normal transcript, the session shows the reason and a button to the project's session settings. Choose an available Model there (or change the task's model label), then choose **New session**. Even Keel does not switch models automatically.
+
 For Claude background sessions, Even Keel checks process creation times to discard stale session records and leave another process that reused a session's or saved child's process number running. If the operating system cannot report a creation time, it keeps the previous process-number check.
 
 Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main` (or the project's `branch`; `main` below means that branch). The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. A sync that cannot reach the remote (no connection, a timeout, DNS) is tried again 30 s and 2 min later while the next task runs; only after the third failure does the project page show a warning to sync by hand.

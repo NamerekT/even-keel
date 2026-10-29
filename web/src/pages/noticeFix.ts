@@ -24,6 +24,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'chain.emptyStatus': { to: 'project', tab: 'tracker' },
   'prompt.empty': { to: 'project', tab: 'sessions' },
   'chain.unknownModel': { to: 'project', tab: 'sessions' },
+  'copilot.modelUnavailable': { to: 'project', tab: 'sessions' },
   'chain.limitSpent': { to: 'project', tab: 'sessions' },
   'account.signedOut': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,
