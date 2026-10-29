@@ -688,6 +688,15 @@
 }
 
 @media (max-width: 640px) {
+  .stats-section [data-open='false'] > .stats-section__head--fold {
+    flex-wrap: wrap;
+  }
+
+  .stats-section .stats-remark {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+
   .timeline__axis {
     margin-left: 0;
   }

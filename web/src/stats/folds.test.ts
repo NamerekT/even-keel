@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { foldText, parseFolds, withFold } from './folds.js'
 
 describe('parseFolds', () => {
-  it('keeps every section folded when nothing is saved', () => {
-    expect(parseFolds(null)).toEqual([])
+  it('opens rules by default and preserves an explicitly folded page', () => {
+    expect(parseFolds(null)).toEqual(['rules'])
+    expect(parseFolds('')).toEqual([])
   })
 
   it('reads the open sections and drops what it does not know', () => {

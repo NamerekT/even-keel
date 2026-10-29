@@ -104,7 +104,7 @@ export interface FamilySums {
   ratio: number | null
 }
 
-// family null — the task's main thread ran on no opus, sonnet, haiku or gpt model.
+// family null — no recognised family was found for the task.
 export interface CompareFamily {
   family: string | null
   thin: boolean
@@ -159,6 +159,11 @@ export interface CompareQuery extends StatsFilter {
   after: string
   days: number | null
   projects: string[] | null
+  beforeModels?: string[] | null
+  afterModels?: string[] | null
+  /** Both sides use this half-open UTC range when no rule mark is selected. */
+  from?: string
+  to?: string
 }
 
 const HOUR = 3_600_000
@@ -391,7 +396,7 @@ export function compareOf(
   }
 }
 
-const FAMILY_ORDER = ['opus', 'sonnet', 'haiku', 'gpt']
+const FAMILY_ORDER = ['opus', 'sonnet', 'haiku', 'sol', 'terra', 'astra', 'luna', 'gpt']
 
 function familiesOf(before: SideSums['families'], after: SideSums['families'], minTasks: number): CompareFamily[] {
   const none: FamilySums = { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null }
@@ -471,7 +476,11 @@ export function parseCompareQuery(params: URLSearchParams): CompareQuery {
   const raw = params.get('days')
   const days = raw === null || raw === '' ? null : Number(raw)
   if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) throw new Error('days must be an integer in 1..365')
-  return { ...parseStatsFilter(params), before, after, days, projects: listParam(params, 'projects') }
+  const from = params.has('from') ? moment('from') : undefined
+  const to = params.has('to') ? moment('to') : undefined
+  if ((from === undefined) !== (to === undefined) || (from !== undefined && to! <= from)) throw new Error('from and to must define a positive UTC range')
+  return { ...parseStatsFilter(params), before, after, days, projects: listParam(params, 'projects'),
+    beforeModels: listParam(params, 'beforeModels'), afterModels: listParam(params, 'afterModels'), ...(from === undefined ? {} : { from, to }) }
 }
 
 export function parseChangeIds(params: URLSearchParams): string[] {

@@ -1,6 +1,6 @@
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { lineDiff } from '../../../src/stats/diff.js'
-import type { CompareQuery, CompareSide, RuleDiffFile, RuleKind, RuleMark, RuleSet, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
+import { compareOf, type CompareQuery, type SideSums, type RuleDiffFile, type RuleKind, type RuleMark, type RuleSet, type RulesQuery, type StatsCompare, type StatsRules } from '../../../src/stats/rules.js'
 import { placeOf, type ImportPrecision, type RuleNote, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { failure } from './fakeStats.js'
 
@@ -229,69 +229,25 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
   const failed = failure<StatsCompare>(mode)
   if (failed !== null) return failed
   const days = query.days ?? COMPARE.days
-  const thin = rules === 'thin'
-  const scale = days / 7
-  const side = (
-    from: number,
-    to: number,
-    [tasks, sessions, taskCost, stuck, errors, entry]: [number, number, number, number, number, number],
-    [context, over150, perRequest]: [number, number, number],
-    models: CompareSide['models'],
-  ): CompareSide => ({
-    from: new Date(from).toISOString(),
-    to: new Date(to).toISOString(),
-    tasks: thin ? 3 : Math.round(tasks * scale),
-    sessions: thin ? 6 : Math.round(sessions * scale),
-    taskCost: thin ? null : taskCost,
-    sessionsPerTask: thin ? null : sessions / tasks,
-    stuckShare: thin ? null : stuck,
-    errorShare: thin ? null : errors,
-    deniedShare: thin ? null : errors / 6,
-    entryTokens: thin ? null : entry,
-    requests: thin ? 140 : Math.round(sessions * 38 * scale),
-    meanContext: thin ? null : context,
-    over150Share: thin ? null : over150,
-    requestCost: thin ? null : perRequest,
-    models,
-  })
+  const thin = rules === 'thin' || mode === 'empty'
+  const sample = (models: string[] | null | undefined, after: boolean): SideSums => {
+    const families = ['opus', 'sonnet', 'sol', 'terra', 'astra', 'luna', 'deepseek'].map((family, index) => {
+      const tasks = mode === 'empty' ? 0 : thin || family === 'deepseek' ? 2 : 8
+      const price = family === 'sol' ? 3.4 : family === 'sonnet' ? 1.8 : 6 + index
+      const factor = after && query.from === undefined ? 0.8 : 1
+      return { family, tasks, closed: tasks, cost: tasks * price * factor, closedCost: tasks ? price * factor : null, closedMinutes: tasks ? (7 + index) * factor : null, estimated: tasks, ratio: tasks ? 0.3 * factor : null }
+    }).filter(each => models == null || models.includes(each.family))
+    const tasks = families.reduce((sum, f) => sum + f.tasks, 0)
+    const cost = families.reduce((sum, f) => sum + f.cost, 0)
+    return { tasks, sessions: tasks * 2, cost, stuckCost: cost * 0.1, taskCost: tasks ? cost / tasks : null,
+      sessionsPerTask: 2, calls: tasks * 50, errors: tasks, denied: 0, entryTokens: tasks ? 42000 : null,
+      requests: tasks * 30, contextTokens: tasks * 30 * 110000, over150: tasks * 5, requestCost: cost,
+      models: families.map(f => ({ model: f.family === 'sonnet' || f.family === 'opus' ? `claude-${f.family}-5` : f.family === 'deepseek' ? 'deepseek/deepseek-v3' : `gpt-6-${f.family}`, requests: f.tasks * 30 })), families }
+  }
   const before = Date.parse(query.before)
   const after = Date.parse(query.after)
-  return {
-    state: 'ok',
-    data: {
-      days,
-      thin,
-      modelShift: true,
-      minTasks: COMPARE.minTasks,
-      minSessions: COMPARE.minSessions,
-      before: side(before - days * DAY, before, [9, 21, 7.4, 0.16, 0.052, 41_200], [168_000, 0.49, 0.124], [
-        { model: 'claude-opus-5', share: 0.78 },
-        { model: 'claude-opus-5-5', share: 0.19 },
-        { model: 'claude-sonnet-5', share: 0.03 },
-      ]),
-      after: side(after, Math.min(after + days * DAY, Date.now()), [11, 19, 6.1, 0.11, 0.038, 43_900], [131_000, 0.33, 0.104], [{ model: 'claude-opus-5-5', share: 1 }]),
-      families: thin
-        ? []
-        : [
-            {
-              family: 'opus',
-              thin: false,
-              before: { tasks: 9, closed: 8, cost: 68.4, closedCost: 7.05, closedMinutes: 17.7, estimated: 0, ratio: null },
-              after: { tasks: 8, closed: 7, cost: 51.2, closedCost: 5.29, closedMinutes: 16.2, estimated: 6, ratio: 0.16 },
-            },
-            {
-              family: 'sonnet',
-              thin: true,
-              before: { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
-              after: { tasks: 3, closed: 3, cost: 2.1, closedCost: 0.65, closedMinutes: 2.6, estimated: 2, ratio: 0.08 },
-            },
-            {
-              family: null,
-              thin: true,
-              before: { tasks: 1, closed: 0, cost: 0.4, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
-              after: { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
-            },
-          ],
-    },
-  }
+  const iso = (at: number) => new Date(at).toISOString()
+  const shared = query.from !== undefined && query.to !== undefined ? { from: query.from, to: query.to } : null
+  const sides = { before: shared ?? { from: iso(before - days * DAY), to: iso(before) }, after: shared ?? { from: iso(after), to: iso(Math.min(after + days * DAY, Date.now())) } }
+  return { state: 'ok', data: compareOf(sides, { before: sample(query.beforeModels, false), after: sample(query.afterModels, true) }, { ...COMPARE, days }) }
 }

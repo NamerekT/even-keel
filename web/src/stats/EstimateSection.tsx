@@ -4,6 +4,7 @@ import { accuracy, type AccuracyGroup } from './accuracy.js'
 import { Section, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
 import { Tile, TileGrid } from '../ui/blocks.js'
+import { Fold } from '../ui/Fold.js'
 import { estimateRemark, type EstimateRemark } from './remarks.js'
 
 type BreakdownKey = 'project' | 'component' | 'model'
@@ -25,12 +26,12 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
   return (
     <Section
       title={t.stats.estimate.title}
+      help={t.stats.estimate.note}
       fold={fold}
       remark={remarkText(estimateRemark(result))}
       aside={
         <>
           <span className="stats-section__count">{formatShare(result.within)}</span>
-          <span className="stats-section__note">{t.stats.estimate.note}</span>
         </>
       }
     >
@@ -63,7 +64,7 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
       {result.compared > 0 && (
         <div className="estimates">
           {BREAKDOWNS.map((breakdown) => (
-            <Breakdown key={breakdown.key} title={t.stats.estimate[breakdown.key]} groups={result.groups[breakdown.key]} label={breakdown.label} />
+            <Breakdown key={breakdown.key} title={t.stats.estimate[breakdown.key]} groups={result.groups[breakdown.key]} label={breakdown.label} limit={breakdown.key === 'component' ? 10 : undefined} />
           ))}
         </div>
       )}
@@ -84,7 +85,18 @@ function ratioNote(ratio: number | null): string {
   return ratio > 1 ? t.stats.estimate.slower : t.stats.estimate.exact
 }
 
-function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGroup[]; label: (key: string | null) => string }) {
+function Breakdown({ title, groups, label, limit }: { title: string; groups: AccuracyGroup[]; label: (key: string | null) => string; limit?: number }) {
+  const ordered = limit === undefined ? groups : [...groups].sort((a, b) => b.tasks - a.tasks)
+  const rows = (list: AccuracyGroup[]) => list.map((group) => (
+    <tr key={group.key ?? ''}>
+      <td>{label(group.key)}</td>
+      <td className="tasks__num">{group.tasks}</td>
+      <td className="tasks__num">{formatShare(group.within)}</td>
+      <td className="tasks__num">{formatShare(group.within2)}</td>
+      <td className="tasks__num">{formatShare(group.baseline.within)}</td>
+      <td className="tasks__num">{formatRatio(group.ratio)}</td>
+    </tr>
+  ))
   return (
     <div className="estimates__scroll">
       <table className="tasks estimates__table">
@@ -109,18 +121,12 @@ function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGr
           </tr>
         </thead>
         <tbody>
-          {groups.map((group) => (
-            <tr key={group.key ?? ''}>
-              <td>{label(group.key)}</td>
-              <td className="tasks__num">{group.tasks}</td>
-              <td className="tasks__num">{formatShare(group.within)}</td>
-              <td className="tasks__num">{formatShare(group.within2)}</td>
-              <td className="tasks__num">{formatShare(group.baseline.within)}</td>
-              <td className="tasks__num">{formatRatio(group.ratio)}</td>
-            </tr>
-          ))}
+          {rows(ordered.slice(0, limit))}
         </tbody>
       </table>
+      {limit !== undefined && ordered.length > limit && <Fold summary={t.stats.tasks.all(ordered.length)}>
+        <table className="tasks estimates__table"><tbody>{rows(ordered.slice(limit))}</tbody></table>
+      </Fold>}
     </div>
   )
 }

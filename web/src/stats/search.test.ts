@@ -41,6 +41,11 @@ describe('parseView', () => {
 })
 
 describe('viewSearch', () => {
+  it('round trips independent model selections, including all and none', () => {
+    const view = { ...DEFAULT_VIEW, beforeModels: ['sol', 'terra'], afterModels: [] }
+    expect(parse(viewSearch(view))).toEqual(view)
+    expect(viewSearch({ ...DEFAULT_VIEW, beforeModels: null, afterModels: ['sonnet'] })).toBe('afterModels=sonnet')
+  })
   it('leaves defaults out', () => {
     expect(viewSearch(DEFAULT_VIEW)).toBe('')
   })

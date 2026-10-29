@@ -36,23 +36,23 @@ function modelMix(side: CompareSide): string {
 
 export const COMPARE_DAYS = [3, 7, 14, 30]
 
-export function RuleCompare({ compare }: { compare: StatsCompare }) {
+export function RuleCompare({ compare, beside = false }: { compare: StatsCompare; beside?: boolean }) {
   const now = new Date()
   const { before, after } = compare
   return (
     <div className="rule-compare">
       {compare.thin && <p className="notice notice--warn">{t.stats.compare.few(compare.minTasks, compare.minSessions)}</p>}
       {compare.modelShift && <p className="notice notice--warn">{t.stats.compare.models}</p>}
-      <table className="tasks rule-compare__table">
+      <div className="tasks__scroll"><table className="tasks rule-compare__table">
         <thead>
           <tr>
             <th>{t.stats.compare.metric}</th>
             <th>
-              {t.stats.compare.before}
+              {beside ? t.stats.compare.left : t.stats.compare.before}
               <span className="rule-compare__range">{sideRange(before, now)}</span>
             </th>
             <th>
-              {t.stats.compare.after}
+              {beside ? t.stats.compare.right : t.stats.compare.after}
               <span className="rule-compare__range">{sideRange(after, now)}</span>
             </th>
             <th>{t.stats.compare.change}</th>
@@ -87,9 +87,8 @@ export function RuleCompare({ compare }: { compare: StatsCompare }) {
             <td />
           </tr>
         </tbody>
-      </table>
-      <p className="stats-section__note">{t.stats.compare.foot}</p>
-      <FamilyCompare compare={compare} />
+      </table></div>
+      <FamilyCompare compare={compare} beside={beside} />
     </div>
   )
 }

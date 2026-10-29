@@ -208,6 +208,8 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |
 
+The default stats fixture includes separate Sol, Terra, Astra, Luna and DeepSeek comparison rows, sub-1% model shares, and 13 components (use `range=all` for "Show all"). `beforeModels`/`afterModels` select comparison families just as on the real page; no mark compares the page period on both sides. A long `account` value on `/stats` also exercises full wrapping names in "Limits by account".
+
 `?limit=spend|spendUnknown` holds the current API session on a spending cap with or without a reset date; `/accounts?account=spend|spendUnknown` shows the corresponding account note (BTN-382).
 
 The project notice states are on `/p/ABC?forward=warnings`: a carry conflict above five cleanup warnings. Use `warnings-agent`, `warnings-waiting` or `warnings-push` for a sixth, informational warning; `warnings-held` for a held carry; `warnings-long` for a long project label; `warning` for one cleanup warning; `empty` for none. These fixtures live in `web/src/live/fakeCarry.ts` and support the existing dismiss and resolve commands. Combine with `chain=later` for an ordering error above them.

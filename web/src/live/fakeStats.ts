@@ -20,7 +20,7 @@ import { fakeTaskSteps } from './fakeSteps.js'
 
 const TRACKED = ['ABC', 'DEMO', 'XYZ', 'OPS']
 const FOLDERS = ['yaml-tools', 'notes', 'dotfiles', 'homepage', 'game-jam', 'scratch']
-const COMPONENTS = ['Web', 'Core', null]
+const COMPONENTS = ['Web', 'Core', 'Sessions', 'Storage', 'Stats', 'Tracker', 'Accounts', 'Packages', 'Service', 'CI', 'Settings', 'Imports', null]
 const REASONS = ['broken_tooling', 'debug_loop', 'unclear_task', 'waiting_user', null]
 const TITLES = [
   'Перевести сборку на новый планировщик',
@@ -283,7 +283,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       windows: mode === 'empty' ? [] : limitWindows(query, range),
       models: share(current.cost, [
         ['opus', 0.4], ['sonnet', 0.2], ['sol', 0.15], ['luna', 0.1], ['astra', 0.05],
-        ['terra', 0.04], ['haiku', 0.03], ['gpt', 0.02], ['other', 0.01],
+        ['terra', 0.04], ['haiku', 0.03], ['gpt', 0.018], ['deepseek', 0.006], ['qwen', 0.003], ['other', 0.003],
       ]),
       entrypoints: share(current.cost, query.scope === 'chain' ? [['chain', 1]] : [['chain', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
       tasks,

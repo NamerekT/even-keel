@@ -579,7 +579,7 @@ export class StatsReader {
 
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>> {
     const settings = this.statsConfig().compare
-    const key = `compare|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.before}|${query.after}|${query.days}|${JSON.stringify(settings)}`
+    const key = `compare|${JSON.stringify(query)}|${JSON.stringify(settings)}`
     return this.cached(key, (pool) => readCompare(this.db(pool), query, settings))
   }
 

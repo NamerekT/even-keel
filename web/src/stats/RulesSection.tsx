@@ -10,7 +10,8 @@ import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldCo
 import { seriesStyle } from '../ui/series.js'
 import { MARK_KINDS, fileLabel, kindText, markKey, markSummary, pickedSpan, purposeLabel, ruleKindLabels, setTitle, toggleChip, type KindCount } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
-import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
+import { ComparePanel } from './ComparePanel.js'
+import { addDays, type DayRange } from './period.js'
 import './rules.css'
 
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }))
@@ -223,14 +224,13 @@ function Picked({ marks, before, after, now, colors, trackerUrls }: { marks: Rul
   const summary = markSummary({ fromAt: before, toAt: after, sets })
   const [day, time] = spanText(before, after, now)
   return (
-    <div className="rule-card">
-      <header className="rule-card__head">
-        <h3 className="rule-card__title">{t.stats.rules.changed}</h3>
+    <Fold key={`${before}:${after}`} className="rule-card" summaryClassName="rule-card__head" summary={<>
+        <span className="rule-card__title">{t.stats.rules.changed}</span>
         <span className="stats-section__note">
           {day} {time} · {t.stats.rules.fileCount(summary.files)}
         </span>
         <Lines added={summary.added} removed={summary.removed} />
-      </header>
+      </>}>
       {[...days].map(([label, each]) => (
         <section key={label} className="rule-day">
           {days.size > 1 && <h4 className="rule-day__title">{label}</h4>}
@@ -241,17 +241,8 @@ function Picked({ marks, before, after, now, colors, trackerUrls }: { marks: Rul
           </ol>
         </section>
       ))}
-    </div>
+    </Fold>
   )
-}
-
-function Compare({ query, days }: { query: Omit<CompareQuery, 'days'>; days: number }) {
-  const { statsCompare } = useLive()
-  const full = { ...query, days }
-  const key = JSON.stringify(full)
-  const loaded = useStatsAnswer(key, () => statsCompare(full), false)
-  const compare = loadedData(loaded)
-  return compare === null || loaded?.key !== key ? <AnswerNotice loaded={loaded?.key === key ? loaded : null} /> : <RuleCompare compare={compare} />
 }
 
 export function RulesSection({
@@ -266,6 +257,10 @@ export function RulesSection({
   picked,
   onPick,
   base,
+  range,
+  models,
+  onModels,
+  modelOptions,
   colors,
   trackerUrls,
 }: {
@@ -280,10 +275,13 @@ export function RulesSection({
   picked: string[]
   onPick: (key: string, extend: boolean) => void
   base: Omit<CompareQuery, 'before' | 'after' | 'days'>
+  range: DayRange
+  models: Pick<CompareQuery, 'beforeModels' | 'afterModels'>
+  onModels: (next: Pick<CompareQuery, 'beforeModels' | 'afterModels'>) => void
+  modelOptions: string[]
   colors: Colors
   trackerUrls: TrackerUrls
 }) {
-  const [days, setDays] = useState<number | null>(null)
   const rules = loadedData(loaded)
   const span = pickedSpan(marks, picked)
   const now = new Date()
@@ -292,12 +290,12 @@ export function RulesSection({
   return (
     <Section
       title={t.stats.rules.title}
+      help={`${t.stats.rules.note}. ${t.stats.rules.pick} ${t.stats.rules.coverage}`}
       fold={fold}
       busy={busy}
       aside={
         <>
           {rules !== null && <span className="stats-section__count">{marks.length}</span>}
-          <span className="stats-section__note">{t.stats.rules.note}</span>
         </>
       }
     >
@@ -328,33 +326,14 @@ export function RulesSection({
               )
             })}
           </ol>
-          {span === null ? (
-            <p className="rule-hint">{t.stats.rules.pick}</p>
-          ) : (
-            <>
-              <Picked marks={span.marks} before={span.before} after={span.after} now={now} colors={colors} trackerUrls={trackerUrls} />
-              <div className="rule-card">
-                <header className="rule-card__head">
-                  <h3 className="rule-card__title">{t.stats.rules.compare}</h3>
-                  <div className="segmented" role="group" aria-label={t.stats.rules.days}>
-                    {COMPARE_DAYS.map((each) => {
-                      const current = days ?? rules.compare.days
-                      return (
-                        <button key={each} type="button" className={each === current ? 'segmented__item segmented__item--on' : 'segmented__item'} aria-pressed={each === current} onClick={() => setDays(each)}>
-                          {t.stats.rules.dayCount(each)}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <span className="stats-section__note">{t.stats.rules.eachSide}</span>
-                </header>
-                <Compare query={{ ...base, before: span.before, after: span.after }} days={days ?? rules.compare.days} />
-              </div>
-            </>
-          )}
         </>
       )}
-      <p className="stats-section__note rule-coverage">{t.stats.rules.coverage}</p>
+      {rules !== null && <ComparePanel defaultDays={rules.compare.days} models={models} onModels={onModels} options={modelOptions}
+        query={span === null ? {
+          ...base, before: new Date(`${range.from}T00:00:00`).toISOString(), after: new Date(`${range.to}T00:00:00`).toISOString(),
+          from: new Date(`${range.from}T00:00:00`).toISOString(), to: new Date(`${addDays(range.to, 1)}T00:00:00`).toISOString(),
+        } : { ...base, before: span.before, after: span.after }} />}
+      {span !== null && <Picked marks={span.marks} before={span.before} after={span.after} now={now} colors={colors} trackerUrls={trackerUrls} />}
     </Section>
   )
 }

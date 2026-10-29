@@ -1,12 +1,12 @@
 import { useState } from 'react'
 
-export const FOLDS = ['rules', 'estimate', 'steps', 'tasks', 'stuck'] as const
+export const FOLDS = ['rules', 'estimate', 'steps', 'tasks', 'stuck', 'checkpoints', 'limits'] as const
 export type Fold = (typeof FOLDS)[number]
 
 const OPEN_KEY = 'even-keel.stats.open'
 
 export function parseFolds(text: string | null): Fold[] {
-  const saved = (text ?? '').split(',')
+  const saved = (text ?? 'rules').split(',')
   return FOLDS.filter((fold) => saved.includes(fold)).sort((a, b) => saved.indexOf(a) - saved.indexOf(b))
 }
 
@@ -19,7 +19,7 @@ export function withFold(open: Fold[], fold: Fold, on: boolean): Fold[] {
   return on ? [...open, fold] : open.filter((each) => each !== fold)
 }
 
-/** The sections of the stats page below the overview start folded; the opened ones are remembered in the browser. */
+/** Rule changes starts open; saved choices, including an empty list, take precedence. */
 export function useFolds(): { open: Fold[]; setFold: (fold: Fold, on: boolean) => void } {
   const [open, setOpen] = useState(readOpen)
   const setFold = (fold: Fold, on: boolean) => {
@@ -37,6 +37,6 @@ function readOpen(): Fold[] {
   try {
     return parseFolds(localStorage.getItem(OPEN_KEY))
   } catch {
-    return []
+    return ['rules']
   }
 }

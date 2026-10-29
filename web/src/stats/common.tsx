@@ -10,6 +10,7 @@ import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { stepPath } from '../pages/setupSteps.js'
 import { issueLink } from '../state.js'
 import { CardHead } from '../ui/blocks.js'
+import { HelpTip } from '../pages/settingsParts.js'
 
 const REFRESH_MS = 5 * 60_000
 
@@ -142,6 +143,7 @@ export interface FoldControl {
 /** With `fold` the head opens and folds the section, and a folded one does not render its content. `remark` is a joke scribbled on the head's margin. */
 export function Section({
   title,
+  help,
   aside,
   remark,
   fold,
@@ -149,6 +151,7 @@ export function Section({
   children,
 }: {
   title: string
+  help?: string
   aside?: ReactNode
   remark?: string | null
   fold?: FoldControl
@@ -158,7 +161,7 @@ export function Section({
   const scribble = remark ? <span className="stats-remark">{remark}</span> : null
   if (fold === undefined) return (
     <section className="ui-card stats-section" aria-busy={busy}>
-      <CardHead title={title}>{aside}{scribble}</CardHead>
+      <CardHead title={title}>{help && <HelpTip text={help} />}{aside}{scribble}</CardHead>
       <div className="stats-section__body">{children}</div>
     </section>
   )
@@ -167,7 +170,7 @@ export function Section({
       <Fold open={fold.open} onOpenChange={fold.onToggle} summary={title} summaryClassName="stats-section__fold"
         header={(toggle) => <CardHead className="stats-section__head--fold" title={toggle} onClick={(event) => {
           if (!(event.target as HTMLElement).closest('button')) fold.onToggle(!fold.open)
-        }}>{aside}{scribble}</CardHead>}
+        }}>{help && <HelpTip text={help} />}{aside}{scribble}</CardHead>}
       >
         <div className="stats-section__body">{children}</div>
       </Fold>

@@ -33,7 +33,14 @@
 .stats-page__main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: calc(var(--space-24) * 2);
+  min-width: 0;
+}
+
+.stats-page__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
   min-width: 0;
 }
 
@@ -131,7 +138,7 @@ a.stats__key:hover {
   color: var(--fg-muted);
 }
 
-/* Tiles: the limit's accounts under its tile */
+/* Weekly windows in Limits by account */
 
 .limit-accounts {
   display: grid;
@@ -163,9 +170,7 @@ a.stats__key:hover {
 }
 
 .limit-accounts__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .limit-accounts__peaks {
