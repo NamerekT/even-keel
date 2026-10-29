@@ -136,10 +136,11 @@ describe('Dispatcher and a red main without a fix task', () => {
   })
 
   it('lets a red verdict that comes while the fix session works add nothing', async () => {
-    const { dispatcher, fixes, finished, log, ci } = await withoutTask(0)
+    const { dispatcher, fixes, finished, log, live, ci } = await withoutTask(0)
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2', done), task('ABC-3')])
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    live['ABC-3'] = dispatcher.state.active[0]!.current!.sessionId!
     ci.verdict = red
     dispatcher.check()
     await dispatcher.idle()
@@ -288,6 +289,69 @@ describe('Dispatcher and a red main without a fix task', () => {
 })
 
 describe('Dispatcher and the session a red main interrupts', () => {
+  it('waits for the launched session to be observed before yielding to the fix', async () => {
+    const { dispatcher, busy, handoffs, stopped, fixes, ci } = await withoutTask(0)
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-2', sessionId: 'session-2' })
+    expect(dispatcher.state.released).toEqual({})
+    expect(stopped).toEqual([])
+    expect(fixes).toEqual([])
+
+    busy.add('ABC-2')
+    handoffs['ABC-2'] = sessionOf('session-2', '2026-09-26T11:59:00.000Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(stopped).toEqual(['session-2'])
+    expect(fixes).toHaveLength(1)
+    expect(dispatcher.state.active[0]).toMatchObject({
+      current: { task: 'ABC-FIX' },
+      interrupted: { task: 'ABC-2', sessionId: 'session-2', commit: 'bbbbbbbbbb' },
+    })
+  })
+
+  it('does not mistake an older monitored session for the newly launched turn', async () => {
+    const { dispatcher, handoffs, live, stopped, fixes, ci } = await withoutTask(0)
+    handoffs['ABC-2'] = sessionOf('older-session', '2026-09-26T11:59:00.000Z')
+    live['ABC-2'] = 'older-session'
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-2', sessionId: 'session-2' })
+    expect(dispatcher.state.released).toEqual({})
+    expect(stopped).toEqual([])
+    expect(fixes).toEqual([])
+  })
+
+  it('sets aside a monitored session whose process has already ended', async () => {
+    const { dispatcher, handoffs, stopped, fixes, ci } = await withoutTask(0)
+    handoffs['ABC-2'] = sessionOf('session-2', '2026-09-26T11:59:00.000Z')
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
+    expect(dispatcher.state.active[0]?.interrupted).toBeUndefined()
+    expect(stopped).toEqual([])
+    expect(fixes).toHaveLength(1)
+  })
+
+  it('preserves a question first observed after the red verdict', async () => {
+    const { dispatcher, live, waiting, stopped, fixes, ci } = await withoutTask(0)
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(fixes).toEqual([])
+
+    live['ABC-2'] = 'session-2'
+    waiting.add('ABC-2')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
+    expect(dispatcher.state.active[0]?.interrupted).toBeUndefined()
+    expect(stopped).toEqual([])
+  })
+
   it('stops the working session of the current task and starts the fix', async () => {
     const { dispatcher, launched, stopped, journal } = await working()
     expect(stopped).toEqual(['session-2'])
