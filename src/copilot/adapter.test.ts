@@ -1,20 +1,26 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import { copilot } from './adapter.js'
 import { TurnRegistry } from '../codex/turns.js'
-import { eventsFile } from './home.js'
+import { eventsFile, writeToken } from './home.js'
+import { machineToken } from './machine.js'
 import { lampOf } from '../sessions/agents.js'
+
+vi.mock('./machine.js', () => ({ machineToken: vi.fn(async () => null) }))
 
 describe('Copilot adapter account access', () => {
   let workDir: string | undefined
   afterEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(machineToken).mockReset().mockResolvedValue(null)
+    vi.unstubAllGlobals()
     if (workDir !== undefined) rmSync(workDir, { recursive: true, force: true })
   })
 
-  it('does not use an unverified machine identity for usage or model hints', async () => {
+  it('keeps usage unavailable when the machine source cannot be read, and has no model hints', async () => {
     workDir = mkdtempSync(join(tmpdir(), 'copilot-adapter-'))
     const agent = copilot.setup({
       env: () => ({}),
@@ -33,6 +39,29 @@ describe('Copilot adapter account access', () => {
       reason: { code: 'usage.copilotMachine' },
     })
     expect(agent.models).toBeUndefined()
+  })
+
+  it.each([false, true])('reads the allowance with the folder token before consulting the machine: %s', async (ownToken) => {
+    workDir = mkdtempSync(join(tmpdir(), 'copilot-usage-'))
+    if (ownToken) writeToken(workDir, 'gho_folder')
+    vi.mocked(machineToken).mockResolvedValueOnce('gho_machine')
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      quota_snapshots: { premium_interactions: { entitlement: 300, remaining: 120, unlimited: false } },
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchImpl)
+    const agent = copilot.setup({
+      env: () => ({ EVEN_KEEL_COPILOT_BIN: '/checked/copilot', GH_TOKEN: 'gho_inherited' }),
+      timeoutMs: 1000, workDir, checkedCli: () => false, log: () => {}, onCliChange: () => {},
+    })
+    const home: AccountHome = { key: 'copilot', dir: workDir, global: false, agent: 'copilot' }
+    expect(await agent.usage!(home, '2026-10-29T00:00:00Z')).toMatchObject({ kind: 'limits', limits: { month: { left: 120 } } })
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith('https://api.github.com/copilot_internal/user', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: ownToken ? 'Bearer gho_folder' : 'token gho_machine' }),
+    }))
+    if (ownToken) expect(machineToken).not.toHaveBeenCalled()
+    else expect(machineToken).toHaveBeenCalledWith('/checked/copilot', expect.objectContaining({ COPILOT_HOME: workDir }), workDir, 1000)
+    const machineEnv = vi.mocked(machineToken).mock.calls[0]?.[1]
+    expect(machineEnv?.GH_TOKEN).toBeUndefined()
   })
 
   it.each([false, true])('shows a terminal model refusal with a transcript present: %s', async (transcript) => {

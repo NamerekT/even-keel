@@ -48,8 +48,8 @@ export function tokenFile(dir: string): string {
 
 /**
  * A folder with a token is signed in by it, an account of a key like an API one (its token is checked and refused the
- * same way); one without runs on the CLI's own sign-in, which Even Keel cannot read (it is in the OS credential store),
- * so it counts as signed in with the method `none`.
+ * same way); one without runs on the CLI's own sign-in. Its source is probed separately for usage, while its status
+ * counts as signed in with the method `none` and no identity.
  */
 export function parseAuth(token: string | null): AccountStatus {
   return { loggedIn: true, authMethod: token === null ? 'none' : 'api_key', email: null, orgName: null, subscriptionType: null }

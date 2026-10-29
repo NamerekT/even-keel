@@ -6,12 +6,13 @@ import { cliCopy } from '../agent/copy.js'
 import { isMuslLinux } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
-import { askCopilotToken } from '../limits/copilot.js'
+import { askCopilot, askCopilotToken } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { CopilotCli, resolveCopilotBinary, SESSION_MODE } from './cli.js'
 import { copilotEnv, eventsFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
+import { machineToken } from './machine.js'
 import { copilotBinaryIn, copilotPackage, fetchCopilot } from './release.js'
 import { CopilotTail } from './tail.js'
 import { foldEvents } from './transcript.js'
@@ -25,7 +26,7 @@ const CHECKED = '1.0.98'
  * GitHub Copilot CLI through `copilot -p … --output-format json`: a turn is a detached process, as Codex's is; a session
  * lives between turns in Even Keel's registry and the account folder's `session-state/<id>/events.jsonl`
  * (`docs/sessions.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. Only a
- * token's monthly allowance can be read (`askCopilotToken`). Sessions run on Even Keel's own copy of the checked
+ * token's monthly allowance or a confirmed `gh-cli` fallback can be read. Sessions run on Even Keel's own copy of the checked
  * version, the platform's npm package, as Codex's do (BTN-347).
  */
 export const copilot: AgentAdapter = {
@@ -98,8 +99,9 @@ export const copilot: AgentAdapter = {
       keyUsage: true,
       usage: async (home, at) => {
         const token = tokenOf(home.dir)
-        if (token === null) return { kind: 'missing', reason: notice('usage.copilotMachine', {}) }
-        return askCopilotToken(token, at, timeoutMs)
+        if (token !== null) return askCopilotToken(token, at, timeoutMs)
+        const machine = await machineToken(bin(), envOf(home), home.dir, timeoutMs)
+        return machine === null ? { kind: 'missing', reason: notice('usage.copilotMachine', {}) } : askCopilot(machine, at, timeoutMs)
       },
     }
   },
