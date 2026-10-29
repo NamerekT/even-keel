@@ -97,6 +97,8 @@ export interface EvenKeelConfig {
   parallel: number
   /** Hours a waiting chain session's cache is kept warm after its last answer (BTN-437); 0 — off. */
   keepWarm: number
+  /** Run `cli-check` in the service on a new CLI version and weekly (BTN-569); off by default — it spends limits. */
+  cliCheck: boolean
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
   unattended: boolean
   trimTools: boolean
@@ -313,6 +315,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     fillMilestone: shared.fillMilestone as boolean,
     parallel: shared.parallel as number,
     keepWarm: shared.keepWarm as number,
+    cliCheck: shared.cliCheck as boolean,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,

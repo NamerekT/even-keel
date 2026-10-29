@@ -78,4 +78,19 @@ describe('Dispatcher with no free slot', () => {
     const { dispatcher } = await started({ refuse: {}, failLaunch: 'ABC-1' })
     expect(dispatcher.state.active[0]!.paused).toBe(true)
   })
+
+  it('waits for a CLI check holding the account folder even outside the unattended mode', async () => {
+    const context = await started({ unattended: false, refuse: { 'ABC-1': fail('cliCheck.busy', { account: 'Work' }) } })
+    const chain = context.dispatcher.state.active[0]!
+    expect(chain.paused).toBe(false)
+    expect(chain.current).toBeNull()
+    expect(chain.slotWait?.notice).toEqual(notice('cliCheck.chainWaits', { task: 'ABC-1', account: 'Work' }))
+    expect(context.dispatcher.state.released).toEqual({})
+
+    delete context.refuse['ABC-1']
+    context.clock.now = new Date('2026-09-26T12:01:00Z')
+    await poll(context)
+    expect(context.launched).toEqual(['ABC/ABC-1'])
+    expect(context.dispatcher.state.active[0]!.slotWait).toBeUndefined()
+  })
 })

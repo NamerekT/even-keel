@@ -26,6 +26,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
 | 8 | [Claude daemon replacement from the service](#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
+| 8a | [The automatic CLI check in the service](#the-automatic-cli-check-in-the-service-btn-569) | machines with "Check new CLI versions" on (off by default) | a false failure on the banner; the account's chains wait a few minutes for nothing |
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
 | 10 | [A Codex chain session reaching its own compaction](#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
 | 10a | [A task label selecting compaction](#a-task-label-selecting-compaction) | tasks using the compaction label | the session may still receive a handoff nudge |
@@ -368,6 +369,10 @@ Covered by dispatcher tests: postpone for a blocker inside or outside the chain,
 Downloads are checked on Windows x64 and arm64, macOS Intel and arm64, and Linux x64 (glibc and Alpine musl) and native arm64; the SDK module loads too (`npm run cli-fetch`, 2026-10-26, `docs/releases.md`, "Checking a CLI version"). Linux arm64 musl was checked under qemu on 2026-10-25. A copy outside the installer's `versions/` starts its own daemon and sessions from a terminal (BTN-248); the CLI check runs a launch, resume and stop through the adapters, and stops its daemon afterwards (BTN-253). From a Windows service (2026-10-25), with `cli.claude` set to `checked`, the 2.1.310 copy downloaded in 17 s and the chain's sessions launched from it.
 
 Still not run from the service: `claude daemon stop --any` of a newer daemon followed by that launch (the next daemon assumed to come from the copy, as from a terminal), and whether a terminal's newer `claude --bg` replaces the service's daemon in Windows session 0. If the daemon comes back on the newer version, the banner keeps naming the account and the sessions run on that version, as before the pin. **Workaround:** Settings → Models, "CLI version", `Installed`.
+
+### The automatic CLI check in the service (BTN-569)
+
+The steps are those of `npm run cli-check` from a terminal (BTN-253), and the scheduling, the folder lease and the chain's wait are covered by tests. Never run live from the service: the latest-version lookups against `downloads.claude.ai` and npm from the service (Claude's was read once from a terminal, 2.1.312), a whole run in Windows session 0 (the Codex sandbox, the worktree under the state folder, the daemon stop), a chain launch arriving mid-run and waiting, and the banner going from waiting to running to passed. If a step behaves differently in the service, the banner says the version failed though it works from a terminal, and the chain on that account waited a few minutes for nothing. **Workaround:** turn "Check new CLI versions on this machine" off and run `npm run cli-check` from a terminal.
 
 ### A Codex chain session reaching its own compaction
 

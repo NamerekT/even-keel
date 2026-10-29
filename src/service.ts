@@ -61,6 +61,9 @@ import * as hostingService from './service/hosting.js'
 import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import * as lifecycleService from './service/lifecycle.js'
+import * as cliCheckService from './service/cli-check.js'
+import { AccountLease } from './cli-check/lease.js'
+import type { CheckHistory } from './cli-check/scheduler.js'
 
 const SESSION_POLL_MS = 3_000
 /** How often the CLI and the account's settings are looked at for a context window that may have changed. */
@@ -152,7 +155,9 @@ const context = {
   get ciWatches() { return ciWatches },
   get claudeAccount() { return claudeAccount },
   get claudeConfigs() { return claudeConfigs },
+  get cliChecks() { return cliChecks },
   get cliCopies() { return cliCopies },
+  get cliLease() { return cliLease },
   get cliVersions() { return cliVersions },
   get configStore() { return configStore },
   get configuredProject() { return configuredProject },
@@ -410,6 +415,8 @@ const requireModel = accountsService.wireRequireModel(context)
 const secretsSaid = new Map<string, string>()
 /** Logs, once per account and list, the keys its `settings.json` sets that the chain's `--settings` blanks (BTN-436). */
 const sayBlankedSecrets = accountsService.wireSayBlankedSecrets(context)
+/** The account folders the automatic CLI check holds, and the chain launches it waits out (BTN-569). */
+const cliLease = new AccountLease((home) => account.view.accounts.find((entry) => entry.key === home.key)?.name ?? home.key)
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
 const launchIn = accountsService.wireLaunchIn(context)
 const resumeIn = accountsService.wireResumeIn(context)
@@ -487,6 +494,7 @@ const releasesView = () => updatesView(release.version, updates.releases, { ...c
 const updater = accountsService.wireUpdater(context)
 
 const cliVersions = accountsService.wireCliVersions(context)
+const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 'cliCheck.history')) as CheckHistory | undefined) ?? {})
 
 const daemons = accountsService.wireDaemons(context)
 
@@ -706,6 +714,7 @@ setInterval(() => settleMail(mailRelay), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
+setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 
 const applyCi = () =>

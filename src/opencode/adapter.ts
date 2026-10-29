@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { cliCopy } from '../agent/copy.js'
-import { isMuslLinux } from '../agent/npm.js'
+import { isMuslLinux, npmLatest } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { findBinary } from '../paths.js'
@@ -29,6 +29,8 @@ const CHECKED = '1.18.25'
 export const opencode: AgentAdapter = {
   title: 'OpenCode',
   checked: CHECKED,
+  // The platform packages are published with the same version as the package that lists them.
+  latest: () => npmLatest('opencode-ai'),
   setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const copy =
       openCodePackage(process.platform, process.arch, isMuslLinux()) === null

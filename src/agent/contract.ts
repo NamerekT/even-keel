@@ -26,7 +26,9 @@ export interface AgentAdapter {
    * when another one is installed (BTN-249). Raised after the live run of each release (`docs/releases.md`).
    */
   checked: string
-  /** Sets the agent up; `env` gives the service's environment without the trackers' and CIs' credentials. */
+  /** The newest released version, from the source Even Keel's copy is downloaded from (BTN-569). */
+  latest(): Promise<string>
+  /** Sets the agent up;`env` gives the service's environment without the trackers' and CIs' credentials. */
   setup(options: AgentOptions): Agent
 }
 

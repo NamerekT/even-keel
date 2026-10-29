@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { cliCopy } from '../agent/copy.js'
-import { isMuslLinux } from '../agent/npm.js'
+import { isMuslLinux, npmLatest } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
 import { askCopilot, askCopilotToken } from '../limits/copilot.js'
@@ -32,6 +32,7 @@ const CHECKED = '1.0.98'
 export const copilot: AgentAdapter = {
   title: 'GitHub Copilot',
   checked: CHECKED,
+  latest: () => npmLatest('@github/copilot'),
   setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const copy =
       copilotPackage(process.platform, process.arch, isMuslLinux()) === null

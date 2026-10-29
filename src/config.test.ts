@@ -128,6 +128,7 @@ describe('parseConfig', () => {
       contextHandoffs: true,
       parallel: 1,
       keepWarm: 0,
+      cliCheck: false,
       updates: { check: true, notify: true },
       unattended: false,
       trimTools: true,
@@ -164,6 +165,12 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: {}, keepWarm: 25 })).toThrow(/keepWarm/)
     expect(() => parse({ projects: {}, keepWarm: -1 })).toThrow(/keepWarm/)
     expect(() => parse({ projects: {}, keepWarm: 1.5 })).toThrow(/keepWarm/)
+  })
+
+  it('takes the automatic CLI check as a switch, off by default', () => {
+    expect(parse({ projects: {} }).cliCheck).toBe(false)
+    expect(parse({ projects: {}, cliCheck: true }).cliCheck).toBe(true)
+    expect(() => parse({ projects: {}, cliCheck: 'yes' })).toThrow(/cliCheck/)
   })
 
   it('takes the skills hidden from chain sessions as a list of names', () => {

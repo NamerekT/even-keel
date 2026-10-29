@@ -39,6 +39,9 @@ export const sharedEn = {
   cliHint:
     "Checked — Even Keel downloads the version it was last checked against into its own folder and runs sessions on it; until the download ends they run on the installed CLI. Installed — the CLI on this machine, on whatever version it updated itself to. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. For every project.",
   cliSources: { checked: 'Checked', system: 'Installed' } as Record<string, string>,
+  cliCheck: 'Check new CLI versions on this machine',
+  cliCheckHint:
+    "When an agent's CLI releases a new version, and weekly on the checked one, Even Keel runs a short live check of it in the folder of the account the projects run on, on a cheap model. The check waits until the folder has no live session, and the folder's chains wait while it runs. The result shows at the top of the page. Spends the account's limits.",
   modelLabelsHint: "For projects that don't set it. On — a task's label Claude | sonnet, Codex | gpt-6.1-sol or a bare Codex picks its session.",
   promptHint:
     "Added to the prompt of every new session of every project and agent, before the project's own prompt, which adds to it rather than replaces it. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",

@@ -204,6 +204,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?updateProgress=settling\|running` | an update under way: waiting for the chains, or the update process running |
 | `?cli=unchecked` | Claude Code and Codex on versions Even Keel was not checked against: the banner under the header (`CliVersionBanner`) |
 | `?cli=daemon` | the Claude Code daemon of the global account on another version than the pinned one (BTN-250): the same banner |
+| `?cliCheck=mixed\|passed` | the automatic CLI check's banner (`CliCheckBanner`, BTN-569): Claude Code waiting for a free account and a failed Codex run, or one passed run |
 | `?fallback=on` | ABC-10 was launched on the project's provider because its `Codex` label had no account in the pool: the toast in the corner |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |

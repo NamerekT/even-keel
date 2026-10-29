@@ -5,9 +5,10 @@ import type { Queryable } from './database.js'
  * user closed; `config.imported` — when the first start looked for `even-keel.config.json` to import;
  * `profiles.imported` — when the first start made tracker profiles of the trackers' variables of `.env` (BTN-200);
  * `profiles.forgejo.imported` — when the first start made Forgejo profiles of `FORGEJO_TOKEN` (BTN-201);
- * `intake` — the GitHub issues taken into the projects' trackers and not closed yet (`IntakeEntry[]`, BTN-262).
+ * `intake` — the GitHub issues taken into the projects' trackers and not closed yet (`IntakeEntry[]`, BTN-262);
+ * `cliCheck.history` — per agent, the automatic CLI check's last lookup, versions tried and last result (`CheckHistory`, BTN-569).
  */
-export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported' | 'profiles.forgejo.imported' | 'intake'
+export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported' | 'profiles.forgejo.imported' | 'intake' | 'cliCheck.history'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

@@ -129,6 +129,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     tallyHealth: { state: 'waiting', lastRunAt: null },
     updates: { current: '0.1.0', available: null, toast: false, notes: [], source: 'git', blocked: null, previous: null, progress: null, result: null },
     cliVersions: [],
+    cliChecks: [],
     fallbacks: [],
     mailbox: {},
     changelogs: {},

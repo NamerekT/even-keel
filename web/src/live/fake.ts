@@ -253,6 +253,7 @@ function fakeState(
     tallyHealth: { state: 'ok', lastRunAt: ago(3) },
     updates: fakeUpdates(null),
     cliVersions: [],
+    cliChecks: [],
     fallbacks: [],
     mailbox: {},
     changelogs: fakeWrittenChangelogs(),
@@ -344,6 +345,16 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('cli') === 'daemon' && current.state !== null) {
     const params = { title: 'Claude Code', account: 'global', running: '2.1.303', wanted: '2.1.301' }
     current.state.cliVersions = [{ agent: 'claude', account: 'global', installed: '2.1.303', checked: '2.1.301', notice: { code: 'agent.daemonVersion', params } }]
+  }
+  if (params.get('cliCheck') === 'mixed' && current.state !== null) {
+    const at = Date.now() - 3 * 60_000
+    current.state.cliChecks = [
+      { agent: 'claude', at, notice: { code: 'cliCheck.waiting', params: { title: 'Claude Code', version: '2.1.312', account: 'Main account' } } },
+      { agent: 'codex', at, notice: { code: 'cliCheck.failed', params: { title: 'Codex', version: '0.164.0' }, detail: 'a launch: no session within 120 s' } },
+    ]
+  }
+  if (params.get('cliCheck') === 'passed' && current.state !== null) {
+    current.state.cliChecks = [{ agent: 'claude', at: Date.now(), notice: { code: 'cliCheck.passed', params: { title: 'Claude Code', version: '2.1.312' } } }]
   }
   if (params.get('fallback') === 'on' && current.state !== null) {
     const notice = { code: 'chain.noAccountFor' as const, params: { task: 'ABC-10', label: 'Codex', provider: 'Claude' } }

@@ -24,6 +24,7 @@ export const FULL = {
   autoCompactWindow: 300_000,
   contextHandoffs: false,
   keepWarm: 3,
+  cliCheck: true,
   context: { window: 1_000_000, danger: 90 },
   stats: { compare: { days: 14 }, moves: { 'C:\\old': 'C:\\new' }, otherBelow: 2, checkpointTokens: 150_000, checkpointShares: { first: 70, hard: 90 } },
   updates: { notify: false },

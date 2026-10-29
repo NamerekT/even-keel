@@ -239,6 +239,7 @@
   "fillMilestone": false,
   "parallel": 1,
   "keepWarm": 0,
+  "cliCheck": false,
   "unattended": false,
   "trimTools": true,
   "tally": null,
