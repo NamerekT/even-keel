@@ -1,7 +1,8 @@
-import { useEffect, useId, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
 import { CheckIcon, CopyIcon } from './icons.js'
 import { Tipped } from './Tipped.js'
+import { Fold } from './Fold.js'
 import './blocks.css'
 
 /** The shared blocks of `docs/design.md`, "Blocks": a page is built of these before it gets classes of its own. */
@@ -122,19 +123,13 @@ export type BandTone = 'note' | 'warn' | 'error'
 
 /** A compact warning summary; its action stays reachable while the list is folded. */
 export function FoldBand({ title, summary, action, children }: { title: string; summary: string; action?: ReactNode; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const id = useId()
   return (
-    <div className="ui-fold-band">
-      <Band tone="warn" action={action}>
-        <button type="button" className="ui-fold-band__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
-          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
-          <strong>{title}</strong>
-          <span className="ui-fold-band__summary">{summary}</span>
-        </button>
-      </Band>
-      <div id={id} hidden={!open} className="ui-fold-band__content">{children}</div>
-    </div>
+    <Fold className="ui-fold-band" summaryClassName="ui-fold-band__toggle"
+      summary={<><strong>{title}</strong><span className="ui-fold-band__summary">{summary}</span></>}
+      header={(toggle) => <Band tone="warn" action={action}>{toggle}</Band>}
+    >
+      <div className="ui-fold-band__content">{children}</div>
+    </Fold>
   )
 }
 

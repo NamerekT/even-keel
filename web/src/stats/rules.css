@@ -452,7 +452,7 @@
 
 .rule-file {
   display: grid;
-  grid-template-columns: 12px 84px minmax(0, 1fr) auto;
+  grid-template-columns: 16px 84px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: baseline;
   width: 100%;
@@ -477,7 +477,7 @@
   cursor: default;
 }
 
-.rule-file__caret {
+.rule-file > .ui-fold__caret {
   color: var(--fg-muted);
   font-size: var(--text-11);
 }
@@ -493,6 +493,13 @@
   font-family: var(--mono);
   font-size: var(--text-12);
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .rule-file { grid-template-columns: 16px minmax(0, 1fr) auto; }
+  .rule-file > .ui-fold__caret { grid-row: 1 / span 2; align-self: center; }
+  .rule-file__where, .rule-file__path { grid-column: 2; }
+  .rule-file > .rule-lines { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 }
 
 .rule-file__summary {

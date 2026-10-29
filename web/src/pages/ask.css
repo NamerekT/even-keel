@@ -9,13 +9,7 @@
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
 }
 
-.bubble--folded .bubble__text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-  line-clamp: 6;
-}
+.bubble__text { display: block; }
 
 .bubble__files {
   display: flex;
@@ -47,10 +41,16 @@
 }
 
 .answer-card__summary {
-  display: block;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  width: 100%;
   list-style: none;
   cursor: pointer;
 }
+
+.answer-card__summary > .ui-fold__caret { margin: var(--space-8) 0 0 var(--space-4); }
+.answer-card__summary > .answer-card__row { grid-column: 2; }
 
 .answer-card__summary::-webkit-details-marker {
   display: none;
@@ -80,7 +80,7 @@
   color: var(--accent);
 }
 
-.answer-card[open] .answer-card__summary {
+.answer-card[data-open='true'] .answer-card__summary {
   border-bottom: 1px solid var(--border);
 }
 

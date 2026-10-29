@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { StatsStep, StatsSteps, StatsStepWeek, StatsUnknownStep } from '../../../src/stats/steps.js'
 import { t } from '../i18n/index.js'
 import { AnswerNotice, Section, loadedData, type FoldControl, type Loaded } from './common.js'
@@ -158,32 +159,35 @@ function Weeks({ weeks }: { weeks: StatsStepWeek[] }) {
 
 function UnknownSteps({ unknown }: { unknown: StatsUnknownStep[] }) {
   return (
-    <details className="steps-unknown">
-      <summary>{t.stats.steps.unruled}</summary>
-      <div className="estimates__scroll">
-        <table className="tasks">
-          <thead>
-            <tr>
-              <th scope="col">{t.stats.steps.command}</th>
-              <th scope="col" className="tasks__num">{t.stats.steps.runs}</th>
-              <th scope="col" className="tasks__num">{t.common.total}</th>
-              <th scope="col" className="tasks__num">{t.common.max}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {unknown.map((each) => (
-              <tr key={each.signature}>
-                <td title={each.command}>
-                  <code>{each.signature}</code>
-                </td>
-                <td className="tasks__num">{each.n}</td>
-                <td className="tasks__num">{formatSeconds(each.seconds)}</td>
-                <td className="tasks__num">{formatSeconds(each.max)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
+    <Fold className="steps-unknown" summary={<>{t.stats.steps.unruled}</>}>
+      {() => (
+        <>
+          <div className="estimates__scroll">
+            <table className="tasks">
+              <thead>
+                <tr>
+                  <th scope="col">{t.stats.steps.command}</th>
+                  <th scope="col" className="tasks__num">{t.stats.steps.runs}</th>
+                  <th scope="col" className="tasks__num">{t.common.total}</th>
+                  <th scope="col" className="tasks__num">{t.common.max}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unknown.map((each) => (
+                  <tr key={each.signature}>
+                    <td title={each.command}>
+                      <code>{each.signature}</code>
+                    </td>
+                    <td className="tasks__num">{each.n}</td>
+                    <td className="tasks__num">{formatSeconds(each.seconds)}</td>
+                    <td className="tasks__num">{formatSeconds(each.max)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </Fold>
   )
 }

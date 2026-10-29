@@ -1,3 +1,4 @@
+@import './layout/banners.css';
 @import './styles/base.css';
 @import './styles/header.css';
 @import './styles/accounts.css';
@@ -5,7 +6,6 @@
 @import './styles/chain.css';
 @import './styles/home.css';
 @import './styles/windows.css';
-@import './layout/banners.css';
 
 :root {
   color-scheme: light dark;
@@ -85,6 +85,7 @@
   /* One duration per kind of motion: hover and small state changes; a dialog, panel or section showing up (ease-out);
      a new block marked (ease-out); a skeleton sweep (linear); a lamp blinking; a spinner turning. */
   --motion-fast: 0.15s;
+  --motion-fold: 0.12s;
   --motion-appear: 0.2s;
   --motion-mark: 1.6s;
   --motion-skeleton: 1.4s;

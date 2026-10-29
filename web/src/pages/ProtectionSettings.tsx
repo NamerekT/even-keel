@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { PROTECTION_GROUPS, type Protection } from '../../../src/sessions/protection.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { protectionMessages } from '../i18n/protection.js'
@@ -15,13 +16,16 @@ export function ProtectionSettings({ value, shared, onChange, error = null }: { 
   return <Section title={text.title} hint={text.hint}>
     {shared !== undefined && <SwitchField className="settings__field" label={text.inherit} hint={text.inheritHint} checked={inherited} onChange={on => onChange(on ? '' : protectionText(shared))} />}
     {PROTECTION_GROUPS.map(group => <SwitchField key={group} className="settings__field" label={text.groups[group]} hint={text.groupHints[group]} checked={!draft.disabled.includes(group)} disabled={inherited} onChange={on => edit({ disabled: on ? draft.disabled.filter(item => item !== group) : [...draft.disabled, group] })} />)}
-    <details>
-      <summary>{text.custom}</summary>
-      {(Object.keys(AGENTS) as (keyof typeof AGENTS)[]).map(agent => <div className="settings__field" key={agent}>
-        <FieldHead label={AGENTS[agent]} hint={text.native[agent]} htmlFor={`protection-${agent}`} />
-        <textarea id={`protection-${agent}`} className="settings__text settings__text--mono" rows={3} value={draft[agent]} placeholder={EXAMPLES[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
-      </div>)}
-    </details>
+    <Fold summary={<>{text.custom}</>}>
+      {() => (
+        <>
+          {(Object.keys(AGENTS) as (keyof typeof AGENTS)[]).map(agent => <div className="settings__field" key={agent}>
+            <FieldHead label={AGENTS[agent]} hint={text.native[agent]} htmlFor={`protection-${agent}`} />
+            <textarea id={`protection-${agent}`} className="settings__text settings__text--mono" rows={3} value={draft[agent]} placeholder={EXAMPLES[agent]} disabled={inherited} onChange={event => edit({ [agent]: event.target.value })} />
+          </div>)}
+        </>
+      )}
+    </Fold>
     <FieldHead label={text.limitsLabel} hint={text.limits} />
     {value !== '' && protectionOf(value) === undefined && <p role="alert">{text.invalid}</p>}
     <FieldNote error={error} />

@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { CSSProperties, ReactNode } from 'react'
 import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
@@ -68,31 +69,33 @@ interface SectionProps {
 function MatrixSection({ title, note, shown, total, projects, chip, children }: SectionProps) {
   const label = useProjectLabel()
   return (
-    <details className="tools__section" open>
-      <summary className="tools__summary">
-        {title} <span className="tools__count">{t.tools.shown(shown, total)}</span>
-      </summary>
-      {note !== undefined && <p className="tools__muted">{note}</p>}
-      {shown === 0 ? (
-        <p className="tools__muted">{t.tools.nothingShown}</p>
-      ) : (
-        <div className="tools__scroll">
-          <table className="tools__matrix" style={chip === undefined ? undefined : ({ '--chip': chip } as CSSProperties)}>
-            <thead>
-              <tr>
-                <th />
-                {projects.map((project) => (
-                  <th key={project} scope="col">
-                    {label(project)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>{children}</tbody>
-          </table>
-        </div>
+    <Fold className="tools__section" defaultOpen summaryClassName="tools__summary" summary={<>
+      {title} <span className="tools__count">{t.tools.shown(shown, total)}</span>
+    </>}>
+      {() => (
+        <>
+          {note !== undefined && <p className="tools__muted">{note}</p>}{shown === 0 ? (
+            <p className="tools__muted">{t.tools.nothingShown}</p>
+          ) : (
+            <div className="tools__scroll">
+              <table className="tools__matrix" style={chip === undefined ? undefined : ({ '--chip': chip } as CSSProperties)}>
+                <thead>
+                  <tr>
+                    <th />
+                    {projects.map((project) => (
+                      <th key={project} scope="col">
+                        {label(project)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>{children}</tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
-    </details>
+    </Fold>
   )
 }
 

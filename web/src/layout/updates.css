@@ -101,7 +101,7 @@
   border: 1px solid var(--border);
 }
 
-.update-window__result summary {
+.update-window__result .ui-fold__toggle {
   cursor: pointer;
 }
 

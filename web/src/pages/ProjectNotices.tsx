@@ -1,3 +1,4 @@
+import { Fold, FoldList, FoldPresence } from '../ui/Fold.js'
 import { useState } from 'react'
 import { ProtectionWarnings, protectionAgents, remoteProtectionWarnings } from './ProtectionWarnings.js'
 import { Link } from 'react-router'
@@ -36,26 +37,27 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
   const warnings = (
     <>
       <Leftovers state={state} project={project} rows={rows} busy={dismissing} />
-      {tone !== null && tone !== 'error' && <Forward state={state} project={project} />}
+      <FoldPresence>{tone !== null && tone !== 'error' ? <Forward state={state} project={project} /> : null}</FoldPresence>
     </>
   )
-  if (errors.length === 0 && tone === null && count === 0 && failure === null && protectionAgents(state, project).length === 0 && remoteProtectionWarnings(state, project).length === 0) return null
+  const shown = errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionAgents(state, project).length > 0 || remoteProtectionWarnings(state, project).length > 0
   return (
-    <div className="project-notices">
+    <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
-      {errors.map((error, index) => (
-        <Band key={index} tone="error" action={
-          <>
-            <NoticeFixButton project={project} notice={error} />
-            <PullFixButton state={state} project={project} error={error} />
-          </>
-        }>
-          <Said notice={error} />
-          <UntrustedCommands notice={error} />
-        </Band>
-      ))}
-      {tone === 'error' && <Forward state={state} project={project} />}
-      {count > 1 ? (
+      <FoldList items={errors.map((error, index) => ({
+        key: `${error.code}-${index}`, children:
+          <Band tone="error" action={
+            <>
+              <NoticeFixButton project={project} notice={error} />
+              <PullFixButton state={state} project={project} error={error} />
+            </>
+          }>
+            <Said notice={error} />
+            <UntrustedCommands notice={error} />
+          </Band>
+      }))} />
+      <FoldPresence>{tone === 'error' ? <Forward state={state} project={project} /> : null}</FoldPresence>
+      <FoldPresence>{count > 1 ? (
         <FoldBand
           title={t.project.warnings(count)}
           summary={summary}
@@ -67,9 +69,10 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
         >
           {warnings}
         </FoldBand>
-      ) : warnings}
-      {failure !== null && <Band tone="error">{say(failure)}</Band>}
-    </div>
+      ) : null}</FoldPresence>
+      <FoldPresence>{count <= 1 ? warnings : null}</FoldPresence>
+      <FoldPresence>{failure !== null ? <Band tone="error">{say(failure)}</Band> : null}</FoldPresence>
+    </div> : null}</FoldPresence>
   )
 }
 
@@ -133,15 +136,17 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
           <strong>
             <ProjectLinks text={t.project.forwardConflict(forward.behind ?? 0, project, forward.into, files.length)} />
           </strong>
-          <details className="forward__more">
-            <summary>{t.project.forwardMore}</summary>
-            <ul className="forward__files">
-              {files.map((file) => (
-                <li key={file}>{file}</li>
-              ))}
-            </ul>
-            {conflict.detail !== undefined && conflict.detail.trim() !== '' && <pre className="forward__output">{conflict.detail.trim()}</pre>}
-          </details>
+          <Fold className="forward__more" summary={<>{t.project.forwardMore}</>}>
+            {() => (
+              <>
+                <ul className="forward__files">
+                  {files.map((file) => (
+                    <li key={file}>{file}</li>
+                  ))}
+                </ul>{conflict.detail !== undefined && conflict.detail.trim() !== '' && <pre className="forward__output">{conflict.detail.trim()}</pre>}
+              </>
+            )}
+          </Fold>
         </Band>
         {failure !== null && <p className="project__error">{say(failure)}</p>}
       </div>
@@ -182,13 +187,12 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
 function Leftovers({ state, project, rows, busy }: { state: EvenKeelState; project: string; rows: string[]; busy: boolean }) {
   const { send, sending, failure } = useCommand()
   const leftovers = (state.chain.leftovers[project] ?? []).filter((each) => !rows.includes(each.task))
-  if (leftovers.length === 0) return null
   const tasks = [...new Set(leftovers.map((each) => each.task))]
 
   return (
     <div className="leftovers">
-      {tasks.map((task) => (
-        <div key={task} className="notice notice--warn leftovers__item">
+      <FoldList items={tasks.map((task) => ({ key: task, children:
+        <div className="notice notice--warn leftovers__item">
           <div className="leftovers__text">
             <strong>{t.project.leftover(task)}</strong>
             {leftovers
@@ -203,7 +207,7 @@ function Leftovers({ state, project, rows, busy }: { state: EvenKeelState; proje
             {t.project.dismiss}
           </button>
         </div>
-      ))}
+      }))} />
       {failure !== null && <p className="project__error">{say(failure)}</p>}
     </div>
   )

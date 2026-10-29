@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { ReceivedView, SkillSource, ToolsView } from '../../../src/tools/model.js'
 import { formatAgo } from '../format.js'
 import { t } from '../i18n/index.js'
@@ -68,16 +69,19 @@ function Received({ received }: { received: ReceivedView }) {
           </dd>
         </div>
       </dl>
-      <details className="tools__builtin">
-        <summary>{t.tools.builtIn(received.tools.length)}</summary>
-        <div className="tools__chips">
-          {received.tools.map((tool) => (
-            <Chip key={tool} tone="plain">
-              {tool}
-            </Chip>
-          ))}
-        </div>
-      </details>
+      <Fold className="tools__builtin" summary={<>{t.tools.builtIn(received.tools.length)}</>}>
+        {() => (
+          <>
+            <div className="tools__chips">
+              {received.tools.map((tool) => (
+                <Chip key={tool} tone="plain">
+                  {tool}
+                </Chip>
+              ))}
+            </div>
+          </>
+        )}
+      </Fold>
     </>
   )
 }

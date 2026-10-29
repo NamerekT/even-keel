@@ -11,21 +11,11 @@
   flex-direction: column;
   gap: var(--space-12);
   min-width: 0;
-  animation: appear var(--motion-appear) ease-out;
 }
 
-.stats-section__head--fold {
-  margin: -14px -16px;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.stats-section:not(.stats-section--folded) > .stats-section__head--fold {
-  margin-bottom: -4px;
-  padding-bottom: 4px;
-}
-
+.stats-section__head--fold { cursor: pointer; }
+.stats-section .ui-fold { display: flex; flex-direction: column; }
+.stats-section .ui-fold__clip > .stats-section__body { padding-top: var(--space-12); }
 .stats-section__head--fold:hover {
   background: color-mix(in srgb, var(--surface-muted) 55%, transparent);
 }
@@ -47,20 +37,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: var(--radius-small);
-}
-
-.stats-section__caret {
-  width: 7px;
-  height: 7px;
-  margin: 0 3px 0 2px;
-  border-right: 2px solid var(--fg-muted);
-  border-bottom: 2px solid var(--fg-muted);
-  transform: rotate(-45deg);
-  transition: transform var(--motion-fast) ease;
-}
-
-.stats-section__fold[aria-expanded='true'] .stats-section__caret {
-  transform: translateY(-2px) rotate(45deg);
 }
 
 .stats-section__count {
@@ -87,11 +63,11 @@
   min-width: 0;
 }
 
-.stats-section--folded > .stats-section__head--fold {
+.stats-section [data-open='false'] > .stats-section__head--fold {
   flex-wrap: nowrap;
 }
 
-.stats-section--folded > .stats-section__head--fold > .stats-section__note {
+.stats-section [data-open='false'] > .stats-section__head--fold > .stats-section__note {
   flex-basis: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -253,7 +229,7 @@
   margin-top: 12px;
 }
 
-.steps-unknown summary {
+.steps-unknown .ui-fold__toggle {
   cursor: pointer;
   color: var(--fg-muted);
 }
@@ -399,9 +375,7 @@
   color: var(--lamp-error);
 }
 
-.tasks__detail > td > * {
-  animation: appear var(--motion-appear) ease-out;
-}
+.tasks__detail > td { padding: 0; border: 0; }
 
 .tasks__row:focus-visible {
   outline: 2px solid var(--accent);

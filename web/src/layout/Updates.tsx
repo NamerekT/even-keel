@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
@@ -282,10 +283,13 @@ function ResultPart({ result }: { result: UpdateResultView }) {
       <strong>{resultTitle(result)}</strong>
       <span>{resultBody(result)}</span>
       {result.output !== '' && (
-        <details>
-          <summary>{t.updates.output}</summary>
-          <pre className="update-window__output">{result.output}</pre>
-        </details>
+        <Fold summary={<>{t.updates.output}</>}>
+          {() => (
+            <>
+              <pre className="update-window__output">{result.output}</pre>
+            </>
+          )}
+        </Fold>
       )}
       {result.step !== null && <span className="update-window__muted">{t.updates.log}</span>}
     </section>

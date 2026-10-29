@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { LaunchDay } from '../../../src/chain/launches.js'
@@ -112,35 +113,38 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
         </div>
       </div>
 
-      <details className="chart__table">
-        <summary>{t.launches.table}</summary>
-        <div className="chart__table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">{t.launches.day}</th>
-                {shown.map((project) => (
-                  <th key={project} scope="col">
-                    {label(project)}
-                  </th>
-                ))}
-                <th scope="col">{t.common.total}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {days.map((day) => (
-                <tr key={day.day}>
-                  <th scope="row">{DAY().format(localDate(day.day))}</th>
-                  {shown.map((project) => (
-                    <td key={project}>{day.counts[project] ?? 0}</td>
+      <Fold className="chart__table" summary={<>{t.launches.table}</>}>
+        {() => (
+          <>
+            <div className="chart__table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{t.launches.day}</th>
+                    {shown.map((project) => (
+                      <th key={project} scope="col">
+                        {label(project)}
+                      </th>
+                    ))}
+                    <th scope="col">{t.common.total}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {days.map((day) => (
+                    <tr key={day.day}>
+                      <th scope="row">{DAY().format(localDate(day.day))}</th>
+                      {shown.map((project) => (
+                        <td key={project}>{day.counts[project] ?? 0}</td>
+                      ))}
+                      <td>{dayTotal(day)}</td>
+                    </tr>
                   ))}
-                  <td>{dayTotal(day)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Fold>
     </Card>
   )
 }

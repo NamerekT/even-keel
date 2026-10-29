@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { CliVersionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { cliSummary } from './cliVersions.js'
+import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { Banner } from './Banner.js'
 
 const DISMISSED_KEY = 'even-keel.cliVersions.dismissed'
@@ -16,6 +17,7 @@ export function CliVersionBanner() {
   const { state } = useLive()
   const [dismissed, setDismissed] = useState(readDismissed)
   const [open, setOpen] = useState(false)
+  const id = useId()
   const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed && state?.cliCopies?.[each.agent]?.status !== 'downloading')
   if (shown.length === 0) return <Banner />
 
@@ -32,23 +34,20 @@ export function CliVersionBanner() {
       <div className="banner__inner">
         <span>{cliSummary(shown)}</span>
         <span className="banner__actions">
-          <button type="button" className="banner__toggle" aria-expanded={open} aria-controls="cli-versions" onClick={() => setOpen(!open)}>
+          <FoldToggle className="banner__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
             {t.banner.cliDetails}
-            <svg className="banner__chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-              <path d="M2.5 4.5 6 8l3.5-3.5" />
-            </svg>
-          </button>
+          </FoldToggle>
           <button type="button" className="button" onClick={dismiss}>
             {t.common.hide}
           </button>
         </span>
-        {open && (
-          <ul className="banner__list" id="cli-versions">
+        <FoldBody id={id} open={open} className="banner__details">
+          <ul className="banner__list">
             {shown.map((each) => (
               <li key={keyOf(each)}>{say(each.notice)}</li>
             ))}
           </ul>
-        )}
+        </FoldBody>
       </div>
     </Banner>
   )

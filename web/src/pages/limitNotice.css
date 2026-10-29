@@ -14,7 +14,7 @@
   font-size: var(--text-13);
 }
 
-.limit-notice__details summary {
+.limit-notice__details .ui-fold__toggle {
   min-height: 24px;
   cursor: pointer;
 }

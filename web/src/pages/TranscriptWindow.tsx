@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { FoldBody, FoldToggle } from '../ui/Fold.js'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ReviewView } from '../../../src/chain/dispatcher.js'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
@@ -396,10 +397,11 @@ interface BubbleProps {
 /** A message of the user on the right: their words and the files they sent, pictures as thumbnails; a long one folds. */
 function UserBubble({ text, files, media, onOpen }: BubbleProps) {
   const [open, setOpen] = useState(false)
+  const bodyId = useId()
   const long = text.split('\n').length > FOLD_LINES || text.length > FOLD_CHARS
   return (
-    <div className={`bubble${long && !open ? ' bubble--folded' : ''}`}>
-      {text !== '' && <span className="transcript__plain bubble__text">{text}</span>}
+    <div className="bubble">
+      {text !== '' && <FoldBody id={bodyId} open={!long || open} preview={long}><span className="transcript__plain bubble__text">{text}</span></FoldBody>}
       {files.length > 0 && (
         <ul className="bubble__files">
           {files.map((file, index) => {
@@ -414,9 +416,9 @@ function UserBubble({ text, files, media, onOpen }: BubbleProps) {
         </ul>
       )}
       {long && (
-        <button type="button" className="bubble__more" onClick={() => setOpen(!open)}>
+        <FoldToggle className="bubble__more" aria-controls={bodyId} aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? t.session.showLess : t.session.showMore}
-        </button>
+        </FoldToggle>
       )}
     </div>
   )

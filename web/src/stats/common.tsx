@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -154,31 +155,22 @@ export function Section({
   busy?: boolean
   children: ReactNode
 }) {
-  const open = fold === undefined || fold.open
   const scribble = remark ? <span className="stats-remark">{remark}</span> : null
+  if (fold === undefined) return (
+    <section className="ui-card stats-section" aria-busy={busy}>
+      <CardHead title={title}>{aside}{scribble}</CardHead>
+      <div className="stats-section__body">{children}</div>
+    </section>
+  )
   return (
-    <section className={open ? 'ui-card stats-section' : 'ui-card stats-section stats-section--folded'} aria-busy={busy}>
-      {fold === undefined ? (
-        <CardHead title={title}>
-          {aside}
-          {scribble}
-        </CardHead>
-      ) : (
-        <CardHead
-          className="stats-section__head--fold"
-          onClick={() => fold.onToggle(!open)}
-          title={
-            <button type="button" className="stats-section__fold" aria-expanded={open}>
-              <span className="stats-section__caret" aria-hidden="true" />
-              {title}
-            </button>
-          }
-        >
-          {aside}
-          {scribble}
-        </CardHead>
-      )}
-      {open && <div className="stats-section__body">{children}</div>}
+    <section className={fold.open ? 'ui-card stats-section' : 'ui-card stats-section stats-section--folded'} aria-busy={busy}>
+      <Fold open={fold.open} onOpenChange={fold.onToggle} summary={title} summaryClassName="stats-section__fold"
+        header={(toggle) => <CardHead className="stats-section__head--fold" title={toggle} onClick={(event) => {
+          if (!(event.target as HTMLElement).closest('button')) fold.onToggle(!fold.open)
+        }}>{aside}{scribble}</CardHead>}
+      >
+        <div className="stats-section__body">{children}</div>
+      </Fold>
     </section>
   )
 }

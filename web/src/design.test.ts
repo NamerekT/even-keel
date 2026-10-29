@@ -11,6 +11,10 @@ const sheets = Object.fromEntries(
 )
 
 describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
+  it('in-flow disclosures use Fold rather than native details', () => {
+    const sources = import.meta.glob<string>('./**/*.tsx', { query: '?raw', import: 'default', eager: true })
+    expect(Object.keys(sources).filter((path) => /<details\b/.test(sources[path]!))).toEqual([])
+  })
   it('no stylesheet has more violations than the baseline, and the baseline is not above what is left', () => {
     const baseline = JSON.parse(baselineText) as Record<string, number>
     const { more, fewer } = compareBaseline(violationCounts(sheets), baseline)

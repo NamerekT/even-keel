@@ -38,7 +38,7 @@
   font-size: var(--text-13);
 }
 
-.gets__all summary {
+.gets__all .ui-fold__toggle {
   width: fit-content;
   color: var(--fg-muted);
   font-size: var(--text-13);

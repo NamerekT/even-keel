@@ -330,7 +330,7 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
       {note !== null && !limited && (session.apiErrorNotice === undefined
         ? <p className={`notice notice--${session.apiErrorKind === 'transient' ? 'warn' : 'error'}`}>{note}</p>
         : <Band tone={session.apiErrorKind === 'transient' ? 'warn' : 'error'} action={<NoticeFixButton project={taskProject(state, session.task)} notice={session.apiErrorNotice} />}>{note}</Band>)}
-      {limited && <LimitNotice session={session} hold={limit} refusal={refusal} />}
+      <LimitNotice active={limited} session={session} hold={limit} refusal={refusal} />
       <FactList>
         <Fact label={t.session.session}>
           <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>

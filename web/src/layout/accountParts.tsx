@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -622,9 +623,12 @@ function DeviceCode({ code, onCopy }: { code: string; onCopy: () => void }) {
 
 function Output({ text, open = false, label = t.account.output }: { text: string; open?: boolean; label?: string }) {
   return (
-    <details className="account__output" open={open}>
-      <summary>{label}</summary>
-      <pre>{text}</pre>
-    </details>
+    <Fold className="account__output" defaultOpen={open} summary={label}>
+      {() => (
+        <>
+          <pre>{text}</pre>
+        </>
+      )}
+    </Fold>
   )
 }

@@ -153,10 +153,6 @@
   }
 
   .projects__body {
-    display: none;
-  }
-
-  .projects--open .projects__body {
     display: flex;
     margin-top: 8px;
     padding: 12px;

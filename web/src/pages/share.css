@@ -52,11 +52,7 @@
   border-top: 1px solid var(--border);
 }
 
-.share__body--folded {
-  max-height: 320px;
-  overflow: hidden;
-  mask-image: linear-gradient(to bottom, black 75%, transparent);
-}
+.share__body { --fold-preview: 320px; }
 
 .share .thumb {
   width: 96px;

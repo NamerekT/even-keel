@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import type { Share } from '../../../src/sessions/share.js'
 import { t } from '../i18n/index.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
@@ -50,6 +51,7 @@ export function ShareCard({ tool, share, url, media, onOpen }: Props) {
 /** A markdown file read by the page and rendered in place; a long one folds. */
 function SharedMarkdown({ name, url }: { name: string; url: string }) {
   const [text, setText] = useState<string | null | undefined>(undefined)
+  const bodyId = useId()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -74,14 +76,14 @@ function SharedMarkdown({ name, url }: { name: string; url: string }) {
       {text === undefined ? (
         <span className="placeholder">{t.common.reading}</span>
       ) : (
-        <div className={`share__body${long && !open ? ' share__body--folded' : ''}`}>
+        <FoldBody id={bodyId} open={!long || open} preview={long} className="share__body">
           <SessionMarkdown text={text} />
-        </div>
+        </FoldBody>
       )}
       {long && (
-        <button type="button" className="bubble__more" onClick={() => setOpen(!open)}>
+        <FoldToggle className="bubble__more" aria-controls={bodyId} aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? t.session.showLess : t.session.showMore}
-        </button>
+        </FoldToggle>
       )}
     </>
   )

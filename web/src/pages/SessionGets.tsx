@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { ReactNode } from 'react'
 import { fallbackPassed, instructionsFor, skillFoldersFor, type InstructionFile } from '../../../src/agent/projectRules.js'
 import type { PackagesView } from '../../../src/state.js'
@@ -90,32 +91,35 @@ function AllAgents() {
     return fallbackPassed(agent, read) ? text.byEvenKeel(shown) : shown
   }
   return (
-    <details className="gets__all">
-      <summary>{text.table}</summary>
-      <div className="gets__scroll">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">{text.head.agent}</th>
-              <th scope="col">{text.head.claudeOnly}</th>
-              <th scope="col">{text.head.agentsOnly}</th>
-              <th scope="col">{text.head.both}</th>
-              <th scope="col">{text.head.skills}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {AGENTS.map((agent) => (
-              <tr key={agent}>
-                <th scope="row">{providerName(agent)}</th>
-                <td>{cell(agent, ['CLAUDE.md'])}</td>
-                <td>{cell(agent, ['AGENTS.md'])}</td>
-                <td>{cell(agent, ['CLAUDE.md', 'AGENTS.md'])}</td>
-                <td>{skillFoldersFor(agent).join(', ')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
+    <Fold className="gets__all" summary={<>{text.table}</>}>
+      {() => (
+        <>
+          <div className="gets__scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{text.head.agent}</th>
+                  <th scope="col">{text.head.claudeOnly}</th>
+                  <th scope="col">{text.head.agentsOnly}</th>
+                  <th scope="col">{text.head.both}</th>
+                  <th scope="col">{text.head.skills}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {AGENTS.map((agent) => (
+                  <tr key={agent}>
+                    <th scope="row">{providerName(agent)}</th>
+                    <td>{cell(agent, ['CLAUDE.md'])}</td>
+                    <td>{cell(agent, ['AGENTS.md'])}</td>
+                    <td>{cell(agent, ['CLAUDE.md', 'AGENTS.md'])}</td>
+                    <td>{skillFoldersFor(agent).join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </Fold>
   )
 }
