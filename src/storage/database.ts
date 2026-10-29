@@ -235,6 +235,9 @@ export const STEPS: readonly string[] = [
     select 'accounts.adoptLegacy', 'true'
     where current_setting('even_keel.migration_from', true)::integer > 0;
   `,
+  // The chains JSON may retain a paid-usage stop and its session snapshot (LimitHold.overage).
+  // No table changes; the version prevents older readers from discarding this wait.
+  `select 1;`,
 ]
 
 /** The version this code reads and writes. */

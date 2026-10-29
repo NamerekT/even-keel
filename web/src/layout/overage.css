@@ -1,4 +1,6 @@
 .account-overage { display: flex; align-items: center; min-height: 24px; font-size: var(--text-12); font-variant-numeric: tabular-nums; color: var(--fg-muted); overflow-wrap: anywhere; }
+.account-overage-warning { position: relative; margin: var(--space-8) var(--space-12); }
+.account-overage-warning a { white-space: normal; text-align: center; }
 .account-overage-chip {
   display: inline-flex; flex: none; align-items: center; padding: var(--space-4) var(--space-6);
   border-radius: var(--radius-pill); font-size: var(--text-12); font-weight: 600; white-space: nowrap;

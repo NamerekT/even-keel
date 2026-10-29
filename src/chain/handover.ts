@@ -39,7 +39,9 @@ export class Handovers {
   }
 
   async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
-    const session = this.deps.limited(current.task)
+    const retained = current.limit?.acted === null ? current.limit.overage : undefined
+    const overage = retained === undefined ? undefined : { ...retained.session, ...(retained.stopped && { stopped: true as const }) }
+    const session = overage ?? this.deps.limited(current.task)
     if (session?.transient === true) return this.followTransient(chain, current, session)
     if (session === undefined) {
       const recovered = this.deps.handoff(current.task)
@@ -72,6 +74,8 @@ export class Handovers {
     }
     const hold = current.limit
     const now = this.deps.now()
+    const spentUntil = overage === undefined ? null : this.deps.limitReset(chain.project, current.task)
+    if (spentUntil !== null && Date.parse(spentUntil) > now.getTime()) return true
     const step = relayStep(hold, now, this.deps.account(chain.project, current.task), session.warmMs)
     if (step === 'wait') return true
 
@@ -121,7 +125,8 @@ export class Handovers {
   }
 
   unanswered(current: CurrentTask): boolean {
-    if (!this.state.unattended || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
+    const paidWait = current.limit?.acted === null && current.limit.overage !== undefined
+    if (!this.state.unattended || paidWait || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
     const session = this.deps.handoff(current.task)
     if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
     const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
@@ -229,7 +234,7 @@ export class Handovers {
   async recover(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const { starting, move, reply, ask, answering } = current
     if (starting === undefined || move === undefined) return true
-    const session = this.deps.handoff(current.task)
+    const session = this.deps.handoff(current.task) ?? current.limit?.overage?.session
     if (session === undefined) return false
     if (session.sessionId !== current.sessionId) {
       this.deps.log(`chain: ${current.task}: took ${session.sessionId}, started by a ${move} the service did not live to record`)

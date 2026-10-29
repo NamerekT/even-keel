@@ -216,7 +216,7 @@ The project notice states are on `/p/ABC?forward=warnings`: a carry conflict abo
 
 ## Screenshots (`npm run shot`)
 
-`?account=overage|overage-long` supplies Claude using extra usage, a working Codex account with an exhausted window and 12.4 ChatGPT credits, an idle OpenCode account sharing credits, Copilot with extra usage disabled, and accounts with no extra-usage source. The long variant lengthens the active account name. Use on `/accounts` or `/p/ABC` (open the account drawer), with `lang=ru` for translated narrow rows.
+`?account=overage|overage-long|overage-permitted` supplies Claude using extra usage, a working Codex account with an exhausted window and 12.4 ChatGPT credits, an idle OpenCode account sharing credits, Copilot with extra usage disabled, and accounts with no extra-usage source. The long variant lengthens the active account name; the permitted variant enables Copilot additional usage. Use on `/accounts` or `/p/ABC` (open the account drawer), with `lang=ru` for translated narrow rows. Available paid usage adds `OverageWarning`, a shared warning Band with the provider spending-settings action and a keyboard/touch-accessible policy tip. Its controls do not toggle the account row menu.
 
 Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 

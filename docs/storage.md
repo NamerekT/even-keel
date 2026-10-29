@@ -41,6 +41,8 @@ The remaining JSON files written through `writeAtomic` (`src/storage/atomic.ts`)
 
 ## Schema steps
 
+- Step 18 (BTN-577) reserves the new `LimitHold.overage` JSON in `chains`: the retained session snapshot and successful-stop marker let a paid subscription usage stop survive a restart. Tables are unchanged; the version prevents older code from dropping the wait and relaunching. The frozen v18 sample includes an unknown-reset paid hold; `database-overage.test.ts` checks its schema, full read and save/load roundtrip, and preservation of v17 state.
+
 - File schema v19 (BTN-394) adds nullable `autoCompactWindow` at the shared and project levels and optional launch `settings` to SDK session records. Migration only restamps older files, preserving account-window inheritance. The settings definition is mirrored from the registry at startup; existing settings rows and SDK files need no database step.
 
 - Step 17 (BTN-543) adds `global_accounts` (`account` primary key), the explicit registrations of the global Claude and Codex folders. `openAccountHomes` reads and writes it. The migration sets `accounts.adoptLegacy` in `service_state` only for an existing database; the runner exposes the version from before the entire migration as transaction-local `even_keel.migration_from`, so a fresh database passing through all steps stays fresh. Importing old state files, or finding an old account ledger without chain history, sets the same marker; SQLite already passes through the upgrade path. At the first account initialization the marker is consumed in the transaction that registers the global folders present then. Backups carry registrations; config export does not.

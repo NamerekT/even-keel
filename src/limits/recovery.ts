@@ -3,6 +3,7 @@ import type { Agent } from '../agent/contract.js'
 import { limitResetAfter, type RateLimits } from './model.js'
 import { LimitRetries, noKnownLimit } from './retry.js'
 import type { UsageHealth } from './usage.js'
+import { OVERAGE_LIMIT_TEXT } from './overage.js'
 
 interface RecoveryOptions {
   homeOf: (key: string) => AccountHome | undefined
@@ -22,6 +23,7 @@ export function limitRecovery(options: RecoveryOptions) {
   const limitRetries = new LimitRetries()
   const retryAfterLimit = (key: string, at: string, text?: string): string | null => {
     if (spendsByKey(key)) return options.creditBackAfter(key, at, text)
+    if (text === OVERAGE_LIMIT_TEXT) return limitResetAfter(options.limits(key), at)
     if (noKnownLimit(options.limits(key), options.usage(key))) return limitRetries.retryAfter(key, at)
     return limitResetAfter(options.limits(key), at)
   }

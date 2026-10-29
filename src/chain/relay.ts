@@ -93,6 +93,8 @@ export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
 
 export interface HandoffSession {
+  /** The dispatcher already stopped this retained session; recovery must not stop or write to it again. */
+  stopped?: true
   sessionId: string
   agentId: string
   account: string
@@ -133,6 +135,8 @@ export interface LimitHold {
   lastReplyAt: string | null
   then: RelayAction
   acted: RelayAction | null
+  /** Paid-usage stops retain their context when the stopped session disappears from the monitor. */
+  overage?: { session: LimitedSession; stopped: boolean }
 }
 
 export interface AccountNow {

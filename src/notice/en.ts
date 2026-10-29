@@ -34,6 +34,13 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The English texts of the server's messages: the log and the English page both read them.
 export const en = {
+  'account.overageRisk': () => 'Paid usage may start before Even Keel detects it.',
+  'account.overagePolicy': () => 'Even Keel stops a chain session after detecting extra usage and waits for the included allowance to reset. Detection follows a request or a usage poll, which may lag by up to five minutes. Set a hard spending cap with the provider.',
+  'account.overageAdvice': (p: { provider: 'claude' | 'chatgpt' | 'github' }) => p.provider === 'chatgpt'
+    ? 'For this chain account, turn off automatic credit reload or set its monthly spending cap in ChatGPT where supported.'
+    : p.provider === 'claude' ? 'For this chain account, turn off Extra usage or set its monthly spending limit in Claude.'
+    : 'For this chain account, turn off additional paid usage or set its monthly budget in GitHub.',
+  'account.overageSettings': () => 'Provider spending settings',
   'tracker.closePending': () => 'tracker refused closure',
   'tracker.completeRefused': (p: { task: string }) => `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically. Tracker response`,
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',

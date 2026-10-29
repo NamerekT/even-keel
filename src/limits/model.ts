@@ -25,7 +25,7 @@ export interface RateLimits {
   source: 'usage' | 'statusline' | 'sdk' | 'api'
   /** The subscription the limits are of (`chatgpt:<account id>`): two folders with the same one share their limits. */
   pool?: string
-  /** Subscription extras, with a timestamp independent of the usage windows. Never used for scheduling. */
+  /** Subscription extras with an independent timestamp; fresh evidence may stop managed paid usage. */
   overage?: Overage
 }
 
