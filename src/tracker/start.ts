@@ -174,7 +174,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     const key = JSON.stringify([readKey(project), rules.active, rules.terminal])
     const running = reads.get(key)
     if (running !== undefined) return running
-    const read = link.run((tracker) => tracker.chainTasks(project, rules)).finally(() => reads.delete(key))
+    const read = link.run((tracker) => tracker.chainTasks(project, rules), `chainTasks:${key}`).finally(() => reads.delete(key))
     reads.set(key, read)
     return read
   }
@@ -207,9 +207,9 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       unknownByProject.set(project, unknown)
       const listed = new Set([...tasks, ...parents].map((task) => task.id))
       const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
-      const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
+      const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing), JSON.stringify(['tasks', ...missing]))
       const unlisted = ranSince(project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
-      const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
+      const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted), JSON.stringify(['tasks', ...unlisted]))).filter((task) => !isOpen(task.status))
       if (stopped) return
       dispatcher.setOutside(project, [...parents, ...others])
       const shown = await withMilestones(project, [...tasks, ...ran])
@@ -218,7 +218,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
       const released = dispatcher.released(project)
-      if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
+      if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released), JSON.stringify(['tasks', ...released])))
       if (!completes) return
       const open = shown.filter((task) => isOpen(task.status)).map((task) => task.id)
       for (const task of await closer.sweep(project, dispatcher.held(project), open)) {

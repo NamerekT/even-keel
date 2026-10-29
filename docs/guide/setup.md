@@ -51,6 +51,8 @@ In a profile's **MCP for sessions** box, choose OAuth or the fallback token: one
 
 ### Minimum: the adapter only
 
+After a tracker read times out, Even Keel retries that read with an increasing delay, from 20 seconds to five minutes. Saving a changed profile clears the delay. Repeated timeouts produce one diagnostic line and a recovery line with their count in the service log.
+
 Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You add a **tracker profile** on `/settings` → **Trackers and CI** → **Add profile**, and nothing else: pick the tracker, fill in its fields, and press **Check and save**. Even Keel checks the account and saves it if the check succeeds; an error leaves the dialog open without saving. **Check** alone shows whom the profile signs in as without saving. A duplicate-account warning stops automatic saving; press **Check and save** again to accept it. The page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
 
 - **Huly:** the server address, the workspace, and the e-mail and password of a separate Huly account with access to the projects — create one for Even Keel. A token instead only if your Huly shows an API tokens page in the account settings: released self-hosted Huly has none, and its sign-in token comes from the e-mail and password anyway ([plugins/huly/README.md](../../plugins/huly/README.md#credentials)). The project key is the Huly project identifier (`ABC` for `ABC-12`).

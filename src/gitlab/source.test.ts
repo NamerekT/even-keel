@@ -6,6 +6,7 @@ import { connectGitlab } from './source.js'
 const SETTINGS = { web: 'https://gitlab.example.com', token: 'example', projects: { 'project-id': { key: 'APP', value: 'group/subgroup/app' } } }
 const USER: Reply = { body: { id: 9, username: 'example-user' } }
 const NO_HIERARCHY: Reply = { body: { data: { project: { workItems: { nodes: [{ widgets: [] }] } } } } }
+const batchHierarchy = (...iids: number[]): Reply => ({ body: { data: { project: { workItems: { nodes: iids.map((iid) => ({ iid: String(iid), widgets: [] })), pageInfo: { hasNextPage: false, endCursor: null } } } } } })
 const notTerminal = (status: { category: string }) => status.category !== 'Won'
 
 async function connect(replies: Reply[]) {
@@ -24,9 +25,7 @@ describe('GitLab task source', () => {
     const { source, calls, remaining } = await connect([
       { body: [issue()], next: '2' }, { body: [issue({ iid: 3, web_url: SETTINGS.web + '/group/subgroup/app/-/issues/3', milestone: null })] },
       { body: [issue({ iid: 2, state: 'closed', web_url: SETTINGS.web + '/group/subgroup/app/-/issues/2' })] },
-      { body: [linked('is_blocked_by', 2)] }, NO_HIERARCHY,
-      { body: [] }, NO_HIERARCHY,
-      { body: [] }, NO_HIERARCHY,
+      batchHierarchy(1, 3), { body: [linked('is_blocked_by', 2)] }, { body: [] },
     ])
     const result = await source.chainTasks('project-id', notTerminal)
     expect(result.statuses).toEqual(['Opened', 'Closed'])
@@ -34,13 +33,14 @@ describe('GitLab task source', () => {
     expect(result.tasks[0]!.blockedBy).toEqual(['APP-2'])
     expect(calls[1]!.url).toContain('/projects/group%2Fsubgroup%2Fapp/issues?state=opened')
     expect(calls[3]!.url).toContain('state=closed&milestone=v1.0')
+    expect(calls[4]!.body?.variables).toMatchObject({ iids: ['1', '3'] })
     expect(remaining()).toBe(0)
   })
 
   it('leaves related links unordered on Free and propagates link API failures', async () => {
-    const { source } = await connect([{ body: [issue({ milestone: null })] }, { body: [linked('relates_to', 2)] }, NO_HIERARCHY])
+    const { source } = await connect([{ body: [issue({ milestone: null })] }, batchHierarchy(1), { body: [linked('relates_to', 2)] }])
     expect((await source.chainTasks('project-id', notTerminal)).tasks[0]!.blockedBy).toEqual([])
-    const denied = await connect([{ body: [issue({ milestone: null })] }, { status: 403, body: {} }])
+    const denied = await connect([{ body: [issue({ milestone: null })] }, batchHierarchy(1), { status: 403, body: {} }])
     await expect(denied.source.chainTasks('project-id', notTerminal)).rejects.toThrow('403')
   })
 
@@ -128,7 +128,7 @@ describe('GitLab task source', () => {
   })
 
   it('uses only trusted human notes as the last comment in a milestone draft', async () => {
-    const { source } = await connect([{ body: [{ id: 20, title: 'v1.0' }] }, { body: [issue()] }, { body: [] }, NO_HIERARCHY, { body: [note(1), note(2, { author: { id: 30, username: 'outsider' } })] }, { status: 404, body: {} }])
+    const { source } = await connect([{ body: [{ id: 20, title: 'v1.0' }] }, { body: [issue()] }, batchHierarchy(1), { body: [] }, { body: [note(1), note(2, { author: { id: 30, username: 'outsider' } })] }, { status: 404, body: {} }])
     expect((await source.milestoneTasks!('project-id', 'v1.0'))[0]!.lastComment).toBe('Note 1')
   })
 })

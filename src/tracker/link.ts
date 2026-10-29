@@ -16,6 +16,7 @@ export class TrackerLink {
   private closed = false
   private current: TrackerHealth = { state: 'connecting', lastOkAt: null, error: null }
   private readonly slowLogged = new Map<string, number>()
+  private readonly timeouts = new Map<string, { count: number; retryAt: number; error: CallTimeout }>()
 
   constructor(private readonly options: TrackerLinkOptions) {}
 
@@ -23,10 +24,13 @@ export class TrackerLink {
     return this.current
   }
 
-  async run<T>(call: (source: Tracker) => Promise<T>): Promise<T> {
+  async run<T>(call: (source: Tracker) => Promise<T>, operation?: string): Promise<T> {
     if (this.closed) throw new Error(`${this.options.name}: link is closed`)
+    const retry = operation === undefined ? undefined : this.timeouts.get(operation)
+    if (retry !== undefined && Date.now() < retry.retryAt) throw retry.error
     const started = Date.now()
-    const diagnostics: CallDiagnostics = { operation: 'connect', requests: 0, measured: false, active: new Map() }
+    const controller = new AbortController()
+    const diagnostics: CallDiagnostics = { operation: 'connect', requests: 0, measured: false, active: new Map(), signal: controller.signal }
     const pending = callDiagnostics.run(diagnostics, () => (this.source ??= this.options.connect()))
     try {
       const work = callDiagnostics.run(diagnostics, () => pending.then((source) => call(new Proxy(source, {
@@ -40,6 +44,11 @@ export class TrackerLink {
         },
       }))))
       const result = await withTimeout(work, this.options.timeoutMs, this.options.name)
+      const previous = this.timeouts.get(operation ?? diagnostics.operation)
+      if (previous !== undefined) {
+        this.timeouts.delete(operation ?? diagnostics.operation)
+        ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${diagnostics.operation} reads again after ${previous.count} timeout${previous.count === 1 ? '' : 's'}`)
+      }
       const elapsed = Date.now() - started
       if (elapsed > this.options.timeoutMs / 2 && Date.now() - (this.slowLogged.get(diagnostics.operation) ?? -Infinity) >= 600_000) {
         this.slowLogged.set(diagnostics.operation, started + elapsed)
@@ -48,7 +57,13 @@ export class TrackerLink {
       this.answered()
       return result
     } catch (error) {
-      if (error instanceof CallTimeout) this.diagnostic('call timed out', Date.now() - started, diagnostics)
+      if (error instanceof CallTimeout) {
+        controller.abort(error)
+        const key = operation ?? diagnostics.operation
+        const count = (this.timeouts.get(key)?.count ?? 0) + 1
+        this.timeouts.set(key, { count, retryAt: Date.now() + Math.min(300_000, 20_000 * 2 ** Math.min(count - 1, 4)), error })
+        if (count === 1) this.diagnostic('call timed out', Date.now() - started, diagnostics)
+      }
       if (error instanceof TrackerNotFound) {
         this.answered()
         throw error
@@ -68,6 +83,7 @@ export class TrackerLink {
 
   /** Closes the connection, if any: the next call connects again, with what `connect` reads by then (new credentials). */
   reset(): void {
+    this.timeouts.clear()
     const pending = this.source
     this.source = undefined
     pending?.then((source) => source.close()).catch(() => {})

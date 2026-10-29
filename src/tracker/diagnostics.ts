@@ -6,6 +6,7 @@ export interface CallDiagnostics {
   measured: boolean
   longest?: { path: string; ms: number }
   active: Map<symbol, { path: string; started: number }>
+  signal?: AbortSignal
 }
 
 export const callDiagnostics = new AsyncLocalStorage<CallDiagnostics>()
@@ -13,7 +14,8 @@ export const callDiagnostics = new AsyncLocalStorage<CallDiagnostics>()
 export async function trackedFetch(fetchImpl: typeof fetch, input: string, init: RequestInit, path: string): Promise<Response> {
   const finish = trackRequest(path)
   try {
-    return await fetchImpl(input, init)
+    const signal = callDiagnostics.getStore()?.signal
+    return await fetchImpl(input, signal === undefined ? init : { ...init, signal: init.signal ? AbortSignal.any([init.signal, signal]) : signal })
   } finally {
     finish()
   }
