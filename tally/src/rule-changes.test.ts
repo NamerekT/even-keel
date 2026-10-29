@@ -11,7 +11,7 @@ describe('goneKeys', () => {
   ])
 
   it('deletes a missing file of a listed project and a missing global file', () => {
-    expect(goneKeys(last, new Set(['/work/app/claude.md', '/work/lib/claude.md']), ['/work/app', '/work/lib']).sort()).toEqual([
+    expect(goneKeys(last, new Set(['/work/app/claude.md', '/work/lib/claude.md']), ['~/.claude', '/work/app', '/work/lib']).sort()).toEqual([
       '/work/app/.claude/settings.json',
       '~/.claude/claude.md',
     ])
@@ -25,6 +25,22 @@ describe('goneKeys', () => {
 
   it('does not take a project for a listed one whose path merely starts the same', () => {
     expect(goneKeys(last, new Set(['~/.claude/claude.md']), ['/work/ap'])).toEqual([])
+  })
+
+  it('leaves global files alone when their account folder was not scanned', () => {
+    expect(goneKeys(last, new Set(), [])).toEqual([])
+  })
+
+  it('checks only the global trees inspected, including account settings and exact files', () => {
+    const global = new Map([
+      ['~/.claude/skills/a/skill.md', 'a'],
+      ['~/.claude/skills/b/skill.md', 'b'],
+      ['~/.claude-accounts/a/settings.json', 'c'],
+      ['~/.claude-accounts/b/settings.json', 'd'],
+      ['~/.claude.json', 'e'],
+    ])
+    expect(goneKeys(global, new Set(), ['~/.claude/skills/a', '~/.claude-accounts/a/settings.json', '~/.claude.json']))
+      .toEqual(['~/.claude/skills/a/skill.md', '~/.claude-accounts/a/settings.json', '~/.claude.json'])
   })
 })
 
