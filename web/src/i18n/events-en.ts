@@ -2,7 +2,7 @@ export const eventsEn = {
   limit: (project: string) => `${project}: the chain stopped on the usage limit`,
   limitBody: 'Switch the account or wait for the reset.',
   red: (project: string) => `${project}: main is red`,
-  redBody: (commit: string) => `At ${commit}; the next task waits until main is green again.`,
+  redBody: (commit: string, cis: string) => `${cis ? `${cis} at` : 'At'} ${commit}; the next task waits until main is green again.`,
   ciRed: (project: string, ci: string) => `${project}: ${ci} is red`,
   ciRedBody: (commit: string) => `At ${commit}; this CI does not decide whether the chain continues.`,
   ask: (task: string) => `${task} asks a question`,

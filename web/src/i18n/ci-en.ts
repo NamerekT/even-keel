@@ -13,7 +13,7 @@ export const ciEn = {
     success: 'green',
     idle: 'no runs',
   },
-  kinds: { forgejo: 'Forgejo', github: 'GitHub Actions', gitlab: 'GitLab CI' },
+  kinds: ciKindsEn,
   api: { ok: 'API answers', error: 'API is not answering', off: 'not connected' },
   checked: (ago: string) => `checked ${ago}`,
   allRuns: 'All runs',

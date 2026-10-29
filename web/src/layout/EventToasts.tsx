@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { language, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
 import { CI_HASH } from '../pages/CiChip.js'
 import { projectPath } from '../state.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast } from '../ui/Toast.js'
-import { freshEvents, pageEvents, type PageEvent } from './pageEvents.js'
+import { freshEvents, pageEvents, toastEvents, type PageEvent } from './pageEvents.js'
 
 /**
  * A toast for each event that came while the page is open (`pageEvents`); it goes when closed, opened, or once the
@@ -17,18 +17,14 @@ import { freshEvents, pageEvents, type PageEvent } from './pageEvents.js'
 export function EventToasts() {
   const { state } = useLive()
   const navigate = useNavigate()
-  const seen = useRef<Set<string> | null>(null)
+  const seen = useRef<PageEvent[] | null>(null)
   const [shown, setShown] = useState<PageEvent[]>([])
   useEffect(() => {
     if (state === null) return
     const events = pageEvents(state)
-    const keys = new Set(events.map((each) => each.key))
     const fresh = freshEvents(seen.current, events)
-    seen.current = keys
-    setShown((now) => {
-      const kept = now.filter((each) => keys.has(each.key))
-      return fresh.length === 0 && kept.length === now.length ? now : [...kept, ...fresh]
-    })
+    seen.current = events
+    setShown((now) => toastEvents(now, events, fresh))
   }, [state])
   if (state === null || shown.length === 0) return null
 
@@ -64,8 +60,12 @@ export function EventToasts() {
 /** The title names its projects by their ids, shown through `ProjectLinks`. */
 function textOf(event: PageEvent): { title: string; body: string } {
   if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.session.limitEvent }
-  if (event.kind === 'red') return { title: t.events.red(event.project), body: t.events.redBody(event.commit) }
-  if (event.kind === 'ciRed') return { title: t.events.ciRed(event.project, t.ci.kinds[event.ci]), body: t.events.ciRedBody(event.commit) }
+  if (event.kind === 'red' || event.kind === 'ciRed') {
+    const cis = new Intl.ListFormat(language, { type: 'conjunction' }).format(event.cis.map((ci) => t.ci.kinds[ci]))
+    return event.kind === 'red'
+      ? { title: t.events.red(event.project), body: t.events.redBody(event.commit, cis) }
+      : { title: t.events.ciRed(event.project, cis), body: t.events.ciRedBody(event.commit) }
+  }
   if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }
   if (event.kind === 'work') {
     return { title: event.files > 0 ? t.events.uncommitted(event.task) : t.events.unmerged(event.task), body: t.events.workBody(event.path) }

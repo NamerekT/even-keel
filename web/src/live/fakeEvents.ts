@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 /** `?event=` comes this long after the first state, so the page sees it come and shows its toast (`EventToasts`). */
 export const EVENT_MS = 2_000
 
-/** The state after the event `?event=limit|red|ciRed|ask|conflict|work` names; the first chain, CI, session and project get it. */
+/** The state after the event `?event=limit|red|ciRed|redBoth|ask|conflict|work` names; the first chain, CI, session and project get it. */
 export function fakeEvent(state: EvenKeelState, event: string): EvenKeelState {
   const [first, second] = state.projects
   if (event === 'limit') {
@@ -13,18 +13,19 @@ export function fakeEvent(state: EvenKeelState, event: string): EvenKeelState {
     const limited = { ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }
     return { ...state, chain: { ...state.chain, active: [limited, ...state.chain.active.slice(1)] } }
   }
-  if (event === 'red' || event === 'ciRed') {
+  if (event === 'red' || event === 'ciRed' || event === 'redBoth') {
     const [project, views] = Object.entries(state.ci).find(([, each]) => each.some((view) => view.current !== null)) ?? []
     if (project === undefined || views === undefined) return state
     const at = views.findIndex((view) => view.current !== null && (event !== 'ciRed' || view.kind === 'github'))
     if (at < 0) return state
     const view = views[at]!
-    const red = { ...view, current: { ...view.current!, run: { ...view.current!.run, status: 'failure' as const } } }
     const form = state.config.projects[project]!
-    const config = event === 'ciRed'
-      ? { ...state.config, projects: { ...state.config.projects, [project]: { ...form, ci: { ...form.ci, kinds: ['forgejo' as const] } } } }
-      : state.config
-    return { ...state, config, ci: { ...state.ci, [project]: views.map((each, index) => (index === at ? red : each)) } }
+    const config = { ...state.config, projects: { ...state.config.projects, [project]: { ...form, ci: { ...form.ci, kinds: ['forgejo' as const] } } } }
+    const changed = views.map((each, index) => {
+      if (each.current === null || (event !== 'redBoth' && index !== at)) return each
+      return { ...each, current: { ...each.current, run: { ...each.current.run, commit: view.current!.run.commit, status: 'failure' as const } } }
+    })
+    return { ...state, config, ci: { ...state.ci, [project]: changed } }
   }
   if (event === 'ask') {
     const at = state.sessions.findIndex((session) => !session.asking)
