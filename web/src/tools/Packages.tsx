@@ -1,3 +1,4 @@
+import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { Fragment, useState, type FormEvent } from 'react'
 import type { PackageCell, PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
 import { formatAgo } from '../format.js'
@@ -46,7 +47,7 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
               {packages.map((each) => (
                 <Fragment key={each.name}>
                   <PackageRow pkg={each} view={view} projects={projects} open={open === each.name} onToggle={() => setOpen(open === each.name ? null : each.name)} />
-                  {open === each.name && <PackageDetails pkg={each} view={view} projects={projects} />}
+                  <PackageDetails pkg={each} view={view} projects={projects} open={open === each.name} />
                 </Fragment>
               ))}
             </tbody>
@@ -95,10 +96,9 @@ function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
   return (
     <tr className={pkg.removed ? 'packages__row packages__row--removed' : 'packages__row'}>
       <th scope="row">
-        <button type="button" className="packages__name" aria-expanded={open} aria-label={t.packages.details(pkg.name)} onClick={onToggle}>
-          <span className="packages__caret" aria-hidden="true" />
+        <FoldToggle className="packages__name" aria-controls={`package-${pkg.name}`} aria-expanded={open} aria-label={t.packages.details(pkg.name)} onClick={onToggle}>
           <code>{pkg.name}</code>
-        </button>
+        </FoldToggle>
         <span className="packages__meta">
           <span className="tools__muted">{meta}</span>
           {pkg.latest !== null && !pkg.installing && (
@@ -234,7 +234,7 @@ function problemTip(problem: PackageProblem): string {
   }
 }
 
-function PackageDetails({ pkg, view, projects }: { pkg: PackageView; view: PackagesView; projects: string[] }) {
+function PackageDetails({ pkg, view, projects, open }: { pkg: PackageView; view: PackagesView; projects: string[]; open: boolean }) {
   const { send, sending, failure } = useCommand()
   const label = useProjectLabel()
   const keys = Object.keys(pkg.settings)
@@ -242,66 +242,68 @@ function PackageDetails({ pkg, view, projects }: { pkg: PackageView; view: Packa
   return (
     <tr className="packages__details">
       <td colSpan={projects.length + 1}>
-        <div className="packages__panel">
-          <p className="tools__muted">{pkg.servers.length === 0 ? t.packages.noServers : t.packages.servers(pkg.servers.join(', '))}</p>
-          {!pkg.removed && (
-            <label className="tools__toggle">
-              <input type="checkbox" checked={pkg.default} disabled={sending} onChange={(event) => void send('packages/default', { name: pkg.name, on: event.target.checked })} />
-              {t.packages.byDefault}
-            </label>
-          )}
-          {keys.length === 0 ? (
-            <p className="tools__muted">{t.packages.noSettings}</p>
-          ) : (
-            <div className="packages__settings">
-              <span className="packages__settings-title">
-                {t.packages.settings}
-                <HelpTip text={t.packages.settingsHint} />
-              </span>
-              <table className="packages__grid">
-                <thead>
-                  <tr>
-                    <th />
-                    <th scope="col">{t.packages.settingsBase}</th>
-                    {projects.map((project) => (
-                      <th key={project} scope="col">
-                        {label(project)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {keys.map((key) => (
-                    <tr key={key}>
-                      <th scope="row">
-                        <code>{key}</code>
-                      </th>
-                      <td>
-                        <SettingField name={pkg.name} settingKey={key} value={pkg.settings[key] ?? ''} placeholder="" />
-                      </td>
-                      {projects.map((project) => {
-                        const own = view.projects[project]?.cells[pkg.name]?.settings[key]
-                        return (
-                          <td key={project}>
-                            <SettingField name={pkg.name} settingKey={key} project={project} value={own === undefined || own === pkg.settings[key] ? '' : own} placeholder={pkg.settings[key] ?? ''} />
-                          </td>
-                        )
-                      })}
+        <FoldBody id={`package-${pkg.name}`} open={open}>
+          <div className="packages__panel">
+            <p className="tools__muted">{pkg.servers.length === 0 ? t.packages.noServers : t.packages.servers(pkg.servers.join(', '))}</p>
+            {!pkg.removed && (
+              <label className="tools__toggle">
+                <input type="checkbox" checked={pkg.default} disabled={sending} onChange={(event) => void send('packages/default', { name: pkg.name, on: event.target.checked })} />
+                {t.packages.byDefault}
+              </label>
+            )}
+            {keys.length === 0 ? (
+              <p className="tools__muted">{t.packages.noSettings}</p>
+            ) : (
+              <div className="packages__settings">
+                <span className="packages__settings-title">
+                  {t.packages.settings}
+                  <HelpTip text={t.packages.settingsHint} />
+                </span>
+                <table className="packages__grid">
+                  <thead>
+                    <tr>
+                      <th />
+                      <th scope="col">{t.packages.settingsBase}</th>
+                      {projects.map((project) => (
+                        <th key={project} scope="col">
+                          {label(project)}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {!pkg.removed && (
-            <div>
-              <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void send('packages/remove', { name: pkg.name })}>
-                {t.packages.remove}
-              </button>
-            </div>
-          )}
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-        </div>
+                  </thead>
+                  <tbody>
+                    {keys.map((key) => (
+                      <tr key={key}>
+                        <th scope="row">
+                          <code>{key}</code>
+                        </th>
+                        <td>
+                          <SettingField name={pkg.name} settingKey={key} value={pkg.settings[key] ?? ''} placeholder="" />
+                        </td>
+                        {projects.map((project) => {
+                          const own = view.projects[project]?.cells[pkg.name]?.settings[key]
+                          return (
+                            <td key={project}>
+                              <SettingField name={pkg.name} settingKey={key} project={project} value={own === undefined || own === pkg.settings[key] ? '' : own} placeholder={pkg.settings[key] ?? ''} />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {!pkg.removed && (
+              <div>
+                <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void send('packages/remove', { name: pkg.name })}>
+                  {t.packages.remove}
+                </button>
+              </div>
+            )}
+            {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+          </div>
+        </FoldBody>
       </td>
     </tr>
   )

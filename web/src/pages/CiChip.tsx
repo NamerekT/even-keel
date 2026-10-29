@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
@@ -197,52 +198,49 @@ function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
   if (jobs.length === 0) return <p className="ci__hint">{t.ci.noJobs}</p>
   const noSteps = jobs.some((job) => job.steps === null)
   return (
-    <details className="ci__fold" open={run.status === 'failure'}>
-      <summary className="ci__summary">
-        <Chevron />
-        {t.ci.jobs}
-        <Dots statuses={jobs.map((job) => job.status)} />
-      </summary>
-      <ul className="ci__jobs">
-        {jobs.map((job) => {
-          const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} />
-          return (
-            <li key={job.id} className="ci__job">
-              {job.steps === null || job.steps.length === 0 ? (
-                line
-              ) : (
-                <details open={job.status === 'failure' || jobs.length === 1}>
-                  <summary className="ci__job-summary">
-                    <Chevron />
-                    {line}
-                  </summary>
-                  <ul className="ci__steps">
-                    {job.steps.map((step, index) => (
-                      <li key={index}>
-                        <Line status={step.status} name={step.name} length={lengthOf(step, now)} />
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {noSteps && (
-        <a className="ci__hint ci__steps-link" href={run.url} target="_blank" rel="noreferrer">
-          {t.ci.stepsOnPage}
-        </a>
-      )}
-    </details>
-  )
-}
+    <Fold className="ci__fold" defaultOpen={run.status === 'failure'} summaryClassName="ci__summary" summary={<>
 
-function Chevron() {
-  return (
-    <span className="ci__chevron" aria-hidden="true">
-      ›
-    </span>
+      {t.ci.jobs}
+      <Dots statuses={jobs.map((job) => job.status)} />
+    </>}>
+      {() => (
+        <>
+          <ul className="ci__jobs">
+            {jobs.map((job) => {
+              const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} />
+              return (
+                <li key={job.id} className="ci__job">
+                  {job.steps === null || job.steps.length === 0 ? (
+                    line
+                  ) : (
+                    <Fold defaultOpen={job.status === 'failure' || jobs.length === 1} summaryClassName="ci__job-summary" summary={<>
+
+                      {line}
+                    </>}>
+                      {() => (
+                        <>
+                          <ul className="ci__steps">
+                            {job.steps!.map((step, index) => (
+                              <li key={index}>
+                                <Line status={step.status} name={step.name} length={lengthOf(step, now)} />
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </Fold>
+                  )}
+                </li>
+              )
+            })}
+          </ul>{noSteps && (
+            <a className="ci__hint ci__steps-link" href={run.url} target="_blank" rel="noreferrer">
+              {t.ci.stepsOnPage}
+            </a>
+          )}
+        </>
+      )}
+    </Fold>
   )
 }
 
@@ -278,34 +276,36 @@ function History({ runs, now, marked }: { runs: CiRun[]; now: Date; marked: Read
   const markedAt = runs.findIndex((run) => marked.has(run.commit))
   const all = more || markedAt >= HISTORY_SHOWN || runs.length <= HISTORY_SHOWN
   return (
-    <details className="ci__fold" open={markedAt >= 0}>
-      <summary className="ci__summary">
-        <Chevron />
-        {t.ci.history}
-        <Dots statuses={runs.slice(0, HISTORY_SHOWN).map((run) => run.status)} />
-      </summary>
-      <ul className="ci__history">
-        {(all ? runs : runs.slice(0, HISTORY_SHOWN)).map((run) => {
-          const length = runDurationMs(run, now)
-          return (
-            <li key={run.id}>
-              <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${run.title}`}>
-                <span className={`ci-status-dot ci-status-dot--${run.status}`} aria-label={t.ci.status[run.status]} role="img" />
-                <span className="ci__past-number">#{run.number}</span>
-                <code className="ci__past-commit">{short(run.commit)}</code>
-                <span className="ci__past-title">{run.title}</span>
-                <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
-                <span className="ci__past-ago">{formatAgo(run.createdAt, now)}</span>
-              </a>
-            </li>
-          )
-        })}
-      </ul>
-      {!all && (
-        <button type="button" className="ci__more" onClick={() => setMore(true)}>
-          {t.ci.showAll(runs.length)}
-        </button>
+    <Fold className="ci__fold" defaultOpen={markedAt >= 0} summaryClassName="ci__summary" summary={<>
+
+      {t.ci.history}
+      <Dots statuses={runs.slice(0, HISTORY_SHOWN).map((run) => run.status)} />
+    </>}>
+      {() => (
+        <>
+          <ul className="ci__history">
+            {(all ? runs : runs.slice(0, HISTORY_SHOWN)).map((run) => {
+              const length = runDurationMs(run, now)
+              return (
+                <li key={run.id}>
+                  <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${run.title}`}>
+                    <span className={`ci-status-dot ci-status-dot--${run.status}`} aria-label={t.ci.status[run.status]} role="img" />
+                    <span className="ci__past-number">#{run.number}</span>
+                    <code className="ci__past-commit">{short(run.commit)}</code>
+                    <span className="ci__past-title">{run.title}</span>
+                    <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
+                    <span className="ci__past-ago">{formatAgo(run.createdAt, now)}</span>
+                  </a>
+                </li>
+              )
+            })}
+          </ul>{!all && (
+            <button type="button" className="ci__more" onClick={() => setMore(true)}>
+              {t.ci.showAll(runs.length)}
+            </button>
+          )}
+        </>
       )}
-    </details>
+    </Fold>
   )
 }

@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import { useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
 import { t } from '../i18n/index.js'
@@ -171,10 +172,13 @@ export function AnswerCard({ answers, ask }: { answers: AskAnswers; ask: Ask | u
   ))
   if (ask === undefined || known.length === 0) return <div className="answer-card">{list}</div>
   return (
-    <details className="answer-card">
-      <summary className="answer-card__summary">{list}</summary>
-      <AskCard ask={ask} answers={answers} />
-    </details>
+    <Fold className="answer-card" summaryClassName="answer-card__summary" summary={<>{list}</>}>
+      {() => (
+        <>
+          <AskCard ask={ask} answers={answers} />
+        </>
+      )}
+    </Fold>
   )
 }
 

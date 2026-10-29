@@ -1,3 +1,4 @@
+import { Fold } from '../ui/Fold.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { useState, type ReactNode } from 'react'
 import { RULE_PLACES, RULE_PURPOSES, type RulePlace, type RulePurpose } from '../../../src/stats/rule-imports.js'
@@ -169,18 +170,16 @@ function MarkRow({ mark, on, now, colors, onPick }: { mark: RuleMark; on: boolea
 function FileRow({ file, open, colors, onToggle }: { file: RuleSetFile; open: boolean; colors: Colors; onToggle: () => void }) {
   return (
     <li>
-      <button type="button" className="rule-file" aria-expanded={open} title={file.display} onClick={onToggle}>
-        <span className="rule-file__caret" aria-hidden="true">
-          {open ? '▾' : '▸'}
-        </span>
+      <Fold open={open} onOpenChange={onToggle} summaryClassName="rule-file" summary={<>
         <span className="rule-file__where">
           <PlaceDot project={file.project} colors={colors} />
           {file.project ?? t.stats.rules.shared}
         </span>
         <span className="rule-file__path">{fileLabel(file.display)}</span>
         <Lines added={file.added} removed={file.removed} />
-      </button>
-      {open && (file.changes.length === 0 ? <p className="stats-section__note rule-file__note">{t.stats.rules.noText}</p> : <FileDiff file={file} />)}
+      </>}>
+        {() => file.changes.length === 0 ? <p className="stats-section__note rule-file__note">{t.stats.rules.noText}</p> : <FileDiff file={file} />}
+      </Fold>
     </li>
   )
 }

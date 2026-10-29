@@ -205,7 +205,6 @@
 .ui-fold-band {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
 }
 
 .ui-fold-band__toggle {
@@ -234,9 +233,7 @@
   white-space: nowrap;
 }
 
-.ui-fold-band__content[hidden] {
-  display: none;
-}
+.ui-fold-band__content { padding-top: var(--space-8); }
 
 /* Command: a code block of its own inside a band or a card, the copy button in its top right corner. */
 

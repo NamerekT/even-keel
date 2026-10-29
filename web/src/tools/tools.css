@@ -187,7 +187,7 @@
   font-weight: 400;
 }
 
-.tools__section[open] > .tools__summary {
+.tools__section[data-open='true'] > .tools__summary {
   margin-bottom: 6px;
 }
 
@@ -354,13 +354,13 @@
   font-size: var(--text-13);
 }
 
-.tools__builtin summary {
+.tools__builtin .ui-fold__toggle {
   color: var(--fg-muted);
   font-size: var(--text-13);
   cursor: pointer;
 }
 
-.tools__builtin[open] summary {
+.tools__builtin[data-open='true'] .ui-fold__toggle {
   margin-bottom: 6px;
 }
 

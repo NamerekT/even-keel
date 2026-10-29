@@ -1,3 +1,4 @@
+import { FoldBody } from '../ui/Fold.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
@@ -158,6 +159,7 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
                     className={open === row.task ? 'tasks__row tasks__row--open' : 'tasks__row'}
                     tabIndex={0}
                     aria-expanded={open === row.task}
+                    aria-controls={`stats-task-${row.task}`}
                     onClick={() => setOpen(open === row.task ? null : row.task)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
@@ -168,13 +170,13 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
                   >
                     {columns.map((column) => cell(row, column.key))}
                   </tr>
-                  {open === row.task && (
                     <tr className="tasks__detail">
                       <td colSpan={columns.length}>
-                        <TaskDetail task={row.task} />
+                        <FoldBody id={`stats-task-${row.task}`} open={open === row.task}>
+                        {() => <TaskDetail task={row.task} />}
+                      </FoldBody>
                       </td>
                     </tr>
-                  )}
                 </Fragment>
               ))}
             </tbody>

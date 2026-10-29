@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
+import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { t } from '../i18n/index.js'
 import { Tipped } from '../ui/Tipped.js'
 import { fileName } from './feedLine.js'
@@ -16,20 +17,20 @@ interface Props {
 /** The calls between two texts: one line that opens into the calls, or the call itself when it is alone. */
 export function ToolGroup({ calls, media, onOpen }: Props) {
   const [open, setOpen] = useState(false)
+  const id = useId()
   if (calls.length === 1) return <CallRow call={calls[0]!} media={media} onOpen={onOpen} />
   const summary = summarize(calls)
   return (
     <div className="tools">
       <div className="tools__head">
-        <button type="button" className="tools__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <FoldToggle className="tools__toggle" aria-controls={id} aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="tools__text">{t.session.chat.tools.summary(summary.counts)}</span>
           {summary.size !== null && <EditSize {...summary.size} />}
           {summary.failed > 0 && <span className="tools__failed">{t.session.chat.tools.failed(summary.failed)}</span>}
-          <Chevron />
-        </button>
+        </FoldToggle>
         {!open && <Thumbs places={calls.flatMap((call) => media.byTool.get(call.line.tool ?? '') ?? [])} items={media.items} onOpen={onOpen} />}
       </div>
-      {open && (
+      <FoldBody id={id} open={open}>
         <ul className="tools__calls">
           {calls.map((call, index) => (
             <li key={call.line.tool ?? index}>
@@ -37,7 +38,7 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
             </li>
           ))}
         </ul>
-      )}
+      </FoldBody>
     </div>
   )
 }
@@ -45,6 +46,7 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
 /** A call: its verb and subject; the shell command and the error open under it. */
 function CallRow({ call, media, onOpen }: { call: Call; media: TranscriptMedia; onOpen: (place: number) => void }) {
   const [open, setOpen] = useState(false)
+  const id = useId()
   const { line, failure, interrupted } = call
   const more = line.detail !== undefined || failure !== null
   const head: ReactNode = (
@@ -52,23 +54,24 @@ function CallRow({ call, media, onOpen }: { call: Call; media: TranscriptMedia; 
       <CallText line={line} />
       {(line.added !== undefined || line.removed !== undefined) && <EditSize added={line.added ?? 0} removed={line.removed ?? 0} />}
       {failure !== null && <span className="tools__failed">{interrupted ? t.session.chat.tools.interrupted : t.session.chat.tools.failure}</span>}
-      {more && <Chevron />}
     </>
   )
   return (
     <div className="tools">
       <div className="tools__head">
         {more ? (
-          <button type="button" className="tools__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <FoldToggle className="tools__toggle" aria-controls={id} aria-expanded={open} onClick={() => setOpen(!open)}>
             {head}
-          </button>
+          </FoldToggle>
         ) : (
           <span className="tools__toggle">{head}</span>
         )}
         <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />
       </div>
-      {open && line.detail !== undefined && <pre className="tools__detail">{line.detail}</pre>}
-      {open && failure !== null && <pre className="tools__detail tools__detail--failed">{failure}</pre>}
+      <FoldBody id={id} open={open}>
+        {line.detail !== undefined && <pre className="tools__detail">{line.detail}</pre>}
+        {failure !== null && <pre className="tools__detail tools__detail--failed">{failure}</pre>}
+      </FoldBody>
     </div>
   )
 }
@@ -100,14 +103,6 @@ export function EditSize({ added, removed }: EditTotal) {
     <span className="edit-size" aria-label={t.session.chat.tools.size(added, removed)}>
       <span className="edit-size__added">+{added}</span>
       <span className="edit-size__removed">−{removed}</span>
-    </span>
-  )
-}
-
-function Chevron() {
-  return (
-    <span className="tools__chevron" aria-hidden="true">
-      ›
     </span>
   )
 }

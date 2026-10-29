@@ -423,7 +423,7 @@
   font-size: var(--text-13);
 }
 
-.forward__more > summary {
+.forward__more > .ui-fold__toggle {
   width: fit-content;
   cursor: pointer;
 }

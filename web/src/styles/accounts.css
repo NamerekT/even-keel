@@ -333,7 +333,7 @@
   outline-offset: 1px;
 }
 
-.account__output summary {
+.account__output .ui-fold__toggle {
   color: var(--fg-muted);
   font-size: var(--text-13);
   cursor: pointer;
