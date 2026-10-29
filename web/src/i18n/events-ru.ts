@@ -1,0 +1,17 @@
+export const eventsRu = {
+  limit: (project: string) => `${project}: цепь встала на лимите`,
+  limitBody: 'Переключите аккаунт или дождитесь сброса.',
+  red: (project: string) => `${project}: main покраснел`,
+  redBody: (commit: string) => `На ${commit}; следующая задача ждёт, пока main снова не станет зелёным.`,
+  ciRed: (project: string, ci: string) => `${project}: ${ci} покраснел`,
+  ciRedBody: (commit: string) => `На ${commit}; цепочка не учитывает этот CI при продолжении работы.`,
+  ask: (task: string) => `${task} задаёт вопрос`,
+  askBody: 'Ответьте в окне чата сессии.',
+  conflict: (project: string, into: string) => `${project}: перенос в ${into} упёрся в конфликт`,
+  conflictBody: 'Слейте вручную или нажмите «Разрешить агентом» на странице проекта.',
+  uncommitted: (task: string) => `${task}: работа готова, но не закоммичена`,
+  unmerged: (task: string) => `${task}: работа закоммичена, но не влита`,
+  workBody: (path: string) => `Задача ушла из цепи, а работа лежит в ${path}.`,
+  open: 'Открыть',
+  close: 'Закрыть',
+}
