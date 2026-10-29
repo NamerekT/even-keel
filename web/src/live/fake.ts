@@ -8,7 +8,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
-import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
@@ -27,16 +27,16 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
-import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShare, fakeSharedUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
-import type { Ask } from '../../../src/sessions/ask.js'
+import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
-import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
+import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
+import { fakeRecord, fakeTranscript } from './fakeTranscript.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -53,27 +53,6 @@ const HAND_EDIT_MS = 15_000
 
 const REWORK = { labels: ['Переделка'] }
 const KEY_LIMIT_AGENTS: Record<string, string> = { spend: 'claude', spendUnknown: 'claude', credit: 'claude', codexCredit: 'codex', opencodeCredit: 'opencode', copilotMonthly: 'copilot' }
-
-function fakeTranscript(open: Ask | null): FeedLine[] {
-  const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
-  return [
-    { at: at(40), kind: 'prompt', text: 'ABC-5\n\nWorking folder: C:\\repos\\example-project\\.claude\\worktrees\\abc-5' },
-    { at: at(39), kind: 'text', text: 'Читаю описание задачи и вложения.' },
-    { at: at(38), kind: 'tool', text: 'Bash Run the chain tests', detail: 'npx vitest run src/chain\nnpx tsc --noEmit', name: 'Bash', subject: 'Run the chain tests' },
-    ...fakePastAsk(at),
-    {
-      at: at(30),
-      kind: 'text',
-      text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n' + 'Длинное объяснение. '.repeat(40),
-    },
-    ...fakeShots(at),
-    { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
-    ...fakeCalls(at),
-    ...fakeShare(at),
-    ...fakeFeed(),
-    ...fakeOpenAsk(open),
-  ]
-}
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
@@ -305,25 +284,6 @@ function limitedSession(view: SessionView, kind: string): SessionView {
     }
   }
   return { ...view, apiErrorKind: 'limit', apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
-}
-
-function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | null {
-  if (sessionId.endsWith('999')) return null
-  const live = state.sessions.find((view) => view.sessionId === sessionId)
-  return {
-    sessionId,
-    startedAt: live?.startedAt ?? ago(400),
-    lastActivityAt: live?.lastActivityAt ?? ago(250),
-    contextTokens: live?.contextTokens ?? 271_000,
-    contextWindow: live?.contextWindow ?? null,
-    tokens: live?.tokens ?? { input: 192, output: 78_000, cacheRead: 17_400_000, cacheWrite: 243_000 },
-    stage: 'test',
-    feed: [...fakeFeed(), ...fakeFeed()],
-    workdir: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-5',
-    branch: 'abc-5/chain-order',
-    apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
-    account: live?.account ?? state.taskSessions['ABC-5']?.find((row) => row.sessionId === sessionId)?.account ?? 'jane.roe@example.com',
-  }
 }
 
 function isLink(value: string | null): value is Link {
