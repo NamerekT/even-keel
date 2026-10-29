@@ -294,7 +294,7 @@ export const en: Messages = {
   },
   ci: ciEn,
   cache: {
-    ttl: { '5m': '5 min', '1h': '1 h' },
+    ttl: { '5m': '5 min', '30m': '30 min', '1h': '1 h' },
     cold: (at: string) => `The prompt cache went cold at ${at}: the next turn rereads the whole context at the write price`,
     warm: (at: string, ttl: string) => `The prompt cache is warm until ${at}. Lifetime ${ttl}, every request of the session renews it`,
     coldValue: 'cold',

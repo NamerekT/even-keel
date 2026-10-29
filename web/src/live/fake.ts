@@ -7,6 +7,7 @@ import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
+import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { EvenKeelState, SessionView } from '../../../src/state.js'
@@ -577,6 +578,11 @@ export function createFakeSource(search: string): LiveSource {
   if ((cache === 'warn' || cache === 'cold') && current.state !== null) {
     const until = ago(cache === 'warn' ? -8 : 20)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, cache: { ttl: '1h', until } } : each))
+  }
+  // A Copilot session's half-hour cache, as its transcript writes it (BTN-563).
+  if (cache === 'copilot' && current.state !== null) {
+    const copilot = { ttl: '30m' as const, until: ago(-12) }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, agent: COPILOT, cache: copilot } : each))
   }
   if (params.get('chain') === 'checkpoint' && current.state !== null && active?.current) {
     const { task, sessionId } = active.current

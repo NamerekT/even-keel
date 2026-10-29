@@ -6,7 +6,7 @@ import type { SessionLimits } from '../limits/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { TranscriptImage } from '../sessions/entry.js'
-import type { Feed, TranscriptSummary } from '../sessions/transcript.js'
+import type { CacheWindow, Feed, TranscriptSummary } from '../sessions/transcript.js'
 import type { SessionRecord, TurnSpend } from '../state.js'
 
 /**
@@ -252,6 +252,12 @@ export interface Agent {
    * from the prompt cache and wrote. The session itself is not touched. Without it the agent's sessions are not kept warm.
    */
   warm?(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<TurnSpend>
+  /**
+   * Optional. How long after a session's last reply the chain takes its prompt cache for warm and resumes it rather
+   * than hands it over, by the cache its transcript last wrote and whether the account is signed in by a key
+   * (`docs/sessions.md`, "Every agent's cache"). Without it `WARM_CACHE_MS`, an hour's cache.
+   */
+  warmMs?(cache: CacheWindow | null, apiKey: boolean): number
   /** Optional. Remote Control: whether the account starts sessions with it, and the bridge of a live session. */
   remote?: RemoteControl
 }

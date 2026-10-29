@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskPlace } from '../git/types.js'
+import { warmCacheMs } from '../sessions/cache.js'
 import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS } from './prompts.js'
@@ -12,7 +13,7 @@ import {
   relayStep,
   resumePrompt,
   startPrompt,
-  warmCacheMs,
+  warmSince,
   withBrief,
   withPrompts,
   withReport,
@@ -163,6 +164,23 @@ describe('relayStep', () => {
 
   it('does nothing once the limit was acted on', () => {
     expect(relayStep(hold({ acted: 'relay' }), new Date('2026-09-27T18:00:00Z'), ready)).toBe('wait')
+  })
+})
+
+describe('warmSince', () => {
+  const at = (time: string) => Date.parse(`2026-09-27T${time}Z`)
+
+  it("takes the session's own window from its last answer, an hour's cache without one", () => {
+    expect(warmSince(session(), at('15:30:00'))).toBe(true)
+    expect(warmSince(session(), at('15:34:00'))).toBe(false)
+    expect(warmSince(session({ warmMs: warmCacheMs('30m') }), at('15:00:00'))).toBe(true)
+    expect(warmSince(session({ warmMs: warmCacheMs('30m') }), at('15:05:00'))).toBe(false)
+    expect(warmSince(session({ warmMs: warmCacheMs('5m') }), at('14:45:00'))).toBe(false)
+  })
+
+  it('counts from a later keep-warm ping, and a session that never answered is cold', () => {
+    expect(warmSince(session({ warmMs: warmCacheMs('30m'), warmedAt: '2026-09-27T14:50:00.000Z' }), at('15:10:00'))).toBe(true)
+    expect(warmSince(session({ lastReplyAt: null }), at('14:40:00'))).toBe(false)
   })
 })
 
