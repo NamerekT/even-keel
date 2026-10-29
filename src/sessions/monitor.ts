@@ -1,17 +1,18 @@
 import type { AccountHome } from '../account/homes.js'
 import { GLOBAL_ACCOUNT } from '../account/model.js'
 import type { Agent, SessionTail } from '../agent/contract.js'
-import { warmCacheMs, type HandoffSession, type LimitedSession } from '../chain/relay.js'
+import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
 import type { Ask } from './ask.js'
+import { WARM_CACHE_MS } from './cache.js'
 import { ResumeHolds } from './holds.js'
 import { remoteLink } from './remote.js'
 import { TurnActivity } from './activity.js'
 
 export interface SessionMonitorOptions {
   /** The agent of an account folder, by `AccountHome.agent`. */
-  agentOf: (home: AccountHome) => Pick<Agent, 'sessions' | 'tail' | 'remote'>
+  agentOf: (home: AccountHome) => Pick<Agent, 'sessions' | 'tail' | 'remote' | 'warmMs'>
   homes: () => AccountHome[]
   emailOf: (account: string) => string | null
   /** An API account waits out spent credit and spending caps, with no subscription usage window (`docs/accounts.md`). */
@@ -33,6 +34,8 @@ interface Tracked {
   agent: AgentEntry
   /** The agent the session runs on: its account's. */
   runsOn: string
+  /** Its agent's `warmMs`. */
+  warmMs: Agent['warmMs']
   present: boolean
   transcript: SessionTail
   bridge: string | null
@@ -95,10 +98,11 @@ export class SessionMonitor {
     if (tracked === undefined) return undefined
     const { agent, transcript } = tracked
     const summary = transcript.summary()
+    const account = agent.account ?? GLOBAL_ACCOUNT
     return {
       sessionId: agent.sessionId,
       agentId: agent.id ?? agent.sessionId,
-      account: agent.account ?? GLOBAL_ACCOUNT,
+      account,
       cwd: agent.cwd,
       workdir: summary.workdir ?? agent.cwd,
       branch: summary.gitBranch,
@@ -109,6 +113,7 @@ export class SessionMonitor {
       checkpoint: summary.checkpoint,
       pullRequest: summary.pullRequest,
       noChanges: summary.noChanges,
+      warmMs: tracked.warmMs?.(summary.cache, this.options.apiKey(account)) ?? WARM_CACHE_MS,
     }
   }
 
@@ -119,13 +124,12 @@ export class SessionMonitor {
     const account = tracked.agent.account ?? GLOBAL_ACCOUNT
     const apiKey = this.options.apiKey(account)
     const waited = apiKey ? (this.options.keyLimits?.(account) === true ? ['credit', 'spend', 'limit'] : ['credit', 'spend']) : ['limit']
-    const { apiError, cache } = tracked.transcript.summary()
+    const { apiError } = tracked.transcript.summary()
     if (apiError?.kind === 'transient' && !this.holds.held(session.sessionId) && lampOf(tracked.agent, apiError.kind) === 'waiting') {
       return { ...session, transient: true, limit: { at: apiError.at, text: apiError.text } }
     }
     if (apiError === null || !waited.includes(apiError.kind) || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
-    const limited = { ...session, limit: { at: apiError.at, text: apiError.text, ...(apiError.kind === 'credit' ? { credit: true as const } : {}) } }
-    return apiKey ? { ...limited, warmMs: warmCacheMs(cache?.ttl ?? null) } : limited
+    return { ...session, limit: { at: apiError.at, text: apiError.text, ...(apiError.kind === 'credit' ? { credit: true as const } : {}) } }
   }
 
   private schedule(delay: number): void {
@@ -172,9 +176,10 @@ export class SessionMonitor {
       const byTask = sessionsByTask(dated, this.options.projectKeys(), branchOf)
       for (const [task, agent] of byTask) {
         const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
-        const live = (await this.options.agentOf(home).remote?.bridge(home, agent)) ?? null
+        const { remote, warmMs } = this.options.agentOf(home)
+        const live = (await remote?.bridge(home, agent)) ?? null
         const bridge = live ?? this.tracked.get(task)?.bridge ?? null
-        this.tracked.set(task, { agent, runsOn: home.agent, present: true, transcript: this.tails.get(agent.sessionId)!, bridge })
+        this.tracked.set(task, { agent, runsOn: home.agent, warmMs, present: true, transcript: this.tails.get(agent.sessionId)!, bridge })
       }
       for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 

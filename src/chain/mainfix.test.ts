@@ -397,6 +397,18 @@ describe('Dispatcher and the session a red main interrupts', () => {
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-2', sessionId: 'session-4' })
   })
 
+  it("hands over a session whose own window is shorter, a Claude key's five minutes", async () => {
+    const { dispatcher, busy, handoffs, relays, clock, ci } = await working()
+    busy.delete('ABC-2')
+    handoffs['ABC-2'] = { ...handoffs['ABC-2']!, warmMs: 4 * 60_000 }
+    ci.verdict = { state: 'pending' }
+    ci.merged.add('ABC-FIX')
+    clock.now = new Date('2026-09-26T12:20:00Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-2', reason: 'mainFixed' }])
+  })
+
   it('waits for the verdict on the fix before it resumes the session', async () => {
     const harness = await withoutTask(10 * 60_000)
     const { dispatcher, busy, handoffs, relays, clock, ci } = harness

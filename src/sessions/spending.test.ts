@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
-import type { SessionTail } from '../agent/contract.js'
+import type { Agent, SessionTail } from '../agent/contract.js'
+import { WARM_CACHE_MS } from './cache.js'
 import { SessionMonitor } from './monitor.js'
 import { TranscriptFold } from './transcript.js'
 
 describe('monitoring a spending refusal', () => {
-  function monitorOf(line: Record<string, unknown>, apiKey: boolean) {
+  function monitorOf(line: Record<string, unknown>, apiKey: boolean, warmMs?: Agent['warmMs']) {
     const fold = new TranscriptFold()
     fold.push(JSON.stringify({ type: 'assistant', timestamp: '2026-10-25T10:00:00Z', gitBranch: 'abc-1/task', isApiErrorMessage: true, ...line }))
     const tail: SessionTail = { path: undefined, follow: () => {}, read: async () => {}, summary: () => fold.summary() }
@@ -16,6 +17,7 @@ describe('monitoring a spending refusal', () => {
       agentOf: () => ({
         sessions: async () => [{ sessionId: 'fake-session', cwd: 'D:/work/abc', kind: 'sdk', name: 'ABC-1', startedAt: Date.now(), resting: true, status: 'idle' }],
         tail: () => tail,
+        ...(warmMs === undefined ? {} : { warmMs }),
       }),
       onAgents: () => {}, onChange: () => {}, onError: error,
     })
@@ -49,6 +51,32 @@ describe('monitoring a spending refusal', () => {
       await vi.waitFor(() => expect(monitor.views()).toHaveLength(1))
       expect(monitor.views()[0]).toMatchObject({ apiErrorKind: 'credit' })
       expect(monitor.limited('ABC-1')?.limit).toMatchObject({ text: 'Credit balance is too low', credit: true })
+    } finally {
+      await monitor.stop()
+    }
+  })
+
+  it("gives the session its agent's warm window, by its cache and key, on a limit as anywhere", async () => {
+    const warmMs = vi.fn((_cache: unknown, apiKey: boolean) => (apiKey ? 25 * 60_000 : 26 * 60_000))
+    const { monitor } = monitorOf({
+      error: 'billing_error', apiErrorStatus: 400,
+      message: { role: 'assistant', content: [{ type: 'text', text: 'Credit balance is too low' }] },
+    }, true, warmMs)
+    try {
+      await vi.waitFor(() => expect(monitor.views()).toHaveLength(1))
+      expect(monitor.limited('ABC-1')?.warmMs).toBe(25 * 60_000)
+      expect(monitor.handoff('ABC-1')?.warmMs).toBe(25 * 60_000)
+      expect(warmMs).toHaveBeenCalledWith(null, true)
+    } finally {
+      await monitor.stop()
+    }
+  })
+
+  it('takes an hour for an agent that names no window', async () => {
+    const { monitor } = monitorOf({ message: { role: 'assistant', content: [{ type: 'text', text: 'Done.' }] } }, true)
+    try {
+      await vi.waitFor(() => expect(monitor.views()).toHaveLength(1))
+      expect(monitor.handoff('ABC-1')?.warmMs).toBe(WARM_CACHE_MS)
     } finally {
       await monitor.stop()
     }

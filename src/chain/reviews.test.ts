@@ -452,6 +452,19 @@ describe('Dispatcher polling pull requests', () => {
     expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
   })
 
+  it.each([
+    ['12:10', 'reply'],
+    ['12:30', 'relay'],
+  ])("takes the session's own warm window, half an hour's cache at %s", async (time, kind) => {
+    const opening = await opened(changes)
+    const { handoffs, relays, clock } = opening
+    handoffs['ABC-1'] = { ...handoffs['ABC-1']!, warmMs: 25 * 60_000 }
+    clock.now = new Date(`2026-09-26T${time}:00Z`)
+    await polledAndStarted(opening)
+
+    expect(relays).toMatchObject([{ kind, task: 'ABC-1' }])
+  })
+
   it('starts a new session with the feedback when the task has none', async () => {
     const opening = await opened(changes)
     const { dispatcher, extras, launched, live, journal } = opening
