@@ -59,6 +59,7 @@ export interface AccountWatcherOptions {
   transportOf: (home: AccountHome, apiKey: boolean) => Transport | null
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => string[]
+  workingIn?: (key: string) => boolean
   /** The projects whose sessions run in the folder, by the pool. */
   projectsOn: (key: string) => string[]
   pool: () => PoolEntry[]
@@ -150,6 +151,7 @@ export class AccountWatcher {
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
         needsLogin: this.needsLogin(home.key),
         sessions: this.options.sessionsIn(home.key),
+        working: this.options.workingIn?.(home.key) ?? false,
         projects: this.options.projectsOn(home.key),
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),

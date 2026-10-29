@@ -6,6 +6,12 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 **CLI version → Checked** runs sessions on Even Keel's own checked copy. A missing copy asks for consent with its version and approximate size when you choose a provider or add an account. Cancel keeps the choice; the chain waits. Blue progress bands under the header and on the agent card show downloaded bytes. **Installed** uses the CLI you manage. A failed download switches that provider to Installed and offers a retry; without a CLI, the card shows a copyable installation command and **Check again**. See [setup](setup.md#the-clis-it-depends-on).
 
+## Subscription credits and extra usage
+
+On the wide Accounts page, **Extra usage** shows the provider's reported credit balance, additional-usage permission or paid Copilot usage. A dash means the provider has not supplied it. Point at or focus a value for its source, age and limitations. ChatGPT balances are usage credits, not dollars; automatic reload settings and spending caps are not reported.
+
+An amber **on credits** chip beside an account's name, including in the header and account panel, means a working session recently reported extra usage (Claude SDK), or is working with available ChatGPT credits and an exhausted included window. The latter is an inference, explained in the tip. The narrow page and panel keep just this chip and their usual usage figure. This display does not change when the chain waits for a limit reset. OpenCode Zen has no readable balance here. See the remaining [live-check limits](../unverified.md#subscription-extra-usage-btn-532).
+
 ## Project page legend
 
 Open **?** above the side panel for a legend grouped by location: the header, project row, tabs, task card and session strip. Its queue and account samples match the header. It explains task states separately from priority numbers, dependency counters, the cache ring, release-carry agents and context usage. State marks have different shapes as well as colours. Fix and release-carry rows show their state beside the row key.

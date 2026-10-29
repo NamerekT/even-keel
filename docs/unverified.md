@@ -10,6 +10,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 1a | [Subscription extra usage](#subscription-extra-usage-btn-532) | subscriptions with credits or paid overage | a chip may infer spending incorrectly, or credit data may lag |
 | 46a | [Header account after a labelled task closes](#header-account-after-a-labelled-task-closes-btn-539) | project chains using run labels | the header may lag behind the next launch choice |
 | 0d | [CLI copy consent and recovery](#cli-copy-consent-and-recovery) | All providers using Checked, especially new installations | Unexpected downloads, a chain starting before its copy is ready, or failure recovery losing the source choice |
 | 0c | [Explicit global account registration](#explicit-global-account-registration) | New installations and upgrades with existing CLI sign-ins | A hidden account appears automatically, an upgrade loses one, or removal signs the CLI out |
@@ -205,6 +206,17 @@ The server selector and fake page cover a saved session account, changed project
 It counts a folder trusted when the global `~/.claude.json` or the `.claude.json` of the shared Claude account's folder trusts it: `claude` started with an account folder's `CLAUDE_CONFIG_DIR` records the accepted dialog in that folder's file only (seen live on 22.10.2026, BTN-300). It does not check Codex's trust at all. The warning does not hold the add: if you trusted the folder under the account the chain runs on, add it anyway. Not seen: a folder that passes the check but is not trusted for the chain's account, pausing the chain at its first launch. The second command, for a terminal of another user than the service's (BTN-310: `runas /user:<user> "cmd /k cd /d <folder> && claude"` on Windows, `sudo -u <user> -H claude` elsewhere), was never run: assumed, `runas` asks for that user's password and opens a console in its profile, so the trust lands in that user's `~/.claude.json`; a service on a built-in account (LocalSystem, a user without a password) cannot be reached this way, and a folder path with `&` or `%` breaks the `cmd` line. **Workaround:** if it does, sign in to the machine as the service's user, or open `claude` in the folder from any shell of that user, and accept the dialog.
 
 ## Accounts
+
+### Subscription extra usage (BTN-532)
+
+The parsers and freshness/working-session guards have fixture tests; dark desktop/mobile, light desktop, the drawer, long names and unknown-source rows were inspected with fake accounts ([live log](verified.md#accounts)). Read-only live probes found zero ChatGPT credits, Copilot extra usage disabled, and no extra-usage line in Claude CLI 2.1.310 `/usage`. No actual paid session or positive credit balance was available. Still to check in BTN-531:
+
+- A paid Claude SDK session entering and leaving `isUsingOverage`, with the chip following the working turn and disappearing while waiting or after stale evidence.
+- A nonzero ChatGPT credit response through the live service, its refresh and an exhausted-window session actually consuming credits; compare the inferred chip with the provider's usage page. Include OpenCode on ChatGPT and shared pools.
+- Copilot with extra usage permitted and a nonzero historical count, plus a token using the personal billing fallback with real net charges. Check that no historical bill is treated as current spending and no included gross charge is shown as paid.
+- Sign-in renewal, an unavailable source and stale data while the page is open. Ensure the source timestamp survives newer window-only readings and that old credit facts do not cross a new sign-in.
+
+Assumed: positive responses use the observed/documented field shapes, and a working ChatGPT session beyond an included window with available credits is spending them. If wrong, the amount may be absent or the chip may infer a charge incorrectly. **Workaround:** check spending and reload settings on the provider's billing page; the extra-usage display does not alter the chain's existing limit waits. Zen has no verified balance adapter and shows no balance.
 
 ### Explicit global account registration
 

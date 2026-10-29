@@ -30,7 +30,7 @@ import { Packages } from '../packages/service.js'
 import { secretCatalog } from '../secrets/catalog.js'
 import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
-import { turnStatus } from '../sessions/agents.js'
+import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from '../sessions/launch.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { TranscriptOwners } from '../sessions/owners.js'
@@ -427,6 +427,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     transportOf: (home, apiKey) => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], apiKey),
     loginBlock: (): LoginBlock | null => loginBlock(ctx.dispatcher.state.active, ctx.agents, ctx.activeAccount()),
     sessionsIn: (key) => liveSessions(ctx.agents, key),
+    workingIn: (key) => ctx.agents.some((agent) => (agent.account ?? 'global') === key && !agent.resting && isLive(agent) && lampOf(agent, null) === 'working'),
     projectsOn: (key) => projectsByAccount(ctx.configStore.current, Object.keys(ctx.configStore.current.projects))[key] ?? [],
     pool: () => poolEntries(ctx.configStore.current, Object.keys(ctx.configStore.current.projects)),
     makeShared: (agent, key) => {

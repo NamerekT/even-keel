@@ -4,6 +4,8 @@ import { en } from './en.js'
 import { fieldsEn, type FieldTexts } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
 import { ru, type Messages } from './ru.js'
+import { overageEn } from './overage-en.js'
+import { overageRu } from './overage-ru.js'
 import { localMoment } from '../moment.js'
 
 export type { Messages }
@@ -12,6 +14,8 @@ const MESSAGES: Record<Language, Messages> = { en, ru }
 
 export let language: Language = 'en'
 export let t: Messages = en
+
+export const overageTexts = localized((each) => each === 'ru' ? overageRu : overageEn)
 
 export function setLanguage(next: Language): void {
   language = next
