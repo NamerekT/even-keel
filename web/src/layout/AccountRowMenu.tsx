@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { removeProblem, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
@@ -18,7 +18,10 @@ interface Props {
 
 /** A real button covers the row; the independent details sit above it, never inside another button. */
 export function AccountRowMenu({ entry, view, sending, send, children, fresh = false }: Props) {
-  const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(placeRowMenu)
+  const clickX = useRef<number | undefined>(undefined)
+  const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(
+    (element, at) => placeRowMenu(element, at, clickX.current),
+  )
   const [renaming, setRenaming] = useState(false)
   const [removing, setRemoving] = useState(false)
   const name = accountName(entry, view.accounts)
@@ -26,16 +29,20 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   const held = roles.filter((role) => role.held)
   const problem = removeProblem(view, entry.key)
   const pick = (action: () => void) => { setOpen(false); action() }
+  const toggleMenu = (event: MouseEvent<HTMLElement>) => {
+    clickX.current = event.detail === 0 ? undefined : event.clientX
+    setOpen(!open)
+  }
 
   return (
     <div ref={root} className={`account-row${held.length === 0 ? ' account-row--unused' : ''}${fresh ? ' account-row--fresh' : ''}`}
       onClick={(event) => {
         if (sending || (event.target as HTMLElement).closest('button, a, input, dialog, [role="menu"], .account-detail, .account-shared')) return
-        setOpen(!open)
+        toggleMenu(event)
       }}>
       <button ref={button} type="button" className="account-row__button"
         aria-label={t.account.more(name)} aria-haspopup="menu" aria-expanded={open}
-        disabled={sending} onClick={() => setOpen(!open)} />
+        disabled={sending} onClick={toggleMenu} />
       {children}
       <ul ref={menu} popover="manual" role="menu" className="roles__menu account-row__menu" onKeyDown={onKeyDown}>
         {open && <>
@@ -71,11 +78,11 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   )
 }
 
-function placeRowMenu(element: HTMLElement, at: DOMRect) {
+function placeRowMenu(element: HTMLElement, at: DOMRect, clickX?: number) {
   const edge = 8
   const width = element.offsetWidth
   const height = element.offsetHeight
-  element.style.left = `${Math.max(edge, Math.min(at.left + at.width / 3, window.innerWidth - width - edge))}px`
+  element.style.left = `${Math.max(edge, Math.min(clickX ?? at.left + at.width / 3, window.innerWidth - width - edge))}px`
   element.style.top = `${at.bottom + height + edge <= window.innerHeight ? at.bottom + 4 : Math.max(edge, at.top - height - 4)}px`
 }
 
