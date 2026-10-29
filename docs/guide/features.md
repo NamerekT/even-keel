@@ -242,6 +242,8 @@ Your own skills (`~/.claude/skills`, Codex's skills folder) reach only their own
 
 ## Accounts
 
+The account row's menu opens at the horizontal position you click, below the row (above it when space is short), and stays inside the window. Enter/Space opens it at the row's default position.
+
 On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, including while the chain is paused or stopped. Hover or focus shows up to three distinct accounts in order: the task, the project's default and Even Keel's default. A coloured border and stack count mark a cascade; on phones the chip keeps the tightest usage window. Other pages show only Even Keel's account. Pressing the chip opens the full Accounts panel. Accounts without readable limits show token counts instead of empty limit rows.
 
 Accounts appear only after you add them. In **Add account**, choose a provider: if its CLI already has a sign-in on this machine, the dialog offers that identity or signing in with another account. Otherwise it opens the usual sign-in choices. The first account added for a provider takes its unused shared pool entry. Removing an added global CLI account from Even Keel keeps its folder and CLI sign-in. An update keeps global accounts that were already visible; a new installation starts without them.

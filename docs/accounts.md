@@ -79,6 +79,8 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 
 The server side is the same `account/*` commands for all four; the shared parts are in `web/src/layout/accountParts.tsx`.
 
+The row menu's left edge follows the click's viewport X coordinate, clamped inside the window. It opens below the row, or above when space is short. Enter/Space uses the existing anchor at one third of the row button's width; a keyboard opening clears any earlier click coordinate. Both the row's background and its overlay button use the same toggle handler; independent tips and controls keep their own actions.
+
 - **The account's name** (`accountName`, `web/src/accountName.ts`) is shared by the header, drawer, page, settings and statistics: the given name, else e-mail, else provider, numbered when names coincide. The folder key stays its identity and appears in the mark's tip. Rename is in the row menu (`AccountRowMenu`): Apply saves through `account/name`, Cancel or Escape abandons the edit, and an empty name restores the default. Only the saved display name changes, never the folder.
 
 - **The account mark** (`AccountMark`, `accountParts.tsx`) is a coloured dot and muted agent icon before the name. Its tip (`Tipped`) holds the agent, connection, sign-in left, folder and pending configuration. Colour follows `entrySlot` in `web/src/accounts.ts`. Shared subscription limits have a separate ⇄ mark with `sharedLimitText` in its tip; source and freshness are in the percentages' tips (`staleText`, `limitsNote`).
