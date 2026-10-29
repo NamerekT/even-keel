@@ -1,6 +1,11 @@
 import type { AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN } from '../../src/agent/providers.js'
 import { PROVIDERS, type Provider } from './accounts.js'
+import { t } from './i18n/index.js'
+
+export const providerHint = (provider: Provider): string => provider === 'opencode'
+  ? ['chatgpt', 'free', 'apiKey'].map(way => t.addAccount.way.opencode[way as 'chatgpt' | 'free' | 'apiKey'].title).join(' · ')
+  : t.account.providerHints[provider]
 
 /** How a way adds the account: a sign-in through the agent's CLI, a folder placed at once, or a key checked first. */
 export type WayKind = 'login' | 'instant' | 'key'
@@ -24,7 +29,6 @@ export const WAYS: Record<Provider, readonly Way[]> = {
   ],
   opencode: [
     { id: 'chatgpt', kind: 'login', method: 'chatgpt' },
-    { id: 'copilot', kind: 'login', method: 'copilot' },
     { id: 'free', kind: 'instant', method: NO_SIGN_IN },
     { id: 'apiKey', kind: 'key' },
   ],

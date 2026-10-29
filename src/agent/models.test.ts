@@ -25,6 +25,17 @@ function catalog(answers: (ModelList | Error)[], now = { at: 0 }) {
 }
 
 describe('ModelCatalog', () => {
+  it('refuses Copilot models on OpenCode before asking even an unavailable catalogue', async () => {
+    const { models, asked } = catalog([])
+    expect(await models.refusal(home, 'DEMO-1', 'github-copilot/gpt-6.1')).toEqual({ code: 'chain.opencodeCopilot', params: {} })
+    expect(asked).toEqual([])
+  })
+
+  it('offers no Copilot models even when OpenCode lists them', async () => {
+    const { models } = catalog([{ models: [...FREE.models, 'github-copilot/gpt-6.1'], complete: true }])
+    expect(await models.of(home)).toEqual(FREE)
+  })
+
   it('refuses a model a complete list does not have, naming the account and what it has', async () => {
     const { models } = catalog([FREE, FREE])
     const refusal = await models.refusal(home, 'NAM-65', 'deepseek-v4.1')

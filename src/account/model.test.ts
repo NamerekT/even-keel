@@ -283,6 +283,18 @@ describe('loginBlockNotice', () => {
 })
 
 describe('launchBlock', () => {
+  it('blocks Copilot-only OpenCode folders for launches and switches, but keeps mixed folders usable', () => {
+    const copilot = entry({ key: 'opencode', agent: 'opencode', status: { ...signedIn(null), subscriptionType: 'github-copilot' } })
+    const held = view({ accounts: [entry({}), copilot] })
+    expect(launchBlock(held, copilot.key)).toEqual({ code: 'chain.opencodeCopilot', params: {} })
+    expect(switchProblem(held, copilot.key)).toEqual({ code: 'chain.opencodeCopilot', params: {} })
+    copilot.status!.subscriptionType = 'github-copilot, openai'
+    expect(launchBlock(held, copilot.key)).toBeUndefined()
+    expect(switchProblem(held, copilot.key)).toBeUndefined()
+    copilot.status!.subscriptionType = null
+    expect(launchBlock(held, copilot.key)).toBeUndefined()
+  })
+
   const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false }
 
   it('lets sessions start when the active account is signed in or not known yet', () => {

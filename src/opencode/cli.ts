@@ -16,11 +16,13 @@ import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } 
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { sessionList, sessionStamp } from './db.js'
+import { sessionList, sessionRows, sessionStamp } from './db.js'
 import { keepOwnInstructions, parseAuth, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
 import { protectionRules } from '../sessions/protection.js'
 import { OpenCodeLog } from './log.js'
+import { copilotModel, copilotOnly, copilotUnsupported } from './support.js'
+import { foldSession } from './transcript.js'
 
 const run = promisify(execFile)
 
@@ -32,8 +34,6 @@ export { hungEntry, TURN_HANG_MS } from '../sessions/silence.js'
 import { hungEntry } from '../sessions/silence.js'
 export const LOG_SILENCE_MS = 30_000
 const STREAM_ERROR_EVENT = 'even_keel_stream_error'
-/** Copilot's sign-in asks GitHub.com or Enterprise first; Enter takes GitHub.com. */
-const SELECT_DELAY_MS = 3_000
 
 /**
  * Chain sessions run without a human: OpenCode's tools are allowed by default and an `ask` is rejected on its own in
@@ -45,7 +45,6 @@ export const SESSION_MODE = 'default'
 /** The sign-ins the page offers, as `opencode providers login` takes them through a pipe (BTN-214). */
 export const LOGIN_METHODS: Readonly<Record<string, readonly string[]>> = {
   chatgpt: ['-p', 'openai', '-m', 'ChatGPT Pro/Plus (headless)'],
-  copilot: ['-p', 'github-copilot', '-m', 'Login with GitHub Copilot'],
 }
 
 /**
@@ -91,7 +90,7 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'pro
     ...(rules.bash.length > 0 ? { bash: Object.fromEntries(rules.bash.map(pattern => [pattern, 'deny'])) } : {}),
     ...Object.fromEntries(rules.tools.map(tool => [tool, 'deny'])),
   }
-  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission }
+  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission, disabled_providers: ['github-copilot'] }
   if (start.mcp !== undefined) {
     const own = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
     const gateway = Object.fromEntries(start.mcp.map((server) => [gatewayName(server), { type: 'remote', url: server.url, enabled: true }]))
@@ -137,6 +136,7 @@ export function writeArgs(model: string | null): string[] {
 export function writeConfig(projectServers: string[]): string {
   const config: Record<string, unknown> = {
     $schema: 'https://opencode.ai/config.json',
+    disabled_providers: ['github-copilot'],
     permission: Object.fromEntries(WRITE_DENIED.map((tool) => [tool, 'deny'])),
   }
   if (projectServers.length > 0) config.mcp = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
@@ -263,6 +263,7 @@ export class OpenCodeCli {
   ) {}
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
+    this.requireSupported(home, start.model)
     const { name, cwd } = start
     const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('opencode.startFailed', { task: name, cwd }))
     this.registry.save({ sessionId: turn.session, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
@@ -271,9 +272,14 @@ export class OpenCodeCli {
 
   /** OpenCode resumes in the session's own folder, whatever `start.cwd` says. */
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
+    this.requireSupported(home, start.model)
     const session = await this.registry.get(sessionId)
     if (session === undefined) throw fail('opencode.unknownSession', { session: sessionId })
     const { name, cwd } = session
+    if (start.model === null) {
+      const rows = await sessionRows(home.dir, sessionId)
+      if (rows !== undefined) this.requireSupported(home, foldSession(rows.messages, []).model)
+    }
     // Only a hung turn is still live here: two processes must not write one session.
     await this.endTurn(session)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }))
@@ -313,6 +319,7 @@ export class OpenCodeCli {
 
   /** `writeArgs`' turn; its session leaves the account's database after it, so no transcript counts it as a chain session's. */
   async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
+    this.requireSupported(home, model)
     keepOwnInstructions(home.dir)
     const env = { ...this.envOf(home), PWD: cwd, OPENCODE_CONFIG_CONTENT: writeConfig(projectServers(cwd)) }
     const started = Date.now()
@@ -344,16 +351,16 @@ export class OpenCodeCli {
     return parseAuth(readAuth(home.dir))
   }
 
+  private requireSupported(home: AccountHome, model: string | null): void {
+    if (copilotModel(model) || copilotOnly({ agent: OPENCODE, status: parseAuth(readAuth(home.dir)) })) throw new NoticeError(copilotUnsupported())
+  }
+
   /** A device sign-in (`LOGIN_METHODS`): the page shows the link and the code OpenCode prints. */
   login(home: AccountHome, method: string | undefined): ChildProcessWithoutNullStreams {
     const args = method === undefined ? undefined : LOGIN_METHODS[method]
     if (args === undefined) throw fail('login.method', { method: method ?? '', known: Object.keys(LOGIN_METHODS) })
     keepOwnInstructions(home.dir)
     const child = spawn(this.bin(), ['providers', 'login', ...args], { env: this.envOf(home), windowsHide: true, stdio: 'pipe' })
-    if (method === 'copilot') {
-      const timer = setTimeout(() => child.stdin.write('\r'), SELECT_DELAY_MS)
-      child.on('exit', () => clearTimeout(timer))
-    }
     return child
   }
 

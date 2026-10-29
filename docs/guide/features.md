@@ -6,6 +6,10 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 **CLI version → Checked** runs sessions on Even Keel's own checked copy. A missing copy asks for consent with its version and approximate size when you choose a provider or add an account. Cancel keeps the choice; the chain waits. Blue progress bands under the header and on the agent card show downloaded bytes. **Installed** uses the CLI you manage. A failed download switches that provider to Installed and offers a retry; without a CLI, the card shows a copyable installation command and **Check again**. See [setup](setup.md#the-clis-it-depends-on).
 
+## OpenCode accounts
+
+OpenCode can use ChatGPT, API keys or its free models. **OpenCode on GitHub Copilot is not supported yet:** this combination has not passed a live session check, and Copilot Free's automatic model selection does not work with OpenCode's named-model calls. Existing Copilot sign-ins and credits remain visible, but a folder with only Copilot is unavailable for sessions. A folder with other providers can still use those providers; Copilot models are not offered. If a saved model or task label selects Copilot, the chain pauses and links to session settings: choose another Model or Account and update the task label before resuming. Adding Copilot sign-ins through OpenCode is unavailable. The separate GitHub Copilot CLI remains available.
+
 ## Subscription credits and extra usage
 
 On the wide Accounts page, **Extra usage** shows the provider's reported credit balance, additional-usage permission or paid Copilot usage. A dash means the provider has not supplied it. Point at or focus a value for its source, age and limitations. ChatGPT balances are usage credits, not dollars; automatic reload settings and spending caps are not reported.

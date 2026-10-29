@@ -21,7 +21,7 @@ export function isProvider(name: string): boolean {
  * `NO_SIGN_IN` makes a folder with no sign-in at all: OpenCode's own free models need none, and a Copilot folder without
  * a token runs on the CLI's own sign-in of the machine (a token is added as a key).
  */
-export const SIGN_INS: Readonly<Record<string, readonly string[]>> = { [OPENCODE]: ['chatgpt', 'copilot', 'none'], [COPILOT]: ['none'] }
+export const SIGN_INS: Readonly<Record<string, readonly string[]>> = { [OPENCODE]: ['chatgpt', 'none'], [COPILOT]: ['none'] }
 export const NO_SIGN_IN = 'none'
 
 /**

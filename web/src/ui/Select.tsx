@@ -7,6 +7,8 @@ import './select.css'
 export interface SelectOption {
   value: string
   label: string
+  /** An option remains reachable with the keyboard so its reason can be read. */
+  unavailable?: string
   /** Before the label, in the list and in the field. */
   icon?: ReactNode
 }
@@ -106,6 +108,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
   }
   const pick = (index: number) => {
     const option = shown[index]
+    if (option?.unavailable !== undefined) return
     if (option !== undefined && option.value !== value) onChange(option.value)
     close(true)
   }
@@ -227,6 +230,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
                     role="option"
                     className="select__option"
                     aria-selected={option.value === value}
+                    aria-disabled={option.unavailable !== undefined || undefined}
                     data-active={index === active}
                     // The focus stays on the button or the search field, whose keys drive the list.
                     onPointerDown={(event) => event.preventDefault()}
@@ -234,7 +238,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
                     onClick={() => pick(index)}
                   >
                     {option.icon !== undefined && <span className="select__icon">{option.icon}</span>}
-                    <span className="select__label">{option.label}</span>
+                    <span className="select__label">{option.label}{option.unavailable !== undefined && <span className="select__reason">{option.unavailable}</span>}</span>
                     {option.value === value && <CheckIcon />}
                   </li>
                 ))}

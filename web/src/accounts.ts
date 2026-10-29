@@ -5,6 +5,7 @@ import { limitSpans, type LimitSpan, type LimitWindow, type RateLimits } from '.
 import { OPENCODE } from '../../src/opencode/name.js'
 import { folderLabel } from './accountName.js'
 import { accountOrder } from './state.js'
+import { copilotOnly } from '../../src/opencode/support.js'
 
 const SERIES = 8
 
@@ -129,11 +130,12 @@ export function tightestWindow(limits: RateLimits | null): Tightest | null {
 }
 
 /** How ready a provider is to run sessions on the account folder its pool entry names (BTN-310). */
-export type Readiness = { state: 'cliMissing' } | { state: 'noAccount' } | { state: 'signIn' | 'ready'; entry: AccountEntry }
+export type Readiness = { state: 'cliMissing' } | { state: 'noAccount' } | { state: 'signIn' | 'ready' | 'unsupported'; entry: AccountEntry }
 
 export function readinessOf(view: AccountView, provider: string, key: string): Readiness {
   if (view.missing.includes(provider)) return { state: 'cliMissing' }
   const entry = view.accounts.find((each) => each.key === key && each.agent === provider)
   if (entry === undefined) return { state: 'noAccount' }
+  if (copilotOnly(entry)) return { state: 'unsupported', entry }
   return { state: entry.needsLogin ? 'signIn' : 'ready', entry }
 }

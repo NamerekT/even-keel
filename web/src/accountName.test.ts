@@ -63,6 +63,14 @@ describe('accountName', () => {
 })
 
 describe('folderLabel and accountOptions', () => {
+  it('keeps a Copilot-only folder visible with a reason it cannot be selected', () => {
+    const only = entry('opencode', 'opencode', null)
+    only.status!.subscriptionType = 'github-copilot'
+    const listed = { active: only.key, accounts: [only], login: null, loginBlock: null, apps: [], pool: [], missing: [] }
+    expect(accountOptions(listed, 'opencode', only.key)[0]).toMatchObject({ value: only.key, unavailable: expect.stringContaining('Copilot') })
+    only.status!.subscriptionType = 'github-copilot, openai'
+    expect(accountOptions(listed, 'opencode', only.key)[0]?.unavailable).toBeUndefined()
+  })
   const accounts = [entry('global', 'claude', 'john.doe@example.com'), entry('opencode', 'opencode', null), entry('opencode-2', 'opencode', null)]
   const view: AccountView = { active: 'global', accounts, login: null, loginBlock: null, apps: [], pool: [], missing: [] }
 

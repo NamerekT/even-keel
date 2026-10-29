@@ -113,3 +113,6 @@ button.select {
   flex: 1;
   white-space: nowrap;
 }
+
+.select__option[aria-disabled='true'] { color: var(--fg-muted); cursor: default; }
+.select__reason { display: block; white-space: normal; font-size: var(--text-12); }

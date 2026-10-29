@@ -556,11 +556,12 @@ export class Dispatcher {
 
   /**
    * Start and Resume refuse while launches are blocked, except by PR mode with nowhere to go: then the chain waits
-   * paused on `review.notReady`, which `cleared` lifts by itself (BTN-316).
+   * paused on `review.notReady`, which `cleared` lifts by itself (BTN-316). Unsupported OpenCode Copilot also admits
+   * a paused chain, but requires an explicit resume after the model or account is changed.
    */
   private admit(chain: ActiveChain): void {
     const reason = this.deps.blocked(chain.project)
-    if (reason !== undefined && !['review.notReady', 'agent.copyMissing'].includes(reason.code)) throw new NoticeError(reason)
+    if (reason !== undefined && !['review.notReady', 'agent.copyMissing', 'chain.opencodeCopilot'].includes(reason.code)) throw new NoticeError(reason)
     chain.paused = reason !== undefined
     chain.error = reason ?? null
     if (reason !== undefined) this.deps.log(`chain: ${chain.project} paused: ${englishOf(reason)}`)

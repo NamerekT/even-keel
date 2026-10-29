@@ -10,6 +10,7 @@ import { Status } from './TrackerFields.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { INSTALL } from '../layout/cliText.js'
 import type { StepCheck } from './wizard.js'
+import { copilotNote } from '../../../src/opencode/support.js'
 
 /** The agent step's dot: green once the account is signed in and seen, red while it cannot run, empty while it is read. */
 export function agentCheck(state: EvenKeelState, provider: string): StepCheck {
@@ -51,6 +52,9 @@ function Ready({ state, provider }: { state: EvenKeelState; provider: string }) 
       </Status>
     )
   const name = accountName(ready.entry, state.account.accounts)
+  if (ready.state === 'unsupported') return <Status>{name}: {say(copilotNote())}{' '}
+    {known !== undefined && <button type="button" className="button button--small" disabled={state.account.login !== null} onClick={() => openAdd(known)}>{t.setup.addAccount}</button>}
+  </Status>
   if (ready.state === 'signIn')
     return (
       <>

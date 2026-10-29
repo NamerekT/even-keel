@@ -311,7 +311,7 @@ function ProviderPick({ account, onPick }: { account: AccountView; onPick: (prov
               </span>
               <span className="add-package__kind-title">{t.account.agents[provider]}</span>
               {missing && <span className="tag account-add__missing">{t.account.cliNotFound}</span>}
-              <span className="add-package__kind-hint">{t.account.providerHints[provider]}</span>
+              <span className="add-package__kind-hint">{providerHint(provider)}</span>
             </button>
           )
         })}
@@ -423,3 +423,4 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, o
     </form>
   )
 }
+import { providerHint } from '../accountAdd.js'
