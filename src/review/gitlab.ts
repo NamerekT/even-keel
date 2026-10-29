@@ -55,8 +55,22 @@ const TITLE = 'GitLab'
 const PAGE = 100
 /** Reporter: who may comment on an issue of a private project, as the GitLab tracker reads its comments. */
 const TRUSTED_LEVEL = 20
-/** The merge statuses of a check of mergeability not done yet. */
-const UNCHECKED: ReadonlySet<string> = new Set(['unchecked', 'checking', 'preparing'])
+/** The merge statuses of a check of mergeability not done yet, in `detailed_merge_status` or the older `merge_status`. */
+const UNCHECKED: ReadonlySet<string> = new Set(['unchecked', 'checking', 'preparing', 'cannot_be_merged_recheck'])
+
+/**
+ * Unknown while either status waits for a recheck, or while `has_conflicts: false` disagrees with a
+ * `conflict` status: after a push GitLab keeps the old conflict status until the recheck ends —
+ * for a second or two on GitLab CE, for minutes on GitLab.com.
+ */
+function mergeability(request: GitlabMergeRequest): boolean | null {
+  const detailed = request.detailed_merge_status ?? ''
+  const legacy = request.merge_status ?? ''
+  if (UNCHECKED.has(detailed) || UNCHECKED.has(legacy)) return null
+  const status = detailed || legacy
+  if (status === 'conflict' && request.has_conflicts === false) return null
+  return !(request.has_conflicts === true || status === 'conflict')
+}
 /** The users of project and group access tokens: members of the project, so the level check lets them through. */
 const TOKEN_BOT = /^(?:project|group)_\d+_bot(?:_[\da-f]+)?$/i
 
@@ -125,9 +139,7 @@ export function gitlabPulls(settings: GitlabPullSettings, timeoutMs: number, fet
       const request = await get<GitlabMergeRequest>(`/merge_requests/${number}`)
       // `locked` — the merge is going on.
       const state = request.state === 'merged' ? 'merged' : request.state === 'closed' ? 'closed' : 'open'
-      const status = request.detailed_merge_status ?? request.merge_status ?? ''
-      const mergeable = UNCHECKED.has(status) ? null : request.has_conflicts === true || status === 'conflict' ? false : true
-      return { state, mergeable, head: request.sha }
+      return { state, mergeable: mergeability(request), head: request.sha }
     },
 
     async remarks(number, since, wanted) {
