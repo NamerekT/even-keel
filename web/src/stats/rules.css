@@ -496,6 +496,9 @@
 }
 
 @media (max-width: 640px) {
+  .rule-mark { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-6) var(--space-12); }
+  .rule-mark__when { grid-column: 1 / -1; flex-direction: row; gap: var(--space-6); }
+  .rule-mark__what, .rule-mark__who { white-space: normal; overflow-wrap: anywhere; }
   .rule-file { grid-template-columns: 16px minmax(0, 1fr) auto; }
   .rule-file > .ui-fold__caret { grid-row: 1 / span 2; align-self: center; }
   .rule-file__where, .rule-file__path { grid-column: 2; }
@@ -556,6 +559,31 @@
   gap: 8px;
 }
 
+.compare-models {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+.compare-models__side {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: var(--space-8);
+}
+.compare-models__side > .ui-fold__toggle {
+  width: 100%;
+  flex-wrap: wrap;
+  font-size: var(--text-13);
+}
+.compare-models .rule-chips { padding-top: var(--space-8); }
+.family-compare--thin { color: var(--fg-muted); }
+.family-compare__delta { min-width: 140px; font-size: var(--text-12); }
+.family-compare__delta span { display: block; }
+.rule-card > .ui-fold__body > .ui-fold__clip > .rule-day { margin-top: var(--space-12); }
+@media (max-width: 760px) {
+  .compare-models { grid-template-columns: minmax(0, 1fr); }
+}
+
 .rule-compare__table th:first-child,
 .rule-compare__table td:first-child {
   min-width: 180px;
@@ -592,6 +620,8 @@
   font-size: var(--text-14);
 }
 
+.family-compare { min-width: 800px; }
+
 .family-compare th {
   white-space: normal;
   vertical-align: bottom;
@@ -617,6 +647,6 @@
 }
 
 .rule-compare__sample.family-compare__thin {
-  color: var(--lamp-waiting);
+  color: var(--fg-muted);
   cursor: help;
 }

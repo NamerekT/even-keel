@@ -227,6 +227,10 @@ export class LiveConnection implements LiveSource {
     search.set('after', query.after)
     if (query.days !== null) search.set('days', String(query.days))
     if (query.projects !== null) search.set('projects', query.projects.join(','))
+    if (query.beforeModels != null) search.set('beforeModels', query.beforeModels.join(','))
+    if (query.afterModels != null) search.set('afterModels', query.afterModels.join(','))
+    if (query.from !== undefined) search.set('from', query.from)
+    if (query.to !== undefined) search.set('to', query.to)
     return this.deps.fetchStats('rules/compare', search)
   }
 

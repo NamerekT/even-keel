@@ -28,10 +28,10 @@ export function StepsSection({ loaded, fold }: { loaded: Loaded<StatsSteps> | nu
     <Section
       title={t.stats.steps.title}
       fold={fold}
+      help={t.stats.steps.note(steps.tasks)}
       aside={
         <>
           <span className="stats-section__count">{steps.steps.length}</span>
-          <span className="stats-section__note">{t.stats.steps.note(steps.tasks)}</span>
         </>
       }
     >

@@ -272,7 +272,9 @@ Statistics include history from existing account folders, including the global C
 
 Task time includes Codex turns from its saved session files, including older sessions whose files are still available. Visible synchronous question waits are excluded from active time; waits the session file does not show remain included. OpenCode and Copilot currently contribute spend without turn times.
 
-"Where the spend goes" and the task table group models by tier: Opus, Sonnet, Haiku and Fable for Claude; Sol, Luna, Astra and Terra for OpenAI. Versions within a tier count together; OpenAI models without a known tier appear as GPT.
+"Where the spend goes", the task table and rule comparisons group models by tier: Opus, Sonnet, Haiku and Fable for Claude; Sol, Luna, Astra and Terra for OpenAI. Versions within a tier count together; OpenAI models without a known tier appear as GPT. Other families, including DeepSeek, appear separately. Shares below 1% fold into "others".
+
+"Rule changes" starts open and remembers your choice. Pick a chart mark to see "Before and after" and "By model" above the folded "What changed" details. Each side has its own model selection, saved in the URL; without a mark, "Side by side" compares models over the same page period. Account limit windows and checkpoint thresholds have separate folded sections; components show the 10 with most tasks, with "Show all" for the rest.
 
 The last step of the first start's setup asks whether you want it — no stats, the local database or your own Postgres — and nothing is collected until you choose; the copy takes about a third of the transcripts' size. Switch it on or off any time in Settings → Stats: it applies at once, and turning it off deletes no data. Without stats the checkpoint threshold stays at 200k tokens.
 

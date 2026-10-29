@@ -294,6 +294,16 @@ describe('rule queries', () => {
     expect(() => parseCompareQuery(new URLSearchParams('before=2026-09-10T10:00:00Z&after=2026-09-11T10:00:00Z&days=0'))).toThrow(/days/)
   })
 
+  it('reads independent families and a shared range, rejecting incomplete or reversed ranges', () => {
+    const base = 'before=2026-10-01T00:00:00Z&after=2026-10-05T00:00:00Z'
+    const range = '&from=2026-10-01T00:00:00Z&to=2026-10-05T00:00:00Z'
+    expect(parseCompareQuery(new URLSearchParams(`${base}${range}&beforeModels=sol,terra&afterModels=`))).toMatchObject({
+      beforeModels: ['sol', 'terra'], afterModels: [], from: '2026-10-01T00:00:00.000Z', to: '2026-10-05T00:00:00.000Z',
+    })
+    expect(() => parseCompareQuery(new URLSearchParams(`${base}&from=2026-10-01T00:00:00Z`))).toThrow(/range/)
+    expect(() => parseCompareQuery(new URLSearchParams(`${base}&from=2026-10-06T00:00:00Z&to=2026-10-05T00:00:00Z`))).toThrow(/range/)
+  })
+
   it('read the change ids of a diff', () => {
     const id = 'a'.repeat(40)
     expect(parseChangeIds(new URLSearchParams(`changes=${id},${id}`))).toEqual([id, id])

@@ -24,7 +24,7 @@ import { parseView, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
 import { StepsSection } from './StepsSection.js'
 import { StuckSection } from './StuckSection.js'
-import { Checkpoints, Sources, Tiles } from './Summary.js'
+import { Checkpoints, Limits, Sources, Tiles } from './Summary.js'
 import { TaskTable } from './TaskTable.js'
 import './stats.css'
 
@@ -151,6 +151,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
             onChange={(projects) => setView({ projects })}
           />
           <div className="stats-page__main" aria-busy={isStale(periodLoaded, periodKey)}>
+            <div className="stats-page__group">
             {period === null ? <AnswerNotice loaded={periodLoaded} shape="tiles" /> : <Tiles period={period} range={range} />}
             <SpendChart
               data={derived.chart}
@@ -165,6 +166,8 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               picked={picked}
               onPick={pick}
             />
+            {period !== null && <><Sources period={period} /><Limits period={period} range={range} fold={fold('limits')} /></>}
+            </div>
             <RulesSection
               fold={fold('rules')}
               busy={isStale(rulesLoaded, rulesKey)}
@@ -177,17 +180,24 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               picked={picked}
               onPick={pick}
               base={{ ...filter, projects: view.projects }}
+              range={range}
+              models={{ beforeModels: view.beforeModels, afterModels: view.afterModels }}
+              onModels={setView}
+              modelOptions={period?.models.map(each => each.key) ?? []}
               colors={derived.colors}
               trackerUrls={state.trackerUrls}
             />
             {period !== null && (
               <>
-                <Sources period={period} />
+                <div className="stats-page__group">
                 <EstimateSection fold={fold('estimate')} tasks={period.tasks} />
-                <StepsSection fold={fold('steps')} loaded={stepsLoaded} />
-                {checkpoints !== null && <Checkpoints thresholds={checkpoints} projects={view.projects} />}
+                {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints} projects={view.projects} />}
+                </div>
+                <div className="stats-page__group">
                 <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />
                 <StuckSection fold={fold('stuck')} weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
+                <StepsSection fold={fold('steps')} loaded={stepsLoaded} />
+                </div>
                 <p className="stats-page__foot">{t.stats.read(formatMoment(period.at, new Date()))}</p>
               </>
             )}

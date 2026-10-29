@@ -13,6 +13,8 @@ export interface StatsView {
   kinds: RuleKind[] | null
   purposes: RulePurpose[] | null
   places: RulePlace[] | null
+  beforeModels?: string[] | null
+  afterModels?: string[] | null
 }
 
 export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null, places: null }
@@ -53,6 +55,8 @@ export function parseView(params: URLSearchParams): StatsView {
     kinds: knownList<RuleKind>(params.get('kinds'), KINDS),
     purposes: knownList<RulePurpose>(params.get('purposes'), PURPOSES),
     places: knownList<RulePlace>(params.get('places'), PLACES),
+    ...(params.has('beforeModels') ? { beforeModels: params.get('beforeModels')!.split(',').filter(Boolean) } : {}),
+    ...(params.has('afterModels') ? { afterModels: params.get('afterModels')!.split(',').filter(Boolean) } : {}),
   }
 }
 
@@ -71,5 +75,7 @@ export function viewSearch(view: StatsView): string {
   if (view.kinds !== null) params.set('kinds', view.kinds.join(','))
   if (view.purposes !== null) params.set('purposes', view.purposes.join(','))
   if (view.places !== null) params.set('places', view.places.join(','))
+  if (view.beforeModels != null) params.set('beforeModels', view.beforeModels.join(','))
+  if (view.afterModels != null) params.set('afterModels', view.afterModels.join(','))
   return params.toString()
 }

@@ -4,8 +4,10 @@ import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
 import { Tile, TileGrid } from '../ui/blocks.js'
+import { Fold } from '../ui/Fold.js'
+import { Tipped } from '../ui/Tipped.js'
 import { TONES, toneStyle } from '../ui/series.js'
-import { Section } from './common.js'
+import { Section, type FoldControl } from './common.js'
 import {
   costChange,
   entrypointLabel,
@@ -26,7 +28,6 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
   const change = costChange(current.cost, previous.cost)
   const days = dayCount(range)
   const limit = weeklyLimit(current.limit, range, period.limits)
-  const windows = days > 7 ? limitAccounts(period.windows) : []
   const stuckShare = current.cost > 0 ? (current.stuckCost / current.cost) * 100 : null
   const stamp = stampOf(current, previous)
 
@@ -51,9 +52,7 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
         label={t.stats.summary.limit}
         value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}
         note={limitNote(limit)}
-      >
-        {windows.length > 0 && <LimitAccounts rows={windows} />}
-      </Tile>
+      />
       <Tile
         label={t.stats.summary.tasks}
         value={`${current.tasks} / ${current.sessions}`}
@@ -138,14 +137,22 @@ export function Sources({ period }: { period: StatsPeriod }) {
   )
 }
 
-export function Checkpoints({ thresholds, projects }: { thresholds: CheckpointThreshold[]; projects: string[] | null }) {
+export function Limits({ period, range, fold }: { period: StatsPeriod; range: DayRange; fold: FoldControl }) {
+  const rows = dayCount(range) > 7 ? limitAccounts(period.windows) : []
+  if (rows.length === 0) return null
+  return <Section title={t.stats.summary.limitsByAccount} fold={fold} aside={<span className="stats-section__count">{rows.length}</span>}>
+    <LimitAccounts rows={rows} />
+  </Section>
+}
+
+export function Checkpoints({ thresholds, projects, fold }: { thresholds: CheckpointThreshold[]; projects: string[] | null; fold: FoldControl }) {
   const shown = thresholds.filter((each) => projects === null || projects.includes(each.project))
   if (shown.length === 0) return null
   const waiting = (each: CheckpointThreshold) => t.stats.checkpoint.waiting(each.handoffs, each.sessions, MIN_HANDOFFS, MIN_SESSIONS)
   return (
-    <Section title={t.stats.checkpoint.title} aside={<span className="stats-section__note">{t.stats.checkpoint.note}</span>}>
+    <Section title={t.stats.checkpoint.title} fold={fold} help={t.stats.checkpoint.note} aside={<span className="stats-section__count">{shown.length}</span>}>
       <ul className="checkpoints">
-        {shown.map((each) => (
+        {shown.filter(each => each.source !== 'default').map((each) => (
           <li key={each.project} title={each.source === 'default' ? waiting(each) : undefined}>
             <span className="checkpoints__project">{each.project}</span>
             <span className="checkpoints__first">{formatTokens(each.first)}</span>
@@ -153,6 +160,9 @@ export function Checkpoints({ thresholds, projects }: { thresholds: CheckpointTh
           </li>
         ))}
       </ul>
+      {shown.some(each => each.source === 'default') && <Tipped focusable tip={shown.filter(each => each.source === 'default').map(each => <div key={each.project}>{each.project}: {waiting(each)}</div>)}>
+        <span className="stats-section__note">{t.stats.checkpoint.defaults(shown.filter(each => each.source === 'default').length)}</span>
+      </Tipped>}
     </Section>
   )
 }
@@ -160,6 +170,8 @@ export function Checkpoints({ thresholds, projects }: { thresholds: CheckpointTh
 function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[]; label: (key: string) => string }) {
   const total = shares.reduce((sum, each) => sum + each.cost, 0)
   const shown = shares.filter((each) => each.cost > 0)
+  const major = shown.filter(each => each.cost / total >= 0.01)
+  const tail = shown.filter(each => each.cost / total < 0.01)
   const slot = (index: number) => (index < TONES ? index + 1 : null)
   return (
     <div className="sources__row">
@@ -170,8 +182,8 @@ function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[
         ))}
       </div>
       <ul className="chart__legend">
-        {shown.map((each, index) => (
-          <li key={each.key} className="sources__key" style={toneStyle(slot(index))}>
+        {major.map((each) => (
+          <li key={each.key} className="sources__key" style={toneStyle(slot(shown.indexOf(each)))}>
             <span className="chart__swatch" aria-hidden="true" />
             {label(each.key)}
             <span className="chart__key-count">
@@ -180,6 +192,12 @@ function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[
           </li>
         ))}
       </ul>
+      {tail.length > 0 && <Fold summary={<Tipped inline tip={tail.map(each => <span key={each.key}>{label(each.key)}: {formatUsd(each.cost)} · {formatShare(each.cost / total * 100)}<br /></span>)}><span>{t.stats.others} · {formatShare(tail.reduce((sum, each) => sum + each.cost, 0) / total * 100)}</span></Tipped>}>
+        <ul className="chart__legend">{tail.map(each => <li key={each.key} className="sources__key" style={toneStyle(slot(shown.indexOf(each)))}>
+          <span className="chart__swatch" aria-hidden="true" />{label(each.key)}
+          <span className="chart__key-count">{formatUsd(each.cost)} · {formatShare(each.cost / total * 100)}</span>
+        </li>)}</ul>
+      </Fold>}
     </div>
   )
 }

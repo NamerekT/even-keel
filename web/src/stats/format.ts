@@ -12,6 +12,13 @@ const MODELS: Record<string, string> = {
   astra: 'Astra',
   terra: 'Terra',
   gpt: 'GPT',
+  deepseek: 'DeepSeek',
+  qwen: 'Qwen',
+  gemini: 'Gemini',
+  kimi: 'Kimi',
+  glm: 'GLM',
+  mistral: 'Mistral',
+  llama: 'Llama',
 }
 
 const ENTRYPOINTS: Record<string, string> = {

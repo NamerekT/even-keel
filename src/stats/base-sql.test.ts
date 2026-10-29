@@ -68,6 +68,10 @@ describe('stats base SQL', () => {
     ['claude-sonnet-5-5', 'sonnet'],
     ['claude-haiku-4-5-20251001', 'haiku'],
     ['claude-fable-5', 'fable'],
+    ['deepseek/deepseek-v3', 'deepseek'],
+    ['opencode/DeepSeek-V3.2', 'deepseek'],
+    ['google/gemini-3-pro', 'gemini'],
+    ['qwen3-coder', 'qwen'],
     ['big-pickle', null],
     [null, null],
   ])('groups model %s as %s', async (model, family) => {

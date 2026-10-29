@@ -1527,6 +1527,7 @@ export const en: Messages = {
       model: 'Model',
       entrypoint: 'Entry point',
       windows: 'windows',
+      limitsByAccount: 'Limits by account',
       closed: 'closed',
       open: 'ongoing',
     },
@@ -1658,6 +1659,7 @@ export const en: Messages = {
     },
     checkpoint: {
       title: 'Checkpoint threshold',
+      defaults: (count: number) => `Other projects: ${count} — 200k default`,
       note: 'the context size at which a session is first asked to hand the task over',
       sources: {
         default: () => 'default',
@@ -1759,6 +1761,9 @@ export const en: Messages = {
       metric: 'Metric',
       before: 'Before',
       after: 'After',
+      beside: 'Side by side',
+      left: 'Left',
+      right: 'Right',
       change: 'Change',
       modelShares: 'Models, share of requests',
       foot: 'Lower is better in every row. A task belongs to the side of its first message, a session to the side of its start; a different set of tasks on each side changes the numbers too.',

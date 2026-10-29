@@ -1,5 +1,5 @@
 import type { StatsFilter } from './model.js'
-import { BASE } from './base-sql.js'
+import { BASE, familyOf } from './base-sql.js'
 import { filterSets, withImports, type ImportFile, type ImportPrecision, type RuleImport, type RulePurpose } from './rule-imports.js'
 import {
   compareOf,
@@ -71,20 +71,23 @@ where c.id = any($1::text[])`
 
 const TEXTS = `select hash, content from rule_texts where hash = any($1::text[])`
 
-// $8 project labels or null, $9–$12 the bounds of the before side and of the after side.
-// A session takes the side of its first message, a task the side of its first message too. $3 as in STARTS.
+// $8 projects, $9–$12 side bounds, $13–$14 model selections (null means all).
+// A session/task belongs to each matching side by its first message; side periods may overlap.
 const SIDED = `${BASE}, picked as (
   select * from base where ($8::text[] is null or project = any($8::text[])) and $3::text is not null and ${SESSIONS_ONLY}
 ), sides as (
-  select $9::timestamptz as b_lo, $10::timestamptz as b_hi, $11::timestamptz as a_lo, $12::timestamptz as a_hi
+  select * from (values
+    ('before', $9::timestamptz, $10::timestamptz, $13::text[]),
+    ('after', $11::timestamptz, $12::timestamptz, $14::text[])
+  ) as ranges(side, lo, hi, models)
 ), firsts as (
-  select session_id, min(at) as first_at from picked group by session_id
+  select session_id, min(at) as first_at,
+    mode() within group (order by coalesce(${familyOf('model')}, 'other')) filter (where agent_id = '') as family
+  from picked group by session_id
 ), sided as (
-  select f.session_id, case
-      when f.first_at >= s.b_lo and f.first_at < s.b_hi then 'before'
-      when f.first_at >= s.a_lo and f.first_at < s.a_hi then 'after'
-    end as side
+  select f.session_id, s.side
   from firsts f, sides s
+  where f.first_at >= s.lo and f.first_at < s.hi and (s.models is null or f.family = any(s.models))
 )`
 
 const SIDE_SESSIONS = `${SIDED}
@@ -138,17 +141,18 @@ join tool_calls t on t.session_id = x.session_id
 where x.side is not null
 group by x.side`
 
-const SIDE_TASKS = `${SIDED}, tasks as (
+const SIDE_TASKS = `${SIDED}, families as (
+  select task, mode() within group (order by coalesce(${familyOf('model')}, 'other')) as family
+  from audit_sessions where task is not null group by task
+), tasks as (
   select task, min(at) as first_at, coalesce(sum(cost), 0) as cost, count(distinct session_id) as sessions
   from picked
   where task is not null
   group by task
 ), tasked as (
-  select t.*, case
-      when t.first_at >= s.b_lo and t.first_at < s.b_hi then 'before'
-      when t.first_at >= s.a_lo and t.first_at < s.a_hi then 'after'
-    end as side
-  from tasks t, sides s
+  select t.*, s.side
+  from tasks t left join families f on f.task = t.task cross join sides s
+  where t.first_at >= s.lo and t.first_at < s.hi and (s.models is null or coalesce(f.family, 'other') = any(s.models))
 )
 select side, count(*) as tasks, percentile_cont(0.5) within group (order by cost) as task_cost, avg(sessions) as sessions_per_task
 from tasked
@@ -157,11 +161,11 @@ group by side`
 
 // Tasks as the session audit sees them (view task_estimates, BTN-75): a session gives all its spend to its task,
 // the side is that of the task's first session. Only tasks with a message under the filters of the page.
-// The family is model_family of the view in one pass: the view's own subquery reads audit_sessions once per task.
+// Compute the shared family in one pass over audit_sessions rather than the view's per-task subquery.
 const SIDE_FAMILIES = `${SIDED}, own as (
   select distinct task from picked where task is not null
 ), families as (
-  select task, mode() within group (order by coalesce(substring(model from '(opus|sonnet|haiku)'), substring(model from '^(gpt)-'))) as family
+  select task, mode() within group (order by coalesce(${familyOf('model')}, 'other')) as family
   from audit_sessions
   where task is not null
   group by task
@@ -176,13 +180,8 @@ from task_estimates e
 join own o on o.task = e.task
 left join families f on f.task = e.task
 cross join sides s
-cross join lateral (
-  select case
-      when e.first_at >= s.b_lo and e.first_at < s.b_hi then 'before'
-      when e.first_at >= s.a_lo and e.first_at < s.a_hi then 'after'
-    end as side
-) x
-where x.side is not null
+cross join lateral (select s.side) x
+where e.first_at >= s.lo and e.first_at < s.hi and (s.models is null or coalesce(f.family, 'other') = any(s.models))
 group by x.side, f.family`
 
 const IMPORTS = `select id, at, until, precision, sessions, files, purpose, reason, task, source from rule_imports order by at`
@@ -260,13 +259,17 @@ export type CompareSides = Record<'before' | 'after', { from: string; to: string
 export async function readCompare(db: RulesDb, query: CompareQuery, settings: CompareSettings): Promise<StatsCompare> {
   const days = query.days ?? settings.days
   const shift = (at: string, by: number) => new Date(Date.parse(at) + by * 86_400_000).toISOString()
-  const sides = { before: { from: shift(query.before, -days), to: query.before }, after: { from: query.after, to: shift(query.after, days) } }
-  return compareOf(sides, await readCompareSides(db, query, sides), { ...settings, days })
+  const sides = query.from !== undefined && query.to !== undefined
+    ? { before: { from: query.from, to: query.to }, after: { from: query.from, to: query.to } }
+    : { before: { from: shift(query.before, -days), to: query.before }, after: { from: query.after, to: shift(query.after, days) } }
+  const result = compareOf(sides, await readCompareSides(db, query, sides), { ...settings, days })
+  if (query.beforeModels != null && query.afterModels != null && [...query.beforeModels].sort().join(',') === [...query.afterModels].sort().join(',')) result.modelShift = false
+  return result
 }
 
 // Sums of two arbitrary periods; readCompare uses it.
-export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
-  const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to]
+export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null; beforeModels?: string[] | null; afterModels?: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
+  const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to, filter.beforeModels ?? null, filter.afterModels ?? null]
   const [sessions, entry, tools, tasks, requests, models, families] = await Promise.all(
     [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS, SIDE_MODELS, SIDE_FAMILIES].map((sql) => db.base(sql, filter, extra)),
   )
