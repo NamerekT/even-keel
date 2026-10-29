@@ -42,15 +42,16 @@ export async function startTask(
     deps.save(state)
   } catch (error) {
     const failure = noticeOf(error)
-    if (state.unattended && SLOT_REFUSALS.has(failure.code)) waitForSlot(state, deps, chain, task, failure)
+    // The CLI check holds the account folder for minutes and lets it go by itself (BTN-569): a wait in any mode.
+    if (failure.code === 'cliCheck.busy') waitForSlot(state, deps, chain, notice('cliCheck.chainWaits', { task, account: failure.params.account }))
+    else if (state.unattended && SLOT_REFUSALS.has(failure.code)) waitForSlot(state, deps, chain, notice('slot.waiting', { task }, { items: failure.items ?? [failure] }))
     else halt(failure)
   }
 }
 
 /** The task never started, so it is not released: the chain picks it again once a slot frees up. */
-function waitForSlot(state: ChainState, deps: DispatcherDeps, chain: ActiveChain, task: string, refusal: Notice): void {
+function waitForSlot(state: ChainState, deps: DispatcherDeps, chain: ActiveChain, waiting: Notice): void {
   chain.current = null
-  const waiting = notice('slot.waiting', { task }, { items: refusal.items ?? [refusal] })
   if (!sameNotice(chain.slotWait?.notice ?? null, waiting)) deps.log(`chain: ${chain.project}: ${englishOf(waiting)}`)
   chain.slotWait = { notice: waiting, at: deps.now().toISOString() }
   deps.save(state)

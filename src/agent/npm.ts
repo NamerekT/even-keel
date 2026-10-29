@@ -22,6 +22,13 @@ export function npmDist(meta: unknown, version: string): { tarball: string; sha5
   return { tarball, sha512: integrity[1]! }
 }
 
+/** The `latest` dist-tag of a package: the small dist-tags document, not the whole registry entry. */
+export async function npmLatest(name: string): Promise<string> {
+  const latest = ((await fetchJson(`${REGISTRY}/-/package/${name}/dist-tags`)) as { latest?: unknown } | null)?.latest
+  if (typeof latest !== 'string' || !/^\d+\.\d+\.\d+$/.test(latest)) throw new Error(`${name}: no latest version in the registry: ${String(latest)}`)
+  return latest
+}
+
 /** Downloads `name@version` from the npm registry and unpacks it into `into`, checked against the registry's sha512. */
 export async function fetchNpmPackage(name: string, version: string, into: string, progress?: DownloadProgress): Promise<void> {
   const { tarball, sha512 } = npmDist(await fetchJson(`${REGISTRY}/${name}/${version}`), version)

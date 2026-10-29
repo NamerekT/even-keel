@@ -1,13 +1,13 @@
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
-import type { UsageAnswer } from '../src/limits/usage.js'
-import { limitsOfRollout } from '../src/codex/rollout.js'
-import { root } from '../src/locations.js'
-import { englishOf, notice } from '../src/notice/notice.js'
-import { Packages } from '../src/packages/service.js'
-import { savePackages } from '../src/packages/store.js'
-import { untrustedHooks } from '../src/codex/plugins.js'
+import type { UsageAnswer } from '../limits/usage.js'
+import { limitsOfRollout } from '../codex/rollout.js'
+import { root } from '../locations.js'
+import { englishOf, notice } from '../notice/notice.js'
+import { Packages } from '../packages/service.js'
+import { savePackages } from '../packages/store.js'
+import { untrustedHooks } from '../codex/plugins.js'
 
 export interface HookRequest {
   session: string
@@ -66,7 +66,7 @@ export function checkRolloutUsage(text: string): string {
 }
 
 /** The real package, installed and pinned by the same service the chain uses, in the check's own catalog. */
-export async function checkpointPackages(work: string, agent: string): Promise<Packages> {
+export async function checkpointPackages(work: string, agent: string, log: (line: string) => void): Promise<Packages> {
   const file = join(work, 'packages.json')
   if (!existsSync(file)) savePackages(file, {
     packages: { 'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] } },
@@ -77,7 +77,7 @@ export async function checkpointPackages(work: string, agent: string): Promise<P
     globalDir: join(work, 'package-config'), ownDir: root, skillsDir: join(work, 'skills'),
     skillRoots: () => [], claudeConfigs: () => [], rules: { aliases: {}, trackers: [] },
     tracker: () => undefined, agentOf: () => agent, updateMarketplace: async () => {}, addMarketplace: async () => {},
-    baseEnv: () => ({}), poolOf: () => ({}), port: 0, log: (line) => console.log(`      ${line}`), onChange: () => {},
+    baseEnv: () => ({}), poolOf: () => ({}), port: 0, log, onChange: () => {},
   })
   packages.release('cli-check', 'cli-check')
   await packages.install('checkpoint@even-keel')

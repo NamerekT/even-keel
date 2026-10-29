@@ -5,6 +5,7 @@ import type { ServiceContext } from '../service.js'
 type LifecycleContext = Pick<ServiceContext,
   | 'SHUTDOWN_MS'
   | 'account'
+  | 'cliChecks'
   | 'cliVersions'
   | 'configStore'
   | 'envChanged'
@@ -64,6 +65,7 @@ export function start(ctx: LifecycleContext): void {
   ctx.envFile.watch()
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.once(signal, () => {
+      ctx.cliChecks.stop()
       setTimeout(() => process.exit(0), ctx.SHUTDOWN_MS).unref()
       void Promise.allSettled([ctx.tally.stop(), ctx.writes.settled().then(() => ctx.stateDb.close())]).finally(() => process.exit(0))
     })

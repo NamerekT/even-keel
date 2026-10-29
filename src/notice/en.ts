@@ -190,6 +190,17 @@ export const en = {
     `${p.title} ${p.installed} is installed, Even Keel was last checked against ${p.checked}; a part of it may not work until it is adapted`,
   'agent.daemonVersion': (p: { title: string; account: string; running: string; wanted: string }) =>
     `The ${p.title} daemon of ${p.account} runs ${p.running}, not the checked ${p.wanted}: its sessions run on ${p.running} until no session of the account is live, then Even Keel restarts it`,
+  'cliCheck.waiting': (p: { title: string; version: string; account: string }) =>
+    `The check of ${p.title} ${p.version} waits for the account ${p.account} to have no live session: stop the chains on it`,
+  'cliCheck.running': (p: { title: string; version: string; account: string }) =>
+    `${p.title} ${p.version} is being checked on the account ${p.account}; chain sessions on it wait for the check to end`,
+  'cliCheck.passed': (p: { title: string; version: string }) => `${p.title} ${p.version} passed the check on this machine`,
+  'cliCheck.failed': (p: { title: string; version: string }) => `${p.title} ${p.version} failed the check on this machine`,
+  'cliCheck.interrupted': (p: { title: string; version: string }) =>
+    `The check of ${p.title} ${p.version} was cut short by a stop of Even Keel; it runs again once the account has no live session`,
+  'cliCheck.busy': (p: { account: string }) => `the CLI check is running on the account ${p.account}; try again once it ends`,
+  'cliCheck.chainWaits': (p: { task: string; account: string }) =>
+    `the CLI check is running on the account ${p.account}; ${p.task} starts as soon as it ends`,
 
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
   'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string }) =>

@@ -176,6 +176,13 @@ export const noticesRu: NoticeTexts = {
     `Установлен ${p.title} ${p.installed}, а Even Keel последний раз проверяли на ${p.checked}: часть его может не работать, пока его не доработают`,
   'agent.daemonVersion': (p) =>
     `Демон ${p.title} аккаунта ${p.account} работает на ${p.running}, а не на проверенной ${p.wanted}: его сессии идут на ${p.running}, пока в аккаунте есть живые сессии, потом Even Keel его перезапустит`,
+  'cliCheck.waiting': (p) => `Проверка ${p.title} ${p.version} ждёт, пока на аккаунте ${p.account} не останется живых сессий: остановите цепи на нём`,
+  'cliCheck.running': (p) => `Идёт проверка ${p.title} ${p.version} на аккаунте ${p.account}; сессии цепей на нём ждут её конца`,
+  'cliCheck.passed': (p) => `${p.title} ${p.version} прошла проверку на этой машине`,
+  'cliCheck.failed': (p) => `${p.title} ${p.version} не прошла проверку на этой машине`,
+  'cliCheck.interrupted': (p) => `Проверку ${p.title} ${p.version} прервала остановка Even Keel; она запустится снова, когда на аккаунте не останется живых сессий`,
+  'cliCheck.busy': (p) => `на аккаунте ${p.account} идёт проверка CLI — повторите, когда она закончится`,
+  'cliCheck.chainWaits': (p) => `на аккаунте ${p.account} идёт проверка CLI — ${p.task} запустится, как только она закончится`,
 
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.untrusted': (p) =>

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { cliCopy } from '../agent/copy.js'
+import { npmLatest } from '../agent/npm.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { findBinary } from '../paths.js'
@@ -10,7 +11,7 @@ import { appServer } from './appserver.js'
 import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
-import { codexBinaryIn, codexTarget, fetchCodex } from './release.js'
+import { codexBinaryIn, codexTarget, fetchCodex, CODEX_PACKAGE } from './release.js'
 import { foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
@@ -27,6 +28,7 @@ const CHECKED = '0.164.0'
 export const codex: AgentAdapter = {
   title: 'Codex',
   checked: CHECKED,
+  latest: () => npmLatest(CODEX_PACKAGE),
   setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
     const target = codexTarget(process.platform, process.arch)
     const copy =

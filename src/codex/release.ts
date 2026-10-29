@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fetchNpmPackage } from '../agent/npm.js'
 
-const PACKAGE = '@openai/codex'
+export const CODEX_PACKAGE = '@openai/codex'
+const PACKAGE = CODEX_PACKAGE
 /** The platforms of the npm package (its `bin/codex.js`): the suffix of the platform's version, the folder of its binary. */
 const TRIPLES: Record<string, string> = {
   'win32-x64': 'x86_64-pc-windows-msvc',

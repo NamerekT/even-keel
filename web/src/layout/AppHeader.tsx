@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useMatch } from 'react-router'
 import { SETUP } from '../pages/setupSteps.js'
+import { CliCheckBanner } from './CliCheckBanner.js'
 import { CliVersionBanner } from './CliVersionBanner.js'
 import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
@@ -35,6 +36,7 @@ export function AppHeader() {
         {!setup && <>
           <UsageBanner />
           <CliVersionBanner />
+          <CliCheckBanner />
           <CliCopiesBanner />
         </>}
         <ConfigBanner />

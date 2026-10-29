@@ -17,7 +17,7 @@ import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
 import { agentsFallback } from './instructions.js'
 import { CLAUDE } from './name.js'
-import { claudeBinaryIn, fetchClaude } from './release.js'
+import { claudeBinaryIn, claudeLatest, fetchClaude } from './release.js'
 import { SdkSessions } from './sdk/host.js'
 import { SDK_KIND } from './sdk/registry.js'
 import { fetchSdk, sdkModuleIn, sdkVersionOf } from './sdk/release.js'
@@ -34,6 +34,7 @@ const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'] as c
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
+  latest: claudeLatest,
   setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, transport, unattended, language, onLimits }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),

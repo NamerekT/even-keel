@@ -74,6 +74,7 @@ export const FAKE_SHARED: SharedForm = {
   autoCompactWindow: null,
   contextHandoffs: true,
   keepWarm: 0,
+  cliCheck: false,
   allowedHosts: [],
   context: { window: 600_000, warn: 50, danger: 80 },
   stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: DEFAULT_SHARES },

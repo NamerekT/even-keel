@@ -66,6 +66,7 @@ type ChainContext = Pick<ServiceContext,
   | 'ciTokenOf'
   | 'ciWatches'
   | 'cliCopies'
+  | 'cliLease'
   | 'configStore'
   | 'configuredProject'
   | 'daemons'
@@ -333,7 +334,13 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       return session === undefined ? undefined : { ...session, warmedAt: ctx.keepWarm.warmedAt(session.sessionId) }
     },
     locate: locateWorktree,
-    account: (project, task) => ctx.accountNow(ctx.choiceFor(project, task).account),
+    account: (project, task) => {
+      const key = ctx.choiceFor(project, task).account
+      const now = ctx.accountNow(key)
+      const home = ctx.homes.find(key)
+      // A resume waits out the CLI check holding the folder (BTN-569), as it waits out a sign-in.
+      return home !== undefined && ctx.cliLease.held(home) ? { ...now, ready: false } : now
+    },
     accountAt: (key, at) => accountId(key, accountAt(ctx.ledger, key, at)),
     limitReset: (project, task) => exhaustedReset(ctx.limits.limits(ctx.choiceFor(project, task).account)),
     limitResetAfter: ctx.retryAfterLimit,

@@ -206,6 +206,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     }
     return value
   } },
+  // Off for users: each run spends the account's limits (BTN-569).
+  { key: 'cliCheck', kind: 'boolean', scopes: ['global'], lands: ['cliCheck'], default: false, check: boolean('cliCheck') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
   { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
   // A project's own only (BTN-345): a shared default silently moved every project that named none.
