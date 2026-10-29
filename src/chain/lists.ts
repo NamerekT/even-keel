@@ -1,10 +1,10 @@
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
-import type { Task } from '../tracker/model.js'
+import { isOpen, type Task } from '../tracker/model.js'
 import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
-import { chainOrder, withFresh } from './order.js'
+import { chainOrder, waitingBlockers, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
-import { admits, isActive } from './rules.js'
+import { admits, isActive, isTerminal, type ChainRules } from './rules.js'
 
 /** Each project's tasks as the dispatcher last sorted them, and the order and views the page gets from them. */
 export class TaskLists {
@@ -26,6 +26,22 @@ export class TaskLists {
 
   maps(): Map<string, unknown>[] {
     return [this.listed, this.tasks, this.waiting, this.outside, this.backlog, this.done]
+  }
+
+  /** The tasks of the list the chain would take, and their open blockers outside it. */
+  sorted(project: string, tasks: Task[]): { chain: Task[]; waiting: Task[] } {
+    const rules = (task: Task) => this.deps.rules(project, task.id)
+    const chain = tasks.filter((task) => admits(rules(task), task) && this.enters(project, task, rules(task)))
+    const outside = (this.outside.get(project) ?? []).filter((task) => isOpen(task.status))
+    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
+    return { chain, waiting }
+  }
+
+  private enters(project: string, task: Task, rules: ChainRules): boolean {
+    const current = this.currentOf(project) === task.id
+    if (this.reviews.holds(project, task.id) && !current) return false
+    if (isActive(rules, task.status)) return true
+    return current && this.deps.busy(task.id)
   }
 
   orders(): Record<string, ProjectOrder> {

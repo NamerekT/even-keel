@@ -1,5 +1,5 @@
 import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
-import { isOpen, type Task } from '../tracker/model.js'
+import { type Task } from '../tracker/model.js'
 import {
   newChain,
   type ActiveChain,
@@ -24,8 +24,8 @@ import { Reviews } from './reviews.js'
 import { returned as returnedSession, shelve } from './shelved.js'
 import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
-import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead, waitingBlockers } from './order.js'
-import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
+import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead } from './order.js'
+import { excludes, isDone, isTerminal } from './rules.js'
 import type { HandoffSession } from './relay.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
@@ -100,7 +100,7 @@ export class Dispatcher {
   setTasks(project: string, tasks: Task[]): void {
     this.lists.listed.set(project, tasks)
     const rules = (task: Task) => this.deps.rules(project, task.id)
-    const { chain, waiting } = this.sorted(project, tasks)
+    const { chain, waiting } = this.lists.sorted(project, tasks)
     const backlog = tasks.filter(
       (task) => !excludes(rules(task), task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
     )
@@ -141,22 +141,6 @@ export class Dispatcher {
       this.deps.save(this.state)
     }
     this.kick()
-  }
-
-  /** The tasks of the list the chain would take, and their open blockers outside it. */
-  private sorted(project: string, tasks: Task[]): { chain: Task[]; waiting: Task[] } {
-    const rules = (task: Task) => this.deps.rules(project, task.id)
-    const chain = tasks.filter((task) => admits(rules(task), task) && this.enters(project, task, rules(task)))
-    const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
-    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
-    return { chain, waiting }
-  }
-
-  private enters(project: string, task: Task, rules: ChainRules): boolean {
-    const current = this.currentOf(project) === task.id
-    if (this.reviews.holds(project, task.id) && !current) return false
-    if (isActive(rules, task.status)) return true
-    return current && this.deps.busy(task.id)
   }
 
   private refilter(project: string): void {
@@ -431,7 +415,7 @@ export class Dispatcher {
 
   /** The view `setTasks(project, tasks)` would give, the lists left as they are. */
   preview(project: string, tasks: Task[]): ChainView {
-    const { chain, waiting } = this.sorted(project, tasks)
+    const { chain, waiting } = this.lists.sorted(project, tasks)
     const outside = this.lists.outside.get(project) ?? []
     return { tasks: chain, blockers: waiting.filter((task) => !outside.includes(task)), current: this.currentOf(project) }
   }
