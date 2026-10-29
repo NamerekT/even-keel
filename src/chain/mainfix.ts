@@ -39,12 +39,14 @@ export class MainFix {
     const fix = this.main.sessionFix(chain.project)
     if (fix === undefined) return false
     const { task } = current
+    const session = this.deps.handoff(task)
+    // A missing monitor entry after launch is not evidence that the new turn has ended.
+    if (session?.sessionId !== current.sessionId && this.deps.liveSession(task) !== current.sessionId) return false
     if (!this.deps.midTurn(task)) {
       this.host.letGo(chain)
       return true
     }
     if (await this.main.merged(chain.project, task)) return false
-    const session = this.deps.handoff(task)
     if (session === undefined || session.sessionId !== current.sessionId) return false
     try {
       await this.deps.stop(session)
