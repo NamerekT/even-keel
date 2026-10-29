@@ -59,17 +59,26 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     } as unknown as AccountWatcherOptions
     const accounts = new AccountWatcher(options)
     await accounts.refresh()
-    return { accounts, homes, organizations, checked, home: homes.find('work')! }
+    return { accounts, homes, organizations, checked, home: homes.find('work')!, options }
   }
 
   const refusal = (code: string) => expect.objectContaining({ notice: expect.objectContaining({ code }) })
 
+  it('checks sign-in without constructing the view that asks for usage', async () => {
+    const { accounts, options } = await watcher(() => ({ state: 'ok' }))
+    options.usage = (key) => ({ state: accounts.needsLogin(key) ? 'waiting' : 'ok', reason: null, since: null })
+    expect(accounts.needsLogin('missing')).toBe(true)
+    expect(accounts.view.accounts[0]).toMatchObject({ needsLogin: false, usage: { state: 'ok' } })
+  })
+
   it('writes a key the provider takes, of the same organization, and clears the refusal at once', async () => {
     const { accounts, homes, home, organizations } = await watcher((key) => (key === OLD ? { state: 'rejected' } : { state: 'ok', organization: 'org-a' }), { work: 'org-a' })
     expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', needsLogin: true, keyReplaceable: true })
+    expect(accounts.needsLogin('work')).toBe(true)
     await accounts.replaceApiKey('work', NEXT)
     expect(homes.apiKeyOf(home)).toBe(NEXT)
     expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', needsLogin: false })
+    expect(accounts.needsLogin('work')).toBe(false)
     expect(organizations.get('work')).toBe('org-a')
   })
 

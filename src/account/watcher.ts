@@ -128,6 +128,13 @@ export class AccountWatcher {
     this.credit = new CreditChecks(options.creditCheckMs)
   }
 
+  /** Readable by the limits watcher without constructing `view`, which itself asks for limits and usage. */
+  needsLogin(key: string): boolean {
+    const known = this.known.find((entry) => entry.home.key === key)
+    if (known === undefined) return true
+    return needsLogin(known.status, this.options.homes.times(known.home), this.options.now()) || (isApiKey(known.status) && this.keys.rejected(key))
+  }
+
   get view(): AccountView {
     const now = this.options.now()
     const accounts = this.known.map(({ home, status, error, keyHeld }): AccountEntry => {
@@ -141,7 +148,7 @@ export class AccountWatcher {
         status,
         error,
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
-        needsLogin: needsLogin(status, times, now) || (isApiKey(status) && this.keys.rejected(home.key)),
+        needsLogin: this.needsLogin(home.key),
         sessions: this.options.sessionsIn(home.key),
         projects: this.options.projectsOn(home.key),
         removing: this.options.removing(home.key),

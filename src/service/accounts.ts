@@ -280,6 +280,7 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     },
     ready: (): boolean => ctx.account.ready,
     apiKey: ctx.spendsByKey,
+    needsLogin: (key) => ctx.account.needsLogin(key),
     onChange: () => ctx.hub.broadcast('state', ctx.getState()),
     onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
   })

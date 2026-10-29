@@ -192,7 +192,11 @@ function fakeState(
         ],
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
-    account: fakeAccount(limit?.startsWith('spend') ? limit : limit !== null && KEY_LIMIT_AGENTS[limit] ? 'api' : account, idle, FAKE_LIMITS),
+    account: (() => {
+      const view = fakeAccount(limit?.startsWith('spend') ? limit : limit !== null && KEY_LIMIT_AGENTS[limit] ? 'api' : account, idle, FAKE_LIMITS)
+      if (usage === null) return view
+      return { ...view, accounts: view.accounts.map((entry) => ({ ...entry, usage: fakeUsage(usage) })) }
+    })(),
     trackers: [fakeHuly(huly), ...fakeFeedTrackers()],
     trackerUrls: {
       default: 'https://huly.example.com/workbench/example/tracker/{id}',

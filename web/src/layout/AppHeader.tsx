@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
+import { useMatch } from 'react-router'
+import { SETUP } from '../pages/setupSteps.js'
 import { CliVersionBanner } from './CliVersionBanner.js'
 import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
@@ -10,6 +12,7 @@ import { UsageBanner } from './UsageBanner.js'
 
 /** One measured sticky stack: all viewport-bound panels inherit its height, including during banner motion. */
 export function AppHeader() {
+  const setup = useMatch(SETUP) !== null
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const element = ref.current!
@@ -29,9 +32,11 @@ export function AppHeader() {
       <Header />
       <div className="app__banners">
         <LinkBanner />
-        <UsageBanner />
-        <CliVersionBanner />
-        <CliCopiesBanner />
+        {!setup && <>
+          <UsageBanner />
+          <CliVersionBanner />
+          <CliCopiesBanner />
+        </>}
         <ConfigBanner />
         <UnattendedBanner />
         <PackagesBanner />
