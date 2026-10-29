@@ -275,6 +275,8 @@ export interface SharedForm {
   contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */
   keepWarm: number
+  /** The service checks a new CLI version and the checked one weekly (BTN-569). */
+  cliCheck: boolean
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */
   ci: CiSettings
   fillMilestone: boolean
@@ -496,6 +498,8 @@ export interface EvenKeelState {
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
   cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>
+  /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */
+  cliChecks: CliCheckView[]
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
@@ -518,6 +522,15 @@ export interface CliVersionView {
   /** The version the installed CLI or the daemon runs. */
   installed: string
   checked: string
+  notice: Notice
+}
+
+/** One agent's automatic CLI check (`src/cli-check/scheduler.ts`). */
+export interface CliCheckView {
+  /** The agent's name in `AGENTS`. */
+  agent: string
+  /** When the check began waiting, began running or ended. */
+  at: number
   notice: Notice
 }
 

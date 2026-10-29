@@ -515,6 +515,7 @@
   "fillMilestone": false,
   "parallel": 2,
   "keepWarm": 3,
+  "cliCheck": true,
   "unattended": true,
   "trimTools": false,
   "tally": "server",
