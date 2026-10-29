@@ -47,6 +47,7 @@
     "storage": "tsx scripts/storage.ts",
     "break-labels": "tsx scripts/break-labels.ts",
     "cli-check": "tsx scripts/cli-check.ts",
+    "cli-compare": "tsx scripts/cli-sample-compare.ts",
     "cli-fetch": "tsx scripts/cli-fetch.ts",
     "design-baseline": "tsx scripts/design-baseline.ts"
   },
