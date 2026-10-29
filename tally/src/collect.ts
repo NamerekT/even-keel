@@ -115,6 +115,8 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const prompted = await db.fillPrompts()
     const handoffs = await refreshHandoffs(db, saved, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
+    const repaired = await db.repairGlobalRuleSnapshots()
+    if (repaired > 0) log(`tally: removed ${repaired} false global rule snapshots from the 2026-10-28 account scan`)
     const versions = await snapshotRules(db, ruleScan, new Date())
     const history = await collectRuleHistory(db, homes, projects, homedir(), log)
     const changes = await refreshRuleChanges(db)

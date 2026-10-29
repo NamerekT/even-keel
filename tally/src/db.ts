@@ -19,6 +19,7 @@ import { cleanText } from './compact.js'
 import type { HandoffRow } from './handoffs.js'
 import { migrate, pgDb, type Migration } from './migrations.js'
 import { firstPrompt } from './prompt.js'
+import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
 
 export interface PendingSpan {
   id: string
@@ -288,6 +289,11 @@ export class TallyDb implements Store {
   async lastSnapshots(): Promise<Map<string, string | null>> {
     const result = await this.client.query('select distinct on (key) key, hash from rule_snapshots order by key, at desc')
     return new Map(result.rows.map((row) => [row.key, row.hash]))
+  }
+
+  async repairGlobalRuleSnapshots(): Promise<number> {
+    const result = await this.client.query<{ value: string }>(REPAIR_GLOBAL_RULE_SNAPSHOTS)
+    return Number(result.rows[0]?.value ?? 0)
   }
 
   async writeSnapshots(rows: RuleRows, files: SnapshotFile[], snapshots: { key: string; at: string; hash: string | null }[]): Promise<void> {
