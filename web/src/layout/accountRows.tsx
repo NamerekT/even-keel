@@ -5,7 +5,7 @@ import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { accountGroups, atWork, entrySlot, tightestWindow } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
-import { overageTexts, t } from '../i18n/index.js'
+import { overageTexts, say, t } from '../i18n/index.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
@@ -17,6 +17,7 @@ import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActi
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
+import { copilotNote, hasCopilot } from '../../../src/opencode/support.js'
 
 export interface RowsProps {
   view: AccountView
@@ -119,6 +120,7 @@ function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: Ac
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
     </div>
     <OverageWarning entry={entry} view={view} />
+    {hasCopilot(entry) && <p className="account-provider__note">{say(copilotNote())}</p>}
   </AccountRowMenu>
 }
 

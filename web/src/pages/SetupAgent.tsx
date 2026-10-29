@@ -12,6 +12,8 @@ import { Segmented } from '../stats/common.js'
 import { CheckIcon } from '../ui/icons.js'
 import { ChosenMark, type Save } from './SetupChoices.js'
 import { Row } from './settingsParts.js'
+import { copilotNote } from '../../../src/opencode/support.js'
+import { providerHint } from '../accountAdd.js'
 
 /**
  * The setup's agent (BTN-346): a card per provider with its own icon and its account inside — signed in, a sign-in to
@@ -70,7 +72,7 @@ function AgentCard({ state, provider, chosen, disabled, onPick }: CardProps) {
           <AgentIcon agent={provider} />
         </span>
         <span className="setup-agent__name">{t.account.agents[provider]}</span>
-        <span className="setup-agent__hint">{t.account.providerHints[provider]}</span>
+        <span className="setup-agent__hint">{providerHint(provider)}</span>
       </button>
       {chosen && <ChosenMark />}
       <div className="setup-agent__account">
@@ -104,6 +106,10 @@ function ReadyAccountLine({ state, provider }: { state: EvenKeelState; provider:
       </button>
     )
   const name = accountName(ready.entry, state.account.accounts)
+  if (ready.state === 'unsupported') return <>
+    <span className="setup-agent__who">{name}: {say(copilotNote())}</span>
+    <button type="button" className="button button--small" disabled={busy} onClick={() => openAdd(provider)}>{t.setup.addAccount}</button>
+  </>
   if (ready.state === 'signIn')
     return (
       <>

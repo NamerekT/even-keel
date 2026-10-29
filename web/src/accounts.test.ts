@@ -243,6 +243,12 @@ describe('offeredProviders', () => {
 })
 
 describe('readinessOf', () => {
+  it('does not mark a Copilot-only OpenCode folder ready for setup or the project wizard', () => {
+    const only = { ...entry('opencode', null), agent: 'opencode', status: { ...entry('opencode', null).status!, subscriptionType: 'github-copilot' } }
+    expect(readinessOf(view([only]), 'opencode', 'opencode')).toEqual({ state: 'unsupported', entry: only })
+    const mixed = { ...only, status: { ...only.status, subscriptionType: 'github-copilot, openai' } }
+    expect(readinessOf(view([mixed]), 'opencode', 'opencode')).toEqual({ state: 'ready', entry: mixed })
+  })
   const codex = { ...entry('codex', 'john@example.com'), agent: 'codex' }
 
   it("is ready on the pool entry's folder of the provider while it is signed in (BTN-310)", () => {

@@ -55,14 +55,6 @@ export const addAccount = {
         rule: '',
         action: 'Войти через ChatGPT',
       },
-      copilot: {
-        title: 'GitHub Copilot',
-        gets: 'Месячный запас запросов Copilot',
-        tip: 'OpenCode войдёт через GitHub в новую папку и будет тратить месячный запас запросов вашего плана Copilot.',
-        next: 'Дальше: ссылка и одноразовый код — откройте ссылку, войдите и введите там код.',
-        rule: '',
-        action: 'Войти через GitHub',
-      },
       free: {
         title: 'Бесплатные модели',
         gets: 'Модели OpenCode Zen: без входа и без лимитов',

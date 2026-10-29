@@ -55,14 +55,6 @@ export const addAccount = {
         rule: '',
         action: 'Sign in with ChatGPT',
       },
-      copilot: {
-        title: 'GitHub Copilot',
-        gets: "Copilot's monthly allowance of requests",
-        tip: "OpenCode signs in with GitHub in a new folder and spends your Copilot plan's monthly allowance of requests.",
-        next: 'Next: a link and a one-time code — open the link, sign in and enter the code there.',
-        rule: '',
-        action: 'Sign in with GitHub',
-      },
       free: {
         title: 'Free models',
         gets: 'OpenCode Zen models: no sign-in, no limits',

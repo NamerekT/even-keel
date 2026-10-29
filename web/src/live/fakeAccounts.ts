@@ -20,6 +20,7 @@ import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
+import { copilotModel } from '../../../src/opencode/support.js'
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
@@ -83,7 +84,8 @@ const FAKE_MODELS: Record<string, { models: string[]; complete: boolean }> = {
 /** `models/list` of the account folder `key`, by its agent. */
 export function fakeModels(account: AccountView, key: string): { models: string[]; complete: boolean } | null {
   const agent = account.accounts.find((entry) => entry.key === key)?.agent
-  return agent === undefined ? null : (FAKE_MODELS[agent] ?? null)
+  const list = agent === undefined ? null : (FAKE_MODELS[agent] ?? null)
+  return agent === OPENCODE && list !== null ? { ...list, models: list.models.filter(model => !copilotModel(model)) } : list
 }
 
 export function fakeUsage(mode: string | null): UsageHealth {
@@ -288,6 +290,16 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
     const pool = [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'jane.roe-2' }]
     return { ...signedIn, accounts: [own, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra], pool }
+  }
+  if (mode === 'opencodeCopilot') {
+    const base = fakeAccount('opencode', idle, limits)
+    const copilot = fakeEntry({
+      key: 'opencode-2', name: 'OpenCode 2', agent: OPENCODE, global: false, loginExpiresAt: null,
+      status: { ...OPENCODE_STATUS, authMethod: 'oauth', subscriptionType: 'github-copilot' },
+      limits: { fiveHour: null, sevenDay: null, month: { usedPercentage: 20, left: 40, resetsAt: new Date(Date.now() + 9 * 86_400_000).toISOString() }, source: 'api', updatedAt: ago(2) },
+    })
+    const mixed = { ...copilot, key: 'opencode-mixed', name: 'OpenCode with API key', status: { ...copilot.status!, subscriptionType: 'github-copilot, anthropic' }, apiKey: true }
+    return { ...base, accounts: [...base.accounts.filter(entry => entry.key !== copilot.key), copilot, mixed] }
   }
   if (mode === 'opencode') {
     // OPS runs on OpenCode's free models, which have no limits; a second folder signs in with the ChatGPT account the

@@ -1,6 +1,7 @@
 import type { AccountHome } from '../account/homes.js'
 import { notice, type Notice } from '../notice/notice.js'
 import type { ModelList } from './contract.js'
+import { copilotModel, copilotUnsupported } from '../opencode/support.js'
 
 /** How long a list read from the agent is kept: `opencode models` and Codex's app-server take seconds. */
 const FRESH_MS = 10 * 60_000
@@ -46,6 +47,7 @@ export class ModelCatalog {
    * kept list without the model is read anew first: the account may have signed in to another provider since.
    */
   async refusal(home: AccountHome, task: string, model: string | null): Promise<Notice | undefined> {
+    if (home.agent === 'opencode' && copilotModel(model)) return copilotUnsupported()
     if (model === null) return undefined
     const had = this.kept.has(home.key)
     let list = await this.of(home)
@@ -58,7 +60,7 @@ export class ModelCatalog {
     const running = this.reading.get(home.key)
     if (running !== undefined) return running
     const read = this.deps.list(home).then(
-      (list) => list,
+      (list) => home.agent === 'opencode' && list !== null ? { ...list, models: list.models.filter(model => !copilotModel(model)) } : list,
       (error: unknown) => {
         this.deps.log(`models: ${home.key} did not list its models: ${error instanceof Error ? error.message : String(error)}`)
         return null

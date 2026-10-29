@@ -447,6 +447,8 @@ An OpenCode account signed in to ChatGPT or Copilot has its windows read from th
 
 ### OpenCode's Copilot limits (BTN-341)
 
+Since BTN-573 this combination is blocked for all session execution pending a separate live verification. Existing sign-ins and allowance reads stay visible; the assumptions below are retained, not evidence that Copilot sessions are supported.
+
 An OpenCode folder signed in to Copilot is asked `api.github.com/copilot_internal/user` with the `github-copilot` token of its `auth.json`, the one GitHub's editors read (`docs/sessions.md`, "Limits of OpenCode and Copilot"), an internal endpoint whose shape is taken from what others have published. If its answer has no `quota_snapshots` or free-plan counts, the card says the answer was not read, and the chain waits on a limit as before, with no reset time. **Workaround:** none needed for the chain; the card's numbers are on GitHub's site.
 
 The ChatGPT side was checked in Windows Sandbox on 25.10.2026 (OpenCode 1.18.25, a Plus account): the folder's `openai` token got the five-hour and weekly windows from `wham/usage` (`source: "api"`), and the card's pool was the same `chatgpt:<account id>` as the Codex card of that account.
@@ -455,6 +457,8 @@ Copilot Free's chat allowance (`limited_user_quotas`, `monthly_quotas`) and the 
 
 ### The OpenCode model check (BTN-336)
 
+Since BTN-573 `github-copilot/*` is rejected independently of this catalogue check, even if the catalogue is unavailable or lists it. Copilot-only folders are unavailable and the provider is disabled in turn configs until separate live verification; the Copilot uncertainty below remains recorded for that future check.
+
 A launch or a resume on an OpenCode model that `opencode models` of the account does not list is refused: the chain pauses with `chain.unknownModel` (`docs/sessions.md`, "Model lists"). Checked from a terminal on OpenCode 1.18.25 on Windows with a free OpenCode Zen account (nine models listed, a made-up one refused), and on ChatGPT Plus in Windows Sandbox on 25.10.2026: the chain launched a task on `openai/gpt-6.1-sol`, one of the 17 `openai/*` models listed; the list omits `gpt-6-sol`, `gpt-6-astra` and `gpt-6-luna`, which Codex's own model list offers the same plan, but `opencode run -m openai/gpt-6-sol` fails there with an `UnknownError`, so refusing them is right. Never on a Copilot or API-key account: if `opencode models` there omits a model the account can run (one set by `opencode.json`, a provider that lists lazily), the task is refused although its session would work. **Workaround:** leave the model field empty so the session runs on OpenCode's default, and open an issue with the output of `opencode models`.
 
 ### A hung OpenCode turn
@@ -462,6 +466,8 @@ A launch or a resume on an OpenCode model that `opencode models` of the account 
 A live turn that has changed no row of its session and written no event for 30 minutes is taken for hung: the session shows as idle with a note, and writing to it or "New session" kills the turn first (`docs/sessions.md`). Built from the database's shape and never seen with a real hang: whether OpenCode retrying a refused request touches the rows meanwhile (then the watchdog never fires), and whether a tool that runs longer than 30 minutes, a long build or test run, really writes nothing (then a working turn is taken for hung, and in unattended mode the chain stops waiting for it 10 minutes later). **Workaround:** for a hang the watchdog misses, kill the turn's `opencode` process and press "New session"; a long build that is not hung goes on regardless — nothing stops it, unless someone writes to the session or presses "New session".
 
 ### OpenCode sign-in from the page
+
+Since BTN-573 Copilot sign-in is removed from the page and rejected by the server until the combination is verified. The old Copilot sign-in observations below are retained for that future check.
 
 ChatGPT's headless method was checked from the page in Windows Sandbox on 25.10.2026 (OpenCode 1.18.25): the window got the device link and its code, and the sign-in landed in the account's folder. Copilot's `opencode providers login` was run only in a terminal, not through the page: the window shows the CLI output unfolded and looks for a link in it, as for Codex. Copilot first asks between GitHub.com and Enterprise, and Even Keel answers with Enter after 3 seconds; if the question comes later or changes, the sign-in waits for good. **Workaround:** cancel it and sign in in a terminal with the folder's four `XDG_*_HOME` variables pointing into it (`docs/accounts.md`).
 

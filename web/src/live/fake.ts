@@ -144,7 +144,7 @@ function fakeState(
     startedAt: ago(180),
     projects: FAKE_PROJECTS,
     ...fakeProjectMaps(),
-    config: fakeConfig(),
+    config: fakeConfig(account),
     chain: {
       active: idle
         ? []

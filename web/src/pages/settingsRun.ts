@@ -3,6 +3,9 @@ import { PROVIDERS } from '../../../src/agent/providers.js'
 import { accountName } from '../accountName.js'
 import { t } from '../i18n/index.js'
 import type { Values } from './settingsDraft.js'
+import type { SelectOption } from '../ui/Select.js'
+import { copilotOnly, copilotNote } from '../../../src/opencode/support.js'
+import { say } from '../i18n/index.js'
 
 /** The draft keys of a map by provider: `models.claude`, `models.codex`. */
 export const providerKeys = (map: string, providers: readonly string[] = PROVIDERS): string[] => providers.map((provider) => `${map}.${provider}`)
@@ -37,9 +40,9 @@ export const namedProviders = (text: (key: string) => string, values: string[], 
 ]
 
 /** The account folders of the provider, by the name the page shows them by; a key no longer listed stays choosable. */
-export function accountOptions(view: AccountView, provider: string, current: string): { value: string; label: string }[] {
+export function accountOptions(view: AccountView, provider: string, current: string): SelectOption[] {
   const own = view.accounts
     .filter((account) => account.agent === provider)
-    .map((account) => ({ value: account.key, label: accountName(account, view.accounts) }))
+    .map((account) => ({ value: account.key, label: accountName(account, view.accounts), ...(copilotOnly(account) && { unavailable: say(copilotNote()) }) }))
   return current === '' || own.some((option) => option.value === current) ? own : [...own, { value: current, label: current }]
 }

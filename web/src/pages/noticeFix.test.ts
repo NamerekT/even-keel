@@ -12,6 +12,7 @@ describe('noticeFixOf', () => {
   })
 
   it('sends a model the account does not have to the sessions tab of the project', () => {
+    expect(noticeFixOf(notice('chain.opencodeCopilot', {}))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('copilot.modelUnavailable', { model: 'missing-model' }))).toEqual({ to: 'project', tab: 'sessions' })
     const unknown = notice('chain.unknownModel', { task: 'ABC-1', model: 'deepseek-v4.1', agent: 'OpenCode', account: 'opencode', known: ['opencode/big-pickle'] })
     expect(noticeFixOf(unknown)).toEqual({ to: 'project', tab: 'sessions' })

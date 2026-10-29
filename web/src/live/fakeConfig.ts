@@ -120,9 +120,9 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   ...change,
 })
 
-export function fakeConfig(): ConfigView {
+export function fakeConfig(account?: string | null): ConfigView {
   return {
-    shared: { ...FAKE_SHARED, brief: false, modelPrompts: { 'Claude | haiku': 'Keep answers short.' } },
+    shared: { ...FAKE_SHARED, brief: false, modelPrompts: { 'Claude | haiku': 'Keep answers short.' }, ...(account === 'opencodeCopilot' && { provider: 'opencode', accounts: { ...FAKE_SHARED.accounts, opencode: 'opencode-2' } }) },
     projects: {
       ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true, own: { fillMilestone: true },
         standards: [{ doc: 'docs/design.md', files: INTERFACE_FILES, except: DEFAULT_EXCEPT, shots: true }, { doc: 'docs/api-style.md', files: ['src/api/**/*.ts'], except: [], shots: false }] }),

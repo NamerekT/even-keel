@@ -207,6 +207,7 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
   if (target === undefined) return notice('account.unknown', { key })
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
+  if (copilotOnly(target)) return copilotUnsupported()
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
   return freeHeld(view.accounts, key)
 }
@@ -251,6 +252,7 @@ export function loginBlockNotice(block: LoginBlock): Notice {
 export function launchBlock(view: AccountView, key = view.active): Notice | undefined {
   const active = view.accounts.find((entry) => entry.key === key)
   if (active === undefined) return key === view.active ? notice('account.activeGone', { key }) : notice('account.homeGone', { key })
+  if (copilotOnly(active)) return copilotUnsupported()
   if (view.login !== null && view.login.target === key && view.login.error === null) return notice('account.signingIn', {})
   if (active.status?.loggedIn === false) return notice('account.signedOut', {})
   if (active.needsLogin) return notice('account.loginExpired', { account: active.status?.email ?? active.key })
@@ -314,3 +316,4 @@ function isFree(status: AccountStatus | null): boolean {
 function stringOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
+import { copilotOnly, copilotUnsupported } from '../opencode/support.js'
