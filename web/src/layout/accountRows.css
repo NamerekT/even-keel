@@ -14,7 +14,7 @@
 .account-rows { margin: 0; padding: 0; list-style: none; }
 .account-rows > li + li { border-top: 1px solid var(--border); }
 .account-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-16); min-width: 0; }
-.account-blocks--page { --account-columns: minmax(220px, 2fr) minmax(120px, 0.9fr) minmax(280px, 3fr) minmax(100px, 0.8fr) minmax(100px, 1fr); }
+.account-blocks--page { --account-columns: minmax(220px, 2fr) minmax(100px, 0.9fr) minmax(240px, 2.4fr) minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(80px, 0.8fr); }
 .account-blocks--page .account-grid { grid-template-columns: var(--account-columns); }
 .account-grid--head { color: var(--fg-muted); font-size: var(--text-11); text-transform: uppercase; letter-spacing: 0.04em; padding-top: var(--space-6); padding-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
 .account-window-heads, .account-windows { display: grid; grid-template-columns: repeat(var(--windows, 2), minmax(0, 1fr)); gap: var(--space-16); min-width: 0; }
@@ -78,7 +78,7 @@
 .account-row--fresh { animation: block-glow var(--motion-mark) ease-out; }
 @media (prefers-reduced-motion: reduce) { .account-row--fresh { animation: none; } }
 @media (max-width: 1000px) and (min-width: 761px) {
-  .account-blocks--page { --account-columns: minmax(140px, 1.5fr) minmax(100px, 1fr) minmax(210px, 2fr) minmax(80px, 0.8fr) minmax(80px, 0.8fr); }
+  .account-blocks--page { --account-columns: minmax(140px, 1.5fr) minmax(80px, 0.8fr) minmax(170px, 2fr) minmax(80px, 0.8fr) minmax(60px, 0.7fr) minmax(60px, 0.7fr); }
   .account-grid { gap: var(--space-8); padding-left: var(--space-8); padding-right: var(--space-8); }
   .account-plan { display: none; }
 }

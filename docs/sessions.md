@@ -333,6 +333,8 @@ Assembled strictly: a value in the launch and handoff prompt goes through `fill`
 
 ### Limits of OpenCode and Copilot (BTN-341)
 
+Subscription extra-usage facts are kept separately from the included windows (`RateLimits.overage`): Claude SDK rate-limit events, ChatGPT API/rollout credits and Copilot quota/billing data. They feed the display only; exhausted windows still hold the next launch as before. Sources, units, freshness and the evidence needed for an **on credits** chip are in [accounts.md](accounts.md#subscription-credits-and-extra-usage-btn-532).
+
 Polled every 5 minutes like `/usage`, through the adapters' `usage`; the page shows the source as "from the provider's API" (`source: 'api'`).
 
 - **OpenCode on ChatGPT** (`src/opencode/usage.ts`, `src/limits/chatgpt.ts`): the `openai` OAuth entry of the folder's `auth.json` asks `GET chatgpt.com/backend-api/wham/usage` (`Authorization: Bearer`, `ChatGPT-Account-Id` from `accountId` or the token's `chatgpt_account_id` claim). `rate_limit.primary_window`/`secondary_window` map by `limit_window_seconds` as Codex's do (300 min, 10080, 43200). The five-minute poll is shared with Codex on the same ChatGPT account (`pollChatGpt`), including failures; an expired or refused token does not prevent a different sign-in from asking. Without a shared answer, an expired token is "no data" with `usage.chatGptExpired`; a 401/403 before its expiry, or with no known expiry, uses `usage.chatGptRevoked` (for example after a plan change). Even Keel never renews OpenCode's sign-in: OpenCode owns its tokens and renews them at its next turn. The limits carry `pool: chatgpt:<account id>`, and the cards of two accounts with one pool say "One limit with …".

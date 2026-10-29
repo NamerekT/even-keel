@@ -1,6 +1,7 @@
 import { notice } from '../notice/notice.js'
 import type { LimitWindow, RateLimits } from './model.js'
 import type { UsageAnswer } from './usage.js'
+import { copilotOverage, githubOverage } from './overage.js'
 
 /** GitHub's own answer about a Copilot sign-in, the one its editors show the allowance by; internal, not documented. */
 export const COPILOT_USER_URL = 'https://api.github.com/copilot_internal/user'
@@ -23,7 +24,10 @@ export function copilotLimits(body: unknown, at: string): RateLimits | 'unlimite
     const limited = quotas.filter(([, quota]) => quota.unlimited !== true).sort(([a], [b]) => Number(b === PREFERRED_QUOTA) - Number(a === PREFERRED_QUOTA))
     for (const [, quota] of limited) {
       const window = counted(quota.entitlement, quota.remaining, resetsAt)
-      if (window !== undefined) return monthOnly(window, at)
+      if (window !== undefined) {
+        const overage = copilotOverage(quota, at)
+        return { ...monthOnly(window, at), ...(overage !== undefined && { overage }) }
+      }
     }
     if (quotas.length > 0 && limited.length === 0) return 'unlimited'
   }
@@ -42,7 +46,8 @@ export function billingLimits(body: unknown, at: string): RateLimits | undefined
   const used = body.usageItems
     .filter((item): item is Record<string, unknown> => isRecord(item) && typeof item.product === 'string' && item.product.toLowerCase() === 'copilot')
     .reduce((sum, item) => sum + (typeof item.grossQuantity === 'number' ? item.grossQuantity : 0), 0)
-  return monthOnly({ usedPercentage: 0, resetsAt: nextMonth(at), used: Math.round(used * 100) / 100 }, at)
+  const overage = githubOverage(body.usageItems, at)
+  return { ...monthOnly({ usedPercentage: 0, resetsAt: nextMonth(at), used: Math.round(used * 100) / 100 }, at), ...(overage !== undefined && { overage }) }
 }
 
 /** Asks GitHub for the allowance of a Copilot sign-in's OAuth token (OpenCode's `github-copilot`). */
