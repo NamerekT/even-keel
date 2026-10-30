@@ -92,7 +92,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 57a | [OpenCode stream errors in the account log](#opencode-stream-errors-in-the-account-log-btn-497) | OpenCode on a free model's limit or an ordinary stream failure | a changed log format could leave the turn busy until the hang check |
 | 58 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with Copilot | the sign-in waits for good; sign in in a terminal |
 | 59 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 60 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
@@ -442,10 +441,6 @@ A service restart mid-turn was checked live with the real service on Windows (BT
 ### Stopping a turn on macOS and Linux
 
 For Codex, Copilot and OpenCode, the turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`). During polling and before a stop, the process creation time is read from `/proc/<pid>/stat` plus boot time and `getconf CLK_TCK` on Linux, or `ps -o lstart=` on macOS, to leave a newer process that reused the pid alive. Neither platform's creation-time lookup has been checked live. If it fails, polling and stopping keep their previous behaviour and can mistake a reused pid for the turn; a wrong creation time can also leave the turn running. The equivalent Windows checks were verified with owned parent/child processes for all three adapters: a reused pid was shown resting and preserved even with a stale live result at stop, the current resumed turn was busy and its tree was killed, and trailing stderr did not hide a terminal event. **Workaround:** if an agent process has crashed, verify its pid and creation time in the operating system before stopping the session or cleaning up its task.
-
-### Edit sizes of a FileChange (BTN-185)
-
-Seen in rollouts: an `add` with the file's `content` (2026-10-18), and 146 `update`s of 13 chain sessions with a `unified_diff` that starts at its first `@@` hunk, with no `---`/`+++` header (codex-cli 0.164.0, 2026-10-25), whose `+`/`-` lines are counted (`src/codex/rollout.ts`). A `delete` was never seen; it is assumed to carry `content` too. If it does not, the chat shows the edit with no `+N −M` and leaves it out of the session's edit total; nothing else changes.
 
 ### Codex stats (BTN-170)
 
