@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react'
-import { rebase, type Draft, type Same, type Values } from './settingsDraft.js'
+import { useEffect, useSyncExternalStore } from 'react'
+import { rebase, settled, type Draft, type Same, type Values } from './settingsDraft.js'
 
 // While the page is open: closing the panel or going to another page keeps them, a reload drops them.
 const drafts = new Map<string, Draft>()
@@ -19,7 +19,11 @@ export function useDraft(scope: string, saved: Values | undefined, same: Same): 
     drafts.set(scope, next)
     notify()
   }
-  return [saved === undefined ? undefined : rebase(stored, saved, same), set]
+  const next = saved === undefined ? undefined : settled(stored, saved, same)
+  useEffect(() => {
+    if (next !== undefined) drafts.set(scope, next)
+  })
+  return [saved === undefined ? undefined : (next ?? rebase(stored, saved, same)), set]
 }
 
 /** The scope of Even Keel's own settings page. */
