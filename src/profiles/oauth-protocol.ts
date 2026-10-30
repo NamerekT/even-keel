@@ -6,7 +6,6 @@ export { OAuthRefused } from './oauth-error.js'
 export interface OAuthRecord {
   server: string
   clientId: string
-  clientSecret?: string
   tokenEndpoint: string
   redirect: string
   resource: string
@@ -16,20 +15,20 @@ export interface OAuthRecord {
   reconnect?: boolean
 }
 
+/**
+ * Only Jira: its MCP takes no REST token, while Linear's and GitHub's take the tracker's own (`mcpKeys`), and OAuth there
+ * would only add a second identity (BTN-604).
+ */
 export const MCP_OAUTH: Readonly<Record<string, { url: string; scope?: string; authorizationOrigins?: readonly string[] }>> = {
   jira: { url: 'https://mcp.atlassian.com/v2/mcp', authorizationOrigins: ['https://auth.atlassian.com'] },
-  linear: { url: 'https://mcp.linear.app/mcp', scope: 'read write', authorizationOrigins: ['https://mcp.linear.app'] },
-  github: { url: 'https://api.githubcopilot.com/mcp/', scope: 'repo read:org' },
 }
 
-export interface OAuthClient { id: string; secret: string }
 export interface Registration {
   server: string
   issuer: string
   requireIssuer?: boolean
   scope?: string
   clientId: string
-  clientSecret?: string
   tokenEndpoint: string
   authorizationEndpoint: string
   resource: string
@@ -89,13 +88,9 @@ async function discover(provider: typeof MCP_OAUTH[string], request: typeof fetc
 }
 
 /** Providers are fixed: discovery cannot redirect a token exchange to an arbitrary host. */
-export async function register(kind: string, redirect: string, request: typeof fetch, client?: OAuthClient): Promise<Registration> {
+export async function register(kind: string, redirect: string, request: typeof fetch): Promise<Registration> {
   const provider = MCP_OAUTH[kind]
   if (provider === undefined) throw fail('profiles.oauthUnsupported', {})
-  if (kind === 'github') {
-    if (!client?.id.trim() || !client.secret.trim()) throw fail('profiles.oauthClient', {})
-    return { server: provider.url, issuer: 'https://github.com', scope: provider.scope, clientId: client.id.trim(), clientSecret: client.secret.trim(), tokenEndpoint: 'https://github.com/login/oauth/access_token', authorizationEndpoint: 'https://github.com/login/oauth/authorize', resource: '', redirect }
-  }
   const { registrationEndpoint, ...discovery } = await discover(provider, request)
   const registration = await json(request, registrationEndpoint, {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -107,7 +102,6 @@ export async function register(kind: string, redirect: string, request: typeof f
 
 export async function exchange(record: Omit<OAuthRecord, 'accessToken' | 'expiresAt'>, fields: Record<string, string>, request: typeof fetch, now: number): Promise<OAuthRecord> {
   const params = new URLSearchParams({ client_id: record.clientId, ...fields })
-  if (record.clientSecret) params.set('client_secret', record.clientSecret)
   if (record.resource) params.set('resource', record.resource)
   const data = await json(request, record.tokenEndpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: params.toString() })
   if (typeof data.access_token !== 'string' || !data.access_token || typeof data.token_type !== 'string' || data.token_type.toLowerCase() !== 'bearer') throw fail('profiles.oauthFailed', {})

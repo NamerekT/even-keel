@@ -5,7 +5,7 @@ import type { Profiles } from './service.js'
 export function profilesControl(profiles: Profiles, checkLink: (project: string) => void): ProfilesControl {
   return {
     oauth: {
-      start: (draft, redirect, client) => profiles.connectMcp(draft, redirect, client),
+      start: (draft, redirect) => profiles.connectMcp(draft, redirect),
       status: (flow) => profiles.oauth.status(flow),
       cancel: (flow) => profiles.oauth.forget(flow),
       finish: (params) => profiles.oauth.finish(params),
