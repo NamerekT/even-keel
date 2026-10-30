@@ -121,6 +121,43 @@ describe('foldEvents', () => {
   })
 })
 
+describe('chat messages a hook delivered', () => {
+  const marked = (id: number, text: string) => `The user wrote to you.\n\n<even-keel-message id="${id}">\n${text}\n</even-keel-message>`
+  // As TSK-41 (1.0.105) wrote a `postToolUse` answer; on `preToolUse` (BTN-516) `hook.end` held only these two.
+  const hookEnd = (offset: number, hookType: string, context?: string) =>
+    event(offset, 'hook.end', { hookInvocationId: `h${offset}`, hookType, success: true, ...(context === undefined ? {} : { output: { additionalContext: context } }) })
+  const feedOf = (lines: string[], mail: { id: number; at: string; prompt: string }[] = []) =>
+    foldEvents(lines.join('\n'), Infinity, true, mail).feed.map((line) => [line.kind, line.text, line.files])
+
+  it("feeds a message from the text of a hook's end as the user's prompt, once", () => {
+    const hook = hookEnd(4, 'postToolUse', marked(7, 'Use the dark theme.\n\nFiles from the user:\n- C:/work/.temp/inbox/a.png'))
+    expect(feedOf([start, prompt, call(2, 'call_1', 'view', { path: 'a.ts' }), hook, hook, reply(5, 'Done.')])).toEqual([
+      ['prompt', 'DEMO-1', undefined],
+      ['tool', 'Read a.ts', undefined],
+      ['prompt', 'Use the dark theme.', ['C:/work/.temp/inbox/a.png']],
+      ['text', 'Done.', undefined],
+    ])
+  })
+
+  it('feeds a delivered message the transcript lacks at the time it was delivered, once', () => {
+    const delivered = { id: 7, at: new Date(T0 + 3500).toISOString(), prompt: 'Use the dark theme.\n' }
+    const lines = [start, prompt, call(2, 'call_1', 'view', { path: 'a.ts' }), hookEnd(3, 'preToolUse'), reply(5, 'Done.')]
+    const expected = [
+      ['prompt', 'DEMO-1', undefined],
+      ['tool', 'Read a.ts', undefined],
+      ['prompt', 'Use the dark theme.', undefined],
+      ['text', 'Done.', undefined],
+    ]
+    expect(feedOf(lines, [delivered])).toEqual(expected)
+    expect(feedOf([...lines.slice(0, 4), hookEnd(4, 'postToolUse', marked(7, 'Use the dark theme.')), lines[4]!], [delivered])).toEqual(expected)
+  })
+
+  it('feeds a message delivered after the last event at the end', () => {
+    const delivered = { id: 8, at: new Date(T0 + 60_000).toISOString(), prompt: 'Stop here.\n' }
+    expect(feedOf([start, prompt], [delivered]).at(-1)).toEqual(['prompt', 'Stop here.', undefined])
+  })
+})
+
 describe('claudeCall', () => {
   it("names Copilot's tools and their input keys as Claude Code does", () => {
     expect(claudeCall('view', { path: 'src/a.ts' })).toEqual({ name: 'Read', input: { file_path: 'src/a.ts' } })

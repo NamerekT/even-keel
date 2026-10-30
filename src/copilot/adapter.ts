@@ -83,11 +83,11 @@ export const copilot: AgentAdapter = {
           account: null,
         }
       },
-      feed: async (home, sessionId, after) => {
+      feed: async (home, sessionId, after, mail) => {
         const text = await read(home, sessionId)
         const error = await cli.error(home, sessionId)
         if (text === undefined && error === undefined) return undefined
-        const summary = withTurnError(foldEvents(text ?? '', Infinity, true), error, Infinity)
+        const summary = withTurnError(foldEvents(text ?? '', Infinity, true, mail), error, Infinity)
         return { lines: summary.feed.slice(after), turn: summary.turn }
       },
       feedFile: async (home, sessionId) => eventsFile(home.dir, sessionId),

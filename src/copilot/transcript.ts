@@ -1,6 +1,6 @@
 import { ttlWithin } from '../sessions/cache.js'
 import { describeTool, diffSize, flatten, lineCount, type EditSize } from '../sessions/entry.js'
-import { mailIn } from '../sessions/mail.js'
+import { mailIn, type DeliveredMail } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
 import {
   callFacts,
@@ -55,10 +55,14 @@ const EDITS = new Set(['edit', 'create', 'apply_patch'])
 
 type Json = Record<string, unknown>
 
-/** `whole` keeps texts and prompts as written and adds the call facts and the failed lines to the feed. */
-export function foldEvents(text: string, feedSize = FEED_SIZE, whole = false): TranscriptSummary {
-  const fold = new CopilotFold(feedSize, whole)
+/**
+ * `whole` keeps texts and prompts as written and adds the call facts and the failed lines to the feed. `mail` — the
+ * chat's messages hooks delivered, fed at their time unless the transcript holds them.
+ */
+export function foldEvents(text: string, feedSize = FEED_SIZE, whole = false, mail: DeliveredMail[] = []): TranscriptSummary {
+  const fold = new CopilotFold(feedSize, whole, mail)
   for (const line of text.split('\n')) fold.push(line)
+  fold.deliver(Infinity)
   return fold.summary()
 }
 
@@ -85,17 +89,23 @@ export class CopilotFold {
   /** The calls started and not completed, by id, with their feed text. */
   private readonly running = new Map<string, string>()
   private readonly mailSeen = new Set<number>()
+  /** The delivered messages not fed yet, oldest first. */
+  private readonly mail: DeliveredMail[]
 
   constructor(
     private readonly feedSize = FEED_SIZE,
     private readonly whole = false,
-  ) {}
+    mail: DeliveredMail[] = [],
+  ) {
+    this.mail = [...mail].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  }
 
   push(text: string): void {
     const event = parse(text)
     if (event === undefined || typeof event.type !== 'string' || typeof event.timestamp !== 'string') return
     const data = record(event.data) ?? {}
     const at = event.timestamp
+    this.deliver(Date.parse(at))
     if (event.type === 'session.usage_record') this.pushUsage(data, event.agentId === undefined, at)
     if (event.agentId !== undefined) return
     switch (event.type) {
@@ -125,6 +135,20 @@ export class CopilotFold {
       case 'abort':
         this.running.clear()
         return
+      case 'hook.end': {
+        // Written on `postToolUse`; on `preToolUse` (1.0.105) the end holds no output and `mail` stands in.
+        const context = record(data.output)?.additionalContext
+        if (typeof context === 'string') this.pushMail(at, context)
+        return
+      }
+    }
+  }
+
+  /** Feeds the delivered messages taken before `until`, in milliseconds, that the transcript has not shown. */
+  deliver(until: number): void {
+    while (this.mail.length > 0 && Date.parse(this.mail[0]!.at) < until) {
+      const { id, at, prompt } = this.mail.shift()!
+      this.feedMail(at, id, prompt)
     }
   }
 
@@ -269,13 +293,15 @@ export class CopilotFold {
   /** The chat's messages handed to the session, as the user's prompts, each id once; whether `text` held any. */
   private pushMail(at: string, text: string): boolean {
     const found = mailIn(text)
-    for (const { id, prompt } of found) {
-      if (this.mailSeen.has(id)) continue
-      this.mailSeen.add(id)
-      const line = userLine(at, prompt, null, (each) => this.textOf(each))
-      if (line !== null) this.addFeed(line)
-    }
+    for (const { id, prompt } of found) this.feedMail(at, id, prompt)
     return found.length > 0
+  }
+
+  private feedMail(at: string, id: number, prompt: string): void {
+    if (this.mailSeen.has(id)) return
+    this.mailSeen.add(id)
+    const line = userLine(at, prompt, null, (each) => this.textOf(each))
+    if (line !== null) this.addFeed(line)
   }
 
   private touch(at: string): void {

@@ -125,6 +125,11 @@ export class Mailbox {
     this.write("update mailbox set fate = 'dismissed' where session_id = $1 and fate = 'returned'", [sessionId])
   }
 
+  /** Every message the session got that the mailbox still keeps, oldest first: for a transcript that lacks them. */
+  delivered(sessionId: string): Mail[] {
+    return this.mails.filter((mail) => mail.sessionId === sessionId && mail.fate === 'delivered').map((mail) => ({ ...mail }))
+  }
+
   /** What the chat window shows: the waiting and returned messages and the last few delivered, oldest first. */
   of(sessionId: string): Mail[] {
     const all = this.mails.filter((mail) => mail.sessionId === sessionId && mail.fate !== 'dismissed')
