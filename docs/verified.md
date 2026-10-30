@@ -4,6 +4,8 @@ The log of live checks. When an entry of [`unverified.md`](unverified.md) is che
 
 The groups are the sections of `unverified.md`, so one thing is looked up in the same place in both files. The entries from before 2026-10-26 were rebuilt from the history of `unverified.md` (the commits named in the table), by their text, not by hashes: the history before 2026-10-21 was rewritten and its old hashes are dead. Checks that never had an entry there are taken from the phrases of `docs/` ("checked live", "seen live", "Checked on …"), from the commits that wrote them and from the manual "Проверка" tasks of the tracker; the behaviour a document states without a date or a place is not here.
 
+A path into `.temp/` in a row names where the shots and scripts of the check lay. The `.temp/` of the main checkout was emptied on 2026-10-30 (BTN-503): a cited folder that is gone is no missing evidence, the row's own text carries the result.
+
 An absence is a finding too, and it goes stale: "the provider has no X" — no API for a job log, no list of models, no fork — is written in `docs/` and in a row here with the provider's version it was checked on and the way it was looked for (the endpoint asked, the help read). A claim without them is not a finding, and a session that relies on one checks it first. The Forgejo job log taught this: a row said "the job log only on the host" for Forgejo 16.0.3, and on 2026-10-30 the same 16.0.3 gave it at `GET /actions/jobs/{id}/logs` (BTN-605).
 
 ## How an entry reads
@@ -173,6 +175,7 @@ Pull request mode sits here, as in `unverified.md`.
 | Task feeds: a GitHub feed of a Huly project; `fillMilestone` on GitHub | the workstation, GitHub | 2026-10-23 | Huly, GitHub | BTN-326, `c33aaf79` | with a caveat: a feed on a second Huly workspace, PR mode and tracker questions for a feed's task, run labels, Tally's "failed"/"halted" open | |
 | Two Huly projects on one Huly project split by milestone read their own tasks | sandbox, a second Huly workspace | 2026-10-25 | Huly | BTN-172, BTN-73, `d4ebda69` | with a caveat: Linear and a task closed by one chain not taken by the other open | `a58be72f` |
 | Two Even Keel projects on one Linear team read their own tasks | the service on the author's workstation | 2026-10-25 | Linear | BTN-172, `dd0d68b2` | whole as read; a `TEAM/` value reading the whole team stays covered by tests | `7e0006f2` |
+| A chain session writes outside its worktree: it read the `.temp/` of the main checkout and of the release clone, ran `git init` in a new sibling folder and committed 242 files there, with no refusal, no permission dialog and no Protection block. Protection's groups are about deletes and pushes, so this is no hole in them | the service on the author's workstation | 2026-10-28 | Claude Code, Sonnet | BTN-503, `NO CHANGES` | whole | `9ee91224` |
 
 ## Codex
 
