@@ -50,7 +50,30 @@ describe('profile MCP OAuth', () => {
     vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error: 'invalid_grant', error_description: `code=private-code state=${state}`, access_token: 'response-secret' }, { status: 400 }))
     await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private-code' }))).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
     expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth code exchange failed: HTTP 400: invalid_grant']])
+    expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthFailed', params: {} } })
+  })
+
+  it.each([
+    [{ error: 'access_denied', error_description: 'The user said no' }, 'access_denied'],
+    [{}, 'no code'],
+  ])('shows a declined consent as denied and logs the provider error, not an exchange (%o)', async (reply, reason) => {
+    const f = fixture()
+    const start = await f.oauth.start(draft, redirect)
+    const state = new URL(start.url).searchParams.get('state')!
+    f.log.mockClear()
+    await expect(f.oauth.finish(new URLSearchParams({ state, ...reply }))).rejects.toThrow()
+    expect(f.log.mock.calls).toEqual([[`profiles: jira MCP OAuth consent failed: ${reason}`]])
     expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthDenied', params: {} } })
+    expect(f.calls.filter((call) => call.url === metadata.token_endpoint)).toEqual([])
+  })
+
+  it('does not call a grant refused by the MCP check a declined consent', async () => {
+    const f = fixture()
+    const start = await f.oauth.start(draft, redirect)
+    f.verify.mockRejectedValueOnce(new OAuthRefused('MCP check: HTTP 401'))
+    await expect(f.oauth.finish(new URLSearchParams({ state: new URL(start.url).searchParams.get('state')!, code: 'code' }))).rejects.toThrow()
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth grant verification failed: MCP check: HTTP 401']])
+    expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthFailed', params: {} } })
   })
 
   it('logs a grant check exception on one line, redacting known credentials and callback secrets', async () => {

@@ -68,10 +68,15 @@ export class McpOAuth {
     const flow = [...this.flows.values()].find((each) => each.oauthState === state)
     if (!flow || flow.used) throw fail('profiles.oauthExpired', {})
     flow.used = true
+    if (params.has('error') || !params.get('code')) {
+      this.report(flow.kind, 'consent', params.get('error') || 'no code', [...Object.values(flow.values), flow.oauthState, flow.verifier])
+      flow.state = 'failed'
+      flow.error = noticeOf(fail('profiles.oauthDenied', {}))
+      throw fail('profiles.oauthDenied', {})
+    }
     let step = 'code exchange'
     let record: OAuthRecord | undefined
     try {
-      if (params.has('error') || !params.get('code')) throw fail('profiles.oauthDenied', {})
       const { authorizationEndpoint: _, issuer, requireIssuer, scope: _scope, ...registration } = flow.registration
       if ((requireIssuer || params.has('iss')) && params.get('iss') !== issuer) throw fail('profiles.oauthFailed', {})
       record = await exchange(registration, { grant_type: 'authorization_code', code: params.get('code')!, code_verifier: flow.verifier, redirect_uri: registration.redirect }, this.request, this.now())
@@ -82,7 +87,7 @@ export class McpOAuth {
     } catch (error) {
       this.report(flow.kind, step, error, [...Object.values(flow.values), params.get('code'), flow.oauthState, flow.verifier, record?.accessToken, record?.refreshToken])
       flow.state = 'failed'
-      flow.error = error instanceof OAuthRefused ? noticeOf(fail('profiles.oauthDenied', {})) : noticeOf(fail('profiles.oauthFailed', {}))
+      flow.error = noticeOf(fail('profiles.oauthFailed', {}))
       throw fail('profiles.oauthFailed', {})
     }
   }
