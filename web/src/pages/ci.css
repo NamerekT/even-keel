@@ -181,6 +181,79 @@
 .ci__job-summary:hover .ci__line-name { text-decoration: underline; }
 .ci__job .ci__steps { margin-left: 22px; }
 
+.ci__more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-12);
+  cursor: pointer;
+}
+
+.ci__more:hover {
+  text-decoration: underline;
+}
+
+.ci__run {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.ci__run:hover .ci__title {
+  text-decoration: underline;
+}
+
+.ci__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-status {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  line-height: 18px;
+}
+
+.ci-status--running {
+  background: color-mix(in srgb, var(--lamp-working) 16%, transparent);
+  color: var(--fg);
+}
+
+.ci-status--queued {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.ci__meta code,
+.ci__tasks code {
+  font-family: var(--mono);
+  font-size: var(--text-12);
+}
+
+.ci__tasks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: var(--text-12);
+}
+
+.ci__label {
+  color: var(--fg-muted);
+}
+
 .ci__jobs,
 .ci__steps,
 .ci__history {
