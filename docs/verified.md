@@ -268,6 +268,7 @@ Pull request mode sits here, as in `unverified.md`.
 | Adding a project, and the gateway's remote servers | the workstation | 2026-10-20 | — | `78ad2c37` | whole (project removal left open, done 2026-10-25 above) | |
 | The chain's `--settings` sets every tracker and package key to an empty string, and the flag's `env` outranks the account's `settings.json` and the daemon's environment | a terminal, `-p` and `--bg` | 2026-10-26 | CLI 2.1.310 | BTN-436, `87c3b5d2` | whole | `514cf51b` |
 | `--settings` of the "Trim the tools" switch reaches a `--bg` session and claude.ai skills do not go to `.trash` | a terminal | before 2026-10-10 | CLI 2.1.290 | BTN-77, written in `docs/sessions.md` | whole | |
+| Installing `huly@even-keel` 0.5.8 on a fresh machine by the log's lines: `installing` 2 s after the click, `npm install @firfi/huly-mcp@0.55.4 took 21 s`, `installed in 22 s`, `huly started in 2 s`, no "did not answer initialize". The PC's 45–59 s installs (10-22…10-26) are its disk: `state/packages` on a SATA HDD, ~14,000 files per install; the same `npm install --prefer-offline` took 42 s there and 14 s on the PC's NVMe, and BTN-422's copy of an install on the HDD 20 s. The page's "half a minute to a couple of minutes" holds | sandbox | 2026-10-31 | huly-mcp 0.55.4 | EKR-14, `c843600f` | whole | `7e04345b` |
 
 ## Trackers
 
