@@ -67,10 +67,10 @@ describe('resolve', () => {
   it('applies the compaction label independently of run labels and inherits for handoff or clashes', () => {
     const { records, rows } = rowsOf({ stats: { checkpointTokens: 180_000 }, projects: [project({ stats: { checkpointTokens: 160_000 } })] })
     const task = (labels: string[]) => resolve(records, rows, { project: ABC, id: 'ABC-1', labels })
-    expect(task(['разрыв | компакция']).values[ABC]?.['stats.checkpointTokens']).toBe(999_999)
-    expect(task(['Разрыв | хендофф']).values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
+    expect(task(['break | compaction']).values[ABC]?.['stats.checkpointTokens']).toBe(999_999)
+    expect(task(['Break | handoff']).values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
     expect(task([]).values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
-    const clash = task(['Разрыв | компакция', 'Разрыв | хендофф'])
+    const clash = task(['Break | compaction', 'Break | handoff'])
     expect(clash.values[ABC]?.['stats.checkpointTokens']).toBe(160_000)
     expect(clash.warnings).toHaveLength(1)
   })

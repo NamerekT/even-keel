@@ -421,10 +421,10 @@ export interface LabelParser {
 export const LABEL_PARSERS: Readonly<Record<TaskLabel, LabelParser>> = {
   checkpoint: {
     read: (labels) => {
-      const found = labels.filter((label) => ['разрыв | компакция', 'разрыв | хендофф'].includes(label.trim().toLowerCase()))
+      const found = labels.filter((label) => ['break | compaction', 'break | handoff'].includes(label.trim().toLowerCase()))
       const choices = new Set(found.map((label) => label.trim().toLowerCase()))
       if (choices.size > 1) return { clash: found }
-      return { values: choices.has('разрыв | компакция') ? [{ key: 'stats.checkpointTokens', qualifier: '', value: 999_999 }] : [] }
+      return { values: choices.has('break | compaction') ? [{ key: 'stats.checkpointTokens', qualifier: '', value: 999_999 }] : [] }
     },
   },
   run: {

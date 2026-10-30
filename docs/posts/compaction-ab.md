@@ -8,7 +8,7 @@ the UTC start time and assignment log are recorded below. The rules have not cha
 
 The script, not a person or a page button, assigns every open task of the selected tracker projects:
 an **even task number means compaction**, an **odd number means handoff**. Both groups receive explicit labels:
-`Разрыв | компакция` and `Разрыв | хендофф`. The initial project is BTN.
+`Break | compaction` and `Break | handoff`. The initial project is BTN.
 Backlog and parent tasks are included; Done and Canceled are not. Selection does not depend on model,
 estimate, priority, milestone, task length or the result of a session. Analysis uses only closed tasks
 whose agent sessions are all Claude; tasks with another provider remain in the assignment log but are
