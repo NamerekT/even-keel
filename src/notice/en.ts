@@ -463,6 +463,8 @@ export const en = {
     `config: execution.${p.provider}: there is no mode ${p.value}, known: ${list(p.known)}`,
   'config.cli': (p: { provider: string; value: string; known: string[] }) =>
     `config: cli.${p.provider}: there is no choice ${p.value}, known: ${list(p.known)}`,
+  'config.executionCli': (p: { provider: string; mode: string }) =>
+    `config: execution.${p.provider}: ${p.mode} runs only on the checked CLI, set cli.${p.provider} to checked`,
   'config.trackerLocked': (p: { key: string }) =>
     `config: the chain has started tasks of ${p.key}, so its tracker and profile stay; tasks of another tracker come in through a task feed`,
   'config.feeds': (p: { where: string }) => `config: ${p.where} must be a list of task feeds, each an object with its id, tracker and key`,

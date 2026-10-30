@@ -147,7 +147,18 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const prompts = version < 17 ? configV17(openCode) : openCode
   const windows = version < 19 ? configV19(prompts) : prompts
   const groups = version < 20 ? trackerGroupsOwned(windows) : windows
-  return version < 21 ? cliChecked(groups) : groups
+  const cli = version < 21 ? cliChecked(groups) : groups
+  return version < 22 ? sdkChecked(cli) : cli
+}
+
+/**
+ * v21 → v22: the Agent SDK of Claude runs only on the checked CLI (BTN-610); `execution.claude: sdk` writes
+ * `cli.claude: checked`, where the file had it on the installed CLI or left it to that default.
+ */
+export function sdkChecked(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if (!isRecord(raw.execution) || raw.execution.claude !== 'sdk' || ('cli' in raw && !isRecord(raw.cli))) return stamped(raw)
+  return stamped({ ...raw, cli: { ...(isRecord(raw.cli) ? raw.cli : {}), claude: 'checked' } })
 }
 
 /**

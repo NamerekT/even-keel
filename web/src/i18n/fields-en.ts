@@ -41,6 +41,7 @@ export const fieldsEn = {
   'config.provider': (p) => `There is no provider ${p.value}`,
   'config.execution': (p) => `There is no mode ${p.value}`,
   'config.cli': (p) => `There is no choice ${p.value}`,
+  'config.executionCli': () => 'The Agent SDK runs only on the checked CLI: pick "Checked" in "CLI version"',
   'config.checkpointShare': (p) => `A whole percent of the context window, 1 to 100, not ${p.value}`,
   'config.checkpointShareOrder': (p) => `First < Late < Hard, not ${p.first}, ${p.late}, ${p.hard}`,
   'config.modelPrompts': () => 'A prompt per model',

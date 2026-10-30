@@ -388,7 +388,7 @@ export const en: Messages = {
     transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
     transportVia: (name: string) => `Sessions through ${name}`,
     transportWhere:
-      "Set by Claude Code's Execution in the Even Keel settings → Providers and models. The Agent SDK runs only on the Checked CLI version, otherwise sessions go on CLI --bg. A session already running stays on what it started on.",
+      "Set by Claude Code's Execution in the Even Keel settings → Providers and models. The Agent SDK runs only on the Checked CLI version, so picking it locks that version; with EVEN_KEEL_CLAUDE_BIN sessions go on CLI --bg. A session already running stays on what it started on.",
     transportTerms:
       "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
     waitingLink: 'Waiting for the sign-in link…',

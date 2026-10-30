@@ -12,7 +12,7 @@ function fixture(system = true) {
     view: () => ({ version: '1.0.0', source, status: ready ? 'ready' as const : 'missing' as const, system, received: 0, total: 0, approximate: 100 }),
     download, prune: async () => {},
   }
-  const manager = copies(new Map([['codex', { cli } as Agent]]), save, changed, async () => {})
+  const manager = copies(new Map([['codex', { cli } as Agent]]), save, (name) => save(name, 'system'), changed, async () => {})
   return { manager, download, save, changed }
 }
 

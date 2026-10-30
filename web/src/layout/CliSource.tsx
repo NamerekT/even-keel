@@ -4,6 +4,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
+import { Tipped } from '../ui/Tipped.js'
 import { CliProgress, mb, titleOf } from './CliCopies.js'
 import { cliText, INSTALL } from './cliText.js'
 import './cliCopies.css'
@@ -58,14 +59,21 @@ function CliConsentDialog({ provider, onClose }: { provider: string; onClose: ()
 /**
  * Which CLI a provider's sessions run on (BTN-603): the installed one or Even Keel's checked copy, two radios. Neither
  * is marked while the source is the installed CLI and there is none: the install command stands under them then. The
- * copy's download shows its progress, a missing or failed one its button.
+ * copy's download shows its progress, a missing or failed one its button. `locked` — the execution mode picked runs
+ * only on the copy (BTN-610): turning it on moves to the copy as a pick of it would, and the installed one stays shut
+ * until it turns off.
  */
-export function CliSourceChoice({ provider, label }: { provider: string; label?: string }) {
+export function CliSourceChoice({ provider, label, locked = false }: { provider: string; label?: string; locked?: boolean }) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
   const checked = useCheckedSwitch(provider)
   const name = useId()
   const copy = state?.cliCopies?.[provider]
+  const wasLocked = useRef(locked)
+  useEffect(() => {
+    if (locked && !wasLocked.current && copy !== undefined && copy.source !== 'checked') checked.pick()
+    wasLocked.current = locked
+  }, [locked])
   if (!copy) return null
   const text = cliText()
   const chosen = copy.source === 'checked' ? 'checked' : copy.system ? 'system' : null
@@ -73,12 +81,13 @@ export function CliSourceChoice({ provider, label }: { provider: string; label?:
   const download = <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/download', { agent: provider })}>
     {copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}
   </button>
+  const yours = <label className="settings__check">
+    <input type="radio" name={name} checked={chosen === 'system'} disabled={!copy.system || busy || locked} onChange={() => void send('cli/system', { agent: provider })} />
+    {copy.system ? text.yours(copy.installed ?? null) : text.yoursMissing}
+  </label>
   return <div className="cli-source">
     <div className="cli-source__options" role="radiogroup" aria-label={label ?? text.which}>
-      <label className="settings__check">
-        <input type="radio" name={name} checked={chosen === 'system'} disabled={!copy.system || busy} onChange={() => void send('cli/system', { agent: provider })} />
-        {copy.system ? text.yours(copy.installed ?? null) : text.yoursMissing}
-      </label>
+      {locked ? <Tipped tip={t.shared.cliLocked} focusable>{yours}</Tipped> : yours}
       <label className="settings__check">
         <input type="radio" name={name} checked={chosen === 'checked'} disabled={busy} onChange={checked.pick} />
         {copy.status === 'ready' ? text.checkedReady(copy.version) : text.checkedOffer(copy.version, mb(copy.approximate))}

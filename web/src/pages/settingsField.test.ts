@@ -26,6 +26,7 @@ describe('fieldOf', () => {
     expect(fieldOf(notice('config.modelPromptEmpty', { model: 'haiku' }), keys)).toEqual({ project: null, field: 'modelPrompts' })
     expect(fieldOf(notice('config.notObject', { where: 'stats.compare' }), keys)).toEqual({ project: null, field: 'stats' })
     expect(fieldOf(notice('config.contextPercents', {}), keys)).toEqual({ project: null, field: 'context' })
+    expect(fieldOf(notice('config.executionCli', { provider: 'claude', mode: 'sdk' }), keys)).toEqual({ project: null, field: 'execution.claude' })
   })
 
   it('points a checkpoint share error at the shares of its level', () => {

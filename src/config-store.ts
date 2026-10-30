@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { needsCheckedCli } from './agent/providers.js'
 import type { ChainRules } from './chain/rules.js'
 import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
@@ -141,6 +142,18 @@ export class ConfigStore {
   saveCli(provider: string, source: 'checked' | 'system'): void {
     const form = this.view().shared
     this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)
+  }
+
+  /**
+   * Back to the installed CLI after the checked copy failed, unless the provider's execution runs only on the copy
+   * (BTN-610): then the copy stays chosen and its failure waits for a retry.
+   */
+  fallBackCli(provider: string): void {
+    if (needsCheckedCli(provider, this.current.execution[provider])) {
+      this.options.warn(`config: ${provider} stays on the checked CLI, execution ${this.current.execution[provider]} runs only on it`)
+      return
+    }
+    this.saveCli(provider, 'system')
   }
 
   /** Writes the given switches of `updates`, by the same rule as `saveProject`. */

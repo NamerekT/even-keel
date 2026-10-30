@@ -1,4 +1,5 @@
 import { executionOfChoices, transportOf } from '../account/transport.js'
+import { needsCheckedCli } from '../agent/providers.js'
 import { CLAUDE } from '../claude/name.js'
 import type { ServiceContext } from '../service.js'
 
@@ -38,6 +39,7 @@ export function start(ctx: LifecycleContext): void {
       return home?.agent === CLAUDE ? [{ key, transport, apiKey: ctx.homes.apiKeyOf(home) !== null }] : []
     })
     const { execution, moved } = executionOfChoices(choices)
+    if (needsCheckedCli(CLAUDE, execution) && ctx.configStore.current.cli[CLAUDE] !== 'checked') ctx.configStore.saveCli(CLAUDE, 'checked')
     if (execution !== ctx.configStore.current.execution[CLAUDE]) ctx.configStore.saveExecution(CLAUDE, execution)
     console.log(`accounts: Claude sessions run by execution.claude ${execution}, from the transports the accounts had`)
     for (const each of moved) console.log(`accounts: ${each.key} ran its sessions on ${each.transport}, now on ${transportOf(CLAUDE, execution, each.apiKey)}`)

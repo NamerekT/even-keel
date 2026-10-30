@@ -368,7 +368,7 @@ describe('withSharedAccount', () => {
 
 describe('withExecution', () => {
   it("sets the provider's execution mode alone, and drops it back to the default", () => {
-    const raw = { projects: [abc()], execution: { codex: 'bypass' } }
+    const raw = { projects: [abc()], execution: { codex: 'bypass' }, cli: { claude: 'checked' } }
     const next = withExecution(raw, 'claude', 'sdk')
     expect(next).toEqual({ ...raw, execution: { codex: 'bypass', claude: 'sdk' } })
     expect(parseConfig(next).execution).toEqual({ claude: 'sdk', codex: 'bypass' })

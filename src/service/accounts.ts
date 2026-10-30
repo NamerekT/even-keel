@@ -205,7 +205,7 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',
         log: (line) => console.log(line),
         onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.hub.broadcast('state', ctx.getState()) },
-        onCliFailure: () => { ctx.configStore.saveCli(name, 'system') },
+        onCliFailure: () => { ctx.configStore.fallBackCli(name) },
         onCliProgress: () => ctx.hub.broadcast('state', ctx.getState()),
         transport: (home): string | null => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], ctx.account.apiKey(home.key)),
         unattended: () => ctx.configStore.current.unattended,

@@ -46,7 +46,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (notice.code === 'config.milestoneBoth') return { project: notice.params.project, field: 'chain.excludedMilestones' }
   if (notice.code === 'config.trackerProjectShared') return { project: notice.params.project, field: 'trackerProject' }
   if (notice.code === 'config.mergeInto' || notice.code === 'config.mergeIntoForeign') return { project: notice.params.project, field: 'mergeInto' }
-  if (notice.code === 'config.execution') return { project: null, field: `execution.${notice.params.provider}` }
+  if (notice.code === 'config.execution' || notice.code === 'config.executionCli') return { project: null, field: `execution.${notice.params.provider}` }
   if (notice.code === 'config.cli') return { project: null, field: `cli.${notice.params.provider}` }
   if (typeof params.where !== 'string') return null
   const own = PROJECT_WHERE.exec(params.where)

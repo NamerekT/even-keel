@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { needsCheckedCli } from './agent/providers.js'
 import { shortId } from './chain/fix.js'
 import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
@@ -263,6 +264,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     )
   const context = { window: shared['context.window'], warn: shared['context.warn'], danger: shared['context.danger'] } as ContextScale
   if (context.warn >= context.danger) throw fail('config.contextPercents', {})
+  checkExecutionCli(shared.execution as Record<string, string>, shared.cli as Record<string, string>)
   const language = shared.language as Language | null
   const promptLanguage = (values: Values) => (values.promptLanguage as Language | undefined) ?? language ?? DEFAULT_LANGUAGE
   return {
@@ -320,6 +322,13 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,
     updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
+  }
+}
+
+/** An execution mode bound to the checked CLI (`needsCheckedCli`) on the installed one: `config.executionCli`, not a quiet `--bg`. */
+function checkExecutionCli(execution: Record<string, string>, cli: Record<string, string>): void {
+  for (const [provider, mode] of Object.entries(execution)) {
+    if (needsCheckedCli(provider, mode) && cli[provider] !== 'checked') throw fail('config.executionCli', { provider, mode })
   }
 }
 

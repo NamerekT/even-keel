@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
+import { needsCheckedCli } from '../../../src/agent/providers.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -50,7 +51,7 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
             if (await send('cli/download', { agent: provider })) onDownload?.()
           }}>{copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}</button> :
           <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.checked}</button>}
-        {waiting && copy.system && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/system', { agent: provider })) onSystem?.() }}>{text.system}</button>}
+        {waiting && copy.system && !needsCheckedCli(provider, state?.config.shared.execution[provider]) && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/system', { agent: provider })) onSystem?.() }}>{text.system}</button>}
         {missingSystem && <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/check')}>{text.again}</button>}
       </div>
     </>}
