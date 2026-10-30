@@ -38,7 +38,21 @@ export function rebase(draft: Draft | undefined, saved: Values, same: Same): Dra
   return { base, edit }
 }
 
-export const edited = (draft: Draft, key: string, value: Value): Draft => ({ ...draft, edit: { ...draft.edit, [key]: value } })
+/**
+ * The draft to keep once the file changed under it, or `undefined` while the kept one still holds.
+ * Keeping each step matters: a field saved and then changed back by the service (a CLI dialog's "Use installed", BTN-598)
+ * must start from the saved value, not from the one before the save, or the form shows the old edit again.
+ */
+export function settled(stored: Draft | undefined, saved: Values, same: Same): Draft | undefined {
+  if (stored === undefined) return undefined
+  const next = rebase(stored, saved, same)
+  const keys = new Set([...Object.keys(stored.base), ...Object.keys(next.base)])
+  const holds = (key: string, a: Value | undefined, b: Value | undefined) => a !== undefined && b !== undefined && same(key, a, b)
+  const kept = [...keys].every((key) => holds(key, stored.base[key], next.base[key]) && holds(key, stored.edit[key], next.edit[key]))
+  return kept ? undefined : next
+}
+
+export const edited =(draft: Draft, key: string, value: Value): Draft => ({ ...draft, edit: { ...draft.edit, [key]: value } })
 
 /** The fields among `keys` whose value differs from what they started from. */
 export const changed = (draft: Draft, keys: readonly string[], same: Same): string[] => keys.filter((key) => !same(key, draft.edit[key]!, draft.base[key]!))

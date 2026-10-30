@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changed, conflicts, edited, rebase, reverted, sent, type Value } from './settingsDraft.js'
+import { changed, conflicts, edited, rebase, reverted, sent, settled, type Value } from './settingsDraft.js'
 
 // Text compares trimmed, as the service stores it.
 const same = (_key: string, a: Value, b: Value) => JSON.stringify(typeof a === 'string' ? a.trim() : a) === JSON.stringify(typeof b === 'string' ? b.trim() : b)
@@ -46,6 +46,24 @@ describe('a settings draft', () => {
     const back = reverted(rebase(typed, file, same), file, ['branch'])
     expect(back.edit).toEqual({ ...file, brief: false })
     expect(changed(back, ['repo', 'branch', 'brief'], same)).toEqual(['brief'])
+  })
+
+  it('keeps a saved field saved when the file later changes it again (BTN-598)', () => {
+    const typed = edited(rebase(undefined, saved, same), 'branch', 'dev')
+    const file = { ...saved, branch: 'dev' }
+    const kept = settled(typed, file, same)!
+    expect(kept).toEqual({ base: file, edit: file })
+    expect(settled(kept, file, same)).toBeUndefined()
+
+    const back = rebase(kept, saved, same)
+    expect(back).toEqual({ base: saved, edit: saved })
+    expect(changed(back, ['branch'], same)).toEqual([])
+  })
+
+  it('keeps nothing new while the file stays as the draft saw it', () => {
+    expect(settled(undefined, saved, same)).toBeUndefined()
+    const typed = edited(rebase(undefined, saved, same), 'branch', 'dev')
+    expect(settled(typed, { ...saved }, same)).toBeUndefined()
   })
 
   it('sends the base with the edits of the given fields only', () => {
