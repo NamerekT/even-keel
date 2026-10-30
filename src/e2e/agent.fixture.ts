@@ -84,7 +84,7 @@ export class ScriptedAgent implements Agent {
 
   /** The adapter to register in `AGENTS`. */
   adapter(): AgentAdapter {
-    return { title: 'Script', checked: '1.0.0', setup: () => this }
+    return { title: 'Script', checked: '1.0.0', latest: async () => '1.0.0', setup: () => this }
   }
 
   /** Waits for every turn under way but the parked ones. */
