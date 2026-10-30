@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
 import { MIN_HANDOFFS, MIN_SESSIONS, type CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
+import { folderLabel } from '../accountName.js'
 import { formatTokens } from '../format.js'
+import { useLive } from '../live/context.js'
 import { language, t } from '../i18n/index.js'
 import { Tile, TileGrid } from '../ui/blocks.js'
 import { Fold } from '../ui/Fold.js'
@@ -90,6 +92,7 @@ function limitNote(limit: WeeklyLimit): string {
 }
 
 function LimitAccounts({ rows }: { rows: AccountWindows[] }) {
+  const { state } = useLive()
   const { summary } = t.stats
   const closed = rows.some((each) => each.closed.length > 0)
   const open = rows.some((each) => each.open.length > 0)
@@ -114,7 +117,7 @@ function LimitAccounts({ rows }: { rows: AccountWindows[] }) {
       {rows.map((row) => (
         <li key={row.account}>
           <span className="limit-accounts__name" title={row.account}>
-            {row.account}
+            {folderLabel(state?.account, row.account)}
           </span>
           {closed && <span className="limit-accounts__peaks">{peaks(row.closed)}</span>}
           {open && <span className="limit-accounts__peaks limit-accounts__peaks--open">{peaks(row.open, summary.open)}</span>}

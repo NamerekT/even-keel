@@ -1,4 +1,5 @@
 import type { AccountDrift, ToolScope, ToolsView } from '../../../src/tools/model.js'
+import { folderLabel } from '../accountName.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectLabel } from '../state.js'
@@ -41,7 +42,7 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
           <p className="tools__problem-fix">{t.tools.problemFix.accounts}</p>
           <ul className="tools__list">
             {accounts.map((drift) => (
-              <li key={drift.account}>{t.tools.drift(drift.account, drift.keys.join(', '))}</li>
+              <li key={drift.account} title={drift.account}>{t.tools.drift(folderLabel(state?.account, drift.account), drift.keys.join(', '))}</li>
             ))}
           </ul>
         </div>
