@@ -107,9 +107,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           ×
         </button>
       </header>
-      {(block.status !== null || block.skipped || block.interrupted || block.work !== undefined) && (
+      {(block.skipped || block.interrupted || block.work !== undefined) && (
         <p className="panel__status">
-          {block.status}
           {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
@@ -258,7 +257,6 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
               {t.session.skip}
             </PanelButton>
           ))}
-        {midTurn && !starting && quietText === null && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
       {quietText !== null && !starting && <Band tone="warn" className="panel__quiet">{quietText}</Band>}
       {confirmation !== null && (
