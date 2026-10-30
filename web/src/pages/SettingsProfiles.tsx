@@ -166,6 +166,11 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
         </button>
       </div>
       {error !== null && state !== 'ok' && <p className="notice notice--error profiles__error">{say(error)}</p>}
+      {profile.mcpOAuth?.warning !== undefined && (
+        <Band tone="warn" className="profiles__error" action={<button type="button" className="button button--small" aria-haspopup="dialog" onClick={onEdit}>{t.profiles.mcp.again}</button>}>
+          {say(profile.mcpOAuth.warning)}
+        </Band>
+      )}
       {failure !== null && <p className="notice notice--error profiles__error">{say(failure)}</p>}
     </li>
   )

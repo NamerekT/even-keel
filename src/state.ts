@@ -731,7 +731,8 @@ export interface ProfilesView {
 
 /** A tracker's or a CI's profile (`src/profiles/`); a secret's value never leaves the service. */
 export interface ProfileView {
-  mcpOAuth?: { state: 'connected' | 'reconnect' }
+  /** `warning` — the grant is another person's than the tracker's credentials (`profiles.mcpOtherAccount`, BTN-590). */
+  mcpOAuth?: { state: 'connected' | 'reconnect'; warning?: Notice }
   id: string
   kind: string
   name: string
@@ -779,6 +780,8 @@ export interface CheckResult {
   expiresAt: string | null
   /** The name of a profile already signed in as the same account on the same host. */
   duplicate: string | null
+  /** The MCP grant is another person's than the tracker's credentials: a warning, saving goes on (BTN-590). */
+  mcpWarning?: Notice
 }
 
 /** A project's remote with a CI. */

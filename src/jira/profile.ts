@@ -10,7 +10,7 @@ export async function jiraAccount(values: Readonly<Record<string, string>>, time
   const { user } = await JiraApi.open(values, timeoutMs, fetchImpl)
   if (values[JIRA_MCP_TOKEN]) await checkJiraMcp(values, timeoutMs, fetchImpl)
   const host = new URL(siteUrl(values)).hostname.replace(/\.atlassian\.net$/, '')
-  return { login: user.emailAddress || user.displayName, name: `Jira · ${host}`, expiresAt: null }
+  return { login: user.emailAddress || user.displayName, name: `Jira · ${host}`, expiresAt: null, user: { id: user.accountId, name: user.displayName || user.accountId } }
 }
 
 export async function jiraProjects(values: Readonly<Record<string, string>>, query: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<TrackerProject[]> {

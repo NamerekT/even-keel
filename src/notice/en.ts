@@ -429,6 +429,7 @@ export const en = {
   'profiles.oauthDenied': () => 'MCP access was not granted. Try Connect MCP through OAuth again and approve access.',
   'profiles.oauthExpired': () => 'This MCP connection attempt expired or its profile fields changed. Connect MCP through OAuth again.',
   'profiles.oauthReconnect': () => 'MCP access was revoked or expired. Edit the tracker profile and connect MCP through OAuth again.',
+  'profiles.mcpOtherAccount': (p: { grant: string; tracker: string }) => `MCP access was granted to ${p.grant}, while the tracker works as ${p.tracker}: sessions will write as another person. If that is not on purpose, connect again signed in with the right account.`,
   'profiles.incomplete': (p: { tracker: string }) => `Fill in every field of the ${p.tracker} profile above.`,
   'profiles.refused': (p: { tracker: string }) => `${p.tracker} refused the credentials`,
   'profiles.unreachable': (p: { tracker: string }) => `${p.tracker} did not answer`,

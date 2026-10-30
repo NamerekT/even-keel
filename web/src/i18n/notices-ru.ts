@@ -400,6 +400,7 @@ export const noticesRu: NoticeTexts = {
   'profiles.oauthDenied': () => 'Доступ MCP не разрешён. Снова нажмите «Подключить MCP через OAuth» и разрешите доступ.',
   'profiles.oauthExpired': () => 'Попытка подключения MCP истекла или поля профиля изменились. Подключите MCP через OAuth снова.',
   'profiles.oauthReconnect': () => 'Доступ MCP отозван или истёк. Откройте профиль трекера и подключите MCP через OAuth снова.',
+  'profiles.mcpOtherAccount': (p) => `Доступ MCP выдан аккаунту ${p.grant}, а трекер работает от ${p.tracker}: сессии будут писать от имени другого человека. Если это не нарочно — подключите снова, войдя нужным аккаунтом.`,
   'profiles.incomplete': (p) => `Заполните все поля профиля ${p.tracker} выше.`,
   'profiles.refused': (p) => `${p.tracker} не принял учётные данные`,
   'profiles.unreachable': (p) => `${p.tracker} не ответил`,

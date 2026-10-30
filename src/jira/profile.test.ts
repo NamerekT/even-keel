@@ -6,9 +6,9 @@ import { jiraAccount, jiraProjects } from './profile.js'
 const VALUES = { JIRA_URL: 'https://example.atlassian.net/', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: 'example-token' }
 
 describe('Jira profile', () => {
-  it('names the profile by the site and signs in as the e-mail', async () => {
+  it('names the profile by the site, signs in as the e-mail and names the person for the MCP grant\'s comparison', async () => {
     const fake = fakeFetch([{ body: { accountId: 'a', displayName: 'John Doe', emailAddress: 'john.doe@example.com' } }])
-    expect(await jiraAccount(VALUES, 1000, fake.fetch)).toEqual({ login: 'john.doe@example.com', name: 'Jira · example', expiresAt: null })
+    expect(await jiraAccount(VALUES, 1000, fake.fetch)).toEqual({ login: 'john.doe@example.com', name: 'Jira · example', expiresAt: null, user: { id: 'a', name: 'John Doe' } })
     expect(fake.calls[0]!.url).toBe('https://example.atlassian.net/rest/api/3/myself')
   })
 

@@ -184,6 +184,8 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const draft = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
   const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
   const body = useRef<HTMLDivElement>(null)
+  const granted = grant != null && grant.values === key ? grant.flow : null
+  const mcpWarning = fresh ? checked.result.mcpWarning : grant === undefined ? profile?.mcpOAuth?.warning : undefined
 
   // The "Signed in as" line lands under the fold of a short screen: bring it into view (BTN-592).
   useEffect(() => {
@@ -217,6 +219,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
     if (name.trim() === '' || name === checked?.result.name) setName(result.name)
     return result
   }
+
+  // A new grant is checked at once: Atlassian gives it to whoever is signed in in the browser, perhaps not the tracker's person (BTN-590).
+  useEffect(() => {
+    if (granted !== null) void run(check)
+  }, [granted])
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -274,7 +281,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </Field>
           )
         })}
-        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} blank={blank} grant={grant} onGrant={onGrant}>
+        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} blank={blank} grant={grant} onGrant={onGrant} warning={mcpWarning}>
           <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
             {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
               value={typed.JIRA_MCP_TOKEN ?? ''} autoComplete="off"

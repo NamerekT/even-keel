@@ -1,4 +1,5 @@
 import { fail } from '../notice/notice.js'
+import type { TrackerUser } from '../tracker/source.js'
 import { basicAuth, JIRA_EMAIL, JIRA_MCP_TOKEN, siteUrl } from './api.js'
 
 const ENDPOINT = 'https://mcp.atlassian.com/v2/mcp'
@@ -10,8 +11,12 @@ interface RpcReply {
   result?: { protocolVersion?: string; isError?: boolean; content?: { type: string; text?: string }[] }
 }
 
-/** Checks real site access: tools/list succeeds even for tokens that cannot call Jira tools. */
-export async function checkJiraMcp(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch, authorization?: string): Promise<void> {
+/**
+ * Checks real site access: tools/list succeeds even for tokens that cannot call Jira tools. With `authorization` — an
+ * OAuth grant, given to whoever was signed in to Atlassian in the browser — also returns the grant's person, when the
+ * MCP names one; an API token's person is the profile's e-mail, so it is not asked.
+ */
+export async function checkJiraMcp(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch, authorization?: string): Promise<TrackerUser | undefined> {
   const headers = new Headers({
     authorization: authorization ?? `Basic ${basicAuth(values[JIRA_EMAIL]!, values[JIRA_MCP_TOKEN]!)}`,
     accept: 'application/json, text/event-stream',
@@ -62,9 +67,28 @@ export async function checkJiraMcp(values: Readonly<Record<string, string>>, tim
       const url = (resource as { url?: unknown } | null)?.url
       return typeof url === 'string' && url.trim().replace(/\/+$/, '').toLowerCase() === site.toLowerCase()
     })) throw fail('jira.mcpSite', {})
+    if (authorization === undefined) return undefined
+    // Only a warning hangs on the person: a failure here leaves it unknown and the access checked.
+    return await post('tools/call', { name: 'atlassianUserInfo', arguments: {} }, 3).then(userOf, () => undefined)
   } finally {
     if (session !== null) await fetchImpl(ENDPOINT, { method: 'DELETE', headers, redirect: 'error', signal: AbortSignal.timeout(timeoutMs) }).then((response) => response.body?.cancel()).catch(() => {})
   }
+}
+
+/** `atlassianUserInfo` answers with Atlassian's `/me`: `account_id`, `name`, `email`; perhaps in a `data` envelope. */
+function userOf(reply: RpcReply | undefined): TrackerUser | undefined {
+  for (const block of reply?.result?.content ?? []) {
+    if (block.type !== 'text' || block.text === undefined) continue
+    let parsed: unknown
+    try { parsed = JSON.parse(block.text) } catch { continue }
+    const data = (parsed as { data?: unknown } | null)?.data
+    const user = (data !== null && typeof data === 'object' ? data : parsed) as Record<string, unknown> | null
+    const id = user?.account_id ?? user?.accountId
+    if (typeof id !== 'string' || id === '') continue
+    const name = [user?.name, user?.displayName, user?.nickname, user?.email].find((each) => typeof each === 'string' && each !== '') as string | undefined
+    return { id, name: name ?? id }
+  }
+  return undefined
 }
 
 /** Streamable HTTP may return JSON or keep an SSE stream open after the reply. */

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { McpOAuth, type OAuthRecord } from './oauth.js'
 import { OAuthRefused } from './oauth-protocol.js'
+import type { TrackerUser } from '../tracker/source.js'
 
 const draft = { kind: 'jira', values: { JIRA_TOKEN: 'rest-token' } }
 const server = 'https://mcp.atlassian.com/v2/mcp'
@@ -25,7 +26,7 @@ function fixture() {
       ? { client_id: 'client' } : { access_token: 'access-one', refresh_token: 'refresh-one', token_type: 'Bearer', expires_in: 60 }
     return Response.json(data)
   }) as unknown as typeof fetch
-  const verify = vi.fn(async () => {})
+  const verify = vi.fn(async (): Promise<TrackerUser | undefined> => undefined)
   const log = vi.fn()
   const oauth = new McpOAuth({ fetch: request, now: () => now, get: () => record, put: async (_id, expected, next) => {
     if (record !== expected) return false
@@ -164,6 +165,20 @@ describe('profile MCP OAuth', () => {
     expect(() => f.oauth.completed(start.flow, { ...draft, values: { JIRA_TOKEN: 'other' } })).toThrow()
     await expect(f.oauth.finish(callback)).rejects.toThrow()
     expect(f.oauth.completed(start.flow, draft).accessToken).toBe('access-one')
+  })
+
+  it('keeps the grant\'s person on its record through a refresh, and a check names a stored grant\'s person (BTN-590)', async () => {
+    const f = fixture()
+    const jane = { id: 'account-2', name: 'Jane Roe' }
+    f.verify.mockResolvedValueOnce(jane)
+    await f.connect()
+    expect(f.record()?.user).toEqual(jane)
+    f.tick()
+    await f.oauth.token('p')
+    expect(f.record()).toMatchObject({ accessToken: 'access-one', user: jane })
+    f.replace({ ...f.record()!, user: undefined })
+    f.verify.mockResolvedValueOnce(jane)
+    expect((await f.oauth.check('p', draft.kind, draft.values)).user).toEqual(jane)
   })
 
   it('rejects forged state, expired flows and insecure remote callbacks', async () => {

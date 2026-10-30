@@ -3,7 +3,7 @@ import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { ProfileKindView, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { SectionLabel } from '../ui/blocks.js'
+import { Band, SectionLabel } from '../ui/blocks.js'
 import { HelpTip } from './settingsParts.js'
 
 const POLL_MS = 1500
@@ -28,10 +28,12 @@ interface McpProps {
   blank: string[]
   grant: GrantChoice
   onGrant: (grant: GrantChoice) => void
+  /** The grant is another person's than the tracker's credentials (BTN-590): a band with "Connect again" at its right. */
+  warning: Notice | undefined
 }
 
 /** The MCP part of a tracker profile with MCP OAuth (BTN-475, only Jira since BTN-604): connect, and the state of the stored grant. */
-export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant, children }: McpProps) {
+export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant, warning, children }: McpProps) {
   const { query } = useLive()
   const [waiting, setWaiting] = useState<string | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
@@ -121,13 +123,18 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
       )}
       {fresh ? (
         <p className="profiles__ok">{t.profiles.mcp.ready}</p>
-      ) : stored === 'connected' ? (
+      ) : stored === 'connected' && warning === undefined ? (
         <p className="profiles__ok">{t.profiles.mcp.connected}</p>
       ) : stored === 'reconnect' ? (
         <p className="notice notice--warn">{t.profiles.mcp.revoked}</p>
       ) : grant === null && profile?.mcpOAuth !== undefined ? (
         <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.dropped}</p>
       ) : null}
+      {waiting === null && warning !== undefined && (
+        <Band tone="warn" action={<button type="button" className="button button--small" onClick={() => void connect()}>{t.profiles.mcp.again}</button>}>
+          {say(warning)}
+        </Band>
+      )}
       {waiting !== null && <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.waiting}</p>}
       {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
       {blocked && <p className="notice notice--error">{t.profiles.mcp.blocked}</p>}
@@ -137,7 +144,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
           <button type="button" className="button button--small" onClick={cancel}>
             {t.profiles.mcp.cancel}
           </button>
-        ) : (
+        ) : warning === undefined && (
           <button type="button" className="button button--small" onClick={() => void connect()}>
             {fresh || stored !== undefined ? t.profiles.mcp.again : t.profiles.mcp.connect}
           </button>
