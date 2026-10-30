@@ -148,6 +148,9 @@ export interface AccountTokens {
   month: number
 }
 
+/** The dollars an account folder's messages cost, over the same two periods as `AccountTokens`. */
+export type AccountSpend = AccountTokens
+
 // newer — the database is at a schema version this code does not know (BTN-133). The reason of off is `disabled`,
 // `unchosen` (`src/stats/mode.ts`) or the `.env` variables the user's own Postgres lacks.
 export type StatsAnswer<T> =

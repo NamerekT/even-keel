@@ -1,19 +1,20 @@
-import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 import { accountName, agentLabel } from '../accountName.js'
-import { accountGroups, atWork, entrySlot, tightestWindow } from '../accounts.js'
+import { ACCESS_OWNER, accessGroups, accessOf, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { overageTexts, say, t } from '../i18n/index.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
+import { formatUsd } from '../stats/format.js'
 import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
-import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, spendsByKey, spendText, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
@@ -40,7 +41,7 @@ export function AccountProblems(props: Pick<RowsProps, 'view' | 'now' | 'send' |
   return <Band tone="error" className="account-problems">
     {entries.map((entry) => <div className="account-problems__row" key={entry.key}>
       <AgentIcon agent={entry.agent} />
-      <div className="account-problems__text"><strong>{accountName(entry, view.accounts)}</strong>
+      <div className="account-problems__text"><strong>{[agentLabel(entry.agent), accessLabel(accessOf(entry), entry.agent), accountName(entry, view.accounts)].join(' › ')}</strong>
         <AccountNotes entry={entry} view={view} now={now} send={send} sending={sending} bare />
       </div>
       <div className="account-problems__actions">
@@ -52,57 +53,76 @@ export function AccountProblems(props: Pick<RowsProps, 'view' | 'now' | 'send' |
   </Band>
 }
 
-/** OpenCode and Copilot without a readable allowance share the two token columns. */
+/** The name of a connection group; Copilot inside OpenCode's block says which GitHub product it is. */
+export function accessLabel(access: Access, agent: string): string {
+  return access === 'github' && agent === OPENCODE ? t.account.agents.copilot : t.account.access[access]
+}
+
+/** What a connection group's rows show under its head: windows, each named in its row, or two sums, of dollars or of tokens. */
+type Measure = 'limits' | 'spend' | 'tokens'
+
+function measureOf(rows: AccountEntry[]): Measure {
+  if (rows.every(spendsByKey)) return 'spend'
+  return rows.every((entry) => limitsNote(entry) !== null) ? 'tokens' : 'limits'
+}
+
+/** A card per agent and inside it a block per connection, its stripe in the colour of who bills it (BTN-576). */
 export function AccountGroups({ entries, ...props }: RowsProps & { entries?: AccountEntry[] }) {
   const { view, now, page = false } = props
   const openAdd = useOpenAdd()
-  const selected = entries ?? view.accounts
-  const groups = accountGroups({ ...view, accounts: selected }, now)
-  const counted = selected.filter((entry) => limitsNote(entry) !== null)
-  const blocks = groups.map((group) => ({ ...group, entries: group.entries.filter((entry) => limitsNote(entry) === null) })).filter((group) => group.entries.length > 0)
-  if (counted.length > 0) {
-    const ordered = groups.flatMap((group) => group.entries).filter((entry) => counted.includes(entry)).sort((a, b) => Number(atWork(view, b)) - Number(atWork(view, a)))
-    blocks.push({ agent: 'tokens', entries: ordered })
-  }
+  const groups = accountGroups({ ...view, accounts: entries ?? view.accounts }, now)
   return <div className={page ? 'account-blocks account-blocks--page' : 'account-blocks'}>
-    {blocks.map(({ agent, entries: rows }) => {
-      const spans = [...new Set(rows.flatMap((entry) => spendsByKey(entry) ? [] : limitSpans(entry.limits)))]
-      const tokens = agent === 'tokens'
-      const columns = tokens ? [t.account.tokensToday, t.account.tokensMonth] : spans.map((span) => spanNames(span).label)
-      return <Card key={agent} className="account-provider" title={<>
-        <AgentIcon agent={tokens ? 'opencode' : agent} />
-        {tokens ? t.account.tokenProviders : agentLabel(agent)}
-        <span className="account-provider__count">{t.account.accountCount(rows.length)}</span>
-      </>} actions={page && view.login === null ? <button type="button" className="button button--small"
-        onClick={() => openAdd(agent === 'tokens' || !['claude', 'codex', 'opencode', 'copilot'].includes(agent) ? null : agent as 'claude' | 'codex' | 'opencode' | 'copilot')}>+ {t.account.addHere}</button> : undefined}>
-        {tokens && <p className="account-provider__note">{t.account.tokensSource}</p>}
-        <div className="account-grid account-grid--head" aria-hidden="true" style={{ '--windows': columns.length } as CSSProperties}>
-          <span>{t.stats.account}</span>{page && <span>{t.account.usedByLabel}</span>}
-          <div className="account-window-heads">{columns.map((label) => <span key={label}>{label}</span>)}</div>
-          {page && <><span>{overageTexts().column}</span><span>{t.account.sessionsLabel}</span><span>{t.account.runsThrough}</span></>}
-        </div>
-        <ul className="account-rows">{rows.map((entry) => <li key={entry.key} style={seriesStyle(entrySlot(view, entry))}>
-          <AccountRow entry={entry} {...props} spans={spans} counted={tokens} />
-        </li>)}</ul>
-      </Card>
-    })}
+    {groups.map(({ agent, entries: rows }) => <Card key={agent} className="account-provider" title={<>
+      <span className="account-provider__icon"><AgentIcon agent={agent} /></span>
+      {agentLabel(agent)}
+      <span className="account-provider__count">{t.account.accountCount(rows.length)}</span>
+    </>} actions={page && view.login === null && (PROVIDERS as readonly string[]).includes(agent) ? <button type="button" className="button button--small"
+      onClick={() => openAdd(agent as Provider)}>+ {t.account.addHere}</button> : undefined}>
+      {accessGroups(rows).map(({ access, entries: members }) => <AccessBlock key={access} agent={agent} access={access} rows={members} {...props} />)}
+    </Card>)}
   </div>
 }
 
-function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: AccountEntry; spans: LimitSpan[]; counted: boolean }) {
+function AccessBlock({ agent, access, rows, ...props }: RowsProps & { agent: string; access: Access; rows: AccountEntry[] }) {
+  const { view, page = false } = props
+  const measure = measureOf(rows)
+  const owner = ACCESS_OWNER[access]
+  const columns = measure === 'limits' ? [t.account.limitsLabel] : [t.account.tokensToday, t.account.tokensMonth]
+  return <section className={owner === null ? 'account-access' : `account-access account-access--${owner}`} aria-label={accessLabel(access, agent)}>
+    <div className="account-grid account-grid--head">
+      <span className="account-access__title">{accessLabel(access, agent)} <span className="account-access__count">{rows.length}</span>
+        {measure === 'tokens' && <span className="account-access__count"> · {t.account.tokensSource}</span>}</span>
+      {page && <span aria-hidden="true">{t.account.usedByLabel}</span>}
+      <div className={`account-window-heads account-window-heads--${columns.length}`} aria-hidden="true">{columns.map((label) => <span key={label}>{label}</span>)}</div>
+      {page && <><span aria-hidden="true">{overageTexts().column}</span><span aria-hidden="true">{t.account.sessionsLabel}</span><span aria-hidden="true">{t.account.runsThrough}</span></>}
+    </div>
+    <ul className="account-rows">{rows.map((entry) => <li key={entry.key} style={seriesStyle(entrySlot(view, entry))}>
+      <AccountRow entry={entry} access={access} named={measure === 'limits'} {...props} />
+    </li>)}</ul>
+  </section>
+}
+
+/** `named` — the head says only "Limits", so each value in the row names its window or period itself. */
+function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: AccountEntry; access: Access; named: boolean }) {
   const { view, now, send, sending, spend, tokens, page = false, fresh = [] } = props
   const held = rolesOf(entry, view, send).filter((role) => role.held)
   const plan = planText(entry)
   const shared = sharedLimitText(entry, view.accounts)
-  const roles = <div className="account-role-chips">{held.length === 0 ? <span className="account-role account-role--none">{t.account.rolesNone}</span> :
+  const unsupported = access === 'github' && hasCopilot(entry)
+  const roles = <div className="account-role-chips">{held.length === 0 ? <span className="account-role account-role--none">{unsupported ? t.account.notSupported : t.account.rolesNone}</span> :
     held.map((role) => <span key={role.label} className={`account-role account-role--${role.label === 'Even Keel' ? 'chain' : 'app'}`}>{role.label}</span>)}</div>
+  const counted = limitsNote(entry) !== null
+  const sums = spendsByKey(entry) ? spend?.[entry.key] ?? null : tokens?.[entry.key] ?? null
+  const tip = spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
+    {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>
+  const loaded = spendsByKey(entry) ? spend !== null : tokens !== null
   return <AccountRowMenu entry={entry} view={view} send={send} sending={sending} fresh={fresh.includes(entry.key)}>
-    <div className="account-grid" style={{ '--windows': counted ? 2 : spans.length } as CSSProperties}>
+    <div className="account-grid">
       <div className="account-who">
         <div className="account-who__name"><AccountMark entry={entry} now={now} dot /><AccountName entry={entry} accounts={view.accounts} whole={!page} />
           <OverageChip entry={entry} now={now} />
           {shared !== null && <Tipped className="account-shared" tip={shared} align="start" focusable inline>⇄</Tipped>}
-          {page && plan !== null && <span className="tag account-plan">{plan}</span>}
+          {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{plan}</span>}
         </div>
         {!page && roles}
         {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : t.account.needsLogin}</span>}
@@ -110,20 +130,20 @@ function AccountRow({ entry, spans, counted, ...props }: RowsProps & { entry: Ac
       </div>
       {page && roles}
       <div className="account-windows">
-        {counted ? (['day', 'month'] as const).map((span) => <Tipped key={span} className="account-tokens" tip={<>{limitsNote(entry)} · {t.account.tokensTitle}
-          {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>} align="start" focusable>
-          {tokens === null ? '—' : formatTokens(tokens[entry.key]?.[span] ?? 0)}
-        </Tipped>) : spendsByKey(entry) ? <Tipped className="account-spend" tip={t.account.todayTitle} focusable>{spendText(spend, entry.key)}</Tipped> :
-          spans.map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
+        {spendsByKey(entry) || counted ? (['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>
+          {named && <span className="account-meter__name">{period === 'day' ? t.account.tokensToday : t.account.tokensMonth}</span>}
+          <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
+        </Tipped>) : limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
       </div>
       {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
     </div>
     <OverageWarning entry={entry} view={view} />
-    {hasCopilot(entry) && <p className="account-provider__note">{say(copilotNote())}</p>}
+    {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__note">{say(copilotNote())}</p>}
   </AccountRowMenu>
 }
 
+/** One window, named in its own row: the plan decides which windows a row has (variant 2 of BTN-575). */
 function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSpan; now: Date }) {
   const window = entry.limits?.[span] ?? null
   const percent = window === null ? 0 : Math.round(Math.max(0, Math.min(100, window.usedPercentage)))
@@ -132,7 +152,12 @@ function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSp
   const source = entry.limits === null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
   const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), source, staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
   return <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>
-    <span className="account-meter__top"><strong>{window === null ? t.limits.noData : windowValue(window, percent)}</strong>{window !== null && <span>{reset}</span>}</span>
+    <span className="account-meter__top">
+      <span className="account-meter__what"><span className="account-meter__name">
+        <span className="account-meter__long">{spanNames(span).label}</span><span className="account-meter__short">{t.limits.short[span]}</span>
+      </span><strong>{window === null ? t.limits.noData : windowValue(window, percent)}</strong></span>
+      {window !== null && <span>{reset}</span>}
+    </span>
     <span className="account-meter__bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
   </Tipped>
 }

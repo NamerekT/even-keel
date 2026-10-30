@@ -36,6 +36,12 @@
   --series-8: #a51d2d;
   --series-other: #9a988f;
 
+  /* Who bills an account's connection, the stripe of its group on the accounts page: series hues, so both themes follow. */
+  --owner-anthropic: var(--series-2);
+  --owner-openai: var(--series-3);
+  --owner-zen: var(--series-1);
+  --owner-github: var(--series-7);
+
   /* Shares that are not projects (model, entrypoint, reason): one slate hue, the biggest share the strongest, so a project's colour means only the project. */
   --tone-1: #2c3544;
   --tone-2: #3f4a5c;

@@ -77,9 +77,17 @@ function sessionWindow(raw: unknown): LimitWindow | undefined {
 
 export type LimitSpan = 'fiveHour' | 'sevenDay' | 'month'
 
-/** The windows the account's plan has, in the order they are shown: five hours and a week unless the plan is monthly. */
+/**
+ * The windows the account's plan has, in the order they are shown: five hours and a week unless the plan is monthly. The
+ * provider's own answer (`api`) lists every window the plan has, so one it left out while giving another is not there
+ * (ChatGPT Pro has no five hours), rather than a window with no data.
+ */
 export function limitSpans(limits: RateLimits | null | undefined): LimitSpan[] {
-  if (limits?.month === undefined) return ['fiveHour', 'sevenDay']
+  if (limits?.month === undefined) {
+    const spans = ['fiveHour', 'sevenDay'] as const
+    const given = spans.filter((span) => limits?.[span] != null)
+    return limits?.source === 'api' && given.length > 0 ? given : [...spans]
+  }
   return [...(['fiveHour', 'sevenDay'] as const).filter((span) => limits[span] !== null), 'month']
 }
 

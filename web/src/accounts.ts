@@ -1,6 +1,8 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import { PROVIDERS as RUN_PROVIDERS } from '../../src/agent/providers.js'
+import { CLAUDE } from '../../src/claude/name.js'
 import { CODEX } from '../../src/codex/name.js'
+import { COPILOT } from '../../src/copilot/name.js'
 import { limitSpans, type LimitSpan, type LimitWindow, type RateLimits } from '../../src/limits/model.js'
 import { OPENCODE } from '../../src/opencode/name.js'
 import { accountOrder } from './state.js'
@@ -41,6 +43,52 @@ export type Connection = 'cli' | 'apiKey'
 
 export function connectionOf(entry: AccountEntry): Connection {
   return entry.apiKey ? 'apiKey' : 'cli'
+}
+
+/**
+ * What the account reaches the models through and who bills it, the group of the accounts page inside an agent's block
+ * (BTN-576). Keys of different providers are different groups; the plan (pro, max, free) does not split one.
+ */
+export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'other'] as const
+export type Access = (typeof ACCESSES)[number]
+
+export type Owner = 'anthropic' | 'openai' | 'zen' | 'github'
+
+/** Who bills a connection, the colour of its group's stripe; none for an agent the page does not know. */
+export const ACCESS_OWNER: Record<Access, Owner | null> = {
+  claudeSubscription: 'anthropic',
+  anthropicKey: 'anthropic',
+  chatgpt: 'openai',
+  openaiKey: 'openai',
+  zen: 'zen',
+  github: 'github',
+  other: null,
+}
+
+/**
+ * An OpenCode folder holds several providers: it is grouped by the one whose limits it shows (`openCodeUsage`: ChatGPT,
+ * then Copilot), a key folder by the key's provider; one with neither runs OpenCode Zen.
+ */
+export function accessOf(entry: AccountEntry): Access {
+  if (entry.agent === COPILOT) return 'github'
+  if (entry.agent === CLAUDE) return entry.apiKey ? 'anthropicKey' : 'claudeSubscription'
+  if (entry.agent === CODEX) return entry.apiKey ? 'openaiKey' : 'chatgpt'
+  if (entry.agent !== OPENCODE) return 'other'
+  const held = entry.status?.subscriptionType?.split(',').map((name) => name.trim()) ?? []
+  if (entry.apiKey) return held.includes('anthropic') ? 'anthropicKey' : held.includes('openai') ? 'openaiKey' : 'zen'
+  if (held.includes('openai')) return 'chatgpt'
+  if (held.includes('github-copilot')) return 'github'
+  return held.includes('anthropic') ? 'claudeSubscription' : 'zen'
+}
+
+export interface AccessGroup {
+  access: Access
+  entries: AccountEntry[]
+}
+
+/** One agent's accounts by connection, in the order of `ACCESSES`, each keeping the order it was given. */
+export function accessGroups(entries: AccountEntry[]): AccessGroup[] {
+  return ACCESSES.map((access) => ({ access, entries: entries.filter((entry) => accessOf(entry) === access) })).filter((group) => group.entries.length > 0)
 }
 
 /**

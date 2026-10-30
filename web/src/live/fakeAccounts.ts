@@ -219,6 +219,32 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
           ],
         },
   }
+  if (mode === 'connections') {
+    // Every connection of every agent at once, the windows each plan really has: ChatGPT Pro without five hours, Free
+    // with a month, Copilot's allowance; keys with their dollars, Zen and the machine's Copilot with their tokens.
+    const month = (used: number, left?: number) => ({ usedPercentage: used, resetsAt: inDays(18), ...(left === undefined ? {} : { left }) })
+    const chatgpt = { ...limits, source: 'api' as const, pool: 'chatgpt:acc-1' }
+    const key = (name: string, agent: string, patch: Partial<AccountEntry> = {}) => apiEntry(name, { agent, name: agent === CLAUDE ? 'Test API' : 'Test API 2', ...patch })
+    const opencode = (name: string, label: string, providers: string | null, patch: Partial<AccountEntry> = {}) => fakeEntry({
+      key: name, name: label, global: false, agent: OPENCODE, loginExpiresAt: null,
+      status: { ...OPENCODE_STATUS, authMethod: providers === null ? 'none' : 'oauth', subscriptionType: providers }, ...patch,
+    })
+    const accounts = [
+      global, work, key('api', CLAUDE),
+      codexEntry('codex', 'john.doe@example.com', 'plus', { limits: chatgpt, projects: ['OPS'] }),
+      codexEntry('codex-pro', 'jane.doe@example.com', 'pro', { limits: { fiveHour: null, sevenDay: { usedPercentage: 41, resetsAt: inDays(4) }, updatedAt: ago(1), source: 'api' } }),
+      codexEntry('codex-free', 'sam.roe@example.com', 'free', { limits: { fiveHour: null, sevenDay: null, month: month(12), updatedAt: ago(1), source: 'api' } }),
+      key('codex-key', CODEX, { spendingLimit: { resetsAt: null } }),
+      opencode('opencode', 'OpenCode Zen', null, { usage: stale(notice('usage.openCodeNone', {})) }),
+      opencode('opencode-zen', 'OpenCode Zen 2', null, { usage: stale(notice('usage.openCodeNone', {})) }),
+      opencode('opencode-2', 'OpenCode', 'openai', { limits: { fiveHour: null, sevenDay: null, month: month(12), updatedAt: ago(1), source: 'api' } }),
+      opencode('opencode-copilot', 'OpenCode 2', 'github-copilot', { limits: { fiveHour: null, sevenDay: null, month: month(17, 166), updatedAt: ago(2), source: 'api' } }),
+      key('opencode-anthropic', OPENCODE, { name: 'OpenCode keys', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'anthropic' } }),
+      key('opencode-openai', OPENCODE, { name: 'Test API', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'openai' }, spendingLimit: { resetsAt: null } }),
+      ...fakeAccount('copilot', idle, limits).accounts.filter((entry) => entry.agent === COPILOT),
+    ]
+    return { ...signedIn, accounts, pool: [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'codex' }] }
+  }
   if (mode === 'out') {
     const out = { ...global, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true }
     return { ...signedIn, accounts: [out, work] }

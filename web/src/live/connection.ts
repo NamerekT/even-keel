@@ -1,7 +1,7 @@
 import type { Notice } from '../../../src/notice/notice.js'
 import type { Feed } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../../src/state.js'
-import type { AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
+import type { AccountSpend, AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
@@ -54,7 +54,7 @@ export interface LiveSource {
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
-  statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>>
+  statsSpend(tz: string): Promise<StatsAnswer<Record<string, AccountSpend>>>
   statsTokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
@@ -196,7 +196,7 @@ export class LiveConnection implements LiveSource {
     return this.deps.fetchStats('checkpoints', new URLSearchParams())
   }
 
-  statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>> {
+  statsSpend(tz: string): Promise<StatsAnswer<Record<string, AccountSpend>>> {
     return this.deps.fetchStats('spend', new URLSearchParams({ tz }))
   }
 
