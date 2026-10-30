@@ -96,9 +96,25 @@ export function CliConsent() {
 export function CliCopiesBanner() {
   const { state } = useLive()
   const used = new Set([state?.config.shared.provider, ...Object.values(state?.config.projects ?? {}).map((project) => project.provider)])
-  const shown = Object.entries(state?.cliCopies ?? {}).filter(([provider, copy]) => copy.status === 'downloading' || copy.status === 'failed' || (used.has(provider) && copy.source === 'checked' && copy.status === 'missing') || state?.chain.active.some((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === provider))
-  return <Banner tone="info" role="status">{shown.length > 0 ? <div className="banner__inner cli-copy__banner">{shown.map(([provider, copy]) => <div key={provider}>
-    {copy.status !== 'downloading' && <strong>{titleOf(provider)}</strong>}
-    <CliActions provider={provider} />
-  </div>)}</div> : null}</Banner>
+  const copies = Object.entries(state?.cliCopies ?? {})
+  const failed = copies.filter(([, copy]) => copy.status === 'failed')
+  const shown = copies.filter(([provider, copy]) => copy.status === 'downloading' || (copy.status !== 'failed' && ((used.has(provider) && copy.source === 'checked' && copy.status === 'missing') || state?.chain.active.some((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === provider))))
+  return <>
+    <Banner tone="info" role="status">{shown.length > 0 ? <div className="banner__inner cli-copy__banner">{shown.map(([provider, copy]) => <div key={provider}>
+      {copy.status !== 'downloading' && <strong>{titleOf(provider)}</strong>}
+      <CliActions provider={provider} />
+    </div>)}</div> : null}</Banner>
+    <Banner tone="error">{failed.length > 0 ? <div className="cli-copy__failed">{failed.map(([provider]) => <CliRetry key={provider} provider={provider} />)}</div> : null}</Banner>
+  </>
+}
+
+/** A failed download in the header: the error at the left, the retry at the right; the red band carries the colour. */
+function CliRetry({ provider }: { provider: string }) {
+  const { send, sending, failure } = useCommand()
+  return <div className="banner__inner">
+    <span>{say(failure ?? { code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</span>
+    <span className="banner__actions">
+      <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/download', { agent: provider })}>{cliText().retry}</button>
+    </span>
+  </div>
 }

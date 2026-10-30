@@ -23,6 +23,8 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
   if (!copy.system) copy.installed = null
   copy.received = mode === 'downloading' ? 96_000_000 : 0
   copy.total = mode === 'downloading' ? copy.approximate : 0
+  const other = cliCopies[params.get('copyFailed') ?? '']
+  if (other && other !== copy) Object.assign(other, { status: 'failed', source: 'system' })
   const next = { ...state, cliCopies, config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [provider]: copy.source } } } }
   const blocked = copy.source === 'checked' && copy.status !== 'ready'
   return {

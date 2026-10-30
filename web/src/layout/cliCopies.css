@@ -12,6 +12,7 @@
 .cli-copy__bytes { font-size: var(--text-12); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .banner__inner.cli-copy__banner { display: grid; gap: var(--space-12); width: 100%; }
 .banner__inner.cli-copy__banner > * { min-width: 0; }
+.cli-copy__failed > * + * { margin-top: var(--space-8); }
 .banner.banner--info { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); color: var(--fg); }
 .add-package .cli-copy__actions { justify-content: flex-end; }
 .cli-copy__actions .button--primary { order: 1; }
