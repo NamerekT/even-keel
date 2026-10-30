@@ -18,6 +18,14 @@ export interface Turn {
   cliSeconds: number | null
 }
 
+/** A session whose turns are read from its agent's own transcript rather than from Claude's lines. */
+export interface TurnSource {
+  session: string
+  path: string
+  key(launched: boolean): string
+  read(launched: boolean): Promise<Turn[]>
+}
+
 type Origin = { kind?: string; body?: unknown }
 type TurnEntry = TranscriptEntry & { origin?: Origin; isCompactSummary?: boolean; durationMs?: unknown }
 

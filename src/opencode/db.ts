@@ -109,6 +109,43 @@ export async function responseRows(file: string): Promise<ResponseRow[] | undefi
   )
 }
 
+/** A message of a session or of its subagent (`sub` 1), as Tally splits the session into turns. */
+export interface TurnRow {
+  id: string
+  sub: number
+  at: number
+  /** The message's JSON without its summary, system prompt, tools and path. */
+  data: string
+  /** A user message's own text parts; `null` for a response or a message with none, such as a compaction's. */
+  text: string | null
+}
+
+/** The ids of the file's sessions, subagents' left out; `undefined` when it cannot be read. */
+export async function topSessions(file: string): Promise<string[] | undefined> {
+  return withFile(file, (db) => (db.prepare('select id from session where parent_id is null').all() as { id: string }[]).map((row) => row.id))
+}
+
+/** The messages of a session and of its subagents in time order; `undefined` when the file cannot be read. */
+export async function turnRows(file: string, sessionId: string): Promise<TurnRow[] | undefined> {
+  return withFile(
+    file,
+    (db) =>
+      db
+        .prepare(
+          `select m.id, (m.session_id <> ?) as sub, m.time_created as at,
+                  json_remove(m.data, '$.summary', '$.system', '$.tools', '$.path') as data,
+                  case when json_extract(m.data, '$.role') = 'user' then (
+                    select group_concat(text, char(10)) from (
+                      select json_extract(p.data, '$.text') as text from part p
+                       where p.message_id = m.id and json_extract(p.data, '$.type') = 'text' order by p.id)) end as text
+             from message m
+            where m.session_id = ? or m.session_id in (select id from session where parent_id = ?)
+            order by m.time_created, m.id`,
+        )
+        .all(sessionId, sessionId, sessionId) as unknown as TurnRow[],
+  )
+}
+
 function stampOf(db: DatabaseSync, sessionId: string): number {
   const row = db
     .prepare(

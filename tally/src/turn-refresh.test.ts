@@ -1,11 +1,12 @@
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { copilotTurnSources, copilotTurnsKey } from './copilot-turns.js'
 import type { SignState } from './db.js'
 import { loadRollout, type FileState } from './load.js'
-import { rolloutTurnsKey } from './rollout-turns.js'
+import { rolloutTurnSources, rolloutTurnsKey } from './rollout-turns.js'
 import { refreshTurns } from './steps.js'
 import { turnsKey, type Turn } from './turns.js'
 
@@ -49,17 +50,17 @@ describe('refreshTurns with Codex sources', () => {
     expect(await loadRollout(source, file, store, context)).toBeGreaterThan(0)
     expect(await loadRollout(source, file, store, context)).toBe(0)
 
-    expect(await refreshTurns(db, [source])).toBe(1)
+    expect(await refreshTurns(db, rolloutTurnSources([source]))).toBe(1)
     expect(state.key).toBe(rolloutTurnsKey(true))
     expect(written).toEqual([expect.objectContaining({ start: 'launch', replies: 1, endedAt: at(2) })])
     expect(sessionEntries).not.toHaveBeenCalled()
-    expect(await refreshTurns(db, [source])).toBe(0)
+    expect(await refreshTurns(db, rolloutTurnSources([source]))).toBe(0)
 
     appendFileSync(source.path, event(3, 'task_started', { turn_id: 'turn2' })
       + event(4, 'token_count', { turn_id: 'turn2', info: { total_token_usage: { total_tokens: 22 }, last_token_usage: { input_tokens: 10, output_tokens: 1 } } })
       + event(5, 'task_complete', { turn_id: 'turn2' }))
     state.lastAt = at(5)
-    expect(await refreshTurns(db, [source])).toBe(1)
+    expect(await refreshTurns(db, rolloutTurnSources([source]))).toBe(1)
     expect(written).toHaveLength(2)
     expect(written[1]).toMatchObject({ start: 'prompt', replies: 1, endedAt: at(5) })
   })
@@ -68,7 +69,7 @@ describe('refreshTurns with Codex sources', () => {
     const source = { path: join(dir, `rollout-2026-10-01T10-00-00-${SESSION}.jsonl.zst`), account: 'codex' }
     writeFileSync(source.path, zstdCompressSync(rollout))
     state.key = 'codex:0:old'
-    expect(await refreshTurns(db, [source])).toBe(1)
+    expect(await refreshTurns(db, rolloutTurnSources([source]))).toBe(1)
     expect(written[0]?.endedAt).toBe(at(2))
     expect(await refreshTurns(db, [])).toBe(0)
     expect(written).toHaveLength(1)
@@ -85,8 +86,24 @@ describe('refreshTurns with Codex sources', () => {
     const onReadError = vi.fn()
     const source = { path: join(dir, `rollout-missing-${SESSION}.jsonl`), account: 'codex' }
     const previous = { ...state }
-    expect(await refreshTurns(db, [source], onReadError)).toBe(0)
+    expect(await refreshTurns(db, rolloutTurnSources([source]), onReadError)).toBe(0)
     expect(onReadError).toHaveBeenCalledWith(source.path, expect.objectContaining({ code: 'ENOENT' }))
     expect(state).toEqual(previous)
+  })
+
+  it("re-reads a Copilot session left with Claude's empty turns from its events file, then keeps them once it is gone", async () => {
+    const folder = join(dir, 'session-state', SESSION)
+    mkdirSync(folder, { recursive: true })
+    const path = join(folder, 'events.jsonl')
+    writeFileSync(path, [
+      JSON.stringify({ type: 'user.message', id: 'u1', timestamp: at(0), data: { content: 'DEMO-1' } }),
+      JSON.stringify({ type: 'session.usage_record', id: 'r1', timestamp: at(2), data: { usage: { inputTokens: 10, outputTokens: 1 } } }),
+    ].join('\n'))
+    expect(await refreshTurns(db, copilotTurnSources([{ path, account: 'copilot' }]))).toBe(1)
+    expect(state.key).toBe(copilotTurnsKey(true))
+    expect(written).toEqual([expect.objectContaining({ startUuid: 'u1', start: 'launch', replies: 1, endedAt: at(2) })])
+    expect(sessionEntries).not.toHaveBeenCalled()
+    state.lastAt = at(5)
+    expect(await refreshTurns(db, [])).toBe(0)
   })
 })

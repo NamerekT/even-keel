@@ -1,6 +1,7 @@
 import { PROMPTS } from '../../src/chain/prompts.js'
-import { rolloutLines } from './rollout.js'
-import { turnsKey, type Turn } from './turns.js'
+import type { Source } from './load.js'
+import { rolloutLines, rolloutSession } from './rollout.js'
+import { turnsKey, type Turn, type TurnSource } from './turns.js'
 
 const VERSION = 1
 const RESUMES = Object.values(PROMPTS).map((texts) => texts.resume)
@@ -11,6 +12,13 @@ type PendingTurn = Turn & { waits: Span[]; sawReply: boolean }
 
 export function rolloutTurnsKey(launched: boolean): string {
   return `codex:${VERSION}:${turnsKey(launched)}`
+}
+
+export function rolloutTurnSources(rollouts: Source[]): TurnSource[] {
+  return rollouts.flatMap(({ path }) => {
+    const session = rolloutSession(path)
+    return session === null ? [] : [{ session, path, key: rolloutTurnsKey, read: (launched: boolean) => readRolloutTurns(path, launched) }]
+  })
 }
 
 export async function readRolloutTurns(path: string, launched: boolean): Promise<Turn[]> {

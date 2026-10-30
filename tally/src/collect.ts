@@ -27,7 +27,10 @@ import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
 import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
 import { copilotSources, loadCopilot } from './copilot.js'
+import { copilotTurnSources } from './copilot-turns.js'
 import { loadOpenCode, openCodeSources } from './opencode.js'
+import { openCodeTurnSources } from './opencode-turns.js'
+import { rolloutTurnSources } from './rollout-turns.js'
 import { rolloutFiles, transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshSteps, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
 
@@ -122,7 +125,8 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const changes = await refreshRuleChanges(db)
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
-    const turned = await refreshTurns(db, rollouts, (path, error) => {
+    const turnSources = [...rolloutTurnSources(rollouts), ...(await openCodeTurnSources(openCode)), ...copilotTurnSources(copilot)]
+    const turned = await refreshTurns(db, turnSources, (path, error) => {
       failed++
       log(`tally: turns of ${path}: ${(error as Error).message}`)
     })

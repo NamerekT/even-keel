@@ -1,14 +1,11 @@
 import { askModel, costRows, excerptOf, llmSettings, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
 import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
-import type { Source } from './load.js'
-import { rolloutSession } from './rollout.js'
-import { readRolloutTurns, rolloutTurnsKey } from './rollout-turns.js'
 import { fetchTasks, reportTimes } from './huly.js'
 import { byCredentials, type HulyOf } from './huly-profiles.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
 import { rulesFor, runsOf, stepsKey, type StepSettings } from './step-runs.js'
-import { turnsKey, turnsOf } from './turns.js'
+import { turnsKey, turnsOf, type TurnSource } from './turns.js'
 
 const TASK_MAX_AGE_MINUTES = 60
 const REPORT_IDLE_MINUTES = 60
@@ -31,27 +28,31 @@ export async function refreshSigns(db: TallyDb, rules: SignRules): Promise<{ ses
   return { sessions, spans }
 }
 
+/**
+ * A session of `sources` (Codex, OpenCode, Copilot) is split from its own transcript, any other from Claude's lines.
+ * Turns whose source is gone are kept: their key is `<agent>:…`, never the bare hash of Claude's turns.
+ */
 export async function refreshTurns(
   db: Pick<TallyDb, 'turnStates' | 'writeTurns' | 'sessionEntries'>,
-  rollouts: Source[] = [],
+  sources: TurnSource[] = [],
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<number> {
   let sessions = 0
-  const paths = new Map(rollouts.map((source) => [rolloutSession(source.path), source.path]))
+  const bySession = new Map(sources.map((source) => [source.session, source]))
   for (const state of await db.turnStates()) {
-    const path = paths.get(state.sessionId)
-    if (path === undefined && state.key?.startsWith('codex:')) continue
+    const source = bySession.get(state.sessionId)
+    if (source === undefined && state.key?.includes(':')) continue
     const launched = state.launchReason != null
-    const key = path === undefined ? turnsKey(launched) : rolloutTurnsKey(launched)
+    const key = source === undefined ? turnsKey(launched) : source.key(launched)
     if (state.key === key && state.signedAt === state.lastAt) continue
     let turns
-    if (path === undefined) turns = turnsOf(await db.sessionEntries(state.sessionId), launched)
+    if (source === undefined) turns = turnsOf(await db.sessionEntries(state.sessionId), launched)
     else {
       try {
-        turns = await readRolloutTurns(path, launched)
+        turns = await source.read(launched)
       } catch (error) {
         if (onReadError === undefined) throw error
-        onReadError(path, error)
+        onReadError(source.path, error)
         continue
       }
     }
