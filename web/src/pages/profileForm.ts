@@ -17,6 +17,17 @@ export function shownFields(kind: ProfileKindView, alternative: number): Field[]
   return kind.fields.filter((field) => !kind.alternatives.some((names) => names.includes(field.name)) || chosen.includes(field.name))
 }
 
+/** The fields above the MCP block: a kind with MCP OAuth keeps its optional MCP token inside the block. */
+export function trackerFields(kind: ProfileKindView, alternative: number): Field[] {
+  return shownFields(kind, alternative).filter((field) => kind.mcpOAuth !== true || field.name !== 'JIRA_MCP_TOKEN')
+}
+
+/** The fields above the MCP block left blank, which a check and an MCP connection both need; a stored secret counts as filled. */
+export function unfilled(kind: ProfileKindView, alternative: number, typed: Readonly<Record<string, string>>, profile: ProfileView | undefined): string[] {
+  const kept = (name: string) => profile?.fields.some((field) => field.name === name && field.secret && field.set) === true
+  return trackerFields(kind, alternative).filter(({ name }) => (typed[name] ?? '').trim() === '' && !kept(name)).map(({ name }) => name)
+}
+
 /** The values to check or save: a field of another set is `null` (removed), one not typed is blank (a stored secret stays). */
 export function draftValues(kind: ProfileKindView, alternative: number, typed: Readonly<Record<string, string>>): Record<string, string | null> {
   const shown = new Set(shownFields(kind, alternative).map((field) => field.name))
