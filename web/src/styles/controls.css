@@ -142,6 +142,12 @@
   cursor: pointer;
 }
 
+/* After `.button`: the same weight, so the later rule wins. */
+.button--small {
+  padding: 2px 10px;
+  font-size: var(--text-13);
+}
+
 /* An icon before a button's text ("+ Add profile"). */
 .button > .icon:first-child {
   margin-right: var(--space-4);

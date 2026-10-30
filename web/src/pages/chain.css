@@ -5,7 +5,11 @@
 
 .chain .block__side {
   min-width: 0;
-  max-width: min(40ch, 100%);
+}
+
+/* The cap is on the run label, not the side: a row with a chip, the metrics and a button keeps them on one line. */
+.chain .block__side .run-label {
+  max-width: 32ch;
 }
 
 @property --sweep {
