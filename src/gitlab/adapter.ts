@@ -1,3 +1,5 @@
+import { hostOf } from '../ci/host.js'
+import { gitlabRepo } from '../ci/remote.js'
 import { fail } from '../notice/notice.js'
 import type { TrackerAdapter } from '../tracker/source.js'
 import { GITLAB_TOKEN, GITLAB_URL, webUrl } from './api.js'
@@ -13,6 +15,18 @@ export const gitlab: TrackerAdapter = {
   account: async (values, timeoutMs) => (await import('./profile.js')).gitlabAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).gitlabProjects(values, query, timeoutMs),
   projectKey: { key: 'gitlab', pattern: /^[\w-][\w.-]*(?:\/[\w-][\w.-]*)+$/, example: 'group/subgroup/project' },
+  // Only a remote on the profile's own server: a path of another installation names no project the profile can read.
+  projectOfRemote(remote, url, env) {
+    let web: string
+    try {
+      web = webUrl(env)
+    } catch {
+      return undefined
+    }
+    if (hostOf(web) !== remote.host.toLowerCase()) return undefined
+    const repo = gitlabRepo(url, remote.host, [web])
+    return repo === null ? undefined : `${repo.owner}/${repo.repo}`
+  },
   setup(env, projects) {
     const token = env[GITLAB_TOKEN]
     if (!token) {

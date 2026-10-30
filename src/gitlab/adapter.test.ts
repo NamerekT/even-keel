@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { sessionBase } from '../agent/env.js'
+import { parseRemote } from '../ci/remote.js'
 import { parseConfig } from '../config.js'
 import { keysOf, substitute } from '../packages/keys.js'
 import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
@@ -34,5 +35,30 @@ describe('GitLab adapter registration', () => {
     expect(substitute(entry, keys.values)).toMatchObject({ env: { GITLAB_PERSONAL_ACCESS_TOKEN: 'example', GITLAB_API_URL: 'https://gitlab.com' } })
     const own = keysOf('gitlab', entry, trackerKeyRules(), { GITLAB_TOKEN: 'example', GITLAB_URL: 'https://gitlab.example.com/prefix/' })
     expect(substitute(entry, own.values)).toMatchObject({ env: { GITLAB_API_URL: 'https://gitlab.example.com/prefix/' } })
+  })
+})
+
+describe('gitlab.projectOfRemote', () => {
+  const suggest = (url: string, env: Record<string, string | undefined> = {}) => gitlab.projectOfRemote!(parseRemote(url)!, url, env)
+
+  it('takes the full path of a gitlab.com remote, nested groups included, by https or ssh', () => {
+    expect(suggest('https://gitlab.com/acme/platform/web/storefront.git')).toBe('acme/platform/web/storefront')
+    expect(suggest('git@gitlab.com:acme/platform/storefront.git')).toBe('acme/platform/storefront')
+    expect(suggest('https://gitlab.com/acme/storefront', { GITLAB_URL: 'https://gitlab.com/' })).toBe('acme/storefront')
+  })
+
+  it("takes the path past the installation prefix of the profile's self-managed server", () => {
+    const env = { GITLAB_URL: 'https://git.example.com/gitlab' }
+    expect(suggest('https://git.example.com/gitlab/acme/tools/storefront.git', env)).toBe('acme/tools/storefront')
+    expect(suggest('ssh://git@git.example.com/acme/tools/storefront.git', env)).toBe('acme/tools/storefront')
+    expect(suggest('git@git.example.com:acme/storefront.git', env)).toBe('acme/storefront')
+  })
+
+  it("takes no remote off the profile's server", () => {
+    const env = { GITLAB_URL: 'https://git.example.com/gitlab' }
+    expect(suggest('https://git.example.com/other/acme/storefront.git', env)).toBeUndefined()
+    expect(suggest('https://gitlab.com/acme/storefront.git', env)).toBeUndefined()
+    expect(suggest('https://github.com/acme/storefront.git')).toBeUndefined()
+    expect(suggest('https://gitlab.com/acme/storefront.git', { GITLAB_URL: 'not a url' })).toBeUndefined()
   })
 })

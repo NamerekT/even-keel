@@ -41,7 +41,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
   const adapter = deps.adapters[draft.tracker]
-  const repo = await checkRepo(deps.git, draft, raw, platform, adapter)
+  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env)
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
@@ -74,6 +74,7 @@ export async function checkRepo(
   raw: unknown,
   platform: NodeJS.Platform = process.platform,
   adapter?: TrackerAdapter,
+  env: Readonly<Record<string, string | undefined>> = {},
 ): Promise<ProjectCheck['repo']> {
   const path = draft.repo.trim()
   if (path === '') return { root: null, current: null, suggested: null, notice: null }
@@ -82,7 +83,7 @@ export async function checkRepo(
   const root = pathsOf(platform).normalize(top.out.trim())
   const head = await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
   const current = head.code === 0 && head.out.trim() !== '' ? head.out.trim() : null
-  const suggested = await suggestedOf(git, root, adapter)
+  const suggested = await suggestedOf(git, root, adapter, env)
   const taken = projectOfRepo(raw, root, platform)
   if (taken !== undefined) return { root, current, suggested, notice: notice('wizard.repoTaken', { project: taken }) }
   const branches = await branchesOf(git, root)
@@ -103,13 +104,13 @@ async function branchesOf(git: Git, root: string): Promise<string[] | null> {
     .filter((line) => line !== '')
 }
 
-async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined): Promise<string | null> {
+async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined, env: Readonly<Record<string, string | undefined>>): Promise<string | null> {
   if (adapter?.projectOfRemote === undefined) return null
   const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
   if (urls.code !== 0) return null
   for (const { url } of remotesOf(urls.out)) {
     const remote = parseRemote(url)
-    const place = remote === null ? undefined : adapter.projectOfRemote(remote)
+    const place = remote === null ? undefined : adapter.projectOfRemote(remote, url, env)
     if (place !== undefined) return place
   }
   return null
