@@ -2,8 +2,8 @@ import { labelKey } from '../tracker/labels.js'
 import type { TaskStatus } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 
-const COMPACTION = 'Разрыв | компакция'
-const HANDOFF = 'Разрыв | хендофф'
+const COMPACTION = 'Break | compaction'
+const HANDOFF = 'Break | handoff'
 const BREAK_LABELS = new Set([COMPACTION, HANDOFF].map(labelKey))
 const open = (status: TaskStatus) => status.category !== 'Won' && status.category !== 'Lost'
 

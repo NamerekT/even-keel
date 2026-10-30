@@ -3,8 +3,8 @@ import type { TaskSource } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
 import { assignBreakLabels, breakLabelOf, selectProjects } from './break-labels.js'
 
-const compaction = 'Разрыв | компакция'
-const handoff = 'Разрыв | хендофф'
+const compaction = 'Break | compaction'
+const handoff = 'Break | handoff'
 const task = (number: number, labels: string[] = [], category: TrackerTask['status']['category'] = 'ToDo'): TrackerTask => ({
   id: `APP-${number}`, title: 'Example', status: { name: category, category }, labels,
   blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none', estimate: null,
@@ -21,7 +21,7 @@ describe('break group assignment', () => {
   it('preserves any existing break label and both labels, regardless of parity or case', () => {
     expect(breakLabelOf('APP-2', ['Bug', handoff])).toEqual({ expected: compaction, actual: [handoff] })
     expect(breakLabelOf('APP-3', [compaction, handoff]).actual).toEqual([compaction, handoff])
-    expect(breakLabelOf('APP-2', ['  РАЗРЫВ | КОМПАКЦИЯ  ']).actual).toHaveLength(1)
+    expect(breakLabelOf('APP-2', ['  BREAK | COMPACTION  ']).actual).toHaveLength(1)
   })
 
   it('resolves GUIDs and unique keys, deduplicates, and rejects ambiguous or unknown projects', () => {

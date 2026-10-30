@@ -299,7 +299,7 @@ there is no mapping table:
 
 - `run` — `<Provider> | <model>` or a bare `<Provider>` (`runLabelOf`): one label sets `provider` and `models.<provider>`.
   Read only while `modelLabels` is on, since older workspaces carry labels like `Sonnet`.
-- `checkpoint` — `Разрыв | компакция` pins the task's threshold to 999999; `Разрыв | хендофф` or no label inherits the project's threshold. Both together inherit it as well.
+- `checkpoint` — `Break | compaction` pins the task's threshold to 999999; `Break | handoff` or no label inherits the project's threshold. Both together inherit it as well.
 - `effort` — `effort:<level>` (BTN-146), its own prefix so it never collides with a model label; no switch needed.
 - Two labels feeding the same setting with different values — a warning in the log and the project's value, as
   `runChoice` does now.

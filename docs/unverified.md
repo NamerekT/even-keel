@@ -305,7 +305,7 @@ With `contextHandoffs` off the checkpoint endpoint answers `source: "off"` and t
 
 ### A task label selecting compaction
 
-The label `Разрыв | компакция` pins a task's checkpoint threshold to 999999; the handoff label or no label inherits the project's threshold. The settings resolver is tested, but the path from a live tracker task through the service's checkpoint endpoint and the plugin has not been checked. If the label is not read, the task may receive handoff nudges. **Workaround:** pin the project's threshold in Settings and inspect the session's checkpoint endpoint.
+The label `Break | compaction` pins a task's checkpoint threshold to 999999; the handoff label or no label inherits the project's threshold. The settings resolver is tested, but the path from a live tracker task through the service's checkpoint endpoint and the plugin has not been checked. If the label is not read, the task may receive handoff nudges. **Workaround:** pin the project's threshold in Settings and inspect the session's checkpoint endpoint.
 
 ### A key refused after it was added
 
