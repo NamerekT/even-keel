@@ -27,7 +27,7 @@ import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { createEvenKeelServer } from '../server.js'
 import { inboxImage } from '../sessions/inbox.js'
 import { sharedFile } from '../sessions/shareFile.js'
-import type { SessionMail } from '../sessions/mail.js'
+import { deliveredMail, type SessionMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
 import { noteAtEnd } from '../sessions/note.js'
 import { root, source } from '../locations.js'
@@ -227,6 +227,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
 }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
+  const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage())
   return createEvenKeelServer({
     cli: ctx.cliCopies,
     hub: ctx.hub,
@@ -360,7 +361,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     transcript: (sessionId, after) =>
       ctx.inHomes(async (home) => {
         const agent = ctx.agentOf(home)
-        const feed = await agent.feed(home, sessionId, after)
+        const feed = await agent.feed(home, sessionId, after, mailOf(sessionId))
         if (feed !== undefined && agent.feedFile !== undefined) void ctx.transcriptWatch.keep(sessionId, () => agent.feedFile!(home, sessionId))
         return feed
       }),
@@ -371,7 +372,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return { type: image.type, size: data.length, body: Readable.from([data]) }
     },
     inboxFile: async (sessionId, name) => {
-      const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0))
+      const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0, mailOf(sessionId)))
       const found = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
       if (found === undefined) return undefined
       const size = await stat(found.path).then((info) => info.size, () => null)

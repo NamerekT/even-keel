@@ -72,6 +72,23 @@ export function mailPrompt(mail: Pick<Mail, 'text' | 'files'>, language: Languag
   return replyPrompt({ from: 'page', answers: {}, text: mail.text, files: mail.files }, null, language)
 }
 
+/** A message a hook handed to the session, for a transcript that may not hold it: Copilot's `preToolUse` writes no text (BTN-519). */
+export interface DeliveredMail {
+  id: number
+  /** When the hook took it, `settledAt`. */
+  at: string
+  prompt: string
+}
+
+/** The messages of `mails` a hook delivered, as a transcript fold takes them. */
+export function deliveredMail(mails: Mail[], language: Language): DeliveredMail[] {
+  return mails.flatMap((mail) =>
+    mail.fate === 'delivered' && mail.event !== null && HOOK_EVENTS.includes(mail.event) && mail.settledAt !== null
+      ? [{ id: mail.id, at: mail.settledAt, prompt: mailPrompt(mail, language) }]
+      : [],
+  )
+}
+
 /** The messages a hook put into the session's context, read back from what the transcript holds: their ids and prompts. */
 export function mailIn(text: string): { id: number; prompt: string }[] {
   return [...text.replace(/\r\n/g, '\n').matchAll(MARK)].map((match) => ({ id: Number(match[1]), prompt: `${match[2]}\n` }))

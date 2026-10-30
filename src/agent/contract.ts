@@ -6,6 +6,7 @@ import type { SessionLimits } from '../limits/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { TranscriptImage } from '../sessions/entry.js'
+import type { DeliveredMail } from '../sessions/mail.js'
 import type { CacheWindow, Feed, TranscriptSummary } from '../sessions/transcript.js'
 import type { SessionRecord, TurnSpend } from '../state.js'
 
@@ -193,8 +194,11 @@ export interface Agent {
   tail(home: AccountHome, agent: AgentEntry): SessionTail
   /** A finished or live session's transcript in brief; `undefined` — the folder has no such session. */
   record(home: AccountHome, sessionId: string): Promise<SessionRecord | undefined>
-  /** Every line of the session's transcript from line `after` on, and its last turn; `undefined` — the folder has no such session. */
-  feed(home: AccountHome, sessionId: string, after: number): Promise<Feed | undefined>
+  /**
+   * Every line of the session's transcript from line `after` on, and its last turn; `undefined` — the folder has no such
+   * session. `mail` — the chat's messages hooks delivered, for an agent whose transcript may not hold them (Copilot).
+   */
+  feed(home: AccountHome, sessionId: string, after: number, mail?: DeliveredMail[]): Promise<Feed | undefined>
   /** Optional. The file `feed` reads, watched while a chat window reads it; without it the window only polls. */
   feedFile?(home: AccountHome, sessionId: string): Promise<string | undefined>
   /** The ids of every session whose transcript the folder holds: those sessions ran on its account. */

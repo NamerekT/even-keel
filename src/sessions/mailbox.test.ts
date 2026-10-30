@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { Writes } from '../storage/database.js'
 import { memoryDatabase } from '../storage/memory.js'
-import { mailIn, mailMessage } from './mail.js'
+import { deliveredMail, mailIn, mailMessage } from './mail.js'
 import { Mailbox, mailOutcome } from './mailbox.js'
 
 const SESSION = '11111111-2222-4333-8444-555555555555'
@@ -105,6 +105,8 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['b', 'c', 'd', 'back', 'new'])
     mailbox.dismiss(SESSION)
     expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['b', 'c', 'd', 'new'])
+    expect(mailbox.delivered(SESSION).map((mail) => mail.text)).toEqual(['a', 'b', 'c', 'd'])
+    expect(mailbox.delivered(OTHER)).toEqual([])
   })
 
   it('forgets settled messages after a week', async () => {
@@ -173,6 +175,16 @@ describe('mailMessage and mailIn', () => {
     for (const mark of ['NO CHANGES:', 'CHECKPOINT:', 'PULL REQUEST:']) expect(message).toContain(mark)
     expect(message).toContain(language === 'en' ? 'repeat that same line as the last line' : 'повтори ту же строку последней строкой')
     expect(mailMessage([mail(1, 'Reply PONG.')], 'PostToolUse', language)).not.toContain('NO CHANGES:')
+  })
+
+  it('hands a fold only the messages a hook delivered, at the time it took them, as the session got them', () => {
+    const delivered = { ...mail(5, 'Use the other parser.', ['C:\\repo\\.temp\\inbox\\a.png']), reason: null }
+    const others = [
+      { ...delivered, id: 6, event: 'resume' as const },
+      { ...delivered, id: 7, fate: 'waiting' as const, event: null, settledAt: null },
+      { ...delivered, id: 8, fate: 'returned' as const, event: null, reason: 'asked' as const },
+    ]
+    expect(deliveredMail([delivered, ...others], 'en')).toEqual([{ id: 5, at: '2026-10-18T10:00:05.000Z', prompt: mailIn(mailMessage([delivered], 'PostToolUse', 'en'))[0]!.prompt }])
   })
 
   it('finds nothing in a text that only names the mark', () => {
