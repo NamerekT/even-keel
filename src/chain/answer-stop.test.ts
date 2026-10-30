@@ -85,8 +85,9 @@ describe('answers queued before stopAfter removes the chain', { timeout: 30_000 
     dispatcher.stopAfter('ABC', true)
     busy.clear()
     clock.now = new Date(clock.now.getTime() + 11_000)
-    settleMail(mailRelay)
+    const settled = settleMail(mailRelay)
     await dispatcher.idle()
+    await settled
     expect(dispatcher.state.active).toEqual([])
     expect(launched).toEqual([])
     expect(relays).toHaveLength(1)

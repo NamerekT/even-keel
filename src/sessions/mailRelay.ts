@@ -9,6 +9,8 @@ export interface MailRelay {
   live: (task: string) => { sessionId: string; midTurn: boolean; asking: boolean } | undefined
   /** Resolves to whether the queued reply reached the transport; may throw when the session cannot be answered. */
   resume: (task: string, sessionId: string, prompt: string) => Promise<boolean>
+  /** The task is over for the chain: its branch is in main or it is done (BTN-558). Never rejects. */
+  closed: (task: string) => Promise<boolean>
   language: () => Language
   changed: () => void
   log: (line: string) => void
@@ -33,7 +35,7 @@ export async function settleMail(relay: MailRelay): Promise<void> {
       deliveries.push(resumed(relay, task, sessionId, mails))
       continue
     }
-    relay.mailbox.settle(mails, 'returned')
+    relay.mailbox.settle(mails, 'returned', null, own === undefined ? 'gone' : 'asked')
     relay.log(`chain: ${task}: ${mails.length} message(s) from the page went back to the chat: the session ${sessionId} ${own === undefined ? 'is gone' : 'asked a question'} before its hooks took them`)
     relay.changed()
   }
@@ -43,6 +45,7 @@ export async function settleMail(relay: MailRelay): Promise<void> {
 async function resumed(relay: MailRelay, task: string, sessionId: string, waiting: Mail[]): Promise<void> {
   const mails = relay.mailbox.claim(waiting)
   if (mails.length === 0) return
+  if (await closedFor(relay, task, sessionId, mails)) return
   const prompt = mails.map((mail) => mailPrompt(mail, relay.language())).join('\n')
   let delivered = false
   try {
@@ -50,7 +53,8 @@ async function resumed(relay: MailRelay, task: string, sessionId: string, waitin
   } catch (error) {
     relay.log(`chain: ${task}: the session ${sessionId} ended its turn before its hooks took the page's message and cannot be resumed: ${error instanceof Error ? error.message : String(error)}`)
   }
-  relay.mailbox.settle(mails, delivered ? 'delivered' : 'returned', delivered ? 'resume' : null)
+  if (delivered) relay.mailbox.settle(mails, 'delivered', 'resume')
+  else relay.mailbox.settle(mails, 'returned', null, 'gone')
   relay.log(delivered
     ? `chain: ${task}: the session ${sessionId} ended its turn before its hooks took ${mails.length} message(s) from the page; they went by a resume`
     : `chain: ${task}: ${mails.length} message(s) from the page went back to the chat: the resume of the session ${sessionId} did not deliver them`)
@@ -63,10 +67,23 @@ export interface HookMail {
   finish: (delivered: boolean) => void
 }
 
-/** Reserves the hook's text until the HTTP response is sent; `null` when nothing waits. */
-export function mailFor(relay: MailRelay, sessionId: string, event: MailEvent): HookMail | null {
+/**
+ * The claimed messages of a task that is over for the chain go back to the chat, not to its session: the work they
+ * ask for would land in the worktree of a closed task, which no merge closes again (BTN-558).
+ */
+async function closedFor(relay: MailRelay, task: string, sessionId: string, mails: Mail[]): Promise<boolean> {
+  if (!(await relay.closed(task))) return false
+  relay.mailbox.settle(mails, 'returned', null, 'closed')
+  relay.log(`chain: ${task}: ${mails.length} message(s) from the page went back to the chat: the task is over for the chain, so the session ${sessionId} does not get them`)
+  relay.changed()
+  return true
+}
+
+/** Reserves the hook's text until the HTTP response is sent; `null` when nothing waits, or the task is over. */
+export async function mailFor(relay: MailRelay, sessionId: string, event: MailEvent): Promise<HookMail | null> {
   const taken = relay.mailbox.take(sessionId)
   if (taken.length === 0) return null
+  if (await closedFor(relay, taken[0]!.task, sessionId, taken)) return null
   let finished = false
   return {
     message: mailMessage(taken, event, relay.language()),

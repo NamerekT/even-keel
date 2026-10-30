@@ -236,9 +236,9 @@ export interface ServerDeps {
   mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[] } | undefined
   /**
    * For the mailbox hook: reserves the chat's messages until the response finishes, as one text;
-   * `null` — none wait; `undefined` for a session the chain did not start (BTN-181).
+   * `null` — none wait, or the task is over (BTN-558); `undefined` for a session the chain did not start (BTN-181).
    */
-  mail: (sessionId: string, event: MailEvent) => HookMail | null | undefined
+  mail: (sessionId: string, event: MailEvent) => Promise<HookMail | null> | undefined
   /**
    * For the permission hook started at `since` (ms): the user's decision on the tool call the session waits to have
    * approved; `null` — not yet; `undefined` for a session the chain did not start, or a call whose dialog is gone (BTN-269).
@@ -603,7 +603,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     try {
       const body = await readJsonBody(request, MAX_BODY_BYTES)
       if (!HOOK_EVENTS.includes(body.event as MailEvent)) throw fail('request.required', { field: 'event' })
-      delivery = deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
+      delivery = await deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
     } catch (error) {
       sendFailure(response, error)
       return

@@ -9,7 +9,7 @@ import type { Mailbox } from './mailbox.js'
 import type { MailRelay } from './mailRelay.js'
 
 interface ChatDeps {
-  dispatcher: Pick<Dispatcher, 'answerable' | 'answer'>
+  dispatcher: Pick<Dispatcher, 'answerable' | 'answer' | 'closed'>
   mailbox: Mailbox
   configuredProject: (task: string) => string | undefined
   liveView: (task: string) => Pick<SessionView, 'sessionId' | 'asking' | 'ask'> | undefined
@@ -35,6 +35,10 @@ export function createChat(deps: ChatDeps) {
       if (project === undefined) throw fail('config.unknownProject', { key: task })
       return dispatcher.answer(project, task, sessionId, null, prompt)
     },
+    closed: async (task) => {
+      const project = deps.configuredProject(task)
+      return project !== undefined && (await dispatcher.closed(project, task))
+    },
     language: deps.language,
     changed: deps.changed,
     log: deps.log,
@@ -51,6 +55,8 @@ export function createChat(deps: ChatDeps) {
   ): Promise<void> {
     const takes = reply.from === 'page' && (deps.steering(sessionId) || mailbox.listens(sessionId))
     const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
+    // What the message asks would land in the worktree of a closed task: it is a new task (BTN-558).
+    if (await dispatcher.closed(project, task)) throw fail('answer.closed', { task })
     const question = ask === null ? null : (deps.liveView(task)?.ask ?? null)
     let files: string[]
     try {

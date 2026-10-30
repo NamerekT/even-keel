@@ -9,7 +9,7 @@ const TRACKERS = ['deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 
 
 it('step 19 splits the tracker group of Protection into a group per tracker, the rest of the value kept', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 17))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(19))

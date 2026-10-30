@@ -32,11 +32,13 @@ export function ChatMail({ sessionId, mail, onReply }: Props) {
           <span className="chat__letter-text">{each.text}</span>
           {each.fate === 'returned' ? (
             <>
-              <span className="chat__letter-fate">{t.session.chat.mail.returned}</span>
+              <span className="chat__letter-fate">{t.session.chat.mail.returned[each.reason ?? 'asked']}</span>
               <span className="chat__letter-actions">
-                <button type="button" className="button button--small" onClick={() => onReply(each.text)}>
-                  {t.session.chat.mail.reply}
-                </button>
+                {each.reason !== 'closed' && (
+                  <button type="button" className="button button--small" onClick={() => onReply(each.text)}>
+                    {t.session.chat.mail.reply}
+                  </button>
+                )}
                 <button type="button" className="button button--small" disabled={sending} onClick={() => void send('session/mail/dismiss', { sessionId })}>
                   {t.session.chat.mail.dismiss}
                 </button>

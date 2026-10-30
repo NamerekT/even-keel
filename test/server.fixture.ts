@@ -124,7 +124,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     checkpoint: async (id) =>
       id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 } : undefined,
     mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master', standards: [STANDARD] } : undefined),
-    mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? { message: `mail on ${event}`, finish: () => {} } : null),
+    mail: (id, event) => (id !== 'chain-session' ? undefined : Promise.resolve(event === 'PostToolUse' ? { message: `mail on ${event}`, finish: () => {} } : null)),
     tools: async (project) => (project === 'ABC' ? { project } : undefined),
     vocabulary: async (id) => {
       if (id === 'down') throw new Error('github: HTTP 502')

@@ -339,6 +339,15 @@ export class Dispatcher {
     return answerable(this.state, this.deps, project, task, sessionId, ask, takes)
   }
 
+  /**
+   * The task is over for the chain: done in the tracker's last read, or its branch is in main with commits of its own,
+   * which the tracker learns only at the next sweep (BTN-558). Never rejects.
+   */
+  async closed(project: string, task: string): Promise<boolean> {
+    if (this.lists.done.get(project)?.has(task) || this.cleanups.done.get(project)?.has(task)) return true
+    return (await this.main?.merged(project, task)) ?? false
+  }
+
   /** Invariant 1, exception 6: queues the user's answer and resolves to whether it reached the session. */
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): Promise<boolean> {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)

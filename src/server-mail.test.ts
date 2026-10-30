@@ -18,6 +18,7 @@ async function fixture() {
     mailbox, now, language: () => 'en', changed: () => {}, log: () => {},
     live: () => ({ sessionId: 'session', midTurn: true, asking: false }),
     resume: async () => { throw new Error('mail was already reserved by a hook') },
+    closed: async () => false,
   }
   mailbox.post('ABC-1', 'session', 'Read the attached picture.', ['C:/repo/.temp/inbox/picture.png'])
   const { server, base, publicDir, close } = await serverFixture({ mail: (id, event) => mailFor(relay, id, event) })

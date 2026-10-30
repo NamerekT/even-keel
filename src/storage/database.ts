@@ -28,7 +28,7 @@ export interface Queryable {
  * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
  * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
- * Claude on the checked CLI (BTN-610). A foreign key between tables is deferred, so that a copy inserts the
+ * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -273,6 +273,10 @@ export const STEPS: readonly string[] = [
     select 'cli', null, 'claude', '"checked"', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
      where exists (select 1 from setting_values where key = 'execution' and project_id is null and qualifier = 'claude' and value = '"sdk"')
        and not exists (select 1 from setting_values where key = 'cli' and project_id is null and qualifier = 'claude');
+  `,
+  // Why a chat message came back (BTN-558): the session asked, is gone, or the task is over for the chain.
+  `
+  alter table mailbox add column reason text check (reason in ('asked', 'gone', 'closed'));
   `,
 ]
 

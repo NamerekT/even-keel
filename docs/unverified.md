@@ -37,6 +37,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
 | 11a | [Mail resumed while a chain stops](#mail-resumed-while-a-chain-stops-btn-427) | chat users with a stop pending or a failed delivery | a message may need sending again; a delivery failure may pause the chain |
 | 11b | [The chat's `/handoff` in a real session](#the-chats-handoff-in-a-real-session-btn-557) | chat users handing a task over by hand | the session keeps the task instead of handing it over |
+| 11c | [Chat mail after the task's merge](#chat-mail-after-the-tasks-merge-btn-558) | chat users writing to a session that has just merged | the request lands uncommitted in the closed task's worktree |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
@@ -343,6 +344,10 @@ Seen live on a Claude chain session (BTN-189, CLI 2.1.302): a text answer and an
 After BTN-499, a refused user-answer delivery on an active chain also clears its delivery marks without pausing or automatically replaying the answer; tests cover a failed session-state write followed by an explicit retry. Not checked with a live CLI: the error reaching chat while the chain keeps running, and the retry reaching the same session.
 
 Regression tests cover a message left in the mailbox when the turn ends and `stopAfter` drops the chain before its queued answer runs, and an answer to a question in the same race. They use the real dispatcher, chat routing and mailbox with a fake session transport. Delivery goes to the same session through `deliverLoose`; transport failures and session replacements return mail to the chat, and hooks cannot take mail claimed for a queued resume. This timing has not been checked against a live CLI after the fix. If the CLI refuses the resume, mail should return instead of appearing delivered. **Workaround:** check the session transcript and resend a returned message from chat.
+
+### Chat mail after the task's merge (BTN-558)
+
+A message to the session of a task whose branch is already in the main branch, or which is done, is refused by the chat, and one posted just before the merge comes back to the chat window with "the task is already closed" instead of reaching the hook or a resume. Tests cover the refusal, the hook and the resume with the real dispatcher, chat routing and mailbox over a fake main check. Not checked live: a session that merges and keeps working while the user writes to it, as on BTN-549, where the hook asks for mail in the seconds between the merge and Done. If the assumption is wrong, the message still reaches the session and its work stays uncommitted in the worktree of the closed task, with the `uncommitted` chip on its row. **Workaround:** commit and merge the leftover by hand, or put the request into a new task.
 
 ### Chat mail in a real session (BTN-181)
 

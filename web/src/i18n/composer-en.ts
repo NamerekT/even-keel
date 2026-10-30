@@ -18,7 +18,11 @@ export const composerEn = {
       AskUserQuestion: 'in place of a question',
       resume: 'by resuming the session',
     },
-    returned: 'Came back: the session asked a question while the message was on its way. Send it as the answer or dismiss it.',
+    returned: {
+      asked: 'Came back: the session asked a question while the message was on its way. Send it as the answer or dismiss it.',
+      gone: 'Came back: the session stopped before it took the message. Send it again or dismiss it.',
+      closed: 'Came back: the task is already closed, so the session did not get it. Put what it asks into a new task, then dismiss it.',
+    },
     reply: 'As the answer',
     dismiss: 'Dismiss',
   },

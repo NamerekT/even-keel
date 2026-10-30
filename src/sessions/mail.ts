@@ -8,8 +8,14 @@ import { replyPrompt } from './ask.js'
 export type MailEvent = 'PreToolUse' | 'PostToolUse' | 'Stop' | 'AskUserQuestion' | 'resume'
 export const HOOK_EVENTS: readonly MailEvent[] = ['PreToolUse', 'PostToolUse', 'Stop', 'AskUserQuestion']
 
-/** `returned` — the session asked a question while the message was on its way: it is the user's to send again or drop. */
+/** `returned` — the session did not get the message (`MailReason`): it is the user's to send again or drop. */
 export type MailFate = 'waiting' | 'delivered' | 'returned' | 'dismissed'
+
+/**
+ * Why a message came back: the session asked a question while it was on its way, the session is gone, or the task is
+ * over for the chain — its branch is in main or it is done (BTN-558), so what the message asks is a new task.
+ */
+export type MailReason = 'asked' | 'gone' | 'closed'
 
 /** A message of the chat window to a session in the middle of a turn (BTN-181). */
 export interface Mail {
@@ -22,6 +28,8 @@ export interface Mail {
   postedAt: string
   fate: MailFate
   event: MailEvent | null
+  /** Set only on a returned message; `null` on one returned before BTN-558. */
+  reason: MailReason | null
   settledAt: string | null
 }
 
