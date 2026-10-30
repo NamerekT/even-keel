@@ -1,29 +1,11 @@
 import { Fold } from '../ui/Fold.js'
 import { useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
+import { NO_PICK, chooseLabel, toggleOther, typeOther, type Pick } from './askPick.js'
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { sendsReply } from './chatKeys.js'
 import './ask.css'
-
-/** What the user has picked for one question: option labels and, when "Other" is on, its text. */
-export interface Pick {
-  labels: string[]
-  other: string | null
-}
-
-export const NO_PICK: Pick = { labels: [], other: null }
-
-/** The answer the CLI would record for a pick: one label, the "Other" text, or the labels joined for a multi-select. */
-export function pickAnswer(question: AskQuestion, pick: Pick): string {
-  const other = pick.other?.trim() ?? ''
-  if (!question.multiSelect) return other !== '' ? other : (pick.labels[0] ?? '')
-  return joinLabels(other === '' ? pick.labels : [...pick.labels, other])
-}
-
-export function askAnswers(ask: Ask, picks: Pick[]): AskAnswers {
-  return Object.fromEntries(ask.questions.map((question, index) => [question.question, pickAnswer(question, picks[index] ?? NO_PICK)]))
-}
 
 interface PanelProps {
   ask: Ask
@@ -51,12 +33,7 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
   const shown = question.options.find((option) => option.label === pointed) ?? question.options.find((option) => pick.labels.includes(option.label))
   const preview = (shown ?? question.options.find((option) => option.preview !== undefined))?.preview
 
-  const choose = (label: string, on: boolean) => {
-    if (!question.multiSelect) onPick(index, { labels: [label], other: null })
-    else onPick(index, { ...pick, labels: on ? [...pick.labels, label] : pick.labels.filter((each) => each !== label) })
-  }
-  const toggleOther = (on: boolean) =>
-    onPick(index, question.multiSelect ? { ...pick, other: on ? (pick.other ?? '') : null } : { labels: [], other: on ? (pick.other ?? '') : null })
+  const choose = (label: string, on: boolean) => onPick(index, chooseLabel(question, pick, label, on))
   const advance = (form: HTMLFormElement | null) => {
     if (!last) setTab(index + 1)
     else if (ready) form?.requestSubmit()
@@ -106,17 +83,17 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
           ))}
           <li>
             <label className="ask__option">
-              <input type={question.multiSelect ? 'checkbox' : 'radio'} name={name} checked={pick.other !== null} onChange={(event) => toggleOther(event.target.checked)} />
+              <input type={question.multiSelect ? 'checkbox' : 'radio'} name={name} checked={pick.otherOn} onChange={(event) => onPick(index, toggleOther(question, pick, event.target.checked))} />
               <span className="ask__label">{t.session.chat.other}</span>
             </label>
-            {pick.other !== null && (
+            {pick.otherOn && (
               <textarea
                 className="ask__other"
                 rows={2}
                 value={pick.other}
                 placeholder={t.session.chat.otherPlaceholder}
                 autoFocus
-                onChange={(event) => onPick(index, { ...pick, other: event.target.value })}
+                onChange={(event) => onPick(index, typeOther(pick, event.target.value))}
                 onKeyDown={(event) => {
                   if (!sendsReply(event.nativeEvent, coarsePointer)) return
                   event.preventDefault()

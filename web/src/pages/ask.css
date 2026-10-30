@@ -322,9 +322,15 @@
 }
 
 .ask__other {
+  display: block;
+  box-sizing: border-box;
   width: calc(100% - 46px);
-  margin: 0 12px 10px 34px;
+  margin: var(--space-8) 12px 10px 34px;
   padding: 6px 8px;
+  field-sizing: content;
+  min-height: 2lh;
+  max-height: 5lh;
+  resize: vertical;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--bg);
