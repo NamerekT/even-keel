@@ -8,6 +8,8 @@ export const FAKE_HULY_PROFILE = '3f0c2b9e-0000-4000-8000-000000000001'
 /** The id of the fake GitHub profile, XYZ's choice for its github.com remote. */
 export const GITHUB_PROFILE = '3f0c2b9e-0000-4000-8000-000000000002'
 const DAY_MS = 86_400_000
+/** The Jira grant of `jira-other`: given to a second person of the site (BTN-590). */
+const OTHER_PERSON = notice('profiles.mcpOtherAccount', { grant: 'Jane Roe', tracker: 'John Doe' })
 
 const KINDS: ProfileKindView[] = [
   {
@@ -179,6 +181,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
     projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
     ...(mode === 'jira-oauth' ? { mcpOAuth: { state: 'connected' as const } } : mode === 'jira-revoked' ? { mcpOAuth: { state: 'reconnect' as const } } : {}),
+    ...(mode === 'jira-other' ? { mcpOAuth: { state: 'connected' as const, warning: OTHER_PERSON } } : {}),
   }
   if (mode?.startsWith('jira')) return { profiles: [jira], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, gitlab, jira, forgejo] : [huly, github, forgejo], kinds: KINDS }
@@ -238,7 +241,9 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   const named = kind === 'huly' ? `Huly · ${values.HULY_WORKSPACE || 'example'}` : `${title} · ${login}`
   if (name === 'profiles/check') {
     const duplicate = state.profiles.profiles.find((each) => each.kind === kind && each.login === login && each.id !== body.id)
-    return { login, name: named, expiresAt: kind === 'github' ? new Date(Date.now() + 30 * DAY_MS).toISOString() : null, duplicate: duplicate?.name ?? null }
+    // A kept grant keeps its person; a new one is the tracker's.
+    const kept = body.oauth === undefined ? state.profiles.profiles.find((each) => each.id === body.id)?.mcpOAuth?.warning : undefined
+    return { login, name: named, expiresAt: kind === 'github' ? new Date(Date.now() + 30 * DAY_MS).toISOString() : null, duplicate: duplicate?.name ?? null, ...(kept === undefined ? {} : { mcpWarning: kept }) }
   }
   if (name === 'profiles/save') return { id: typeof body.id === 'string' ? body.id : crypto.randomUUID() }
   throw new Error(`fake: ${name} is not supported`)

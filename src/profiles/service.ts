@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { englishOf, fail, noticeOf, NoticeError } from '../notice/notice.js'
+import { englishOf, fail, notice, noticeOf, NoticeError, type Notice } from '../notice/notice.js'
 import { withSessionEnv } from '../secrets/service.js'
 import { isSecret } from '../secrets/catalog.js'
-import type { CheckResult, CiRemote, ProfileCheck, ProfilesView } from '../state.js'
+import type { CheckResult, CiRemote, ProfileCheck, ProfilesView, ProfileView } from '../state.js'
 import type { Db, Writes } from '../storage/database.js'
-import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '../tracker/source.js'
+import { CredentialsRefused, type ProfileAccount, type TrackerProject, type TrackerUser } from '../tracker/source.js'
 import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, type ProfileKinds, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
 import { cleanRules } from './rules.js'
 import { saveProfiles } from './store.js'
@@ -72,6 +72,8 @@ export class Profiles {
   readonly oauth: McpOAuth
   private set: ProfileSet
   private readonly checks = new Map<string, ProfileCheck>()
+  /** The person each profile's tracker credentials act as, from its last check: an MCP grant's person is compared with it. */
+  private readonly users = new Map<string, TrackerUser>()
   private timer: NodeJS.Timeout | undefined
 
   constructor(private readonly deps: ProfilesDeps) {
@@ -86,9 +88,7 @@ export class Profiles {
         await this.deps.writes.settled()
         return true
       },
-      verify: async (_kind, values, token) => {
-        await checkMcpOAuth(values as Record<string, string>, token, deps.timeoutMs)
-      },
+      verify: (_kind, values, token) => checkMcpOAuth(values as Record<string, string>, token, deps.timeoutMs),
     })
   }
 
@@ -147,7 +147,7 @@ export class Profiles {
         deniedPulls: this.deps.deniedPulls?.(profile.id) ?? [],
         rules: profile.rules ?? {},
         projectIds: this.projectsOn(profile).map(([id]) => id),
-        ...(profile.mcpOAuth === undefined ? {} : { mcpOAuth: { state: profile.mcpOAuth.reconnect ? 'reconnect' as const : 'connected' as const } }),
+        ...(profile.mcpOAuth === undefined ? {} : { mcpOAuth: this.mcpOAuthView(profile.id, profile.mcpOAuth) }),
       })),
       kinds: Object.entries(this.deps.kinds).map(([kind, each]) => ({
         kind,
@@ -162,11 +162,18 @@ export class Profiles {
     }
   }
 
+  private mcpOAuthView(id: string, record: OAuthRecord): NonNullable<ProfileView['mcpOAuth']> {
+    if (record.reconnect) return { state: 'reconnect' }
+    const warning = otherPerson(this.users.get(id), record.user)
+    return { state: 'connected', ...(warning === undefined ? {} : { warning }) }
+  }
+
   async check(draft: ProfileDraft): Promise<CheckResult> {
     const { adapter, values } = this.valuesOf(draft)
-    const { account } = await this.checkedAccount(draft, adapter, values)
+    const { account, oauth } = await this.checkedAccount(draft, adapter, values)
     const duplicate = sameAccount(this.set, adapter, draft.kind, values, account.login, draft.id ?? null)
-    return { login: account.login, name: account.name, expiresAt: account.expiresAt, duplicate: duplicate?.name ?? null }
+    const mcpWarning = otherPerson(account.user, oauth?.user)
+    return { login: account.login, name: account.name, expiresAt: account.expiresAt, duplicate: duplicate?.name ?? null, ...(mcpWarning === undefined ? {} : { mcpWarning }) }
   }
 
   /** Stores the draft once the tracker takes it; the first profile of a kind is its default. Returns the profile's id. */
@@ -192,6 +199,7 @@ export class Profiles {
     }
     const profiles = stored === undefined ? [...this.set.profiles, profile] : this.set.profiles.map((each) => (each.id === profile.id ? profile : each))
     this.checks.set(profile.id, { state: 'ok', error: null, at: this.now() })
+    this.remember(profile.id, account)
     this.replace({ ...this.set, profiles }, profile.isDefault ? profile.kind : null)
     if (typeof draft.oauth === 'string') this.oauth.forget(draft.oauth)
     return profile.id
@@ -208,6 +216,7 @@ export class Profiles {
     const links = Object.fromEntries(Object.entries(this.set.links).filter(([, profileId]) => profileId !== id))
     const feeds = Object.fromEntries(Object.entries(this.set.feeds ?? {}).filter(([, profileId]) => profileId !== id))
     this.checks.delete(id)
+    this.users.delete(id)
     this.replace({ profiles, links, feeds }, profile.isDefault ? profile.kind : null)
   }
 
@@ -320,6 +329,7 @@ export class Profiles {
       if (before?.state !== check.state) this.deps.log(`profiles: ${profile.name}: ${englishOf(failure)}`)
     }
     this.checks.set(profile.id, check)
+    if (account !== undefined) this.remember(profile.id, account)
     const current = this.profile(profile.id)
     if (account !== undefined && current !== undefined && (current.login !== account.login || current.expiresAt !== account.expiresAt)) {
       const updated = { ...current, login: account.login, expiresAt: account.expiresAt }
@@ -397,6 +407,11 @@ export class Profiles {
     }
   }
 
+  private remember(id: string, account: ProfileAccount): void {
+    if (account.user === undefined) this.users.delete(id)
+    else this.users.set(id, account.user)
+  }
+
   private profile(id: string): TrackerProfile | undefined {
     return this.set.profiles.find((profile) => profile.id === id)
   }
@@ -412,6 +427,12 @@ export class Profiles {
 }
 
 const keysOf = (projects: [string, { key: string }][]): string => projects.map(([, project]) => project.key).join(', ')
+
+/** Atlassian grants MCP to whoever is signed in in the browser: another person than the tracker's is worth a warning, not a refusal. */
+function otherPerson(tracker: TrackerUser | undefined, grant: TrackerUser | undefined): Notice | undefined {
+  if (tracker === undefined || grant === undefined || tracker.id === grant.id) return undefined
+  return notice('profiles.mcpOtherAccount', { grant: grant.name, tracker: tracker.name })
+}
 
 function restValues(values: Record<string, string>, oauth: OAuthRecord | undefined): Record<string, string> {
   if (!oauth) return values

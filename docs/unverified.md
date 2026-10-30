@@ -69,6 +69,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
+| 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly, GitHub and Linear profiles | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
@@ -564,6 +565,10 @@ The flow, the refresh and the gateway's Bearer header are checked by tests again
 - A refused consent (Cancel or Escape on Atlassian's page, a callback with `error=access_denied`) shows "MCP access was not granted" and logs one `consent` line with the provider's `error`, while a failed code exchange or grant check shows "MCP OAuth did not complete" (BTN-588). Checked by tests only; the live refusal of BTN-489 predates the fix. If wrong, the dialog sends a person who refused to check the network, or the log names the wrong step.
 
 If one is wrong, the button ends in "MCP OAuth did not complete" or the profile's row says "MCP access lost" soon after; sessions get no tracker tools while REST keeps working. **Workaround:** disconnect OAuth in the profile and use the Atlassian MCP V2 token.
+
+### The person of a Jira MCP grant (BTN-590)
+
+Atlassian gives an MCP grant to whoever is signed in to Atlassian in the browser, so it may be another person of the site than the profile's REST token (seen in BTN-489). The dialog checks a new grant at once, and Check, Save and the row compare the grant's person with the REST token's `/myself` `accountId`; a different one is a warning with "Connect again", never a refusal. Assumed, from Atlassian's MCP tool list and its `/me` answer, never seen live: Rovo MCP v2's `atlassianUserInfo` answers a text block of JSON with `account_id` and `name` (a `data` envelope, `accountId`, `displayName`, `nickname` or `email` are read too), and that `account_id` is the `accountId` of Jira's `/myself`. Checked only by tests on fake providers. If the tool is missing or answers otherwise, the person is unknown and nothing is shown: a grant of another person goes unnoticed, as before. If the ids differ for the same person, the warning shows for a correct grant; press "Connect again" signed in as the profile's person, or ignore it. Linear, GitHub and GitLab have no MCP grant (BTN-604): their sessions use the profile's own token, so there is no second person to compare.
 
 ### Two profiles of one tracker (BTN-200)
 

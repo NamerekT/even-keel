@@ -131,7 +131,8 @@ describe('Profiles', { timeout: 60_000 }, () => {
       } } })
       await profiles.check({ id: stored.id, kind: 'jira', values: {} })
       expect(account).toHaveBeenCalledWith(expect.not.objectContaining({ JIRA_MCP_TOKEN: expect.anything() }), 1000)
-      expect(request).toHaveBeenCalledTimes(4)
+      // The token, then the MCP: initialize, initialized, the site's resources and the grant's person.
+      expect(request).toHaveBeenCalledTimes(5)
       expect(profiles.current().profiles[0]!.mcpOAuth?.accessToken).toBe('renewed')
       await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Saved OAuth' })
       expect(profiles.current().profiles[0]).toMatchObject({ name: 'Saved OAuth', values: { JIRA_MCP_TOKEN: 'old-fallback' }, mcpOAuth: { accessToken: 'renewed' } })
@@ -144,6 +145,57 @@ describe('Profiles', { timeout: 60_000 }, () => {
       await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Token fallback', oauth: null })
       expect(account).toHaveBeenLastCalledWith(expect.objectContaining({ JIRA_MCP_TOKEN: 'old-fallback' }), 1000)
       expect(profiles.current().profiles[0]!.mcpOAuth).toBeUndefined()
+    })
+
+    describe('the person of the MCP grant (BTN-590)', () => {
+      const JOHN = { id: 'account-1', name: 'John Doe' }
+      const stored: TrackerProfile = { ...profile('jira-profile', 'rest', true), kind: 'jira', values: {
+        JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john@example.com', JIRA_TOKEN: 'rest',
+      }, mcpOAuth: { server: 'https://mcp.atlassian.com/v2/mcp', clientId: 'client', tokenEndpoint: 'https://auth.atlassian.com/token',
+        redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.atlassian.com/v2/mcp',
+        accessToken: 'grant', refreshToken: 'refresh', expiresAt: null } }
+      /** Atlassian's MCP, its grant given to `grant`; `undefined` — `atlassianUserInfo` fails. */
+      const mcp = (grant: { account_id: string; name: string } | undefined) => vi.fn(async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'notifications/initialized') return new Response(null, { status: 202 })
+        if (body.method === 'initialize') return Response.json({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2025-06-18' } })
+        if (body.params.name === 'atlassianUserInfo') {
+          return grant === undefined
+            ? Response.json({ jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: 'no such tool' }] } })
+            : Response.json({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: JSON.stringify(grant) }] } })
+        }
+        return Response.json({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: JSON.stringify([{ url: stored.values.JIRA_URL }]) }] } })
+      })
+      const jira = (set: ProfileSet) => make(set, { kinds: { jira: {
+        ...ciFake, title: 'Jira', variables: Object.keys(stored.values), hostVariables: ['JIRA_URL'], complete: () => true,
+        account: async () => ({ login: 'john@example.com', name: 'Jira', expiresAt: null, user: JOHN }),
+      } } })
+
+      it('warns on Check and in the profile\'s row when the grant is another person\'s, and lets it be saved', async () => {
+        vi.stubGlobal('fetch', mcp({ account_id: 'account-2', name: 'Jane Roe' }))
+        const profiles = jira({ profiles: [stored], links: {} })
+        const warning = { code: 'profiles.mcpOtherAccount', params: { grant: 'Jane Roe', tracker: 'John Doe' } }
+        expect((await profiles.check({ id: stored.id, kind: 'jira', values: {} })).mcpWarning).toMatchObject(warning)
+        await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Jira' })
+        expect(profiles.current().profiles[0]!.mcpOAuth?.user).toEqual({ id: 'account-2', name: 'Jane Roe' })
+        expect(profiles.view().profiles[0]!.mcpOAuth).toMatchObject({ state: 'connected', warning })
+        // After a restart the row warns again once the periodic check has named the tracker's person.
+        const restarted = jira(profiles.current())
+        expect(restarted.view().profiles[0]!.mcpOAuth?.warning).toBeUndefined()
+        await restarted.recheck()
+        expect(restarted.view().profiles[0]!.mcpOAuth?.warning).toMatchObject(warning)
+      })
+
+      it.each([
+        ['the same person', { account_id: 'account-1', name: 'John Doe' }],
+        ['a person the MCP does not name', undefined],
+      ])('stays silent for %s', async (_case, grant) => {
+        vi.stubGlobal('fetch', mcp(grant))
+        const profiles = jira({ profiles: [stored], links: {} })
+        expect((await profiles.check({ id: stored.id, kind: 'jira', values: {} })).mcpWarning).toBeUndefined()
+        await profiles.save({ id: stored.id, kind: 'jira', values: {}, name: 'Jira' })
+        expect(profiles.view().profiles[0]!.mcpOAuth).toEqual({ state: 'connected' })
+      })
     })
 
     it('reports a GitLab host as GitLab without an untranslated detail', async () => {

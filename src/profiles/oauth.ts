@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { fail, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import { callbackUrl, exchange, MCP_OAUTH, OAuthRefused, register, type OAuthRecord, type Registration } from './oauth-protocol.js'
 import { oauthReason } from './oauth-error.js'
+import type { TrackerUser } from '../tracker/source.js'
 export { MCP_OAUTH, type OAuthRecord } from './oauth-protocol.js'
 
 export interface OAuthDraft { id?: string; kind: string; values: Record<string, string | null> }
@@ -21,7 +22,8 @@ interface Deps {
   get: (id: string) => OAuthRecord | undefined
   /** Compare-and-swap: a late refresh must not restore an edited or removed profile's credentials. */
   put: (id: string, expected: OAuthRecord, next: OAuthRecord) => Promise<boolean>
-  verify: (kind: string, values: Record<string, string | null>, token: string) => Promise<void>
+  /** Proves the grant's access; returns its person when the MCP names one. */
+  verify: (kind: string, values: Record<string, string | null>, token: string) => Promise<TrackerUser | undefined>
   fetch?: typeof fetch
   now?: () => number
   log: (line: string) => void
@@ -81,8 +83,8 @@ export class McpOAuth {
       if ((requireIssuer || params.has('iss')) && params.get('iss') !== issuer) throw fail('profiles.oauthFailed', {})
       record = await exchange(registration, { grant_type: 'authorization_code', code: params.get('code')!, code_verifier: flow.verifier, redirect_uri: registration.redirect }, this.request, this.now())
       step = 'grant verification'
-      await this.deps.verify(flow.kind, flow.values, record.accessToken)
-      flow.record = record
+      const user = await this.deps.verify(flow.kind, flow.values, record.accessToken)
+      flow.record = user === undefined ? record : { ...record, user }
       flow.state = 'ready'
     } catch (error) {
       this.report(flow.kind, step, error, [...Object.values(flow.values), params.get('code'), flow.oauthState, flow.verifier, record?.accessToken, record?.refreshToken])
@@ -119,10 +121,11 @@ export class McpOAuth {
       return record.accessToken
     }
     let token: string | undefined
+    let user: TrackerUser | undefined
     try {
       token = await renew()
       const verify = async () => {
-        try { await this.deps.verify(kind, values, token!) }
+        try { user = await this.deps.verify(kind, values, token!) }
         catch (error) {
           this.report(kind, 'grant verification', error, [...Object.values(values), token, record.refreshToken])
           throw error
@@ -142,7 +145,13 @@ export class McpOAuth {
       }
       throw error
     }
-    return flow?.record ?? this.deps.get(id)!
+    // A person unknown this time keeps the one named before: a grant's person does not change.
+    if (flow) {
+      if (user !== undefined) flow.record = { ...flow.record!, user }
+      return flow.record!
+    }
+    const checked = this.deps.get(id)!
+    return user === undefined ? checked : { ...checked, user }
   }
 
   async token(id: string, rejected?: string): Promise<string> {

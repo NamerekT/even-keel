@@ -1,4 +1,5 @@
 import { fail } from '../notice/notice.js'
+import type { TrackerUser } from '../tracker/source.js'
 import { oauthHttpError } from './oauth-error.js'
 export { OAuthRefused } from './oauth-error.js'
 
@@ -13,6 +14,8 @@ export interface OAuthRecord {
   refreshToken?: string
   expiresAt: number | null
   reconnect?: boolean
+  /** The person the grant was given to, when the MCP names one (BTN-590); a refresh keeps it. */
+  user?: TrackerUser
 }
 
 /**

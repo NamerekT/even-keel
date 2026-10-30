@@ -219,6 +219,14 @@ export interface ProfileAccount {
   name: string
   /** When the credentials expire, if the tracker says (GitHub's fine-grained tokens); ISO. */
   expiresAt: string | null
+  /** The person they act as, where the tracker gives a stable id: an MCP grant's person is compared with it (BTN-590). */
+  user?: TrackerUser
+}
+
+/** A person of the tracker: Jira's `accountId`, which Atlassian's MCP names too. */
+export interface TrackerUser {
+  id: string
+  name: string
 }
 
 /** The tracker refused the credentials, as opposed to not answering: a profile with them is red and its chains wait. */
