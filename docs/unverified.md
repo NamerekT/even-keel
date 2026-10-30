@@ -100,7 +100,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message sent mid-turn has no bubble in the chat, no handoff on a full context |
 | 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot in a repository with its own MCP servers | the project's server starts beside the gateway's |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
-| 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 | 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
@@ -116,11 +115,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
-| 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth sign-in, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
+| 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth in the plaintext fallback, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
 
 ### Copilot's machine token and model availability (BTN-516)
 
-The GitHub CLI fallback and its allowance moved to [verified.md](verified.md#copilot) in BTN-520: `auth.getStatus` confirms `gh-cli`, host and login before its token is read. The tested Windows machine had no `copilot-cli` credential and no saved OAuth user or token in either the global or managed `config.json`; removing `gh` from PATH made CLI 1.0.105 fail authentication. Thus the separate `copilot-language-server/oauth-token-key` credential was not sufficient to sign this CLI in and was not read as a token. Own OAuth credentials (OS store or plaintext fallback), Linux/macOS, enterprise hosts and paid-plan eligibility remain unchecked and unavailable. The model endpoint remains open: on 2026-10-28, `copilot_internal/v2/token` returned 403 without an editor-identification header, so `/models` was not called. Do not substitute GitHub CLI credentials for another source, or impersonate VS Code to unlock models. **Workaround:** add a Copilot account with its own token for its existing usage support; leave its model field unset.
+The GitHub CLI fallback and its allowance moved to [verified.md](verified.md#copilot) in BTN-520: `auth.getStatus` confirms `gh-cli`, host and login before its token is read. The tested Windows machine had no `copilot-cli` credential and no saved OAuth user or token in either the global or managed `config.json`; removing `gh` from PATH made CLI 1.0.105 fail authentication. Thus the separate `copilot-language-server/oauth-token-key` credential was not sufficient to sign this CLI in and was not read as a token. Own OAuth in the Windows credential store was checked in the sandbox on 2026-10-31 ([verified.md](verified.md#copilot)): sessions run on it, `auth.getStatus` names it `user`, and the card has no allowance, as designed. The plaintext fallback, Linux/macOS, enterprise hosts and paid-plan eligibility remain unchecked and unavailable. The model endpoint remains open: on 2026-10-28, `copilot_internal/v2/token` returned 403 without an editor-identification header, so `/models` was not called. Do not substitute GitHub CLI credentials for another source, or impersonate VS Code to unlock models. **Workaround:** add a Copilot account with its own token for its existing usage support; leave its model field unset.
 
 ### The instruction size ceiling in a Claude session (BTN-468)
 
@@ -539,10 +538,6 @@ What a Copilot session writes when the AI credits or premium requests run out wa
 ### A Copilot token's monthly allowance (BTN-341)
 
 A Copilot folder with a token is asked `copilot_internal/user` first, then the billing API's `premium_request/usage` of the token's user, which needs the token's "Plan" read permission (`docs/sessions.md`, "Limits of OpenCode and Copilot"). Checked live only on the machine's sign-in, which has nothing read by design; never with a fine-grained token, nor with the AI credits of June 2026. If `copilot_internal/user` refuses a fine-grained token, the billing API is the only source, and it tells what was spent, not what is left: the card counts the requests used and the chain only learns the reset date. If the billing API answers in AI credits under another product name, the card shows 0 used. **Workaround:** none needed for the chain; the allowance is on GitHub's billing page.
-
-### Copilot installed with npm
-
-Even Keel looks for the `copilot.exe` winget installs, then `copilot` on the PATH. The npm package `@github/copilot` puts a `copilot.cmd` wrapper there, which a detached spawn without a shell may not start. **Workaround:** point `EVEN_KEEL_COPILOT_BIN` at the CLI's real executable.
 
 ### Copilot models in the stats
 
