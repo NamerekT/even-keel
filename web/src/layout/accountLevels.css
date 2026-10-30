@@ -172,27 +172,3 @@
 .account-level--changed {
   animation: block-glow var(--motion-mark) ease-out;
 }
-
-@media (max-width: 760px) {
-  .header__inner .header__limits {
-    position: static;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: end;
-    padding-bottom: var(--space-6);
-    max-width: 100%;
-  }
-
-  .header__limits .account-block__toggle {
-    min-height: 44px;
-    max-width: 100%;
-  }
-
-  .header__limits .account-toggle__label {
-    max-width: 16ch;
-  }
-
-  .header__limits .hblock .limit__reset {
-    display: none;
-  }
-}

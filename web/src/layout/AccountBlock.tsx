@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import type { AccountLevel } from '../../../src/account/header-levels.js'
 import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
-import { entrySlot, tightestWindow } from '../accounts.js'
+import { entrySlot } from '../accounts.js'
 import { formatSpan, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { accountBadge } from '../state.js'
@@ -21,11 +21,10 @@ interface BlockProps {
   limits: RateLimits | null
   now: Date
   levels?: AccountLevel[]
-  compact?: boolean
 }
 
 /** The server's launch choice in the header; pointing shows its inheritance and pressing opens the accounts drawer. */
-export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }], compact = false }: BlockProps) {
+export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }] }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
   const spend = useSpend(account)
   const tokens = useTokens(account)
@@ -41,7 +40,7 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
         {levels.length > 1 && <span className="account-stack" aria-label={String(levels.length)}>
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m2 5 6-3 6 3-6 3Z M2 8l6 3 6-3 M2 11l6 3 6-3" /></svg>{levels.length}
         </span>}
-        <BlockLimits entry={active} now={now} spend={spend} tokens={tokens} compact={compact} />
+        <BlockLimits entry={active} now={now} spend={spend} tokens={tokens} />
       </span>
     </button>
     {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} />}
@@ -62,13 +61,11 @@ export function AccountName({ account }: { account: AccountView }) {
   </span>
 }
 
-function BlockLimits({ entry, now, spend, tokens, compact }: { entry: AccountEntry | undefined; now: Date; spend: Spend; tokens: Tokens; compact: boolean }) {
+function BlockLimits({ entry, now, spend, tokens }: { entry: AccountEntry | undefined; now: Date; spend: Spend; tokens: Tokens }) {
   if (entry === undefined) return null
   const spans = limitSpans(entry.limits).filter((span) => entry.limits?.[span] != null)
   if (spans.length > 0) {
-    const tightest = tightestWindow(entry.limits)
-    const shown = compact ? [tightest?.span ?? spans[0]!] : spans
-    return shown.map((span) => <LimitSegment key={span} window={entry.limits![span]!} now={now} />)
+    return spans.map((span) => <LimitSegment key={span} window={entry.limits![span]!} now={now} />)
   }
   const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === null ? null : formatTokens(tokens[entry.key]?.day ?? 0)
   return text === null ? null : <span className="hblock__seg limit"><span className="limit__value">{text}</span></span>

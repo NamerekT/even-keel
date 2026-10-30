@@ -22,8 +22,16 @@
   padding: 0 11px;
 }
 
-.hblock__seg + .hblock__seg {
+/* `~`, not `+`: the cascade's stack count and the overage chip sit between the name and the first limit. */
+.hblock__seg ~ .hblock__seg {
   border-left: 1px solid var(--border);
+}
+
+/* Parts of one thing (the limit windows) split by a short line; the full-height line stays between different things (BTN-600). */
+.hblock__seg.limit + .hblock__seg.limit {
+  border-left: 0;
+  padding-left: 12px;
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 16px no-repeat;
 }
 
 /* The queue popover hangs under the work block: the anchor is outside it, so the block's overflow does not clip the popover. */
@@ -88,6 +96,12 @@
 .account-block__group {
   display: inline-flex;
   align-items: stretch;
+}
+
+/* The group stretches its segments to the block's height; the overage chip keeps its own (BTN-600). */
+.account-block__group > .account-overage-chip {
+  align-self: center;
+  margin-right: var(--space-8);
 }
 
 /* The accounts past the active one: a small ring each, the account's colour in its middle. */

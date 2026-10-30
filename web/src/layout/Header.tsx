@@ -5,6 +5,7 @@ import { SETUP } from '../pages/setupSteps.js'
 import { projectOfPath } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
+import { Limits } from './Limits.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
 import { GearMenu, Waiting } from './Status.js'
@@ -25,6 +26,9 @@ export function Header() {
   // The first run's setup is noise-free (BTN-346): no chain, account or limits yet to look at, the logo and the gear stay.
   const setup = useMatch(SETUP) !== null
   const live = setup ? null : state
+  const levels = project === undefined ? undefined : live?.account.headerLevels?.[project]
+  // A phone shows the limits of the account the header's chip would name, as thin bars along the header's bottom (BTN-600).
+  const phoneLimits = live?.account.accounts.find((entry) => entry.key === (levels?.[0]?.account ?? live.account.active))?.limits
 
   return (
     <header className="header">
@@ -68,13 +72,13 @@ export function Header() {
                 </div>
               </div>
             )}
-            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} levels={project === undefined ? undefined : live.account.headerLevels?.[project]} />}
+            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} levels={levels} />}
             <GearMenu now={now} />
           </div>
         )}
-        {live !== null && narrow && (
+        {narrow && phoneLimits && (
           <div className="header__limits">
-            <AccountBlock account={live.account} limits={live.limits} now={now} levels={project === undefined ? undefined : live.account.headerLevels?.[project]} compact />
+            <Limits limits={phoneLimits} now={now} />
           </div>
         )}
       </div>

@@ -1,10 +1,17 @@
 .cli-copy { min-width: 0; }
 .cli-copy p { margin: 0 0 var(--space-8); }
 .cli-copy__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
-.cli-copy__progress { display: grid; gap: var(--space-8); padding: var(--space-12); border-radius: var(--radius-control); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--fg); }
-.cli-copy progress { width: 100%; height: 8px; accent-color: var(--accent); }
-.cli-copy__bytes { font-size: var(--text-12); color: var(--fg-muted); }
+.cli-copy__progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-16); color: var(--fg); }
+.cli-copy__meter { display: flex; align-items: center; gap: var(--space-12); padding: 0 var(--space-12); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); min-width: 0; max-width: 100%; }
+.cli-copy__name { align-self: stretch; display: flex; align-items: center; padding: var(--space-6) var(--space-12) var(--space-6) 0; border-right: 1px solid var(--border); font-size: var(--text-13); white-space: nowrap; }
+.cli-copy__bytes { padding-left: var(--space-12); background: linear-gradient(var(--border), var(--border)) left center / 1px 16px no-repeat; }
+.cli-copy progress { flex: 0 1 240px; min-width: 64px; height: 6px; appearance: none; border: 0; border-radius: var(--radius-pill); overflow: hidden; background: var(--surface-muted); }
+.cli-copy progress::-webkit-progress-bar { background: var(--surface-muted); }
+.cli-copy progress::-webkit-progress-value { background: var(--accent); border-radius: var(--radius-pill); }
+.cli-copy progress::-moz-progress-bar { background: var(--accent); border-radius: var(--radius-pill); }
+.cli-copy__bytes { font-size: var(--text-12); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .banner__inner.cli-copy__banner { display: grid; gap: var(--space-12); width: 100%; }
+.banner__inner.cli-copy__banner > * { min-width: 0; }
 .banner.banner--info { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); color: var(--fg); }
 .add-package .cli-copy__actions { justify-content: flex-end; }
 .cli-copy__actions .button--primary { order: 1; }
