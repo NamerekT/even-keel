@@ -9,7 +9,7 @@ import { Banner } from './Banner.js'
 const DISMISSED_KEY = 'even-keel.cliVersions.dismissed'
 
 /**
- * A CLI on a version Even Keel was not checked against (BTN-249), or a daemon on another version than the pin (BTN-250);
+ * A CLI sessions run on at a version Even Keel was not checked against (BTN-249, BTN-593), or a daemon on another version than the pin (BTN-250);
  * one folded line, each CLI's notice under "Details" (BTN-349, open until a reload); closed, it stays hidden until that
  * version changes.
  */
@@ -18,7 +18,7 @@ export function CliVersionBanner() {
   const [dismissed, setDismissed] = useState(readDismissed)
   const [open, setOpen] = useState(false)
   const id = useId()
-  const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed && state?.cliCopies?.[each.agent]?.status !== 'downloading')
+  const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed)
   if (shown.length === 0) return <Banner />
 
   const dismiss = () => {

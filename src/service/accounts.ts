@@ -22,7 +22,7 @@ import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
 import { fixStem } from '../chain/fix.js'
 import { withUnattended } from '../chain/relay.js'
-import { idPrefixOf, ownerOf, poolEntries, projectLabel, projectsByAccount, runSettings } from '../config.js'
+import { idPrefixOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings } from '../config.js'
 import { LimitsWatcher } from '../limits/watcher.js'
 import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -323,7 +323,12 @@ export function wireCliVersions(ctx: AccountsContext): VersionWatcher {
       [...ctx.runtimes].flatMap(([name, agent]) => {
         const version = agent.version?.bind(agent)
         if (version === undefined) return []
-        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), pending: () => agent.cli?.view().status === 'downloading' }]
+        const runsOnInstalled = () => {
+          const config = ctx.configStore.current
+          const own = config.cli[name] === 'system' || Boolean(process.env[`EVEN_KEEL_${name.toUpperCase()}_BIN`])
+          return own && providersInUse(config, Object.keys(config.projects)).has(name)
+        }
+        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
       }),
     intervalMs: ctx.CLI_VERSION_POLL_MS,
     onChange: () => ctx.hub.broadcast('state', ctx.getState()),

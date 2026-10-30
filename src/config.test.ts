@@ -11,6 +11,7 @@ import {
   poolEntries,
   projectLabels,
   projectsByAccount,
+  providersInUse,
   readerIds,
   readerOf,
   readersOf,
@@ -486,6 +487,12 @@ describe('parseConfig', () => {
       },
     })
     expect(projectsByAccount(config, ['ABC', 'DEF', 'XYZ'])).toEqual({ codex: ['ABC'], 'team-api': ['DEF'], global: ['XYZ'] })
+  })
+
+  it('tells which providers run sessions: the shared one and each project own', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', provider: 'opencode' }, XYZ: 'C:\\xyz' } })
+    expect([...providersInUse(config, ['ABC', 'XYZ'])].sort()).toEqual(['claude', 'opencode'])
+    expect([...providersInUse(config, [])]).toEqual(['claude'])
   })
 
   it('rejects an unknown CI and a wait that is not whole minutes', () => {

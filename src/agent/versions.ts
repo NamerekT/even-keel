@@ -9,7 +9,8 @@ export interface VersionedAgent {
   checked: string
   installed(): boolean
   prune?(): Promise<void>
-  pending?(): boolean
+  /** Whether sessions run on the installed CLI: its provider is in use and not on Even Keel's copy (BTN-593). */
+  runsOnInstalled?(): boolean
   /** What `<cli> --version` prints. */
   version(): Promise<string>
 }
@@ -88,8 +89,8 @@ export class VersionWatcher {
     return undefined
   }
 
-  private viewOf({ name, title, checked, pending }: VersionedAgent): CliVersionView | null {
-    if (pending?.()) return null
+  private viewOf({ name, title, checked, runsOnInstalled }: VersionedAgent): CliVersionView | null {
+    if (runsOnInstalled?.() === false) return null
     const installed = this.installed.get(name)
     if (installed === undefined || installed === checked) return null
     return { agent: name, account: null, installed, checked, notice: notice('agent.uncheckedVersion', { title, installed, checked }) }
