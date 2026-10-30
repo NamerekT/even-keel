@@ -1,4 +1,10 @@
-import { DEFAULT_PROTECTION, type Protection } from '../../../src/sessions/protection.js'
+import { DEFAULT_PROTECTION, TRACKER_GROUPS, type Protection } from '../../../src/sessions/protection.js'
+
+/** The trackers' groups; "All trackers" keeps no value of its own: it is on exactly when every one of them is (BTN-541). */
+export const TRACKER_PROTECTION: readonly string[] = Object.values(TRACKER_GROUPS)
+export const allTrackersOn = (disabled: readonly string[]) => TRACKER_PROTECTION.every(group => !disabled.includes(group))
+export const switched = (disabled: readonly string[], groups: readonly string[], on: boolean): string[] =>
+  on ? disabled.filter(group => !groups.includes(group)) : [...disabled, ...groups.filter(group => !disabled.includes(group))]
 
 export interface ProtectionDraft { disabled: string[]; claude: string; codex: string; copilot: string; opencode: string }
 export const protectionText = (value: Protection = DEFAULT_PROTECTION): string => JSON.stringify({

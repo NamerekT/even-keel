@@ -41,6 +41,8 @@ The remaining JSON files written through `writeAtomic` (`src/storage/atomic.ts`)
 
 ## Schema steps
 
+- Step 19 and file schema v20 (BTN-541) split Protection's one tracker group `deleteTracker` into a group per tracker (`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`): a disabled `deleteTracker` disables all five, at the shared and the project level. The step rewrites the `protection` rows of `setting_values`; the file migration (`trackerGroupsOwned`) does the same on import. The frozen v19 sample holds a shared and a project row with the old group; `database-protection.test.ts` checks both paths.
+
 - Step 18 (BTN-577) reserves the new `LimitHold.overage` JSON in `chains`: the retained session snapshot and successful-stop marker let a paid subscription usage stop survive a restart. Tables are unchanged; the version prevents older code from dropping the wait and relaunching. The frozen v18 sample includes an unknown-reset paid hold; `database-overage.test.ts` checks its schema, full read and save/load roundtrip, and preservation of v17 state.
 
 - File schema v19 (BTN-394) adds nullable `autoCompactWindow` at the shared and project levels and optional launch `settings` to SDK session records. Migration only restamps older files, preserving account-window inheritance. The settings definition is mirrored from the registry at startup; existing settings rows and SDK files need no database step.

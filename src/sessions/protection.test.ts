@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PROTECTION, protectionRules } from './protection.js'
+import { DEFAULT_PROTECTION, deletesRecord, PROTECTION_GROUPS, protectionRules, TRACKER_GROUPS } from './protection.js'
 import { chainSettings } from '../tools/panel.js'
+import { ADAPTERS } from '../tracker/adapters.js'
 import { turnArgs as copilotArgs } from '../copilot/cli.js'
 
 describe('session protection', () => {
@@ -22,6 +23,20 @@ describe('session protection', () => {
     expect(rules.codex).toContainEqual(['git', 'push', '--force'])
     expect(rules.copilot).toContain('shell(git push --force:*)')
     expect(rules.claude).toContain('mcp__plugin_huly_huly__delete_issue')
+  })
+
+  it('keeps the native Huly rules with the Huly group only: the other trackers are the gateway\'s', () => {
+    expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteHuly'] }).claude.some(rule => rule.includes('huly'))).toBe(false)
+    expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira'] }).claude).toContain('mcp__plugin_huly_huly__delete_issue')
+    expect(Object.values(TRACKER_GROUPS).every(group => PROTECTION_GROUPS.includes(group))).toBe(true)
+    expect(Object.keys(TRACKER_GROUPS).sort()).toEqual(Object.keys(ADAPTERS).sort())
+  })
+
+  it('knows a deleting call by a word of the tool name or by a delete method', () => {
+    for (const tool of ['delete_issue', 'delete_issue_link', 'deleteComment', 'jira-delete-issue', 'DELETE_LABEL']) expect(deletesRecord(tool, {})).toBe(true)
+    for (const tool of ['preview_deletion', 'remove_issue_label', 'undeleted_items', 'update_issue', 'label_write']) expect(deletesRecord(tool, { method: 'update' })).toBe(false)
+    expect(deletesRecord('label_write', { method: 'delete', name: 'bug' })).toBe(true)
+    expect(deletesRecord('label_write', null)).toBe(false)
   })
 
   it('writes Copilot rules as command prefixes, its only wildcard being a trailing :*', () => {

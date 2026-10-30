@@ -60,6 +60,21 @@
   gap: 4px;
 }
 
+/* The fields under the switch of their group (the trackers under "Deleting tracker records"): a line at their left ties them to it. */
+.settings__nested {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-left: var(--space-8);
+  padding-left: var(--space-16);
+  border-left: 2px solid color-mix(in srgb, var(--fg) 30%, transparent);
+}
+
+.settings__nested > .settings__field {
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
 /* A row's name is lighter than the card's head and darker than a hint: head → name → value. */
 .settings__label {
   color: color-mix(in srgb, var(--fg) 70%, var(--fg-muted));

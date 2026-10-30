@@ -56,6 +56,8 @@ export interface PackagesDeps {
   /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project id. */
   poolOf: (project: string) => NodeJS.ProcessEnv
   oauth?: (project: string, server: string, url: unknown) => GatewayOAuth | undefined
+  /** The tracker whose deletes the project's Protection refuses, when the server is that tracker's. */
+  refuseDeletes?: (project: string, server: string) => string | undefined
   port: number
   log: (line: string) => void
   /** The view or what a project is held on changed. */
@@ -450,7 +452,8 @@ export class Packages {
     const oauth = this.deps.oauth?.(project, route.server, entry.url)
     if (oauth) entry = withoutAuthorization(entry)
     const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
-    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, ...(oauth === undefined ? {} : { oauth }) }
+    const refuseDeletes = this.deps.refuseDeletes?.(project, route.server)
+    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, ...(oauth === undefined ? {} : { oauth }), ...(refuseDeletes === undefined ? {} : { refuseDeletes }) }
   }
 
   /** `null` — the versions are those of the current install: nothing new is kept. */

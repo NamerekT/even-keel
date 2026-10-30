@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createServer as createNetServer } from 'node:net'
 import { Readable } from 'node:stream'
 import { fail } from '../notice/notice.js'
+import { deletesRecord } from '../sessions/protection.js'
 import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
 
@@ -38,6 +39,8 @@ export interface GatewayTarget {
   /** Variables a stdio server gets on top of its entry's `env`. */
   env: Record<string, string>
   oauth?: GatewayOAuth
+  /** The tracker whose deletes Protection refuses on this server (BTN-541): such a `tools/call` never reaches it. */
+  refuseDeletes?: string
 }
 
 export interface GatewayOAuth {
@@ -122,6 +125,11 @@ export class McpGateway {
     let local = false
     try {
       if (req.method === 'POST') body = await readBody(req)
+      const refused = target.refuseDeletes === undefined ? null : refusedDeletes(body, target.refuseDeletes)
+      if (refused !== null) {
+        this.deps.log(`mcp gateway: ${label}: Protection refused ${refused.tools.join(', ')}`)
+        return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(refused.reply))
+      }
       const { entry } = target
       if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers), body, target.oauth)
       if (typeof entry.command !== 'string') return void res.writeHead(404).end()
@@ -374,6 +382,34 @@ async function proxy(req: IncomingMessage, res: ServerResponse, url: string, hea
   res.writeHead(response.status, back)
   if (response.body === null) return void res.end()
   Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).on('error', () => res.end()).pipe(res)
+}
+
+/**
+ * The answer to a body that calls a deleting tool, `null` when it calls none. Each such call gets a tool error the agent
+ * reads; in a batch the other requests are not sent either and get a JSON-RPC error, so nothing of it half-runs.
+ */
+export function refusedDeletes(body: Buffer | undefined, tracker: string): { tools: string[]; reply: unknown } | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body?.toString('utf8') ?? '')
+  } catch {
+    return null
+  }
+  const messages = (Array.isArray(parsed) ? parsed : [parsed]) as (Record<string, unknown> | null)[]
+  const refusedOf = (message: Record<string, unknown> | null): string | null => {
+    if (message?.method !== 'tools/call' || typeof message.params !== 'object' || message.params === null) return null
+    const { name, arguments: args } = message.params as { name?: unknown; arguments?: unknown }
+    return typeof name === 'string' && deletesRecord(name, args) ? name : null
+  }
+  const tools = messages.map(refusedOf).filter((tool) => tool !== null)
+  if (tools.length === 0) return null
+  const text = `Even Keel's Protection refuses deleting ${tracker} records in chain sessions. Do not try another way: ask the user to delete it or to turn this tracker off in Protection.`
+  const replies = messages
+    .filter((message) => message !== null && message.id !== undefined && message.id !== null)
+    .map((message) => refusedOf(message) !== null
+      ? { jsonrpc: '2.0', id: message!.id, result: { content: [{ type: 'text', text }], isError: true } }
+      : { jsonrpc: '2.0', id: message!.id, error: { code: -32600, message: 'Not sent: the batch also called a tool Protection refuses' } })
+  return { tools, reply: Array.isArray(parsed) ? replies : replies[0] }
 }
 
 /** The JSON-RPC methods of a request body, joined by a comma; `null` when it has none. */

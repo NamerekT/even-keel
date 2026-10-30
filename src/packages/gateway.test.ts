@@ -147,6 +147,34 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
     upstream.closeAllConnections()
   })
 
+  it('answers a deleting call of a protected tracker itself and lets the other calls through', async () => {
+    const seen: string[] = []
+    upstream = createServer((req, res) => {
+      let text = ''
+      req.on('data', (chunk) => (text += chunk))
+      req.on('end', () => {
+        seen.push(text)
+        res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":2,"result":{}}')
+      })
+    })
+    await new Promise<void>((resolve) => upstream!.listen(0, '127.0.0.1', resolve))
+    const port = (upstream.address() as { port: number }).port
+    const url = await start({ entry: { type: 'http', url: `http://127.0.0.1:${port}/mcp` }, npm: null, env: {}, refuseDeletes: 'GitLab' })
+    const refused = await post(url, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'delete_issue', arguments: { issue_iid: 3 } } })
+    expect(await refused.json()).toMatchObject({ id: 1, result: { isError: true, content: [{ type: 'text', text: expect.stringContaining('deleting GitLab records') }] } })
+    const batch = await post(url, [{ jsonrpc: '2.0', id: 'a', method: 'tools/list' }, { jsonrpc: '2.0', id: 'b', method: 'tools/call', params: { name: 'label_write', arguments: { method: 'delete' } } }])
+    expect(await batch.json()).toMatchObject([{ id: 'a', error: { code: -32600 } }, { id: 'b', result: { isError: true } }])
+    expect(seen).toEqual([])
+    expect((await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'update_issue', arguments: {} } })).status).toBe(200)
+    expect(seen).toHaveLength(1)
+  })
+
+  it('lets a deleting call through when Protection is off for the server', async () => {
+    const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} })
+    const session = (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).headers.get('mcp-session-id')!
+    expect(await (await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'delete_issue' } }, session)).json()).toMatchObject({ result: { method: 'tools/call' } })
+  })
+
   it('answers 404 to a route it does not know', async () => {
     const url = await start(null)
     expect((await post(url, {})).status).toBe(404)

@@ -31,6 +31,7 @@ import { secretCatalog } from '../secrets/catalog.js'
 import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
+import { TRACKER_GROUPS } from '../sessions/protection.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from '../sessions/launch.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { TranscriptOwners } from '../sessions/owners.js'
@@ -166,6 +167,12 @@ export function wirePackages(ctx: AccountsContext): Packages {
     baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, ctx.packages.keyNames()),
     poolOf: (project) => keyPool(ctx.profiles.current(), ctx.profileKindsOf, process.env, project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project]),
     oauth: (project, server, url) => ctx.profiles.gateway(serverProfile(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project] ?? [], server)?.id, server, url),
+    refuseDeletes: (project, server) => {
+      const [tracker, adapter] = Object.entries(ADAPTERS).find(([, each]) => each.mcpServer === server) ?? []
+      const { disabled } = ctx.configStore.current.settings[project]?.protection ?? ctx.configStore.current.protection
+      const group = tracker === undefined ? undefined : TRACKER_GROUPS[tracker]
+      return group === undefined || disabled.includes(group) ? undefined : adapter!.title
+    },
     port: ctx.mcpPort,
     log: (line) => console.log(line),
     onChange: () => {

@@ -1,5 +1,5 @@
 {
-  "version": 19,
+  "version": 20,
   "autoCompactWindow": null,
   "protection": { "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] },
   "allowedHosts": [],
