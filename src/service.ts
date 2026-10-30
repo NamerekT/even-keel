@@ -299,6 +299,8 @@ const context = {
   get works() { return works },
   get writes() { return writes },
 }
+/** The running service, for the chain's end-to-end tests (`src/e2e/`). */
+export const service = context
 
 const stateDb = keptDatabase()
 const db = stateDb.db
