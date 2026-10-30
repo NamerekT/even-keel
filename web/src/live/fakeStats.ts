@@ -1,4 +1,5 @@
 import type {
+  AccountSpend,
   AccountTokens,
   LimitCoverage,
   PeriodQuery,
@@ -94,13 +95,27 @@ export function fakeCheckpoints(mode: string | null): StatsAnswer<CheckpointThre
   )
 }
 
-/** Today's spend by account folder: the API accounts of `?account=api` and the one added in the fake. */
-export function fakeSpend(mode: string | null): StatsAnswer<Record<string, number>> {
-  return failure<Record<string, number>>(mode) ?? { state: 'ok', data: { global: 38.42, 'jane.roe': 4.1, 'ci-key': 12.07, api: 0.004 } }
+/** The spend of today and of 30 days by account folder: the API accounts of `?account=api`, `?account=connections` and the one added in the fake. */
+export function fakeSpend(mode: string | null): StatsAnswer<Record<string, AccountSpend>> {
+  return failure<Record<string, AccountSpend>>(mode) ?? {
+    state: 'ok',
+    data: {
+      global: { day: 38.42, month: 412.6 },
+      'jane.roe': { day: 4.1, month: 51.3 },
+      'ci-key': { day: 12.07, month: 97.15 },
+      api: { day: 0.004, month: 0.42 },
+      'codex-key': { day: 0, month: 0 },
+      'opencode-anthropic': { day: 0, month: 0.03 },
+      'opencode-openai': { day: 0, month: 0 },
+    },
+  }
 }
 
 export function fakeTokens(mode: string | null): StatsAnswer<Record<string, AccountTokens>> {
-  return failure<Record<string, AccountTokens>>(mode) ?? { state: 'ok', data: { opencode: { day: 4_820_000, month: 61_300_000 }, copilot: { day: 0, month: 912_000 } } }
+  return failure<Record<string, AccountTokens>>(mode) ?? {
+    state: 'ok',
+    data: { opencode: { day: 4_820_000, month: 61_300_000 }, 'opencode-zen': { day: 0, month: 20_000_000 }, copilot: { day: 0, month: 912_000 } },
+  }
 }
 
 const LIMIT_DAYS = 20

@@ -7,7 +7,7 @@ import { COPILOT } from '../../../src/copilot/name.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
-import type { AccountTokens } from '../../../src/stats/model.js'
+import type { AccountSpend, AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { CLI_MISSING, connectionOf } from '../accounts.js'
@@ -29,10 +29,10 @@ import './accountAdd.css'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
-/** Today's spend in dollars by account folder key; null while Tally has not answered. */
-export type Spend = Record<string, number> | null
+/** The spend in dollars of today and of 30 days by account folder key; null while Tally has not answered. */
+export type Spend = Record<string, AccountSpend> | null
 
-/** Today's spend by account folder from Tally, read only while there is an API account to show it for. */
+/** The spend by account folder from Tally, read only while there is an API account to show it for. */
 export function useSpend(account: AccountView): Spend {
   const { statsSpend } = useLive()
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -119,7 +119,7 @@ export function sharedLimitText(entry: AccountEntry, accounts: AccountEntry[]): 
 
 export function spendText(spend: Spend, key: string): string {
   if (spend === null) return t.account.todayNone
-  return t.account.today(formatUsd(spend[key] ?? 0))
+  return t.account.today(formatUsd(spend[key]?.day ?? 0))
 }
 
 export function globalFolder(agent: string): string {

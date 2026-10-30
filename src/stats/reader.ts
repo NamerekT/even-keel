@@ -1,5 +1,6 @@
 import pg from 'pg'
 import type {
+  AccountSpend,
   AccountTokens,
   LimitCoverage,
   PeriodQuery,
@@ -44,11 +45,13 @@ order by l.day, l.project`
 
 const ACCOUNTS = `select distinct account from messages order by account`
 
-// $1 time zone: the spend since local midnight, per account folder key.
+// $1 time zone: the spend since local midnight and over the last 30 days, per account folder key.
 const SPEND = `
-select account, coalesce(sum(cost), 0) as cost
+select account,
+  coalesce(sum(cost) filter (where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text), 0) as day,
+  coalesce(sum(cost), 0) as month
 from message_costs
-where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text
+where at >= now() - interval '30 days'
 group by account`
 
 // $1 time zone: the tokens since local midnight and over the last 30 days, per account folder key.
@@ -547,11 +550,11 @@ export class StatsReader {
     })
   }
 
-  /** Today's spend in dollars by account folder key, for the accounts panel; an API account pays it from its key. */
-  spend(tz: string): Promise<StatsAnswer<Record<string, number>>> {
+  /** The spend in dollars of today and of 30 days by account folder key, for the accounts panel; an API account pays it from its key. */
+  spend(tz: string): Promise<StatsAnswer<Record<string, AccountSpend>>> {
     return this.cached(`spend|${tz}`, async (pool) => {
       const { rows } = await pool.query<Row>(SPEND, [tz])
-      return Object.fromEntries(rows.map((row) => [String(row.account), number(row.cost)]))
+      return Object.fromEntries(rows.map((row) => [String(row.account), { day: number(row.day), month: number(row.month) }]))
     })
   }
 

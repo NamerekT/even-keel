@@ -16,6 +16,7 @@ import {
   isTaskId,
   parsePeriodQuery,
   parseStatsFilter,
+  type AccountSpend,
   type AccountTokens,
   type PeriodQuery,
   type StatsAnswer,
@@ -67,7 +68,7 @@ export interface StatsSource {
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
   checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
-  spend(tz: string): Promise<StatsAnswer<Record<string, number>>>
+  spend(tz: string): Promise<StatsAnswer<Record<string, AccountSpend>>>
   tokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>

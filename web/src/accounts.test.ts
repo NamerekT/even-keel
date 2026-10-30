@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import type { RateLimits } from '../../src/limits/model.js'
 import {
+  ACCESS_OWNER,
+  accessGroups,
+  accessOf,
   accountGroups,
   accountSlot,
   cliMissing,
@@ -84,6 +87,59 @@ describe('connectionOf', () => {
   it('tells an account on a key from one signed in through the CLI', () => {
     expect(connectionOf(entry('work', 'jane@example.com'))).toBe('cli')
     expect(connectionOf({ ...entry('ci', 'ci'), apiKey: true })).toBe('apiKey')
+  })
+})
+
+describe('accessOf', () => {
+  const of = (agent: string, patch: Partial<AccountEntry> = {}, providers: string | null = null) => {
+    const base = { ...entry('key', null), agent, ...patch }
+    return { ...base, status: { loggedIn: true, authMethod: null, email: null, orgName: null, subscriptionType: providers } }
+  }
+
+  it('tells a subscription from a key of the same provider', () => {
+    expect(accessOf(of('claude'))).toBe('claudeSubscription')
+    expect(accessOf(of('claude', { apiKey: true }))).toBe('anthropicKey')
+    expect(accessOf(of('codex'))).toBe('chatgpt')
+    expect(accessOf(of('codex', { apiKey: true }))).toBe('openaiKey')
+  })
+
+  it('puts every Copilot account, a token or the machine sign-in, under GitHub', () => {
+    expect(accessOf(of('copilot'))).toBe('github')
+    expect(accessOf(of('copilot', { apiKey: true }))).toBe('github')
+  })
+
+  it("reads an OpenCode folder by the provider whose limits it shows, a key by the key's provider", () => {
+    expect(accessOf(of('opencode', {}, 'openai'))).toBe('chatgpt')
+    expect(accessOf(of('opencode', {}, 'github-copilot'))).toBe('github')
+    expect(accessOf(of('opencode', {}, 'openai, github-copilot'))).toBe('chatgpt')
+    expect(accessOf(of('opencode', {}, 'anthropic'))).toBe('claudeSubscription')
+    expect(accessOf(of('opencode', { apiKey: true }, 'anthropic'))).toBe('anthropicKey')
+    expect(accessOf(of('opencode', { apiKey: true }, 'openai'))).toBe('openaiKey')
+  })
+
+  it("takes an OpenCode folder with no sign-in or with OpenCode's own key for Zen", () => {
+    expect(accessOf(of('opencode'))).toBe('zen')
+    expect(accessOf(of('opencode', { apiKey: true }, 'opencode'))).toBe('zen')
+  })
+
+  it('has no connection of its own for an agent the page does not know', () => {
+    expect(accessOf(of('gemini'))).toBe('other')
+  })
+})
+
+describe('accessGroups', () => {
+  const of = (key: string, agent: string, apiKey = false) => ({ ...entry(key, null), agent, apiKey })
+
+  it('splits an agent by connection in a fixed order, keeping the order of the accounts inside', () => {
+    const groups = accessGroups([of('key', 'claude', true), of('pro', 'claude'), of('max', 'claude')])
+    expect(groups.map((group) => [group.access, group.entries.map((each) => each.key)])).toEqual([
+      ['claudeSubscription', ['pro', 'max']],
+      ['anthropicKey', ['key']],
+    ])
+  })
+
+  it('names who bills each connection', () => {
+    expect(ACCESS_OWNER).toMatchObject({ claudeSubscription: 'anthropic', anthropicKey: 'anthropic', chatgpt: 'openai', openaiKey: 'openai', zen: 'zen', github: 'github' })
   })
 })
 

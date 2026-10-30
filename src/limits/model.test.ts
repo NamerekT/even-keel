@@ -122,6 +122,11 @@ describe('limitSpans', () => {
   it('puts the month after the windows a plan has besides it', () => {
     expect(limitSpans({ fiveHour: window, sevenDay: null, month: window, updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['fiveHour', 'month'])
   })
+
+  it('leaves out a window the provider\'s own answer does not have, as ChatGPT Pro has no five hours', () => {
+    expect(limitSpans({ fiveHour: null, sevenDay: window, updatedAt: RECEIVED_AT, source: 'api' })).toEqual(['sevenDay'])
+    expect(limitSpans({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'api' })).toEqual(['fiveHour', 'sevenDay'])
+  })
 })
 
 describe('newestLimits', () => {
