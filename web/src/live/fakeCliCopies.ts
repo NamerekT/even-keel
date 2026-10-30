@@ -5,19 +5,22 @@ import type { EvenKeelState } from '../../../src/state.js'
 
 const VERSIONS: Record<string, string> = { claude: '2.1.310', codex: '0.164.0', opencode: '1.18.25', copilot: '1.0.98' }
 const SIZES: Record<string, number> = { claude: 280, codex: 440, opencode: 170, copilot: 155 }
+const INSTALLED: Record<string, string> = { claude: '2.1.312', codex: '0.165.0', opencode: '1.19.5', copilot: '1.0.99' }
 
 export function withCliCopies(state: EvenKeelState, params: URLSearchParams): EvenKeelState {
   const mode = params.get('copies')
   if (!mode) return state
+  if (mode === 'fresh') return freshInstall(state, params)
   const provider = params.get('copyAgent') ?? 'claude'
   const cliCopies = Object.fromEntries(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
-    version: VERSIONS[agent]!, source: 'checked', status: 'ready', system: true, received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
+    version: VERSIONS[agent]!, source: 'checked', status: 'ready', system: true, installed: INSTALLED[agent]!, received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
   }]))
   const copy = cliCopies[provider]
   if (!copy) return state
   copy.status = mode === 'downloading' ? 'downloading' : mode === 'failed' ? 'failed' : mode === 'ready' ? 'ready' : 'missing'
   copy.source = mode === 'failed' || mode === 'system-missing' ? 'system' : 'checked'
   copy.system = mode !== 'system-missing' && params.get('copySystem') !== 'missing'
+  if (!copy.system) copy.installed = null
   copy.received = mode === 'downloading' ? 96_000_000 : 0
   copy.total = mode === 'downloading' ? copy.approximate : 0
   const next = { ...state, cliCopies, config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [provider]: copy.source } } } }
@@ -26,6 +29,24 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
     ...next,
     account: { ...next.account, missing: copy.source === 'checked' && copy.status === 'ready' || copy.system ? next.account.missing.filter((agent) => agent !== provider) : [...new Set([...next.account.missing, provider])] },
     chain: { ...next.chain, active: next.chain.active.map((chain, index) => index === 0 && blocked ? { ...chain, current: null, paused: true, error: notice('agent.copyMissing', { title: provider, agent: provider }) } : chain) },
+  }
+}
+
+/**
+ * A first run after BTN-603 (`copies=fresh`): every source the installed CLI, Claude Code and OpenCode on the machine,
+ * Codex and Copilot not, no copy downloaded; `provider` picks the chosen agent.
+ */
+function freshInstall(state: EvenKeelState, params: URLSearchParams): EvenKeelState {
+  const present = new Set(['claude', 'opencode'])
+  const cliCopies = Object.fromEntries(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
+    version: VERSIONS[agent]!, source: 'system', status: 'missing', system: present.has(agent), installed: present.has(agent) ? INSTALLED[agent]! : null,
+    received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
+  }]))
+  const shared = state.config.shared
+  const provider = params.get('provider') ?? shared.provider
+  return { ...state, cliCopies,
+    config: { ...state.config, shared: { ...shared, provider, cli: Object.fromEntries(PROVIDERS.map((agent) => [agent, 'system'])) } },
+    account: { ...state.account, missing: PROVIDERS.filter((agent) => !present.has(agent)) },
   }
 }
 

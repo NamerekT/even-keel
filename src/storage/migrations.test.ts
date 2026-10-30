@@ -9,10 +9,13 @@ import { writeAtomic } from './atomic.js'
 import { currentConfig, upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
+/** What v21 writes into a config of before (BTN-603): the providers it left out of `cli` stay on the checked copy. */
+const CHECKED = { cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' } }
+
 describe('upgradeStorage', () => {
   it('upgrades v18 without writing a chain compaction override', () => {
     const raw = { version: 18, projects: [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }] }
-    expect(currentConfig(raw)).toEqual({ ...raw, version: SCHEMA_VERSION })
+    expect(currentConfig(raw)).toEqual({ ...raw, ...CHECKED, version: SCHEMA_VERSION })
   })
 
   let dir: string
@@ -94,6 +97,7 @@ describe('upgradeStorage', () => {
       expect(Object.keys(config)[0]).toBe('version')
       expect(config).toEqual({
         version: SCHEMA_VERSION,
+        ...CHECKED,
         language: 'en',
         projects: [
           { id: 'guid-1', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' },
@@ -151,7 +155,7 @@ describe('upgradeStorage', () => {
       put(configFile, { projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
       put(state('chain.json'), { ...v1Chain, active: [], queue: [], orders: { ABC: [] }, skipped: {}, leftovers: {}, released: {}, ci: {} })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
       expect(json(state('chain.json')).orders).toEqual({ 'id-abc': [] })
     })
 
@@ -199,6 +203,7 @@ describe('upgradeStorage', () => {
         if (name === 'even-keel.config.json') {
           old.projects = old.projects.map((entry: Record<string, unknown>) => ({ ...entry, tracker: entry.tracker ?? old.tracker }))
           delete old.tracker
+          old.cli = { ...CHECKED.cli, ...old.cli }
         }
         if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
       }
@@ -245,7 +250,7 @@ describe('upgradeStorage', () => {
       put(configFile, { version: 7, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', codexBypassSandbox: false }] })
       put(state('account.json'), { version: 7, active: 'global', accounts: {}, removing: [] })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly' }] })
     })
   })
 
@@ -303,13 +308,13 @@ describe('upgradeStorage', () => {
     it('gives each project without a tracker of its own the shared one and drops the shared key', () => {
       put(configFile, { version: 12, tracker: 'linear', projects: [ABC_ENTRY, { ...XYZ_ENTRY, tracker: 'github', github: 'octo-org/xyz' }] })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ ...ABC_ENTRY, tracker: 'linear' }, { ...XYZ_ENTRY, tracker: 'github', github: 'octo-org/xyz' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects: [{ ...ABC_ENTRY, tracker: 'linear' }, { ...XYZ_ENTRY, tracker: 'github', github: 'octo-org/xyz' }] })
     })
 
     it('gives them Huly, the default of then, when the config named no shared tracker', () => {
       put(configFile, { version: 12, projects: [ABC_ENTRY] })
       upgrade()
-      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ ...ABC_ENTRY, tracker: 'huly' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects: [{ ...ABC_ENTRY, tracker: 'huly' }] })
     })
   })
 

@@ -146,7 +146,19 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const openCode = version < 16 ? configV16(protectedConfig) : protectedConfig
   const prompts = version < 17 ? configV17(openCode) : openCode
   const windows = version < 19 ? configV19(prompts) : prompts
-  return version < 20 ? trackerGroupsOwned(windows) : windows
+  const groups = version < 20 ? trackerGroupsOwned(windows) : windows
+  return version < 21 ? cliChecked(groups) : groups
+}
+
+/**
+ * v20 → v21: the default of `cli` became `system` (BTN-603); a provider the file left out ran on the checked copy, so
+ * it gets `checked` written and its sessions do not move to the installed CLI.
+ */
+export function cliChecked(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if ('cli' in raw && !isRecord(raw.cli)) return stamped(raw)
+  const cli = isRecord(raw.cli) ? raw.cli : {}
+  return stamped({ ...raw, cli: { ...Object.fromEntries(['claude', 'codex', 'opencode', 'copilot'].map((provider) => [provider, 'checked'])), ...cli } })
 }
 
 /** v19 → v20: the one tracker group of Protection becomes a group per tracker; a disabled one disables them all (BTN-541). */

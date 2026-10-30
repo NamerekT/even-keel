@@ -244,6 +244,19 @@ export const STEPS: readonly string[] = [
      set value = replace(value, '"deleteTracker"', '"deleteHuly","deleteGithub","deleteGitlab","deleteLinear","deleteJira"')
    where key = 'protection';
   `,
+  // The default of `cli` became `system` (BTN-603): an existing database writes `checked` for every provider it left
+  // out, so its sessions stay on the copy; a fresh one, passing through every step, keeps the new default.
+  `
+  insert into setting_definitions (key, kind, spec, default_value, scopes, qualifier)
+    select 'cli', 'enum', '{}', '{"claude":"checked","codex":"checked","opencode":"checked","copilot":"checked"}', 'global', 'provider'
+     where current_setting('even_keel.migration_from', true)::integer > 0
+    on conflict (key) do nothing;
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select 'cli', null, provider, '"checked"', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
+      from unnest(array['claude', 'codex', 'opencode', 'copilot']) as provider
+     where current_setting('even_keel.migration_from', true)::integer > 0
+       and not exists (select 1 from setting_values v where v.key = 'cli' and v.project_id is null and v.qualifier = provider);
+  `,
 ]
 
 /** The version this code reads and writes. */

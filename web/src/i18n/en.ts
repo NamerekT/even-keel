@@ -1377,13 +1377,6 @@ export const en: Messages = {
     noAccount: (agent: string) => `No ${agent} account yet.`,
     addAccount: 'Add an account',
     login: 'Sign in',
-    cli: 'CLI version',
-    cliSources: { checked: 'Checked', system: 'Installed' } as Record<string, string>,
-    cliHints: {
-      checked: 'Even Keel downloads the version it was checked against into its own folder at the first session launch and runs sessions on it. Until the download ends they run on the installed CLI.',
-      system: "This machine's CLI, on whatever version it updated itself to. Nothing is downloaded.",
-    } as Record<string, string>,
-    cliSize: 'Claude Code is about 270 MB per version.',
     trackerLead: 'Even Keel reads tasks with an access profile: the tracker address and a token. It can be added later too, in the project wizard or in Settings → Trackers and CI.',
     connect: 'Connect',
     addAnother: 'Add another',
