@@ -6,7 +6,7 @@ import { fixture, schemaOf } from './database.fixture.js'
 
 it('step 18 preserves old state and freezes retained paid-usage stops for restart', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 16))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(18))

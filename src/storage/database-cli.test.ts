@@ -12,7 +12,7 @@ const cliRows = async (db: PGlite) =>
 
 it('step 20 writes `checked` for every provider an existing database left out of `cli`, an explicit value kept', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 18))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(20))

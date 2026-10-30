@@ -209,7 +209,10 @@ export function fakeDismissMail(state: EvenKeelState, sessionId: string): EvenKe
   return withMail(state, sessionId, (each) => (each.fate === 'returned' ? { ...each, fate: 'dismissed' } : each))
 }
 
-/** `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook, one came back. */
+/**
+ * `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook, one came back
+ * after a question and one after the task's branch landed in main (BTN-558).
+ */
 export function fakeMailbox(task: string, sessionId: string, now: number): SessionMail {
   const minutes = (count: number) => now - count * 60_000
   return {
@@ -217,7 +220,8 @@ export function fakeMailbox(task: string, sessionId: string, now: number): Sessi
     steers: false,
     mail: [
       { ...fakeMail(task, sessionId, minutes(1), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(now).toISOString() },
-      fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'),
+      { ...fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'), reason: 'asked' },
+      { ...fakeMail(task, sessionId, minutes(2), 'И шрифт на плашках ошибок сделай поменьше.', 'returned'), reason: 'closed' },
       fakeMail(task, sessionId, minutes(0.2), 'Ещё учти: порядок задач берём из blocks, не из приоритета.', 'waiting'),
     ],
   }
@@ -227,7 +231,7 @@ let mailIds = 100
 
 function fakeMail(task: string, sessionId: string, at: number, text: string, fate: Mail['fate']): Mail {
   const postedAt = new Date(at).toISOString()
-  return { id: mailIds++, task, sessionId, text, files: [], postedAt, fate, event: null, settledAt: fate === 'waiting' ? null : postedAt }
+  return { id: mailIds++, task, sessionId, text, files: [], postedAt, fate, event: null, reason: null, settledAt: fate === 'waiting' ? null : postedAt }
 }
 
 function withMail(state: EvenKeelState, sessionId: string, change: (mail: Mail) => Mail): EvenKeelState {

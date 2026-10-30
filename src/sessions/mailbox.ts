@@ -1,5 +1,5 @@
 import type { Db, Writes } from '../storage/database.js'
-import type { Mail, MailEvent, MailFate } from './mail.js'
+import type { Mail, MailEvent, MailFate, MailReason } from './mail.js'
 
 const KEEP_MS = 7 * 24 * 60 * 60_000
 const SHOWN_DELIVERED = 3
@@ -24,6 +24,7 @@ interface Row {
   posted_at: string
   fate: MailFate
   event: MailEvent | null
+  reason: MailReason | null
   settled_at: string | null
 }
 
@@ -59,7 +60,7 @@ export class Mailbox {
     const before = new Date(at.getTime() - KEEP_MS).toISOString()
     this.mails = this.mails.filter((mail) => mail.fate === 'waiting' || mail.settledAt === null || mail.settledAt >= before)
     const id = Math.max(0, ...this.mails.map((each) => each.id)) + 1
-    const mail: Mail = { id, task, sessionId, text, files, postedAt: at.toISOString(), fate: 'waiting', event: null, settledAt: null }
+    const mail: Mail = { id, task, sessionId, text, files, postedAt: at.toISOString(), fate: 'waiting', event: null, reason: null, settledAt: null }
     this.mails.push(mail)
     this.write("delete from mailbox where fate <> 'waiting' and settled_at < $1", [before])
     this.write("insert into mailbox (id, task, session_id, text, files, posted_at, fate) values ($1, $2, $3, $4, $5, $6, 'waiting')", [
@@ -96,19 +97,20 @@ export class Mailbox {
     for (const mail of mails) this.claimed.delete(mail.id)
   }
 
-  /** Gives `fate` to those of `mails` that still wait and returns them. */
-  settle(mails: Mail[], fate: Exclude<MailFate, 'waiting'>, event: MailEvent | null = null): Mail[] {
+  /** Gives `fate` to those of `mails` that still wait and returns them; a returned one keeps `reason`. */
+  settle(mails: Mail[], fate: Exclude<MailFate, 'waiting'>, event: MailEvent | null = null, reason: MailReason | null = null): Mail[] {
     const settledAt = this.now().toISOString()
     const ids = new Set(mails.map((mail) => mail.id))
     const settled = this.mails.filter((mail) => ids.has(mail.id) && mail.fate === 'waiting')
     if (settled.length === 0) return []
     for (const mail of settled) {
       this.claimed.delete(mail.id)
-      Object.assign(mail, { fate, event, settledAt })
+      Object.assign(mail, { fate, event, reason, settledAt })
     }
-    this.write("update mailbox set fate = $1, event = $2, settled_at = $3 where id = any($4) and fate = 'waiting'", [
+    this.write("update mailbox set fate = $1, event = $2, reason = $3, settled_at = $4 where id = any($5) and fate = 'waiting'", [
       fate,
       event,
+      reason,
       settledAt,
       settled.map((mail) => mail.id),
     ])
@@ -145,6 +147,7 @@ function mailOf(row: Row): Mail {
     postedAt: row.posted_at,
     fate: row.fate,
     event: row.event,
+    reason: row.reason,
     settledAt: row.settled_at,
   }
 }

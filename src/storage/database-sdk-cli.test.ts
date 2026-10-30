@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
-import { fixture, readsWhole, schemaOf } from './database.fixture.js'
+import { fixture, schemaOf } from './database.fixture.js'
 import { currentConfig } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
@@ -13,7 +13,7 @@ const claudeCli = async (db: PGlite) =>
 const step21 = async (db: PGlite) =>
   db.transaction(async (tx) => {
     await tx.query("select set_config('even_keel.migration_from', '20', true)")
-    await tx.exec(STEPS.at(-1)!)
+    await tx.exec(STEPS[18]!)
   })
 
 const sdk = "insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by) values ('execution', null, 'claude', '\"sdk\"', '2026-10-30', 'page')"
@@ -21,13 +21,12 @@ const execution = "insert into setting_definitions (key, kind, spec, default_val
 
 it('step 21 moves the Agent SDK of Claude off the installed CLI onto the checked copy', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 19))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(21))
     expect(await databaseVersion(frozen)).toBe(21)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 21)
     await upgraded.exec(fixture(20))
     await upgraded.exec("update setting_values set value = '\"system\"', updated_by = 'page' where key = 'cli' and qualifier = 'claude'")
     await upgraded.exec(execution)

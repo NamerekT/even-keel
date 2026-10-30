@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { memoryDatabase } from '../storage/memory.js'
-import { openDatabase } from '../storage/database.js'
+import { openDatabase, STEPS } from '../storage/database.js'
 import { backupDatabase } from '../storage/copy.js'
 import { dataDirOf } from '../storage/owner.js'
 import { prepareDatabase } from '../storage/state-files.js'
@@ -62,11 +62,11 @@ it('adopts only the global folders visible at upgrade, once', async () => {
 }, 30_000)
 
 it('has a frozen schema sample for the registration table', async () => {
-  const db = await memoryDatabase()
+  const made = await openDatabase(undefined, STEPS.slice(0, 15))
   const frozen = await PGlite.create()
   try {
     await frozen.exec(fixture(17))
-    expect(await schemaOf(db)).toEqual(await schemaOf(frozen))
+    expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     const env = environment()
     expect((await openAccountHomes(frozen, env)).list().map((home) => home.key)).toEqual(['global', 'codex'])
     const copyDir = join(roots[0]!, 'backup')
@@ -75,7 +75,7 @@ it('has a frozen schema sample for the registration table', async () => {
     try {
       expect((await openAccountHomes(copy, env)).list().map((home) => home.key)).toEqual(['global', 'codex'])
     } finally { await copy.close() }
-  } finally { await frozen.close() }
+  } finally { await Promise.all([frozen.close(), made.close()]) }
 }, 30_000)
 
 it('preserves an old installation whose only saved state is its account ledger', async () => {

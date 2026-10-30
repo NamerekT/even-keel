@@ -24,6 +24,7 @@ async function relay(live: { sessionId: string; midTurn: boolean; asking: boolea
       resumed.push({ task, sessionId, prompt })
       return delivery
     },
+    closed: async () => false,
     language: () => 'en',
     changed: () => changes++,
     log: (line) => log.push(line),
@@ -42,8 +43,8 @@ describe('settleMail', { timeout: 30_000 }, () => {
     settleMail(deps)
     expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
     await settleMail(deps)
-    expect(resumed).toHaveLength(1)
-    expect(mailFor(deps, SESSION, 'PreToolUse')).toBeNull()
+    await vi.waitFor(() => expect(resumed).toHaveLength(1))
+    expect(await mailFor(deps, SESSION, 'PreToolUse')).toBeNull()
     delivery.resolve(true)
     await vi.waitFor(() => expect(mailbox.of(SESSION)[0]?.fate).toBe('delivered'))
   })
@@ -107,7 +108,7 @@ describe('settleMail', { timeout: 30_000 }, () => {
     })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(11)
-    settleMail(deps)
+    await settleMail(deps)
     expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
     expect(log.join('\n')).toContain('limit')
   })
@@ -126,7 +127,7 @@ describe('mailFor', { timeout: 30_000 }, () => {
   it('gives the hook what waits, with the lead of its event, and nothing the second time', async () => {
     const { deps, mailbox, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     const { id } = mailbox.post('ABC-1', SESSION, 'Use the other parser.', [])
-    const delivery = mailFor(deps, SESSION, 'Stop')!
+    const delivery = (await mailFor(deps, SESSION, 'Stop'))!
     expect(delivery.message).toContain(`<even-keel-message id="${id}">`)
     expect(delivery.message).toContain('Use the other parser.')
     expect(changes()).toBe(0)
@@ -134,19 +135,19 @@ describe('mailFor', { timeout: 30_000 }, () => {
     delivery.finish(true)
     delivery.finish(false)
     expect(changes()).toBe(1)
-    expect(mailFor(deps, SESSION, 'PostToolUse')).toBeNull()
+    expect(await mailFor(deps, SESSION, 'PostToolUse')).toBeNull()
     expect(mailbox.listens(SESSION)).toBe(true)
   })
 
   it('releases only the failed response and ignores its late finish after another hook takes the mail', async () => {
     const { deps, mailbox, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
-    const first = mailFor(deps, SESSION, 'PreToolUse')!
-    expect(mailFor(deps, SESSION, 'Stop')).toBeNull()
+    const first = (await mailFor(deps, SESSION, 'PreToolUse'))!
+    expect(await mailFor(deps, SESSION, 'Stop')).toBeNull()
     first.finish(false)
-    const next = mailFor(deps, SESSION, 'PostToolUse')!
+    const next = (await mailFor(deps, SESSION, 'PostToolUse'))!
     first.finish(true)
-    expect(mailFor(deps, SESSION, 'Stop')).toBeNull()
+    expect(await mailFor(deps, SESSION, 'Stop')).toBeNull()
     expect(mailbox.of(SESSION)[0]?.fate).toBe('waiting')
     expect(changes()).toBe(0)
     next.finish(true)

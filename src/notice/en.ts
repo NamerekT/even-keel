@@ -75,6 +75,7 @@ export const en = {
   'account.opencodeCopilot': () => 'OpenCode on Copilot is not supported yet',
   'answer.moved': (p: { task: string }) => `answer: the session of ${p.task} has moved on since the question; the answer was not sent`,
   'answer.busy': (p: { task: string }) => `answer: the session of ${p.task} is working; answer once it waits`,
+  'answer.closed': (p: { task: string }) => `${p.task} is already closed, so the message was not sent. Put what it asks into a new task.`,
   'answer.empty': () => 'answer: the reply is empty',
   'answer.file': (p: { name: string }) => `answer: the file ${p.name} could not be saved`,
   'chain.queueChanged': (p: { queue: string[] }) => `chain: the queue has changed, it is now ${list(p.queue) || 'empty'}`,

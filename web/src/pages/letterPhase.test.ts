@@ -14,6 +14,7 @@ function mail(fate: Mail['fate'], settledAt: number | null = SETTLED): Mail {
     postedAt: new Date(SETTLED - 60_000).toISOString(),
     fate,
     event: fate === 'delivered' ? 'PostToolUse' : null,
+    reason: fate === 'returned' ? 'asked' : null,
     settledAt: settledAt === null ? null : new Date(settledAt).toISOString(),
   }
 }
