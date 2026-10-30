@@ -274,7 +274,10 @@ export interface DispatcherDeps {
    */
   launch: (project: string, task: string, extra?: string) => Promise<Launched>
   liveSession: (task: string) => string | undefined
-  /** Why no session of the project starts now; `task` — the one about to start, its label may pick another agent. */
+  /**
+   * Why no session of the project starts now; `task` — the one about to start, its label may pick another agent.
+   * Without a task only the project's own requirements are checked, not an agent or account (BTN-521).
+   */
   blocked: (project: string, task?: string) => Notice | undefined
   /** A completed turn refused its model. Reporting it pauses the chain without touching the session. */
   modelRefusal?: (task: string, sessionId: string) => Notice | undefined

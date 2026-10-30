@@ -170,7 +170,7 @@ export class Dispatcher {
    */
   private wake(project: string): void {
     if (!this.deps.projects().includes(project) || this.going(project)) return
-    const reason = this.deps.blocked(project)
+    const reason = this.deps.blocked(project, this.firstOf(project))
     if (reason !== undefined && reason.code !== 'review.notReady') {
       this.deps.log(`chain: ${project} does not start again on feedback: ${englishOf(reason)}`)
       return
@@ -483,6 +483,19 @@ export class Dispatcher {
     return this.main?.fixOf(project, open) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.lists.waitingIds(project)])
   }
 
+  /**
+   * The task whose launch the chain waits for: the current one, else the next by the list. `undefined` when unknown
+   * or the order is broken — then `blocked` checks no account, and the launch itself does (BTN-521).
+   */
+  private firstOf(project: string, chain = this.chainOf(project)): string | undefined {
+    if (chain?.current != null) return chain.current.task
+    try {
+      return this.nextOf(project, this.lists.tasks.get(project) ?? [])
+    } catch {
+      return undefined
+    }
+  }
+
   private chainOf(project: string): ActiveChain | undefined {
     return this.state.active.find((chain) => chain.project === project)
   }
@@ -555,7 +568,7 @@ export class Dispatcher {
 
   /** A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12). */
   private cleared(chain: ActiveChain): boolean {
-    if (!['review.notReady', 'agent.copyMissing'].includes(chain.error?.code ?? '') || this.deps.blocked(chain.project, chain.current?.task ?? this.nextOf(chain.project, this.lists.tasks.get(chain.project) ?? [])) !== undefined) return false
+    if (!['review.notReady', 'agent.copyMissing'].includes(chain.error?.code ?? '') || this.deps.blocked(chain.project, this.firstOf(chain.project, chain)) !== undefined) return false
     chain.paused = false
     chain.error = null
     this.deps.log(`chain: ${chain.project} goes on: its launch requirement is ready`)
@@ -569,7 +582,7 @@ export class Dispatcher {
    * a paused chain, but requires an explicit resume after the model or account is changed.
    */
   private admit(chain: ActiveChain): void {
-    const reason = this.deps.blocked(chain.project)
+    const reason = this.deps.blocked(chain.project, this.firstOf(chain.project, chain))
     if (reason !== undefined && !['review.notReady', 'agent.copyMissing', 'chain.opencodeCopilot'].includes(reason.code)) throw new NoticeError(reason)
     chain.paused = reason !== undefined
     chain.error = reason ?? null

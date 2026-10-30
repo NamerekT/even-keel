@@ -379,6 +379,28 @@ describe('Dispatcher', () => {
     expect(launched).toEqual([])
   })
 
+  it('checks launches on Start and Resume for the task that goes first, whose label may pick another account (BTN-521)', async () => {
+    const expired = notice('account.loginExpired', { account: 'john.doe@example.com' })
+    const options: SetupOptions = { blocked: (_project, id) => (id === 'ABC-1' ? undefined : expired) }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-2', todo, 'ABC-1'), task('ABC-1')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+
+    pause(dispatcher, 'ABC')
+    dispatcher.resume('ABC')
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
+  })
+
+  it('refuses Start by the account when the task that goes first runs on it', async () => {
+    const expired = notice('account.loginExpired', { account: 'john.doe@example.com' })
+    const { dispatcher, launched } = setup({ blocked: (_project, id) => (id === 'ABC-1' ? undefined : expired) })
+    dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-1', todo, 'ABC-2')])
+    await expect(dispatcher.start('ABC')).rejects.toThrow(/login of john\.doe@example\.com has run out/)
+    expect(launched).toEqual([])
+  })
+
   it('still queues a project behind a running chain while launches are blocked', () => {
     const options: { blocked?: string } = {}
     const { dispatcher } = setup(options)

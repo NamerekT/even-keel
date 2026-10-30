@@ -290,7 +290,7 @@ export const en = {
   'account.activeGone': (p: { key: string }) => `claude: the active account folder ${p.key} is gone; switch to another account, then resume`,
   'account.signingIn': () => 'claude: sign-in is in progress; resume once it is done',
   'account.signedOut': () => 'claude: not signed in; sign in on the Accounts page, then resume',
-  'account.loginExpired': (p: { account: string }) => `claude: the login of ${p.account} has run out; renew it on the Accounts page, then resume`,
+  'account.loginExpired': (p: { account: string }) => `the login of ${p.account} has run out; renew it on the Accounts page, then resume`,
 
   'login.none': () => 'claude: no sign-in is running',
   'login.running': () => 'claude: a sign-in is already running',

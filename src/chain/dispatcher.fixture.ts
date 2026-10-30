@@ -34,7 +34,7 @@ export interface SetupOptions {
   live?: Record<string, string>
   projects?: string[]
   parallel?: number
-  blocked?: string | Notice
+  blocked?: string | Notice | DispatcherDeps['blocked']
   modelRefusal?: DispatcherDeps['modelRefusal']
   limited?: Record<string, LimitedSession>
   overage?: (task: string) => LimitedSession | undefined
@@ -120,7 +120,11 @@ export function setup(options: SetupOptions = {}) {
       return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
     },
     liveSession: (id) => live[id],
-    blocked: () => (typeof options.blocked === 'string' ? textNotice(options.blocked) : options.blocked),
+    blocked: (project, id) => {
+      const blocked = options.blocked
+      if (typeof blocked === 'function') return blocked(project, id)
+      return typeof blocked === 'string' ? textNotice(blocked) : blocked
+    },
     modelRefusal: options.modelRefusal,
     busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
     silentSince: (id) => options.silentSince?.[id] ?? null,
