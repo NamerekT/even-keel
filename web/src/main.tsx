@@ -11,6 +11,7 @@ import type { TrackerVocabulary } from '../../src/tracker/source.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
+import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import './styles.css'
 
 async function fetchState(): Promise<EvenKeelState> {
@@ -91,6 +92,22 @@ async function createSource(): Promise<LiveSource> {
     sendQuery,
     fetchStats,
   })
+  const buildSeen = watchBuild({
+    loaded: document.documentElement.outerHTML,
+    fetchIndex: async () => {
+      const response = await fetch('/', { cache: 'no-store' })
+      if (!response.ok) throw new Error(`/ answered ${response.status}`)
+      return response.text()
+    },
+    idle: () => pageIdle(document),
+    reload: () => location.reload(),
+    later: (check) => setTimeout(check, 2_000),
+  })
+  connection.subscribe(() => {
+    const state = connection.snapshot().state
+    if (state !== null) buildSeen(state.startedAt)
+  })
+  window.addEventListener('vite:preloadError', () => reloadOnMissingChunk(sessionStorage, Date.now(), () => location.reload()))
   connection.start()
   window.addEventListener('online', () => connection.retryNow())
   document.addEventListener('visibilitychange', () => {
