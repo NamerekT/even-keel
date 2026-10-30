@@ -67,6 +67,12 @@ const MILESTONE_TASKS = `query($owner: String!, $name: String!, $number: Int!, $
   }
 }`
 
+const SUB_ISSUES = `query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) { subIssues(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} } } }
+  }
+}`
+
 const ISSUE_BRIEF = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) { issue(number: $number) { title body } }
 }`
@@ -278,6 +284,19 @@ export async function connectGithub(
       if (issue.state === 'CLOSED') return false
       await graphql(CLOSE_ISSUE, { id: issue.id })
       return true
+    },
+
+    async children(id) {
+      const parsed = parseTaskId(id)
+      if (parsed === null) throw new Error(`github: ${id} is not a task id`)
+      const repo = repoOfTasks(parsed.project)
+      const issues = await collect(
+        SUB_ISSUES,
+        { ...repo, number: parsed.number },
+        (data) => (data.repository?.issue as { subIssues: Connection<GithubIssue> } | null | undefined)?.subIssues,
+        `issue ${id} in ${repo.owner}/${repo.name}`,
+      )
+      return issues.map((issue) => toTrackerTask(issue, repos))
     },
 
     closingRef(id) {

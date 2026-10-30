@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { fakeTask } from '../tracker/fixture.js'
 import type { TaskStatus } from '../tracker/model.js'
+import { ParentCloser } from '../tracker/parents.js'
+import { trackerOf } from '../tracker/source.js'
 import { issue } from './fixture.js'
 import { connectGithub } from './source.js'
 
@@ -132,6 +135,40 @@ describe('github source', () => {
     const { source, calls } = await connect([{ body: { data: { repository: { issue: { id: 'I_kwDOexample7', state: 'CLOSED' } } } } }])
     expect(await source.complete!('ABC-7')).toBe(false)
     expect(calls).toHaveLength(2)
+  })
+
+  it('reads the sub-issues of an issue in every state page by page, one of another repository by its slug', async () => {
+    const subIssues = (nodes: unknown[], endCursor: string | null = null) => ({ body: { data: { repository: { issue: { subIssues: page(nodes, endCursor) } } } } })
+    const { source, calls } = await connect([
+      subIssues([issue(2, { state: 'CLOSED', stateReason: 'COMPLETED' }), issue(3)], 'cursor-1'),
+      subIssues([issue(4, { state: 'CLOSED', stateReason: 'NOT_PLANNED' }, 'octo-org/other')]),
+    ])
+    const children = await source.children!('ABC-1')
+    expect(children.map((task) => [task.id, task.status.category])).toEqual([
+      ['ABC-2', 'Won'],
+      ['ABC-3', 'ToDo'],
+      ['octo-org/other#4', 'Lost'],
+    ])
+    expect(calls[1]!.query).toContain('subIssues')
+    expect(calls[1]!.variables).toMatchObject({ owner: 'octo-org', name: 'abc', number: 1, after: null })
+    expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
+  })
+
+  it('closes a parent issue once its sub-issues are closed', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issue: { subIssues: page([issue(2, { state: 'CLOSED', stateReason: 'COMPLETED' }), issue(3, { state: 'CLOSED', stateReason: 'NOT_PLANNED' })]) } } } } },
+      { body: { data: { repository: { issue: { id: 'I_kwDOexample1', state: 'OPEN' } } } } },
+      { body: { data: { closeIssue: { issue: { state: 'CLOSED' } } } } },
+    ])
+    const tracker = trackerOf(source)
+    const closer = new ParentCloser({ children: tracker.children!, complete: tracker.complete! })
+    expect(await closer.sweep([fakeTask('ABC-1', { subtasks: 2 })], [])).toEqual(['ABC-1'])
+    expect(calls[3]!.variables).toEqual({ id: 'I_kwDOexample1' })
+  })
+
+  it('fails to read the sub-issues of an issue it cannot find', async () => {
+    const { source } = await connect([{ body: { data: { repository: { issue: null } }, errors: [notFound(['repository', 'issue'])] } }])
+    await expect(source.children!('ABC-99')).rejects.toThrow(/ABC-99/)
   })
 
   it('names the issue of a task by its repository and number, without asking GitHub', async () => {
