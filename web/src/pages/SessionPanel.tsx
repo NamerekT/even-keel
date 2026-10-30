@@ -355,7 +355,7 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
           </dd>
         </Fact>
         <ModelFact agent={session.agent} model={session.model} />
-        <TokensFact tokens={session.tokens} />
+        <TokensFact tokens={session.tokens} wide={false} />
       </FactList>
       {session.lamp === 'finished' ? (
         <RecordFeed sessionId={session.sessionId} account={session.account} whole={whole} />
@@ -400,7 +400,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : agent === CLAUDE ? model : `${provider} · ${model}`
   return (
-    <Fact label={t.session.model} wide className="panel__inline">
+    <Fact label={t.session.model} className="panel__inline panel__model">
       <TipValue value={value}>
         <span className="panel__part">
           <span className="panel__part-label">{t.session.provider}</span>
@@ -419,7 +419,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
 }
 
 /** The total alone; the split by kind is a tip under it, opened by pointing at the number or pressing it. */
-function TokensFact({ tokens }: { tokens: TokenTotals }) {
+function TokensFact({ tokens, wide = true }: { tokens: TokenTotals; wide?: boolean }) {
   const parts: [string, number][] = [
     [t.session.input, tokens.input],
     [t.session.output, tokens.output],
@@ -427,7 +427,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
     [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
-    <Fact label={t.session.tokens} wide className="panel__inline">
+    <Fact label={t.session.tokens} wide={wide} className="panel__inline">
       <TipValue value={formatTokens(tokenTotal(tokens))}>
         {parts.map(([label, value]) => (
           <span key={label} className="panel__part">
