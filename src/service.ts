@@ -500,7 +500,7 @@ const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 
 
 const daemons = accountsService.wireDaemons(context)
 
-const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source),
+const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source), (name) => configStore.fallBackCli(name),
   () => { dispatcher.check(); hub.broadcast('state', getState()); void account.refresh() },
   async () => { await cliVersions.check(); await account.refresh() })
 

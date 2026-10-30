@@ -438,7 +438,7 @@ describe('parseConfig', () => {
       execution: { claude: 'auto', codex: 'bypass' },
       modelLabels: true,
     })
-    expect(parse({ projects: {}, execution: { claude: 'sdk' } }).execution).toEqual({ claude: 'sdk', codex: 'sandbox' })
+    expect(parse({ projects: {}, execution: { claude: 'sdk' }, cli: { claude: 'checked' } }).execution).toEqual({ claude: 'sdk', codex: 'sandbox' })
     expect(() => parse({ projects: {}, execution: { codex: 'yolo' } })).toThrow(/execution.codex.*yolo.*sandbox, bypass/)
     expect(() => parse({ projects: {}, execution: { claude: 'bypass' } })).toThrow(/execution.claude.*bypass.*auto, bg, sdk/)
     expect(() => parse({ projects: {}, execution: { opencode: 'bg' } })).toThrow(/execution.opencode is not a provider/)
@@ -449,6 +449,14 @@ describe('parseConfig', () => {
     expect(parse({ projects: {}, cli: { copilot: 'checked' } }).cli).toEqual({ claude: 'system', codex: 'system', opencode: 'system', copilot: 'checked' })
     expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*system, checked/)
     expect(() => parse({ projects: {}, cli: { gemini: 'system' } })).toThrow(/cli.gemini is not a provider/)
+  })
+
+  it('refuses the Agent SDK of Claude on the installed CLI, written or by default (BTN-610)', () => {
+    expect(() => parse({ projects: {}, execution: { claude: 'sdk' }, cli: { claude: 'system' } })).toThrow(/execution.claude: sdk runs only on the checked CLI.*cli.claude/)
+    expect(() => parse({ projects: {}, execution: { claude: 'sdk' } })).toThrow(/execution.claude: sdk/)
+    expect(parse({ projects: {}, execution: { claude: 'auto' } }).cli.claude).toBe('system')
+    expect(parse({ projects: {}, execution: { claude: 'bg' }, cli: { claude: 'system' } }).execution.claude).toBe('bg')
+    expect(parse({ projects: {}, execution: { codex: 'bypass' }, cli: { claude: 'system' } }).cli.claude).toBe('system')
   })
 
   it('fills the run settings of a project with the shared ones, entry by entry', () => {

@@ -223,7 +223,7 @@
     "codex": "bypass"
   },
   "cli": {
-    "claude": "system",
+    "claude": "checked",
     "codex": "system",
     "opencode": "system",
     "copilot": "system"

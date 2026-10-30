@@ -37,3 +37,11 @@ export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [C
  */
 export const CLI_SOURCES: readonly string[] = ['system', 'checked']
 
+/** The execution modes that run only on the checked CLI, by provider (BTN-610): the Agent SDK is bound to its version. */
+const CHECKED_ONLY: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['sdk'] }
+
+/** Whether the provider's execution mode needs `cli.<provider>: checked`: the page locks the choice, the config refuses `system`. */
+export function needsCheckedCli(provider: string, mode: string | undefined): boolean {
+  return mode !== undefined && CHECKED_ONLY[provider]?.includes(mode) === true
+}
+

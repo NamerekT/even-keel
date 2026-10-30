@@ -27,7 +27,8 @@ export interface Queryable {
  * a `color` row (BTN-207); step 12 the profiles' chain rules, the projects' extra task feeds and each feed's profile,
  * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
  * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
- * organization each API account's key pays through, `key_organizations` (BTN-418). A foreign key between tables is deferred, so that a copy inserts the
+ * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
+ * Claude on the checked CLI (BTN-610). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -256,6 +257,22 @@ export const STEPS: readonly string[] = [
       from unnest(array['claude', 'codex', 'opencode', 'copilot']) as provider
      where current_setting('even_keel.migration_from', true)::integer > 0
        and not exists (select 1 from setting_values v where v.key = 'cli' and v.project_id is null and v.qualifier = provider);
+  `,
+  // The Agent SDK runs only on the checked CLI (BTN-610): `execution.claude: sdk` moves `cli.claude` to `checked`,
+  // written or left at the installed default; the download asks as before.
+  `
+  insert into setting_definitions (key, kind, spec, default_value, scopes, qualifier)
+    select 'cli', 'enum', '{}', '{}', 'global', 'provider'
+     where exists (select 1 from setting_values where key = 'execution' and project_id is null and qualifier = 'claude' and value = '"sdk"')
+    on conflict (key) do nothing;
+  update setting_values
+     set value = '"checked"', updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), updated_by = 'service'
+   where key = 'cli' and project_id is null and qualifier = 'claude' and value <> '"checked"'
+     and exists (select 1 from setting_values where key = 'execution' and project_id is null and qualifier = 'claude' and value = '"sdk"');
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select 'cli', null, 'claude', '"checked"', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
+     where exists (select 1 from setting_values where key = 'execution' and project_id is null and qualifier = 'claude' and value = '"sdk"')
+       and not exists (select 1 from setting_values where key = 'cli' and project_id is null and qualifier = 'claude');
   `,
 ]
 

@@ -37,6 +37,7 @@ export const fieldsRu: FieldTexts = {
   'config.provider': (p) => `Провайдера ${p.value} нет`,
   'config.execution': (p) => `Режима ${p.value} нет`,
   'config.cli': (p) => `Варианта ${p.value} нет`,
+  'config.executionCli': () => 'Agent SDK работает только на проверенной копии CLI: выбери «Проверенную» в «Версии CLI»',
   'config.checkpointShare': (p) => `Целый процент окна контекста от 1 до 100, а не ${p.value}`,
   'config.checkpointShareOrder': (p) => `Первый < Поздний < Жёсткий, а не ${p.first}, ${p.late}, ${p.hard}`,
   'config.modelPrompts': () => 'По промпту на модель',

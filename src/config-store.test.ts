@@ -185,6 +185,21 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(config.view().shared).not.toHaveProperty('tracker')
   })
 
+  it('keeps the Agent SDK of Claude on the checked CLI: refuses Installed, and a failed copy does not fall back (BTN-610)', async () => {
+    await seed({ execution: { claude: 'sdk' }, projects: [] })
+    const config = await open()
+
+    expect(() => config.saveCli('claude', 'system')).toThrow(/execution.claude: sdk/)
+    config.fallBackCli('claude')
+    expect(config.current.cli.claude).toBe('checked')
+    config.fallBackCli('codex')
+    expect(config.current.cli.codex).toBe('system')
+    config.saveExecution('claude', 'bg')
+    config.fallBackCli('claude')
+    expect(config.current.cli.claude).toBe('system')
+    expect(() => config.saveExecution('claude', 'sdk')).toThrow(/execution.claude: sdk/)
+  })
+
   it('writes the chain switches only when they change', async () => {
     const config = await open()
     expect([config.current.unattended, config.current.trimTools]).toEqual([false, true])

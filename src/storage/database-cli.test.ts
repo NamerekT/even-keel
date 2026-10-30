@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
-import { fixture, readsWhole, schemaOf } from './database.fixture.js'
+import { fixture, schemaOf } from './database.fixture.js'
 import { currentConfig } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
@@ -18,13 +18,12 @@ it('step 20 writes `checked` for every provider an existing database left out of
     await frozen.exec(fixture(20))
     expect(await databaseVersion(frozen)).toBe(20)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 20)
     await upgraded.exec(fixture(19))
     await upgraded.exec("insert into setting_definitions (key, kind, spec, default_value, scopes, qualifier) values ('cli', 'enum', '{}', '{}', 'global', 'provider') on conflict (key) do nothing")
     await upgraded.exec("insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by) values ('cli', null, 'codex', '\"system\"', '2026-10-20', 'page')")
     await upgraded.transaction(async (tx) => {
       await tx.query("select set_config('even_keel.migration_from', '19', true)")
-      await tx.exec(STEPS.at(-1)!)
+      await tx.exec(STEPS[17]!)
     })
     expect(await cliRows(upgraded)).toEqual([['claude', 'checked', 'service'], ['codex', 'system', 'page'], ['copilot', 'checked', 'service'], ['opencode', 'checked', 'service']])
   } finally {

@@ -427,6 +427,7 @@ export const noticesRu: NoticeTexts = {
   'config.providerName': (p) => `${p.where} должен быть текстом`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
   'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,
+  'config.executionCli': (p) => `execution.${p.provider}: ${p.mode} работает только на проверенной копии CLI, поставь cli.${p.provider}: checked`,
   'config.trackerLocked': (p) => `цепочка уже запускала задачи ${p.key}, поэтому трекер и профиль остаются; задачи другого трекера добавляются источником задач`,
   'config.feeds': (p) => `${p.where} должен быть списком источников задач, у каждого — id, трекер и ключ`,
   'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,
