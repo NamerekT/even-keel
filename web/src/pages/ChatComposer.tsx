@@ -14,6 +14,7 @@ import { sendsReply } from './chatKeys.js'
 import { holdKey, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
 import { ChatMail } from './ChatMail.js'
+import { CommandText } from './CommandText.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
@@ -138,13 +139,12 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
               />
             </label>
           </Tipped>
-          <textarea
-            className="chat__text"
+          <CommandText
             rows={ask === null ? 2 : 1}
             value={text}
             disabled={sending}
             placeholder={coarsePointer ? t.session.chat.touchPlaceholder : t.session.chat.placeholder}
-            onChange={(event) => setText(event.target.value)}
+            onChange={setText}
             onPaste={(event) => {
               // Text goes into the field as usual; a picture or files copied in Explorer go into the list.
               const pasted = takenFiles(event.clipboardData.items, new Date())

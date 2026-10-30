@@ -22,6 +22,10 @@ export const composerRu = {
     reply: 'В ответ',
     dismiss: 'Убрать',
   },
+  commands: {
+    menu: 'Команды',
+    filter: 'Введите для фильтра',
+  },
   thinking: 'Думает',
   running: (tool: string) => `Выполняет: ${tool}`,
   delivering: 'Передаю ответ, сессия поднимается',

@@ -1,0 +1,136 @@
+/* The chat field with its commands (BTN-557), as the commands of Claude Desktop look. */
+
+.chat__field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat__field .chat__text {
+  position: relative;
+  scrollbar-gutter: stable;
+}
+
+/* The copy of the text behind the field: it draws the command's colour and the muted hint, the field draws the caret. */
+.chat__mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 6px 4px;
+  color: transparent;
+  font: var(--text-15)/1.45 var(--font);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  scrollbar-gutter: stable;
+}
+
+.chat__field--marked .chat__mirror {
+  color: var(--fg);
+}
+
+.chat__field--marked .chat__text {
+  color: transparent;
+  caret-color: var(--fg);
+}
+
+.chat__command {
+  border-radius: var(--radius-small);
+  color: var(--accent);
+  transition: background var(--motion-fast);
+}
+
+.chat__command--hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.chat__ghost {
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.chat__commands {
+  position: absolute;
+  bottom: calc(100% + var(--space-12));
+  left: 0;
+  z-index: 2;
+  width: min(380px, 100%);
+}
+
+.chat__commands-list {
+  max-height: min(320px, 40dvh);
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  font: var(--text-14)/1.45 var(--font);
+  list-style: none;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+.chat__commands-item {
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.chat__commands-item--active {
+  background: var(--surface-muted);
+}
+
+/* The description of the row under the pointer, at once, beside the menu. */
+.chat__commands-tip {
+  position: absolute;
+  top: var(--row-top);
+  left: calc(100% + var(--space-8));
+  width: max-content;
+  max-width: 280px;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  font: var(--text-13)/1.45 var(--font);
+  pointer-events: none;
+}
+
+/* The full card of the command in the field, over it while the pointer rests on it. */
+.chat__command-card {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: min(320px, 100%);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  font: var(--text-13)/1.45 var(--font);
+  pointer-events: none;
+}
+
+.chat__command-card-name {
+  color: var(--fg-muted);
+}
+
+/* No room beside the menu: the tip goes over it. */
+@media (max-width: 760px) {
+  .chat__commands-tip {
+    top: auto;
+    bottom: calc(100% + var(--space-4));
+    left: 0;
+    max-width: 100%;
+    margin-top: 0;
+  }
+}

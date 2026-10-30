@@ -2,6 +2,7 @@ import { isSpendingLimit } from '../limits/spending.js'
 import type { Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
+import { typedText } from './commandPrompt.js'
 import { mailIn } from './mail.js'
 import {
   blocksOf,
@@ -443,7 +444,7 @@ export class TranscriptFold {
 export function userLine(at: string, prompt: string, answered: Ask | null, textOf: (text: string) => string): FeedLine | null {
   if (prompt.trim() === '') return null
   const reply = replyParts(prompt, answered)
-  const text = textOf(reply.text)
+  const text = textOf(typedText(reply.text))
   const files = reply.files.length > 0 ? { files: reply.files } : {}
   if (answered !== null) return { at, kind: 'answer', text, answers: { ask: answered.id, answers: reply.answers }, ...files }
   if (Object.keys(reply.answers).length > 0) return { at, kind: 'answer', text, answers: { answers: reply.answers }, ...files }

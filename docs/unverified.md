@@ -33,6 +33,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 10a | [A task label selecting compaction](#a-task-label-selecting-compaction) | tasks using the compaction label | the session may still receive a handoff nudge |
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
 | 11a | [Mail resumed while a chain stops](#mail-resumed-while-a-chain-stops-btn-427) | chat users with a stop pending or a failed delivery | a message may need sending again; a delivery failure may pause the chain |
+| 11b | [The chat's `/handoff` in a real session](#the-chats-handoff-in-a-real-session-btn-557) | chat users handing a task over by hand | the session keeps the task instead of handing it over |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
@@ -332,6 +333,10 @@ Regression tests cover a message left in the mailbox when the turn ends and `sto
 Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message waited for the hook through a 90-second Bash call and went in at its `PostToolUse`; one sent while the closing text streamed went in at `Stop`, and one sent before a question went in at that `AskUserQuestion`'s `PreToolUse`, the question not going out. Each time the model acted on the message at once and the feed showed it as the user's bubble (the shapes are in `docs/sessions.md`, "Chat mailbox"). After a Codex session lost `NO CHANGES:` on Stop mail, the Stop prompt was made explicit about repeating a still-valid final mark (BTN-406). Checked live on 25.10.2026 with a local mailbox listener, the real mailbox hook, Codex 0.164.0 and Claude Code 2.1.310: each answered `PONG`, repeated the same final `NO CHANGES:`, `CHECKPOINT:` or `PULL REQUEST:` line, and its transcript fold showed one mail bubble and the final mark. Codex also passed with the Russian Stop prompt. Not seen: the mailbox's `Stop` block and `checkpoint-mark`'s block in one turn, when the first response omitted the handoff mark. If the two reminders still end without the mark, the handoff waits for it. **Workaround:** ask the session in chat to end with `CHECKPOINT: .temp/handoff.md`.
 
 **Workaround:** if the handoff does not come, the session writes the mark again at the end of its next turn; or press "New session".
+
+### The chat's `/handoff` in a real session (BTN-557)
+
+Tests cover the expansion of `/handoff [extra]` in both languages, a tracker comment staying as written, and the round trip from the page's reply to the feed showing the command as typed. The menu, the token and the hover card were checked on screenshots of `dev:fake` only. Not run on a live session: Claude and Codex, each idle (a resume), mid-turn (the mailbox or an SDK steer) and answering its question with `/handoff` as the free text. The assumption is that a session asked this way writes `.temp/handoff.md` and ends with `CHECKPOINT:` as it does on a context nudge. If it does not, the task stays with the same session and nothing hands over. **Workaround:** ask the session in plain words to end with `CHECKPOINT: .temp/handoff.md`, or press "New session".
 
 ### Retrying a pull request after fixing access (BTN-407)
 
