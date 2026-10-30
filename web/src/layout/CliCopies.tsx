@@ -15,8 +15,8 @@ export function requestCli(provider: string) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: provider }))
 }
 
-const titleOf = (provider: string) => (t.account.agents as Record<string, string>)[provider] ?? provider
-const mb = (bytes: number) => Math.ceil(bytes / 1_000_000)
+export const titleOf = (provider: string) => (t.account.agents as Record<string, string>)[provider] ?? provider
+export const mb = (bytes: number) => Math.ceil(bytes / 1_000_000)
 
 export function CliProgress({ provider, copy }: { provider: string; copy: CliCopyView }) {
   const text = cliText()

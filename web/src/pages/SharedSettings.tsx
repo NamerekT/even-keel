@@ -2,7 +2,8 @@ import { Fragment, useEffect, type ReactNode } from 'react'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { protectionOf, protectionText } from './protectionDraft.js'
 import { useSearchParams } from 'react-router'
-import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
+import { EXECUTION_MODES } from '../../../src/agent/providers.js'
+import { CliSourceChoice } from '../layout/CliSource.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
@@ -408,12 +409,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               const name = providerName(provider)
               if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), modelOffers[text(`accounts.${provider}`)] ?? [])
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
-              if (column === 'cli')
-                return pick(
-                  `cli.${provider}`,
-                  t.shared.cliOf(name),
-                  CLI_SOURCES.map((source) => ({ value: source, label: t.shared.cliSources[source] ?? source })),
-                )
+              // The CLI's source is switched at once, not with the form: the checked copy asks before its download.
+              if (column === 'cli') return state.cliCopies?.[provider] ? <CliSourceChoice provider={provider} label={t.shared.cliOf(name)} /> : null
               const modes = EXECUTION_MODES[provider]
               return modes === undefined
                 ? null

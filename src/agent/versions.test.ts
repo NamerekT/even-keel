@@ -118,6 +118,15 @@ describe('VersionWatcher', () => {
     await watch.check()
     expect(log.at(-1)).toBe('agents: could not read the version of Claude Code: no version in "garbage"')
   })
+
+  it('gives the installed version of every CLI it read, the checked one and those sessions do not run on included', async () => {
+    const entry = { ...agent('claude', '2.1.301 (Claude Code)'), runsOnInstalled: () => false }
+    const { watch } = watcher([entry, agent('codex', 'codex-cli 0.170.0', false)])
+    expect(watch.installedOf('claude')).toBeNull()
+    await watch.check()
+    expect(watch.installedOf('claude')).toBe('2.1.301')
+    expect(watch.installedOf('codex')).toBeNull()
+  })
 })
 
 describe('outdatedDaemonView', () => {

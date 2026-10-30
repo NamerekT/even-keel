@@ -11,7 +11,7 @@ import { Row } from './settingsParts.js'
 import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
-import { accountShortName, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { accountShortName, agentReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -52,19 +52,35 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
   const skippable = OPTIONAL_STEPS.includes(step) && ahead === null && !(step === 'stats' && state.projects.length > 0)
   const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
+  const held = step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? '')
+  // The agent step is parts of its own, each in its card with a dot, as in the project wizard (BTN-603).
+  const parts = step === 'agent'
+  const body = <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward()} />
+  const foot = (
+    <>
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      <WizardFoot
+        back={previous === null ? undefined : { to: stepPath(previous), label: t.setup.back }}
+        skip={skip === undefined ? undefined : { label: t.setup.skip, onSkip: skip }}
+        next={ahead === null ? undefined : { label: t.setup.nextTo(t.setup.steps[ahead]), onNext: () => void onward(), disabled: sending || held }}
+      />
+    </>
+  )
 
   return (
     <div className="page setup">
-      <WizardFrame title={t.setup.title} lead={t.setup.lead} steps={{ label: t.setup.stepsLabel, list: setupLine(state), current: step }}>
-        <Card title={t.setup.titles[step]} className="setup__card">
-          <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward()} />
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-          <WizardFoot
-            back={previous === null ? undefined : { to: stepPath(previous), label: t.setup.back }}
-            skip={skip === undefined ? undefined : { label: t.setup.skip, onSkip: skip }}
-            next={ahead === null ? undefined : { label: t.setup.nextTo(t.setup.steps[ahead]), onNext: () => void onward(), disabled: sending }}
-          />
-        </Card>
+      <WizardFrame title={t.setup.title} lead={t.setup.lead} steps={{ label: t.setup.stepsLabel, list: setupLine(state), current: step }} className={parts ? 'project-add__frame' : undefined}>
+        {parts ? (
+          <div className="settings__form project-add__steps">
+            {body}
+            {foot}
+          </div>
+        ) : (
+          <Card title={t.setup.titles[step]} className="setup__card">
+            {body}
+            {foot}
+          </Card>
+        )}
       </WizardFrame>
     </div>
   )

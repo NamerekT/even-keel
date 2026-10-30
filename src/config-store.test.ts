@@ -33,7 +33,10 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await writes.settled()
     return fileOf(await readSettings(db))
   }
-  const stored = (raw: Record<string, unknown>) => ({ version: SCHEMA_VERSION, ...raw })
+  /** A seed has no version, so it imports as an old config that keeps every provider on the checked CLI (BTN-603). */
+  const stored = (raw: Record<string, unknown>) => fresh({ cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, ...raw })
+  /** The stored settings of a database nothing was imported into. */
+  const fresh = (raw: Record<string, unknown>) => ({ version: SCHEMA_VERSION, ...raw })
 
   it('applies settings written past it at the next look, and keeps the last working ones while the stored ones do not parse', async () => {
     await seed({ projects: [abc()] })
@@ -137,7 +140,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
   it('starts empty from an empty database', async () => {
     const config = await open()
     expect(config.current.projects).toEqual({})
-    expect(await read()).toEqual(stored({ projects: [] }))
+    expect(await read()).toEqual(fresh({ projects: [] }))
   })
 
   it('adds a project the wizard checked, with an id of its own, and applies it at once', async () => {
@@ -187,11 +190,11 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect([config.current.unattended, config.current.trimTools]).toEqual([false, true])
 
     config.saveChainSwitches({ unattended: true, trimTools: true })
-    expect(await read()).toEqual(stored({ unattended: true, projects: [] }))
+    expect(await read()).toEqual(fresh({ unattended: true, projects: [] }))
     expect(changes).toBe(1)
     config.saveChainSwitches({ unattended: true })
     expect(changes).toBe(1)
     config.saveChainSwitches({ trimTools: false, unattended: false })
-    expect(await read()).toEqual(stored({ trimTools: false, projects: [] }))
+    expect(await read()).toEqual(fresh({ trimTools: false, projects: [] }))
   })
 })

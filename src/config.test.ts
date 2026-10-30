@@ -115,7 +115,7 @@ describe('parseConfig', () => {
       models: { claude: 'opus' },
       accounts: { claude: 'global', codex: 'codex' },
       execution: { claude: 'auto', codex: 'sandbox' },
-      cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' },
+      cli: { claude: 'system', codex: 'system', opencode: 'system', copilot: 'system' },
       modelLabels: false,
       modelPrompts: {},
       prompt: null,
@@ -444,10 +444,10 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: {}, execution: { opencode: 'bg' } })).toThrow(/execution.opencode is not a provider/)
   })
 
-  it('runs every provider on the checked CLI unless the config says system', () => {
-    expect(parse({ projects: {} }).cli).toEqual({ claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' })
-    expect(parse({ projects: {}, cli: { copilot: 'system' } }).cli).toEqual({ claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'system' })
-    expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*checked, system/)
+  it('runs every provider on the installed CLI unless the config says checked (BTN-603)', () => {
+    expect(parse({ projects: {} }).cli).toEqual({ claude: 'system', codex: 'system', opencode: 'system', copilot: 'system' })
+    expect(parse({ projects: {}, cli: { copilot: 'checked' } }).cli).toEqual({ claude: 'system', codex: 'system', opencode: 'system', copilot: 'checked' })
+    expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*system, checked/)
     expect(() => parse({ projects: {}, cli: { gemini: 'system' } })).toThrow(/cli.gemini is not a provider/)
   })
 

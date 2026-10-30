@@ -70,6 +70,11 @@ export class VersionWatcher {
     return this.options.agents().flatMap((agent) => this.viewOf(agent) ?? [])
   }
 
+  /** The installed CLI's version as last read, whatever it runs; `null` — none installed or not read yet. */
+  installedOf(name: string): string | null {
+    return this.installed.get(name) ?? null
+  }
+
   /** `undefined` — the call failed, what was known stays. */
   private async ask(agent: VersionedAgent): Promise<string | undefined> {
     let failure: string

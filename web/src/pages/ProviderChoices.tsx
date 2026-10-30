@@ -47,8 +47,8 @@ export function ProviderChoices({ label, hint, className, inherit, note, columns
             key={provider}
             className={`provider-choice${provider === chosen ? ' provider-choice--chosen' : ''}`}
             onClick={(event) => {
-              // Select menus are portalled but their clicks still bubble through React's tree.
-              if ((event.target as Element).closest('button, input, select, textarea, a, [role="option"], [role="listbox"], [contenteditable]')) return
+              // Select menus and dialogs are portalled or modal, but their clicks still bubble through React's tree.
+              if ((event.target as Element).closest('button, input, label, select, textarea, a, dialog, [role="option"], [role="listbox"], [contenteditable]')) return
               pick(provider)
             }}
           >
