@@ -98,6 +98,7 @@ export const noticesRu: NoticeTexts = {
   'cleanup.failed': () => 'уборка не удалась',
   'cleanup.syncFailed': () => 'синхронизация главной ветки не удалась',
   'cleanup.folderLeft': (p) => `папка worktree ${p.path} осталась: её держит процесс`,
+  'cleanup.folderNotDeleted': (p) => `папка worktree ${p.path} осталась: её не удалось удалить`,
   'cleanup.worktreeKept': (p) => `worktree ${p.path} оставлен`,
   'cleanup.branchKept': (p) => `ветка ${p.branch} оставлена`,
   'cleanup.originUnchecked': (p) => `не удалось проверить ветку ${p.branch} на ${p.remote ?? 'origin'}`,

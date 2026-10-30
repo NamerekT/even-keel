@@ -1,5 +1,5 @@
 import { appendFileSync, readFileSync } from 'node:fs'
-import { lstat, readdir, unlink } from 'node:fs/promises'
+import { lstat, readdir, rm, unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { GitStep } from '../notice/en.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
@@ -125,7 +125,8 @@ export async function finishWorktree(git: Git, repo: string, task: string, main 
     const removed = await git(repo, ['worktree', 'remove', place.path])
     if (removed.code !== 0) {
       if ((await worktreeAt(git, repo, place.path)) === undefined) {
-        warnings.push(notice('cleanup.folderLeft', { path: place.path }, { detail: removed.out }))
+        const left = await deleteLeftFolder(place.path, removed.out)
+        if (left !== null) warnings.push(left)
       } else {
         warnings.push(notice('cleanup.worktreeKept', { path: place.path }, { detail: removed.out }))
         branch = null
@@ -134,6 +135,24 @@ export async function finishWorktree(git: Git, repo: string, task: string, main 
   }
 
   return dropBranch(git, repo, branch, warnings, main, drop)
+}
+
+const LOCK = /Permission denied|Device or resource busy|EBUSY|EPERM/i
+
+/** The notice for a worktree folder git unregistered but left: a process is blamed only for a lock (BTN-559). */
+export function leftBehind(path: string, detail: string): Notice {
+  return notice(LOCK.test(detail) ? 'cleanup.folderLeft' : 'cleanup.folderNotDeleted', { path }, { detail })
+}
+
+/** Git stops on more than a lock (`Filename too long`); Node deletes long paths on Windows itself. */
+async function deleteLeftFolder(path: string, gitOut: string): Promise<Notice | null> {
+  if (LOCK.test(gitOut)) return leftBehind(path, gitOut)
+  try {
+    await rm(path, { recursive: true, force: true })
+    return null
+  } catch (error) {
+    return leftBehind(path, `${gitOut}\n${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 /**
