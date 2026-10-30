@@ -595,12 +595,12 @@ function Block(props: BlockProps) {
           <BlockMetrics project={project} session={metered} sessions={block.sessions} scale={scale} ring={ring === null} />
         )}
         {block.skipped && (
-          <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
+          <button type="button" className="button button--small block__return" disabled={onReturn === undefined} onClick={onReturn}>
             {t.common.restore}
           </button>
         )}
         {block.leftovers !== undefined && (
-          <button type="button" className="button block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
+          <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
             {t.project.dismiss}
           </button>
         )}
