@@ -116,9 +116,14 @@
   margin: 0;
 }
 
+/* A passed check in the profile dialog: a green box, so it is not missed under the fields (BTN-592). */
 .profiles__ok {
   margin: 0;
-  color: var(--fg-muted);
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--lamp-done) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--lamp-done) 14%, var(--surface));
+  color: var(--fg);
   font-size: var(--text-13);
 }
 

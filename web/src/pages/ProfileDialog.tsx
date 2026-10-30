@@ -8,6 +8,7 @@ import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
+import { stillMotion } from '../ui/landing.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
 import './profiles.css'
@@ -182,6 +183,14 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const hostLocked = (profile?.projects.length ?? 0) > 0
   const draft = { kind: kind.kind, values, ...(profile === undefined ? {} : { id: profile.id }) }
   const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
+  const body = useRef<HTMLDivElement>(null)
+
+  // The "Signed in as" line lands under the fold of a short screen: bring it into view (BTN-592).
+  useEffect(() => {
+    const box = body.current
+    if (checked === null || box === null) return
+    box.scrollTo({ top: box.scrollHeight, behavior: stillMotion() ? 'auto' : 'smooth' })
+  }, [checked])
 
   const run = async <T,>(action: () => Promise<T>): Promise<T | null> => {
     if (blank.length > 0) {
@@ -225,7 +234,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
 
   return (
     <form className="add-package__form profile-form" onSubmit={(event) => void save(event)}>
-      <div className="add-package__body" inert={busy}>
+      <div ref={body} className="add-package__body" inert={busy}>
         <Rights kind={kind} stress={stress} />
         {kind.alternatives.length > 1 && (
           <fieldset className="add-package__field">
