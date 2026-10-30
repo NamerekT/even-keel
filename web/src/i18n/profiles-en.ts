@@ -103,6 +103,7 @@ export const profilesEn: Messages['profiles'] = {
     name: 'Profile name',
     nameHint: "Filled in from the tracker's answer; can be changed.",
     kept: 'saved',
+    unfilled: (fields: string[]) => `Fill in first: ${new Intl.ListFormat('en', { type: 'conjunction' }).format(fields.map((field) => `“${field}”`))}.`,
     hostLocked: 'Fixed while projects use the profile',
     fieldHints: {
       HULY_URL: 'The address of the Huly server, as you open it in the browser.',

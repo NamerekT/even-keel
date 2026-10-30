@@ -110,6 +110,7 @@ export const profilesRu = {
     name: 'Имя профиля',
     nameHint: 'Подставляется из ответа трекера, можно поменять.',
     kept: 'сохранён',
+    unfilled: (fields: string[]) => `Сначала заполните: ${new Intl.ListFormat('ru', { type: 'conjunction' }).format(fields.map((field) => `«${field}»`))}.`,
     hostLocked: 'Не меняется, пока профиль у проектов',
     fieldHints: {
       HULY_URL: 'Адрес сервера Huly, как он открывается в браузере.',

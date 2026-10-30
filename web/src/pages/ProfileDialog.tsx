@@ -7,7 +7,7 @@ import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { TrackerIcon } from '../ui/icons.js'
-import { alternativeOf, draftValues, hostValues, shownFields } from './profileForm.js'
+import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
 import './profiles.css'
 
@@ -133,6 +133,8 @@ interface Checked {
 
 const USES: RightsUse[] = ['tracker', 'ci', 'pullRequests']
 
+const fieldLabel = (name: string): string => t.profiles.fieldLabels[name] ?? t.secrets.purpose[name] ?? name
+
 /** What the token needs, a line per use the kind has; the use the dialog was opened for stands out. */
 function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | undefined }) {
   const rights = t.profiles.rights[kind.kind] ?? {}
@@ -169,6 +171,9 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const [checked, setChecked] = useState<Checked | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
+  /** A check was pressed with blank fields: the server could only say the fields are not filled, the page names them. */
+  const [asked, setAsked] = useState(false)
+  const blank = unfilled(kind, alternative, typed, profile).map(fieldLabel)
   const values = draftValues(kind, alternative, typed)
   const key = JSON.stringify(values)
   const checkKey = JSON.stringify([values, grant])
@@ -178,6 +183,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const oauth = grant === null ? { oauth: null } : grant !== undefined && grant.values === key ? { oauth: grant.flow } : {}
 
   const run = async <T,>(action: () => Promise<T>): Promise<T | null> => {
+    if (blank.length > 0) {
+      setAsked(true)
+      setFailure(null)
+      return null
+    }
     setBusy(true)
     setFailure(null)
     try {
@@ -229,13 +239,13 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </div>
           </fieldset>
         )}
-        {shownFields(kind, alternative).filter((field) => kind.mcpOAuth !== true || field.name !== 'JIRA_MCP_TOKEN').map((field) => {
+        {trackerFields(kind, alternative).map((field) => {
           const stored = profile?.fields.find((each) => each.name === field.name)
           const locked = hostLocked && kind.hostVariables.includes(field.name)
           return (
             <Field
               key={field.name}
-              label={t.profiles.fieldLabels[field.name] ?? t.secrets.purpose[field.name] ?? field.name}
+              label={fieldLabel(field.name)}
               hint={locked ? t.profiles.hostLocked : t.profiles.fieldHints[field.name] ? `${t.profiles.fieldHints[field.name]} (${field.name})` : field.name}
             >
               {(id) => (
@@ -254,7 +264,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </Field>
           )
         })}
-        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} grant={grant} onGrant={onGrant}>
+        {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} blank={blank} grant={grant} onGrant={onGrant}>
           {kind.fields.some((field) => field.name === 'JIRA_MCP_TOKEN') ? (
             <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
               {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
@@ -269,6 +279,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
         </Field>
         {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}{kind.mcpOAuth === true && (grant === undefined ? profile?.mcpOAuth !== undefined : grant !== null && grant.values === key) ? ` · ${t.profiles.mcp.checked}` : ''}</p>}
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
+        {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
         {failure !== null && <div className="notice notice--error">{say(failure)}
           {(failure.code === 'jira.mcpSite' || failure.code === 'jira.mcpToken') && <p><a href="https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all" target="_blank" rel="noreferrer">{t.profiles.createMcpToken}</a></p>}
           {failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileKindView, ProfileView } from '../../../src/state.js'
-import { alternativeOf, daysLeft, draftValues, hostValues, shownFields } from './profileForm.js'
+import { alternativeOf, daysLeft, draftValues, hostValues, shownFields, trackerFields, unfilled } from './profileForm.js'
 
 const HULY: ProfileKindView = {
   kind: 'huly',
@@ -71,6 +71,37 @@ describe('draftValues', () => {
 
   it('sends a blank for a field not typed, so a stored secret stays', () => {
     expect(draftValues(HULY, 1, {}).HULY_PASSWORD).toBe('')
+  })
+})
+
+describe('unfilled', () => {
+  const JIRA: ProfileKindView = {
+    kind: 'jira',
+    title: 'Jira',
+    tracker: true,
+    fields: [
+      { name: 'JIRA_URL', secret: false },
+      { name: 'JIRA_EMAIL', secret: false },
+      { name: 'JIRA_TOKEN', secret: true },
+      { name: 'JIRA_MCP_TOKEN', secret: true },
+    ],
+    hostVariables: ['JIRA_URL'],
+    alternatives: [],
+    help: 'https://jira.example.com/help',
+    mcpOAuth: true,
+  }
+
+  it("names the chosen set's blank fields", () => {
+    expect(unfilled(HULY, 0, { HULY_URL: 'https://huly.example.com', HULY_TOKEN: ' ' }, undefined)).toEqual(['HULY_WORKSPACE', 'HULY_TOKEN'])
+  })
+
+  it('counts a stored secret left blank as filled', () => {
+    expect(unfilled(HULY, 1, { HULY_URL: 'https://huly.example.com', HULY_WORKSPACE: 'example', HULY_EMAIL: 'john@example.com' }, stored(['HULY_PASSWORD']))).toEqual([])
+  })
+
+  it("leaves out the MCP token, which the MCP block holds and which is optional", () => {
+    expect(trackerFields(JIRA, 0).map((field) => field.name)).toEqual(['JIRA_URL', 'JIRA_EMAIL', 'JIRA_TOKEN'])
+    expect(unfilled(JIRA, 0, { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john@example.com', JIRA_TOKEN: 'tok' }, undefined)).toEqual([])
   })
 })
 
