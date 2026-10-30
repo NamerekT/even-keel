@@ -3,6 +3,8 @@ import type { CliVersionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { cliSummary } from './cliVersions.js'
+import { useCheckedSwitch } from './CliSource.js'
+import { cliText } from './cliText.js'
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { Banner } from './Banner.js'
 
@@ -44,12 +46,30 @@ export function CliVersionBanner() {
         <FoldBody id={id} open={open} className="banner__details">
           <ul className="banner__list">
             {shown.map((each) => (
-              <li key={keyOf(each)}>{say(each.notice)}</li>
+              <li key={keyOf(each)}>
+                {say(each.notice)}
+                {each.account === null && state?.cliCopies?.[each.agent]?.source === 'system' && <CheckedSwitch provider={each.agent} />}
+              </li>
             ))}
           </ul>
         </FoldBody>
       </div>
     </Banner>
+  )
+}
+
+/** The installed CLI's way back to the version Even Keel was checked against (BTN-603): the same consent as the settings. */
+function CheckedSwitch({ provider }: { provider: string }) {
+  const { pick, dialog, sending, failure } = useCheckedSwitch(provider)
+  return (
+    <>
+      {' '}
+      <button type="button" className="button button--small" disabled={sending} onClick={pick}>
+        {cliText().switch}
+      </button>
+      {failure !== null && <span className="settings__error">{say(failure)}</span>}
+      {dialog}
+    </>
   )
 }
 

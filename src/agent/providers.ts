@@ -31,8 +31,9 @@ export const NO_SIGN_IN = 'none'
 export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['auto', 'bg', 'sdk'], [CODEX]: ['sandbox', 'bypass'] }
 
 /**
- * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `checked` — Even Keel's own copy of the
- * version it was last checked against, `system` — the one installed on the machine, on whatever version it updated to.
+ * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `system` — the one installed on the
+ * machine, on whatever version it updated to, `checked` — Even Keel's own copy of the version it was last checked
+ * against, 155–440 MB to download. The default was `checked` until BTN-603; installs from before keep it written.
  */
-export const CLI_SOURCES: readonly string[] = ['checked', 'system']
+export const CLI_SOURCES: readonly string[] = ['system', 'checked']
 

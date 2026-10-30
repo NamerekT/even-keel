@@ -15,3 +15,8 @@
 .banner.banner--info { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); color: var(--fg); }
 .add-package .cli-copy__actions { justify-content: flex-end; }
 .cli-copy__actions .button--primary { order: 1; }
+.cli-source { display: grid; gap: var(--space-8); min-width: 0; }
+.cli-source__options { display: grid; gap: var(--space-4); justify-items: start; }
+.cli-source__install, .cli-source__problem { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); min-width: 0; }
+.cli-source__install > :first-child { flex: 1 1 16em; min-width: 0; }
+.cli-source__problem .notice { margin: 0; }

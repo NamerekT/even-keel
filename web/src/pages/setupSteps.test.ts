@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { accountShortName, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import type { CliCopyView } from '../../../src/agent/cli-state.js'
+import { accountShortName, agentReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
 
 describe('setupStep', () => {
   it('reads the step of the address, the first one where it names none it knows', () => {
@@ -44,5 +45,36 @@ describe('profileShortName', () => {
   it('keeps a name of its own whole', () => {
     expect(profileShortName('Work tracker', 'Huly')).toBe('Work tracker')
     expect(profileShortName('Huly', 'Huly')).toBe('Huly')
+  })
+})
+
+describe('agentReady', () => {
+  const copy = (source: CliCopyView['source'], status: CliCopyView['status'], system: boolean): CliCopyView =>
+    ({ version: '1.0.0', source, status, system, received: 0, total: 0, approximate: 0 })
+  const signedIn = { missing: [], accounts: [{ key: 'opencode', agent: 'opencode' }] }
+
+  it('lets the setup on once the agent has a CLI to run and an account', () => {
+    expect(agentReady('opencode', copy('system', 'missing', true), signedIn, 'opencode')).toBe(true)
+    expect(agentReady('opencode', copy('checked', 'ready', false), signedIn, 'opencode')).toBe(true)
+  })
+
+  it('counts a copy still downloading as one to run', () => {
+    expect(agentReady('opencode', copy('checked', 'downloading', false), signedIn, 'opencode')).toBe(true)
+  })
+
+  it('holds it without a CLI: none installed, or the copy missing or failed', () => {
+    expect(agentReady('opencode', copy('system', 'missing', false), signedIn, 'opencode')).toBe(false)
+    expect(agentReady('opencode', copy('checked', 'missing', true), signedIn, 'opencode')).toBe(false)
+    expect(agentReady('opencode', copy('checked', 'failed', true), signedIn, 'opencode')).toBe(false)
+  })
+
+  it('holds it without an account of that agent', () => {
+    expect(agentReady('opencode', copy('system', 'missing', true), { missing: [], accounts: [] }, 'opencode')).toBe(false)
+    expect(agentReady('opencode', copy('system', 'missing', true), { missing: [], accounts: [{ key: 'opencode', agent: 'codex' }] }, 'opencode')).toBe(false)
+  })
+
+  it('reads the installed CLI from the accounts without copies', () => {
+    expect(agentReady('opencode', undefined, signedIn, 'opencode')).toBe(true)
+    expect(agentReady('opencode', undefined, { ...signedIn, missing: ['opencode'] }, 'opencode')).toBe(false)
   })
 })

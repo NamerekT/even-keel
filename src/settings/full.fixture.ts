@@ -12,7 +12,7 @@ export const FULL = {
   models: { claude: 'sonnet', codex: 'gpt-6.1-sol' },
   accounts: { claude: 'team-api', codex: ' ' },
   execution: { claude: 'bg', codex: 'bypass' },
-  cli: { codex: 'system' },
+  cli: { claude: 'checked', codex: 'system' },
   modelLabels: true,
   modelPrompts: { haiku: ' Be brief. ' },
   prompt: ' # Rules\n\n- Answer in English. ',
