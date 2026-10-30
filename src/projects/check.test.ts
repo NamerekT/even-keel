@@ -229,6 +229,16 @@ describe('checkDraft', () => {
     expect(check.repo.suggested).toBe('octo-org/new')
   })
 
+  it("gives the adapter each remote as git has it and the values of the draft's profile", async () => {
+    const adapter = fakeAdapter()
+    const asked: unknown[] = []
+    adapter.projectOfRemote = (_remote, url, env) => void asked.push([url, env])
+    const remotes = { code: 0, out: 'remote.origin.url https://git.example.com/gitlab/acme/tools/new.git\n' }
+    const env = { FAKE_URL: 'https://git.example.com/gitlab' }
+    await checkDraft(deps({ adapters: { fake: adapter }, env }, { 'D:\\new config --get-regexp ^remote\\..*\\.url$': remotes }), draft)
+    expect(asked).toEqual([['https://git.example.com/gitlab/acme/tools/new.git', env]])
+  })
+
   it('suggests nothing when no remote fits or the adapter takes none', async () => {
     const remotes = { 'D:\\new config --get-regexp ^remote\\..*\\.url$': { code: 0, out: 'remote.origin.url https://git.example.com/john/new.git\n' } }
     const adapter = fakeAdapter()

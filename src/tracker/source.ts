@@ -276,8 +276,11 @@ export interface TrackerAdapter {
   mcpValues?: Readonly<Record<string, DerivedKey>>
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
-  /** Optional. The value of `projectKey` a git remote of the repository suggests (GitHub: `owner/name` of a github.com remote). */
-  projectOfRemote?(remote: RemoteRepo): string | undefined
+  /**
+   * Optional. The value of `projectKey` a git remote of the repository suggests (GitHub: `owner/name` of a github.com
+   * remote). `url` — the remote as git has it, `env` — the values of the profile the project would run on.
+   */
+  projectOfRemote?(remote: RemoteRepo, url: string, env: Readonly<Record<string, string | undefined>>): string | undefined
   /**
    * `env` — a profile's values. `undefined` — none of its variables are set and the tracker is off; throws when they are
    * set only in part. `projects` — the place of each project on this profile, by its id.

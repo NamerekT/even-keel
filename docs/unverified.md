@@ -80,6 +80,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
 | 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories | the page cannot open an attached file |
 | 52a | [A parent closed on GitHub and Linear](#a-parent-closed-on-github-and-linear-btn-606) | GitHub and Linear projects with sub-issues | the parent stays open after its subtasks are done; close it by hand |
+| 52b | [The wizard's GitLab project from the remote](#the-wizards-gitlab-project-from-the-remote-btn-607) | new GitLab projects in the wizard | the field stays empty or holds a wrong path; type the project's path |
 | 53 | [A removed key and the global folder's daemon](#a-removed-key-and-the-global-folders-daemon) | anyone removing a key | the removed key stays with the folder's sessions until its daemon exits |
 | 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode on Linux, macOS, or a whole task on an API key | sessions do not start, or a whole task runs on a wrong assumption |
 | 56 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode | the session stops on the error instead of waiting for the reset; on Zen, retries too early or too late |
@@ -585,6 +586,10 @@ Downloading a file attached to an issue comment through the page's file route wi
 ### A parent closed on GitHub and Linear (BTN-606)
 
 GitHub and Linear read the subtasks of a parent through `children`, and Even Keel closes the parent once they are all closed and one is done (`docs/trackers.md`). Covered by adapter tests on recorded answers only: the GitHub `subIssues` connection with a second page and a sub-issue of another repository, the Linear `issues` filter `parent` with `includeArchived: true`. Neither query has been sent to the real API: if GitHub or Linear refuses the field or the filter, the refresh logs the error and the parent stays open. A Linear team's own parent auto-close next to Even Keel's has not been seen either. **Workaround:** close the parent by hand.
+
+### The wizard's GitLab project from the remote (BTN-607)
+
+On a GitLab profile the project wizard fills the tracker project with the path of a repository remote on the profile's own server: nested groups kept, a self-managed installation prefix stripped (`docs/trackers.md`, "GitLab Issues"). Covered by adapter tests on remote URLs only (`src/gitlab/adapter.test.ts`); the field filling in the live wizard on GitLab.com and on a self-managed server under a prefix has not been seen. If it stays empty or holds a wrong path, **workaround:** type the project's path.
 
 ## CI
 
