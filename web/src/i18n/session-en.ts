@@ -113,7 +113,6 @@ export const sessionEn = {
   limitUnknown: 'The limit reset time is unknown. Changing the task’s account starts a new session.',
   limitGuide: 'How to start sooner',
   limitAccount: (provider: string, account: string) => `Changing the task’s account starts it sooner. ${provider} account “${account}”. Change this provider’s account in the project’s pool (shared or own) under Project settings → Sessions, or change the task’s provider label.`,
-  limitDetails: (count: number) => `Earlier messages · ${count}`,
   limitEvent: 'Open the session to see the affected account and how to change its project pool.',
   creditEmpty: 'out of credit',
   spendEmpty: 'spending limit',
