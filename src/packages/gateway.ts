@@ -87,6 +87,8 @@ export class McpGateway {
   private port = 0
   private readonly shared = new Map<string, SharedServer>()
   private readonly bridges = new Map<string, Bridge>()
+  /** The last error of each route's server, logged once until it changes or the server answers again (BTN-589). */
+  private readonly failing = new Map<string, string>()
 
   constructor(private readonly deps: GatewayDeps) {}
 
@@ -120,6 +122,7 @@ export class McpGateway {
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
     const label = `${route.name}/${route.server}`
+    const key = `${route.project}\u0000${label}`
     const started = Date.now()
     let body: Buffer | undefined
     let local = false
@@ -131,22 +134,28 @@ export class McpGateway {
         return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(refused.reply))
       }
       const { entry } = target
-      if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers), body, target.oauth)
-      if (typeof entry.command !== 'string') return void res.writeHead(404).end()
-      local = true
-      const mode = target.npm === null ? undefined : HTTP_MODES[target.npm]
-      if (mode !== undefined) {
-        const shared = await this.sharedFor(`${route.name}@${route.install}/${route.server}`, target, mode, label)
-        return await proxy(req, res, `http://127.0.0.1:${shared.port}${mode.path}`, { authorization: `Bearer ${shared.token}` }, body)
+      if (typeof entry.url === 'string') await proxy(req, res, entry.url, stringsOf(entry.headers), body, target.oauth)
+      else if (typeof entry.command !== 'string') return void res.writeHead(404).end()
+      else {
+        local = true
+        const mode = target.npm === null ? undefined : HTTP_MODES[target.npm]
+        if (mode !== undefined) {
+          const shared = await this.sharedFor(`${route.name}@${route.install}/${route.server}`, target, mode, label)
+          await proxy(req, res, `http://127.0.0.1:${shared.port}${mode.path}`, { authorization: `Bearer ${shared.token}` }, body)
+        } else await this.bridge(req, res, target, label, body)
       }
-      await this.bridge(req, res, target, label, body)
+      if (this.failing.delete(key)) this.deps.log(`mcp gateway: ${label} works again`)
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         // The client gave up waiting, the process is still there: a cold `npx` start can take a minute.
         const seconds = Math.round((Date.now() - started) / 1000)
         const methods = methodsOf(body) ?? req.method
         this.deps.log(`mcp gateway: ${label} did not answer ${methods} in ${seconds} s${local && methods === 'initialize' ? ', still starting' : ''}`)
-      } else this.deps.log(`mcp gateway: ${label}: ${(error as Error).message}`)
+      } else {
+        const message = (error as Error).message
+        if (this.failing.get(key) !== message) this.deps.log(`mcp gateway: ${label}: ${message}`)
+        this.failing.set(key, message)
+      }
       if (!res.headersSent) res.writeHead(502)
       res.end()
     }
