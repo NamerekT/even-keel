@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AccountLogin, AccountView } from '../../../src/account/model.js'
 import { addDepth, addOf, dirty, freshKeys, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
@@ -47,11 +47,7 @@ export function useOpenAdd(): (provider: Provider | null) => void {
  */
 export function AddAccountDialog({ account }: { account: AccountView }) {
   const location = useLocation()
-  const navigate = useNavigate()
-  const { state } = useLive()
   const at = addOf(new URLSearchParams(location.search))
-  const copy = at?.provider ? state?.cliCopies?.[at.provider] : undefined
-  if (at?.provider && copy && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system)) return <CliDownloadDialog key={at.provider} provider={at.provider} stay onClose={() => void navigate({ pathname: location.pathname, search: withoutAdd(location.search) }, { replace: true })} />
   return at === null ? null : <AddDialog account={account} at={at} />
 }
 
@@ -95,7 +91,11 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const depth = addDepth(location.state)
   // The step came from the provider pick here, so "Back" goes to it.
   const picked = (location.state as { picked?: unknown } | null)?.picked === true
-  const provider = at.provider !== null && !cliMissing(account, at.provider) ? at.provider : null
+  const { state: live } = useLive()
+  const copy = at.provider !== null ? live?.cliCopies?.[at.provider] : undefined
+  // A provider with no CLI to run asks for one over the provider pick (BTN-599): closing that leaves the pick open.
+  const copyNeeded = copy !== undefined && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system) ? at.provider : null
+  const provider = at.provider !== null && copyNeeded === null && !cliMissing(account, at.provider) ? at.provider : null
   const newAccount = new URLSearchParams(location.search).has('way')
   const [checked, setChecked] = useState<string | null>(null)
   useEffect(() => {
@@ -145,7 +145,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
     if (last.error === null && last.target === null && !stopped) done()
   })
 
-  useEffect(() => {
+  // Before the effects of the dialogs inside, so one opened together with it stays on top.
+  useLayoutEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
 
@@ -260,6 +261,14 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
           />
         )}
       </div>
+      {copyNeeded !== null && (
+        <CliDownloadDialog
+          key={copyNeeded}
+          provider={copyNeeded}
+          stay
+          onClose={() => void (picked ? navigate(-1) : navigate({ pathname: location.pathname, search: withAdd(location.search, null) }, { replace: true, state: location.state }))}
+        />
+      )}
       {asking === 'discard' && (
         <ConfirmDialog
           {...t.addAccount.discard}
