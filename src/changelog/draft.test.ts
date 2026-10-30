@@ -36,6 +36,7 @@ const request = (fields: Partial<ChangelogRequest> = {}): ChangelogRequest => ({
   heading: '## [Unreleased]',
   tasks: [],
   released: [],
+  previous: [],
   tags: [],
   file: 'docs/CHANGELOG.md',
   ...fields,
@@ -79,6 +80,20 @@ describe('changelogPrompt', () => {
     const prompt = changelogPrompt(request({ heading: '## [0.1.1]', tags: ['v0.1.0'], released: ['## [0.1.0] - 2026-10-21\n\n- Old'] }))
     expect(prompt).toContain('Tags of the repository: v0.1.0.')
     expect(prompt).toContain('## Already released — leave out what this section describes\n\n## [0.1.0] - 2026-10-21\n\n- Old')
+  })
+
+  it('writes for a reader of the previous release in every mode: what the section adds gets no Fixed or Changed entries', () => {
+    for (const mode of ['fresh', 'update', 'edit'] as const) {
+      const prompt = changelogPrompt(request({ mode, section: '## [Unreleased]\n\n- A' }))
+      expect(prompt).toContain('The reader upgrades from the release before this one')
+      expect(prompt).toContain('Changed, Removed and Fixed are only for what that release already had')
+    }
+  })
+
+  it('gives the release before as what the reader already has', () => {
+    const prompt = changelogPrompt(request({ milestone: 'v0.2', previous: ['## [0.1.1]\n\n- A fix', '## [0.1.0]\n\n- First'] }))
+    expect(prompt).toContain('## The release before — what the reader already has\n\n## [0.1.1]\n\n- A fix\n\n## [0.1.0]\n\n- First')
+    expect(changelogPrompt(request())).not.toContain('## The release before')
   })
 
   it('cuts a long comment', () => {

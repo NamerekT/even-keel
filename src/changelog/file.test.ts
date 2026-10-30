@@ -75,11 +75,55 @@ describe('changelogPlan', () => {
   })
 
   it('gives a new Unreleased heading when there is no file', () => {
-    expect(changelogPlan(null, 'v0.1', [])).toEqual({ section: null, heading: '## [Unreleased]', released: [], tag: null })
+    expect(changelogPlan(null, 'v0.1', [])).toEqual({ section: null, heading: '## [Unreleased]', released: [], previous: [], tag: null })
   })
 
   it('reads a milestone that is not a version only by Unreleased and never freezes it', () => {
     expect(changelogPlan(FILE, 'Sprint 3', ['v0.1.0']).section?.name).toBe('Unreleased')
+  })
+
+  describe('the release before the milestone', () => {
+    const LINES = `# Changelog
+
+## [Unreleased]
+
+- Next.
+
+## [0.2.0] - 2026-11-01
+
+- Second.
+
+## [0.1.1] - 2026-10-25
+
+- A fix.
+
+## [0.1.0] - 2026-10-21
+
+- First.
+
+## [0.0.9] - 2026-09-01
+
+- Preview.
+`
+    const previous = (milestone: string, tags: string[]) => changelogPlan(LINES, milestone, tags).previous.map((section) => section.name)
+
+    it('is every section of the newest older version line', () => {
+      expect(previous('v0.2', ['v0.1.0', 'v0.1.1'])).toEqual(['0.1.1', '0.1.0'])
+      expect(previous('v0.3', ['v0.2.0'])).toEqual(['0.2.0'])
+    })
+
+    it('stays the line before for a patch of a released milestone', () => {
+      expect(previous('v0.2', ['v0.2.0'])).toEqual(['0.1.1', '0.1.0'])
+    })
+
+    it('is the newest line of the file for a milestone that is not a version', () => {
+      expect(previous('Sprint 3', [])).toEqual(['0.2.0'])
+    })
+
+    it('is empty for the first release', () => {
+      expect(previous('v0.0', [])).toEqual([])
+      expect(changelogPlan(FILE, 'v0.1', []).previous).toEqual([])
+    })
   })
 })
 
