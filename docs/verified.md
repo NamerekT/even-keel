@@ -4,6 +4,8 @@ The log of live checks. When an entry of [`unverified.md`](unverified.md) is che
 
 The groups are the sections of `unverified.md`, so one thing is looked up in the same place in both files. The entries from before 2026-10-26 were rebuilt from the history of `unverified.md` (the commits named in the table), by their text, not by hashes: the history before 2026-10-21 was rewritten and its old hashes are dead. Checks that never had an entry there are taken from the phrases of `docs/` ("checked live", "seen live", "Checked on …"), from the commits that wrote them and from the manual "Проверка" tasks of the tracker; the behaviour a document states without a date or a place is not here.
 
+An absence is a finding too, and it goes stale: "the provider has no X" — no API for a job log, no list of models, no fork — is written in `docs/` and in a row here with the provider's version it was checked on and the way it was looked for (the endpoint asked, the help read). A claim without them is not a finding, and a session that relies on one checks it first. The Forgejo job log taught this: a row said "the job log only on the host" for Forgejo 16.0.3, and on 2026-10-30 the same 16.0.3 gave it at `GET /actions/jobs/{id}/logs` (BTN-605).
+
 ## How an entry reads
 
 One row is one check.
