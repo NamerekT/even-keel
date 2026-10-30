@@ -22,6 +22,10 @@ export const composerEn = {
     reply: 'As the answer',
     dismiss: 'Dismiss',
   },
+  commands: {
+    menu: 'Commands',
+    filter: 'Type to filter',
+  },
   thinking: 'Thinking',
   running: (tool: string) => `Running: ${tool}`,
   delivering: 'Delivering the answer, the session is starting up',

@@ -34,6 +34,7 @@ import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice
 import { type RemovalFacts } from '../projects/removal.js'
 import { checkoutRemotes, remotePeers, repositoryIds, sameRepository } from '../projects/remotes.js'
 import { replyParts } from '../sessions/ask.js'
+import { typedText } from '../sessions/commandPrompt.js'
 import { isLive } from '../sessions/agents.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
 import { KEEP_WARM_PROMPT, KeepWarm, warmTasks, type WarmFacts } from '../sessions/keepwarm.js'
@@ -562,7 +563,8 @@ export function approved(ctx: ChainContext, task: string, session: HandoffSessio
   if (move === null) return false
   if (move.kind === 'allow' && move.message !== null) {
     const { text, files } = replyParts(prompt, ask)
-    ctx.mailbox.post(task, session.sessionId, text, files)
+    // The mailbox keeps a chat command as typed: the hook expands it again when it delivers the message.
+    ctx.mailbox.post(task, session.sessionId, typedText(text), files)
   }
   console.log(`sessions: ${task}: the user ${move.kind === 'allow' ? 'allowed' : 'denied'} the call the session ${session.sessionId} waited to have approved`)
   return true

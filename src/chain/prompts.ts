@@ -69,6 +69,8 @@ export interface PromptTexts {
   carryReport: (facts: CarryFacts) => string
   /** The rules of the session that resolves a carry. */
   carryRules: (main: string) => string
+  /** What the chat's `/handoff` asks the session for (BTN-557); `extra` — the user's words after the command. */
+  handoff: (extra: string | null) => string
 }
 
 /** A release project's carry git could not merge, as its session is told (BTN-369). */
@@ -151,6 +153,11 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     transcript: (path) => fill`- Транскрипт прошлой сессии: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
     note: (path) => fill`- Записка о передаче: ${path} — прочитай её первой: что сделано, что осталось, следующая команда.`,
     begin: (main) => fill`- Начни с git status, git log ${main}..HEAD и описания задачи.`,
+    handoff: (extra) => {
+      const ask =
+        'Пользователь из чата Even Keel просит передать задачу новой сессии. Оставь рабочее дерево как есть (коммитить не нужно), запиши `.temp/handoff.md` в корне рабочего дерева — что сделано, что осталось, текущие гипотезы, что уже пробовали и отбросили, важные файлы и символы, точная следующая команда — и закончи ход последней строкой `CHECKPOINT: .temp/handoff.md`. Новая сессия продолжит работу по этой записке.'
+      return extra === null ? ask : fill`${ask}\n\nК просьбе пользователь добавил — учти это в записке и в том, что делаешь до неё:\n${extra}`
+    },
     recentSteps: 'Последние шаги прошлой сессии:',
     lastMessage: 'Последнее сообщение прошлой сессии:',
     unattended: [
@@ -254,6 +261,11 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     transcript: (path) => fill`- Transcript of the previous session: ${path} — do not read it whole; grep it if something is missing.`,
     note: (path) => fill`- Handoff note: ${path} — read it first: what is done, what is left, the next command.`,
     begin: (main) => fill`- Start with git status, git log ${main}..HEAD and the task description.`,
+    handoff: (extra) => {
+      const ask =
+        "The user asks from Even Keel's chat to hand the task over to a fresh session. Leave the working tree as it is (no commit needed), write `.temp/handoff.md` at the root of the working tree — what is done, what is left, the current hypotheses, what was already tried and ruled out, the files and symbols that matter, the exact next command — and end your turn with a final line `CHECKPOINT: .temp/handoff.md`. A fresh session picks the work up from that note."
+      return extra === null ? ask : fill`${ask}\n\nThe user adds to the request — take it into account in the note and in what you do before it:\n${extra}`
+    },
     recentSteps: 'Last steps of the previous session:',
     lastMessage: 'Last message of the previous session:',
     unattended: [

@@ -1,5 +1,6 @@
 import type { Language } from '../language.js'
 import { fail } from '../notice/notice.js'
+import { commandPrompt } from './commandPrompt.js'
 
 export interface AskOption {
   label: string
@@ -118,13 +119,14 @@ export function joinLabels(labels: string[]): string {
 
 /**
  * The prompt that resumes a stopped session with the user's reply: the `- "question" → answer` lines, the user's own
- * words and the files. A question the CLI never saved is repeated, since the session no longer sees it. Throws on an empty reply.
+ * words and the files. A question the CLI never saved is repeated, since the session no longer sees it. A chat command
+ * from the page goes in expanded (`commandPrompt`). Throws on an empty reply.
  */
 export function replyPrompt(reply: Reply, ask: Ask | null, language: Language): string {
   const text = TEXTS[language]
   const answerOf = (question: AskQuestion) => (reply.answers[question.question] ?? '').trim()
   const answered = ask === null ? [] : ask.questions.filter((question) => answerOf(question) !== '')
-  const comment = reply.text.trim()
+  const comment = reply.from === 'page' ? commandPrompt(reply.text.trim(), language) : reply.text.trim()
   if (answered.length === 0 && comment === '' && reply.files.length === 0) throw fail('answer.empty', {})
   const blocks: string[] = []
   if (ask?.unsaved) blocks.push([text.lost, ...ask.questions.flatMap((question) => lostLines(question, answerOf(question)))].join('\n'))

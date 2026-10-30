@@ -347,13 +347,4 @@
   .ask__body--preview {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .chat__row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .chat__buttons {
-    justify-content: flex-end;
-  }
 }
