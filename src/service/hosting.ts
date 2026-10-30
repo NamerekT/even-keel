@@ -205,7 +205,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     tallyHealth: ctx.tally.health(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
-    cliCopies: ctx.cliCopies.view(),
+    cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,

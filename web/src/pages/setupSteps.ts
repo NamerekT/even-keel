@@ -1,3 +1,5 @@
+import type { CliCopyView } from '../../../src/agent/cli-state.js'
+
 /** The first run's setup (BTN-310): one page, the step in its address so that the browser's Back goes a step back. */
 export const SETUP = '/setup'
 
@@ -31,6 +33,25 @@ export function profileShortName(name: string, tracker: string): string {
 export function accountShortName(name: string): string {
   const at = name.indexOf('@')
   return at > 0 ? name.slice(0, at) : name
+}
+
+/**
+ * "Next" on the agent step (BTN-603): the chosen agent has something to run — its installed CLI or Even Keel's copy,
+ * even one still downloading — and an account. Without copies in the state the accounts' `missing` tells the CLI.
+ */
+export function agentReady(provider: string, copy: CliCopyView | undefined, account: AccountPool, key: string): boolean {
+  return cliRunnable(provider, copy, account.missing) && account.accounts.some((each) => each.key === key && each.agent === provider)
+}
+
+/** The agent has a CLI to run: its installed one, or Even Keel's copy downloaded or on its way. */
+export function cliRunnable(provider: string, copy: CliCopyView | undefined, missing: readonly string[]): boolean {
+  if (copy === undefined) return !missing.includes(provider)
+  return copy.source === 'checked' ? copy.status === 'ready' || copy.status === 'downloading' : copy.system
+}
+
+interface AccountPool {
+  missing: readonly string[]
+  accounts: readonly { key: string; agent: string }[]
 }
 
 /** The step before and after; `null` — none, the first step or the last. */

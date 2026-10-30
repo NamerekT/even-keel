@@ -16,6 +16,8 @@ import { configOfFile, exportConfig, importConfig, prepareSettings } from './imp
 import { mirrorDefinitions, putSettings, readSettings, settingsText } from './store.js'
 
 const abc = { id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }
+/** The rows v21 writes for a file of before (BTN-603): every provider stays on the checked copy. */
+const CHECKED_ROWS = ['claude', 'codex', 'opencode', 'copilot'].map((qualifier) => ({ key: 'cli', project: null, qualifier, value: 'checked' }))
 
 describe('the settings in the database', { timeout: 30_000 }, () => {
   let db: PGlite
@@ -44,7 +46,7 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     expect(await stateValue(db, 'updates.dismissed')).toBe('0.2.0')
     expect(existsSync(file)).toBe(false)
     expect(JSON.parse(readFileSync(`${file}${IMPORTED_SUFFIX}`, 'utf8')).parallel).toBe(2)
-    expect(logs).toEqual([`config: moved ${file} into the database: 1 projects, 3 settings; the file is kept as ${file}${IMPORTED_SUFFIX}`])
+    expect(logs).toEqual([`config: moved ${file} into the database: 1 projects, 7 settings; the file is kept as ${file}${IMPORTED_SUFFIX}`])
 
     write({ parallel: 5, projects: [] })
     await prepare()
@@ -100,7 +102,7 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     await importConfig(db, { parallel: 3, unattended: true, projects: [abc, { id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', prompt: 'Hi.' }] })
     await importConfig(db, { projects: [abc] })
     expect(await config()).toMatchObject({ parallel: 1, unattended: false, projects: { 'id-abc': 'C:\\abc' } })
-    expect((await db.query('select key, project_id, value from setting_values')).rows).toEqual([{ key: 'tracker', project_id: 'id-abc', value: '"huly"' }])
+    expect((await db.query("select key, project_id, value from setting_values where key <> 'cli'")).rows).toEqual([{ key: 'tracker', project_id: 'id-abc', value: '"huly"' }])
   })
 
   it('brings a file of an older schema to the current one and gives its projects ids', () => {
@@ -108,13 +110,14 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     expect(contents.records).toEqual([{ id: expect.stringMatching(/^[0-9a-f-]{36}$/), key: 'ABC', name: null, repo: 'C:\\abc', branch: 'main', trackerProjects: {} }])
     expect(contents.rows).toEqual([
       { key: 'models', project: null, qualifier: 'claude', value: 'opus' },
+      ...CHECKED_ROWS,
       { key: 'tracker', project: contents.records[0]!.id, qualifier: '', value: 'huly' },
     ])
   })
 
   it('stores the tracker of each project, the shared one of an older file and GitHub for one of the current schema (BTN-345)', () => {
     const older = configOfFile({ version: 12, tracker: 'linear', projects: [abc] }).contents.rows
-    expect(older).toEqual([{ key: 'tracker', project: 'id-abc', qualifier: '', value: 'linear' }])
+    expect(older).toEqual([...CHECKED_ROWS, { key: 'tracker', project: 'id-abc', qualifier: '', value: 'linear' }])
     const current = configOfFile({ version: SCHEMA_VERSION, tracker: 'huly', projects: [{ ...abc, github: 'octo-org/abc' }] }).contents.rows
     expect(current).toEqual([{ key: 'tracker', project: 'id-abc', qualifier: '', value: 'github' }])
   })

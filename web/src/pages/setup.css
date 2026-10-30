@@ -87,7 +87,7 @@
   padding-right: var(--space-24);
 }
 
-/* The agents: two a row, the pick stretched over the card, the account's own button above it. */
+/* The agents: two a row, the pick stretched over the card, the CLI's line at its bottom. */
 .setup-agents {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -182,18 +182,60 @@
   font-size: var(--text-13);
 }
 
-.setup-agent__account {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-8);
-  min-height: 28px;
+.setup-agent__cli {
   margin-top: auto;
   padding-top: var(--space-12);
   border-top: 1px solid var(--border);
+  color: var(--fg-muted);
   font-size: var(--text-14);
+}
+
+/* The chosen agent's accounts: a mark to pick one, its name, what it still needs. */
+.setup-account__note {
+  margin: 0;
+  font-size: var(--text-14);
+}
+
+.setup-accounts {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-14);
+}
+
+.setup-accounts td {
+  padding: var(--space-6) var(--space-8);
+  vertical-align: middle;
+}
+
+.setup-accounts tr + tr td {
+  border-top: 1px solid var(--border);
+}
+
+.setup-accounts__mark {
+  width: 28px;
+  padding-left: 0;
+}
+
+.setup-accounts__mark .provider-choice__radio:disabled {
+  cursor: default;
+}
+
+.setup-accounts__name {
+  color: var(--fg-muted);
+}
+
+.setup-accounts__row--picked .setup-accounts__name {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.setup-accounts__state {
+  color: var(--fg-muted);
+  text-align: right;
+}
+
+.setup-accounts__state .button {
+  margin-left: var(--space-8);
 }
 
 .setup-agent__who {
