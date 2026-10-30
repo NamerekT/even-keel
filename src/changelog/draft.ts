@@ -38,6 +38,8 @@ export interface ChangelogRequest {
   tasks: MilestoneTask[]
   /** The milestone's sections of tagged versions: released, what they describe is not repeated. */
   released: string[]
+  /** The sections of the version line before the milestone's: what the reader upgrades from. */
+  previous: string[]
   /** The repository's tags, for reference. */
   tags: string[]
   /** The user's words, for `edit`. */
@@ -61,6 +63,7 @@ export function changelogPrompt(request: ChangelogRequest): string {
   const rules = [
     `- Format: Keep a Changelog (https://keepachangelog.com/en/1.1.0/). The heading \`${heading}\`, then the groups Added, Changed, Deprecated, Removed, Fixed, Security — only those that have entries.`,
     '- One entry per change a user of the project would notice. Merge the tasks of one change; leave out the tasks a user would not notice (refactoring, tests, the project\'s own process).',
+    '- The reader upgrades from the release before this one, so all this section adds is new to them: a fix, change or removal of it before the release is no entry of its own — fold it into that entry, or leave it out. Changed, Removed and Fixed are only for what that release already had.',
     `- Language: the one \`${file}\` in this folder is written in; without it, the one of README.md. Not the language of the tasks, if that differs.`,
     '- Read files only to settle the language and how the project names things. Change nothing.',
     '- Ask no questions: no one will answer them. Take an ambiguous request in the sense closest to the user\'s words and apply it.',
@@ -75,6 +78,9 @@ export function changelogPrompt(request: ChangelogRequest): string {
   if (request.mode === 'edit') rules.push('- Change only what the user asks; keep the rest as it is.')
   const blocks = [task, '', ...rules]
   if (request.tags.length > 0) blocks.push('', `Tags of the repository: ${request.tags.join(', ')}.`)
+  if (request.previous.length > 0) {
+    blocks.push('', '## The release before — what the reader already has', '', request.previous.map((section) => section.trim()).join('\n\n'))
+  }
   for (const released of request.released) {
     blocks.push('', '## Already released — leave out what this section describes', '', released.trim())
   }

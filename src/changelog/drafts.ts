@@ -23,6 +23,9 @@ export interface ChangelogDeps {
 
 const headingOf = (text: string) => text.split('\n')[0]!.trimEnd()
 
+/** What every turn is told about the releases before its section. */
+const pastOf = (plan: ChangelogPlan) => ({ released: plan.released.map((each) => each.text), previous: plan.previous.map((each) => each.text) })
+
 /** Whether the section has a line past its headings: a group heading alone (`### Added`) is no entry. */
 const hasEntries = (section: string) => section.split('\n').some((line) => line.trim() !== '' && !line.trimStart().startsWith('#'))
 
@@ -82,7 +85,7 @@ export class ChangelogDrafts {
     if (op.op === 'edit') {
       const section = start ?? latest.text
       const heading = headingOf(section)
-      const answer = await this.turn(project, heading, { milestone, mode: 'edit', section, heading, tasks: [], released: plan.released.map((each) => each.text), tags, instruction: op.instruction, file: file.path })
+      const answer = await this.turn(project, heading, { milestone, mode: 'edit', section, heading, tasks: [], ...pastOf(plan), tags, instruction: op.instruction, file: file.path })
       return view(await this.store(project, milestone, { kind: 'edit', ...answer, base: section, instruction: op.instruction.trim(), tasks: latest.tasks, open: latest.open }))
     }
     const material = materialOf(milestone, await this.deps.tasks(project, milestone))
@@ -91,7 +94,7 @@ export class ChangelogDrafts {
     if (missing.length === 0) throw fail('changelog.nothingNew', { milestone })
     const mode: ChangelogMode = start === null ? 'fresh' : 'update'
     const heading = start === null ? plan.heading : headingOf(start)
-    const answer = await this.turn(project, heading, { milestone, mode, section: start, heading, tasks: missing, released: plan.released.map((each) => each.text), tags, file: file.path })
+    const answer = await this.turn(project, heading, { milestone, mode, section: start, heading, tasks: missing, ...pastOf(plan), tags, file: file.path })
     const tasks = [...latest.tasks, ...missing.map((task) => task.id)]
     return view(await this.store(project, milestone, { kind: 'add', ...answer, base: start, instruction: null, tasks, open: material.open }))
   }
@@ -104,8 +107,7 @@ export class ChangelogDrafts {
     // The first draft keeps the user's section and works the tasks into it; "again" writes it anew.
     const mode: ChangelogMode = kind === 'draft' && section !== null ? 'update' : 'fresh'
     const heading = plan.section?.heading ?? plan.heading
-    const released = plan.released.map((each) => each.text)
-    const answer = await this.turn(project, heading, { milestone, mode, section: mode === 'update' ? section : null, heading, tasks: material.done, released, tags, file })
+    const answer = await this.turn(project, heading, { milestone, mode, section: mode === 'update' ? section : null, heading, tasks: material.done, ...pastOf(plan), tags, file })
     return this.store(project, milestone, { kind, ...answer, base: section, instruction: null, tasks: material.done.map((task) => task.id), open: material.open })
   }
 

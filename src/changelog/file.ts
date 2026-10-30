@@ -30,6 +30,8 @@ export interface ChangelogPlan {
   heading: string
   /** The milestone's sections of tagged versions, in the file's order: released and frozen. */
   released: Section[]
+  /** The sections of the version line before the milestone's (`0.1.x` for `v0.2`), in the file's order: what its reader already has. */
+  previous: Section[]
   /** The milestone's newest tag; `null` — it has none. */
   tag: string | null
 }
@@ -116,8 +118,22 @@ export function changelogPlan(text: string | null, milestone: string, tags: stri
     section: section ?? null,
     heading: newest === undefined ? '## [Unreleased]' : `## [${nextPatch(newest.version)}]`,
     released: sections.filter((each) => own(each.name) && isTagged(each.name)),
+    previous: previousLine(sections, version, own),
     tag: newest?.tag ?? null,
   }
+}
+
+/**
+ * The sections of the newest version line older than the milestone: as long as the milestone's version (`0.1` for `v0.2`),
+ * or the newest section's version without its last part for a milestone that is not a version.
+ */
+function previousLine(sections: Section[], version: string | null, own: (name: string) => boolean): Section[] {
+  const older = sections.filter((each) => /^\d[\d.]*$/.test(each.name) && !own(each.name) && (version === null || byVersion(each.name, version) < 0))
+  const newest = older.map((each) => each.name).sort(byVersion).at(-1)
+  if (newest === undefined) return []
+  const parts = partsOf(newest)
+  const line = parts.slice(0, version === null ? Math.max(1, parts.length - 1) : partsOf(version).length).join('.')
+  return older.filter((each) => belongs(each.name, line))
 }
 
 /** The file with the section in the place the plan names; a new file when there is none. */
