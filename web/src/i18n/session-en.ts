@@ -61,7 +61,6 @@ export const sessionEn = {
   skipCarry: 'The chain stops waiting for the carry and goes on with the tasks; the conflict waits on the release project’s page. The session does not change.',
   interrupted: 'stopped until main is fixed',
   skip: 'Skip',
-  midTurn: 'mid-turn — replace and skip after it',
   silent: (quiet: string, restartAt: string, hungAt: string) =>
     `Silent for ${quiet}. New session — with confirmation from ${restartAt}, on its own at ${hungAt}.`,
   confirmSilent: (since: string) => `The session has written nothing since ${since}. Interrupt the turn and start a new session?`,

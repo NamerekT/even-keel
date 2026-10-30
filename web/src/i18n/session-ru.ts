@@ -62,7 +62,6 @@ export const sessionRu = {
   skipCarry: 'Цепочка перестанет ждать перенос и продолжит задачи; конфликт ждёт на странице релизного проекта. Сессия не меняется.',
   interrupted: 'остановлена до починки main',
   skip: 'Пропустить',
-  midTurn: 'идёт ход — замена и пропуск после него',
   silent: (quiet: string, restartAt: string, hungAt: string) =>
     `Молчит ${quiet}. «Новая сессия» — с подтверждением с ${restartAt}, сама — в ${hungAt}.`,
   confirmSilent: (since: string) => `Сессия молчит с ${since}. Оборвать ход и начать новую сессию?`,
