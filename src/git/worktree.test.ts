@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, requireBranch, requireCheckedOut, taskPlace, type GitResult } from './worktree.js'
+import { catchUp, ensureIgnored, finishWorktree, leftBehind, parseWorktrees, prepareWorktree, requireBranch, requireCheckedOut, taskPlace, type GitResult } from './worktree.js'
 import { englishOf, notice } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
@@ -216,7 +216,27 @@ describe('ensureIgnored', () => {
   })
 })
 
+describe('leftBehind', () => {
+  it('blames a process only for a lock', () => {
+    for (const out of ['error: failed to delete: Permission denied', 'Device or resource busy', 'EBUSY: resource busy or locked', 'EPERM: operation not permitted']) {
+      expect(leftBehind(place, out).code).toBe('cleanup.folderLeft')
+    }
+  })
+
+  it('names any other reason neutrally and keeps it in the detail', () => {
+    const left = leftBehind(place, 'error: failed to delete: Filename too long')
+    expect(left.code).toBe('cleanup.folderNotDeleted')
+    expect(englishOf(left)).not.toMatch(/process/)
+    expect(englishOf(left)).toMatch(/Filename too long/)
+  })
+})
+
 describe('finishWorktree', () => {
+  let onExit: string[] = []
+  afterEach(() => {
+    for (const dir of onExit) rmSync(dir, { recursive: true, force: true })
+    onExit = []
+  })
   const clean = {
     'worktree list --porcelain': listing(main, [porcelainPath, 'abc-7/task']),
     remote: { out: 'origin\n' },
@@ -285,6 +305,20 @@ describe('finishWorktree', () => {
     })
     const outcome = await finishWorktree(git, repo, 'ABC-7')
     expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/left behind.*Permission denied/)])
+    expect(calls).toContain('branch -d abc-7/task')
+  })
+
+  it('deletes a folder git left behind for another reason than a lock, without a warning', async () => {
+    if (!existsSync(repo)) onExit.push(repo)
+    mkdirSync(join(place, 'deep'), { recursive: true })
+    writeFileSync(join(place, 'deep', 'file.txt'), 'x')
+    const { git, calls } = fakeGit({
+      ...clean,
+      'worktree list --porcelain': [listing(main, [porcelainPath, 'abc-7/task']), listing(main)],
+      [`worktree remove ${place}`]: { code: 255, out: `error: failed to delete '${porcelainPath}': Filename too long` },
+    })
+    expect(await finishWorktree(git, repo, 'ABC-7')).toEqual({ warnings: [], syncError: null })
+    expect(existsSync(place)).toBe(false)
     expect(calls).toContain('branch -d abc-7/task')
   })
 

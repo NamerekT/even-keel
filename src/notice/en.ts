@@ -106,6 +106,7 @@ export const en = {
   'cleanup.failed': () => 'cleanup failed',
   'cleanup.syncFailed': () => 'sync of the main branch failed',
   'cleanup.folderLeft': (p: { path: string }) => `the worktree folder ${p.path} was left behind, a process still holds it`,
+  'cleanup.folderNotDeleted': (p: { path: string }) => `the worktree folder ${p.path} was left behind: it could not be deleted`,
   'cleanup.worktreeKept': (p: { path: string }) => `the worktree ${p.path} was kept`,
   'cleanup.branchKept': (p: { branch: string }) => `the branch ${p.branch} was kept`,
   'cleanup.originUnchecked': (p: { branch: string; remote?: string }) => `could not check the branch ${p.branch} on ${p.remote ?? 'origin'}`,
