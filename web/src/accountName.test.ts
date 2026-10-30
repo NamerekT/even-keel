@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountName, folderLabel } from './accountName.js'
+import { accountName, accountOf, folderLabel } from './accountName.js'
 import { accountOptions } from './pages/settingsRun.js'
 
 const entry = (key: string, agent: string, email: string | null, extra: Partial<AccountEntry> = {}): AccountEntry => ({
@@ -78,6 +78,14 @@ describe('folderLabel and accountOptions', () => {
     expect(folderLabel(view, 'opencode-2')).toBe('OpenCode Zen 2')
     expect(folderLabel(view, 'gone')).toBe('gone')
     expect(folderLabel(undefined, 'global')).toBe('global')
+  })
+
+  it('find the account a session names by its folder key or its e-mail (BTN-581)', () => {
+    const named = { ...view, accounts: [...accounts, entry('work', 'claude', 'jane.roe@example.com', { name: 'Work' })] }
+    expect(accountOf(named, 'work')?.key).toBe('work')
+    expect(accountOf(named, 'jane.roe@example.com')?.key).toBe('work')
+    expect(accountOf(named, 'gone@example.com')).toBeUndefined()
+    expect(accountOf(undefined, 'work')).toBeUndefined()
   })
 
   it('offer the provider\'s folders by that name', () => {

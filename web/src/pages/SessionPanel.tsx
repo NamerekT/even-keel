@@ -531,7 +531,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {row.replaced !== undefined && ` · ${replacedText(row.replaced)}`}
               </span>
               <span className="sessions__account">
-                <AccountTag email={row.account} />
+                <AccountTag account={row.account} />
               </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
               {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
@@ -597,7 +597,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
             <span className="panel__title">{launchText(row)}</span>
-            <AccountTag email={account} />
+            <AccountTag account={account} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
             ×

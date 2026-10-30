@@ -8,7 +8,6 @@ import {
   connectionOf,
   deviceLogin,
   entrySlot,
-  folderEmail,
   foreignAccount,
   offeredProviders,
   panelSections,
@@ -78,15 +77,6 @@ describe('entrySlot', () => {
     expect(entrySlot(accounts, accounts.accounts[0]!)).toBe(4)
     expect(entrySlot(accounts, accounts.accounts[3]!)).toBe(4)
     expect(entrySlot(accounts, accounts.accounts[2]!)).toBe(3)
-  })
-})
-
-describe('folderEmail', () => {
-  it('names a folder by its e-mail, else by its name, and one no longer listed by its key', () => {
-    const accounts = view([entry('work', 'jane@example.com'), entry('spare', null)])
-    expect(folderEmail(accounts, 'work')).toBe('jane@example.com')
-    expect(folderEmail(accounts, 'spare')).toBe('Claude Code')
-    expect(folderEmail(accounts, 'gone')).toBe('gone')
   })
 })
 
