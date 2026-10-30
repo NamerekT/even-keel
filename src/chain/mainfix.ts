@@ -101,6 +101,7 @@ export class MainFix {
       this.host.halt(chain, blocked)
       return false
     }
+    if (this.deps.limitsUnread(project, held.task)) return false
     const reset = this.deps.limitReset(project, held.task)
     if (reset !== null) {
       if (chain.limitUntil !== reset) {

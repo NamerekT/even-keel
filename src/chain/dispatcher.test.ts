@@ -490,6 +490,23 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
   })
 
+  it('holds the launch until the account answers its first limits poll since the start', async () => {
+    const options: { limitsUnread?: boolean; limitReset?: string | null } = { limitsUnread: true }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null })
+
+    options.limitsUnread = false
+    options.limitReset = '2026-09-26T17:00:00.000Z'
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]?.limitUntil).toBe('2026-09-26T17:00:00.000Z')
+  })
+
   it('holds the launch while the project set of packages has a problem and launches it once the problem is gone', async () => {
     const options: { packagesBlocked?: Set<string> } = { packagesBlocked: new Set(['ABC']) }
     const { dispatcher, launched, saved } = setup(options)
