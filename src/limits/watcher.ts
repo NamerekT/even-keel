@@ -79,6 +79,14 @@ export class LimitsWatcher {
     return this.usageOff ?? this.accounts.get(account)?.health ?? WAITING
   }
 
+  /** The account is polled and no poll has answered since the start: a spent window still looks like none. */
+  unread(account: string): boolean {
+    if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
+    const home = this.options.homes().find((each) => each.key === account)
+    if (home === undefined || this.options.usage(home) === undefined) return false
+    return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
+  }
+
   start(): void {
     if (this.timer !== undefined) return
     const tick = () => {
@@ -183,7 +191,8 @@ export class LimitsWatcher {
       }
       setHealth(account, 'unread', answer.reason, at)
     } else {
-      account.polled = answer.limits
+      // A fallback (Codex reads its rollouts when ChatGPT does not answer) may be older than the last poll.
+      account.polled = newestLimits(answer.limits, account.polled)
       setHealth(account, 'ok', null, at)
     }
   }

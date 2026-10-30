@@ -114,6 +114,28 @@ describe('LimitsWatcher', () => {
     expect(watcher.usage('global').state).toBe('ok')
   })
 
+  it('counts the account unread until a poll answers, even past a lone failure', async () => {
+    const { watcher, poll } = watcherOf([failing, () => LIMITS])
+    expect(watcher.unread('global')).toBe(true)
+    await poll()
+    expect(watcher.unread('global')).toBe(true)
+    await poll()
+    expect(watcher.unread('global')).toBe(false)
+  })
+
+  it('counts the account read once its polls keep failing, so a chain does not wait for ever', async () => {
+    const { watcher, poll } = watcherOf([failing, failing])
+    await poll()
+    await poll()
+    expect(watcher.unread('global')).toBe(false)
+  })
+
+  it('does not count unread an account that is never polled', () => {
+    expect(watcherOf([], () => true, { ready: () => true, apiKey: () => true }).watcher.unread('global')).toBe(false)
+    expect(watcherOf([], () => true, { ready: () => true, apiKey: () => false, needsLogin: () => true }).watcher.unread('global')).toBe(false)
+    expect(watcherOf([]).watcher.unread('other')).toBe(false)
+  })
+
   it('does not ask /usage before the accounts are read, so an API account is not asked at the start', async () => {
     let ready = false
     const { watcher, errors, asked, poll } = watcherOf([], () => true, { ready: () => ready, apiKey: () => ready })
@@ -153,6 +175,15 @@ describe('LimitsWatcher.report', () => {
     expect(watcher.limits('global')).toMatchObject({ fiveHour: window(18), sevenDay: window(37), source: 'sdk' })
     await poll()
     expect(watcher.limits('global')).toMatchObject({ fiveHour: window(16), source: 'usage' })
+  })
+
+  it('keeps the newer windows when a poll answers with older ones', async () => {
+    const newer = { ...polled.limits, sevenDay: window(100), updatedAt: '2026-01-01T12:10:00.000Z' }
+    const { watcher, poll } = watcherOf([() => ({ kind: 'limits', limits: newer }), () => polled])
+    await poll()
+    await poll()
+    expect(watcher.limits('global')).toMatchObject({ sevenDay: window(100), updatedAt: '2026-01-01T12:10:00.000Z' })
+    expect(watcher.usage('global').state).toBe('ok')
   })
 
   it('shows nothing for an API account', () => {

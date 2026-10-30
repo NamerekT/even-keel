@@ -718,6 +718,7 @@ export class Dispatcher {
         return
       }
 
+      if (this.deps.limitsUnread(chain.project, task)) return
       const reset = this.deps.limitReset(chain.project, task)
       if (reset !== null) {
         if (chain.limitUntil !== reset) {

@@ -303,6 +303,11 @@ export interface DispatcherDeps {
   limitReset: (project: string, task?: string) => string | null
   /** When the limit hit at `at` resets; a key's recovery may precede the spending reset in `text`. */
   limitResetAfter: (account: string, at: string, text?: string) => string | null
+  /**
+   * The account the project's session (or `task`'s) would start on has not answered its first limits poll since the
+   * service started: until then a spent limit looks like no limit at all (BTN-595).
+   */
+  limitsUnread: (project: string, task?: string) => boolean
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
   /**
