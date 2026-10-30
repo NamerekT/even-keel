@@ -34,7 +34,17 @@ export function chatGptLimits(body: unknown, at: string): RateLimits | undefined
     return found === undefined ? null : windowOf(found, at)
   }
   const monthly = windows.some((window) => window.limit_window_seconds === MONTH * 60)
-  return { fiveHour: of(FIVE_HOURS), sevenDay: of(WEEK), ...(monthly ? { month: of(MONTH) } : {}), updatedAt: at, source: 'api', ...(overage !== undefined && { overage }) }
+  const flags = isRecord(limit) && (typeof limit.allowed === 'boolean' || typeof limit.limit_reached === 'boolean') ? limit : undefined
+  const open = flags === undefined ? undefined : flags.allowed === true && flags.limit_reached === false
+  return {
+    fiveHour: of(FIVE_HOURS),
+    sevenDay: of(WEEK),
+    ...(monthly ? { month: of(MONTH) } : {}),
+    updatedAt: at,
+    source: 'api',
+    ...(overage !== undefined && { overage }),
+    ...(open !== undefined && { open }),
+  }
 }
 
 /** The ChatGPT account an access token is for, by its claim; `null` — not a token that says. */

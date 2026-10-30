@@ -79,6 +79,50 @@ describe('Limit lifecycle in the service log', () => {
     expect(log[1]).toBe('chain: ABC-1: limit reset updated to 2026-09-26T12:30:00.000Z; next: resume')
   })
 
+  it('continues once a poll after the refusal shows the window open before the named reset', async () => {
+    const polled = { at: null as string | null }
+    const asked: string[][] = []
+    const { dispatcher, clock, log } = await running({
+      limitReopenedAt: (account, at, resetsAt) => {
+        asked.push([account, at, resetsAt])
+        return polled.at
+      },
+    })
+    await check(dispatcher)
+    clock.now = new Date('2026-09-26T12:10:00Z')
+    await check(dispatcher)
+    expect(log).toHaveLength(1)
+    expect(asked.at(-1)).toEqual(['global', '2026-09-26T12:00:00.000Z', '2026-09-26T15:00:00.000Z'])
+
+    polled.at = '2026-09-26T12:12:00.000Z'
+    clock.now = new Date('2026-09-26T12:14:00Z')
+    await check(dispatcher)
+    await check(dispatcher)
+    expect(log.slice(1)).toEqual([
+      'chain: ABC-1: limit on account global open again at 2026-09-26T12:12:00.000Z, before the named reset at 2026-09-26T15:00:00.000Z; next: resume',
+      'chain: ABC-1: continued after the limit by resume in session session-1',
+    ])
+  })
+
+  it('hands over to a new session when the window opens early but the cache has gone cold', async () => {
+    const { dispatcher, clock, log } = await running({ limitReopenedAt: () => '2026-09-26T13:30:00.000Z' })
+    clock.now = new Date('2026-09-26T13:31:00Z')
+    await check(dispatcher)
+    expect(log.slice(1)).toEqual([
+      'chain: ABC-1: limit on account global open again at 2026-09-26T13:30:00.000Z, before the named reset at 2026-09-26T15:00:00.000Z; next: new session with handoff',
+      'chain: ABC-1: continued after the limit by handoff to new session session-2 from session-1',
+    ])
+  })
+
+  it('does not take an early window for a spending limit or a key out of credit', async () => {
+    const { dispatcher, limited, clock, log } = await running({ limitReopenedAt: () => '2026-09-26T12:12:00.000Z' })
+    limited['ABC-1'] = session({ limit: { at: '2026-09-26T12:00:00.000Z', text: "You've hit your session limit · resets 3pm (UTC)", credit: true } })
+    clock.now = new Date('2026-09-26T12:14:00Z')
+    await check(dispatcher)
+    await check(dispatcher)
+    expect(log).toHaveLength(1)
+  })
+
   it('logs a successful resume with the resulting session id only once', async () => {
     const { dispatcher, limited, clock, log } = await running()
     limited['ABC-1'] = session({ lastReplyAt: '2026-09-26T14:29:00.000Z' })

@@ -77,8 +77,9 @@ export class Handovers {
         this.deps.log(`chain: ${current.task}: limit reset updated to ${current.limit.resetsAt}; next: ${next}`)
       }
     }
-    const hold = current.limit
     const now = this.deps.now()
+    if (overage === undefined) this.reopenEarly(current, session, now)
+    const hold = current.limit
     const spentUntil = overage === undefined ? null : this.deps.limitReset(chain.project, current.task)
     if (spentUntil !== null && Date.parse(spentUntil) > now.getTime()) return true
     const step = relayStep(hold, now, this.deps.account(chain.project, current.task), session.warmMs)
@@ -96,6 +97,20 @@ export class Handovers {
       this.halt(chain, noticeOf(error))
     }
     return true
+  }
+
+  /** A poll after the refusal found the spent window open before the named reset: the wait ends as if it had come. */
+  private reopenEarly(current: CurrentTask, session: LimitedSession, now: Date): void {
+    const hold = current.limit!
+    if (hold.acted !== null || hold.credit === true || hold.resetsAt === null || isSpendingLimit(session.limit.text)) return
+    if (Date.parse(hold.resetsAt) <= now.getTime()) return
+    const named = hold.resetsAt
+    const open = this.deps.limitReopenedAt(session.account, hold.at, named)
+    if (open === null || Date.parse(open) >= Date.parse(named)) return
+    current.limit = withReset(hold, open, session.warmMs)
+    this.deps.save(this.state)
+    const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
+    this.deps.log(`chain: ${current.task}: limit on account ${session.account} open again at ${open}, before the named reset at ${named}; next: ${next}`)
   }
 
   private async followTransient(chain: ActiveChain, current: CurrentTask, session: LimitedSession): Promise<boolean> {

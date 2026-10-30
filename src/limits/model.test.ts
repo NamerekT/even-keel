@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, limitsOfRateLimitInfo, limitSpans, newestLimits, parseLimitsFile, withSessionLimits } from './model.js'
+import { currentLimits, exhaustedReset, limitReopenedAt, limitResetAfter,limitsFileDir, limitsOfRateLimitInfo, limitSpans, newestLimits, parseLimitsFile, withSessionLimits } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -165,6 +165,58 @@ describe('exhaustedReset', () => {
   it('knows nothing when no window is exhausted', () => {
     expect(exhaustedReset({ fiveHour: window(71, '2026-09-27T17:00:00.000Z'), sevenDay: null, updatedAt: RECEIVED_AT, source: 'statusline' as const })).toBeNull()
     expect(exhaustedReset(null)).toBeNull()
+  })
+})
+
+describe('limitReopenedAt', () => {
+  const HIT = '2026-10-28T09:00:00.000Z'
+  const NAMED = '2026-11-01T08:00:00.000Z'
+  const POLLED = '2026-10-28T10:00:00.000Z'
+  const window = (usedPercentage: number, resetsAt: string) => ({ usedPercentage, resetsAt })
+  const chatGpt = (open: boolean | undefined, updatedAt = POLLED) => ({
+    fiveHour: window(0, '2026-10-28T15:00:00.000Z'),
+    sevenDay: window(0, '2026-11-04T10:00:00.000Z'),
+    updatedAt,
+    source: 'api' as const,
+    ...(open !== undefined && { open }),
+  })
+  const claude = (fiveHour: ReturnType<typeof window> | null, sevenDay: ReturnType<typeof window> | null, source: 'usage' | 'statusline' | 'sdk' = 'usage') =>
+    ({ fiveHour, sevenDay, updatedAt: POLLED, source })
+
+  it('takes a ChatGPT answer that allows requests again as the window open from that answer', () => {
+    expect(limitReopenedAt(chatGpt(true), HIT, NAMED)).toBe(POLLED)
+  })
+
+  it('keeps waiting on a ChatGPT answer that is still spent or does not say', () => {
+    expect(limitReopenedAt(chatGpt(false), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(chatGpt(undefined), HIT, NAMED)).toBeNull()
+  })
+
+  it('ignores an answer taken before the refusal or none at all', () => {
+    expect(limitReopenedAt(chatGpt(true, '2026-10-28T08:55:00.000Z'), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(chatGpt(true, HIT), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(null, HIT, NAMED)).toBeNull()
+  })
+
+  it('takes a Claude /usage reading whose spent window started over before the named reset', () => {
+    expect(limitReopenedAt(claude(window(0, '2026-10-28T15:00:00.000Z'), window(2, '2026-11-04T10:00:00.000Z')), HIT, NAMED)).toBe(POLLED)
+    expect(limitReopenedAt(claude(null, null), HIT, NAMED)).toBe(POLLED)
+  })
+
+  it('keeps waiting while a Claude window is spent or still runs out at the named reset', () => {
+    expect(limitReopenedAt(claude(window(0, '2026-10-28T15:00:00.000Z'), window(100, '2026-11-04T10:00:00.000Z')), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(claude(window(10, '2026-10-28T15:00:00.000Z'), window(97, '2026-11-01T08:00:00.000Z')), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(claude(window(10, '2026-10-28T15:00:00.000Z'), window(97, '2026-11-01T08:40:00.000Z')), HIT, NAMED)).toBeNull()
+  })
+
+  it('does not read a statusline or a session event as a poll', () => {
+    expect(limitReopenedAt(claude(null, window(2, '2026-11-04T10:00:00.000Z'), 'statusline'), HIT, NAMED)).toBeNull()
+    expect(limitReopenedAt(claude(null, window(2, '2026-11-04T10:00:00.000Z'), 'sdk'), HIT, NAMED)).toBeNull()
+  })
+
+  it('leaves a counted allowance with no open flag to its own path', () => {
+    const copilot = { fiveHour: null, sevenDay: null, month: { usedPercentage: 10, resetsAt: '2026-11-01T00:00:00.000Z', left: 270 }, updatedAt: POLLED, source: 'api' as const }
+    expect(limitReopenedAt(copilot, HIT, NAMED)).toBeNull()
   })
 })
 

@@ -45,6 +45,7 @@ export interface SetupOptions {
   failStop?: boolean
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
+  limitReopenedAt?: (account: string, at: string, resetsAt: string) => string | null
   /** The account has not answered its first limits poll; absent — it has. */
   limitsUnread?: boolean
   /** Projects whose set of packages has a problem that holds the chain. */
@@ -137,6 +138,7 @@ export function setup(options: SetupOptions = {}) {
     accountAt: options.accountAt ?? (() => account.id),
     limitReset: () => options.limitReset ?? null,
     limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
+    limitReopenedAt: options.limitReopenedAt ?? (() => null),
     limitsUnread: () => options.limitsUnread ?? false,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     accountsRead: () => options.accountsRead ?? true,

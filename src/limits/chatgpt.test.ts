@@ -35,7 +35,15 @@ describe('chatGptLimits', () => {
       sevenDay: { usedPercentage: 17, resetsAt: '2026-10-28T08:00:00.000Z' },
       updatedAt: AT,
       source: 'api',
+      open: true,
     })
+  })
+
+  it('is open only while the answer both allows a request and has not reached the limit', () => {
+    const spent = (allowed: unknown, reached: unknown) => ({ ...PLUS, rate_limit: { ...PLUS.rate_limit, allowed, limit_reached: reached } })
+    expect(chatGptLimits(spent(false, true), AT)?.open).toBe(false)
+    expect(chatGptLimits(spent(true, true), AT)?.open).toBe(false)
+    expect(chatGptLimits(spent(false, false), AT)?.open).toBe(false)
   })
 
   it('reads the free plan’s 30 days as the month and takes the reset from the seconds left when there is no time', () => {
