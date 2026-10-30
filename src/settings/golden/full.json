@@ -203,7 +203,8 @@
       "contextHandoffs": true,
       "protection": {
         "disabled": [
-          "deleteTracker"
+          "deleteGithub",
+          "deleteJira"
         ],
         "claude": [
           "Write(.env)"
@@ -276,7 +277,8 @@
       "contextHandoffs": false,
       "protection": {
         "disabled": [
-          "deleteTracker"
+          "deleteGithub",
+          "deleteJira"
         ],
         "claude": [
           "Write(.env)"
@@ -337,7 +339,8 @@
       "contextHandoffs": false,
       "protection": {
         "disabled": [
-          "deleteTracker"
+          "deleteGithub",
+          "deleteJira"
         ],
         "claude": [
           "Write(.env)"
@@ -398,7 +401,8 @@
       "contextHandoffs": false,
       "protection": {
         "disabled": [
-          "deleteTracker"
+          "deleteGithub",
+          "deleteJira"
         ],
         "claude": [
           "Write(.env)"
@@ -480,7 +484,8 @@
   ],
   "protection": {
     "disabled": [
-      "deleteTracker"
+      "deleteGithub",
+      "deleteJira"
     ],
     "claude": [
       "Write(.env)"

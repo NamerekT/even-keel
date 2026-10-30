@@ -5,8 +5,8 @@ import { formsOf, withSharedForm, withProjectForm } from '../config-form.js'
 const raw = { projects: [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }] }
 describe('Protection settings', () => {
   it('inherits individual fields and keeps a project override when the shared value changes', () => {
-    const config = parseConfig({ ...raw, protection: { claude: ['Write(.env)'] }, projects: [{ ...raw.projects[0], protection: { disabled: ['deleteTracker'] } }] })
-    expect(config.settings.p?.protection).toEqual({ disabled: ['deleteTracker'], claude: ['Write(.env)'], codex: [], copilot: [], opencode: [] })
+    const config = parseConfig({ ...raw, protection: { claude: ['Write(.env)'] }, projects: [{ ...raw.projects[0], protection: { disabled: ['deleteLinear'] } }] })
+    expect(config.settings.p?.protection).toEqual({ disabled: ['deleteLinear'], claude: ['Write(.env)'], codex: [], copilot: [], opencode: [] })
   })
 
   it('rejects unknown groups and malformed native command prefixes', () => {

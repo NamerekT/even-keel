@@ -145,7 +145,20 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const protectedConfig = version < 15 ? configV15(owned) : owned
   const openCode = version < 16 ? configV16(protectedConfig) : protectedConfig
   const prompts = version < 17 ? configV17(openCode) : openCode
-  return version < 19 ? configV19(prompts) : prompts
+  const windows = version < 19 ? configV19(prompts) : prompts
+  return version < 20 ? trackerGroupsOwned(windows) : windows
+}
+
+/** v19 → v20: the one tracker group of Protection becomes a group per tracker; a disabled one disables them all (BTN-541). */
+export function trackerGroupsOwned(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  const split = (protection: unknown) => isRecord(protection) && Array.isArray(protection.disabled) ? { ...protection, disabled: trackerGroupsSplit(protection.disabled) } : protection
+  const projects = Array.isArray(raw.projects) ? raw.projects.map((project: unknown) => isRecord(project) && 'protection' in project ? { ...project, protection: split(project.protection) } : project) : raw.projects
+  return stamped({ ...raw, ...('protection' in raw ? { protection: split(raw.protection) } : {}), ...('projects' in raw ? { projects } : {}) })
+}
+
+function trackerGroupsSplit(disabled: unknown[]): unknown[] {
+  return disabled.flatMap((group) => group === 'deleteTracker' ? ['deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira'] : [group])
 }
 
 /** v18 → v19: an omitted chain compaction window still uses the account's; no override is written. */

@@ -8,7 +8,17 @@ export interface Protection {
 }
 
 export const DEFAULT_PROTECTION: Protection = { disabled: [], claude: [], codex: [], copilot: [], opencode: [] }
-export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'deleteTracker'] as const
+export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira'] as const
+export type ProtectionGroup = (typeof PROTECTION_GROUPS)[number]
+/** Each tracker's own group, by the adapter's key: the MCP gateway refuses the delete calls of its server (BTN-541). */
+export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly: 'deleteHuly', github: 'deleteGithub', gitlab: 'deleteGitlab', linear: 'deleteLinear', jira: 'deleteJira' }
+
+/** A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), or one with `method: "delete"` (GitHub's `label_write`). */
+export function deletesRecord(tool: string, args: unknown): boolean {
+  const words = tool.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
+  const method = typeof args === 'object' && args !== null ? (args as { method?: unknown }).method : undefined
+  return words.includes('delete') || (typeof method === 'string' && method.toLowerCase() === 'delete')
+}
 const DELETE_TOOLS = ['issue', 'project', 'component', 'milestone', 'label', 'comment', 'attachment', 'issue_template', 'drawing', 'activity_reply', 'related_issue_space_target'].map(name => `delete_${name}`)
 
 interface Rules { claude: string[]; codex: string[][]; copilot: string[]; opencode: { bash: string[]; tools: string[] } }
@@ -37,14 +47,20 @@ const merge = (...parts: Rules[]): Rules => ({ claude: parts.flatMap(part => par
  */
 export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string, hulyServers: readonly string[] = ['plugin_huly_huly', 'huly']): Rules {
   const refspecs = (forms: (branch: string) => string[]) => refspec(branch === undefined ? [] : forms(branch), remotes)
-  const groups: Record<(typeof PROTECTION_GROUPS)[number], Rules> = {
+  // Only Huly has native rules too; the other trackers' deletes are refused by the gateway alone (native ones: BTN-611).
+  const gateway = (): Rules => ({ claude: [], codex: [], copilot: [], opencode: { bash: [], tools: [] } })
+  const groups: Record<ProtectionGroup, Rules> = {
     forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`, `+${main}:${main}`, `+${main}:refs/heads/${main}`, `+HEAD:refs/heads/${main}`])),
     mirrorPush: push(['--mirror'], remotes),
     deleteRemote: merge(push(['--delete', '-d'], remotes), refspecs(main => [`:${main}`, `:refs/heads/${main}`])),
     deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', 'C:/', 'D:/', '/*'])),
     deleteHome: merge(remove(['~', '$HOME']), removeSpelled(['~/', '~/*', '$HOME/', '$HOME/*'])),
     deleteParent: merge(remove(['..']), removeSpelled(['../', '../*'])),
-    deleteTracker: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]), opencode: { bash: [], tools: hulyServers.flatMap(server => DELETE_TOOLS.map(name => `${server}_${name}`)) } },
+    deleteGithub: gateway(),
+    deleteGitlab: gateway(),
+    deleteLinear: gateway(),
+    deleteJira: gateway(),
+    deleteHuly: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]), opencode: { bash: [], tools: hulyServers.flatMap(server => DELETE_TOOLS.map(name => `${server}_${name}`)) } },
   }
   groups.forcePush.claude.push('Bash(git push * +*)')
   groups.deleteRemote.claude.push('Bash(git push * :*)')

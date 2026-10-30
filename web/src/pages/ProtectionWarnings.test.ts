@@ -14,7 +14,7 @@ describe('OpenCode Protection on the page', () => {
     expect(protectionAgents(stateWith(DEFAULT_PROTECTION), 'p')).toEqual([])
     expect(protectionAgents(stateWith(empty), 'p')).toEqual(['opencode'])
     expect(protectionAgents(stateWith({ ...empty, opencode: ['terraform destroy*'] }), 'p')).toEqual([])
-    expect(protectionAgents(stateWith({ ...empty, disabled: empty.disabled.filter(group => group !== 'deleteTracker') }), 'p')).toEqual([])
+    expect(protectionAgents(stateWith({ ...empty, disabled: empty.disabled.filter(group => group !== 'deleteHuly') }), 'p')).toEqual([])
   })
 
   it('round trips multiline OpenCode patterns through the editor', () => {

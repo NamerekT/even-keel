@@ -174,7 +174,11 @@
       "contextHandoffs": true,
       "protection": {
         "disabled": [
-          "deleteTracker"
+          "deleteHuly",
+          "deleteGithub",
+          "deleteGitlab",
+          "deleteLinear",
+          "deleteJira"
         ],
         "claude": [
           "Write(.env)"
@@ -267,7 +271,11 @@
   ],
   "protection": {
     "disabled": [
-      "deleteTracker"
+      "deleteHuly",
+      "deleteGithub",
+      "deleteGitlab",
+      "deleteLinear",
+      "deleteJira"
     ],
     "claude": [
       "Write(.env)"

@@ -17,6 +17,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 0c | [Explicit global account registration](#explicit-global-account-registration) | New installations and upgrades with existing CLI sign-ins | A hidden account appears automatically, an upgrade loses one, or removal signs the CLI out |
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on Linux and macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
+| 0e | [Tracker deletes refused by the gateway](#tracker-deletes-refused-by-the-gateway-btn-541) | chain sessions on any tracker with Protection's tracker switches on | a record is deleted despite the switch, or a harmless call is refused |
 | 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode on Linux/macOS, other agents/subagents and equivalent command spellings | permissions or shell parsing may differ from the checked Windows build-agent calls |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
@@ -533,6 +534,10 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 ### Packages on Linux and macOS
 
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
+
+### Tracker deletes refused by the gateway (BTN-541)
+
+Protection's tracker switches are enforced in the MCP gateway (`docs/packages.md`, "The gateway"), checked only by unit tests: no live session has had a deleting call refused yet. Assumed: a tracker's server reaches the session under the adapter's `mcpServer` name; a deleting tool has the word `delete` in its name, or takes `method: "delete"` (GitHub's `label_write`, from memory, not read from the server's tool list); Linear's and Jira's (Rovo) deleting tools follow the same naming, and none of them is a tool without `delete` in its name. Claude and Codex are assumed to show the refusal as a failed tool call and to stop there. If an assumption is wrong, a delete goes through (a tool named otherwise, a server under another name) or a call that deletes nothing is refused (a tool named with `delete` that only reads). **Workaround:** for a delete you want, turn that tracker off in Sessions → Protection; for one you do not, keep the tracker's own permissions narrow. To check: a chain session, Claude and then Codex, asked to delete a test task on GitLab (`delete_issue`) and a label on GitHub, with the log line `Protection refused`; then the same with the tracker's switch off.
 
 ## Trackers
 

@@ -94,13 +94,22 @@ Built on the research below (BTN-213) and checked on Copilot CLI 1.0.98 on Windo
 
 ## Protection
 
-`src/sessions/protection.ts` defines seven default deny groups. `protection` has `disabled` (group ids), `claude`
+`src/sessions/protection.ts` defines eleven default deny groups. `protection` has `disabled` (group ids), `claude`
 (permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode`
 (bash command glob patterns). Fields inherit
 from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
-`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and `deleteTracker`. Sessions → Protection
+`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and one per tracker (`TRACKER_GROUPS`):
+`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`. Sessions → Protection
 edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
 OS sandbox or a guarantee against equivalent commands.
+
+The tracker groups (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's
+deleting `tools/call` for every agent, Codex included (`docs/packages.md`, "The gateway"). `deleteHuly` also keeps
+Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none (native lists per tracker are
+an idea for 0.3). The page shows "Deleting tracker records" over the five tracker switches; it stores nothing: it is on
+while all five are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the
+fields: on means the project has no `protection` of its own; changing a field copies the shared values with the change
+and turns it off; turning it on drops the project's values.
 
 Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport. The
 harness refusing a shared and a project rule in a `--bg` chain session, the project's saved on the running service,
@@ -114,7 +123,7 @@ name the plugin gateway and standalone server; the server names Copilot sees for
 each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking
 to the project's session settings.
 
-OpenCode receives the seven groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
+OpenCode receives the native groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
 `permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`.
 Plugin and standalone Huly servers use their actual gateway names; without a package list, the conventional
 `plugin_huly_huly` and `huly` names cover the account's own servers. Reading and updating tracker records stay allowed.

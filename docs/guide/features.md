@@ -32,6 +32,12 @@ Open **?** above the side panel for a legend grouped by location: the header, pr
 deny rules. They start enabled. A project can turn a group off, add native rules, or use shared protection. Changes
 apply when a session starts; running sessions keep their existing settings.
 
+**Deleting tracker records** has a switch per tracker: Huly, GitHub, GitLab, Linear and Jira. Even Keel's MCP gateway
+refuses the calls of that tracker's MCP server that delete a record, so this holds for every agent, Codex included;
+it covers tracker servers that reach the session through the project's packages. The switch above the five turns
+them all on or off. "Use shared protection" in a project does not lock the switches: changing any of them gives the
+project its own values, and turning it back on returns the project to the shared ones.
+
 Claude Code receives permission deny rules; Copilot receives tool deny rules. Codex receives command-prefix rules,
 which also work in its full-access mode. Codex and Copilot match literal command prefixes only: defaults cover common
 push flag orders (`git push -f`, `git push origin -f` for each of the project's remotes) and literal recursive-delete
@@ -43,7 +49,7 @@ Copilot rule of your own is written `shell(<command>:*)` for a prefix; a `*` any
 a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
 in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a
 refspec of another branch, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
-checked command by command. Huly deletion rules apply to Claude, Copilot and OpenCode. OpenCode receives command
+checked command by command. Huly deletion tools are also denied natively for Claude, Copilot and OpenCode. OpenCode receives command
 glob denies and tracker tool denies in its session configuration. Its additional rules are command patterns, one
 per line: `*` matches any text and `?` one character (for example, `git reset --hard*`). Its default patterns cover
 the same push and recursive-delete spellings as Claude's groups. Other spellings and shell wrappers may escape

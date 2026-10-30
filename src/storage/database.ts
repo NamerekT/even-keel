@@ -238,6 +238,12 @@ export const STEPS: readonly string[] = [
   // The chains JSON may retain a paid-usage stop and its session snapshot (LimitHold.overage).
   // No table changes; the version prevents older readers from discarding this wait.
   `select 1;`,
+  // Protection's one tracker group becomes a group per tracker (BTN-541); a disabled one disables them all.
+  `
+  update setting_values
+     set value = replace(value, '"deleteTracker"', '"deleteHuly","deleteGithub","deleteGitlab","deleteLinear","deleteJira"')
+   where key = 'protection';
+  `,
 ]
 
 /** The version this code reads and writes. */

@@ -84,7 +84,7 @@ describe('sessionConfig', () => {
     const protection = { ...DEFAULT_PROTECTION, disabled: [...PROTECTION_GROUPS], opencode: ['git reset --hard*'] }
     expect(JSON.parse(sessionConfig({ mcp: [server], protection }, [], [])).permission).toEqual({ external_directory: 'allow', bash: { 'git reset --hard*': 'deny' } })
     expect(JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [])).permission).toEqual({ external_directory: 'allow' })
-    const config = JSON.parse(sessionConfig({ mcp: [server], protection: { ...DEFAULT_PROTECTION, disabled: ['forcePush', 'deleteTracker'] } }, [], []))
+    const config = JSON.parse(sessionConfig({ mcp: [server], protection: { ...DEFAULT_PROTECTION, disabled: ['forcePush', 'deleteHuly'] } }, [], []))
     expect(Object.keys(config.permission)).toEqual(['external_directory', 'bash'])
     expect(Object.keys(config.permission.bash).some(pattern => pattern.includes('--force') || pattern.includes('+'))).toBe(false)
     expect(config.permission.bash['git push --mirror*']).toBe('deny')
