@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountName, accountOf, folderLabel } from './accountName.js'
+import { accountName, accountOf, folderLabel, sameAccountAs } from './accountName.js'
 import { accountOptions } from './pages/settingsRun.js'
 
 const entry = (key: string, agent: string, email: string | null, extra: Partial<AccountEntry> = {}): AccountEntry => ({
@@ -35,6 +35,14 @@ describe('accountName', () => {
     expect(accountName(entry('global', 'claude', null, { status: null }))).toBe('Claude Code')
   })
 
+  it('names a signed-out folder by the e-mail it was last signed in as, else by the folder (BTN-528)', () => {
+    const out = { loggedIn: false, authMethod: null, email: null, orgName: null, subscriptionType: null }
+    expect(accountName(entry('john.doe', 'claude', null, { status: out, needsLogin: true, lastEmail: 'john.doe@example.com' }))).toBe('john.doe@example.com')
+    expect(accountName(entry('john.doe', 'claude', null, { status: out, needsLogin: true }))).toBe('john.doe')
+    expect(accountName(entry('global', 'claude', null, { status: out, needsLogin: true }))).toBe('~/.claude')
+    expect(accountName(entry('codex', 'codex', null, { status: out, needsLogin: true }))).toBe('~/.codex')
+  })
+
   it('does not take the folder key an API account stands in an e-mail with', () => {
     expect(accountName(entry('api', 'claude', 'api', { apiKey: true }))).toBe('Claude Code')
   })
@@ -59,6 +67,35 @@ describe('accountName', () => {
 
   it('names an agent the page does not know by its registry name', () => {
     expect(accountName(entry('gemini', 'gemini', null))).toBe('gemini')
+  })
+})
+
+describe('sameAccountAs (BTN-528)', () => {
+  it('points the folder that is not named after the account at the one that holds it rightly', () => {
+    const global = entry('global', 'claude', 'john.doe@example.com')
+    const stray = entry('jane.roe', 'claude', 'John.Doe@example.com')
+    const own = entry('john.doe', 'claude', 'john.doe@example.com')
+    expect(sameAccountAs(stray, [global, stray])).toBe(global)
+    expect(sameAccountAs(global, [global, stray])).toBeNull()
+    expect(sameAccountAs(global, [stray, own, global])).toBe(own)
+    expect(sameAccountAs(own, [stray, own, global])).toBeNull()
+  })
+
+  it('takes the first in the list when no folder is named after the account', () => {
+    const first = entry('work', 'claude', 'john.doe@example.com')
+    const second = entry('spare', 'claude', 'john.doe@example.com')
+    expect(sameAccountAs(second, [first, second])).toBe(first)
+    expect(sameAccountAs(first, [first, second])).toBeNull()
+  })
+
+  it('leaves alone other agents, API keys, signed-out folders and folders without an e-mail', () => {
+    const global = entry('global', 'claude', 'john.doe@example.com')
+    expect(sameAccountAs(entry('codex', 'codex', 'john.doe@example.com'), [global, entry('codex', 'codex', 'john.doe@example.com')])).toBeNull()
+    const out = entry('spare', 'claude', 'john.doe@example.com', { needsLogin: true })
+    expect(sameAccountAs(out, [global, out])).toBeNull()
+    const key = entry('api', 'claude', 'api', { apiKey: true })
+    expect(sameAccountAs(key, [entry('api-2', 'claude', 'api', { apiKey: true }), key])).toBeNull()
+    expect(sameAccountAs(entry('opencode-2', 'opencode', null), [entry('opencode', 'opencode', null)])).toBeNull()
   })
 })
 

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS } from '../account/service-defaults.js'
 import { DaemonRefresh } from '../account/daemon.js'
 import { keyProvider, type AccountHome } from '../account/homes.js'
-import { accountAt, forgetAccount, markRemoving, nameAccount, noteAccount } from '../account/ledger.js'
+import { accountAt, forgetAccount, formerOwner, markRemoving, nameAccount, noteAccount } from '../account/ledger.js'
 import { forgetKeyOrganization, saveKeyOrganization } from '../account/organizations.js'
 import { transportOf } from '../account/transport.js'
 import { liveSessions, loginBlock, type LoginBlock } from '../account/model.js'
@@ -440,6 +440,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     },
     forget: (key) => ctx.saveAccounts(forgetAccount(ctx.ledger, key)),
     nameOf: (key) => ctx.ledger.accounts[key]?.name ?? null,
+    signedInAs: (key) => ({ last: ctx.ledger.accounts[key]?.email ?? null, former: formerOwner(ctx.ledger, key) }),
     name: (key, name) => ctx.saveAccounts(nameAccount(ctx.ledger, key, name)),
     transportOf: (home, apiKey) => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], apiKey),
     loginBlock: (): LoginBlock | null => loginBlock(ctx.dispatcher.state.active, ctx.agents, ctx.activeAccount()),

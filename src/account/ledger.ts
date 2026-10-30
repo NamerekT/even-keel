@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { writeAtomic } from '../storage/atomic.js'
 import { refuseNewer, SCHEMA_VERSION, versionOf } from '../storage/schema.js'
-import { GLOBAL_ACCOUNT } from './model.js'
+import { GLOBAL_ACCOUNT, namedAfter } from './model.js'
 import { isTransport, type Transport } from './transport.js'
 
 export interface AccountRecord {
@@ -30,8 +30,21 @@ export function emptyLedger(): AccountLedger {
 export function noteAccount(ledger: AccountLedger, key: string, email: string | null, now: Date): AccountLedger | undefined {
   const record = ledger.accounts[key]
   if (email === null || email === record?.email) return undefined
-  const noted = { ...record, email, since: now.toISOString(), previous: record?.email ?? null }
+  const { name, ...kept } = record ?? { email: null, since: null, previous: null }
+  // The name the user gave belonged to the account that signed out of the folder, not to the one in it now (BTN-528).
+  const another = kept.email !== null && kept.email.toLowerCase() !== email.toLowerCase()
+  const noted = { ...kept, ...(!another && name !== undefined && { name }), email, since: now.toISOString(), previous: kept.email }
   return { ...ledger, accounts: { ...ledger.accounts, [key]: noted } }
+}
+
+/**
+ * The account the folder `key` is named after (`folderName`) when another one signed in to it since: the page shows the
+ * change instead of a silent rename. Null while it holds that account, or when its name came from no sign-in.
+ */
+export function formerOwner(ledger: AccountLedger, key: string): string | null {
+  const record = ledger.accounts[key]
+  if (record?.previous == null || record.email === null || key === GLOBAL_ACCOUNT) return null
+  return namedAfter(key, record.previous) && !namedAfter(key, record.email) ? record.previous : null
 }
 
 export function nameAccount(ledger: AccountLedger, key: string, name: string): AccountLedger {

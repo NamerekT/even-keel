@@ -54,6 +54,8 @@ export interface AccountWatcherOptions {
   activate: (key: string) => void
   forget: (key: string) => void
   nameOf: (key: string) => string | null
+  /** Optional. The e-mail the folder was last signed in as, and the account it is named after when another holds it (BTN-528). */
+  signedInAs?: (key: string) => { last: string | null; former: string | null }
   name: (key: string, name: string) => void
   /** How the account's new sessions run, by the agent, `execution` and whether it signs in with a key. */
   transportOf: (home: AccountHome, apiKey: boolean) => Transport | null
@@ -141,9 +143,12 @@ export class AccountWatcher {
     const accounts = this.known.map(({ home, status, error, keyHeld }): AccountEntry => {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, isApiKey(status))
+      const seen = this.options.signedInAs?.(home.key)
       return {
         key: home.key,
         name: this.options.nameOf(home.key),
+        ...(seen?.last != null && status?.email == null && { lastEmail: seen.last }),
+        ...(seen?.former != null && { formerEmail: seen.former }),
         global: home.global,
         agent: home.agent,
         status,

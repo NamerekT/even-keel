@@ -249,6 +249,14 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const out = { ...global, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true }
     return { ...signedIn, accounts: [out, work] }
   }
+  if (mode === 'mixup') {
+    // BTN-528: a folder named after another account, a second folder of the global account, two signed out.
+    const out = { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
+    const same = { ...work, status: { ...work.status!, email: global.status!.email } }
+    const gone = { ...work, status: out, needsLogin: true, loginExpiresAt: null, limits: null }
+    return { ...signedIn, accounts: [global, { ...same, formerEmail: 'jane.roe@example.com' }, { ...same, key: 'work' },
+      { ...gone, key: 'sam.roe', lastEmail: 'sam.roe@example.com' }, { ...gone, key: 'spare' }] }
+  }
   if (mode === 'expired') return { ...signedIn, accounts: [{ ...global, loginExpiresAt: ago(60), needsLogin: true, limits: null }, work] }
   if (mode === 'login') return { ...signedIn, login: FAKE_LOGIN, loginBlock: null }
   if (mode === 'failed') {

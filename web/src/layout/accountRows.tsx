@@ -14,7 +14,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
-import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
@@ -35,7 +35,7 @@ export interface RowsProps {
 export function AccountProblems(props: Pick<RowsProps, 'view' | 'now' | 'send' | 'sending'>) {
   const { view, now, send, sending } = props
   const entries = view.accounts.filter((entry) => entry.needsLogin || entry.error !== null || entry.removing ||
-    entry.spendingLimit != null || launchBlock(view, entry.key)?.code === 'account.extraFree' ||
+    entry.spendingLimit != null || launchBlock(view, entry.key)?.code === 'account.extraFree' || signInMixup(entry, view.accounts) !== null ||
     (entry.loginExpiresAt !== null && new Date(entry.loginExpiresAt).getTime() - now.getTime() < 86_400_000))
   if (entries.length === 0) return null
   return <Band tone="error" className="account-problems">
@@ -108,6 +108,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
   const held = rolesOf(entry, view, send).filter((role) => role.held)
   const plan = planText(entry)
   const shared = sharedLimitText(entry, view.accounts)
+  const mixup = signInMixup(entry, view.accounts)
   const unsupported = access === 'github' && hasCopilot(entry)
   const roles = <div className="account-role-chips">{held.length === 0 ? <span className="account-role account-role--none">{unsupported ? t.account.notSupported : t.account.rolesNone}</span> :
     held.map((role) => <span key={role.label} className={`account-role account-role--${role.label === 'Even Keel' ? 'chain' : 'app'}`}>{role.label}</span>)}</div>
@@ -127,6 +128,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {!page && roles}
         {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : t.account.needsLogin}</span>}
         {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
+        {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
       </div>
       {page && roles}
       <div className="account-windows">
