@@ -559,6 +559,11 @@ export function projectsByAccount(config: Parameters<typeof runSettings>[0], pro
   return found
 }
 
+/** The providers sessions run on (`runSettings`): the shared one and each project's own. */
+export function providersInUse(config: Parameters<typeof runSettings>[0], projects: string[]): Set<string> {
+  return new Set([runSettings(config, undefined).provider, ...projects.map((project) => runSettings(config, project).provider)])
+}
+
 /** The config of the file, an entry without an id given one in memory only: for readers that do not write the file. */
 export function loadConfig(file: string): EvenKeelConfig {
   return parseConfig(withIds(readRawConfig(file)).raw)

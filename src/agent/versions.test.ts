@@ -51,18 +51,17 @@ function watcher(agents: VersionedAgent[]) {
 }
 
 describe('VersionWatcher', () => {
-  it('retries pruning on every sweep and hides an unchecked version during download', async () => {
-    let pending = false
+  it('retries pruning on every sweep and shows an unchecked version only while sessions run on the installed CLI', async () => {
+    let onInstalled = true
     let pruned = 0
-    const entry = { ...agent('codex', 'codex-cli 0.160.0'), pending: () => pending, prune: async () => { pruned++ } }
-    const { watch } = watcher([entry])
-    await watch.check()
-    expect(watch.view()).toHaveLength(1)
-    pending = true
+    const entry = { ...agent('codex', 'codex-cli 0.160.0'), runsOnInstalled: () => onInstalled, prune: async () => { pruned++ } }
+    const { watch, log } = watcher([entry])
+    onInstalled = false
     await watch.check()
     expect(watch.view()).toEqual([])
-    expect(pruned).toBe(2)
-    pending = false
+    expect(log).toEqual([])
+    expect(pruned).toBe(1)
+    onInstalled = true
     expect(watch.view()).toHaveLength(1)
   })
   it('shows a CLI whose version differs from the checked one, older or newer, and not one that matches', async () => {
