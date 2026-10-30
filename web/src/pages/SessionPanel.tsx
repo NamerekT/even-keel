@@ -339,10 +339,14 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
           <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
         </Fact>
         <Fact label={t.session.time}>
-          <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
-          <dd className="panel__sub">
-            {t.time.since} <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
-          </dd>
+          <TipValue value={formatClock(sessionElapsed(session, now))}>
+            <span className="panel__part">
+              <span className="panel__part-label">{t.session.startedAt}</span>
+              <b>
+                <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
+              </b>
+            </span>
+          </TipValue>
         </Fact>
         <Fact label={t.session.cache} tone={cacheTone(session.cache, now, session.lamp)}>
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
@@ -384,12 +388,12 @@ function RecordFeed({ sessionId, account, whole }: { sessionId: string; account:
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
   return (
-    <>
-      <dd className="panel__value">
-        <CacheClock cache={cache} bare />
-      </dd>
-      <dd className="panel__sub">{t.session.ttl(t.cache.ttl[cache.ttl])}</dd>
-    </>
+    <TipValue value={<CacheClock cache={cache} bare />}>
+      <span className="panel__part">
+        <span className="panel__part-label">{t.session.lifetime}</span>
+        <b>{t.cache.ttl[cache.ttl]}</b>
+      </span>
+    </TipValue>
   )
 }
 
@@ -439,7 +443,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 }
 
 /** A fact's value whose details are a tip under it, opened by pointing at the value or pressing it. */
-function TipValue({ value, children }: { value: string; children: ReactNode }) {
+function TipValue({ value, children }: { value: ReactNode; children: ReactNode }) {
   const { shown, anchor, tip, show, point, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   return (
     <dd className="panel__value">
