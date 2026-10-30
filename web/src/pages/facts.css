@@ -17,16 +17,13 @@
   color: inherit;
   font-size: inherit;
   vertical-align: top;
+  /* An inline-flex box takes no underline from its button: the tip's dotted mark is set on it again. */
+  text-decoration: inherit;
   --cache-clock: transparent;
 }
 
 .panel__value .cache-clock__dot {
   box-shadow: inset 0 0 0 1px currentColor;
-}
-
-.ui-fact .panel__sub {
-  color: var(--fg-muted);
-  font-size: var(--text-12);
 }
 
 .ui-fact .context-meter {
