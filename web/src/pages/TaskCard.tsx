@@ -70,6 +70,7 @@ export function TaskCard({ task, link, tracker, refused, work, onOpen, onClose }
     <dialog
       ref={dialog}
       className="task-card"
+      data-restorable
       aria-label={task}
       onCancel={(event) => {
         event.preventDefault()
