@@ -21,9 +21,12 @@ const mb = (bytes: number) => Math.ceil(bytes / 1_000_000)
 export function CliProgress({ provider, copy }: { provider: string; copy: CliCopyView }) {
   const text = cliText()
   return <div className="cli-copy__progress" role="status">
-    <span>{titleOf(provider)} · {text.progress}</span>
-    <progress aria-label={text.progress} max={copy.total || undefined} value={copy.total ? copy.received : undefined} />
-    <span className="cli-copy__bytes">{copy.total === 0 ? text.preparing : copy.received === copy.total ? text.installing : text.size((copy.received / 1_000_000).toFixed(1), (copy.total / 1_000_000).toFixed(1))}</span>
+    <span>{text.progress}</span>
+    <span className="cli-copy__meter">
+      <span className="cli-copy__name">{titleOf(provider)}</span>
+      <progress aria-label={`${titleOf(provider)} · ${text.progress}`}max={copy.total || undefined} value={copy.total ? copy.received : undefined} />
+      <span className="cli-copy__bytes">{copy.total === 0 ? text.preparing : copy.received === copy.total ? text.installing : text.size((copy.received / 1_000_000).toFixed(1), (copy.total / 1_000_000).toFixed(1))}</span>
+    </span>
   </div>
 }
 
