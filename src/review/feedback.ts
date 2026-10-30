@@ -1,18 +1,24 @@
 import { PROMPTS } from '../chain/prompts.js'
+import { fenced } from '../ci/report.js'
 import type { Language } from '../language.js'
 import type { Feedback, Remark } from './model.js'
 
 /** The remarks of a pull request closed unmerged told to the task's next session in full; earlier ones are counted. */
 const CLOSED_REMARKS = 20
 
-/** What the session is told of the feedback on its pull request: each remark with its line comments, the failed runs, the conflict. */
+/**
+ * What the session is told of the feedback on its pull request: each remark with its line comments, the failed runs
+ * with the log tail of their failed job, the conflict.
+ */
 export function feedbackText(url: string, items: Feedback[], language: Language, main: string): string {
   const text = PROMPTS[language].review
   const lines = [text.head(url)]
   for (const item of items) {
     if (item.kind === 'remark') lines.push(...remarkLines(item.remark, language))
-    else if (item.kind === 'ci') lines.push(text.ci(item.run.title.trim() || item.run.workflow, item.run.url))
-    else lines.push(text.conflict(main))
+    else if (item.kind === 'ci') {
+      lines.push(text.ci(item.run.title.trim() || item.run.workflow, item.run.url))
+      if (item.log !== null && item.log !== '') lines.push(indented(fenced(item.log), '  '))
+    } else lines.push(text.conflict(main))
   }
   return lines.join('\n')
 }

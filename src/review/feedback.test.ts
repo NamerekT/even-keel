@@ -3,6 +3,7 @@ import { closedText, feedbackText, withFeedback } from './feedback.js'
 import type { Feedback, Remark } from './model.js'
 
 const URL = 'https://git.example.com/acme/app/pulls/12'
+const RUN = { id: 9, number: 9, title: 'Tests', workflow: 'test.yml', commit: 'a1', status: 'failure', createdAt: '', startedAt: null, stoppedAt: null, url: 'https://ci/9' } as const
 
 const remark = (change: Partial<Remark> = {}): Feedback => ({
   kind: 'remark',
@@ -17,7 +18,7 @@ describe('feedbackText', () => {
         remark({ kind: 'changes', body: 'Rename the field.', comments: [{ path: 'src/a.ts', line: 4, body: 'Here.\nAnd below.' }] }),
         remark({ key: 'review:2', kind: 'review', body: 'Odd name.' }),
         remark({ key: 'comment:3', kind: 'comment', body: 'Make another file too.' }),
-        { kind: 'ci', run: { id: 9, number: 9, title: 'Tests', workflow: 'test.yml', commit: 'a1', status: 'failure', createdAt: '', startedAt: null, stoppedAt: null, url: 'https://ci/9' } },
+        { kind: 'ci', run: RUN, log: null },
         { kind: 'conflict', head: 'a1' },
       ],
       'en',
@@ -37,6 +38,20 @@ describe('feedbackText', () => {
         '  Make another file too.',
         '- The CI failed: Tests — https://ci/9',
         '- The pull request conflicts with trunk: merge the fresh trunk into your branch and resolve the conflicts.',
+      ].join('\n'),
+    )
+  })
+
+  it('gives the log tail of the failed job under its run', () => {
+    const text = feedbackText(URL, [{ kind: 'ci', run: RUN, log: "src/a.ts(4,1): error TS2741\nJob 'test' failed" }], 'en', 'main')
+    expect(text).toBe(
+      [
+        `The pull request ${URL} got feedback:`,
+        '- The CI failed: Tests — https://ci/9',
+        '  ```text',
+        '  src/a.ts(4,1): error TS2741',
+        "  Job 'test' failed",
+        '  ```',
       ].join('\n'),
     )
   })

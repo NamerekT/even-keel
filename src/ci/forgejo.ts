@@ -1,4 +1,4 @@
-import { getJson } from './http.js'
+import { getJson, getText } from './http.js'
 import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
 export interface ForgejoSettings {
@@ -51,7 +51,7 @@ const statusOf = (status: string): RunStatus => STATUSES[status] ?? 'queued'
 /** Forgejo writes an unset time as the zero time of Go or of Unix. */
 const timeOf = (value: string | undefined): string | null => (value === undefined || value === '' || Date.parse(value) <= 0 ? null : value)
 
-// The API of Forgejo 16 gives runs and their jobs, but no steps: those stay on the run's page. A job's times
+// The API of Forgejo 16 gives runs, their jobs and a job's log, but no steps: those stay on the run's page. A job's times
 // come from its task. `limit` without `page` is ignored and the whole history comes back, so `page` always goes.
 export function forgejoSource(settings: ForgejoSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): CiSource {
   const base = `${settings.web}/api/v1/repos/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}`
@@ -95,6 +95,11 @@ export function forgejoSource(settings: ForgejoSettings, timeoutMs: number, fetc
           steps: null,
         }
       })
+    },
+
+    // The web path of a job's log does not take a token (404); the API one gives the plain text.
+    log(job) {
+      return getText(TITLE, `${base}/actions/jobs/${job.id}/logs`, `token ${settings.token}`, timeoutMs, fetchImpl)
     },
   }
 }
