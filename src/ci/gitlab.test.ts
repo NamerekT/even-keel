@@ -55,6 +55,12 @@ describe('gitlabSource', () => {
     expect(asked).toHaveLength(2)
   })
 
+  it('reads a job trace as text with the token', async () => {
+    const { asked, source } = fake({ '/jobs/11/trace': new Response('$ npm test\nFAIL', { status: 200 }) })
+    expect(await source.log!({ id: 11 } as never)).toBe('$ npm test\nFAIL')
+    expect(asked).toEqual([{ url: `${BASE}/jobs/11/trace`, auth: 'Bearer fake-token' }])
+  })
+
   it.each([401, 403, 404])('uses the shared CI errors for HTTP %s so a refused CI can be hidden', async (status) => {
     const { source } = fake({ '/pipelines?per_page=10&page=1&order_by=id&sort=desc': new Response('', { status }) })
     const error = await source.runs(10).catch((error: unknown) => error)

@@ -101,6 +101,17 @@ describe('forgejoSource', () => {
     expect((await source.jobs({ id: 501 } as never))[0]).toMatchObject({ startedAt: '2026-10-12T10:00:06Z', stoppedAt: null })
   })
 
+  it('reads a job log as text through the API with the token', async () => {
+    const asked: { url: string; auth: string | null }[] = []
+    const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
+      asked.push({ url: String(input), auth: new Headers(init?.headers).get('authorization') })
+      return new Response('2026-10-30T03:24:53.0724409Z Job failed', { status: 200 })
+    }) as typeof fetch
+    const source = forgejoSource({ ...TARGET, token: 'fake-token' }, 1_000, fetchImpl)
+    expect(await source.log!({ id: 1213 } as never)).toBe('2026-10-30T03:24:53.0724409Z Job failed')
+    expect(asked).toEqual([{ url: 'https://forgejo.example.com/api/v1/repos/john/app/actions/jobs/1213/logs', auth: 'token fake-token' }])
+  })
+
   it('names a refused token', async () => {
     const { source } = fake({ '/actions/runs?page=1&limit=10': { message: 'token is required' } }, 401)
     const error = await source.runs(10).catch((caught: unknown) => caught)

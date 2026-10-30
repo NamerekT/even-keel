@@ -1,5 +1,6 @@
 import { ciSource } from '../ci/adapters.js'
 import type { CiTarget } from '../ci/remote.js'
+import { readFailure, type FailedRun } from '../ci/report.js'
 import type { ReviewDeps } from '../chain/model.js'
 import type { Git } from '../git/types.js'
 import { fail, NoticeError, noticeOf } from '../notice/notice.js'
@@ -7,6 +8,7 @@ import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import { gitlabPulls } from './gitlab.js'
+import { eventKey } from './events.js'
 import { othersOnly, type Forge } from './model.js'
 import { closingOf, noToken, openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
 import type { PullRefusals } from './refusals.js'
@@ -85,8 +87,15 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const pushed = Date.parse(pull.pushedAt)
       const remarks = othersOnly(await forge.remarks(pull.number, pull.pushedAt, (key, at) => Date.parse(at) > pushed && !pull.seen.includes(key)))
       // A CI that does not answer leaves the poll to the remarks and the conflict.
-      const runs = await (ciSource(target, token, timeoutMs)?.runs(RUNS_POLLED) ?? Promise.resolve([])).catch(() => [])
-      return { state, remarks, failed: runs.filter((run) => run.commit === state.head && run.status === 'failure') }
+      const source = ciSource(target, token, timeoutMs)
+      const runs = await (source?.runs(RUNS_POLLED) ?? Promise.resolve([])).catch(() => [])
+      const failed = runs
+        .filter((run) => run.commit === state.head && run.status === 'failure')
+        .map((run): FailedRun => ({ kind: target.kind, run, jobs: null, log: null }))
+      // Only a run the session has not been told of is worth its log; one that cannot be read goes with its link alone.
+      const fresh = failed.filter(({ run }) => !pull.seen.includes(eventKey({ kind: 'ci', run, log: null })))
+      if (source !== null) await Promise.all(fresh.map((each) => readFailure(source, each).catch(() => {})))
+      return { state, remarks, failed }
     },
     complete: wiring.complete,
   }

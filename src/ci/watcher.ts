@@ -2,7 +2,7 @@ import type { Git } from '../git/types.js'
 import { englishOf, notice, noticeOf, sameNotice } from '../notice/notice.js'
 import { currentRunOf, isFinished, medianDuration, taskIdsOf, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
 import type { CiTarget } from './remote.js'
-import { logTail, type FailedRun } from './report.js'
+import { readFailure, type FailedRun } from './report.js'
 
 /** How often an unfinished run or a fresh push is polled. */
 export const POLL_MS = 15_000
@@ -108,9 +108,7 @@ export class CiWatch {
     if (source === null) return failed
     const current = this.view.current
     try {
-      failed.jobs = current?.run.id === run.id && current.run.status === run.status ? current.jobs : await source.jobs(run)
-      const job = failed.jobs.find((each) => each.status === 'failure')
-      if (job !== undefined && source.log !== undefined) failed.log = logTail(await source.log(job))
+      await readFailure(source, failed, current?.run.id === run.id && current.run.status === run.status ? current.jobs : undefined)
     } catch (error) {
       this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo}: run ${run.number} is reported without its ${failed.jobs === null ? 'jobs' : 'log'}: ${englishOf(noticeOf(error))}`)
     }

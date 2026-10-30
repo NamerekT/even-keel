@@ -44,7 +44,7 @@ export interface CiRun {
 export interface CiSource {
   runs(limit: number, branch?: string): Promise<CiRun[]>
   jobs(run: CiRun): Promise<CiJob[]>
-  /** Absent — the CI does not give logs through its API (Forgejo). */
+  /** A job's plain-text log; absent — the CI does not give logs through its API. */
   log?(job: CiJob): Promise<string>
 }
 

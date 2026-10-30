@@ -1,4 +1,5 @@
 import type { CiKind, CiRun } from '../ci/model.js'
+import type { FailedRun } from '../ci/report.js'
 
 /**
  * A task's pull request that Even Keel opened in PR mode (BTN-205), kept in the chain state until it is closed and
@@ -101,11 +102,12 @@ export interface Forge {
 export interface ReviewCheck {
   state: PullState
   remarks: Remark[]
-  /** The failed CI runs on the head commit. */
-  failed: CiRun[]
+  /** The failed CI runs on the head commit; those the session has not been told of carry their log tail. */
+  failed: FailedRun[]
 }
 
-export type Feedback = { kind: 'remark'; remark: Remark } | { kind: 'ci'; run: CiRun } | { kind: 'conflict'; head: string }
+/** `log` — the tail of the failed job's log; `null` — the CI gave none, and the session gets the link alone. */
+export type Feedback = { kind: 'remark'; remark: Remark } | { kind: 'ci'; run: CiRun; log: string | null } | { kind: 'conflict'; head: string }
 
 export type ReviewOutcome = { kind: 'merged' } | { kind: 'closed'; remarks: Remark[] } | { kind: 'feedback'; items: Feedback[] } | { kind: 'none' }
 

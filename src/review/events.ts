@@ -19,7 +19,7 @@ export function outcomeOf(pull: PullRequest, check: ReviewCheck): ReviewOutcome 
   const pushed = Date.parse(pull.pushedAt)
   const items: Feedback[] = [
     ...check.remarks.filter((remark) => Date.parse(remark.at) > pushed).map((remark): Feedback => ({ kind: 'remark', remark })),
-    ...check.failed.filter((run) => run.commit === state.head && run.status === 'failure').map((run): Feedback => ({ kind: 'ci', run })),
+    ...check.failed.filter(({ run }) => run.commit === state.head && run.status === 'failure').map(({ run, log }): Feedback => ({ kind: 'ci', run, log })),
     ...(state.mergeable === false ? [{ kind: 'conflict', head: state.head } as const] : []),
   ].filter((item) => !pull.seen.includes(eventKey(item)))
   return items.length === 0 ? { kind: 'none' } : { kind: 'feedback', items }

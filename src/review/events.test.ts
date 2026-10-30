@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CiRun } from '../ci/model.js'
+import type { FailedRun } from '../ci/report.js'
 import { eventKey, outcomeOf } from './events.js'
 import type { PullRequest, Remark, ReviewCheck } from './model.js'
 
@@ -19,6 +20,10 @@ const HEAD = 'a1b2c3d4'
 
 function run(id: number, status: CiRun['status'], commit = HEAD): CiRun {
   return { id, number: id, title: 'Tests', workflow: 'test.yml', commit, status, createdAt: '2026-10-18T10:01:00Z', startedAt: null, stoppedAt: null, url: `https://ci/${id}` }
+}
+
+function failed(id: number, status: CiRun['status'], commit = HEAD, log: string | null = null): FailedRun {
+  return { kind: 'forgejo', run: run(id, status, commit), jobs: null, log }
 }
 
 const REQUEST: Remark = { key: 'review:501', kind: 'changes', author: 'jdoe', body: 'Rename the field', at: '2026-10-18T10:05:00Z', comments: [] }
@@ -59,9 +64,9 @@ describe('outcomeOf', () => {
     expect(outcomeOf({ ...PULL, pushedAt: '2026-10-18T11:00:00Z' }, check({ remarks: [REQUEST] }))).toEqual({ kind: 'none' })
   })
 
-  it('takes failed runs of the head commit only', () => {
-    const found = outcomeOf(PULL, check({ failed: [run(1, 'failure'), run(2, 'failure', 'old0000'), run(3, 'success')] }))
-    expect(found).toEqual({ kind: 'feedback', items: [{ kind: 'ci', run: run(1, 'failure') }] })
+  it('takes failed runs of the head commit only, with their log tails', () => {
+    const found = outcomeOf(PULL, check({ failed: [failed(1, 'failure', HEAD, 'TS2741'), failed(2, 'failure', 'old0000'), failed(3, 'success')] }))
+    expect(found).toEqual({ kind: 'feedback', items: [{ kind: 'ci', run: run(1, 'failure'), log: 'TS2741' }] })
   })
 
   it('takes a conflict with main once per head commit', () => {
@@ -72,7 +77,7 @@ describe('outcomeOf', () => {
   })
 
   it('gathers every new event of one poll', () => {
-    const found = outcomeOf(PULL, check({ state: { state: 'open', mergeable: false, head: HEAD }, remarks: [REQUEST], failed: [run(1, 'failure')] }))
+    const found = outcomeOf(PULL, check({ state: { state: 'open', mergeable: false, head: HEAD }, remarks: [REQUEST], failed: [failed(1, 'failure')] }))
     expect(found.kind === 'feedback' && found.items.map(eventKey)).toEqual(['review:501', 'ci:1', `conflict:${HEAD}`])
   })
 })

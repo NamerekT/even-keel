@@ -1,4 +1,4 @@
-import { getJson, getJsonPage } from './http.js'
+import { getJson, getJsonPage, getText } from './http.js'
 import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
 interface GitlabSettings {
@@ -70,6 +70,9 @@ export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchI
       return jobs.map((job): CiJob => ({
         id: job.id, name: job.name, status: statusOf(job.status), startedAt: job.started_at, stoppedAt: job.finished_at, steps: null,
       }))
+    },
+    log(job) {
+      return getText(TITLE, `${base}/jobs/${job.id}/trace`, auth, timeoutMs, fetchImpl)
     },
   }
 }

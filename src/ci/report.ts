@@ -1,9 +1,9 @@
 import type { CheckFailure, RedReport } from '../chain/model.js'
 import type { Language } from '../language.js'
-import type { CiJob, CiKind, CiRun } from './model.js'
+import type { CiJob, CiKind, CiRun, CiSource } from './model.js'
 import { CI_TITLES, shortCommit } from './verdict.js'
 
-/** A failed run of main with what its CI tells of it: `jobs` — `null` when they could not be read, `log` — the failed job's tail. */
+/** A failed run of main or of a pull request's head with what its CI tells of it: `jobs` — `null` when they could not be read, `log` — the failed job's tail. */
 export interface FailedRun {
   kind: CiKind
   run: CiRun
@@ -24,6 +24,16 @@ export interface RedFacts {
 }
 
 export const LOG_LINES = 60
+
+/**
+ * Reads into `failed` the jobs of its run (`known` — already read) and the log tail of its first failed job, for a fix
+ * session of main and for a pull request's feedback. A read that fails is thrown, what was read before it stays.
+ */
+export async function readFailure(source: CiSource, failed: FailedRun, known?: CiJob[]): Promise<void> {
+  failed.jobs = known ?? (await source.jobs(failed.run))
+  const job = failed.jobs.find((each) => each.status === 'failure')
+  if (job !== undefined && source.log !== undefined) failed.log = logTail(await source.log(job))
+}
 
 interface Opening {
   title: (commit: string) => string
@@ -145,11 +155,11 @@ function jobLines(jobs: CiJob[] | null, texts: ReportTexts): string[] {
     })
 }
 
-const fenced = (text: string): string => `\`\`\`text\n${text}\n\`\`\``
+export const fenced = (text: string): string => `\`\`\`text\n${text}\n\`\`\``
 
 const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/
 
-/** The last lines of a job log without GitHub's timestamps; a fence in it is defused so it cannot close the block. */
+/** The last lines of a job log without the timestamps GitHub and Forgejo prefix; a fence in it is defused so it cannot close the block. */
 export function logTail(log: string, lines = LOG_LINES): string {
   const all = log.split(/\r?\n/).map((line) => line.replace(STAMP, '').replaceAll('```', "'''"))
   while (all.length > 0 && all.at(-1)!.trim() === '') all.pop()

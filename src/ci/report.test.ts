@@ -117,6 +117,11 @@ describe('logTail', () => {
     expect(logTail(log, 2)).toBe('two\nthree')
   })
 
+  it("strips Forgejo's timestamps too and keeps the line's own indent", () => {
+    const log = '2026-10-30T03:24:51.8465968Z   ✅  Success - Post checkout\n2026-10-30T03:24:53.0724409Z Job \'test\' failed\n'
+    expect(logTail(log)).toBe("  ✅  Success - Post checkout\nJob 'test' failed")
+  })
+
   it('does not let the log close the code block', () => {
     expect(logTail('a\n```\nb', 10)).toBe("a\n'''\nb")
   })
