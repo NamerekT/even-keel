@@ -4,6 +4,158 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **OpenCode (preview)** as a chain agent. It signs in with ChatGPT, an API key or its free models. Each turn is one `opencode run`, and the transcript and context fill are read from OpenCode's own database. Through an OpenCode plugin of its own, the checkpoint plugin hands a full context over to a fresh session, delivers chat messages mid-turn and checks before a merge. The Huly plugin's hooks reach it too. A turn that writes nothing for 30 minutes is taken for hung. Pictures the model reads show in the chat. A model the account does not offer, including ChatGPT models outside the plan, is refused before the launch. OpenCode on GitHub Copilot is shown but cannot run sessions.
+- **GitHub Copilot CLI (preview)** as a chain agent, on the machine's sign-in or a token per account. Each turn is one `copilot -p`. The card shows the monthly allowance, read with the sign-in's own token. A model Copilot refuses shows its reason and a button to the session settings.
+- **Claude sessions through the Agent SDK.** "Execution" in Settings → Providers and models offers `Auto`, `CLI --bg` or `Agent SDK`; `Auto` runs API keys through the SDK and subscriptions on `--bg`. An SDK session outlives a restart of the service with its question still open. Chat messages and answers go straight into the running session. Limits refresh from each response. Choosing `Agent SDK` sets the CLI version to Checked.
+- **GitLab:** GitLab Issues as a tracker, GitLab CI, and merge requests in PR mode, on GitLab.com and self-managed servers, with the `gitlab` plugin. Uploaded pictures and files show on the task card and reach the session.
+- **Jira Cloud** as a tracker, with the `jira` plugin. Fix versions are its milestones and `Blocks` links set the order. Statuses go by category, also on localized sites. Pictures and attachments show on the task card. If a transition to Done is refused, the page says so.
+- Tracker profiles can connect a tracker's MCP server through OAuth with one button. Even Keel keeps and refreshes the access, and sessions never see it. The Jira profile can use a separate Atlassian MCP token instead.
+- **Task feeds.** A project's chain can take tasks from more than one tracker or account, for example a private Huly project plus the GitHub issues others file.
+- **GitHub issues taken into your tracker.** Labelled issues become tasks with a link back. When the task is done, the issue gets a one-line summary and is closed at the release. In PR mode, a pull request for a GitHub issue ends with `Closes owner/repo#N`; on GitLab, a merge request ends with `Closes #N`.
+- **Release branches.** Several Even Keel projects can share one tracker project and split its tasks by milestone; the "Add a project" wizard sets this up. A release project is carried forward into the main project's branch whenever the main chain stands. A carry conflict goes to an agent with **Resolve with the agent**, or automatically with **Resolve a conflict with the agent by itself**.
+- **Install with `npx even-keel`:** it installs Even Keel globally and sets it up as a service. On Windows it starts at your sign-in with a tray icon and needs no administrator. A newer version of the package is the update.
+- **Updating from the page:** release notes since your version and **Update**. If the new version does not come up, the old one comes back. **Revert** returns to the previous version.
+- A first-start setup wizard covering language, agent and account, tracker, statistics, update checks and the first project.
+- **Protection** (Settings → Sessions). Deny rules for destructive actions go to Claude Code, Codex, Copilot and OpenCode, for all projects or per project. A switch per tracker blocks deleting its records. The page shows the agents' own deny files and Codex rules. It also warns about missing or bypassable protection of the main branch on GitHub and Forgejo.
+- **Standards.** A project ties a document to the files it guards. A session gets the document when it first touches those files. Optionally, the merge waits for screenshots and answers to the document's check.
+- An Even Keel-wide **Prompt** for every project and agent, and **Model prompts** matched by `provider | model` patterns with `*`. Each row shows the models that match it.
+- The model field suggests the models the account offers, and a model is checked before the launch.
+- **Add a package → My skills** turns your own skills into one package, so every agent gets them. A project's `CLAUDE.md`/`AGENTS.md` and skills reach every agent. A project's Sessions settings show what a session will get.
+- **Keep the cache of a waiting session warm:** Even Keel pings a copy of a waiting Claude session before its prompt cache expires. The warm-cache window is now per agent: 30 minutes for Codex and Copilot.
+- **Handoffs by context size** can be turned off, leaving long sessions to the agent's own compaction. An auto-compact window for chain sessions can be set for all projects and per project. A task label picks a handoff or compaction for that task.
+- A **Prompt cache lifetime** for Codex sessions.
+- The `/handoff` command in the session chat, with a command menu on `/`.
+- A Claude session's permission dialog comes to the page as a question with "Allow" and "Deny". In unattended mode the call is refused at once.
+- A temporary model error ("at capacity", "overloaded") is retried after 15 minutes, doubling the wait up to four hours, and the cache is kept warm meanwhile.
+- A mark for work that is not committed or not merged: a chip on the task's row, a dot on the **Backlog** tab and a callout on its card. A closed task whose folder was left behind stays in the chain instead of going to the archive.
+- Labels can be added to or removed from a task in the tracker from Even Keel; a missing label is created.
+- **Replace key** for an API account and a Copilot token. The account keeps its name, roles and history.
+- **Extra usage** on account rows: credits and paid usage for Claude, Codex, Copilot and OpenCode Zen, plus an **on credits** chip. A chain session is stopped when paid subscription usage is detected, and the chain waits for the limit to reset.
+- Accounts without a known limit show the tokens they used and their last refusal. After a refusal, OpenCode's free models are tried again with growing waits.
+- An API key's spending cap holds the task until the date in the error, and the key is checked every five minutes; this also covers OpenCode on an Anthropic key.
+- Checked CLI versions for OpenCode and Copilot. **Check new CLI versions on this machine** tries each new CLI release with a short live session and reports the result in a banner.
+- The `/status` page: an overview of the service, limits, settings, statistics and every tracker account in use.
+- A **?** tab on the project page with a legend of every mark and sign, grouped by where it appears.
+- Codex shows the pictures it opens with `view_image` in the chat.
+- Commands on the page appear as code blocks with a copy button. OpenCode and Codex sign-ins show the one-time code separately with **Copy**.
+- The `tally:session-audit` skill reads the statistics and proposes changes to your rules.
+- Statistics count Codex turns and active time, and price DeepSeek V4.1 Flash. They also show the status of GitHub and Linear tasks, and follow-up tasks made on top of closed ones.
+
+### Changed
+
+- The page follows one design system: settings in sections and rows with one way of inheriting values, toggles and hints in tips. The account, CI, status and stats pages are reworked, and folds animate.
+- Accounts appear only after you add them with **Add account**. The add dialog opens over the current page and keeps what you entered. Accounts are grouped by provider, one row each, with readable names.
+- The way Claude sessions run is the shared "Execution" setting instead of a button on each account card; earlier per-account choices are carried over.
+- The header's account chip shows the account of the current task and, on hover, up to three levels: task, project and Even Keel.
+- Chain rules are set per status and per label on all three levels; which milestones a project takes moved to its Tracker tab.
+- A project's Tracker settings use the same fields and hints as the add-project wizard. The wizard shows its steps as cards with their state and ends with a summary.
+- A task's row shows the current action and context as one block, with the title on the whole first line and a counter of context resets that includes compactions.
+- Errors above the chain stay open; warnings fold into one row. Limit banners name the account and what to change, and group together.
+- Messages on the page use the page's own words and say what to do, with a button where the page has one.
+- **Check and save** is one button wherever saving needed a check first.
+- Codex limits are read from ChatGPT every five minutes, not only from Codex's session files. A ChatGPT plan change no longer shows as an expired token: Codex's sign-in is renewed without a model turn.
+- The later handoff thresholds now count from the compaction point instead of from shares of the window, and the first threshold is capped the same way.
+- In the chat, Enter sends and Shift+Enter starts a new line.
+- A red main gives one notification per commit, naming the failed CI. Only the CIs that count, and only runs of the project's branch, hold the chain.
+- Projects of one remote on one machine share a red main and one CI watch, so one break gets one fix.
+- A branch sync after Done is retried after a network error before it turns into a warning.
+- **New session** on a silent turn says when it becomes available, and after five quiet minutes the turn can be interrupted with confirmation. "No new output since …" no longer shows from the first second.
+- Run labels show the model without the router prefix; the full name is in the tip.
+- CLI copies are downloaded only when needed and with your consent, with progress in banners. The CLI version banner is one foldable row.
+- `/usage` is no longer polled for a folder without a sign-in.
+- The statistics group OpenAI models by tier (Sol, Luna, Astra, Terra). The `/stats` page has a new section order, with "What changed" folded and a model choice for each side of a comparison.
+- Projects are identified by their id, so two projects of one key are told apart by name everywhere.
+- The service log records when a session hits a usage limit and when the chain continues. Tracker timeouts are logged with the call, its duration and the number of requests. The same tracker error is no longer logged every 5 seconds.
+
+### Removed
+
+- The shared **Default tracker** setting: every project has its own tracker, and older installs are migrated.
+
+### Fixed
+
+- Two processes no longer open the state database or the local statistics database at the same time.
+- A Huly project that no longer exists no longer breaks reading the other projects of the same profile.
+- A chain no longer hangs on a postponed task after its blocker closes.
+- A red main right after a start no longer puts the working session aside before the first poll.
+- OpenCode and Copilot sessions continue after a main fix without needing an e-mail address.
+- The chain no longer pauses with EPERM when writing a Codex session file on Windows, and no longer loses a turn that had already started.
+- A Codex turn on Windows no longer always looks silent.
+- A process that reused a session's pid is no longer taken for a live Codex, Copilot, OpenCode or Claude session.
+- A Codex limit is no longer lost when an interrupted command finishes after the end of the turn. A command cut off by the end of a turn shows where it started and is not marked "failed".
+- Codex limits no longer disappear by themselves.
+- Codex 0.164 recognizes an OpenAI key again. A Codex or OpenCode key without money shows as "no credit", not as a limit or an unknown reset. OpenCode on an Anthropic key now holds its spending cap.
+- A refused second free Codex account no longer reads as "account added".
+- Chat messages are no longer lost:
+  - when sent right after a resume (the message also no longer stops the working session);
+  - when sent on a Stop (the end-of-turn mark survives, and Codex shows the bubble);
+  - when the turn ends while the chain waits to stop after it;
+  - when the mailbox hook times out.
+- The chat can answer a Codex, OpenCode or Copilot session stopped by an API error.
+- Copilot sessions receive the hooks' additional context again, including the mail, context reminders and standards.
+- The chat shows a non-empty `AskUserQuestion` card and files sent with `SendUserFile`.
+- PR mode on GitLab no longer reports a false conflict right after a push.
+- A session's own note on its merge request is no longer taken as feedback.
+- GitLab under a path prefix uses the right profile for CI and merge requests.
+- GitLab.com reads no longer time out and flood the log.
+- The `gitlab` package can read issues on GitLab CE.
+- Jira:
+  - Markdown converted from Jira text keeps `<…>` and no longer gains stray formatting;
+  - creating a task on a localized site no longer makes an epic;
+  - the `jira:task` skill works with Rovo MCP v2.
+- The OAuth MCP connection takes the authorization server from the resource's metadata. Its callback works on direct network access, and a failure reason reaches the log.
+- **Start** after a profile change retries a pull request that could not be opened. The refusal text for an unready PR mode no longer promises that the chain will go on by itself.
+- Release carries:
+  - "Merges into" offers only projects of the same repository;
+  - a failed merge without a conflict shows git's message;
+  - a carry session no longer raises "main is red";
+  - "push failed" clears once main is pushed;
+  - messages no longer start with `forward:`;
+  - no conflict notification is sent while an agent is already resolving it.
+- Cleanup after Done handles long paths in `git worktree remove` and no longer blames a process.
+- The add-project wizard:
+  - sees folder trust given in an account folder;
+  - checks the folder;
+  - shows a tracker error under the right field;
+  - can add a second project on the same tracker project;
+  - no longer widens on long profile names.
+- A chain paused on an untrusted folder offers the same hint and button as the wizard.
+- MCP keys left blank in a project's profile come from the default profile. Package settings nobody changed follow a new default after an update. A plugin-only update no longer reinstalls the package's server.
+- Changing the default profile no longer moves a running project to another profile.
+- "Give the active milestone to tasks without one" shows the milestone at once, both in the preview and after reading the tracker.
+- A chain order error shows once, not twice.
+- The empty chain's "Open in …" button also covers task feeds.
+- Dragging an external blocker's card no longer jumps.
+- Tasks coming from the backlog no longer freeze the page.
+- The uncommitted-work chip no longer shows on a task whose session is working.
+- The queue button shows the project's name instead of its GUID. A long project name no longer covers the queue.
+- Narrow settings no longer break labels mid-word, and the project settings card no longer slides off screen under banners.
+- The account row menu opens where you clicked.
+- The sign-in dialog no longer highlights its steps by itself. Choosing Copilot in the add-account dialog no longer loses the dialog. The download banner is no longer too wide and no longer flickers when the download ends.
+- The unchecked-CLI banner no longer shows when "CLI version" is Checked.
+- The "Problems" block on `/tools` shows settings of disabled packages and accounts without projects.
+- Project colours on `/stats` are no longer grey. The stats strip on the project page shows its loading and keeps one height.
+- Statistics:
+  - see the global `~/.claude` and `~/.codex` folders again without reloading their history;
+  - no longer record false deletions of rules;
+  - count an edit of a skill or memory through its store path as a rule change;
+  - leave code-block lines out of handoff titles.
+- A changelog draft with no entries no longer shows as "the agent did not write the draft".
+- The service log no longer has an empty `claude daemon status` error after each start, or GitHub Actions 404s.
+- Hints that were outdated, wrong or shared between different fields are fixed, and Protection's fields each have their own hint.
+
+### Security
+
+- Tracker keys set in the `env` of an account's `settings.json` no longer reach chain sessions.
+- Protection rules no longer leak through:
+  - Copilot rules use Copilot's own syntax;
+  - Codex rules cover more spellings of the main branch refspec and of `rm` targets;
+  - OpenCode's build agent permissions no longer override the denies.
+- A GitHub issue taken into the tracker reaches the session as information, not instructions; only collaborators' comments go in as they are, and the issue gets only a one-line summary in public.
+
 ## [0.1.4] - 2026-10-27
 
 ### Fixed
