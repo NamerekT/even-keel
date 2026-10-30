@@ -58,6 +58,11 @@ const ISSUES = `query($filter: IssueFilter!, $after: String) {
   issues(first: ${PAGE}, after: $after, filter: $filter) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} } }
 }`
 
+// Linear archives closed issues after a while; a parent counts those children too.
+const CHILDREN = `query($filter: IssueFilter!, $after: String) {
+  issues(first: ${PAGE}, after: $after, filter: $filter, includeArchived: true) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} } }
+}`
+
 // Which end of `comments` is the newest is not checked live: both ends are taken and compared.
 const MILESTONE_ISSUES = `query($filter: IssueFilter!, $after: String) {
   issues(first: ${PAGE}, after: $after, filter: $filter) {
@@ -258,6 +263,10 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     async card(id) {
       return toCard(await oneIssue<LinearCardIssue>(id, ISSUE_CARD))
+    },
+
+    async children(id) {
+      return (await collect({ parent: byNumber(id) }, CHILDREN)).map(toTrackerTask)
     },
 
     async ready(id) {

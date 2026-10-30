@@ -177,6 +177,21 @@ describe('linear source', () => {
     }
   })
 
+  it('reads the children of an issue in every state page by page, archived ones too', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { issues: page([issue('ENG-2', { state: { name: 'Done', type: 'completed' }, parent: { identifier: 'ENG-1' } })], 'cursor-1') } } },
+      { body: { data: { issues: page([issue('ENG-3', { state: { name: 'Canceled', type: 'canceled' }, parent: { identifier: 'ENG-1' } })]) } } },
+    ])
+    const children = await source.children!('ENG-1')
+    expect(children.map((task) => [task.id, task.status.category, task.parent])).toEqual([
+      ['ENG-2', 'Won', 'ENG-1'],
+      ['ENG-3', 'Lost', 'ENG-1'],
+    ])
+    expect(calls[1]!.variables).toEqual({ filter: { parent: { team: { key: { eq: 'ENG' } }, number: { eq: 1 } } }, after: null })
+    expect(calls[1]!.query).toContain('includeArchived: true')
+    expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
+  })
+
   it('fails to complete an issue it cannot find', async () => {
     const { source } = await connect([{ body: { data: { issues: { nodes: [] } } } }])
     await expect(source.complete!('ENG-7')).rejects.toThrow(/ENG-7/)
