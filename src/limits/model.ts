@@ -27,6 +27,8 @@ export interface RateLimits {
   pool?: string
   /** Subscription extras with an independent timestamp; fresh evidence may stop managed paid usage. */
   overage?: Overage
+  /** ChatGPT's answer says whether the account may send now (`rate_limit.allowed` and not `limit_reached`, BTN-530). */
+  open?: boolean
 }
 
 /** The windows a session reported: one it did not name stays as it was known. */
@@ -133,6 +135,24 @@ export function exhaustedReset(limits: RateLimits | null): string | null {
 }
 
 const FIVE_HOURS_MS = 5 * 60 * 60_000
+/** How near the named reset a window's own reset still counts as that window: a refusal names it to the hour or minute. */
+const SAME_WINDOW_MS = 60 * 60_000
+
+/**
+ * When a poll of the account, taken after the refusal at `at`, shows the spent window open before the reset the hold
+ * named (BTN-530): providers now and then reset limits early. ChatGPT's answer says so itself; a Claude `/usage` reading
+ * counts when no window is spent and none runs out near `resetsAt`, as a window started over resets later. A statusline,
+ * a session event or an answer that does not say keep the wait. `null` — not open again; otherwise the poll's time.
+ */
+export function limitReopenedAt(limits: RateLimits | null, at: string, resetsAt: string): string | null {
+  if (limits === null || Date.parse(limits.updatedAt) <= Date.parse(at)) return null
+  if (limits.source === 'api') return limits.open === true ? limits.updatedAt : null
+  if (limits.source !== 'usage') return null
+  const named = Date.parse(resetsAt)
+  const windows = [limits.fiveHour, limits.sevenDay, limits.month].filter((window) => window != null)
+  const spent = windows.some((window) => window.usedPercentage >= 100 || Math.abs(Date.parse(window.resetsAt) - named) < SAME_WINDOW_MS)
+  return spent ? null : limits.updatedAt
+}
 
 /**
  * When a limit the account hit at `at` resets, for a limit whose text gave no time — the CLI's `wrap_up` warning

@@ -22,7 +22,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 0e | [Tracker deletes refused by the gateway](#tracker-deletes-refused-by-the-gateway-btn-541) | chain sessions on any tracker with Protection's tracker switches on | a record is deleted despite the switch, or a harmless call is refused |
 | 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode on Linux/macOS, other agents/subagents and equivalent command spellings | permissions or shell parsing may differ from the checked Windows build-agent calls |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
-| 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
+| 1 | [An early reset of a limit](#an-early-reset-of-a-limit-btn-530) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 1c | [The first limits poll after a restart](#the-first-limits-poll-after-a-restart-btn-595) | everyone on a subscription | a task starts into a used-up limit after a restart, or waits a few minutes for nothing |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
@@ -249,9 +249,9 @@ A ChatGPT plan change revokes the sign-in's access token at once: on 25.10.2026,
 
 ## Claude limits
 
-### An early reset of a limit
+### An early reset of a limit (BTN-530)
 
-Anthropic sometimes resets a five-hour window or all limits of an account ahead of time. When a session hits a limit, the chain remembers the reset time from the error or from `/usage` and waits for it; what `/usage` shows right after an early reset has never been seen. If it shows a new window or no window, the remembered time is not updated and the chain keeps waiting until the original reset. **Workaround:** press "New session" on the task — it drops the remembered wait and starts a session at once; or switch the account.
+Anthropic and OpenAI sometimes reset a window or all limits of an account ahead of time (OpenAI's weekly Plus limit kept returning to 100% in late October 2026). When a session hits a limit, the chain waits for the reset named by the error, and also ends the wait when a poll taken after the refusal shows the account open again: for ChatGPT, `wham/usage` with `rate_limit.allowed: true` and `limit_reached: false`; for Claude, a `/usage` reading with no window at 100% and none resetting within an hour of the named time, as a window started over resets later. It then resumes the session or hands over, as at the reset. What either answer looks like right after an early reset has never been seen. If ChatGPT says `allowed` while the account is still refused, the session is refused again and waits for the next named reset; if Claude's `/usage` keeps the old window or its reset after an early reset, the chain keeps waiting until the original reset. **Workaround:** press "New session" on the task — it drops the remembered wait and starts a session at once; or switch the account.
 
 ### The first limits poll after a restart (BTN-595)
 

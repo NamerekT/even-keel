@@ -28,7 +28,7 @@ import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from '../git/worktree.js'
-import { exhaustedReset } from '../limits/model.js'
+import { exhaustedReset, limitReopenedAt } from '../limits/model.js'
 import { overageSession } from '../limits/overage-session.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { type RemovalFacts } from '../projects/removal.js'
@@ -346,6 +346,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     accountAt: (key, at) => accountId(key, accountAt(ctx.ledger, key, at)),
     limitReset: (project, task) => exhaustedReset(ctx.limits.limits(ctx.choiceFor(project, task).account)),
     limitResetAfter: ctx.retryAfterLimit,
+    limitReopenedAt: (key, at, resetsAt) => limitReopenedAt(ctx.limits.limits(key), at, resetsAt),
     limitsUnread: (project, task) => ctx.limits.unread(ctx.choiceFor(project, task).account),
     packagesBlocked: (project) => ctx.packages.blocked(project),
     accountsRead: () => ctx.account.ready,
