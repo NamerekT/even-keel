@@ -96,6 +96,22 @@
   gap: 12px;
 }
 
+/* Model and Tokens share a row: the model takes two of the three columns, a long name is cut. */
+.ui-fact.panel__model {
+  grid-column: span 2;
+}
+
+.panel__model .panel__value {
+  min-width: 0;
+}
+
+.panel__model .panel__total {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panel__total {
   padding: 0;
   border: 0;
