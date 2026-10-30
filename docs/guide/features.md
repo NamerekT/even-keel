@@ -298,7 +298,7 @@ A built-in collector (Tally) reads the session transcripts every five minutes in
 
 Statistics include history from existing account folders, including the global Claude and Codex folders even if you have not added those accounts in Even Keel. A folder left out of a scan keeps its reading progress while its files still exist, so changing the scan does not force that history to reload.
 
-Task time includes Codex turns from its saved session files, including older sessions whose files are still available. Visible synchronous question waits are excluded from active time; waits the session file does not show remain included. OpenCode and Copilot currently contribute spend without turn times.
+Task time includes Codex, OpenCode and Copilot turns from their own session records, including older sessions whose records are still available, so their tasks get a time report in Huly too. For Codex, visible synchronous question waits are excluded from active time; waits the session file does not show remain included. OpenCode and Copilot sessions ask in their final text rather than through a question tool, so their turns have no question waits to exclude.
 
 "Where the spend goes", the task table and rule comparisons group models by tier: Opus, Sonnet, Haiku and Fable for Claude; Sol, Luna, Astra and Terra for OpenAI. Versions within a tier count together; OpenAI models without a known tier appear as GPT. Other families, including DeepSeek, appear separately. Shares below 1% fold into "others".
 
