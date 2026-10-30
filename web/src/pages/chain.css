@@ -116,6 +116,11 @@
   animation: screen-in 0.3s ease-out both;
 }
 
+/* The line is one row of a fixed width, so the untyped rest is not needed to hold it: the ellipsis follows the typed text. */
+.chain .screen__line .typed__rest {
+  display: none;
+}
+
 .chain .screen__line--out {
   animation: screen-out 0.3s ease-in both;
 }
