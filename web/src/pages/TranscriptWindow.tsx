@@ -216,7 +216,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
           <h2 className="panel__task">
             <span className="panel__key">{chat?.task ?? sessionId.slice(0, 8)}</span>
             <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
-            <AccountTag email={account} />
+            <AccountTag account={account} />
           </h2>
           <HeadFacts session={chat?.session ?? null} scale={chat?.scale ?? null} edits={edits} />
           {chat?.review !== undefined && <PullButton review={chat.review} compact />}

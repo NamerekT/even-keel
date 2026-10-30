@@ -34,6 +34,11 @@ export function folderLabel(view: AccountView | undefined, key: string): string 
   return entry === undefined ? key : accountName(entry, view!.accounts)
 }
 
+/** The account a session's record names: by its folder key, else by its e-mail; `undefined` once it is gone. */
+export function accountOf(view: AccountView | undefined, account: string): AccountEntry | undefined {
+  return view?.accounts.find((entry) => entry.key === account) ?? view?.accounts.find((entry) => entry.status?.email === account)
+}
+
 /** An API account's status carries its folder key for an e-mail (`withIdentity`): that is no name. */
 function emailOf(entry: AccountEntry): string | null {
   const email = entry.status?.email ?? null

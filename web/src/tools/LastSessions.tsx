@@ -30,7 +30,7 @@ function Received({ received }: { received: ReceivedView }) {
   return (
     <>
       <p className="tools__muted tools__meta">
-        <AccountTag email={received.account} />
+        <AccountTag account={received.account} />
         {t.tools.meta(ago, received.version, received.mode)}
       </p>
       {received.cwd !== null && (

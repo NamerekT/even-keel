@@ -3,7 +3,6 @@ import { PROVIDERS as RUN_PROVIDERS } from '../../src/agent/providers.js'
 import { CODEX } from '../../src/codex/name.js'
 import { limitSpans, type LimitSpan, type LimitWindow, type RateLimits } from '../../src/limits/model.js'
 import { OPENCODE } from '../../src/opencode/name.js'
-import { folderLabel } from './accountName.js'
 import { accountOrder } from './state.js'
 import { copilotOnly } from '../../src/opencode/support.js'
 
@@ -31,11 +30,6 @@ export function entrySlot(view: AccountView, entry: AccountEntry): number {
   if (byEmail !== null) return byEmail
   const keys = view.accounts.map((each) => each.key).sort()
   return (keys.indexOf(entry.key) % SERIES) + 1
-}
-
-/** A folder by its e-mail, so the tag takes the account's colour; one without an e-mail by its name (`folderLabel`). */
-export function folderEmail(view: AccountView | undefined, key: string): string {
-  return view?.accounts.find((entry) => entry.key === key)?.status?.email ?? folderLabel(view, key)
 }
 
 /** Whose account it is: the agents of `src/agent/adapters.ts` and the ones the page only names for now. */
