@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountAt, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
+import { accountAt, emptyLedger, forgetAccount, formerOwner, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
 
 const now = new Date('2026-09-27T16:00:00.000Z')
 
@@ -47,6 +47,32 @@ describe('noteAccount', () => {
       previous: null,
       name: 'Work API',
     })
+  })
+
+  it('drops the name the previous account was given when another one signs in to the folder', () => {
+    const named = nameAccount(noteAccount(emptyLedger(), 'john', 'john@example.com', now)!, 'john', 'Personal')
+    expect(noteAccount(named, 'john', 'jane@example.com', now)?.accounts.john?.name).toBeUndefined()
+    expect(noteAccount(named, 'john', 'John@Example.com', now)?.accounts.john?.name).toBe('Personal')
+  })
+})
+
+describe('formerOwner', () => {
+  const ledger = (email: string, previous: string | null): AccountLedger => ({
+    accounts: { 'john.doe': { email, since: '2026-09-27T10:00:00.000Z', previous } },
+    removing: [],
+  })
+
+  it('names the account a folder was named after once another one signed in to it', () => {
+    expect(formerOwner(ledger('jane.roe@example.com', 'john.doe@example.com'), 'john.doe')).toBe('john.doe@example.com')
+    expect(formerOwner({ accounts: { 'john.doe-2': ledger('jane.roe@example.com', 'john.doe@example.com').accounts['john.doe']! }, removing: [] }, 'john.doe-2'))
+      .toBe('john.doe@example.com')
+  })
+
+  it('is null while the folder holds the account it is named after, or was never named after one', () => {
+    expect(formerOwner(ledger('john.doe@example.com', 'jane.roe@example.com'), 'john.doe')).toBeNull()
+    expect(formerOwner(ledger('jane.roe@example.com', null), 'john.doe')).toBeNull()
+    expect(formerOwner(ledger('jane.roe@example.com', 'john.doe@example.com'), 'work')).toBeNull()
+    expect(formerOwner(ledger('jane.roe@example.com', 'john.doe@example.com'), 'global')).toBeNull()
   })
 })
 

@@ -36,6 +36,10 @@ export interface AccountEntry {
   key: string
   /** The name the user gave the account (`AccountRecord.name`); the folder key stays its identity. */
   name: string | null
+  /** The e-mail the folder was last signed in as (`AccountRecord.email`), named while its sign-in shows none (BTN-528). */
+  lastEmail?: string | null
+  /** The account the folder is named after, once another one signed in to it (`formerOwner`). */
+  formerEmail?: string | null
   global: boolean
   /** The agent whose account folder it is (`src/agent/adapters.ts`). */
   agent: string
@@ -184,13 +188,24 @@ export function needsLogin(status: AccountStatus | null, times: CredentialTimes,
 }
 
 export function folderName(email: string | null, taken: string[]): string {
-  const local = (email ?? '').split('@')[0]!.toLowerCase()
-  const base = local.replace(/[^a-z0-9._-]+/g, '-').replace(/^[.-]+|[.-]+$/g, '') || 'account'
+  const base = folderBase(email)
   const used = new Set([...taken.map((name) => name.toLowerCase()), GLOBAL_ACCOUNT, CODEX_ACCOUNT])
   if (!used.has(base)) return base
   let index = 2
   while (used.has(`${base}-${index}`)) index++
   return `${base}-${index}`
+}
+
+/** Whether the folder `key` bears the name `folderName` gives a sign-in of `email`, numbered or not. */
+export function namedAfter(key: string, email: string): boolean {
+  const base = folderBase(email)
+  const lower = key.toLowerCase()
+  return lower === base || (lower.startsWith(`${base}-`) && /^\d+$/.test(lower.slice(base.length + 1)))
+}
+
+function folderBase(email: string | null): string {
+  const local = (email ?? '').split('@')[0]!.toLowerCase()
+  return local.replace(/[^a-z0-9._-]+/g, '-').replace(/^[.-]+|[.-]+$/g, '') || 'account'
 }
 
 /** Machine accounts have no profile email; their folder identifies them in the current view and the ledger alike. */

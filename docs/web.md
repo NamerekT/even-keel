@@ -225,6 +225,8 @@ The project notice states are on `/p/ABC?forward=warnings`: a carry conflict abo
 
 `?account=overage|overage-long|overage-permitted` supplies Claude using extra usage, a working Codex account with an exhausted window and 12.4 ChatGPT credits, an idle OpenCode account sharing credits, Copilot with extra usage disabled, and accounts with no extra-usage source. The long variant lengthens the active account name; the permitted variant enables Copilot additional usage. Use on `/accounts` or `/p/ABC` (open the account drawer), with `lang=ru` for translated narrow rows. Available paid usage adds `OverageWarning`, a shared warning Band with the provider spending-settings action and a keyboard/touch-accessible policy tip. Its controls do not toggle the account row menu.
 
+`?account=mixup` supplies the sign-in mix-ups of BTN-528: a folder named after another account than the one in it, a second folder of the global account, and two signed-out folders, one with its last e-mail and one without. Use it on `/accounts` for the problem band and the rows.
+
 Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.

@@ -25,6 +25,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit-btn-530) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 1c | [The first limits poll after a restart](#the-first-limits-poll-after-a-restart-btn-595) | everyone on a subscription | a task starts into a used-up limit after a restart, or waits a few minutes for nothing |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
+| 2a | [Account names across sign-outs and sign-ins](#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
@@ -238,6 +239,10 @@ Assumed: provider signals arrive in the observed shapes and each agent stops its
 ### Explicit global account registration
 
 BTN-543 adds explicit registration of the global Claude and Codex folders. Fresh/upgrade database transitions, persistence, backup, shared-pool assignment, a stale sign-in choice and removal without logout are covered by unit tests; the dialog is checked with fake data ([verified.md](verified.md#accounts)). The real CLI sandbox check belongs to BTN-542: start fresh with CLI folders already signed in, confirm no accounts or limit polling before Add account, add the existing identity and a separate account from setup and Accounts, remove a global registration and confirm the CLI is still signed in, then upgrade a copy of an old installation and confirm its formerly visible accounts remain. **Workaround:** use a managed account added through the dialog until this check is complete.
+
+### Account names across sign-outs and sign-ins (BTN-528)
+
+A signed-out folder keeps the last e-mail it was signed in as; a folder named after one account but holding another, and a second folder of one account, are marked on `/accounts` (`docs/accounts.md`, "The name of a folder across sign-ins"). Covered by unit tests and the fake page `?account=mixup`; no real folder was signed out or signed in to another account for it. Assumed: `auth status` of a signed-out folder gives no e-mail while the ledger still holds the last one, and the profile e-mail of two folders signed in to one account is the same. If wrong, a signed-out card still reads "Claude Code", or a duplicate goes unmarked. **Check:** `claude auth logout` in a spare account folder and look at its card; sign it in again under the account of another folder (Renew in a browser signed in to that account) and look for the warning. **Workaround:** the folder is in the tip of the account's icon.
 
 ### Staying signed in after a reboot (EKR-15)
 

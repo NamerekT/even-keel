@@ -9,7 +9,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountSpend, AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
-import { accountName, agentLabel } from '../accountName.js'
+import { accountName, agentLabel, globalFolder, sameAccountAs } from '../accountName.js'
 import { CLI_MISSING, connectionOf } from '../accounts.js'
 import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
@@ -120,10 +120,6 @@ export function sharedLimitText(entry: AccountEntry, accounts: AccountEntry[]): 
 export function spendText(spend: Spend, key: string): string {
   if (spend === null) return t.account.todayNone
   return t.account.today(formatUsd(spend[key]?.day ?? 0))
-}
-
-export function globalFolder(agent: string): string {
-  return agent === CODEX ? '~/.codex' : '~/.claude'
 }
 
 const COPIED_MS = 2000
@@ -270,6 +266,21 @@ interface NotesProps {
   quiet?: boolean
 }
 
+/**
+ * Why the folder holds an account it should not: one another folder of its agent holds too, or another than the one it
+ * is named after (BTN-528). Null when neither.
+ */
+export function signInMixup(entry: AccountEntry, accounts: AccountEntry[]): { text: string; short: string } | null {
+  const email = entry.status?.email ?? null
+  if (entry.formerEmail != null && email !== null && !entry.needsLogin) {
+    return { text: t.account.formerOwner(entry.formerEmail, email), short: t.account.formerOwnerShort(entry.formerEmail) }
+  }
+  const holder = sameAccountAs(entry, accounts)
+  if (holder === null) return null
+  const folderOf = (each: AccountEntry) => (each.global ? globalFolder(each.agent) : each.key)
+  return { text: t.account.sameAccount(folderOf(entry), folderOf(holder)), short: t.account.sameAccountShort(folderOf(entry), folderOf(holder)) }
+}
+
 /** The exceptions of an account, each with its action: sign-in needed or ending, removal pending, configuration pending, a failed check. */
 export function AccountNotes({ entry, view, now, sending, send, bare = false, quiet = false }: NotesProps) {
   const left = loginLeft(entry.loginExpiresAt, now)
@@ -278,10 +289,17 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   const stale = staleText(entry)
   const held = launchBlock(view, entry.key)
   const spendAt = entry.spendingLimit?.resetsAt == null ? null : formatMoment(entry.spendingLimit.resetsAt, now)
+  const mixup = signInMixup(entry, view.accounts)
 
   return (
     <>
       {!brief && stale !== null && <p className="accounts__note">{stale}</p>}
+      {mixup !== null && (
+        <div className="accounts__note accounts__note--warn">
+          <span>{mixup.text}</span>
+          {!left.renew && actions(<RenewButton entry={entry} view={view} sending={sending} send={send} again />)}
+        </div>
+      )}
       {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
       {entry.spendingLimit != null && (
         <Tipped className="accounts__note accounts__note--warn" tip={t.session.spendWait(spendAt)} align="start" focusable>
@@ -327,7 +345,8 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
   const left = loginLeft(entry.loginExpiresAt, now)
   return (
     <>
-      {!entry.apiKey && (left.renew || entry.needsLogin) && <RenewButton entry={entry} view={view} sending={sending} send={send} />}
+      {!entry.apiKey && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
+        <RenewButton entry={entry} view={view} sending={sending} send={send} again={!left.renew} />}
       {entry.apiKey && entry.needsLogin && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
     </>
@@ -335,11 +354,13 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
 }
 
 /** Greyed while a chain holds the active account, with why on pointing or focus. */
-function RenewButton({ entry, view, sending, send }: Omit<NotesProps, 'now' | 'bare'>) {
+function RenewButton({ entry, view, sending, send, again: wrong = false }: Omit<NotesProps, 'now' | 'bare'> & { again?: boolean }) {
   const held = entry.key === view.active && view.loginBlock !== null ? view.loginBlock : null
-  const label = entry.needsLogin ? t.account.login : t.account.renew
+  // A folder holding the wrong account signs in again, it renews nothing.
+  const again = entry.needsLogin || wrong
+  const label = again ? t.account.login : t.account.renew
   // Short on the button, next to the "sign-in: 4d" it renews; the full name is for screen readers.
-  const name = entry.needsLogin ? undefined : t.account.renewFull
+  const name = again ? undefined : t.account.renewFull
   if (held !== null) {
     return (
       <Tipped className="account__actions" tip={say(loginBlockNotice(held))} align="start">
