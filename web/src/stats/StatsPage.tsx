@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/model.js'
 import type { RulesQuery } from '../../../src/stats/rules.js'
 import type { EvenKeelState } from '../../../src/state.js'
+import { folderLabel } from '../accountName.js'
 import { formatMoment } from '../format.js'
 import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
@@ -131,7 +132,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               value={view.account ?? ''}
               options={[
                 { value: '', label: t.stats.all },
-                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: account })),
+                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: folderLabel(state.account, account) })),
               ]}
               onChange={(account) => setView({ account: account || null })}
             />

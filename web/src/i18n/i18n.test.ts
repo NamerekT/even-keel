@@ -5,7 +5,7 @@ import { asNotice, notice } from '../../../src/notice/notice.js'
 import { noticesRu } from './notices-ru.js'
 import { fieldsEn } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
-import { language, localized, pickLanguage, say, sayAtField, setLanguage, t } from './index.js'
+import { language, localized, pickLanguage, say, sayAtField, setAccountNames, setLanguage, t } from './index.js'
 import { plural } from './plural.js'
 import { ru } from './ru.js'
 
@@ -65,6 +65,19 @@ describe('say', () => {
   it('shows a message saved as plain text before codes as it is', () => {
     setLanguage('ru')
     expect(say(asNotice('ABC-0: the worktree was kept'))).toBe('ABC-0: the worktree was kept')
+  })
+
+  it('names an account folder as the page names the account, in a cause too; an unknown value stays', () => {
+    setAccountNames({ 'jane.roe': 'Work' })
+    try {
+      expect(say(notice('cliCheck.busy', { account: 'jane.roe' }))).toBe('the CLI check is running on the account Work; try again once it ends')
+      expect(say(notice('cleanup.syncFailed', {}, { cause: notice('claude.signOutFailed', { account: 'jane.roe' }) }))).toBe(
+        'sync of the main branch failed: could not sign out of Work',
+      )
+      expect(say(notice('claude.signOutFailed', { account: 'john.doe@example.com' }))).toBe('could not sign out of john.doe@example.com')
+    } finally {
+      setAccountNames({})
+    }
   })
 })
 

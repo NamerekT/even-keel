@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
-import { pickLanguage, say, setLanguage, setProjectLabels, t } from './i18n/index.js'
+import { pickLanguage, say, setAccountNames, setLanguage, setProjectLabels, t } from './i18n/index.js'
+import { accountName } from './accountName.js'
 import { ActivityBar } from './layout/ActivityBar.js'
 import { BasementSlot } from './layout/Basement.js'
 import { AppHeader } from './layout/AppHeader.js'
@@ -35,6 +36,8 @@ export function App() {
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
   setProjectLabels(state?.projectLabels ?? {})
+  const accounts = state?.account.accounts ?? []
+  setAccountNames(Object.fromEntries(accounts.map((entry) => [entry.key, accountName(entry, accounts)])))
   const pruned = useRef(false)
   useEffect(() => {
     if (state === null || pruned.current) return

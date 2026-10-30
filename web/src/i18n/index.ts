@@ -30,6 +30,28 @@ export function setProjectLabels(next: Readonly<Record<string, string>>): void {
   labels = next
 }
 
+let accountNames: Readonly<Record<string, string>> = {}
+
+// What a server message shows an account by: the service names it by its folder key, the page by `accountName`.
+export function setAccountNames(next: Readonly<Record<string, string>>): void {
+  accountNames = next
+}
+
+// The account of a server message's folder key; a value that is no known key (an e-mail, a folder gone) as it is.
+export function sayAccount(key: string): string {
+  return Object.hasOwn(accountNames, key) ? accountNames[key]! : key
+}
+
+function namedAccounts(notice: Notice): Notice {
+  const params = notice.params as { account?: unknown }
+  return {
+    ...notice,
+    ...(typeof params.account === 'string' && { params: { ...params, account: sayAccount(params.account) } }),
+    ...(notice.cause !== undefined && { cause: namedAccounts(notice.cause) }),
+    ...(notice.items !== undefined && { items: notice.items.map(namedAccounts) }),
+  } as Notice
+}
+
 // A server message in the page's language.
 export function say(notice: Notice): string {
   return withLabels(sayIds(notice), labels)
@@ -37,7 +59,7 @@ export function say(notice: Notice): string {
 
 // The same, its projects still by their ids, for `ProjectLinks` to make links of them (BTN-319).
 export function sayIds(notice: Notice): string {
-  return renderNotice(notice, {
+  return renderNotice(namedAccounts(notice), {
     ...t.notice,
     'chain.limitSpent': (p) => t.notice['chain.limitSpent']({
       ...p,
