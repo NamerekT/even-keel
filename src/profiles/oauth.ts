@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { fail, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
-import { callbackUrl, exchange, MCP_OAUTH, OAuthRefused, register, type OAuthClient, type OAuthRecord, type Registration } from './oauth-protocol.js'
+import { callbackUrl, exchange, MCP_OAUTH, OAuthRefused, register, type OAuthRecord, type Registration } from './oauth-protocol.js'
 import { oauthReason } from './oauth-error.js'
 export { MCP_OAUTH, type OAuthRecord } from './oauth-protocol.js'
 
@@ -41,13 +41,13 @@ export class McpOAuth {
     this.now = deps.now ?? Date.now
   }
 
-  async start(draft: OAuthDraft, redirect: string, client?: OAuthClient): Promise<{ flow: string; url: string }> {
+  async start(draft: OAuthDraft, redirect: string): Promise<{ flow: string; url: string }> {
     this.prune()
     if (this.flows.size >= 32) throw fail('profiles.oauthFailed', {})
     let registration: Registration
-    try { registration = await register(draft.kind, callbackUrl(redirect), this.request, client) }
+    try { registration = await register(draft.kind, callbackUrl(redirect), this.request) }
     catch (error) {
-      this.report(draft.kind, 'registration', error, [...Object.values(draft.values), client?.secret])
+      this.report(draft.kind, 'registration', error, Object.values(draft.values))
       throw error instanceof NoticeError ? error : fail('profiles.oauthFailed', {})
     }
     const id = random()
@@ -80,7 +80,7 @@ export class McpOAuth {
       flow.record = record
       flow.state = 'ready'
     } catch (error) {
-      this.report(flow.kind, step, error, [...Object.values(flow.values), params.get('code'), flow.oauthState, flow.verifier, flow.registration.clientSecret, record?.accessToken, record?.refreshToken])
+      this.report(flow.kind, step, error, [...Object.values(flow.values), params.get('code'), flow.oauthState, flow.verifier, record?.accessToken, record?.refreshToken])
       flow.state = 'failed'
       flow.error = error instanceof OAuthRefused ? noticeOf(fail('profiles.oauthDenied', {})) : noticeOf(fail('profiles.oauthFailed', {}))
       throw fail('profiles.oauthFailed', {})
@@ -119,7 +119,7 @@ export class McpOAuth {
       const verify = async () => {
         try { await this.deps.verify(kind, values, token!) }
         catch (error) {
-          this.report(kind, 'grant verification', error, [...Object.values(values), token, record.refreshToken, record.clientSecret])
+          this.report(kind, 'grant verification', error, [...Object.values(values), token, record.refreshToken])
           throw error
         }
       }
@@ -178,7 +178,7 @@ export class McpOAuth {
       if (persist && !await persist(next)) throw fail('profiles.oauthExpired', {})
       return next
     } catch (error) {
-      this.report(kind, 'refresh', error, [record.accessToken, record.refreshToken, record.clientSecret, next?.accessToken, next?.refreshToken])
+      this.report(kind, 'refresh', error, [record.accessToken, record.refreshToken, next?.accessToken, next?.refreshToken])
       throw error
     }
   }

@@ -396,7 +396,6 @@ export const noticesRu: NoticeTexts = {
   'profiles.unknown': () => 'такого профиля нет — возможно, страница устарела',
   'profiles.oauthAddress': () => 'Откройте Even Keel через HTTPS или на localhost на машине сервиса, затем подключите MCP снова.',
   'profiles.oauthUnsupported': () => 'Для этого трекера в Even Keel нет подключения MCP через OAuth.',
-  'profiles.oauthClient': () => 'Укажите Client ID и Client secret приложения GitHub OAuth App с показанным здесь адресом возврата.',
   'profiles.oauthFailed': () => 'Подключение MCP через OAuth не завершено. Проверьте соединение, выбранные аккаунт и сайт, затем снова нажмите «Подключить MCP через OAuth».',
   'profiles.oauthDenied': () => 'Доступ MCP не разрешён. Снова нажмите «Подключить MCP через OAuth» и разрешите доступ.',
   'profiles.oauthExpired': () => 'Попытка подключения MCP истекла или поля профиля изменились. Подключите MCP через OAuth снова.',

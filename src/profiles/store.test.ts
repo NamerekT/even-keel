@@ -37,9 +37,15 @@ describe('profile store', { timeout: 60_000 }, () => {
   afterEach(() => db.close())
 
   it('round-trips MCP OAuth separately from the profile key pool', async () => {
-    const item = profile('oauth', 'linear', true, { LINEAR_TOKEN: 'rest' })
-    item.mcpOAuth = { server: 'https://mcp.linear.app/mcp', clientId: 'client', tokenEndpoint: 'https://mcp.linear.app/token', redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.linear.app/mcp', accessToken: 'access', refreshToken: 'refresh', expiresAt: 123456 }
+    const item = profile('oauth', 'jira', true, { JIRA_TOKEN: 'rest' })
+    item.mcpOAuth = { server: 'https://mcp.atlassian.com/v2/mcp', clientId: 'client', tokenEndpoint: 'https://auth.atlassian.com/token', redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.atlassian.com/v2/mcp', accessToken: 'access', refreshToken: 'refresh', expiresAt: 123456 }
     await saveProfiles(db, { profiles: [item], links: {} })
+    expect((await readProfiles(db)).profiles).toEqual([item])
+  })
+
+  it('drops a stored MCP grant of a kind without MCP OAuth (BTN-604)', async () => {
+    const item = profile('oauth', 'linear', true, { LINEAR_TOKEN: 'rest' })
+    await saveProfiles(db, { profiles: [{ ...item, mcpOAuth: { server: 'https://mcp.linear.app/mcp', clientId: 'client', tokenEndpoint: 'https://mcp.linear.app/token', redirect: 'http://localhost:4747/api/profiles/oauth/callback', resource: 'https://mcp.linear.app/mcp', accessToken: 'access', expiresAt: null } }], links: {} })
     expect((await readProfiles(db)).profiles).toEqual([item])
   })
 

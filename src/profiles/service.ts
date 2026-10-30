@@ -10,7 +10,6 @@ import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, ty
 import { cleanRules } from './rules.js'
 import { saveProfiles } from './store.js'
 import { McpOAuth, MCP_OAUTH, type OAuthRecord } from './oauth.js'
-import type { OAuthClient } from './oauth-protocol.js'
 import { checkMcpOAuth } from './mcp.js'
 import type { GatewayOAuth } from '../packages/gateway.js'
 
@@ -87,15 +86,15 @@ export class Profiles {
         await this.deps.writes.settled()
         return true
       },
-      verify: async (kind, values, token) => {
-        await checkMcpOAuth(kind, values as Record<string, string>, token, deps.timeoutMs)
+      verify: async (_kind, values, token) => {
+        await checkMcpOAuth(values as Record<string, string>, token, deps.timeoutMs)
       },
     })
   }
 
-  async connectMcp(draft: ProfileDraft, redirect: string, client?: OAuthClient): Promise<{ flow: string; url: string }> {
+  async connectMcp(draft: ProfileDraft, redirect: string): Promise<{ flow: string; url: string }> {
     const { values } = this.valuesOf(draft)
-    return this.oauth.start({ ...draft, values }, redirect, client)
+    return this.oauth.start({ ...draft, values }, redirect)
   }
 
   gateway(id: string | undefined, kind: string, url: unknown): GatewayOAuth | undefined {
@@ -158,7 +157,7 @@ export class Profiles {
         hostVariables: [...each.hostVariables],
         alternatives: (each.alternatives ?? []).map((names) => [...names]),
         help: each.help,
-        ...(MCP_OAUTH[kind] === undefined ? {} : { mcpOAuth: true }),
+        ...(MCP_OAUTH[kind] !== undefined ? { mcpOAuth: true } : each.mcpKeys !== undefined ? { mcpShared: true } : {}),
       })),
     }
   }

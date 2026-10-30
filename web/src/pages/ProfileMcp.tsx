@@ -3,7 +3,6 @@ import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { ProfileKindView, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { Field } from '../tools/AddPackage.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { HelpTip } from './settingsParts.js'
 
@@ -31,22 +30,16 @@ interface McpProps {
   onGrant: (grant: GrantChoice) => void
 }
 
-/** The MCP part of a tracker profile (BTN-475): connect through OAuth, the state of the stored grant, and GitHub's OAuth App. */
+/** The MCP part of a tracker profile with MCP OAuth (BTN-475, only Jira since BTN-604): connect, and the state of the stored grant. */
 export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant, children }: McpProps) {
   const { query } = useLive()
   const [waiting, setWaiting] = useState<string | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
   const [blocked, setBlocked] = useState(false)
   const [asked, setAsked] = useState(false)
-  const [client, setClient] = useState({ id: '', secret: '' })
   const popup = useRef<Window | null>(null)
-  const callback = `${window.location.origin}/api/profiles/oauth/callback`
-  const github = kind.kind === 'github'
   const fresh = grant !== undefined && grant !== null && grant.values === values
   const stored = grant === null ? undefined : profile?.mcpOAuth?.state
-  const missing = github
-    ? [...blank, ...(client.id.trim() === '' ? [t.profiles.mcp.clientId] : []), ...(client.secret.trim() === '' ? [t.profiles.mcp.clientSecret] : [])]
-    : blank
 
   // `query` is new on every render of the page: the poll reads the latest through a ref instead of restarting.
   const latest = useRef({ query, onGrant })
@@ -87,7 +80,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
     setFailure(null)
     setBlocked(false)
     setAsked(true)
-    if (missing.length > 0) return
+    if (blank.length > 0) return
     // Opened at the click, or the browser blocks it; the address comes once the attempt exists.
     const opened = window.open('about:blank', 'even-keel-oauth', 'popup,width=640,height=760')
     if (opened === null) {
@@ -97,7 +90,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
     popup.current = opened
     boundTo.current = values
     try {
-      const started = await query<{ flow: string; url: string }>('profiles/oauth/start', { ...body, ...(github ? { client } : {}) })
+      const started = await query<{ flow: string; url: string }>('profiles/oauth/start', body)
       opened.location.href = started.url
       setWaiting(started.flow)
     } catch (error) {
@@ -126,25 +119,6 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
           </a>
         </p>
       )}
-      {github && (
-        <>
-          <p className="settings__hint profile-mcp__hint">
-            {t.profiles.mcp.githubIntro}{' '}
-            <a href="https://github.com/settings/applications/new" target="_blank" rel="noreferrer">
-              {t.profiles.mcp.githubApp}
-            </a>
-          </p>
-          <Field label={t.profiles.mcp.callback} hint={t.profiles.mcp.callbackHint}>
-            {(id) => <input id={id} className="add-package__input add-package__input--mono" value={callback} readOnly onFocus={(event) => event.target.select()} />}
-          </Field>
-          <Field label={t.profiles.mcp.clientId}>
-            {(id) => <input id={id} className="add-package__input add-package__input--mono" value={client.id} autoComplete="off" spellCheck={false} onChange={(event) => setClient({ ...client, id: event.target.value })} />}
-          </Field>
-          <Field label={t.profiles.mcp.clientSecret}>
-            {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password" value={client.secret} autoComplete="off" spellCheck={false} onChange={(event) => setClient({ ...client, secret: event.target.value })} />}
-          </Field>
-        </>
-      )}
       {fresh ? (
         <p className="profiles__ok">{t.profiles.mcp.ready}</p>
       ) : stored === 'connected' ? (
@@ -155,7 +129,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
         <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.dropped}</p>
       ) : null}
       {waiting !== null && <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.waiting}</p>}
-      {asked && missing.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(missing)}</p>}
+      {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
       {blocked && <p className="notice notice--error">{t.profiles.mcp.blocked}</p>}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <div className="profile-mcp__actions">

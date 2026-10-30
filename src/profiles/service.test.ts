@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
 import { FORGEJO_PROFILE } from '../ci/forgejo-profile.js'
 import { openDatabase, Writes } from '../storage/database.js'
+import { ADAPTERS } from '../tracker/adapters.js'
 import { CredentialsRefused, type TrackerAdapter } from '../tracker/source.js'
 import { profileKinds, type ProfileKind, type ProfileSet, type TrackerProfile } from './model.js'
 import { Profiles, type ProfilesDeps } from './service.js'
@@ -337,6 +338,12 @@ describe('Profiles', { timeout: 60_000 }, () => {
       { kind: 'fake', title: 'Fake', tracker: true, fields: [{ name: 'FAKE_URL', secret: false }, { name: 'FAKE_TOKEN', secret: true }], hostVariables: ['FAKE_URL'], alternatives: [], help: 'https://fake.example.com/tokens' },
       { kind: 'cifake', title: 'CI fake', tracker: false, fields: [{ name: 'CIFAKE_URL', secret: false }, { name: 'CIFAKE_TOKEN', secret: true }], hostVariables: ['CIFAKE_URL'], alternatives: [], help: 'https://ci.example.com/tokens' },
     ])
+  })
+
+  it('offers MCP OAuth only for Jira; Linear, GitHub and GitLab share the tracker token with MCP (BTN-604)', () => {
+    const kinds = make(undefined, { kinds: profileKinds(ADAPTERS) }).view().kinds
+    const mcp = Object.fromEntries(kinds.map((each) => [each.kind, each.mcpOAuth ? 'oauth' : each.mcpShared ? 'shared' : 'none']))
+    expect(mcp).toMatchObject({ jira: 'oauth', linear: 'shared', github: 'shared', gitlab: 'shared', huly: 'none' })
   })
 
   it('lists the projects a profile sees', async () => {

@@ -131,18 +131,9 @@ describe('MCP resource OAuth discovery', () => {
     expect(f.request).toHaveBeenCalledTimes(before)
   })
 
-  it('keeps GitHub on its configured OAuth App without dynamic registration', async () => {
-    const request = vi.fn(async () => Response.json({ access_token: 'github-access', token_type: 'bearer' })) as unknown as typeof fetch
-    const oauth = new McpOAuth({ fetch: request, get: () => undefined, put: async () => false, verify: async () => {}, log: () => {} })
-    const draft = { kind: 'github', values: {} }
-    const start = await oauth.start(draft, redirect, { id: 'app-client', secret: 'app-secret' })
-    const url = new URL(start.url)
-    expect(url.origin).toBe('https://github.com')
-    expect(url.searchParams.get('scope')).toBe('repo read:org')
-    expect(request).not.toHaveBeenCalled()
-    await oauth.finish(new URLSearchParams({ code: 'code', state: url.searchParams.get('state')! }))
-    const params = new URLSearchParams(vi.mocked(request).mock.calls[0]![1]!.body as string)
-    expect(params.get('client_secret')).toBe('app-secret')
-    expect(oauth.completed(start.flow, draft).server).toBe('https://api.githubcopilot.com/mcp/')
+  it.each(['linear', 'github'])('refuses MCP OAuth for %s, whose MCP takes the tracker token (BTN-604)', async (kind) => {
+    const f = fixture()
+    await expect(register(kind, redirect, f.request)).rejects.toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'profiles.oauthUnsupported' }) }))
+    expect(f.request).not.toHaveBeenCalled()
   })
 })

@@ -3,6 +3,7 @@ import { FORGEJO_PROFILE, FORGEJO_TOKEN, FORGEJO_URL, hostOf } from '../ci/forge
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
 import { profilesOfEnv, type Adapters, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
+import { MCP_OAUTH } from './oauth-protocol.js'
 
 interface ProfileRow {
   id: string
@@ -38,7 +39,8 @@ export async function readProfiles(db: Queryable): Promise<ProfileSet> {
         login: row.login,
         expiresAt: row.expires_at,
         ...(Object.keys(rules).length === 0 ? {} : { rules }),
-        ...(row.mcp_oauth === 'null' ? {} : { mcpOAuth: JSON.parse(row.mcp_oauth) as TrackerProfile['mcpOAuth'] }),
+        // A grant of a kind that lost MCP OAuth (Linear, GitHub: BTN-604) is dropped; the next save clears its row.
+        ...(row.mcp_oauth === 'null' || MCP_OAUTH[row.kind] === undefined ? {} : { mcpOAuth: JSON.parse(row.mcp_oauth) as TrackerProfile['mcpOAuth'] }),
       }
     }),
     links: Object.fromEntries(links.map((link) => [link.id, link.profile_id])),

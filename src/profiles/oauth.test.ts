@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { McpOAuth, type OAuthRecord } from './oauth.js'
 import { OAuthRefused } from './oauth-protocol.js'
 
-const draft = { kind: 'linear', values: { LINEAR_TOKEN: 'rest-token' } }
+const draft = { kind: 'jira', values: { JIRA_TOKEN: 'rest-token' } }
+const server = 'https://mcp.atlassian.com/v2/mcp'
 const redirect = 'http://localhost:4747/api/profiles/oauth/callback'
 const metadata = {
-  issuer: 'https://mcp.linear.app', authorization_endpoint: 'https://mcp.linear.app/authorize',
-  token_endpoint: 'https://mcp.linear.app/token', registration_endpoint: 'https://mcp.linear.app/register',
+  issuer: 'https://auth.atlassian.com', authorization_endpoint: 'https://auth.atlassian.com/authorize',
+  token_endpoint: 'https://auth.atlassian.com/token', registration_endpoint: 'https://auth.atlassian.com/register',
   code_challenge_methods_supported: ['S256'],
 }
 
@@ -17,9 +18,9 @@ function fixture() {
   const calls: { url: string; init?: RequestInit }[] = []
   const request = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init })
-    if (String(url) === 'https://mcp.linear.app/mcp') return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer resource_metadata="https://mcp.linear.app/.well-known/oauth-protected-resource/mcp", scope="read write"' } })
+    if (String(url) === server) return new Response(null, { status: 401, headers: { 'www-authenticate': 'Bearer resource_metadata="https://mcp.atlassian.com/.well-known/oauth-protected-resource/v2/mcp", scope="read write"' } })
     const data = String(url).includes('oauth-protected-resource')
-      ? { resource: 'https://mcp.linear.app/mcp', authorization_servers: [metadata.issuer], scopes_supported: ['read', 'write'] }
+      ? { resource: server, authorization_servers: [metadata.issuer], scopes_supported: ['read', 'write'] }
       : String(url).includes('.well-known') ? metadata : String(url).endsWith('/register')
       ? { client_id: 'client' } : { access_token: 'access-one', refresh_token: 'refresh-one', token_type: 'Bearer', expires_in: 60 }
     return Response.json(data)
@@ -48,7 +49,7 @@ describe('profile MCP OAuth', () => {
     const state = new URL(start.url).searchParams.get('state')!
     vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error: 'invalid_grant', error_description: `code=private-code state=${state}`, access_token: 'response-secret' }, { status: 400 }))
     await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private-code' }))).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
-    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth code exchange failed: HTTP 400: invalid_grant']])
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth code exchange failed: HTTP 400: invalid_grant']])
     expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthDenied', params: {} } })
   })
 
@@ -59,7 +60,7 @@ describe('profile MCP OAuth', () => {
     const state = url.searchParams.get('state')!
     f.verify.mockRejectedValueOnce(new Error(`MCP check: HTTP 503\naccess-one refresh-one rest-token private-code ${state}`))
     await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private-code' }))).rejects.toThrow()
-    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth grant verification failed: MCP check: HTTP 503 [redacted] [redacted] [redacted] [redacted] [redacted]']])
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth grant verification failed: MCP check: HTTP 503 [redacted] [redacted] [redacted] [redacted] [redacted]']])
     expect(f.oauth.status(start.flow)).toEqual({ state: 'failed', error: { code: 'profiles.oauthFailed', params: {} } })
   })
 
@@ -67,19 +68,19 @@ describe('profile MCP OAuth', () => {
     const f = fixture()
     vi.mocked(f.request).mockRejectedValueOnce(new Error('registration unavailable\nrest-token'))
     await expect(f.oauth.start(draft, redirect)).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
-    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth registration failed: registration unavailable [redacted]']])
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth registration failed: registration unavailable [redacted]']])
   })
 
-  it('redacts encoded code, verifier and GitHub client secret from a request exception', async () => {
+  it('redacts encoded code and verifier from a request exception', async () => {
     const f = fixture()
-    const start = await f.oauth.start({ ...draft, kind: 'github' }, redirect, { id: 'client', secret: 'client secret/%' })
+    const start = await f.oauth.start(draft, redirect)
     const state = new URL(start.url).searchParams.get('state')!
     vi.mocked(f.request).mockImplementationOnce(async (_url, init) => { throw new Error(`Request failed: ${init?.body}`) })
     await expect(f.oauth.finish(new URLSearchParams({ state, code: 'private code/%' }))).rejects.toThrow()
     expect(f.log).toHaveBeenCalledTimes(1)
     const line = f.log.mock.calls[0]![0]
-    expect(line).toContain('github MCP OAuth code exchange failed: Request failed:')
-    for (const secret of ['private', 'client+secret', 'client%20secret', state]) expect(line).not.toContain(secret)
+    expect(line).toContain('jira MCP OAuth code exchange failed: Request failed:')
+    for (const secret of ['private', state]) expect(line).not.toContain(secret)
     expect(line).toContain('code_verifier=[redacted]')
   })
 
@@ -88,7 +89,7 @@ describe('profile MCP OAuth', () => {
     const start = await f.oauth.start(draft, redirect)
     vi.mocked(f.request).mockResolvedValueOnce(response)
     await expect(f.oauth.finish(new URLSearchParams({ state: new URL(start.url).searchParams.get('state')!, code: 'code' }))).rejects.toThrow()
-    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth code exchange failed: HTTP 502']])
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth code exchange failed: HTTP 502']])
   })
 
   it.each([false, true])('logs a refused refresh for a stored or draft grant (draft: %s)', async (unsaved) => {
@@ -98,7 +99,7 @@ describe('profile MCP OAuth', () => {
     vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error: 'invalid_grant', refresh_token: 'refresh-one' }, { status: 400 }))
     const result = unsaved ? f.oauth.check(start.flow, draft.kind, draft.values, draft) : f.oauth.token('p')
     await expect(result).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
-    expect(f.log.mock.calls).toEqual([['profiles: linear MCP OAuth refresh failed: HTTP 400: invalid_grant']])
+    expect(f.log.mock.calls).toEqual([['profiles: jira MCP OAuth refresh failed: HTTP 400: invalid_grant']])
   })
 
   it('checks and refreshes an unsaved grant without persisting it, keeping its original deadline', async () => {
@@ -137,7 +138,7 @@ describe('profile MCP OAuth', () => {
     expect(createHash('sha256').update(body.get('code_verifier')!).digest('base64url')).toBe(url.searchParams.get('code_challenge'))
     expect(f.oauth.status(start.flow)).toEqual({ state: 'ready', error: null })
     expect(JSON.stringify(start)).not.toContain('access-one')
-    expect(() => f.oauth.completed(start.flow, { ...draft, values: { LINEAR_TOKEN: 'other' } })).toThrow()
+    expect(() => f.oauth.completed(start.flow, { ...draft, values: { JIRA_TOKEN: 'other' } })).toThrow()
     await expect(f.oauth.finish(callback)).rejects.toThrow()
     expect(f.oauth.completed(start.flow, draft).accessToken).toBe('access-one')
   })
@@ -166,7 +167,7 @@ describe('profile MCP OAuth', () => {
     expect(await f.oauth.token('p', 'access-two')).toBe('access-three')
     const params = new URLSearchParams(vi.mocked(f.request).mock.calls.at(-1)![1]!.body as string)
     expect(params.get('refresh_token')).toBe('refresh-two')
-    expect(params.get('resource')).toBe('https://mcp.linear.app/mcp')
+    expect(params.get('resource')).toBe(server)
     expect(f.record()?.refreshToken).toBe('refresh-three')
   })
 

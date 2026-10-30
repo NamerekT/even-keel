@@ -25,9 +25,9 @@ const KINDS: ProfileKindView[] = [
     help: 'https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials',
     tracker: true,
   },
-  { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new', mcpOAuth: true },
-  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpOAuth: true },
-  { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/' },
+  { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new', mcpShared: true },
+  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpShared: true },
+  { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/', mcpShared: true },
   {
     kind: 'jira',
     title: 'Jira',
@@ -225,11 +225,7 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   if (name === 'profiles/check' && kind === 'forgejo' && values.FORGEJO_URL === 'https://gitlab.com') throw fail('profiles.isGitlab', { host: 'gitlab.com' })
   if (name === 'profiles/check' && kind === 'jira' && values.JIRA_MCP_TOKEN === 'no-site') throw fail('jira.mcpSite', {})
   // The consent window is about:blank and the grant is ready at the first poll.
-  if (name === 'profiles/oauth/start') {
-    const client = body.client as { id?: string; secret?: string } | undefined
-    if (kind === 'github' && (!client?.id || !client.secret)) throw fail('profiles.oauthClient', {})
-    return { flow: 'fake-flow', url: 'about:blank' }
-  }
+  if (name === 'profiles/oauth/start') return { flow: 'fake-flow', url: 'about:blank' }
   if (name === 'profiles/oauth/status') return { state: 'ready', error: null }
   if (name === 'profiles/oauth/cancel') return {}
   if (name === 'profiles/projects') {

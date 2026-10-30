@@ -6,6 +6,7 @@ import type { RightsUse } from '../i18n/ru.js'
 import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { SectionLabel } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
@@ -265,15 +266,19 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
           )
         })}
         {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} blank={blank} grant={grant} onGrant={onGrant}>
-          {kind.fields.some((field) => field.name === 'JIRA_MCP_TOKEN') ? (
-            <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
-              {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
-                value={typed.JIRA_MCP_TOKEN ?? ''} autoComplete="off"
-                placeholder={profile?.fields.some((field) => field.name === 'JIRA_MCP_TOKEN' && field.set) ? t.profiles.kept : ''}
-                onChange={(event) => setTyped({ ...typed, JIRA_MCP_TOKEN: event.target.value })} />}
-            </Field>
-          ) : <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.sharedToken}</p>}
+          <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
+            {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
+              value={typed.JIRA_MCP_TOKEN ?? ''} autoComplete="off"
+              placeholder={profile?.fields.some((field) => field.name === 'JIRA_MCP_TOKEN' && field.set) ? t.profiles.kept : ''}
+              onChange={(event) => setTyped({ ...typed, JIRA_MCP_TOKEN: event.target.value })} />}
+          </Field>
         </ProfileMcp>}
+        {kind.mcpShared === true && (
+          <section className="profile-mcp" aria-label={t.profiles.mcp.title}>
+            <SectionLabel>{t.profiles.mcp.title}</SectionLabel>
+            <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.sharedToken}</p>
+          </section>
+        )}
         <Field label={t.profiles.name} hint={t.profiles.nameHint}>
           {(id) => <input id={id} className="add-package__input" value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />}
         </Field>

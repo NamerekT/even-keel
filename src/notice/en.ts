@@ -425,7 +425,6 @@ export const en = {
   'profiles.unknown': () => 'there is no such profile; the page may be out of date',
   'profiles.oauthAddress': () => 'Open Even Keel over HTTPS, or on localhost on the service machine, then connect MCP again.',
   'profiles.oauthUnsupported': () => 'This tracker does not offer MCP OAuth in Even Keel.',
-  'profiles.oauthClient': () => 'Enter the Client ID and Client secret of a GitHub OAuth App, with the callback address shown here.',
   'profiles.oauthFailed': () => 'MCP OAuth did not complete. Check the connection and the selected account and site, then try Connect MCP through OAuth again.',
   'profiles.oauthDenied': () => 'MCP access was not granted. Try Connect MCP through OAuth again and approve access.',
   'profiles.oauthExpired': () => 'This MCP connection attempt expired or its profile fields changed. Connect MCP through OAuth again.',

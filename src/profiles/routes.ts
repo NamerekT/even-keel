@@ -7,7 +7,7 @@ import { profileDraftOf } from './request.js'
 import type { ProfileDraft } from './service.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fail } from '../notice/notice.js'
-import { callbackUrl, type OAuthClient } from './oauth-protocol.js'
+import { callbackUrl } from './oauth-protocol.js'
 import type { OAuthStatus } from './oauth.js'
 import { oauthCallbackPage } from './oauth-response.js'
 
@@ -24,7 +24,7 @@ export interface ProfilesControl {
   link(project: string, profile: string | null): void
   projects(id: string, query: string): Promise<TrackerProject[]>
   oauth?: {
-    start(draft: ProfileDraft, redirect: string, client?: OAuthClient): Promise<{ flow: string; url: string }>
+    start(draft: ProfileDraft, redirect: string): Promise<{ flow: string; url: string }>
     status(flow: string): OAuthStatus
     cancel(flow: string): void
     finish(params: URLSearchParams): Promise<void>
@@ -39,8 +39,7 @@ export const PROFILE_QUERIES: Record<string, (deps: ServerDeps, body: Record<str
     const origin = request.headers.origin
     if (!origin || new URL(origin).host !== request.headers.host) throw fail('profiles.oauthAddress', {})
     const redirect = callbackUrl(`${origin}/api/profiles/oauth/callback`)
-    const client = body.client as Record<string, unknown> | undefined
-    return oauthOf(profiles).start(profileDraftOf(body), redirect, client === undefined ? undefined : { id: textOf(client.id, 'client.id'), secret: textOf(client.secret, 'client.secret') })
+    return oauthOf(profiles).start(profileDraftOf(body), redirect)
   },
   'profiles/oauth/status': async ({ profiles }, body) => oauthOf(profiles).status(textOf(body.flow, 'flow')),
   'profiles/oauth/cancel': async ({ profiles }, body) => { oauthOf(profiles).cancel(textOf(body.flow, 'flow')); return {} },

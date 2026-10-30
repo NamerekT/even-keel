@@ -789,6 +789,8 @@ export interface CiRemote {
 
 export interface ProfileKindView {
   mcpOAuth?: boolean
+  /** Sessions reach the kind's MCP server with the tracker's own token (`mcpKeys`), with no MCP setting of its own. */
+  mcpShared?: boolean
   kind: string
   title: string
   /** A tracker's kind; else a CI's (Forgejo): no project runs on its profiles, a remote's CI takes one by its host. */

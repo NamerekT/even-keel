@@ -148,7 +148,7 @@ describe('frozen samples migrate to the current database', { timeout: 120_000 },
     expect(logs).toEqual([])
   })
 
-  it("of version 15 is read with a profile's MCP OAuth grant (BTN-475)", async () => {
+  it("of version 15 keeps a profile's MCP OAuth grant, which reading drops for GitHub (BTN-475, BTN-604)", async () => {
     const dataDir = dataDirOf(databaseDirOf(stateDir))
     mkdirSync(dataDir, { recursive: true })
     const frozen = await PGlite.create({ dataDir })
@@ -157,8 +157,10 @@ describe('frozen samples migrate to the current database', { timeout: 120_000 },
     const opened = await prepare()
     try {
       await readsWhole(opened.db, 15)
+      const rows = await opened.db.query<{ kind: string; mcp_oauth: string }>('select kind, mcp_oauth from tracker_profiles order by position')
+      expect(rows.rows.map((row) => (row.mcp_oauth === 'null' ? null : row.kind))).toEqual([null, 'github', null])
       const profiles = (await readProfiles(opened.db)).profiles
-      expect(profiles.map((each) => each.mcpOAuth?.accessToken ?? null)).toEqual([null, 'gho_example_access', null])
+      expect(profiles.map((each) => each.mcpOAuth?.accessToken ?? null)).toEqual([null, null, null])
     } finally {
       await opened.close()
     }
