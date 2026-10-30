@@ -107,9 +107,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           ×
         </button>
       </header>
-      {(block.status !== null || block.skipped || block.interrupted || block.work !== undefined) && (
+      {(block.skipped || block.interrupted || block.work !== undefined) && (
         <p className="panel__status">
-          {block.status}
           {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
@@ -258,7 +257,6 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
               {t.session.skip}
             </PanelButton>
           ))}
-        {midTurn && !starting && quietText === null && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
       {quietText !== null && !starting && <Band tone="warn" className="panel__quiet">{quietText}</Band>}
       {confirmation !== null && (
@@ -339,10 +337,14 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
           <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
         </Fact>
         <Fact label={t.session.time}>
-          <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
-          <dd className="panel__sub">
-            {t.time.since} <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
-          </dd>
+          <TipValue value={formatClock(sessionElapsed(session, now))}>
+            <span className="panel__part">
+              <span className="panel__part-label">{t.session.startedAt}</span>
+              <b>
+                <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
+              </b>
+            </span>
+          </TipValue>
         </Fact>
         <Fact label={t.session.cache} tone={cacheTone(session.cache, now, session.lamp)}>
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
@@ -353,7 +355,7 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
           </dd>
         </Fact>
         <ModelFact agent={session.agent} model={session.model} />
-        <TokensFact tokens={session.tokens} />
+        <TokensFact tokens={session.tokens} wide={false} />
       </FactList>
       {session.lamp === 'finished' ? (
         <RecordFeed sessionId={session.sessionId} account={session.account} whole={whole} />
@@ -384,12 +386,12 @@ function RecordFeed({ sessionId, account, whole }: { sessionId: string; account:
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
   return (
-    <>
-      <dd className="panel__value">
-        <CacheClock cache={cache} bare />
-      </dd>
-      <dd className="panel__sub">{t.session.ttl(t.cache.ttl[cache.ttl])}</dd>
-    </>
+    <TipValue value={<CacheClock cache={cache} bare />}>
+      <span className="panel__part">
+        <span className="panel__part-label">{t.session.lifetime}</span>
+        <b>{t.cache.ttl[cache.ttl]}</b>
+      </span>
+    </TipValue>
   )
 }
 
@@ -398,7 +400,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : agent === CLAUDE ? model : `${provider} · ${model}`
   return (
-    <Fact label={t.session.model} wide className="panel__inline">
+    <Fact label={t.session.model} className="panel__inline panel__model">
       <TipValue value={value}>
         <span className="panel__part">
           <span className="panel__part-label">{t.session.provider}</span>
@@ -417,7 +419,7 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
 }
 
 /** The total alone; the split by kind is a tip under it, opened by pointing at the number or pressing it. */
-function TokensFact({ tokens }: { tokens: TokenTotals }) {
+function TokensFact({ tokens, wide = true }: { tokens: TokenTotals; wide?: boolean }) {
   const parts: [string, number][] = [
     [t.session.input, tokens.input],
     [t.session.output, tokens.output],
@@ -425,7 +427,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
     [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
-    <Fact label={t.session.tokens} wide className="panel__inline">
+    <Fact label={t.session.tokens} wide={wide} className="panel__inline">
       <TipValue value={formatTokens(tokenTotal(tokens))}>
         {parts.map(([label, value]) => (
           <span key={label} className="panel__part">
@@ -439,7 +441,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 }
 
 /** A fact's value whose details are a tip under it, opened by pointing at the value or pressing it. */
-function TipValue({ value, children }: { value: string; children: ReactNode }) {
+function TipValue({ value, children }: { value: ReactNode; children: ReactNode }) {
   const { shown, anchor, tip, show, point, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   return (
     <dd className="panel__value">

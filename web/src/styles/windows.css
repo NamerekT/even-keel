@@ -153,13 +153,16 @@
 }
 
 .panel__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: -6px 0 0 20px;
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
 
 .panel__flag {
-  margin-left: 8px;
   padding: 0 7px;
   border-radius: 999px;
   background: var(--warn-bg);
@@ -176,12 +179,6 @@
 
 .panel__actions .button {
   text-decoration: none;
-}
-
-.panel__hint {
-  flex-basis: 100%;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
 }
 
 .panel__quiet {
