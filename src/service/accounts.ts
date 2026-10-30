@@ -398,6 +398,7 @@ export function wireProfiles(ctx: AccountsContext): Profiles {
       ctx.trackers.apply(ctx.readers(), set)
       ctx.ciWatches.tokensChanged()
       void ctx.ciWatches.refresh()
+      ctx.packages.retryProbes()
       ctx.dispatcher.check()
       ctx.hub.broadcast('state', ctx.getState())
     },

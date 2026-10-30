@@ -174,4 +174,36 @@ describe('Probes', () => {
     mode = 'fail'
     await reaches(false)
   })
+
+  it('asks a failing server again less and less often, at once after a retry (BTN-589)', async () => {
+    let asked = 0
+    server = createServer((_req, res) => {
+      asked++
+      res.writeHead(502).end()
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    let now = 0
+    const probes = new Probes({ urlOf: () => url, now: () => now, onChange: () => {}, timeoutMs: 1_000 })
+    const result = () => probes.result('p-1', 'huly', 'i1', 'huly')
+    const asks = async (count: number) => {
+      await expect.poll(() => (result(), asked), { timeout: 5_000, interval: 25 }).toBe(count)
+      await expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(false)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect((result(), asked)).toBe(count)
+    }
+    await asks(1)
+    now += 31_000
+    await asks(2)
+    now += 31_000
+    await asks(2)
+    now += 30_000
+    await asks(3)
+    now += 61_000
+    await asks(3)
+    probes.retry()
+    await asks(4)
+    now += 31_000
+    await asks(5)
+  })
 })

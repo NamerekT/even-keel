@@ -35,6 +35,8 @@ const random = () => randomBytes(32).toString('base64url')
 export class McpOAuth {
   private readonly flows = new Map<string, Flow>()
   private readonly refreshing = new Map<string, Promise<string>>()
+  /** The reason a stored profile's refresh last failed with, until one succeeds. */
+  private readonly failing = new Map<string, string>()
   private readonly request: typeof fetch
   private readonly now: () => number
 
@@ -171,12 +173,14 @@ export class McpOAuth {
   }
 
   private async refresh(id: string, record: OAuthRecord): Promise<string> {
+    const kind = Object.keys(MCP_OAUTH).find((kind) => MCP_OAUTH[kind]!.url === record.server) ?? 'unknown'
     try {
-      const kind = Object.keys(MCP_OAUTH).find((kind) => MCP_OAUTH[kind]!.url === record.server) ?? 'unknown'
-      const next = await this.refreshRecord(kind, record, (next) => this.deps.put(id, record, next))
+      const next = await this.refreshRecord(kind, record, (next) => this.deps.put(id, record, next), id)
       return next.accessToken
     } catch (error) {
       if (error instanceof OAuthRefused) {
+        // No refresh runs until a new grant: its next failure is news again.
+        this.failing.delete(id)
         await this.deps.put(id, record, { ...record, reconnect: true })
         throw fail('profiles.oauthReconnect', {})
       }
@@ -184,21 +188,29 @@ export class McpOAuth {
     }
   }
 
-  private async refreshRecord(kind: string, record: OAuthRecord, persist?: (next: OAuthRecord) => Promise<boolean>): Promise<OAuthRecord> {
+  /** `id` — a stored profile's refresh, logged when its reason changes rather than on every try (BTN-589). */
+  private async refreshRecord(kind: string, record: OAuthRecord, persist?: (next: OAuthRecord) => Promise<boolean>, id?: string): Promise<OAuthRecord> {
     let next: OAuthRecord | undefined
     try {
       if (!record.refreshToken) throw new OAuthRefused('No refresh token')
       next = await exchange(record, { grant_type: 'refresh_token', refresh_token: record.refreshToken }, this.request, this.now())
       if (persist && !await persist(next)) throw fail('profiles.oauthExpired', {})
-      return next
     } catch (error) {
-      this.report(kind, 'refresh', error, [record.accessToken, record.refreshToken, next?.accessToken, next?.refreshToken])
+      const reason = oauthReason(error, [record.accessToken, record.refreshToken, next?.accessToken, next?.refreshToken])
+      if (id === undefined || this.failing.get(id) !== reason) this.report(kind, 'refresh', reason, [])
+      if (id !== undefined) this.failing.set(id, reason)
       throw error
     }
+    if (id !== undefined && this.failing.delete(id)) this.deps.log(`profiles: ${this.kindOf(kind)} MCP OAuth refresh works again`)
+    return next
   }
 
   private report(kind: string, step: string, error: unknown, secrets: (string | null | undefined)[]): void {
-    this.deps.log(`profiles: ${Object.hasOwn(MCP_OAUTH, kind) ? kind : 'unknown'} MCP OAuth ${step} failed: ${oauthReason(error, secrets)}`)
+    this.deps.log(`profiles: ${this.kindOf(kind)} MCP OAuth ${step} failed: ${oauthReason(error, secrets)}`)
+  }
+
+  private kindOf(kind: string): string {
+    return Object.hasOwn(MCP_OAUTH, kind) ? kind : 'unknown'
   }
 
   private flow(id: string): Flow {

@@ -221,6 +221,53 @@ describe('profile MCP OAuth', () => {
     expect(f.record()?.reconnect).toBe(true)
   })
 
+  it.each([
+    [403, 'unauthorized_client'],
+    [400, 'access_denied'],
+    [400, 'invalid_scope'],
+  ])('takes a refresh refused with %i %s for a revoked grant and stops asking the provider (BTN-589)', async (status, error) => {
+    const f = fixture()
+    await f.connect()
+    f.tick()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error }, { status }))
+    await expect(f.oauth.token('p')).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+    expect(f.record()?.reconnect).toBe(true)
+    const before = vi.mocked(f.request).mock.calls.length
+    await expect(f.oauth.token('p')).rejects.toMatchObject({ notice: { code: 'profiles.oauthReconnect' } })
+    expect(vi.mocked(f.request).mock.calls.length).toBe(before)
+  })
+
+  it.each([
+    [429, 'slow_down'],
+    [400, 'temporarily_unavailable'],
+    [500, 'server_error'],
+  ])('keeps a refresh failed with %i %s retryable', async (status, error) => {
+    const f = fixture()
+    await f.connect()
+    f.tick()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ error }, { status }))
+    await expect(f.oauth.token('p')).rejects.toMatchObject({ notice: { code: 'profiles.oauthFailed' } })
+    expect(f.record()?.reconnect).not.toBe(true)
+  })
+
+  it('logs a failing refresh once per reason and once when it works again', async () => {
+    const f = fixture()
+    await f.connect()
+    f.tick()
+    f.log.mockClear()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({}, { status: 503 }))
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({}, { status: 503 }))
+    vi.mocked(f.request).mockRejectedValueOnce(new Error('fetch failed'))
+    for (let i = 0; i < 3; i++) await expect(f.oauth.token('p')).rejects.toThrow()
+    vi.mocked(f.request).mockResolvedValueOnce(Response.json({ access_token: 'access-two', refresh_token: 'refresh-two', token_type: 'Bearer', expires_in: 3600 }))
+    expect(await f.oauth.token('p')).toBe('access-two')
+    expect(f.log.mock.calls).toEqual([
+      ['profiles: jira MCP OAuth refresh failed: HTTP 503'],
+      ['profiles: jira MCP OAuth refresh failed: fetch failed'],
+      ['profiles: jira MCP OAuth refresh works again'],
+    ])
+  })
+
   it('does not resurrect disconnected credentials when a refresh completes late', async () => {
     const f = fixture()
     await f.connect()

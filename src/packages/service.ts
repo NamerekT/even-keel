@@ -415,6 +415,11 @@ export class Packages {
     this.deps.onChange()
   }
 
+  /** The profiles changed: a server that failed on their credentials is asked again at once, not after its backoff. */
+  retryProbes(): void {
+    this.probes.retry()
+  }
+
   private check(project: string): ProjectPackages {
     const view = projectPackages({
       file: this.file,

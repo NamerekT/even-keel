@@ -118,6 +118,32 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
     expect(token).toHaveBeenLastCalledWith('old')
   })
 
+  it('logs a server error when it starts or changes and when the server works again, not on every request (BTN-589)', async () => {
+    upstream = createServer((_req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end('{}'))
+    await new Promise<void>((resolve) => upstream!.listen(0, '127.0.0.1', resolve))
+    const port = (upstream.address() as { port: number }).port
+    let failure: Error | null = new Error('MCP access was revoked')
+    const token = vi.fn(async () => {
+      if (failure !== null) throw failure
+      return 'access'
+    })
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: `http://127.0.0.1:${port}` }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'jira', 'i1', 'jira')}`
+    const ask = async () => (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status
+    expect([await ask(), await ask()]).toEqual([502, 502])
+    failure = new Error('MCP OAuth did not complete')
+    expect([await ask(), await ask()]).toEqual([502, 502])
+    failure = null
+    expect([await ask(), await ask()]).toEqual([200, 200])
+    expect(lines).toEqual([
+      'mcp gateway: jira/jira: MCP access was revoked',
+      'mcp gateway: jira/jira: MCP OAuth did not complete',
+      'mcp gateway: jira/jira works again',
+    ])
+  })
+
   it('proxies a remote server with the headers of its entry', async () => {
     let seen: Record<string, unknown> = {}
     upstream = createServer((req, res) => {
