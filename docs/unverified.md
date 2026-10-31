@@ -96,7 +96,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 61 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
+| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token under the service, or on Linux and macOS | sessions do not start under the service |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message taken before a tool call has no bubble in the chat |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
@@ -110,7 +110,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 79 | [The OpenCode model check](#the-opencode-model-check-btn-336) | OpenCode on Copilot, once it is unblocked | a model that works is refused at launch, or one the plan refuses passes (BTN-584); leave the model field empty |
 | 79a | [OpenCode ChatGPT model filtering](#opencode-chatgpt-model-filtering-btn-584) | OpenCode with an OpenAI OAuth sign-in | an unreadable list leaves a forbidden model available; choose an available model and use New session |
 | 80 | [OpenCode's Copilot limits](#opencodes-copilot-limits-btn-341) | OpenCode on Copilot | the card has no bars and a limit waits with no reset time, as before |
-| 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
+| 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token on a paid plan or AI credits | the card counts nothing, or only what was spent |
 | 82 | [A lone AGENTS.md in a resumed or SDK Claude session](#a-lone-agentsmd-in-a-resumed-or-sdk-claude-session-btn-340) | Claude on a project with an `AGENTS.md` and no `CLAUDE.md` | the session works without the project's rules; add a `CLAUDE.md` with `@AGENTS.md` |
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
@@ -523,7 +523,7 @@ Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL
 
 ### Copilot chain sessions under the service (BTN-215)
 
-Whole tasks ran as chain sessions of the Windows service on the machine's own sign-in, which reached session 0 ([`verified.md`](verified.md), "Copilot"). A question answered from the page's chat resumed the session inside the chain (TSK-42, `verified.md`). Never run on a folder with a token, never on Linux or macOS, where the sign-in sits in another store and may not reach a service. **Workaround:** add the Copilot account with a fine-grained token, or run the task on another provider (a run label).
+Whole tasks ran as chain sessions of the Windows service on the machine's own sign-in, which reached session 0 ([`verified.md`](verified.md), "Copilot"). A question answered from the page's chat resumed the session inside the chain (TSK-42, `verified.md`). A task ran to Done on a folder with a fine-grained token outside the service (sandbox, 2026-10-31, `verified.md`), with the machine's sign-in of the same GitHub user still there, so which one the CLI used was not told apart. Never run on a folder with a token under the service, never on Linux or macOS, where the sign-in sits in another store and may not reach a service. **Workaround:** add the Copilot account with a fine-grained token, or run the task on another provider (a run label).
 
 ### Hooks and plugins in Copilot sessions
 
@@ -535,7 +535,7 @@ What a Copilot session writes when the AI credits or premium requests run out wa
 
 ### A Copilot token's monthly allowance (BTN-341)
 
-A Copilot folder with a token is asked `copilot_internal/user` first, then the billing API's `premium_request/usage` of the token's user, which needs the token's "Plan" read permission (`docs/sessions.md`, "Limits of OpenCode and Copilot"). Checked live only on the machine's sign-in, which has nothing read by design; never with a fine-grained token, nor with the AI credits of June 2026. If `copilot_internal/user` refuses a fine-grained token, the billing API is the only source, and it tells what was spent, not what is left: the card counts the requests used and the chain only learns the reset date. If the billing API answers in AI credits under another product name, the card shows 0 used. **Workaround:** none needed for the chain; the allowance is on GitHub's billing page.
+A Copilot folder with a token is asked `copilot_internal/user` first, then the billing API's `premium_request/usage` of the token's user, which needs the token's "Plan" read permission (`docs/sessions.md`, "Limits of OpenCode and Copilot"). With a fine-grained token on the free plan (sandbox, 2026-10-31, [`verified.md`](verified.md), "Copilot") `copilot_internal/user` answered, the card showed what was left and the count went down by one after a chain session; the billing API was not reached, nor were the AI credits of June 2026 or a paid plan. If the billing API answers in AI credits under another product name, the card shows 0 used. **Workaround:** none needed for the chain; the allowance is on GitHub's billing page.
 
 ### Copilot models in the stats
 
