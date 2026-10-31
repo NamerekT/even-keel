@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN, SIGN_INS } from '../../src/agent/providers.js'
 import { notice } from '../../src/notice/notice.js'
-import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, planRefused, retryBody, WAYS, withAdd, withoutAdd } from './accountAdd.js'
+import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, planRefused, retryBody, wayGiven, WAYS, withAdd, withoutAdd } from './accountAdd.js'
 import { PROVIDERS } from './accounts.js'
 
 const search = (text: string) => new URLSearchParams(text)
@@ -49,6 +49,14 @@ describe('addOf', () => {
     expect(addOf(search('addAccount=codex'))).toEqual({ provider: 'codex', way: WAYS.codex[0] })
     expect(addOf(search('addAccount=claude&addWay=machine'))).toEqual({ provider: 'claude', way: WAYS.claude[0] })
     expect(addOf(search('addAccount=opencode&addWay=free'))?.way?.id).toBe('free')
+  })
+})
+
+describe('wayGiven', () => {
+  it('tells a way picked in the address, which skips the offer of the CLI sign-in on the machine', () => {
+    expect(wayGiven(search(withAdd('?step=agent', 'claude', 'subscription')))).toBe(true)
+    expect(wayGiven(search(withAdd('?step=agent', 'claude')))).toBe(false)
+    expect(wayGiven(search('addAccount=claude&way=subscription'))).toBe(false)
   })
 })
 
