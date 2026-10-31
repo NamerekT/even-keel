@@ -38,6 +38,8 @@ export interface RuleFormProps {
   origins: Record<keyof ChainRules, RuleLevel>
   /** The profile the rows of `profile` origin come from. */
   profileName: string | null
+  /** What "From" calls the level's own rows where that is not the project: a feed's (BTN-553). */
+  ownName?: string
   statuses: readonly KnownStatus[]
   /** The labels offered as one adds a label. */
   labels: readonly string[]
@@ -56,8 +58,8 @@ export type RuleChange = [RuleKey, string[] | null | undefined]
 /** A list as the draft keeps it: a line a name, blank for none, for "by the categories" and for a key left unset. */
 export const ruleText = (value: readonly string[] | null | undefined) => (value ?? []).join('\n')
 
-function OriginCell({ origin, level, profileName, onReset, name }: { origin: RuleOrigin; level: RuleLevel; profileName: string | null; onReset: () => void; name: string }) {
-  const text = origin === 'profile' ? t.settings.originProfile(profileName ?? '—') : t.settings.origin[origin]
+function OriginCell({ origin, level, profileName, ownName, onReset, name }: { origin: RuleOrigin; level: RuleLevel; profileName: string | null; ownName?: string; onReset: () => void; name: string }) {
+  const text = origin === 'profile' ? t.settings.originProfile(profileName ?? '—') : origin === level && ownName !== undefined ? ownName : t.settings.origin[origin]
   return (
     <td className="rule-table__origin">
       <div className="rule-table__origin-line">
@@ -95,7 +97,7 @@ export function RuleForm(props: RuleFormProps) {
 
 type Put = (next: Partial<ChainRules>, explicit?: Partial<ChainRules>) => void
 
-function StatusTable({ rules, inherited, origins, level, profileName, statuses, marks, errorOf, put }: RuleFormProps & { put: Put }) {
+function StatusTable({ rules, inherited, origins, level, profileName, ownName, statuses, marks, errorOf, put }: RuleFormProps & { put: Put }) {
   const id = useId()
   const rows = statusRows(statuses, rules, inherited, origins)
   const move = (row: StatusRow, place: StatusPlace) => put(withPlace(rows, row.name, place), withPlace(rows, row.name, place, true))
@@ -134,7 +136,7 @@ function StatusTable({ rules, inherited, origins, level, profileName, statuses, 
                     />
                   </td>
                 ))}
-                <OriginCell origin={row.origin} level={level} profileName={profileName} name={row.name} onReset={() => move(row, row.inherited)} />
+                <OriginCell origin={row.origin} level={level} profileName={profileName} ownName={ownName} name={row.name} onReset={() => move(row, row.inherited)} />
               </tr>
             ))}
           </tbody>
@@ -151,7 +153,7 @@ function StatusTable({ rules, inherited, origins, level, profileName, statuses, 
 const ruleOf = (rules: Pick<ChainRules, 'requiredLabels' | 'excludedLabels'>, name: string): 'required' | 'excluded' | null =>
   rules.requiredLabels.some((each) => sameName(each, name)) ? 'required' : rules.excludedLabels.some((each) => sameName(each, name)) ? 'excluded' : null
 
-function LabelTable({ rules, inherited, origins, level, profileName, labels, modelLabels, marks, errorOf, put }: RuleFormProps & { put: Put }) {
+function LabelTable({ rules, inherited, origins, level, profileName, ownName, labels, modelLabels, marks, errorOf, put }: RuleFormProps & { put: Put }) {
   const id = useId()
   const [adding, setAdding] = useState('')
   const [rule, setRule] = useState<'required' | 'excluded'>('excluded')
@@ -200,7 +202,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, labels, mod
                   <span className="rule-table__fixed">{t.settings.labelRule[row.rule]}</span>
                 )}
               </td>
-              <OriginCell origin={row.origin} level={level} profileName={profileName} name={row.name} onReset={() => set(row.name, ruleOf(inherited, row.name))} />
+              <OriginCell origin={row.origin} level={level} profileName={profileName} ownName={ownName} name={row.name} onReset={() => set(row.name, ruleOf(inherited, row.name))} />
               <td className="rows__action">
                 {row.origin !== 'builtin' && (
                   <button type="button" className="rows__button" title={t.settings.remove(row.name)} aria-label={t.settings.remove(row.name)} onClick={() => set(row.name, null)}>

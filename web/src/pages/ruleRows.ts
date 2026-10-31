@@ -156,3 +156,11 @@ export function ruleOrigins(rules: ChainRules, inherited: ChainRules, profile: P
     keys.map((key) => [key, !sameList(rules[key], inherited[key]) ? 'project' : profile[key] !== undefined ? 'profile' : 'shared']),
   ) as Record<keyof ChainRules, RuleLevel>
 }
+
+/** A feed's rules in force (BTN-553): its own keys over its profile's, over the shared ones (`feedRules` of the service). */
+export const feedRulesOf = (shared: ChainRules, profile: Partial<ChainRules>, own: Partial<ChainRules> = {}): ChainRules => ({ ...effectiveRules(shared, [], profile), ...own })
+
+/** What a feed's save keeps as its own: the keys whose value differs from what it inherits. */
+export function ownRulesOf(rules: ChainRules, inherited: ChainRules): Partial<ChainRules> {
+  return Object.fromEntries((Object.keys(rules) as (keyof ChainRules)[]).filter((key) => !sameList(rules[key], inherited[key])).map((key) => [key, rules[key]]))
+}

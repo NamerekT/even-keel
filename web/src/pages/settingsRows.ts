@@ -1,4 +1,5 @@
 import { sameName } from '../../../src/chain/rules.js'
+import type { FeedView } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 
@@ -26,6 +27,15 @@ export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly Tra
     labels: sorted([...tasks.flatMap((task) => task.labels), ...vocabularies.flatMap((each) => each.labels)]),
     milestones: sorted([...tasks.flatMap((task) => (task.milestone === null ? [] : [task.milestone.label])), ...vocabularies.flatMap((each) => each.milestones ?? [])]),
   }
+}
+
+/**
+ * The tasks of one source of the project (BTN-553): of a feed those whose id has its prefix (`readerOf` of the service),
+ * of the main tracker (`null`) those no feed claims.
+ */
+export function sourceTasks(tasks: readonly Task[], feeds: readonly Pick<FeedView, 'id' | 'key' | 'prefix'>[], feed: string | null): Task[] {
+  const feedOf = (task: Task) => feeds.find((each) => (each.prefix ?? each.key) === task.id.slice(0, task.id.lastIndexOf('-')))?.id ?? null
+  return tasks.filter((task) => feedOf(task) === feed)
 }
 
 /** The choices less those the opposite list (a draft text, one per line) already has: the config refuses a name in both. */

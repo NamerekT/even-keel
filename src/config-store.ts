@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
 import type { ChainRules } from './chain/rules.js'
 import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
-import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
+import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
 import { readSettings, saveSettings, settingsText } from './settings/store.js'
@@ -99,7 +99,9 @@ export class ConfigStore {
   }
 
   view(trackerLocked: string[] = []): ConfigView {
-    return { ...formsOf(this.current), trackers: trackerChoices(), feeds: this.current.feeds, trackerLocked }
+    const readers = readersOf(this.current)
+    const feeds = Object.fromEntries(Object.entries(this.current.feeds).map(([project, list]) => [project, list.map((feed) => ({ ...feed, prefix: idPrefixOf(readers, feed.id) }))]))
+    return { ...formsOf(this.current), trackers: trackerChoices(), feeds, trackerLocked }
   }
 
   /** Adds the feed to the project with a new id, by the same rule as `saveProject`; returns the id. */

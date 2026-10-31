@@ -1,23 +1,34 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { EvenKeelState, FeedView } from '../../../src/state.js'
+import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
+import { MoreMenu } from '../ui/MoreMenu.js'
+import { FeedDialog, useFeedDraft } from './FeedDialog.js'
 import { linkedProfile, trackedFields } from './ProjectTracker.js'
+import { SourceLine } from './SourceDialog.js'
 import { EMPTY_FIELDS, keyTyped, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { FieldHead, fieldId, FieldNote, Section } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
 
 /**
- * The project's extra task feeds (BTN-66): places of other trackers or profiles whose tasks join its chain. Added and
- * removed at once, without the save bar; a feed the chain has started tasks of keeps its profile. The fields of a new
- * one open from the button by the heading.
+ * The sources of the project's tasks (BTN-553): its main tracker's line, given by the panel, then its extra task feeds
+ * (BTN-66), places of other trackers or profiles whose tasks join its chain. A feed is added and removed at once,
+ * without the save bar; a feed the chain has started tasks of keeps its profile. Each source's rules open in its window.
  */
-export function FeedList({ state, project }: { state: EvenKeelState; project: string }) {
+export function FeedList({ state, project, main, mainTitle, tasks, modelLabels }: {
+  state: EvenKeelState
+  project: string
+  main: ReactNode
+  /** The main tracker's title, as the draft has it. */
+  mainTitle: string
+  tasks: readonly Task[]
+  modelLabels: boolean
+}) {
   const [adding, setAdding] = useState(false)
   const feeds = state.config.feeds[project] ?? []
-  const tracker = state.config.projects[project]?.tracker
-  const title = state.config.trackers.find((each) => each.name === tracker)?.title ?? tracker ?? ''
   return (
     <Section
       title={t.settings.feeds}
@@ -31,16 +42,22 @@ export function FeedList({ state, project }: { state: EvenKeelState; project: st
         )
       }
     >
-      {feeds.length === 0 ? <p className="settings__hint">{t.settings.feedsNone(title)}</p> : feeds.map((feed) => <FeedRow key={feed.id} state={state} project={project} feed={feed} />)}
+      <div className="feeds__row">{main}</div>
+      {feeds.map((feed) => (
+        <FeedRow key={feed.id} state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} />
+      ))}
+      {feeds.length === 0 && !adding && <p className="settings__hint">{t.settings.feedsNone(mainTitle)}</p>}
       {adding && <FeedAdd state={state} project={project} onClose={() => setAdding(false)} />}
     </Section>
   )
 }
 
-/** A feed: its key and tracker, then the tracker block with its place fixed, only the profile changing. */
-function FeedRow({ state, project, feed }: { state: EvenKeelState; project: string; feed: FeedView }) {
+/** A feed: its line, then the tracker block with its place fixed, only the profile changing. */
+function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeelState; project: string; feed: FeedView; tasks: readonly Task[]; modelLabels: boolean }) {
   const [confirming, setConfirming] = useState(false)
+  const [configuring, setConfiguring] = useState(false)
   const { send, sending, failure } = useCommand()
+  const { dirty } = useFeedDraft(state, project, feed)
   const title = state.config.trackers.find((each) => each.name === feed.tracker)?.title ?? feed.tracker
   const own = state.profiles.profiles.filter((profile) => profile.kind === feed.tracker)
   const fields = trackedFields(state, feed.key, feed.tracker, linkedProfile(own, feed.id), feed.place ?? '')
@@ -53,27 +70,27 @@ function FeedRow({ state, project, feed }: { state: EvenKeelState; project: stri
   }
   return (
     <div className="feeds__row">
-      <div className="settings__row feeds__line">
-        <span className="tag">{feed.key}</span>
-        <span className="feeds__place">{title}</span>
-        <div className="account__actions">
-          {confirming ? (
-            <>
-              <span className="accounts__confirm">{t.settings.feedRemoveQuestion(feed.key)}</span>
-              <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void send('project/feed/remove', { project, feed: feed.id })}>
-                {t.common.remove}
-              </button>
-              <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(false)}>
-                {t.common.cancel}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="button button--small" onClick={() => setConfirming(true)}>
-              {t.common.remove}
-            </button>
-          )}
-        </div>
-      </div>
+      <SourceLine
+        kind={feed.tracker}
+        title={title}
+        sourceKey={feed.key}
+        own={Object.keys(feed.chain ?? {}).length > 0}
+        dirty={dirty}
+        onConfigure={() => setConfiguring(true)}
+        menu={<MoreMenu label={t.settings.sourceMore(feed.key)} items={[{ label: t.settings.feedRemove, danger: true, pick: () => setConfirming(true) }]} />}
+      />
+      {configuring && <FeedDialog state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} onClose={() => setConfiguring(false)} />}
+      {confirming && (
+        <ConfirmDialog
+          title={t.settings.feedRemove}
+          question={t.settings.feedRemoveQuestion(feed.key)}
+          confirm={t.common.remove}
+          cancel={t.common.cancel}
+          busy={sending}
+          onConfirm={() => void send('project/feed/remove', { project, feed: feed.id }).then((done) => done && setConfirming(false))}
+          onClose={() => setConfirming(false)}
+        />
+      )}
       <TrackerFields
         ids={(field) => fieldId(`feed.${feed.id}.${field}`)}
         state={state}
