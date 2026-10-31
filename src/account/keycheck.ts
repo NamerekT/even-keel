@@ -1,5 +1,6 @@
 const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=1'
 const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models'
+const OPENAI_ME_URL = 'https://api.openai.com/v1/me'
 const GITHUB_USER_URL = 'https://api.github.com/user'
 const API_VERSION = '2023-06-01'
 
@@ -14,9 +15,16 @@ export function checkApiKey(key: string, timeoutMs: number, fetchImpl: typeof fe
   return askModels(MODELS_URL, { 'x-api-key': key, 'anthropic-version': API_VERSION }, timeoutMs, fetchImpl, 'anthropic-organization-id')
 }
 
-/** The same question to OpenAI for a Codex key (BTN-177). */
-export function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
-  return askModels(OPENAI_MODELS_URL, { authorization: `Bearer ${key}` }, timeoutMs, fetchImpl, 'openai-organization')
+/**
+ * The same question to OpenAI for a Codex key (BTN-177). OpenAI's models list carries no `openai-organization` (BTN-649),
+ * so a working key's organization is asked of `/v1/me`; a failure there leaves the key working, its organization unknown.
+ */
+export async function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+  const headers = { authorization: `Bearer ${key}` }
+  const verdict = await askModels(OPENAI_MODELS_URL, headers, timeoutMs, fetchImpl, 'openai-organization')
+  if (verdict.state !== 'ok' || verdict.organization !== undefined) return verdict
+  const me = await askModels(OPENAI_ME_URL, headers, timeoutMs, fetchImpl, 'openai-organization')
+  return me.state === 'ok' && me.organization !== undefined ? me : verdict
 }
 
 /**

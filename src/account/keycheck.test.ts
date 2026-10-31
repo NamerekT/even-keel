@@ -32,15 +32,25 @@ describe('checkApiKey', () => {
 })
 
 describe('checkOpenAiKey', () => {
-  it("asks OpenAI's models list with the key as a bearer token", async () => {
-    let seen: { url: string; headers: Headers } | undefined
+  it("asks OpenAI's models list, then /v1/me for the organization, with the key as a bearer token", async () => {
+    const seen: { url: string; headers: Headers }[] = []
     const fetchImpl: typeof fetch = async (url, init) => {
-      seen = { url: String(url), headers: new Headers(init?.headers) }
+      seen.push({ url: String(url), headers: new Headers(init?.headers) })
       return new Response('{}', { status: 200 })
     }
     expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok' })
-    expect(seen?.url).toBe('https://api.openai.com/v1/models')
-    expect(seen?.headers.get('authorization')).toBe('Bearer sk-proj-fake-0000000000000000')
+    expect(seen.map((request) => request.url)).toEqual(['https://api.openai.com/v1/models', 'https://api.openai.com/v1/me'])
+    for (const request of seen) expect(request.headers.get('authorization')).toBe('Bearer sk-proj-fake-0000000000000000')
+  })
+
+  it('asks nothing more of a key the models list refuses or cannot judge', async () => {
+    const urls: string[] = []
+    const refusing: typeof fetch = async (url) => {
+      urls.push(String(url))
+      return new Response('{}', { status: 401 })
+    }
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, refusing)).toEqual({ state: 'rejected' })
+    expect(urls).toEqual(['https://api.openai.com/v1/models'])
   })
 
   it('takes 401 and 403 for a refused key and anything else for no verdict', async () => {
@@ -61,6 +71,26 @@ describe('the organization a working key pays through (BTN-418)', () => {
   it("takes OpenAI's from openai-organization", async () => {
     const fetchImpl = answering(200, { 'openai-organization': 'org-openai-example', 'openai-project': 'proj_example' })
     expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok', organization: 'org-openai-example' })
+  })
+
+  // Seen live on 2026-10-31 (BTN-649): the models list carries no openai-organization, /v1/me does.
+  const openAi = (me: () => Promise<Response>): typeof fetch => async (url) =>
+    String(url).endsWith('/v1/me') ? me() : new Response('{}', { status: 200 })
+
+  it("takes OpenAI's from /v1/me when the models list has none", async () => {
+    const fetchImpl = openAi(async () => new Response('{}', { status: 200, headers: { 'openai-organization': 'user-example' } }))
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok', organization: 'user-example' })
+  })
+
+  it('keeps a working OpenAI key working when /v1/me refuses, fails or is out of reach', async () => {
+    const forbidden = openAi(async () => new Response('{}', { status: 403, headers: { 'openai-organization': 'org-x' } }))
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, forbidden)).toEqual({ state: 'ok' })
+    const broken = openAi(async () => new Response('{}', { status: 500 }))
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, broken)).toEqual({ state: 'ok' })
+    const down = openAi(async () => {
+      throw new Error('fetch failed')
+    })
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, down)).toEqual({ state: 'ok' })
   })
 
   it('knows none from an answer without the header, an empty one, or a refusal', async () => {
