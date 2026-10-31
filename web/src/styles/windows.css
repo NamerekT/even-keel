@@ -221,10 +221,29 @@
   padding: 2px 0;
 }
 
+/* The whole feed is a press that opens the transcript or the chat; its border lights up under the pointer. */
+.feed--open {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow var(--motion-fast) ease;
+}
+
+.feed--open:hover {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.feed--open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A short quiet time, only where the minute changed; the cell keeps its width on every line, so the text stays in one column. */
 .feed__time {
+  min-width: 5ch;
   color: var(--fg-muted);
-  font-family: var(--mono);
+  font-size: var(--text-11);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .feed__line--tool .feed__text {
@@ -238,27 +257,6 @@
 .feed__line--prompt .feed__text {
   padding-left: 8px;
   border-left: 2px solid var(--accent);
-}
-
-.panel__feed-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.panel__feed-open {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-size: var(--text-12);
-  cursor: pointer;
-}
-
-.panel__feed-open:hover {
-  text-decoration: underline;
 }
 
 /* The rest of the transcript window is in web/src/pages/transcript.css; its size stays here, before the small-screen rules. */
@@ -319,13 +317,13 @@
   border-top: 1px solid var(--border);
 }
 
+/* A session is two lines: its facts as a segmented strip, then what happened in it across the whole width. */
 .sessions__row {
-  display: grid;
-  grid-template-columns: auto minmax(min-content, 1fr) minmax(0, max-content) auto;
-  align-items: center;
-  gap: 4px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   width: 100%;
-  padding: 7px 10px;
+  padding: var(--space-8) 10px;
   border: 0;
   background: transparent;
   color: var(--fg);
@@ -344,30 +342,56 @@
   outline-offset: -2px;
 }
 
-.sessions__time {
+/* The parts split by short dividers (`docs/design.md`, "Dividers in a segmented box"). */
+.sessions__meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 20px;
   color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.sessions__seg {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 10px;
+}
+
+.sessions__seg:first-child {
+  padding-left: 0;
+}
+
+.sessions__seg + .sessions__seg {
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 14px no-repeat;
+}
+
+.sessions__time {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
 
-.sessions__how {
-  min-width: min-content;
-}
-
-.sessions__account {
-  display: flex;
-  min-width: 0;
-}
-
 .sessions__id {
-  color: var(--fg-muted);
+  flex: none;
   font-family: var(--mono);
-  font-size: var(--text-12);
 }
 
 .sessions__now {
-  grid-column: 2 / -1;
+  flex: none;
+  margin-left: auto;
+  /* "now" has only x-height letters: centred by the line box it sits low, so it is lifted 1 px. */
+  padding: 0 8px 2px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
   font-size: var(--text-12);
+  line-height: 16px;
+}
+
+.sessions__how {
+  color: var(--fg);
+  overflow-wrap: anywhere;
 }
 
 .session-window {
