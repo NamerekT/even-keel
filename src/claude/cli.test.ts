@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { FolderCalls, type CallOptions, type CallOutput } from './calls.js'
@@ -244,5 +247,64 @@ describe('resumedAs', () => {
     expect(match(agent({ sessionId: 'earlier', startedAt: since - 3_600_000 }))).toBe(false)
     expect(match(agent({ sessionId: 'new', name: 'ABC-2' }))).toBe(false)
     expect(match(agent({ sessionId: 'new', cwd: '/repo' }))).toBe(false)
+  })
+})
+
+// BTN-648: the daemon retired a job and exited, its state.json stayed `blocked`; every Resume paused the chain on `claude stop`.
+describe('a job the daemon no longer holds', () => {
+  const job = { id: '3788ee8d', sessionId: 'session-1', cwd: '/work', kind: 'bg', startedAt: 1, name: 'ABC-1', state: 'blocked' }
+  class Agents extends FolderCalls {
+    override run(): Promise<CallOutput> {
+      return Promise.resolve({ stdout: JSON.stringify([job]), stderr: '' })
+    }
+  }
+  const cli = new ClaudeCli(() => join(tmpdir(), 'no-such-claude'), 30_000, () => ({}), new Agents())
+  let home: AccountHome
+
+  beforeEach(async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'even-keel-roster-'))
+    home = { key: 'one', dir, global: false, agent: 'claude' }
+    await mkdir(join(dir, 'jobs', job.id), { recursive: true })
+    await writeFile(join(dir, 'jobs', job.id, 'state.json'), JSON.stringify({ state: 'blocked', tempo: 'blocked', detail: 'Credit balance is too low' }))
+    await mkdir(join(dir, 'daemon'))
+  })
+  afterEach(async () => {
+    await rm(home.dir, { recursive: true, force: true })
+  })
+
+  const roster = (supervisorPid: number, updatedAt: number, workers: string[]) =>
+    writeFile(join(home.dir, 'daemon', 'roster.json'), JSON.stringify({ proto: 1, supervisorPid, updatedAt, workers: Object.fromEntries(workers.map((id) => [id, { pid: 1 }])) }))
+
+  it('is abandoned when the daemon exited and left no roster', async () => {
+    const [entry] = await cli.agents(home)
+    expect(entry).toMatchObject({ abandoned: true })
+    expect(entry?.startupDialog).toBeUndefined()
+  })
+
+  it('is abandoned when the roster has no such worker', async () => {
+    await roster(process.pid, Date.now() + 60_000, [])
+    expect((await cli.agents(home))[0]).toMatchObject({ abandoned: true })
+  })
+
+  it('is abandoned when the roster still lists it but its supervisor is gone and the pid now names a later process', async () => {
+    await roster(process.pid, 0, [job.id])
+    expect((await cli.agents(home))[0]).toMatchObject({ abandoned: true })
+  })
+
+  it('is stopped at once, without calling the CLI', async () => {
+    await expect(cli.stop(home, job.id, job.sessionId)).resolves.toBeUndefined()
+  })
+
+  it('is not abandoned while a live daemon holds it, as a session starting before its first turn', async () => {
+    await roster(process.pid, Date.now() + 60_000, [job.id])
+    const [entry] = await cli.agents(home)
+    expect(entry?.abandoned).toBeUndefined()
+    expect(entry?.startupDialog).toBe('Credit balance is too low')
+    await expect(cli.stop(home, job.id, job.sessionId)).rejects.toThrow()
+  })
+
+  it('is not abandoned when the roster cannot be read', async () => {
+    await writeFile(join(home.dir, 'daemon', 'roster.json'), '{')
+    expect((await cli.agents(home))[0]?.abandoned).toBeUndefined()
   })
 })

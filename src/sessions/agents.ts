@@ -20,6 +20,8 @@ export interface AgentEntry {
   waitingFor?: string
   state?: AgentState
   account?: string
+  /** `claude agents` lists the job as unfinished, yet it has no live process and the folder's daemon does not hold it: it is dead. */
+  abandoned?: boolean
   /** What the dialog the session hangs on before its first turn asks for. */
   startupDialog?: string
   /** The `AskUserQuestion` the waiting session has open, by its job file. */
