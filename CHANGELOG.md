@@ -70,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The statistics group OpenAI models by tier (Sol, Luna, Astra, Terra). The `/stats` page has a new section order, with "What changed" folded and a model choice for each side of a comparison.
 - Projects are identified by their id, so two projects of one key are told apart by name everywhere.
 - The service log records when a session hits a usage limit and when the chain continues. Tracker timeouts are logged with the call, its duration and the number of requests. The same tracker error is no longer logged every 5 seconds.
+- Loading shows an animated loader instead of a line of text: the page while it connects, the chat and transcript windows, a project's tasks and "What sessions get". The chat's reply box stays at the bottom while the transcript loads.
 
 ### Removed
 

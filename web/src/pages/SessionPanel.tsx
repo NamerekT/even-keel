@@ -30,6 +30,7 @@ import { StartCard } from '../ui/SessionStart.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useTip } from '../ui/useTip.js'
 import { WorkChip } from '../ui/WorkChip.js'
+import { Loading } from '../ui/Loader.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import { sessionStatus } from './sessionStatus.js'
@@ -390,7 +391,11 @@ function RecordFeed({ sessionId, account, onChat }: { sessionId: string; account
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} onChat={onChat} />
+  return (
+    <Loading busy={lines === null} label={t.common.reading}>
+      {lines !== null && <Feed lines={lines} sessionId={sessionId} account={account} live={false} onChat={onChat} />}
+    </Loading>
+  )
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -630,36 +635,37 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
           </button>
         </header>
         {error !== null && <p className="notice notice--error">{error}</p>}
-        {error === null && record === undefined && <p className="placeholder">{t.common.reading}</p>}
-        {record === null && <p className="placeholder">{t.session.notFound}</p>}
-        {record !== null && record !== undefined && (
-          <>
-            <FactList>
-              <Fact label={t.session.started}>
-                <dd className="panel__value">
-                  <time dateTime={started}>{STARTED().format(new Date(started))}</time>
-                </dd>
-              </Fact>
-              <Fact label={t.session.lastTurn}>
-                <dd className="panel__value">{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
-              </Fact>
-              <Fact label={t.session.worked}>
-                <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
-              </Fact>
-              <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} />
-              <TokensFact tokens={record.tokens} />
-              {(record.branch !== null || record.workdir !== null) && (
-                <Fact label={t.session.place} wide>
-                  <dd className="session-window__place">
-                    {record.branch ?? '—'} · {record.workdir ?? '—'}
+        <Loading busy={error === null && record === undefined} label={t.common.reading} fit="fill">
+          {record === null && <p className="placeholder">{t.session.notFound}</p>}
+          {record !== null && record !== undefined && (
+            <>
+              <FactList>
+                <Fact label={t.session.started}>
+                  <dd className="panel__value">
+                    <time dateTime={started}>{STARTED().format(new Date(started))}</time>
                   </dd>
                 </Fact>
-              )}
-            </FactList>
-            {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
-            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} onChat={undefined} />
-          </>
-        )}
+                <Fact label={t.session.lastTurn}>
+                  <dd className="panel__value">{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
+                </Fact>
+                <Fact label={t.session.worked}>
+                  <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
+                </Fact>
+                <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} />
+                <TokensFact tokens={record.tokens} />
+                {(record.branch !== null || record.workdir !== null) && (
+                  <Fact label={t.session.place} wide>
+                    <dd className="session-window__place">
+                      {record.branch ?? '—'} · {record.workdir ?? '—'}
+                    </dd>
+                  </Fact>
+                )}
+              </FactList>
+              {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
+              <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} onChat={undefined} />
+            </>
+          )}
+        </Loading>
       </div>
     </dialog>
   )

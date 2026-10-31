@@ -10,6 +10,7 @@ import { LoginDialog } from './layout/LoginDialog.js'
 import { EventToasts } from './layout/EventToasts.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateProgressToast, UpdateResultToast, UpdateToast, UpdateWindow } from './layout/Updates.js'
+import { Loading } from './ui/Loader.js'
 import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
@@ -61,25 +62,27 @@ export function App() {
       <ActivityBar />
       <AppHeader />
       <main className="content">
-        {state === null ? (
-          <p className="placeholder">{link === 'stale' ? t.app.noServer : t.app.connecting}</p>
-        ) : (
-          <BasementSlot.Provider value={basement}>
-            <Routes>
-              <Route path="/" element={<Home state={state} />} />
-              <Route path="/p/:id" element={<ProjectRoute state={state} />} />
-              <Route path="/projects/add" element={<ProjectAddPage state={state} />} />
-              <Route path="/stats" element={<StatsPage state={state} />} />
-              <Route path={SETUP} element={<SetupPage state={state} />} />
-              <Route path="/tools" element={<ToolsPage state={state} />} />
-              <Route path="/settings" element={<SharedSettings state={state} />} />
-              <Route path="/status" element={<StatusPage state={state} />} />
-              <Route path="/accounts" element={<AccountsPage state={state} />} />
-              <Route path="/accounts/add" element={<LegacyAdd />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BasementSlot.Provider>
-        )}
+        <Loading busy={state === null && link !== 'stale'} label={t.app.connecting} fit="page">
+          {state === null ? (
+            <p className="placeholder">{t.app.noServer}</p>
+          ) : (
+            <BasementSlot.Provider value={basement}>
+              <Routes>
+                <Route path="/" element={<Home state={state} />} />
+                <Route path="/p/:id" element={<ProjectRoute state={state} />} />
+                <Route path="/projects/add" element={<ProjectAddPage state={state} />} />
+                <Route path="/stats" element={<StatsPage state={state} />} />
+                <Route path={SETUP} element={<SetupPage state={state} />} />
+                <Route path="/tools" element={<ToolsPage state={state} />} />
+                <Route path="/settings" element={<SharedSettings state={state} />} />
+                <Route path="/status" element={<StatusPage state={state} />} />
+                <Route path="/accounts" element={<AccountsPage state={state} />} />
+                <Route path="/accounts/add" element={<LegacyAdd />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BasementSlot.Provider>
+          )}
+        </Loading>
       </main>
       <div className="app__basement" ref={setBasement} />
       {/* The add dialog walks its own sign-in in place. */}
