@@ -200,6 +200,16 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(() => config.saveExecution('claude', 'sdk')).toThrow(/execution.claude: sdk/)
   })
 
+  it('lets the shared form move Claude off the Agent SDK while the checked CLI stays (BTN-638)', async () => {
+    await seed({ execution: { claude: 'sdk' }, projects: [] })
+    const config = await open()
+
+    const base = config.view().shared
+    config.saveShared({ ...base, execution: { ...base.execution, claude: 'bg' } }, base)
+    expect(config.current.execution.claude).toBe('bg')
+    expect(config.current.cli.claude).toBe('checked')
+  })
+
   it('writes the chain switches only when they change', async () => {
     const config = await open()
     expect([config.current.unattended, config.current.trimTools]).toEqual([false, true])
