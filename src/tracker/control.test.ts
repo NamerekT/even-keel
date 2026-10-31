@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_RULES } from '../chain/rules.js'
+import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { taskControl } from './control.js'
 import { TrackerLink } from './link.js'
 import { toTask, type TaskStatus } from './model.js'
@@ -70,14 +70,14 @@ describe('task label controls', () => {
 describe('the moves between the backlog and the chain', () => {
   const RULES = { ...DEFAULT_RULES, requiredLabels: ['Ready', 'Go'] }
 
-  function moves(extra: Partial<TaskSource>, options: { status?: TaskStatus; labels?: string[]; live?: boolean } = {}) {
+  function moves(extra: Partial<TaskSource>, options: { status?: TaskStatus; labels?: string[]; live?: boolean; rules?: ChainRules } = {}) {
     const raw = { id: 'APP-1', title: 'Example', status: options.status ?? { name: 'Todo', category: 'ToDo' as const }, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none' as const, estimate: null, labels: options.labels ?? ['Old'] }
     let listed = [toTask(raw)]
     const source: TaskSource = { chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {}, ...extra }
     const link = new TrackerLink({ name: 'example', connect: async () => trackerOf(source), timeoutMs: 1000 })
     const control = taskControl({
       configuredProject: () => 'owner', live: () => options.live ?? false,
-      linkFor: () => link, readerFor: () => 'feed', rulesOf: () => RULES,
+      linkFor: () => link, readerFor: () => 'feed', rulesOf: () => options.rules ?? RULES,
       refreshers: new Map(), readerTasks: { get: () => listed, set: (_reader, tasks) => { listed = tasks }, setTasks: () => {} },
       refreshProject: async () => true, pollReviews: async () => {}, broadcast: () => {},
     })
@@ -121,5 +121,10 @@ describe('the moves between the backlog and the chain', () => {
     expect(relabel).not.toHaveBeenCalled()
     await expect(moves({}, { labels: ['Ready'] }).control.unready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.cannotUnready' } })
     await expect(moves({ unready: async () => null }).control.unready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.inBacklog' } })
+  })
+
+  it('does not call a ready task without a required label "in the backlog" when its tracker has no backlog status to move it to', async () => {
+    const control = moves({ unready: async () => null }, { rules: DEFAULT_RULES }).control
+    await expect(control.unready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.cannotUnready' } })
   })
 })
