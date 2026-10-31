@@ -330,6 +330,77 @@ describe('github source', () => {
     expect(await source.file!('ABC-7', 'https://example.com/steal')).toBeNull()
   })
 
+  describe('a comment file', () => {
+    const ID = 'b24027f6-4820-4f55-9258-d80d7b7ca8d0'
+    const ASSET = `https://github.com/user-attachments/assets/${ID}`
+    const SIGNED = `https://private-user-images.githubusercontent.com/1001/691051256-${ID}.png?jwt=eyJ.secret.sig`
+    const COMMENTS = 'https://api.github.com/repos/octo-org/abc/issues/7/comments?per_page=100'
+    const PAGE_2 = 'https://api.github.com/repositories/1/issues/7/comments?per_page=100&page=2'
+    const png = () => new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'content-type': 'image/png', 'content-length': '4' } })
+    const json = (body: unknown, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { headers })
+
+    /** Answers by URL; the GraphQL viewer of the connect is answered on its own. */
+    async function connectFiles(routes: Record<string, () => Response>) {
+      const requests: { url: string; headers: Record<string, string> }[] = []
+      const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+        const url = String(input)
+        if (url === 'https://api.github.com/graphql') return new Response(JSON.stringify(VIEWER.body))
+        requests.push({ url, headers: { ...(init?.headers as Record<string, string>) } })
+        return routes[url]?.() ?? new Response('Not Found', { status: 404 })
+      }
+      const lines: string[] = []
+      const source = await connectGithub({ token: 'github_pat_example', projects: PROJECTS }, 5_000, fetch as typeof globalThis.fetch, (line) => lines.push(line))
+      return { source, requests, lines }
+    }
+
+    it('downloads the upload link with the token when GitHub serves it', async () => {
+      const { source, requests } = await connectFiles({ [ASSET]: png })
+      const file = await source.file!('ABC-7', ASSET)
+      expect(file).toMatchObject({ type: 'image/png', size: 4 })
+      expect(requests.map((request) => request.url)).toEqual([ASSET])
+      expect(requests[0]!.headers.authorization).toBe('bearer github_pat_example')
+    })
+
+    it('takes the signed link from the comments when the token is refused, sending it no token', async () => {
+      const { source, requests, lines } = await connectFiles({
+        [COMMENTS]: () => json([{ body_html: '<p>no picture</p>' }], { link: `<${PAGE_2}>; rel="next"` }),
+        [PAGE_2]: () => json([{ body_html: `<img src="${SIGNED}">` }]),
+        [SIGNED]: png,
+      })
+      const file = await source.file!('ABC-7', ASSET)
+      expect(file).toMatchObject({ type: 'image/png', size: 4 })
+      expect(requests.map((request) => request.url)).toEqual([ASSET, COMMENTS, PAGE_2, SIGNED])
+      expect(requests[1]!.headers).toMatchObject({ authorization: 'bearer github_pat_example', accept: 'application/vnd.github.html+json' })
+      expect(requests[3]!.headers.authorization).toBeUndefined()
+      expect(lines).toEqual([])
+    })
+
+    it('logs a file no comment links signed, naming no link', async () => {
+      const { source, lines } = await connectFiles({ [COMMENTS]: () => json([{ body_html: '<p>no picture</p>' }]) })
+      expect(await source.file!('ABC-7', ASSET)).toBeNull()
+      expect(lines).toEqual([`github: ABC-7: the comment file ${ID} is not available: the token got no file and no comment links it signed`])
+    })
+
+    it('logs a file whose signed link fails too, and comments it cannot read', async () => {
+      const signed = await connectFiles({ [COMMENTS]: () => json([{ body_html: `<img src="${SIGNED}">` }]) })
+      expect(await signed.source.file!('ABC-7', ASSET)).toBeNull()
+      expect(signed.lines).toEqual([`github: ABC-7: the comment file ${ID} is not available: its signed link got HTTP 404`])
+      expect(signed.lines.join()).not.toContain('jwt')
+
+      const unread = await connectFiles({})
+      expect(await unread.source.file!('ABC-7', ASSET)).toBeNull()
+      expect(unread.lines).toEqual([`github: ABC-7: the comment file ${ID} is not available: the comments of octo-org/abc#7 got HTTP 404`])
+    })
+
+    it('logs a link it has no signed form for', async () => {
+      const link = 'https://github.com/user-attachments/files/123/report.pdf'
+      const { source, requests, lines } = await connectFiles({})
+      expect(await source.file!('ABC-7', link)).toBeNull()
+      expect(requests.map((request) => request.url)).toEqual([link])
+      expect(lines).toEqual(['github: ABC-7: a comment file is not available: the token got HTTP 404 for https://github.com/user-attachments/files/123/report.pdf'])
+    })
+  })
+
   it('names its own statuses and every label of the repository, page by page', async () => {
     const { source, calls } = await connect([
       { body: { data: { repository: { labels: page([{ name: 'bug' }, { name: 'priority: high' }], 'cursor-1') } } } },
