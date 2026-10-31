@@ -399,6 +399,8 @@ export interface FeedView {
   key: string
   /** By the tracker's project key; none where the key names it. */
   place?: string
+  /** The chain rule keys the feed sets itself (BTN-553), over its profile's and the shared ones; none — it sets none. */
+  chain?: Partial<ChainRules>
 }
 
 /** A feed the page adds: a new id is given by the service. */

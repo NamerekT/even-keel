@@ -121,6 +121,11 @@ export interface Feed {
   key: string
   /** The place in its tracker by the tracker's project key (`github`, `linear`); none where the key names it. */
   place?: string
+  /**
+   * The chain rule keys the feed sets itself (BTN-553): its tasks run on these over its profile's and the shared ones,
+   * never on the project's (`projectRules`); none — it sets none.
+   */
+  chain?: Partial<ChainRules>
 }
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
@@ -407,12 +412,26 @@ function feedsOf(records: ProjectRecord[], adapters: AdapterShapes): Record<stri
     if (adapters[tracker] === undefined) throw fail('config.trackerUnknown', { where: `${where}.tracker`, name: tracker, known: Object.keys(adapters) })
     if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${where}.key`, value: String(JSON.stringify(key)) })
     const place = placeOfEntry(raw, tracker, where, adapters)
-    return { id, tracker, key, ...(place === undefined ? {} : { place }) }
+    const chain = feedRulesOf(raw.chain, `${where}.chain`)
+    return { id, tracker, key, ...(place === undefined ? {} : { place }), ...(chain === undefined ? {} : { chain }) }
   }
   return Object.fromEntries(
     records.flatMap((record) => (record.feeds === undefined ? [] : [[record.id, record.feeds.map((raw, index) => feedOf(raw, `${record.key}.feeds[${index}]`))]])),
   )
 }
+
+/** A feed's own rule keys (BTN-553): lists of names, `null` of `active`/`terminal` — by the status category. */
+function feedRulesOf(raw: unknown, where: string): Partial<ChainRules> | undefined {
+  if (raw === undefined) return undefined
+  const names = (value: unknown) => Array.isArray(value) && value.every((name) => typeof name === 'string')
+  const valid = (key: string, value: unknown) =>
+    (RULE_KEYS as readonly string[]).includes(key) && (names(value) || (value === null && (key === 'active' || key === 'terminal')))
+  if (!isPlainObject(raw) || !Object.entries(raw).every(([key, value]) => valid(key, value))) throw fail('config.feedRules', { where, keys: [...RULE_KEYS] })
+  return raw as Partial<ChainRules>
+}
+
+/** The rules a feed's tasks run on before its profile's go between (`rulesWith`): its own keys over the shared ones. */
+export const feedRules = (config: Pick<EvenKeelConfig, 'chain'>, feed: Pick<Feed, 'chain'>): ChainRules => ({ ...config.chain, ...feed.chain })
 
 /** What the tracker layer reads (BTN-66): every project, and every feed as a project of its own id on its owner's repository. */
 export interface Readers extends Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects'> {
@@ -483,6 +502,7 @@ function checkFeeds(config: EvenKeelConfig, adapters: AdapterShapes): void {
       if (same !== undefined) throw fail('config.feedPrefix', { project: projectLabel(config, project), prefix, other: label(same) })
       const twice = others.find((other) => place(other) === place(feed.id))
       if (twice !== undefined) throw fail('config.feedPlace', { project: projectLabel(config, project), other: label(twice) })
+      if (feed.chain !== undefined) checkRules(feedRules(config, feed), label(feed.id))
     }
   }
 }

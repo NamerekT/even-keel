@@ -76,6 +76,51 @@ describe('rules of a tracker profile (BTN-66)', () => {
     expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Todo'] })).not.toThrow()
   })
 
+  it("of a feed are its own over its profile's and the shared ones, never the project's (BTN-553)", () => {
+    const fed = parseConfig({
+      chain: { active: ['Todo'], requiredLabels: ['Agent'] },
+      projects: [
+        {
+          id: 'abc',
+          key: 'ABC',
+          repo: 'C:\\abc',
+          tracker: 'huly',
+          chain: { active: ['Ready'], excludedLabels: ['Later'] },
+          feeds: [
+            { id: 'own', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas', chain: { active: ['triage'], excludedMilestones: ['Someday'] } },
+            { id: 'bare', tracker: 'linear', key: 'ABCLN', linear: 'ENG' },
+          ],
+        },
+      ],
+    })
+    const [own, bare] = fed.feeds.abc!
+    const set: ProfileSet = { profiles: [profile('github-a', 'github', { active: ['open'], terminal: ['closed'] }), profile('linear-a', 'linear')], links: {} }
+    expect(projectRules(fed, set, 'abc', own)).toEqual({
+      ...DEFAULT_RULES,
+      active: ['triage'],
+      terminal: ['closed'],
+      requiredLabels: ['Agent'],
+      excludedMilestones: ['Someday'],
+    })
+    expect(projectRules(fed, set, 'abc', bare)).toEqual({ ...DEFAULT_RULES, active: ['Todo'], requiredLabels: ['Agent'] })
+    expect(projectRules(fed, set, 'abc')).toMatchObject({ active: ['Ready'], excludedLabels: ['Later'] })
+  })
+
+  it("refuse a feed whose own rules clash, named by the project and the feed's key", () => {
+    const raw = (chain: unknown) => ({
+      projects: [{ id: 'abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly', feeds: [{ id: 'feed', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas', chain }] }],
+    })
+    expect(() => parseConfig(raw({ active: ['open'], terminal: ['Open'] }))).toThrow(
+      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.statusBoth', params: { project: 'ABC · ABCGH', status: 'open' } }) }),
+    )
+    expect(() => parseConfig(raw({ requiredLabels: 'Agent' }))).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.feedRules' }) }))
+    expect(() => parseConfig(raw({ colour: ['red'] }))).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.feedRules' }) }))
+    expect(() => parseConfig(raw({ terminal: null }))).not.toThrow()
+    const fed = parseConfig(raw({ active: ['ready'] }))
+    const set: ProfileSet = { profiles: [profile('github-a', 'github')], links: {} }
+    expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Ready'] })).toThrow(/ABC · ABCGH/)
+  })
+
   it('keep only the keys set, trimmed, without blanks and repeats', () => {
     expect(cleanRules({ active: [' Todo ', '', 'Todo'], terminal: null, requiredLabels: undefined })).toEqual({ active: ['Todo'], terminal: null })
   })

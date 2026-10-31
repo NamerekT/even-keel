@@ -2,6 +2,7 @@ import { DEFAULT_RULES, sameName, splitsMilestones, type ChainRules } from './ch
 import { CI_KINDS } from './ci/model.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, readKeyOf, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
 import { fail } from './notice/notice.js'
+import { cleanRules } from './profiles/rules.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
@@ -228,6 +229,20 @@ export function withoutFeed(raw: unknown, id: string, feedId: string): Record<st
     if (kept.length === feeds.length) throw fail('config.unknownFeed', {})
     const { feeds: _, ...rest } = entry
     return kept.length === 0 ? rest : { ...rest, feeds: kept }
+  })
+}
+
+/** The raw config with the feed's own chain rule keys (BTN-553), cleaned as a profile's; none set drops the key. */
+export function withFeedRules(raw: unknown, id: string, feedId: string, rules: Partial<ChainRules>): Record<string, unknown> {
+  return withEntry(raw, id, (entry) => {
+    const feeds = Array.isArray(entry.feeds) ? (entry.feeds as unknown[]) : []
+    if (!feeds.some((feed) => isPlainObject(feed) && feed.id === feedId)) throw fail('config.unknownFeed', {})
+    const chain = cleanRules(rules, RULE_KEYS)
+    const ruled = (feed: Record<string, unknown>) => {
+      const { chain: _, ...rest } = feed
+      return Object.keys(chain).length === 0 ? rest : { ...rest, chain }
+    }
+    return { ...entry, feeds: feeds.map((feed) => (isPlainObject(feed) && feed.id === feedId ? ruled(feed) : feed)) }
   })
 }
 

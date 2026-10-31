@@ -11,7 +11,7 @@ import { DEFAULT_SHARES } from './stats/checkpoint.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
-import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
+import { PROFILE_RULE_KEYS } from './profiles/model.js'
 import type { Protection } from './sessions/protection.js'
 
 export function projectOf(body: Record<string, unknown>): string {
@@ -229,11 +229,14 @@ export function rulesOf(raw: unknown): ChainRules {
   }
 }
 
-/** A profile's rules: only the keys sent, a status list may be `null` (by the status category). */
-export function profileRulesOf(raw: unknown): ProfileRules {
+/**
+ * A profile's rules — or with every rule key, a feed's own (BTN-553): only the keys sent, a status list may be `null`
+ * (by the status category).
+ */
+export function profileRulesOf(raw: unknown, keys: readonly (keyof ChainRules)[] = PROFILE_RULE_KEYS): Partial<ChainRules> {
   const sent = mapOf(raw, 'rules', () => true)
-  const rules: ProfileRules = {}
-  for (const key of PROFILE_RULE_KEYS) {
+  const rules: Partial<ChainRules> = {}
+  for (const key of keys) {
     const value = sent[key]
     if (value === undefined) continue
     Object.assign(rules, { [key]: value === null && (key === 'active' || key === 'terminal') ? null : linesOf(value, 'rules') })

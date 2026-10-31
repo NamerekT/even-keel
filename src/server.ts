@@ -55,6 +55,7 @@ import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
+import { RULE_KEYS } from './config.js'
 import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
 export type { ProfilesControl } from './profiles/routes.js'
 
@@ -164,6 +165,8 @@ export interface SettingsControl {
   removeFeed(project: string, feed: string): void
   /** `null` — the feed reads on its tracker's default profile; refused once the chain has started its tasks. */
   linkFeed(project: string, feed: string, profile: string | null): void
+  /** The feed's own chain rule keys (BTN-553), all of them at once; refuses ones that clash with its profile's. */
+  feedRules(project: string, feed: string, rules: Partial<ChainRules>): void
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -296,6 +299,7 @@ const COMMANDS: Record<string, Command> = {
   'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
   'project/feed/profile': ({ settings }, body) =>
     settings.linkFeed(projectOf(body), textOf(body.feed, 'feed'), body.profile === null ? null : textOf(body.profile, 'profile')),
+  'project/feed/rules': ({ settings }, body) => settings.feedRules(projectOf(body), textOf(body.feed, 'feed'), profileRulesOf(body.rules, RULE_KEYS)),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
