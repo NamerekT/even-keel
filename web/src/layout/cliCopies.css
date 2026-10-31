@@ -1,5 +1,7 @@
-.cli-copy { min-width: 0; }
-.cli-copy p { margin: 0 0 var(--space-8); }
+.cli-copy { display: grid; gap: var(--space-8); min-width: 0; }
+.cli-copy > * { min-width: 0; }
+.cli-copy p { margin: 0; }
+.cli-copy .ui-command + .cli-copy__actions { margin-top: var(--space-4); }
 .cli-copy__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .cli-copy__progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-16); color: var(--fg); }
 .cli-copy__meter { display: flex; align-items: center; gap: var(--space-12); padding: 0 var(--space-12); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); min-width: 0; max-width: 100%; }
