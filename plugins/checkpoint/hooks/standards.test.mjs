@@ -80,6 +80,12 @@ describe("callOf", () => {
     expect(callOf("apply_patch", { command: patch })).toEqual({ kind: "edit", paths: ["web/src/a.tsx", "web/src/b.css"] });
     expect(callOf("apply_patch", { input: patch }).paths).toHaveLength(2);
   });
+
+  it("takes the files of a patch given as the whole input, as Copilot sends its apply_patch", () => {
+    const patch = "*** Begin Patch\n*** Add File: notes/cp5.md\n+cp5 was here\n*** End Patch\n";
+    expect(callOf("Edit", patch)).toEqual({ kind: "edit", paths: ["notes/cp5.md"] });
+    expect(callOf("Edit", "notes/cp5.md")).toBeNull();
+  });
 });
 
 describe("standardsAt", () => {

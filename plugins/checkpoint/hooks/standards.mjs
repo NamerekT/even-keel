@@ -43,15 +43,22 @@ export function guards(standard, file) {
   return matchesAny(standard.files, path) && !matchesAny(standard.except, path);
 }
 
-/** `{ kind: "read" | "edit", paths }` of a tool call of any agent, or null for any other call. */
+const isPatch = (value) => typeof value === "string" && value.includes("*** Begin Patch");
+
+/**
+ * `{ kind: "read" | "edit", paths }` of a tool call of any agent, or null for any other call. Copilot sends its
+ * `apply_patch` as `Edit` with the patch itself as the input.
+ */
 export function callOf(tool, input) {
   const kind = READS.has(tool) ? "read" : EDITS.has(tool) ? "edit" : null;
-  if (kind === null || typeof input !== "object" || input === null) return null;
+  if (kind === null) return null;
+  const patchCall = (patch) => ({ kind, paths: [...patch.matchAll(PATCH_FILE)].map((match) => match[1].trim()) });
+  if (isPatch(input)) return patchCall(input);
+  if (typeof input !== "object" || input === null) return null;
   const path = PATH_FIELDS.map((field) => input[field]).find((value) => typeof value === "string" && value !== "");
   if (path !== undefined) return { kind, paths: [path] };
-  const patch = Object.values(input).find((value) => typeof value === "string" && value.includes("*** Begin Patch"));
-  if (patch === undefined) return null;
-  return { kind, paths: [...patch.matchAll(PATCH_FILE)].map((match) => match[1].trim()) };
+  const patch = Object.values(input).find(isPatch);
+  return patch === undefined ? null : patchCall(patch);
 }
 
 /** Whether the call is one the standards look at at this moment: a read "after" it, an edit "before" it. */

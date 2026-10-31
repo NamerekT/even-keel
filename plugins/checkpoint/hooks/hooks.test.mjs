@@ -280,6 +280,19 @@ describe("hooks on copilot input", () => {
     const given = JSON.parse((await runCopilot("standard-gate.mjs", read)).stdout);
     expect(given).toEqual({ additionalContext: expect.stringContaining("Cards, not text dumps.") });
   });
+
+  it("refuses an apply_patch that comes as Edit with the patch as a bare string before the standard's document", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/standards`, { standards: [{ doc: "docs/design.md", files: ["notes/**"] }] });
+    const patch = "*** Begin Patch\n*** Add File: notes/cp5.md\n+cp5 was here\n*** End Patch\n";
+    const edit = { ...copilot(session, "PreToolUse", { tool_name: "Edit", tool_input: patch }), cwd: repo };
+    const denied = JSON.parse((await runCopilot("standard-gate.mjs", edit)).stdout);
+    expect(denied.hookSpecificOutput).toEqual({
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: expect.stringContaining("Cards, not text dumps."),
+    });
+  });
 });
 
 describe.each(Object.entries(agents))("the merge check on %s input", (_agent, input) => {
