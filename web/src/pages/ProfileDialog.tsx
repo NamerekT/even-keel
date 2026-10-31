@@ -12,6 +12,7 @@ import { stillMotion } from '../ui/landing.js'
 import { secretInput } from '../ui/secret.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
+import { ProfileMovesStep } from './ProfileMovesStep.js'
 import './profiles.css'
 
 interface DialogProps {
@@ -42,6 +43,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
   const backdrop = useBackdropClose(dialog, close)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? fixed ?? null)
   const [gitlabHost, setGitlabHost] = useState<string | null>(null)
+  const [added, setAdded] = useState<{ id: string; name: string } | null>(null)
   const activeProfile = gitlabHost === null ? profile : undefined
   const title = useId()
   const view = kinds.find((each) => each.kind === kind)
@@ -74,7 +76,9 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
             ×
           </button>
         </header>
-        {view === undefined ? (
+        {added !== null ? (
+          <ProfileMovesStep id={added.id} name={added.name} onClose={onClose} />
+        ) : view === undefined ? (
           <KindStep kinds={kinds} onPick={setKind} />
         ) : (
           <FieldsStep
@@ -86,7 +90,8 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
             onBack={activeProfile === undefined && fixed === undefined ? () => discard(() => { setGitlabHost(null); setKind(null) }) : undefined}
             onGitlab={kinds.some((each) => each.kind === 'gitlab') ? (address) => discard(() => { setGitlabHost(address); setKind('gitlab') }) : undefined}
             onClose={close}
-            onFinish={onClose}
+            // A new profile of a tracker that moves statuses asks for its moves next (BTN-554).
+            onFinish={(id, name) => (activeProfile === undefined && view.moves === true ? setAdded({ id, name }) : onClose())}
             grant={grant}
             onGrant={setGrant}
             onSaved={onSaved}
@@ -116,7 +121,7 @@ function KindStep({ kinds, onPick }: { kinds: ProfileKindView[]; onPick: (kind: 
 interface FieldsProps {
   grant: GrantChoice
   onGrant: (grant: GrantChoice) => void
-  onFinish: () => void
+  onFinish: (id: string, name: string) => void
   kind: ProfileKindView
   profile: ProfileView | undefined
   stress: RightsUse | undefined
@@ -233,11 +238,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
       const result = fresh ? checked.result : await check()
       if (!fresh && result.duplicate !== null) return null
       const saveName = name.trim() === '' || name === checked?.result.name ? result.name : name.trim()
-      return query<{ id: string }>('profiles/save', { ...draft, ...oauth, name: saveName })
+      return { ...(await query<{ id: string }>('profiles/save', { ...draft, ...oauth, name: saveName })), name: saveName }
     })
     if (saved === null) return
     onSaved?.(saved.id)
-    onFinish()
+    onFinish(saved.id, saved.name)
   }
 
   return (

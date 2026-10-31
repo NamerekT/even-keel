@@ -48,6 +48,7 @@ import {
 } from './settingsParts.js'
 import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
+import { useSourceMoves } from './SourceMoves.js'
 import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
@@ -173,6 +174,7 @@ export function SettingsPanel({
   const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
   const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
   const [configuring, setConfiguring] = useState(false)
+  const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
@@ -421,8 +423,8 @@ export function SettingsPanel({
                 kind={text('tracker')}
                 title={trackerTitle}
                 sourceKey={state.projectKeys[project] ?? ''}
-                own={form.ownRules.length > 0}
-                dirty={changed(draft, RULE_KEYS, same).length > 0}
+                own={form.ownRules.length > 0 || form.moves !== undefined}
+                dirty={changed(draft, RULE_KEYS, same).length > 0 || moves.dirty}
                 onConfigure={() => setConfiguring(true)}
               >
                 {statusesReset && (
@@ -484,11 +486,15 @@ export function SettingsPanel({
                   </Section>
                 ),
               },
+              ...(moves.tab === null ? [] : [moves.tab]),
             ]}
-            canSave={!sending && next !== undefined}
-            failure={leftover}
-            onSave={save}
-            onRevert={() => revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)}
+            canSave={!sending && !moves.sending && next !== undefined}
+            failure={leftover ?? moves.failure}
+            onSave={async () => (await save()) && moves.save()}
+            onRevert={() => {
+              revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)
+              moves.revert()
+            }}
             onClose={() => setConfiguring(false)}
           />
         )}

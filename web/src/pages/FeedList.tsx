@@ -9,6 +9,7 @@ import { MoreMenu } from '../ui/MoreMenu.js'
 import { FeedDialog, useFeedDraft } from './FeedDialog.js'
 import { linkedProfile, trackedFields } from './ProjectTracker.js'
 import { SourceLine } from './SourceDialog.js'
+import { useSourceMovesDirty } from './SourceMoves.js'
 import { EMPTY_FIELDS, keyTyped, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { FieldHead, fieldId, FieldNote, Section } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
@@ -58,6 +59,7 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
   const [configuring, setConfiguring] = useState(false)
   const { send, sending, failure } = useCommand()
   const { dirty } = useFeedDraft(state, project, feed)
+  const movesDirty = useSourceMovesDirty(project, feed.id, feed.moves)
   const title = state.config.trackers.find((each) => each.name === feed.tracker)?.title ?? feed.tracker
   const own = state.profiles.profiles.filter((profile) => profile.kind === feed.tracker)
   const fields = trackedFields(state, feed.key, feed.tracker, linkedProfile(own, feed.id), feed.place ?? '')
@@ -74,8 +76,8 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
         kind={feed.tracker}
         title={title}
         sourceKey={feed.key}
-        own={Object.keys(feed.chain ?? {}).length > 0}
-        dirty={dirty}
+        own={Object.keys(feed.chain ?? {}).length > 0 || feed.moves !== undefined}
+        dirty={dirty || movesDirty}
         onConfigure={() => setConfiguring(true)}
         menu={<MoreMenu label={t.settings.sourceMore(feed.key)} items={[{ label: t.settings.feedRemove, danger: true, pick: () => setConfirming(true) }]} />}
       />

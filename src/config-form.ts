@@ -42,6 +42,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
         brief: config.briefs[id]!,
         chain: config.rules[id]!,
         ownRules: Object.keys(config.ownRules[id] ?? {}) as (keyof ChainRules)[],
+        ...(config.moves[id] === undefined ? {} : { moves: config.moves[id] }),
       },
     ]),
   )

@@ -531,20 +531,6 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const statuses = /^\/api\/profiles\/([^/]+)\/statuses$/.exec(path)
-  if (request.method === 'GET' && statuses !== null) {
-    let found: TaskStatus[] | undefined
-    try {
-      found = await deps.profileStatuses(decodeURIComponent(statuses[1]!))
-    } catch (error) {
-      sendFailure(response, error)
-      return
-    }
-    if (found === undefined) response.writeHead(404).end()
-    else sendJson(response, 200, found)
-    return
-  }
-
   const calibration = /^\/api\/projects\/([A-Z][A-Z0-9]*)\/calibration$/.exec(path)
   if (request.method === 'GET' && calibration !== null) {
     const task = url.searchParams.get('task')

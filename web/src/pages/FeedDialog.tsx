@@ -11,6 +11,7 @@ import { marksOf, RULE_KEYS, rulesOf, rulesText, sameBy, Section, type RuleKey }
 import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
 import { SourceDialog, type SourceTab } from './SourceDialog.js'
+import { useSourceMoves } from './SourceMoves.js'
 import { useVocabularies } from './useVocabularies.js'
 
 const same = sameBy(RULE_KEYS)
@@ -55,7 +56,8 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
   const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
   const noError = () => null
   const tracker = state.config.trackers.find((each) => each.name === feed.tracker)?.title ?? feed.tracker
-  const tabs: SourceTab<'rules' | 'milestones'>[] = [
+  const moves = useSourceMoves({ state, project, feed: feed.id, kind: feed.tracker, profile, rules: chain, saved: feed.moves })
+  const tabs: SourceTab[] = [
     {
       id: 'rules',
       title: t.settings.rules,
@@ -102,6 +104,7 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
         </Section>
       ),
     },
+    ...(moves.tab === null ? [] : [moves.tab]),
   ]
   return (
     <SourceDialog
@@ -109,10 +112,13 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
       sourceKey={feed.key}
       title={profile?.name ?? tracker}
       tabs={tabs}
-      canSave={!sending}
-      failure={failure}
-      onSave={() => send('project/feed/rules', { project, feed: feed.id, rules: ownRulesOf(chain, inherited) })}
-      onRevert={() => revert(RULE_KEYS)}
+      canSave={!sending && !moves.sending}
+      failure={failure ?? moves.failure}
+      onSave={async () => (await send('project/feed/rules', { project, feed: feed.id, rules: ownRulesOf(chain, inherited) })) && moves.save()}
+      onRevert={() => {
+        revert(RULE_KEYS)
+        moves.revert()
+      }}
       onClose={onClose}
     />
   )

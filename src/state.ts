@@ -246,6 +246,8 @@ export interface ProjectForm extends ProjectSettings {
   chain: ChainRules
   /** The rule keys the project sets itself: the profile's rules go over the rest (BTN-334). */
   ownRules: (keyof ChainRules)[]
+  /** The status moves the main tracker sets itself (BTN-554), over its profile's; none — it sets none. Read only: `project/moves` writes them. */
+  moves?: StatusMoves
 }
 
 /** The shared keys of the config as the settings page edits them, defaults filled in. */
@@ -402,6 +404,8 @@ export interface FeedView {
   place?: string
   /** The chain rule keys the feed sets itself (BTN-553), over its profile's and the shared ones; none — it sets none. */
   chain?: Partial<ChainRules>
+  /** The status moves the feed sets itself (BTN-554), over its profile's; none — it sets none. */
+  moves?: StatusMoves
   /** The prefix of the feed's task ids (`idPrefixOf`): a task of the project is the feed's by it; none — the feed's key. */
   prefix?: string
 }

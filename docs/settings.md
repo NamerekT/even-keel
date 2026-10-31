@@ -86,6 +86,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain.md`, "The carry session") |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
 | `intakeLabel` | P | — | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no GitHub issues are taken in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") |
+| `statusMoves` | profile, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead. `start`/`review` a status name or `null` (leave it), `done` a done status name; a name out of the chain or not done by the rules is refused on the page's save | page (the profile's tab of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic (BTN-554, `docs/chain.md`, "Status moves") |
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub, GitLab and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,

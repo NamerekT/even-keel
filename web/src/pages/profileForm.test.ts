@@ -33,6 +33,7 @@ function stored(set: string[]): ProfileView {
     hiddenCi: [],
     deniedPulls: [],
     rules: {},
+    moves: {},
     projectIds: [],
   }
 }
