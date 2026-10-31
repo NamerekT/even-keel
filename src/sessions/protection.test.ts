@@ -77,6 +77,23 @@ describe('session protection', () => {
     expect(protectionRules(DEFAULT_PROTECTION, ['origin']).codex.some(rule => rule[3]?.startsWith('+'))).toBe(false)
   })
 
+  it('denies a push behind git\'s global options without touching an ordinary push or commit', () => {
+    const rules = protectionRules(DEFAULT_PROTECTION, ['origin'])
+    const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)
+    const denied = (command: string) => rules.opencode.bash.some(pattern => matches(command, pattern))
+      && rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1)))
+    for (const command of ['git -C . push --force probe HEAD:refs/heads/x', 'git -C /repo push origin -f', 'git -c core.x=y --no-pager push --mirror origin', 'git --git-dir=.git push origin --delete x', 'git -C . push origin +x', 'git -C . push origin :x', 'git -C . push --force-with-lease']) expect(denied(command), command).toBe(true)
+    for (const command of ['git -C . push origin feature', 'git -C . push origin HEAD:refs/heads/x', 'git commit -m "push --force is denied"', 'git push origin feature']) {
+      expect(rules.opencode.bash.some(pattern => matches(command, pattern)), command).toBe(false)
+      expect(rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1))), command).toBe(false)
+    }
+    for (const global of [['-C', '.'], ['--no-pager']]) {
+      expect(rules.codex).toContainEqual(['git', ...global, 'push', '--force'])
+      expect(rules.codex).toContainEqual(['git', ...global, 'push', 'origin', '-d'])
+      expect(rules.copilot).toContain(`shell(git ${global.join(' ')} push origin --mirror:*)`)
+    }
+  })
+
   it('disables one group, keeps the rest and adds native rules without duplicates', () => {
     const rules = protectionRules({ disabled: ['forcePush'], claude: ['Write(.env)', 'Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'], opencode: [] })
     expect(rules.claude.some(rule => rule.includes('--force'))).toBe(false)

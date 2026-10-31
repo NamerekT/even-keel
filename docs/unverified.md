@@ -20,7 +20,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 0a | [Silent turn recovery](#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
 | 0e | [Tracker deletes refused by the gateway](#tracker-deletes-refused-by-the-gateway-btn-541) | chain sessions on any tracker with Protection's tracker switches on | a record is deleted despite the switch, or a harmless call is refused |
-| 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode `rm -rf` groups on Linux, macOS, other agents/subagents and equivalent command spellings (Linux pushes checked; BTN-641, BTN-642 found) | permissions or shell parsing may differ from the checked Windows build-agent calls |
+| 0b | [OpenCode Protection](#opencode-protection-btn-486) | OpenCode `rm -rf` groups on Linux, macOS, other agents/subagents and equivalent command spellings (Linux pushes checked; BTN-641, BTN-642 found; `git -C . push --force` after BTN-642 first) | permissions or shell parsing may differ from the checked Windows build-agent calls |
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit-btn-530) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 1c | [The first limits poll after a restart](#the-first-limits-poll-after-a-restart-btn-595) | everyone on a subscription | a task starts into a used-up limit after a restart, or waits a few minutes for nothing |
@@ -160,7 +160,9 @@ itself, `cd . && …` included, but `git -C . push --force` went through (BTN-64
 through the server's `invoke_tool` meta-tool, which neither the native rules nor the gateway looked inside (BTN-641,
 any agent) ([verified.md](verified.md#opencode)). Since BTN-641 the gateway looks into the nested call; that is
 checked by unit tests only ([Tracker deletes refused by the gateway](#tracker-deletes-refused-by-the-gateway-btn-541)).
-The `rm -rf` groups on Linux, macOS, other agents/subagents and the remaining equivalent spellings stay unchecked.
+Since BTN-642 the push groups also deny `git -* push …` on Claude and OpenCode and the literal `git -C . push …` and
+`git --no-pager push …` on Codex and Copilot; checked by unit tests only — the first live check is the same
+`git -C . push --force` against a disposable remote, on OpenCode and on each other agent. The `rm -rf` groups on Linux, macOS, other agents/subagents and the remaining equivalent spellings stay unchecked.
 **Workaround:** retain server-side branch protection and use disposable targets when checking native rules.
 
 ### API spending cap recovery

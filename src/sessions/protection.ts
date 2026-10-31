@@ -40,9 +40,14 @@ const DELETE_TOOLS = ['issue', 'project', 'component', 'milestone', 'label', 'co
 interface Rules { claude: string[]; codex: string[][]; copilot: string[]; opencode: { bash: string[]; tools: string[] } }
 /** Copilot, like Codex, matches a command's leading words (`shell(<prefix>:*)`); a `*` anywhere else matches nothing. */
 const commands = (patterns: string[], prefixes: string[][]): Rules => ({ claude: patterns.map(pattern => `Bash(${pattern})`), codex: prefixes, copilot: prefixes.map(prefix => `shell(${prefix.join(' ')}:*)`), opencode: { bash: patterns, tools: [] } })
+/**
+ * Git's global options (`-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--no-pager`) go before `push` (BTN-642). Patterns take
+ * any of them as `git -* push`; a prefix has no wildcard, so Codex and Copilot get only these literal spellings.
+ */
+const GIT_GLOBALS = [[], ['-C', '.'], ['--no-pager']]
 const push = (flags: string[], remotes: readonly string[]) => commands(
-  flags.flatMap(flag => [`git push ${flag}*`, `git push * ${flag}*`]),
-  flags.flatMap(flag => [['git', 'push', flag], ...remotes.map(remote => ['git', 'push', remote, flag])]),
+  ['git', 'git -*'].flatMap(git => flags.flatMap(flag => [`${git} push ${flag}*`, `${git} push * ${flag}*`])),
+  GIT_GLOBALS.flatMap(global => flags.flatMap(flag => [['git', ...global, 'push', flag], ...remotes.map(remote => ['git', ...global, 'push', remote, flag])])),
 )
 const remove = (targets: string[]) => commands(
   ['-rf', '-fr'].flatMap(flags => targets.map(target => `rm ${flags} ${target}*`)),
@@ -78,10 +83,12 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     deleteJira: gateway(),
     deleteHuly: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]), opencode: { bash: [], tools: hulyServers.flatMap(server => DELETE_TOOLS.map(name => `${server}_${name}`)) } },
   }
-  groups.forcePush.claude.push('Bash(git push * +*)')
-  groups.deleteRemote.claude.push('Bash(git push * :*)')
-  groups.forcePush.opencode.bash.push('git push * +*')
-  groups.deleteRemote.opencode.bash.push('git push * :*')
+  for (const git of ['git', 'git -*']) {
+    groups.forcePush.claude.push(`Bash(${git} push * +*)`)
+    groups.deleteRemote.claude.push(`Bash(${git} push * :*)`)
+    groups.forcePush.opencode.bash.push(`${git} push * +*`)
+    groups.deleteRemote.opencode.bash.push(`${git} push * :*`)
+  }
   const enabled = PROTECTION_GROUPS.filter(group => !value.disabled.includes(group)).map(group => groups[group])
   const unique = <T>(values: T[]): T[] => [...new Map(values.map(value => [JSON.stringify(value), value])).values()]
   return {
