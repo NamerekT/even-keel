@@ -11,6 +11,7 @@ import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './k
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, enabledPackages, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
+import { checkServer, neededOf, trimOf } from './trim.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
@@ -512,8 +513,7 @@ export class Packages {
             this.deps.log(`packages: ${name}: ${spec.name}@${npm} copied from ${last!.id} in ${seconds() - at} s`)
             continue
           }
-          servers[server] = await installPinned(entry, spec, npm, prefix)
-          this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} took ${seconds() - at} s`)
+          servers[server] = await this.installServer(name, entry, spec, npm, prefix, () => seconds() - at)
         }
       }
       const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras }
@@ -531,6 +531,26 @@ export class Packages {
       this.installing.delete(name)
       this.deps.onChange()
     }
+  }
+
+  /**
+   * npm install of a pinned server; one with a trim is kept only once it answers its check, else it is installed again
+   * in full: `@latest` may bring a version that needs a dropped package, and nobody would edit the trim in time.
+   */
+  private async installServer(name: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string, took: () => number): Promise<InstalledServer> {
+    const trim = trimOf(spec.name)
+    if (trim !== undefined) {
+      const trimmed = await installPinned(entry, spec, npm, prefix, trim.drop)
+      this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} without ${trim.drop.length} packages took ${took()} s`)
+      const failed = await checkServer(trimmed.entry, this.deps.baseEnv(), trim.env)
+      if (failed === null) return trimmed
+      const needed = neededOf(failed)
+      this.deps.log(`packages: ${name}: ${spec.name}@${npm} ${needed === null ? 'failed its check' : `needs ${needed}`} without them (${failed}); installing it in full`)
+      rmSync(prefix, { recursive: true, force: true })
+    }
+    const server = await installPinned(entry, spec, npm, prefix)
+    this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} took ${took()} s`)
+    return server
   }
 
   /**
