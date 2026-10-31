@@ -223,6 +223,7 @@ export const noticesRu: NoticeTexts = {
 
   'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
   'copilot.modelUnavailable': (p) => `Copilot не может использовать модель «${p.model}». Выберите доступную модель в поле «Модель» настроек сессий проекта (или смените метку модели задачи), затем нажмите «Новая сессия».`,
+  'copilot.notSignedIn': () => 'Copilot на этой машине не вошёл. Выполните «gh auth login» под пользователем, от которого работает Even Keel, или добавьте аккаунт Copilot со своим токеном на странице «Аккаунты», затем нажмите «Новая сессия».',
   'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,
   'copilot.unknownSession': (p) => `Copilot: сессию ${p.session} запускал не Even Keel`,
   'copilot.stillRunning': (p) => `Copilot: ход ${p.session} убит, но ещё идёт`,
