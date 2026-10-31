@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { issue } from './fixture.js'
-import { linearPlace, linearPriority, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearRef, type TeamStateDoc } from './model.js'
+import { backlogState, linearPlace, linearPriority, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearRef, type TeamStateDoc } from './model.js'
 
 describe('linear place', () => {
   it('takes the key for the team, the value for a project of it', () => {
@@ -178,5 +178,21 @@ describe('linear ready state', () => {
 
   it('fails for a team without an unstarted state', () => {
     expect(() => readyState({ name: 'Backlog', type: 'backlog' }, [states[0]!])).toThrow(/unstarted/)
+  })
+
+  it('moves a ready or started task back to the first backlog state by position', () => {
+    const team = [...states, { id: 'e', name: 'Icebox', type: 'backlog', position: 4 }]
+    expect(backlogState({ name: 'Todo', type: 'unstarted' }, team)?.id).toBe('a')
+    expect(backlogState({ name: 'In Progress', type: 'started' }, team)?.id).toBe('a')
+  })
+
+  it('leaves a task in the backlog, in triage or closed alone', () => {
+    expect(backlogState({ name: 'Backlog', type: 'backlog' }, states)).toBeNull()
+    expect(backlogState({ name: 'Triage', type: 'triage' }, states)).toBeNull()
+    expect(backlogState({ name: 'Done', type: 'completed' }, states)).toBeNull()
+  })
+
+  it('fails for a team without a backlog state', () => {
+    expect(() => backlogState({ name: 'Todo', type: 'unstarted' }, states.slice(1))).toThrow(/backlog/)
   })
 })

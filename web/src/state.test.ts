@@ -17,7 +17,7 @@ import {
   backlogTasks,
   backlogWork,
   blockMetered,
-  canReady,
+  canUnready,
   loginLeft,
   cardTask,
   openQuestions,
@@ -439,16 +439,24 @@ describe('taskLinks', () => {
   })
 })
 
-describe('canReady', () => {
-  const tracker = (ready: boolean) => ({ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
+describe('canUnready', () => {
+  const tracker = (can: { unready?: boolean; relabel?: boolean }) => ({ name: 'gh', kind: 'github', title: 'GitHub', projects: ['ABC'], ready: false, ...can, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
+  const order = { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], requiredLabel: { 'ABC-1': true, 'ABC-2': false }, error: null }
+  const stateWith = (can: { unready?: boolean; relabel?: boolean }, sessions: unknown[] = []) =>
+    stateOf({ trackers: [tracker(can)], chain: chain({ projects: { ABC: order } }), sessions: sessions as never })
 
-  it('is true when the tracker of the project can move a task to Todo', () => {
-    expect(canReady(stateOf({ trackers: [tracker(true)] }), 'ABC')).toBe(true)
+  it('is there where the tracker can move the task back or take its required label off', () => {
+    expect(canUnready(stateWith({ unready: true }), 'ABC', { id: 'ABC-2', stage: 'ToDo' })).toBe(true)
+    expect(canUnready(stateWith({ unready: true }), 'ABC', { id: 'ABC-2', stage: 'Active' })).toBe(true)
+    expect(canUnready(stateWith({ relabel: true }), 'ABC', { id: 'ABC-1', stage: 'ToDo' })).toBe(true)
   })
 
-  it('is false when the tracker cannot or the project has no tracker', () => {
-    expect(canReady(stateOf({ trackers: [tracker(false)] }), 'ABC')).toBe(false)
-    expect(canReady(stateOf({ trackers: [tracker(true)] }), 'XYZ')).toBe(false)
+  it('is not there for a task the tracker cannot move, nor for one with a live session', () => {
+    expect(canUnready(stateWith({ relabel: true }), 'ABC', { id: 'ABC-2', stage: 'ToDo' })).toBe(false)
+    expect(canUnready(stateWith({ unready: true }), 'ABC', { id: 'ABC-2', stage: 'UnStarted' })).toBe(false)
+    expect(canUnready(stateWith({ unready: true, relabel: true }), 'XYZ', { id: 'ABC-1', stage: 'ToDo' })).toBe(false)
+    expect(canUnready(stateWith({ relabel: true }, [{ task: 'ABC-1', lamp: 'working' }]), 'ABC', { id: 'ABC-1', stage: 'ToDo' })).toBe(false)
+    expect(canUnready(stateWith({ relabel: true }, [{ task: 'ABC-1', lamp: 'finished' }]), 'ABC', { id: 'ABC-1', stage: 'ToDo' })).toBe(true)
   })
 })
 
@@ -478,6 +486,17 @@ const later = notice('order.later', { task: 'ABC-2', milestone: 'v0.1', blocker:
     expect(readyButton(stateWith(true), 'ABC', { id: 'XYZ-1', stage: 'UnStarted', locked: true })).toBeNull()
     expect(readyButton(stateWith(true), 'ABC', { id: 'ABC-7', stage: 'ToDo', locked: true })).toBeNull()
     expect(readyButton(stateWith(false), 'ABC', { id: 'ABC-5', stage: 'UnStarted', locked: false })).toBeNull()
+  })
+
+  it('shows on an open task without the required label where the tracker can put it on', () => {
+    const labelled = (relabel: boolean) =>
+      stateOf({
+        trackers: [{ ...tracker(false), relabel }],
+        chain: chain({ projects: { ABC: { order: ['ABC-2'], waiting: [], backlog: ['ABC-5'], requiredLabel: { 'ABC-2': true, 'ABC-5': false }, error: null } } }),
+      })
+    expect(readyButton(labelled(true), 'ABC', { id: 'ABC-5', stage: 'ToDo', locked: false })).toEqual({ refused: null })
+    expect(readyButton(labelled(false), 'ABC', { id: 'ABC-5', stage: 'ToDo', locked: false })).toBeNull()
+    expect(readyButton(labelled(true), 'ABC', { id: 'ABC-2', stage: 'ToDo', locked: false })).toBeNull()
   })
 })
 

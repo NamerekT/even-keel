@@ -324,12 +324,12 @@ export function ghostOf(state: EvenKeelState, project: string, id: string | null
   return { id, title: task.title, milestone: milestone?.label ?? null, before: landing[id] ?? null }
 }
 
-export function canReady(state: EvenKeelState, project: string): boolean {
-  return state.trackers.some((view) => view.ready && view.projects.includes(project))
-}
+const trackerCan = (state: EvenKeelState, project: string, move: 'ready' | 'unready' | 'relabel'): boolean =>
+  state.trackers.some((view) => view[move] === true && view.projects.includes(project))
 
 /**
- * The "Move to Todo" button of a backlog task or a locked blocker, `null` for none: a locked one has it only where the service
+ * The "Into the chain" button of a backlog task or a locked blocker, `null` for none: shown where the tracker can move the
+ * task out of its backlog status or put the missing required label on (BTN-509). A locked one has it only where the service
  * worked out its place, which leaves out manual tasks, parents and other projects. `refused` — why it is off: once taken,
  * the task would leave the chain without an order.
  */
@@ -338,11 +338,25 @@ export interface ReadyButton {
 }
 
 export function readyButton(state: EvenKeelState, project: string, task: { id: string; stage: StatusCategory | null; locked: boolean }): ReadyButton | null {
-  if (!canReady(state, project) || task.stage !== 'UnStarted') return null
   const order = state.chain.projects[project]
+  const byStatus = task.stage === 'UnStarted' && trackerCan(state, project, 'ready')
+  const byLabel = order?.requiredLabel?.[task.id] === false && trackerCan(state, project, 'relabel')
+  if (!byStatus && !byLabel) return null
   const refused = order?.refused?.[task.id] ?? null
   if (task.locked && refused === null && !Object.hasOwn(order?.landing ?? {}, task.id)) return null
   return { refused }
+}
+
+/**
+ * Whether a chain task has the "To the backlog" button: the tracker can move it back to its backlog status or take the
+ * required labels off, and no session of it is live — that would be a new way to touch a session (invariant 1).
+ */
+export const hasLiveSession = (state: EvenKeelState, task: string): boolean => state.sessions.some((view) => view.task === task && view.lamp !== 'finished')
+
+export function canUnready(state: EvenKeelState, project: string, task: { id: string; stage: StatusCategory | null }): boolean {
+  if (hasLiveSession(state, task.id)) return false
+  const byStatus = (task.stage === 'ToDo' || task.stage === 'Active') && trackerCan(state, project, 'unready')
+  return byStatus || (state.chain.projects[project]?.requiredLabel?.[task.id] === true && trackerCan(state, project, 'relabel'))
 }
 
 export function openQuestions(tasks: Task[]): number {

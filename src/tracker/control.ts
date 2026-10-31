@@ -1,13 +1,17 @@
-import type { ChainRules } from '../chain/rules.js'
+import { missingLabel, requiredOn, type ChainRules } from '../chain/rules.js'
 import { fail } from '../notice/notice.js'
 import type { TaskControl } from '../server.js'
 import { cardOf } from './card.js'
+import type { LabelChange } from './labels.js'
 import type { TrackerLink } from './link.js'
+import type { Tracker } from './source.js'
 import type { ReaderTasks } from './readers.js'
-import { toTask } from './model.js'
+import { toTask, type TaskStatus } from './model.js'
 
 export interface TaskControlDeps {
   configuredProject(task: string): string | undefined
+  /** A session of the task is live: "To the backlog" would be a new way to touch it. */
+  live(task: string): boolean
   linkFor(project: string, task: string): TrackerLink | undefined
   rulesOf(project: string, task: string): ChainRules
   readerFor(project: string, task: string): string
@@ -20,6 +24,28 @@ export interface TaskControlDeps {
 
 export function taskControl(deps: TaskControlDeps): TaskControl {
   const { configuredProject, linkFor, rulesOf, readerFor, refreshers, readerTasks } = deps
+
+  const relabeled = async (tracker: Tracker, task: string, change: LabelChange): Promise<string[]> => {
+    try { return await tracker.relabel!(task, change) } catch (error) {
+      throw fail('task.relabelFailed', { task }, {}, { cause: error })
+    }
+  }
+
+  // The service puts the task's new state in at once. A read when the reader has one, not a patch: a task entering the chain
+  // takes the milestone `fillMilestone` gives it.
+  const settle = async (reader: string, task: string, moved: { labels?: string[] | undefined; status?: TaskStatus | null | undefined }): Promise<void> => {
+    const refresh = refreshers.get(reader)
+    if (refresh !== undefined) return refresh()
+    const tasks = readerTasks.get(reader)
+    if (tasks?.some((each) => each.id === task)) {
+      const { labels, status } = moved
+      const updated = tasks.map((each) => (each.id === task ? toTask({ ...each, labels: labels ?? each.labels, status: status ?? each.status }) : each))
+      readerTasks.set(reader, updated)
+      readerTasks.setTasks(reader, updated)
+    }
+    deps.broadcast()
+  }
+
   return {
     card: async (task) => {
       const project = configuredProject(task)
@@ -28,7 +54,8 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       return link.run(async (tracker) => {
         if (tracker.card === undefined) return undefined
         const [card, milestones] = await Promise.all([tracker.card(task), tracker.milestones?.(task) ?? null])
-        return cardOf(card, rulesOf(project!, task), tracker.ready !== undefined, milestones)
+        const can = { ready: tracker.ready !== undefined, unready: tracker.unready !== undefined, relabel: tracker.relabel !== undefined }
+        return cardOf(card, rulesOf(project!, task), can, milestones)
       })
     },
     file: async (task, file) => {
@@ -37,24 +64,45 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       if (link === undefined) return undefined
       return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
     },
+    // "Into the chain": the missing required label on, then out of the backlog status, whichever the tracker can (BTN-509).
     ready: async (task) => {
       const project = configuredProject(task)
       const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
-      const status = await link.run(async (tracker) => tracker.ready?.(task))
-      if (status === undefined) throw fail('task.cannotReady', { task })
-      if (status === null) throw fail('task.pastBacklog', { task })
       const reader = readerFor(project!, task)
-      // A read, not a patch: the task enters the chain already in the milestone `fillMilestone` gives it.
-      const refresh = refreshers.get(reader)
-      if (refresh !== undefined) return refresh()
-      const tasks = readerTasks.get(reader)
-      if (tasks?.some((each) => each.id === task)) {
-        const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
-        readerTasks.set(reader, updated)
-        readerTasks.setTasks(reader, updated)
-      }
-      deps.broadcast()
+      const listed = readerTasks.get(reader)?.find((each) => each.id === task)
+      const label = listed === undefined ? null : missingLabel(rulesOf(project!, task), listed)
+      const moved = await link.run(async (tracker) => {
+        const labels = label === null || tracker.relabel === undefined ? undefined : await relabeled(tracker, task, { add: [label], remove: [] })
+        const status = await tracker.ready?.(task)
+        if (labels === undefined && (status ?? null) === null) {
+          if (label !== null || tracker.ready === undefined) throw fail('task.cannotReady', { task })
+          throw fail('task.pastBacklog', { task })
+        }
+        return { labels, status }
+      })
+      return settle(reader, task, moved)
+    },
+    // "To the backlog": the mirror of `ready`, for a task no live session works on (invariant 1).
+    unready: async (task) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : linkFor(project, task)
+      if (link === undefined) throw fail('task.noTracker', { task })
+      if (deps.live(task)) throw fail('task.unreadyLive', { task })
+      const reader = readerFor(project!, task)
+      const listed = readerTasks.get(reader)?.find((each) => each.id === task)
+      const rules = rulesOf(project!, task)
+      const remove = listed === undefined ? rules.requiredLabels : requiredOn(rules, listed)
+      const moved = await link.run(async (tracker) => {
+        const labels = remove.length === 0 || tracker.relabel === undefined ? undefined : await relabeled(tracker, task, { add: [], remove })
+        const status = await tracker.unready?.(task)
+        if (labels === undefined && (status ?? null) === null) {
+          if (remove.length > 0 || tracker.unready === undefined) throw fail('task.cannotUnready', { task })
+          throw fail('task.inBacklog', { task })
+        }
+        return { labels, status }
+      })
+      return settle(reader, task, moved)
     },
     relabel: async (task, change) => {
       const project = configuredProject(task)
@@ -65,17 +113,8 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
         throw fail('task.relabelFailed', { task }, {}, { cause: error })
       }
       if (labels === undefined) throw fail('task.cannotRelabel', { task })
-      const reader = readerFor(project!, task)
       // Labels can admit a task to the chain: fill its milestone through the same read as `ready`.
-      const refresh = refreshers.get(reader)
-      if (refresh !== undefined) return refresh()
-      const tasks = readerTasks.get(reader)
-      if (tasks !== undefined) {
-        const updated = tasks.map((each) => each.id === task ? toTask({ ...each, labels }) : each)
-        readerTasks.set(reader, updated)
-        readerTasks.setTasks(reader, updated)
-      }
-      deps.broadcast()
+      return settle(readerFor(project!, task), task, { labels })
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {

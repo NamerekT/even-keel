@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  backlogStatus,
   cardLinks,
   closingStatus,
   labeled,
@@ -176,6 +177,22 @@ describe('readyStatus', () => {
 
   it('fails when the project has no ToDo status', () => {
     expect(() => readyStatus('tracker:status:Backlog', statuses, ['tracker:status:Backlog'])).toThrow(/no ToDo status/)
+  })
+})
+
+describe('backlogStatus', () => {
+  it('moves a ready or started issue to the first backlog status of its project', () => {
+    expect(backlogStatus('tracker:status:Todo', statuses, null)?._id).toBe('tracker:status:Backlog')
+    expect(backlogStatus('tracker:status:InProgress', statuses, null)?._id).toBe('tracker:status:Backlog')
+  })
+
+  it('leaves an issue in the backlog or closed alone', () => {
+    expect(backlogStatus('tracker:status:Backlog', statuses, null)).toBeNull()
+    expect(backlogStatus('tracker:status:Done', statuses, null)).toBeNull()
+  })
+
+  it('fails when the project has no backlog status', () => {
+    expect(() => backlogStatus('tracker:status:Todo', statuses, ['tracker:status:Todo'])).toThrow(/no backlog status/)
   })
 })
 

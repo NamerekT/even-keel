@@ -117,7 +117,10 @@ export interface TaskControl {
   card(task: string): Promise<TaskCard | undefined>
   /** `undefined` — no connected tracker gives the file, or the task has no such file. */
   file(task: string, file: string): Promise<TaskFile | undefined>
+  /** "Into the chain": puts the missing required label on and moves the task out of the backlog status. */
   ready(task: string): Promise<void>
+  /** "To the backlog": the mirror of `ready`, refused for a task with a live session. */
+  unready(task: string): Promise<void>
   relabel(task: string, change: LabelChange): Promise<void>
   /** `milestone` is an id from the card's `milestones`; `null` — out of any. */
   moveMilestone(task: string, milestone: string | null): Promise<void>
@@ -281,6 +284,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'chain/refresh': ({ tasks }, body) => tasks.refresh(projectOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
+  'task/unready': ({ tasks }, body) => tasks.unready(taskOf(body)),
   'task/labels': ({ tasks }, body) => tasks.relabel(taskOf(body), { add: labelList(body.add, 'add'), remove: labelList(body.remove, 'remove') }),
   'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),

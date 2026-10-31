@@ -141,6 +141,17 @@ export function readyStatus(current: string, statuses: HulyStatusDoc[], allowed:
   return todoStatus(statuses, allowed)
 }
 
+// The mirror of `readyStatus` (BTN-509). `null` — the issue is in the backlog or closed.
+export function backlogStatus(current: string, statuses: HulyStatusDoc[], allowed: string[] | null): HulyStatusDoc | null {
+  const byId = new Map(statuses.map((doc) => [doc._id, doc]))
+  const now = byId.get(current)
+  if (now === undefined || !['ToDo', 'Active'].includes(toStatus(now).category)) return null
+  const candidates = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
+  const backlog = candidates.find((doc) => toStatus(doc).category === 'UnStarted')
+  if (backlog === undefined) throw new Error('huly: the project has no backlog status')
+  return backlog
+}
+
 /** The project's first `ToDo` status: the one a task the chain should take goes into. */
 export function todoStatus(statuses: HulyStatusDoc[], allowed: string[] | null): HulyStatusDoc {
   const byId = new Map(statuses.map((doc) => [doc._id, doc]))

@@ -58,7 +58,7 @@ const KEY_LIMIT_AGENTS: Record<string, string> = { spend: 'claude', spendUnknown
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
-  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true, relabel: true }
+  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true, unready: true, relabel: true }
   const readAt = (minutes: number) => Object.fromEntries(projects.map((project) => [project, ago(minutes)]))
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
