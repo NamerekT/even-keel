@@ -222,6 +222,8 @@ export const noticesRu: NoticeTexts = {
   'opencode.streamError': () => 'OpenCode сообщил об ошибке потока и ждёт. Отправьте ответ для повтора или нажмите «Новая сессия».',
 
   'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
+  'copilot.binaryMissing': (p) =>
+    `Copilot CLI не запускается: «${p.bin}» — не программа, которую Even Keel может запустить. Выберите «Проверенную» в «Версии CLI» Copilot (Настройки → Провайдеры и модели) или укажите в .env путь к исполняемому файлу copilot в EVEN_KEEL_COPILOT_BIN, затем возобновите цепь.`,
   'copilot.modelUnavailable': (p) => `Copilot не может использовать модель «${p.model}». Выберите доступную модель в поле «Модель» настроек сессий проекта (или смените метку модели задачи), затем нажмите «Новая сессия».`,
   'copilot.notSignedIn': () => 'Copilot на этой машине не вошёл. Выполните «gh auth login» под пользователем, от которого работает Even Keel, или добавьте аккаунт Copilot со своим токеном на странице «Аккаунты», затем нажмите «Новая сессия».',
   'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,

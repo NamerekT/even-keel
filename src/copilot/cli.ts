@@ -2,7 +2,7 @@ import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child
 import { randomUUID } from 'node:crypto'
 import { closeSync, existsSync, openSync, readdirSync, readFileSync } from 'node:fs'
 import { rm, stat } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, win32 } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
@@ -15,8 +15,9 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
+import { pathFolders } from '../paths.js'
 import { protectionRules } from '../sessions/protection.js'
-import { outputError, refusalNotice, type TurnError } from './errors.js'
+import { outputError, startFailure, type TurnError } from './errors.js'
 
 const run = promisify(execFile)
 
@@ -36,19 +37,36 @@ export const SESSION_MODE = 'allow-all-tools'
 /**
  * `EVEN_KEEL_COPILOT_BIN`, else Even Keel's own copy of the checked version (`pinned`, BTN-347), else on Windows the
  * `copilot.exe` winget installed (its folder is on the user's PATH only through a link the service may not see), else
- * `copilot` on the PATH.
+ * the native `copilot.exe` of an npm install (its wrappers on the PATH need a shell) in a PATH folder or `%APPDATA%\npm`,
+ * else `copilot` on the PATH.
  */
-export function resolveCopilotBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
+export function resolveCopilotBinary(env: NodeJS.ProcessEnv, pinned?: string, platform: NodeJS.Platform = process.platform, arch: string = process.arch, exists: (path: string) => boolean = existsSync): string {
   if (env.EVEN_KEEL_COPILOT_BIN) return env.EVEN_KEEL_COPILOT_BIN
   if (pinned !== undefined) return pinned
-  if (process.platform !== 'win32' || env.LOCALAPPDATA === undefined) return 'copilot'
-  const winget = join(env.LOCALAPPDATA, 'Microsoft', 'WinGet')
-  const link = join(winget, 'Links', 'copilot.exe')
-  if (existsSync(link)) return link
-  const packages = join(winget, 'Packages')
+  if (platform !== 'win32') return 'copilot'
+  return wingetBinary(env, exists) ?? npmBinary(env, arch, exists) ?? 'copilot'
+}
+
+function wingetBinary(env: NodeJS.ProcessEnv, exists: (path: string) => boolean): string | undefined {
+  if (env.LOCALAPPDATA === undefined) return undefined
+  const winget = win32.join(env.LOCALAPPDATA, 'Microsoft', 'WinGet')
+  const link = win32.join(winget, 'Links', 'copilot.exe')
+  if (exists(link)) return link
+  const packages = win32.join(winget, 'Packages')
   const folder = readdirSafe(packages).find((name) => name.startsWith('GitHub.Copilot_'))
-  const native = folder === undefined ? undefined : join(packages, folder, 'copilot.exe')
-  return native !== undefined && existsSync(native) ? native : 'copilot'
+  const native = folder === undefined ? undefined : win32.join(packages, folder, 'copilot.exe')
+  return native !== undefined && exists(native) ? native : undefined
+}
+
+/** `@github/copilot-win32-<arch>` lies inside `@github/copilot`, or beside it when npm hoisted it. */
+function npmBinary(env: NodeJS.ProcessEnv, arch: string, exists: (path: string) => boolean): string | undefined {
+  const folders = [...pathFolders(env, 'win32'), ...(env.APPDATA === undefined ? [] : [win32.join(env.APPDATA, 'npm')])]
+  const native = ['@github', `copilot-win32-${arch}`, 'copilot.exe']
+  const candidates = folders.flatMap((folder) => {
+    const modules = win32.join(folder, 'node_modules')
+    return [win32.join(modules, '@github', 'copilot', 'node_modules', ...native), win32.join(modules, ...native)]
+  })
+  return candidates.find(exists)
 }
 
 function readdirSafe(dir: string): string[] {
@@ -239,11 +257,16 @@ export class CopilotCli {
     const transcript = eventsFile(home.dir, session.id)
     const before = session.resume ? await size(transcript) : 0
     const fd = openSync(out, 'a')
+    const bin = this.bin()
     let exited = false
+    let spawnError: NodeJS.ErrnoException | undefined
     let child
     try {
-      child = spawn(this.bin(), turnArgs(start, start.prompt, place, session), { cwd, env: this.envOf(home), detached: true, stdio: ['ignore', fd, fd], windowsHide: true })
-      child.on('error', () => (exited = true))
+      child = spawn(bin, turnArgs(start, start.prompt, place, session), { cwd, env: this.envOf(home), detached: true, stdio: ['ignore', fd, fd], windowsHide: true })
+      child.on('error', (error) => {
+        spawnError = error
+        exited = true
+      })
       child.on('exit', () => (exited = true))
       child.unref()
     } catch (error) {
@@ -257,9 +280,7 @@ export class CopilotCli {
       if (child.pid !== undefined && ((await size(transcript)) > before || (exited && sessionOf(text) === session.id))) return { pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
-        const refusal = refusalNotice(outputError(text) ?? '')
-        if (refusal !== undefined) throw new NoticeError(refusal)
-        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
+        throw new NoticeError(startFailure(failure, text, bin, spawnError))
       }
       await delay(POLL_MS)
     }

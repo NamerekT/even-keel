@@ -57,5 +57,6 @@ describe('findBinary', () => {
     const env = { Path: 'C:\\Windows;C:\\Users\\john\\AppData\\Roaming\\npm' }
     expect(findBinary('codex', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\codex.exe'))).toBe(true)
     expect(findBinary('codex', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\codex.cmd'))).toBe(false)
+    expect(findBinary('copilot', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\copilot'))).toBe(false)
   })
 })

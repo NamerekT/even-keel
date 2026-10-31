@@ -30,6 +30,17 @@ export function refusalNotice(text: string): Notice | undefined {
   return model === undefined ? undefined : notice('copilot.modelUnavailable', { model })
 }
 
+/**
+ * Why a turn did not start: a refusal the page can fix, a binary `spawn` cannot find (on Windows an npm wrapper on
+ * the PATH it does not run), or `failure` with the turn's output or the spawn error.
+ */
+export function startFailure(failure: Notice, output: string, bin: string, spawnError?: NodeJS.ErrnoException): Notice {
+  const refusal = refusalNotice(outputError(output) ?? '')
+  if (refusal !== undefined) return refusal
+  if (spawnError?.code === 'ENOENT') return notice('copilot.binaryMissing', { bin }, { cause: failure, detail: spawnError.message })
+  return { ...failure, detail: output.trim().slice(-500) || spawnError?.message }
+}
+
 /** The last turn's refusal supplements a missing or metadata-only transcript, without changing the CLI's files. */
 export function withTurnError(summary: TranscriptSummary, error: TurnError | undefined, feedSize = 30): TranscriptSummary {
   if (error === undefined || (summary.lastActivityAt !== null && Date.parse(summary.lastActivityAt) > Date.parse(error.at))) return summary

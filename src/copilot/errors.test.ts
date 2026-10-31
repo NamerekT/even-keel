@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { outputError, refusalNotice, withTurnError } from './errors.js'
+import { notice } from '../notice/notice.js'
+import { outputError, refusalNotice, startFailure, withTurnError } from './errors.js'
 import { foldEvents } from './transcript.js'
 
 const text = 'Error: Model "missing-model" from --model flag is not available.'
@@ -41,5 +42,20 @@ describe('Copilot CLI refusals', () => {
     expect(withTurnError(empty, { at: '2026-01-01T00:00:00Z', text }).apiError?.kind).toBe('error')
     expect(empty.apiError).toBeNull()
     expect(empty.feed).toEqual([])
+  })
+})
+
+describe('startFailure', () => {
+  const failure = notice('copilot.startFailed', { task: 'DEMO-1', cwd: 'C:\\work\\demo' })
+
+  it('names a binary spawn cannot find and what to do instead of an empty failure', () => {
+    const error = Object.assign(new Error('spawn copilot ENOENT'), { code: 'ENOENT' })
+    expect(startFailure(failure, '', 'copilot', error)).toEqual({ ...notice('copilot.binaryMissing', { bin: 'copilot' }), cause: failure, detail: 'spawn copilot ENOENT' })
+  })
+
+  it('keeps the start failure with the output, the spawn error when there is none, or a refusal', () => {
+    expect(startFailure(failure, 'boom\n', 'copilot')).toEqual({ ...failure, detail: 'boom' })
+    expect(startFailure(failure, '', 'copilot', Object.assign(new Error('spawn EACCES'), { code: 'EACCES' }))).toEqual({ ...failure, detail: 'spawn EACCES' })
+    expect(startFailure(failure, text, 'copilot')).toEqual(notice('copilot.modelUnavailable', { model: 'missing-model' }))
   })
 })

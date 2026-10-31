@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ownServers, sessionOf, turnArgs, turnEnded } from './cli.js'
+import { ownServers, resolveCopilotBinary, sessionOf, turnArgs, turnEnded } from './cli.js'
 
 const place = { cwd: 'C:\\work\\demo', dirs: ['C:\\work\\main'], disabled: [], remotes: [] }
 
@@ -91,5 +91,37 @@ describe('turn output', () => {
     expect(turnEnded(`${progress}\n${result}\n`)).toBe(true)
     expect(sessionOf(`${progress}\n`)).toBeUndefined()
     expect(sessionOf(`${progress}\n${result}\n`)).toBe('abc')
+  })
+})
+
+describe('resolveCopilotBinary', () => {
+  const at = (...files: string[]) => (path: string) => files.includes(path)
+  const npm = 'C:\\Users\\john\\AppData\\Roaming\\npm'
+  const nested = `${npm}\\node_modules\\@github\\copilot\\node_modules\\@github\\copilot-win32-x64\\copilot.exe`
+  const hoisted = `${npm}\\node_modules\\@github\\copilot-win32-x64\\copilot.exe`
+  const local = 'C:\\Users\\john\\AppData\\Local'
+
+  it('takes the variable, then the checked copy, and elsewhere than Windows the bare name', () => {
+    expect(resolveCopilotBinary({ EVEN_KEEL_COPILOT_BIN: 'C:\\tools\\copilot.exe' }, 'C:\\copy\\copilot.exe', 'win32', 'x64', at())).toBe('C:\\tools\\copilot.exe')
+    expect(resolveCopilotBinary({}, 'C:\\copy\\copilot.exe', 'win32', 'x64', at())).toBe('C:\\copy\\copilot.exe')
+    expect(resolveCopilotBinary({ PATH: '/usr/bin' }, undefined, 'linux', 'x64', at('/usr/lib/node_modules/@github/copilot-linux-x64/copilot'))).toBe('copilot')
+  })
+
+  it('finds the native copilot.exe of an npm install next to its wrapper on the PATH, nested or hoisted', () => {
+    const env = { Path: `C:\\Windows;${npm}` }
+    expect(resolveCopilotBinary(env, undefined, 'win32', 'x64', at(nested))).toBe(nested)
+    expect(resolveCopilotBinary(env, undefined, 'win32', 'x64', at(hoisted))).toBe(hoisted)
+    const arm = `${npm}\\node_modules\\@github\\copilot\\node_modules\\@github\\copilot-win32-arm64\\copilot.exe`
+    expect(resolveCopilotBinary(env, undefined, 'win32', 'arm64', at(arm))).toBe(arm)
+  })
+
+  it('looks into the npm folder of APPDATA when the PATH does not name it', () => {
+    expect(resolveCopilotBinary({ APPDATA: 'C:\\Users\\john\\AppData\\Roaming', PATH: 'C:\\Windows' }, undefined, 'win32', 'x64', at(nested))).toBe(nested)
+  })
+
+  it('puts winget before npm and falls back to the bare name', () => {
+    const link = `${local}\\Microsoft\\WinGet\\Links\\copilot.exe`
+    expect(resolveCopilotBinary({ LOCALAPPDATA: local, PATH: npm }, undefined, 'win32', 'x64', at(link, nested))).toBe(link)
+    expect(resolveCopilotBinary({ LOCALAPPDATA: local, PATH: npm }, undefined, 'win32', 'x64', at(`${npm}\\copilot`, `${npm}\\copilot.cmd`))).toBe('copilot')
   })
 })

@@ -97,6 +97,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
+| 69a | [Copilot from npm on Windows](#copilot-from-npm-on-windows-btn-623) | Copilot installed with `npm install -g` on Windows, CLI version Yours | the chain pauses; set CLI version to Checked or `EVEN_KEEL_COPILOT_BIN` |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message sent mid-turn has no bubble in the chat, no handoff on a full context |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
@@ -518,6 +519,10 @@ Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL
 ### Copilot chain sessions under the service (BTN-215)
 
 Whole tasks ran as chain sessions of the Windows service on the machine's own sign-in, which reached session 0 ([`verified.md`](verified.md), "Copilot"). A question answered from the page's chat resumed the session inside the chain (TSK-42, `verified.md`). Never run on a folder with a token, never on Linux or macOS, where the sign-in sits in another store and may not reach a service. **Workaround:** add the Copilot account with a fine-grained token, or run the task on another provider (a run label).
+
+### Copilot from npm on Windows (BTN-623)
+
+With CLI version Yours, Even Keel looks for the native `copilot.exe` of `npm install -g @github/copilot` beside the npm folder on the PATH or in `%APPDATA%\npm`, since npm's own wrappers need a shell. The search was checked on a real npm layout from a terminal ([`verified.md`](verified.md), "Copilot"); a chain session started from it, and the pause that names a binary which cannot be started, with its button to the setting, were not seen. **Workaround:** set Copilot's CLI version to Checked, or point `EVEN_KEEL_COPILOT_BIN` in `.env` at the `copilot.exe` under `node_modules`.
 
 ### Hooks and plugins in Copilot sessions
 
