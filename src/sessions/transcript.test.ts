@@ -868,6 +868,49 @@ describe('TranscriptFold', () => {
       expect(fold([notice]).summary().feed).toEqual([])
     })
 
+    describe('until the session takes it', () => {
+      const queue = (operation: string, content?: string, extra: Record<string, unknown> = {}) =>
+        JSON.stringify({ type: 'queue-operation', operation, timestamp: at(), ...(content === undefined ? {} : { content }), ...extra })
+      const started = () => fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } })])
+
+      it('keeps a message the CLI queued mid-turn on the turn, not in the feed', () => {
+        const session = started()
+        session.push(queue('enqueue', 'Run the e2e too.\n'))
+        const summary = session.summary()
+        expect(summary.turn?.queued).toEqual([{ at: expect.any(String), kind: 'prompt', text: 'Run the e2e too.' }])
+        expect(summary.feed.map((line) => line.text)).toEqual(['ABC-1'])
+      })
+
+      it('drops it once the running turn absorbs it, and the feed shows it', () => {
+        const session = started()
+        session.push(queue('enqueue', 'First.\n'))
+        session.push(queue('enqueue', 'Second.\n'))
+        session.push(queued('First.\n', { kind: 'human' }))
+        session.push(queue('remove', 'First.\n', { reason: 'absorbed_mid_turn' }))
+        expect(session.summary().turn?.queued).toEqual([{ at: expect.any(String), kind: 'prompt', text: 'Second.' }])
+        session.push(queue('remove', 'Second.\n', { reason: 'absorbed_mid_turn' }))
+        expect(session.summary().turn?.queued).toBeUndefined()
+      })
+
+      it('drops the first one a dequeue takes into a new turn', () => {
+        const session = started()
+        session.push(queue('enqueue', 'Next.\n'))
+        session.push(queue('dequeue'))
+        expect(session.summary().turn?.queued).toBeUndefined()
+      })
+
+      it('leaves out an enqueue with no text or one the session queued for itself, and keeps the order for them', () => {
+        const session = started()
+        session.push(queue('enqueue'))
+        session.push(queue('enqueue', '<task-notification>done</task-notification>'))
+        session.push(queue('enqueue', 'Mine.\n'))
+        expect(session.summary().turn?.queued?.map((line) => line.text)).toEqual(['Mine.'])
+        session.push(queue('dequeue'))
+        session.push(queue('dequeue'))
+        expect(session.summary().turn?.queued?.map((line) => line.text)).toEqual(['Mine.'])
+      })
+    })
+
     it('leaves thinking blocks out of the feed, even those with text', () => {
       const summary = fold([assistant('m1', [thinking(''), thinking('Some thinking.'), tool('Read', { file_path: 'a.ts' })])]).summary()
       expect(summary.feed.map((line) => line.kind)).toEqual(['tool'])

@@ -34,6 +34,8 @@ interface Props {
   aside: boolean
   /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
+  /** Messages the working session has queued and not taken yet. */
+  queued: FeedLine[]
   /** `steered` — the message went straight into the working session. */
   onSent: (line: FeedLine, steered: boolean) => void
   handle?: Ref<ComposerHandle>
@@ -45,7 +47,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
+export function ChatComposer({ project, task, session, aside, mail, queued, onSent, handle }: Props) {
   const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
   const [answered, setAnswered] = useState<string | null>(null)
@@ -68,8 +70,8 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
   }
   useImperativeHandle(handle, () => ({ attach }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
-  // A message to a working session goes straight in when it steers, echoed but not held; otherwise it waits in the
-  // mailbox, whose list below tells its fate, so nothing is held or echoed.
+  // A message to a working session goes straight in when it steers, listed as queued and not held; otherwise it waits
+  // in the mailbox, whose list below tells its fate, so nothing is held or echoed.
   const midTurn = session.lamp === 'working' && mail?.listens === true
   const steering = midTurn && mail.steers
   const mailing = midTurn && !steering
@@ -104,7 +106,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     >
       {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
-      {mail !== undefined && <ChatMail sessionId={session.sessionId} mail={mail.mail} onReply={setText} />}
+      <ChatMail sessionId={session.sessionId} mail={mail?.mail ?? []} queued={queued} onReply={setText} />
       <div className="chat__box">
         {files.length > 0 && (
           <ul className="chat__files">
