@@ -142,7 +142,7 @@ export const sessionRu = {
   place: 'Ветка и папка',
   feed: 'Ход работы',
   feedEmpty: 'Сессия ещё ничего не сделала.',
-  transcript: 'Весь транскрипт',
+  feedOpens: { transcript: 'Ход работы. Нажмите, чтобы открыть весь транскрипт', chat: 'Ход работы. Нажмите, чтобы открыть чат' },
   transcriptTitle: 'Транскрипт',
   transcriptDialog: (id: string) => `Транскрипт сессии ${id}`,
   closeTranscript: 'Закрыть транскрипт',

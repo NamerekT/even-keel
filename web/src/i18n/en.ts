@@ -688,7 +688,6 @@ export const en: Messages = {
   settings: {
     open: 'Settings',
     title: 'Project settings',
-    hint: 'Kept in the database of Even Keel; npm run storage -- config-export and config-import edit them as a file. They apply at once, no restart of the service: the next session of the project gets them, a changed tracker connects anew and the slots follow — a busy slot stays until it is free.',
     prompt: 'Prompt',
     promptHint: "Added to the prompt of every new session of the project, after the prompt of Settings. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",
     promptPlaceholder: 'Run npm test before merging.',

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { FixEpisode } from '../../../src/chain/launches.js'
-import { runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
+import { isFinished, runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { ciLevel, worstCiLevel } from '../ci.js'
 import { formatAgo, formatClock, formatSpan } from '../format.js'
@@ -85,9 +85,14 @@ export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[];
           ×
         </button>
       </header>
-      {views.map((view) => (
-        <CiSection key={`${view.kind}-${view.remote}`} view={view} now={now} urls={urls} fixes={known} />
-      ))}
+      {views.map((view, index) => {
+        const key = `${view.kind}-${view.remote}`
+        return index > 0 && mirrors(view, views[0]!, now) ? (
+          <CiMirror key={key} view={view} now={now} urls={urls} fixes={known} />
+        ) : (
+          <CiSection key={key} view={view} now={now} urls={urls} fixes={known} />
+        )
+      })}
     </aside>
   )
 }
@@ -95,33 +100,92 @@ export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[];
 /** How many runs the history shows before "Show all". */
 const HISTORY_SHOWN = 5
 
+/** A later CI that ran the first one's finished commit to the same end: its card would repeat the first (`docs/design.md`, "One fact once"). */
+function mirrors(view: CiView, first: CiView, now: Date): boolean {
+  const run = view.current?.run
+  const base = first.current?.run
+  if (run === undefined || base === undefined) return false
+  return run.commit === base.commit && run.status === base.status && isFinished(run.status) && view.error === null && view.pushed === null && stuckSince(view, now) === null
+}
+
+function Lamp({ view, now }: { view: CiView; now: Date }) {
+  return (
+    <Tipped
+      className="ci__lamp"
+      inline
+      focusable
+      align="start"
+      tip={
+        <>
+          <span>{t.ci.api[view.health]}</span>
+          {view.checkedAt !== null && <span>{t.ci.checked(formatAgo(view.checkedAt, now))}</span>}
+        </>
+      }
+    >
+      <span className="ci-dot" aria-hidden="true" />
+    </Tipped>
+  )
+}
+
+function AllRuns({ url }: { url: string }) {
+  return (
+    <a className="ci__all" href={url} target="_blank" rel="noreferrer" title={t.ci.allRuns} aria-label={t.ci.allRuns}>
+      ↗
+    </a>
+  )
+}
+
 /** Each CI is a card: the verdict of its last run, its commit and tasks in view; jobs, steps and history folded. */
 function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
-  const stuck = stuckSince(view, now)
-  const queued = view.current?.run.status === 'queued' && stuck === view.current.run.createdAt
   return (
     <section className={`ci ci--${ciLevel(view, now)}`}>
       <header className="ci__head">
-        <Tipped
-          className="ci__lamp"
-          inline
-          focusable
-          align="start"
-          tip={
-            <>
-              <span>{t.ci.api[view.health]}</span>
-              {view.checkedAt !== null && <span>{t.ci.checked(formatAgo(view.checkedAt, now))}</span>}
-            </>
-          }
-        >
-          <span className="ci-dot" aria-hidden="true" />
-        </Tipped>
+        <Lamp view={view} now={now} />
         <span className="ci__name">{t.ci.kinds[view.kind]}</span>
         <span className="ci__remote">{view.remote}</span>
-        <a className="ci__all" href={view.url} target="_blank" rel="noreferrer">
-          {t.ci.allRuns}
-        </a>
+        <AllRuns url={view.url} />
       </header>
+      <CiBody view={view} now={now} urls={urls} fixes={fixes} />
+    </section>
+  )
+}
+
+/** A mirror is one line — the dot, the name and "same commit · 3:12" — and opens into the whole card. */
+function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+  const length = runDurationMs(view.current!.run, now)
+  return (
+    <section className={`ci ci--${ciLevel(view, now)} ci--mirror`}>
+      <Fold
+        className="ci__mirror"
+        summaryClassName="ci__mirror-toggle"
+        header={(toggle) => (
+          <header className="ci__head">
+            <Lamp view={view} now={now} />
+            {toggle}
+            <AllRuns url={view.url} />
+          </header>
+        )}
+        summary={
+          <>
+            <span className="ci__name">{t.ci.kinds[view.kind]}</span>
+            <span className="ci__remote">{view.remote}</span>
+            <span className="ci__same" title={t.ci.sameTitle}>
+              {t.ci.same(formatClock(length ?? 0))}
+            </span>
+          </>
+        }
+      >
+        {() => <CiBody view={view} now={now} urls={urls} fixes={fixes} />}
+      </Fold>
+    </section>
+  )
+}
+
+function CiBody({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+  const stuck = stuckSince(view, now)
+  const queued = view.current?.run.status === 'queued' && stuck === view.current.run.createdAt
+  return (
+    <div className="ci__body">
       {view.error !== null && <p className={`notice ${view.health === 'off' ? 'notice--warn' : 'notice--error'} ci__notice`}>{say(view.error)}</p>}
       <NoticeFixButton project={null} notice={view.error} />
       {stuck !== null && (
@@ -132,7 +196,7 @@ function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: 
       {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
       {view.current !== null && <Current current={view.current} median={view.medianMs} now={now} urls={urls} fixes={fixes} />}
       {view.history.length > 0 ? <History runs={view.history} now={now} marked={fixes.marked} /> : view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>}
-    </section>
+    </div>
   )
 }
 
@@ -153,13 +217,17 @@ function Current({ current, median, now, urls, fixes }: { current: CurrentRun; m
         {(run.status === 'running' || run.status === 'queued') && <span className={`ci-status ci-status--${run.status}`}>{t.ci.status[run.status]}</span>}
         <span className="ci__title">{run.title}</span>
       </a>
-      <p className="ci__meta">
-        <code>{short(run.commit)}</code> · #{run.number} · {run.workflow}
-        {timing(run, median, now)}
-      </p>
+      <div className="ci__meta">
+        <span className="ci__seg ci__commit" title={run.commit}>
+          {short(run.commit)}
+        </span>
+        <span className="ci__seg">#{run.number}</span>
+        <span className="ci__seg">{run.workflow}</span>
+        <Timing run={run} median={median} now={now} />
+      </div>
       {(tasks.length > 0 || fixed) && (
         <p className="ci__tasks">
-          <span className="ci__label">{t.ci.tasks}:</span>
+          <span className="ci__label">{t.ci.tasks}</span>
           {fixed &&
             (fix === undefined ? (
               <span className="ci__fix">{t.ci.fixTask}</span>
@@ -171,10 +239,12 @@ function Current({ current, median, now, urls, fixes }: { current: CurrentRun; m
           {tasks.map((task) => {
             const href = issueLink(urls, task)
             return href === null ? (
-              <code key={task}>{task}</code>
+              <span key={task} className="ci__key">
+                {task}
+              </span>
             ) : (
-              <a key={task} href={href} target="_blank" rel="noreferrer">
-                <code>{task}</code>
+              <a key={task} className="ci__key" href={href} target="_blank" rel="noreferrer">
+                {task}
               </a>
             )
           })}
@@ -185,18 +255,32 @@ function Current({ current, median, now, urls, fixes }: { current: CurrentRun; m
   )
 }
 
-function timing(run: CiRun, median: number | null, now: Date): string {
-  const length = runDurationMs(run, now)
-  const usual = median === null ? '' : `, ${t.ci.usual(formatClock(median))}`
-  if (run.status === 'queued') return median === null ? '' : ` · ${t.ci.usual(formatClock(median))}`
-  if (run.status === 'running') return ` · ${t.ci.running(formatClock(length ?? 0))}${usual}`
-  return ` · ${t.ci.took(formatClock(length ?? 0))} · ${formatAgo(run.stoppedAt ?? run.createdAt, now)}`
+/** The run's time, apart from its commit: a meter against the usual length while it runs, the usual length while queued, the length and when once over. */
+function Timing({ run, median, now }: { run: CiRun; median: number | null; now: Date }) {
+  const length = runDurationMs(run, now) ?? 0
+  if (run.status === 'queued') return median === null ? null : <span className="ci__when">{t.ci.usual(formatClock(median))}</span>
+  if (run.status !== 'running') return <span className="ci__when">{`${t.ci.took(formatClock(length))} · ${formatAgo(run.stoppedAt ?? run.createdAt, now)}`}</span>
+  if (median === null) return <span className="ci__when">{formatClock(length)}</span>
+  return (
+    <span className={length > median ? 'ci__when ci__progress ci__progress--over' : 'ci__when ci__progress'}>
+      <span
+        className="ci__track"
+        role="meter"
+        aria-label={t.ci.progress(formatClock(length), formatClock(median))}
+        aria-valuemin={0}
+        aria-valuemax={median}
+        aria-valuenow={Math.min(length, median)}
+      >
+        <span className="ci__fill" style={{ width: `${Math.min(100, (length / median) * 100)}%` }} />
+      </span>
+      <span className="ci__elapsed">{`${formatClock(length)} / ${formatClock(median)}`}</span>
+    </span>
+  )
 }
 
 /** Folded unless the run is red, where what failed must be seen; a job's steps fold under it, open when it failed or is the only one. */
 function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
   if (jobs.length === 0) return <p className="ci__hint">{t.ci.noJobs}</p>
-  const noSteps = jobs.some((job) => job.steps === null)
   return (
     <Fold className="ci__fold" defaultOpen={run.status === 'failure'} summaryClassName="ci__summary" summary={<>
 
@@ -207,7 +291,7 @@ function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
         <>
           <ul className="ci__jobs">
             {jobs.map((job) => {
-              const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} />
+              const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} steps={job.steps === null ? run.url : undefined} />
               return (
                 <li key={job.id} className="ci__job">
                   {job.steps === null || job.steps.length === 0 ? (
@@ -233,11 +317,7 @@ function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
                 </li>
               )
             })}
-          </ul>{noSteps && (
-            <a className="ci__hint ci__steps-link" href={run.url} target="_blank" rel="noreferrer">
-              {t.ci.stepsOnPage}
-            </a>
-          )}
+          </ul>
         </>
       )}
     </Fold>
@@ -260,12 +340,18 @@ function lengthOf(item: Pick<CiJob, 'startedAt' | 'stoppedAt'>, now: Date): numb
   return Math.max(0, (item.stoppedAt === null ? now.getTime() : Date.parse(item.stoppedAt)) - Date.parse(item.startedAt))
 }
 
-function Line({ status, name, length }: { status: CiRun['status']; name: string; length: number | null }) {
+/** `steps` is the run page, for a job whose steps the API does not give. */
+function Line({ status, name, length, steps }: { status: CiRun['status']; name: string; length: number | null; steps?: string }) {
   return (
     <span className={`ci__line ci__line--${status}`} title={t.ci.status[status]}>
       <span className={`ci-status-dot ci-status-dot--${status}`} aria-label={t.ci.status[status]} role="img" />
       <span className="ci__line-name">{name}</span>
       <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
+      {steps !== undefined && (
+        <a className="ci__open" href={steps} target="_blank" rel="noreferrer" title={t.ci.stepsOnPage} aria-label={t.ci.stepsOnPage}>
+          ↗
+        </a>
+      )}
     </span>
   )
 }
@@ -288,10 +374,9 @@ function History({ runs, now, marked }: { runs: CiRun[]; now: Date; marked: Read
               const length = runDurationMs(run, now)
               return (
                 <li key={run.id}>
-                  <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${run.title}`}>
+                  <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${short(run.commit)} · ${run.title}`}>
                     <span className={`ci-status-dot ci-status-dot--${run.status}`} aria-label={t.ci.status[run.status]} role="img" />
                     <span className="ci__past-number">#{run.number}</span>
-                    <code className="ci__past-commit">{short(run.commit)}</code>
                     <span className="ci__past-title">{run.title}</span>
                     <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
                     <span className="ci__past-ago">{formatAgo(run.createdAt, now)}</span>

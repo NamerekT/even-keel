@@ -141,7 +141,7 @@ export const sessionEn = {
   place: 'Branch and folder',
   feed: 'Activity',
   feedEmpty: "The session hasn't done anything yet.",
-  transcript: 'Whole transcript',
+  feedOpens: { transcript: 'Activity. Press to open the whole transcript', chat: 'Activity. Press to open the chat' },
   transcriptTitle: 'Transcript',
   transcriptDialog: (id: string) => `Transcript of session ${id}`,
   closeTranscript: 'Close the transcript',

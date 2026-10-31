@@ -83,7 +83,7 @@ function github(): CiView {
   }
 }
 
-/** `?ci=failure|stuck|push|fixed|error|off|none`; without it ABC has a running Forgejo run and a green GitHub Actions. */
+/** `?ci=failure|stuck|push|fixed|mirror|error|off|none`; without it ABC has a running Forgejo run and a green GitHub Actions. */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
   if (kind?.startsWith('gitlab')) {
     const view = fakeCi(kind.slice(7) || null).ABC![0]!
@@ -107,6 +107,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
       history: [queued, ...HISTORY],
     }),
     fixed: forgejo({ current: { run: FIX_RUN, tasks: [], jobs: [job(1, 'test', 'success', 900, 180, false)] }, history: [FIX_RUN, ...HISTORY] }),
+    mirror: finished,
     push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
     off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }), checkedAt: null, current: null, history: [], medianMs: null },

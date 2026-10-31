@@ -30,7 +30,6 @@ import {
   minutesOf,
   Row,
   RULE_KEYS,
-  HelpTip,
   type RuleKey,
   rulesOf,
   rulesText,
@@ -763,7 +762,6 @@ export function SettingsPanel({
     <aside className="panel settings" aria-label={t.settings.title}>
       <header className="panel__head settings__head">
         <GroupTabs groups={GROUPS.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
-        <HelpTip text={t.settings.hint} align="end" />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>

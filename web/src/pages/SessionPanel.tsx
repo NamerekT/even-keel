@@ -8,7 +8,7 @@ import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/t
 import { TURN_HANG_MS, TURN_RESTART_MS, shownSilence, type SilentRestart } from '../../../src/sessions/silence.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import { formatClock, formatMoment, formatQuiet, formatTokens } from '../format.js'
+import { formatClock, formatFullTime, formatLineTime, formatMoment, formatQuiet, formatStamp, formatTokens, minuteMarks } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { agentLabel } from '../accountName.js'
 import { completionTasks, needsReply } from '../completion.js'
@@ -41,7 +41,6 @@ import './facts.css'
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
-const FEED_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 const PINNED_SLACK = 24
 const REPLACE_WAIT_MS = 90_000
 
@@ -70,6 +69,9 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
   // The current session is read and answered in the chat window, opened from the actions.
   const chat = (block.current || block.aside === true || block.loose === true) && block.session !== null
+  const [chatting, setChatting] = useState(false)
+  // A press on the feed opens what the panel answers the session in: the chat, else the read-only whole transcript.
+  const openChat = chat ? () => setChatting(true) : undefined
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -114,18 +116,18 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
       )}
-      <Actions block={block} scale={scale} ci={ci} onFailure={onFailure} />
+      <Actions block={block} scale={scale} ci={ci} chatting={chatting} onChat={setChatting} onFailure={onFailure} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
           {block.start.phase === 'answer' && block.session !== null && (
-            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live whole={!chat} />
+            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live onChat={openChat} />
           )}
         </>
       ) : block.session === null ? (
         block.sessions.length === 0 && <p className="placeholder">{t.session.none}</p>
       ) : (
-        <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} whole={!chat} />
+        <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} onChat={openChat} />
       )}
       {block.sessions.length > 0 && (
         <SessionList rows={block.sessions} current={block.session?.sessionId ?? null} onOpen={setOpened} />
@@ -143,7 +145,17 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   )
 }
 
-function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: ContextScale; ci: boolean; onFailure: (failure: Notice | null) => void }) {
+interface ActionsProps {
+  block: ChainBlock
+  scale: ContextScale
+  ci: boolean
+  /** The chat window is open; the panel keeps it, since a press on the feed opens it too. */
+  chatting: boolean
+  onChat: (open: boolean) => void
+  onFailure: (failure: Notice | null) => void
+}
+
+function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }: ActionsProps) {
   const { send, sending, failure } = useCommand()
   const lastFailure = useRef(failure)
   useEffect(() => {
@@ -152,7 +164,6 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
     onFailure(failure)
   }, [failure, onFailure])
   const { state } = useLive()
-  const [chatting, setChatting] = useState(false)
   const [confirmation, setConfirmation] = useState<SilentRestart | null>(null)
   const now = useNow(1_000)
   const fix = isOwnName(block.id)
@@ -307,7 +318,15 @@ function Actions({ block, scale, ci, onFailure }: { block: ChainBlock; scale: Co
   )
 }
 
-function SessionBody({ session, limit, refusal = null, scale, whole }: { session: SessionView; limit: LimitHold | null; refusal?: LimitRefusal | null; scale: ContextScale; whole: boolean }) {
+interface SessionBodyProps {
+  session: SessionView
+  limit: LimitHold | null
+  refusal?: LimitRefusal | null
+  scale: ContextScale
+  onChat: (() => void) | undefined
+}
+
+function SessionBody({ session, limit, refusal = null, scale, onChat }: SessionBodyProps) {
   const now = useNow(1_000)
   const { state } = useLive()
   const narrow = useNarrow()
@@ -349,24 +368,20 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
         <Fact label={t.session.cache} tone={cacheTone(session.cache, now, session.lamp)}>
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
         </Fact>
-        <Fact label={t.session.context} wide tone={contextFill(session.contextTokens, scale, session.contextWindow).level}>
-          <dd>
-            <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} full />
-          </dd>
-        </Fact>
+        <ContextFact label={t.session.context} tokens={session.contextTokens} window={session.contextWindow} scale={scale} wide />
         <ModelFact agent={session.agent} model={session.model} />
-        <TokensFact tokens={session.tokens} wide={false} />
+        <TokensFact tokens={session.tokens} />
       </FactList>
       {session.lamp === 'finished' ? (
-        <RecordFeed sessionId={session.sessionId} account={session.account} whole={whole} />
+        <RecordFeed sessionId={session.sessionId} account={session.account} onChat={onChat} />
       ) : (
-        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live whole={whole} />
+        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live onChat={onChat} />
       )}
     </>
   )
 }
 
-function RecordFeed({ sessionId, account, whole }: { sessionId: string; account: string | null; whole: boolean }) {
+function RecordFeed({ sessionId, account, onChat }: { sessionId: string; account: string | null; onChat: (() => void) | undefined }) {
   const { session } = useLive()
   const [lines, setLines] = useState<FeedLine[] | null>(null)
 
@@ -381,7 +396,7 @@ function RecordFeed({ sessionId, account, whole }: { sessionId: string; account:
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} whole={whole} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} onChat={onChat} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -418,8 +433,22 @@ function ModelFact({ agent, model }: { agent: string; model: string | null }) {
   )
 }
 
+/**
+ * The context on one line, as the CLI download meter: the label, a full-height divider, the bar, a short divider, the figures.
+ * `wide` takes the whole row of facts; otherwise two of the three columns, beside Tokens.
+ */
+function ContextFact({ label, tokens, window, scale, wide = false }: { label: string; tokens: number; window: number | null; scale: ContextScale; wide?: boolean }) {
+  return (
+    <Fact label={label} wide={wide} tone={contextFill(tokens, scale, window).level} className="panel__inline panel__context">
+      <dd>
+        <ContextMeter tokens={tokens} window={window} scale={scale} full />
+      </dd>
+    </Fact>
+  )
+}
+
 /** The total alone; the split by kind is a tip under it, opened by pointing at the number or pressing it. */
-function TokensFact({ tokens, wide = true }: { tokens: TokenTotals; wide?: boolean }) {
+function TokensFact({ tokens }: { tokens: TokenTotals }) {
   const parts: [string, number][] = [
     [t.session.input, tokens.input],
     [t.session.output, tokens.output],
@@ -427,7 +456,7 @@ function TokensFact({ tokens, wide = true }: { tokens: TokenTotals; wide?: boole
     [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
-    <Fact label={t.session.tokens} wide={wide} className="panel__inline">
+    <Fact label={t.session.tokens} className="panel__inline">
       <TipValue value={formatTokens(tokenTotal(tokens))}>
         {parts.map(([label, value]) => (
           <span key={label} className="panel__part">
@@ -509,6 +538,7 @@ interface SessionListProps {
 
 function SessionList({ rows, current, onOpen }: SessionListProps) {
   const resets = contextResets(rows)
+  const now = useNow(60_000)
   return (
     <section className="panel__sessions" aria-label={t.session.list}>
       <SectionLabel>
@@ -519,9 +549,16 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
         {rows.map((row) => (
           <li key={row.sessionId}>
             <button type="button" className="sessions__row" onClick={() => onOpen(row)}>
-              <time className="sessions__time" dateTime={row.at}>
-                {STARTED().format(new Date(row.at))}
-              </time>
+              <span className="sessions__meta">
+                <Tipped inline align="start" className="sessions__seg sessions__time" tip={formatFullTime(row.at)}>
+                  <time dateTime={row.at}>{formatStamp(row.at, now)}</time>
+                </Tipped>
+                <span className="sessions__seg sessions__account">
+                  <AccountTag account={row.account} />
+                </span>
+                <span className="sessions__seg sessions__id">{row.sessionId.slice(0, 8)}</span>
+                {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
+              </span>
               <span className="sessions__how">
                 {launchText(row)}
                 {row.resumed > 0 && t.session.resumed(row.resumed)}
@@ -530,11 +567,6 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
                 {row.replaced !== undefined && ` · ${replacedText(row.replaced)}`}
               </span>
-              <span className="sessions__account">
-                <AccountTag account={row.account} />
-              </span>
-              <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
-              {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
             </button>
           </li>
         ))}
@@ -620,11 +652,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
               <Fact label={t.session.worked}>
                 <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
               </Fact>
-              <Fact label={t.session.endContext} wide>
-                <dd>
-                  <ContextMeter tokens={record.contextTokens} window={record.contextWindow} scale={scale} full />
-                </dd>
-              </Fact>
+              <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} />
               <TokensFact tokens={record.tokens} />
               {(record.branch !== null || record.workdir !== null) && (
                 <Fact label={t.session.place} wide>
@@ -635,7 +663,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
               )}
             </FactList>
             {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
-            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} whole />
+            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} onChat={undefined} />
           </>
         )}
       </div>
@@ -648,14 +676,16 @@ interface FeedProps {
   sessionId: string
   account: string | null
   live: boolean
-  /** Offers the read-only whole transcript; the current session has the chat window instead. */
-  whole: boolean
+  /** A press on the feed opens the chat of the current session; without it, the read-only whole transcript. */
+  onChat: (() => void) | undefined
 }
 
-function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
+function Feed({ lines, sessionId, account, live, onChat }: FeedProps) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [whole, setWhole] = useState(false)
+  const open = onChat ?? (() => setWhole(true))
+  const marks = minuteMarks(lines.map((line) => line.at))
 
   useLayoutEffect(() => {
     const list = listRef.current
@@ -667,16 +697,15 @@ function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
     if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
   }
 
+  // Selecting text in the feed is not a press on it.
+  const onClick = () => {
+    const selection = window.getSelection()
+    if (selection !== null && !selection.isCollapsed && listRef.current?.contains(selection.anchorNode)) return
+    open()
+  }
+
   return (
     <section className="panel__feed" aria-label={t.session.feed}>
-      <div className="panel__feed-head">
-        <SectionLabel>{t.session.feed}</SectionLabel>
-        {offered && (
-          <button type="button" className="panel__feed-open" onClick={() => setWhole(true)}>
-            {t.session.transcript}
-          </button>
-        )}
-      </div>
       {whole && (
         <Suspense fallback={null}>
           <TranscriptWindow sessionId={sessionId} account={account} live={live} onClose={() => setWhole(false)} />
@@ -685,17 +714,37 @@ function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
       {lines.length === 0 ? (
         <p className="placeholder">{t.session.feedEmpty}</p>
       ) : (
-        <ol ref={listRef} className="feed" onScroll={onScroll}>
+        <ol
+          ref={listRef}
+          className="feed feed--open"
+          tabIndex={0}
+          aria-label={onChat === undefined ? t.session.feedOpens.transcript : t.session.feedOpens.chat}
+          onScroll={onScroll}
+          onClick={onClick}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+            event.preventDefault()
+            open()
+          }}
+        >
           {lines.map((line, index) => (
             <li key={`${line.at}-${index}`} className={`feed__line feed__line--${line.kind}`}>
-              <time className="feed__time" dateTime={line.at}>
-                {line.at === '' ? '' : FEED_TIME().format(new Date(line.at))}
-              </time>
+              <FeedTime at={line.at} shown={marks[index]!} />
               <span className="feed__text">{feedText(line)}</span>
             </li>
           ))}
         </ol>
       )}
     </section>
+  )
+}
+
+/** A line's time, only where the minute changed; every line keeps the full moment in a tip on its time cell. */
+function FeedTime({ at, shown }: { at: string; shown: boolean }) {
+  if (at === '') return <span className="feed__time" />
+  return (
+    <Tipped inline align="start" className="feed__time" tip={formatFullTime(at)}>
+      <time dateTime={at}>{shown ? formatLineTime(at) : ''}</time>
+    </Tipped>
   )
 }

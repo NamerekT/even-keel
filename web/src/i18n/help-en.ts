@@ -36,7 +36,7 @@ export const helpEn = {
     read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Beside it — when it was last read.",
     ci: 'The CI on the main branch: green — passed, blue — running, red — failed, amber — stuck. Opens its runs.',
     backlog: 'The tasks the chain does not take yet and their count. Opens the backlog.',
-    settings: "The project's settings.",
+    settings: "The project's settings. They apply at once, with no restart: the project's next session gets them.",
     help: 'Opens this legend. The question count in the project row is a separate control.',
   },
 }

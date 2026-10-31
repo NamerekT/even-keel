@@ -97,8 +97,43 @@
 }
 
 /* Model and Tokens share a row: the model takes two of the three columns, a long name is cut. */
-.ui-fact.panel__model {
+.ui-fact.panel__model,
+.ui-fact.panel__context:not(.ui-fact--wide) {
   grid-column: span 2;
+}
+
+/*
+ * The context on one line, as the CLI download meter (`docs/design.md`, "Dividers in a segmented box"):
+ * a full-height divider after the label, from the box's edge to edge, and a short one before the figures.
+ */
+.ui-fact.panel__context {
+  align-items: center;
+  gap: 0;
+}
+
+.panel__context dt {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  margin-block: calc(-1 * var(--space-8));
+  padding: var(--space-8) var(--space-12) var(--space-8) 0;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.panel__context dd {
+  flex: 1;
+  min-width: 0;
+  padding-left: var(--space-12);
+}
+
+.panel__context .context-meter {
+  gap: var(--space-12);
+}
+
+.panel__context .context-meter__value {
+  padding-left: var(--space-12);
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 16px no-repeat;
 }
 
 .panel__model .panel__value {

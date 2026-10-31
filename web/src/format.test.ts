@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatElapsed, formatMoment, formatSpan, formatTokens } from './format.js'
+import { formatAgo, formatClock, formatElapsed, formatFullTime, formatLineTime, formatMoment, formatSpan, formatStamp, formatTokens, minuteMarks } from './format.js'
 import { setLanguage } from './i18n/index.js'
 
 setLanguage('ru')
@@ -120,5 +120,48 @@ describe('formatMoment', () => {
     const text = formatMoment(new Date(2026, 9, 3, 14, 59).toISOString(), today)
     expect(text).toMatch(/3 окт/)
     expect(text).toMatch(/14:59/)
+  })
+})
+
+describe('formatLineTime', () => {
+  afterEach(() => setLanguage('ru'))
+
+  it('is hours and minutes on a 24-hour clock, without seconds or AM/PM, in English too', () => {
+    setLanguage('en')
+    expect(formatLineTime(new Date(2026, 9, 30, 16, 5, 45).toISOString())).toBe('16:05')
+  })
+})
+
+describe('formatStamp', () => {
+  const today = new Date(2026, 9, 31, 12, 0)
+  afterEach(() => setLanguage('ru'))
+
+  it('gives only the time for a moment of today', () => {
+    expect(formatStamp(new Date(2026, 9, 31, 8, 8).toISOString(), today)).toBe('08:08')
+  })
+
+  it('gives only a short date for an earlier day', () => {
+    setLanguage('en')
+    expect(formatStamp(new Date(2026, 9, 30, 8, 8).toISOString(), today)).toBe('Oct 30')
+  })
+})
+
+describe('formatFullTime', () => {
+  it('has the date and the seconds', () => {
+    const text = formatFullTime(new Date(2026, 9, 30, 9, 29, 45).toISOString())
+    expect(text).toMatch(/30 окт/)
+    expect(text).toMatch(/09:29:45/)
+  })
+})
+
+describe('minuteMarks', () => {
+  const at = (minute: number, second: number) => new Date(2026, 9, 30, 9, minute, second).toISOString()
+
+  it('marks a line whose minute differs from the line before, and the first', () => {
+    expect(minuteMarks([at(29, 1), at(29, 40), at(30, 5), at(30, 6), at(31, 0)])).toEqual([true, false, true, false, true])
+  })
+
+  it('skips a line without a time and compares with the last line that had one', () => {
+    expect(minuteMarks(['', at(29, 1), '', at(29, 40), at(32, 0)])).toEqual([false, true, false, false, true])
   })
 })

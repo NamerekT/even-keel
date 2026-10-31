@@ -73,14 +73,14 @@
 }
 
 .ci-card {
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .ci {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 12px;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12) var(--space-12);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--bg);
@@ -90,9 +90,60 @@
 .ci__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
+  gap: var(--space-8);
+  min-width: 0;
+  padding-bottom: var(--space-6);
   border-bottom: 1px solid var(--border);
+}
+
+.ci__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* A mirror of the first CI is one line until it is opened. */
+.ci--mirror {
+  padding-bottom: var(--space-8);
+}
+
+.ci--mirror .ci__head {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ci__mirror[data-open='true'] > .ci__head {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.ci__mirror .ci__body {
+  padding-top: var(--space-8);
+}
+
+.ci__mirror-toggle {
+  min-width: 0;
+  gap: var(--space-8);
+}
+
+.ci__mirror-toggle .ui-fold__caret {
+  order: 1;
+  color: var(--fg-muted);
+}
+
+.ci__mirror-toggle:hover .ci__same {
+  color: var(--fg);
+}
+
+.ci__same {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ci__lamp {
@@ -101,6 +152,7 @@
 
 .ci__name {
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .ci__remote {
@@ -109,16 +161,121 @@
   font-size: var(--text-12);
 }
 
+/* The quiet ↗ of the card's head, as `.panel__remote` on the task card, a size smaller. */
+.ci__all,
+.ci__open {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-small);
+  color: var(--fg-muted);
+  text-decoration: none;
+}
+
 .ci__all {
+  width: 24px;
+  height: 24px;
   margin-left: auto;
+  font-size: var(--text-14);
+}
+
+.ci__open {
+  width: 18px;
+  height: 18px;
   font-size: var(--text-12);
 }
 
-.ci__hint,
-.ci__meta {
+.ci__all:hover,
+.ci__open:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+.ci__all:focus-visible,
+.ci__open:focus-visible,
+.ci__key:focus-visible,
+.ci__fix:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ci__hint {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-12);
+}
+
+/* Commit, run number and workflow split by short dividers; the time stands apart at the right (`docs/design.md`, "Dividers in a segmented box"). */
+.ci__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) 0;
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.ci__seg {
+  min-width: 0;
+  padding-inline: var(--space-8);
+  white-space: nowrap;
+}
+
+.ci__seg:first-child {
+  padding-left: 0;
+}
+
+.ci__seg + .ci__seg {
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 12px no-repeat;
+}
+
+.ci__commit {
+  font-family: var(--mono);
+}
+
+.ci__when {
+  margin-left: auto;
+  padding-left: var(--space-16);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ci__progress {
+  display: flex;
+  flex: 1 1 180px;
+  align-items: center;
+  gap: var(--space-8);
+  max-width: 240px;
+}
+
+.ci__track {
+  flex: 1;
+  min-width: 48px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.ci__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--lamp-working);
+}
+
+.ci__progress--over .ci__fill {
+  background: var(--lamp-waiting);
+}
+
+.ci__elapsed {
+  padding-left: var(--space-8);
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 12px no-repeat;
+}
+
+.ci__progress--over .ci__elapsed {
+  color: var(--lamp-waiting);
 }
 
 .ci__notice {
@@ -136,7 +293,6 @@
 .ci__fold {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .ci__summary,
@@ -155,6 +311,7 @@
   align-items: center;
   gap: 6px;
   width: fit-content;
+  min-height: 20px;
   color: var(--fg-muted);
   font-size: var(--text-11);
   font-weight: 600;
@@ -183,6 +340,7 @@
 
 .ci__more {
   align-self: flex-start;
+  margin-top: var(--space-4);
   padding: 0;
   border: 0;
   background: none;
@@ -235,23 +393,34 @@
   color: var(--warn-fg);
 }
 
-.ci__meta code,
-.ci__tasks code {
-  font-family: var(--mono);
-  font-size: var(--text-12);
-}
-
 .ci__tasks {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
+  align-items: center;
+  gap: var(--space-4) var(--space-8);
   margin: 0;
   font-size: var(--text-12);
 }
 
+/* As the Jobs and History labels under it. */
 .ci__label {
   color: var(--fg-muted);
+  font-size: var(--text-11);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* A task key as on a chain row (`.block__key`): no underline until pointed at. */
+.ci__key {
+  color: var(--fg);
+  font-family: var(--mono);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.ci__key:hover {
+  text-decoration: underline;
 }
 
 .ci__jobs,
@@ -273,14 +442,26 @@
   font-size: var(--text-12);
 }
 
+.ci__jobs {
+  font-size: var(--text-12);
+}
+
+/* The gap under a fold's label lives in its body, so a folded section takes no more than its label. */
+.ci__fold > .ui-fold__body .ci__jobs,
+.ci__fold > .ui-fold__body .ci__history {
+  padding-top: var(--space-4);
+}
+
 .ci__line {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-8);
+  min-height: 18px;
 }
 
 .ci__line-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -299,13 +480,9 @@
   color: var(--fg-muted);
 }
 
-.ci__steps-link {
-  align-self: flex-start;
-}
-
 .ci__past {
   display: grid;
-  grid-template-columns: 8px auto auto minmax(0, 1fr) auto 7em;
+  grid-template-columns: 8px auto minmax(0, 1fr) auto 7em;
   align-items: center;
   gap: 8px;
   padding: 2px 0;
@@ -328,18 +505,25 @@
   box-shadow: inset 3px 0 0 var(--lamp-fix);
 }
 
+/* The fix of main as a tag in the colour of a fix's lamp. */
 .ci__fix {
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--lamp-fix) 18%, transparent);
   color: var(--lamp-fix);
+  font-size: var(--text-12);
   font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+a.ci__fix:hover {
+  text-decoration: underline;
 }
 
 .ci__past-number {
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.ci__past-commit {
-  font-family: var(--mono);
 }
 
 .ci__past-title {
