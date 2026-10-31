@@ -9,6 +9,7 @@ export const linear: TrackerAdapter = {
   hostVariables: [],
   help: 'https://linear.app/settings/account/security',
   mcpServer: 'linear',
+  moves: true,
   profileName: (_values, account) => account?.name ?? 'Linear',
   account: async (values, timeoutMs) => (await import('./profile.js')).linearAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).linearProjects(values, query, timeoutMs),

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
+import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
@@ -114,6 +115,11 @@ export class ConfigStore {
   /** Writes the feed's own chain rule keys (BTN-553), by the same rule as `saveProject`. */
   saveFeedRules(project: string, feed: string, rules: Partial<ChainRules>): void {
     this.write(withFeedRules(this.raw(), this.idOf(project), feed, rules))
+  }
+
+  /** Writes a task source's own status moves (BTN-554): the main tracker's with `feed` null, by the same rule as `saveProject`. */
+  saveMoves(project: string, feed: string | null, moves: StatusMoves): void {
+    this.write(withSourceMoves(this.raw(), this.idOf(project), feed, moves))
   }
 
   /** Drops the project's feed, by the same rule as `saveProject`. */

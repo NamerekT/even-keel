@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { needsCheckedCli } from './agent/providers.js'
 import { fixStem, shortId } from './chain/fix.js'
+import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
@@ -60,6 +61,8 @@ export interface EvenKeelConfig {
   trackerProjects: Record<string, string>
   /** The extra task feeds of each project that has any (BTN-66), in the order of its entry. */
   feeds: Record<string, Feed[]>
+  /** The status moves each project's main tracker sets itself (BTN-554), only those that set any. */
+  moves: Record<string, StatusMoves>
   /** The shared `brief`; `briefs` — what each project ends up with. `null` — left to the project's packages (`briefOn`). */
   brief: boolean | null
   briefs: Record<string, boolean | null>
@@ -126,6 +129,8 @@ export interface Feed {
    * never on the project's (`projectRules`); none — it sets none.
    */
   chain?: Partial<ChainRules>
+  /** The status moves the feed sets itself (BTN-554), over its profile's; none — it sets none. */
+  moves?: StatusMoves
 }
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
@@ -288,6 +293,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     trackers: byId((_, project) => project.tracker as string),
     trackerProjects: byId((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
     feeds: feedsOf(records, adapters),
+    moves: byId((_, __, own) => (own.statusMoves === undefined || Object.keys(own.statusMoves as object).length === 0 ? undefined : (own.statusMoves as StatusMoves))),
     brief:shared.brief as boolean | null,
     briefs: byId((_, project) => project.brief as boolean | null),
     settings: byId((record, project, ownRows) => ({
@@ -413,7 +419,8 @@ function feedsOf(records: ProjectRecord[], adapters: AdapterShapes): Record<stri
     if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${where}.key`, value: String(JSON.stringify(key)) })
     const place = placeOfEntry(raw, tracker, where, adapters)
     const chain = feedRulesOf(raw.chain, `${where}.chain`)
-    return { id, tracker, key, ...(place === undefined ? {} : { place }), ...(chain === undefined ? {} : { chain }) }
+    const moves = raw.moves === undefined ? {} : statusMovesOf(raw.moves, `${where}.moves`)
+    return { id, tracker, key, ...(place === undefined ? {} : { place }), ...(chain === undefined ? {} : { chain }), ...(Object.keys(moves).length === 0 ? {} : { moves }) }
   }
   return Object.fromEntries(
     records.flatMap((record) => (record.feeds === undefined ? [] : [[record.id, record.feeds.map((raw, index) => feedOf(raw, `${record.key}.feeds[${index}]`))]])),

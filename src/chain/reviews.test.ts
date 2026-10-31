@@ -74,9 +74,10 @@ async function running(options: SetupOptions = {}, session: HandoffSession | nul
 describe('Dispatcher in PR mode', () => {
   it('opens the pull request on the mark, takes the task out of the chain and starts the next one', async () => {
     const pulls = forge()
-    const { dispatcher, launched, journal } = await running({ reviews: pulls.deps })
+    const { dispatcher, launched, journal, moves } = await running({ reviews: pulls.deps })
 
     expect(pulls.opened).toMatchObject([{ task: 'ABC-1', session: { sessionId: 'old-session', pullRequest: MARK } }])
+    expect(moves).toEqual(['review/ABC-1', 'start/ABC-2'])
     expect(dispatcher.state.reviews.ABC).toEqual([
       { task: 'ABC-1', remote: 'origin', number: 7, url: URL, branch: 'abc-1/task', at: '2026-09-26T12:00:00.000Z', pushedAt: '2026-09-26T12:00:00.000Z', markAt: '2026-09-26T11:50:00.000Z', seen: [] },
     ])

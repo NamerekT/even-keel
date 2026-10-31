@@ -78,6 +78,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
 | 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly and Linear profiles; a GitHub token that cannot write labels | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
+| 37h2 | [Statuses on actions](#statuses-on-actions-btn-554) | Huly, Linear and Jira projects with a status chosen for a start, a pull request or the close | a task is not moved, moved where its workflow forbids, or a merged task stays open; move or close it in the tracker |
 | 37i | [The task card's run label pick](#the-task-cards-run-label-pick-btn-508) | projects with run labels on, picking the model from the card | the card shows the old pick after a save until the next read; refresh the project |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
@@ -585,6 +586,17 @@ An open task that lacks only a required label waits in the project's backlog, an
 - on a Jira workflow without a backlog status "To the backlog" only takes the label off; with no required labels it says the tracker cannot move the task.
 
 If one is wrong, the button ends in an error notice or the task stays where it was until the next poll. **Workaround:** set or remove the label in the tracker.
+
+### Statuses on actions (BTN-554)
+
+Moving a task to a chosen status on its start, on its pull request and on its close is checked by tests against faked trackers (`src/chain/moves.test.ts`, `src/tracker/mover.test.ts`, `src/tracker/closer.test.ts`, the adapters' `source.test.ts` of Huly, Linear and Jira, `src/storage/database-profile-moves.test.ts`) and the settings, the add-profile step and the failure band on `dev:fake`; no live tracker has been moved yet. Assumed:
+
+- Huly writes the named status like any status change, and every issue status of the workspace is a choice, though a project's type may not have it: such a move is refused by name ("no status") rather than written.
+- Linear's `workflowStates` lists the states of every team the key sees, and a name shared by teams is one choice; a team without that name refuses the move.
+- Jira's `/rest/api/3/status` lists the site's statuses; a workflow with no transition from the task's status to the chosen one leaves the task where it is (a refusal on the page), and a transition with a screen of required fields is refused by Jira like a refused close.
+- The start move runs after the session started and the pull request move after the pull request opened, both asynchronously; a slow tracker answers after the chain has already moved on, which only delays the band.
+
+If one is wrong, a task stays in its status or, at worst, the tracker refuses the move and the page says so; the chain is never held by a move. **Workaround:** move or close the task in the tracker, or set "leave as is" and "automatic". To check (BTN-555): on each of Huly, Linear and Jira, a profile with all three set, a task started, its pull request opened in PR mode and merged; then a status the workflow cannot reach, for the band and its button.
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 

@@ -142,6 +142,7 @@ export const en: Messages = {
     trackers: 'Open Settings → Trackers and CI',
     page: 'Open Settings → Interface',
     accounts: 'Open Accounts',
+    moves: 'Open the statuses on actions',
     resume: 'Check again and resume',
   },
   banner: {

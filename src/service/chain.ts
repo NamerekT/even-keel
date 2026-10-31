@@ -116,6 +116,7 @@ type ChainContext = Pick<ServiceContext,
   | 'slotSpan'
   | 'slotUse'
   | 'slotsSeen'
+  | 'statusMover'
   | 'stopIn'
   | 'stopTaskSessions'
   | 'syncProject'
@@ -328,6 +329,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       ctx.launches.push(entry)
       console.log(launchLine(entry))
     },
+    moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),
     now: () => new Date(),
     limited: (task) => ctx.monitor.limited(task),
     overage: (task) => {

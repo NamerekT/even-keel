@@ -192,6 +192,40 @@ describe('linear source', () => {
     expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
   })
 
+  it('closes into the completed state of the name picked, and into no other', async () => {
+    const states = { nodes: [{ id: 's-done', name: 'Done', type: 'completed', position: 3 }, { id: 's-shipped', name: 'Shipped', type: 'completed', position: 5 }, { id: 's-canceled', name: 'Canceled', type: 'canceled', position: 6 }] }
+    const at = (type: string) => ({ body: { data: { issues: { nodes: [{ id: 'uuid-eng-7', state: { name: 'X', type }, team: { states } }] } } } })
+    const { source, calls } = await connect([at('started'), { body: { data: { issueUpdate: { success: true } } } }, at('started'), at('started'), at('completed')])
+    expect(await source.complete!('ENG-7', 'shipped')).toBe(true)
+    expect(calls[2]!.variables).toEqual({ id: 'uuid-eng-7', state: 's-shipped' })
+    await expect(source.complete!('ENG-7', 'Released')).rejects.toThrow('linear: the team of ENG-7 has no completed state "Released"')
+    await expect(source.complete!('ENG-7', 'Canceled')).rejects.toThrow('linear: the team of ENG-7 has no completed state "Canceled"')
+    expect(await source.complete!('ENG-7', 'Shipped')).toBe(false)
+  })
+
+  it('moves an issue to the state of its team with the name, and says null where there is none', async () => {
+    const states = { nodes: STATES.map((state, position) => ({ ...state, position })) }
+    const at = { body: { data: { issues: { nodes: [{ id: 'uuid-eng-7', state: { name: 'Todo', type: 'unstarted' }, team: { states } }] } } } }
+    const { source, calls } = await connect([at, { body: { data: { issueUpdate: { success: true } } } }, at])
+    expect(await source.moveTo!('ENG-7', 'in progress')).toEqual({ name: 'In Progress', category: 'Active' })
+    expect(calls[2]!.variables).toEqual({ id: 'uuid-eng-7', state: 's-doing' })
+    expect(await source.moveTo!('ENG-7', 'In Review')).toBeNull()
+    expect(calls).toHaveLength(4)
+  })
+
+  it('reads the workflow states of every team page by page, a name once', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { workflowStates: page([{ name: 'Todo', type: 'unstarted' }, { name: 'In Progress', type: 'started' }], 'cursor-1') } } },
+      { body: { data: { workflowStates: page([{ name: 'todo', type: 'unstarted' }, { name: 'Done', type: 'completed' }]) } } },
+    ])
+    expect(await source.statuses!()).toEqual([
+      { name: 'Todo', category: 'ToDo' },
+      { name: 'In Progress', category: 'Active' },
+      { name: 'Done', category: 'Won' },
+    ])
+    expect(calls[2]!.variables).toEqual({ after: 'cursor-1' })
+  })
+
   it('fails to complete an issue it cannot find', async () => {
     const { source } = await connect([{ body: { data: { issues: { nodes: [] } } } }])
     await expect(source.complete!('ENG-7')).rejects.toThrow(/ENG-7/)

@@ -79,6 +79,8 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
         return { folder: 'D:/abc', trusted: false, platform: 'win32', user: 'svc' }
       },
       add: record('add'),
+      profileMoves: async (id, moves) => record('profileMoves')(id, moves),
+      sourceMoves: async (project, feed, moves) => record('sourceMoves')(project, feed, moves),
       remove: record('removeProject'),
       dismissUpdate: record('dismiss'),
       muteUpdates: record('mute'),
@@ -130,6 +132,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       if (id === 'down') throw new Error('github: HTTP 502')
       return id === '0b1c2d3e' ? { statuses: [{ name: 'Open', category: 'ToDo' }], labels: ['bug'] } : undefined
     },
+    profileStatuses: async (id) => (id === 'p-huly' ? [{ name: 'Todo', category: 'ToDo' }, { name: 'In Review', category: 'Active' }] : undefined),
     models: async (key) => (key === 'opencode' ? { models: ['opencode/big-pickle'], complete: true } : null),
     tasks: {
       card: async (task) => {

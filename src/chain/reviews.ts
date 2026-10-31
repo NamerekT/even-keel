@@ -189,6 +189,7 @@ export class Reviews {
     this.host.letGo(chain)
     this.deps.save(this.state)
     this.host.refilter(project)
+    void this.deps.moveStatus?.(project, task, 'review').catch((error) => this.deps.log(`review: ${task} was not moved on its pull request: ${String(error)}`))
   }
 
   /**

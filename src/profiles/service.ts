@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
+import type { StatusMoves } from '../chain/moves.js'
 import { englishOf, fail, notice, noticeOf, NoticeError, type Notice } from '../notice/notice.js'
 import { withSessionEnv } from '../secrets/service.js'
 import { isSecret } from '../secrets/catalog.js'
@@ -146,6 +147,7 @@ export class Profiles {
         hiddenCi: this.deps.hiddenCi?.(profile.id) ?? [],
         deniedPulls: this.deps.deniedPulls?.(profile.id) ?? [],
         rules: profile.rules ?? {},
+        moves: profile.moves ?? {},
         projectIds: this.projectsOn(profile).map(([id]) => id),
         ...(profile.mcpOAuth === undefined ? {} : { mcpOAuth: this.mcpOAuthView(profile.id, profile.mcpOAuth) }),
       })),
@@ -158,6 +160,7 @@ export class Profiles {
         alternatives: (each.alternatives ?? []).map((names) => [...names]),
         help: each.help,
         ...(MCP_OAUTH[kind] !== undefined ? { mcpOAuth: true } : each.mcpKeys !== undefined ? { mcpShared: true } : {}),
+        ...(each.moves === undefined ? {} : { moves: true }),
       })),
     }
   }
@@ -188,6 +191,7 @@ export class Profiles {
     const { account, oauth } = await this.checkedAccount(draft, adapter, values)
     const profile: TrackerProfile = {
       ...(stored?.rules === undefined ? {} : { rules: stored.rules }),
+      ...(stored?.moves === undefined ? {} : { moves: stored.moves }),
       id: stored?.id ?? randomUUID(),
       kind: draft.kind,
       name: draft.name.trim() || account.name,
@@ -228,6 +232,15 @@ export class Profiles {
     this.deps.checkRules?.(this.set, id, clean)
     const { rules: _, ...rest } = profile
     const updated: TrackerProfile = Object.keys(clean).length === 0 ? rest : { ...rest, rules: clean }
+    this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
+  }
+
+  /** The profile's status moves (BTN-554), checked by the caller against its statuses: only the keys set. */
+  setMoves(id: string, moves: StatusMoves): void {
+    const profile = this.profile(id)
+    if (profile === undefined) throw fail('profiles.unknown', {})
+    const { moves: _, ...rest } = profile
+    const updated: TrackerProfile = Object.keys(moves).length === 0 ? rest : { ...rest, moves }
     this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
   }
 

@@ -69,6 +69,8 @@ export interface SetupOptions {
   /** By project, or by the id prefix of a feed's tasks. */
   rules?: Record<string, ChainRules>
   fillMilestone?: boolean
+  /** The status moves reject, as the service's never do. */
+  failMove?: boolean
   main?: MainCheckDeps
   reviews?: ReviewDeps
   unchanged?: UnchangedDeps
@@ -101,6 +103,8 @@ export function setup(options: SetupOptions = {}) {
   const extras: Record<string, string> = {}
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
+  /** The status moves asked for, `<when>/<task>`. */
+  const moves: string[] = []
   /** What a read of the tracker out of turn (`refresh`) hands over, by project; none — the tracker does not answer. */
   const tracker: Record<string, Task[]> = {}
   const refreshed: string[] = []
@@ -135,6 +139,10 @@ export function setup(options: SetupOptions = {}) {
     asked: (id) => options.asked?.[id] ?? null,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
+    moveStatus: async (_project, id, when) => {
+      moves.push(`${when}/${id}`)
+      if (options.failMove) throw new Error(`tracker: could not move ${id}`)
+    },
     now: () => clock.now,
     limited: (id) => limited[id],
     overage: options.overage,
@@ -216,6 +224,7 @@ export function setup(options: SetupOptions = {}) {
     extras,
     saved,
     journal,
+    moves,
     clock,
     account,
     limited,

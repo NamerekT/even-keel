@@ -35,6 +35,8 @@ export const PROFILE_QUERIES: Record<string, (deps: ServerDeps, body: Record<str
   'profiles/check': ({ profiles }, body) => profiles.check(profileDraftOf(body)),
   'profiles/save': async ({ profiles }, body) => ({ id: await profiles.save({ ...profileDraftOf(body), name: typeof body.name === 'string' ? body.name : '' }) }),
   'profiles/projects': ({ profiles }, body) => profiles.projects(textOf(body.id, 'id'), typeof body.query === 'string' ? body.query : ''),
+  // `null` — no such profile, its kind moves no statuses, or the tracker named none (BTN-554).
+  'profiles/statuses': async ({ profileStatuses }, body) => (await profileStatuses(textOf(body.id, 'id'))) ?? null,
   'profiles/oauth/start': async ({ profiles }, body, request) => {
     const origin = request.headers.origin
     if (!origin || new URL(origin).host !== request.headers.host) throw fail('profiles.oauthAddress', {})

@@ -6,6 +6,10 @@ import { useCommand } from '../live/useCommand.js'
 import { issueLink, projectOfPath, projectPath } from '../state.js'
 import { type NoticeFix, noticeFixOf } from './noticeFix.js'
 import { openTab, projectScope, SETTINGS_HASH, SHARED_SCOPE } from './settingsStore.js'
+import type { EvenKeelState } from '../../../src/state.js'
+import { linkedProfile } from './ProjectTracker.js'
+import { profileGroup } from './ProfileRules.js'
+import { taskFeed } from './settingsRows.js'
 
 /** A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is shown at. */
 export function NoticeFixButton({ project, notice }: { project: string | null; notice: Notice | null }) {
@@ -21,8 +25,8 @@ export function FixButton({ project, fix, className = 'button button--small noti
     return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
   }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
-  const target = fix.to === 'project' ? (fix.project ?? project) : null
-  if (fix.to === 'project' && target === null) return null
+  const target = fix.to === 'project' ? (fix.project ?? project) : fix.to === 'moves' ? project : null
+  if ((fix.to === 'project' || fix.to === 'moves') && target === null) return null
   return (
     <button type="button" className={className} onClick={() => go(fix, target)}>
       {fixLabel(fix)}
@@ -31,7 +35,8 @@ export function FixButton({ project, fix, className = 'button button--small noti
 }
 
 /** What the button to a place in the settings or the accounts says. */
-export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' }>): string {
+export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' }>): string {
+  if (fix.to === 'moves') return t.fix.moves
   return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
 }
 
@@ -58,7 +63,20 @@ export function useFix() {
     }
     if (project === null) return
     const id = state === null ? project : projectOfPath(state, project).project
-    openTab(projectScope(id), fix.tab)
+    if (fix.to === 'moves' && fix.level === 'profile') {
+      openTab(SHARED_SCOPE, state === null ? 'rules' : (movesProfile(state, id, fix.task) ?? 'rules'))
+      return void navigate('/settings')
+    }
+    // A source's own moves are in its window on the project's Tracker tab, a feed's too.
+    openTab(projectScope(id), fix.to === 'moves' ? 'tracker' : fix.tab)
     navigate({ pathname: projectPath(id), hash: SETTINGS_HASH })
   }
+}
+
+/** The settings tab of the profile a task's source reads on: its feed's or the project's main tracker's. */
+function movesProfile(state: EvenKeelState, project: string, task: string): string | undefined {
+  const feed = taskFeed(state.config.feeds[project] ?? [], task)
+  const kind = feed?.tracker ?? state.config.projects[project]?.tracker
+  const profile = linkedProfile(state.profiles.profiles.filter((each) => each.kind === kind), feed?.id ?? project)
+  return profile === undefined ? undefined : profileGroup(profile.id)
 }

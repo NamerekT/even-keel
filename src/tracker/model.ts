@@ -123,6 +123,16 @@ export function isOpen(status: TaskStatus): boolean {
   return status.category !== 'Won' && status.category !== 'Lost'
 }
 
+/** The statuses in their order, a name once whatever its case: the first one of a name stays (`TaskSource.statuses`). */
+export function uniqueStatuses(statuses: readonly TaskStatus[]): TaskStatus[] {
+  const seen = new Map<string, TaskStatus>()
+  for (const status of statuses) {
+    const key = status.name.trim().toLocaleLowerCase()
+    if (!seen.has(key)) seen.set(key, status)
+  }
+  return [...seen.values()]
+}
+
 export function diffStatuses(
   known: ReadonlyMap<string, TaskStatus>,
   current: Task[],

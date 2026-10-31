@@ -87,6 +87,12 @@ Errors above the chain always stay visible. Several cleanup and carry warnings s
 
 If a task is merged but its tracker refuses to close it, the project page and card show the tracker's response and **Open in the tracker**. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically every 30 seconds and continues the chain once the task closes. This wait is shown separately from a session waiting for your reply.
 
+### Statuses on actions
+
+On Huly, Linear and Jira, Even Keel can move a task to a status you choose at three points: when it starts the task, when it opens the task's pull request (in PR mode) and when it closes the task after the merge. Set them on a tracker profile, in its tab of **Settings → Chain rules**, section **Statuses on actions**: start and pull request offer "leave as is" and the statuses in the chain, completion "automatic" and the done statuses. A project's tracker and each task feed can override them in their **Configure** window on the Tracker tab, third tab, where "as in the profile" shows the profile's value. A new profile of these trackers asks for them right after it is saved, prefilled with the first in-progress status and a review status where the tracker has one; skip it and nothing changes. By default nothing moves and a merged task closes into the tracker's first done status.
+
+Moves only go forward: a task already in progress is not moved back on its start, and a closed one is never touched. A status outside the chain is not offered, since the chain would drop the task the moment it moved there. If the tracker refuses a move, the chain goes on and the project page shows the tracker's answer with **Open the statuses on actions**; a refused close waits and retries as above.
+
 **Give the active milestone to tasks without one** assigns the current task's milestone to a task entering the chain without one, or the earliest milestone in the chain when the current task has none. The backlog's "will stand here" preview uses that milestone too. If the assignment would put a blocker after a task it holds, the task keeps no milestone. A successful assignment appears on the page in the same refresh; a milestone you later change or clear is left alone.
 
 ## Several trackers for one project

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { FORGEJO_PROFILE, FORGEJO_TOKEN, FORGEJO_URL, hostOf } from '../ci/forgejo-profile.js'
+import type { StatusMoves } from '../chain/moves.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
 import { profilesOfEnv, type Adapters, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
@@ -15,6 +16,7 @@ interface ProfileRow {
   expires_at: string | null
   rules: string
   mcp_oauth: string
+  moves: string
 }
 
 /** The profiles in their order and each project's and feed's profile, in one statement. */
@@ -30,6 +32,7 @@ export async function readProfiles(db: Queryable): Promise<ProfileSet> {
   return {
     profiles: profiles.map((row) => {
       const rules = JSON.parse(row.rules) as ProfileRules
+      const moves = JSON.parse(row.moves) as StatusMoves
       return {
         id: row.id,
         kind: row.kind,
@@ -39,6 +42,7 @@ export async function readProfiles(db: Queryable): Promise<ProfileSet> {
         login: row.login,
         expiresAt: row.expires_at,
         ...(Object.keys(rules).length === 0 ? {} : { rules }),
+        ...(Object.keys(moves).length === 0 ? {} : { moves }),
         // A grant of a kind that lost MCP OAuth (Linear, GitHub: BTN-604) is dropped; the next save clears its row.
         ...(row.mcp_oauth === 'null' || MCP_OAUTH[row.kind] === undefined ? {} : { mcpOAuth: JSON.parse(row.mcp_oauth) as TrackerProfile['mcpOAuth'] }),
       }
@@ -66,6 +70,7 @@ export function saveProfiles(db: Db, { profiles, links, feeds = {} }: ProfileSet
     created_at: now.toISOString(),
     rules: JSON.stringify(profile.rules ?? {}),
     mcp_oauth: JSON.stringify(profile.mcpOAuth ?? null),
+    moves: JSON.stringify(profile.moves ?? {}),
   }))
   return inTransaction(db, async (tx) => {
     await tx.query('update projects set profile_id = ($1::json ->> id) where profile_id is distinct from ($1::json ->> id)', [JSON.stringify(links)])
@@ -78,7 +83,7 @@ export function saveProfiles(db: Db, { profiles, links, feeds = {} }: ProfileSet
       `insert into tracker_profiles select * from json_populate_recordset(null::tracker_profiles, $1)
        on conflict (id) do update set kind = excluded.kind, name = excluded.name, credentials = excluded.credentials,
          is_default = excluded.is_default, login = excluded.login, expires_at = excluded.expires_at, position = excluded.position,
-         rules = excluded.rules, mcp_oauth = excluded.mcp_oauth`,
+         rules = excluded.rules, mcp_oauth = excluded.mcp_oauth, moves = excluded.moves`,
       [JSON.stringify(rows)],
     )
   })

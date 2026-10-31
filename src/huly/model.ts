@@ -1,5 +1,5 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
-import type { StatusCategory, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
+import { uniqueStatuses, type StatusCategory, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerVocabulary } from '../tracker/source.js'
 
 const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
@@ -122,15 +122,43 @@ export function toTasks(
   })
 }
 
-// `allowed` — the statuses of the project's type in their order; `null` when the type is unknown.
-export function closingStatus(current: string, statuses: HulyStatusDoc[], allowed: string[] | null): string | null {
+// `allowed` — the statuses of the project's type in their order; `null` when the type is unknown. `name` — the done
+// status picked (BTN-554): only that one, never another.
+export function closingStatus(current: string, statuses: HulyStatusDoc[], allowed: string[] | null, name?: string): string | null {
   const byId = new Map(statuses.map((doc) => [doc._id, doc]))
   const now = byId.get(current)
   if (now !== undefined && ['Won', 'Lost'].includes(toStatus(now).category)) return null
+  if (name !== undefined) {
+    const named = namedStatus(name, statuses, allowed)
+    if (named === null) throw new Error(`huly: the project has no status "${name}"`)
+    const { category } = toStatus(named)
+    if (category !== 'Won') throw new Error(`huly: "${name}" is not a done status, it is ${category}`)
+    return named._id
+  }
   const candidates = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
   const won = candidates.find((doc) => toStatus(doc).category === 'Won')
   if (won === undefined) throw new Error('huly: the project has no done status')
   return won._id
+}
+
+/** The project's status of this name, ignoring case (BTN-554); `null` — it has none. `allowed` as in `closingStatus`. */
+export function namedStatus(name: string, statuses: HulyStatusDoc[], allowed: string[] | null): HulyStatusDoc | null {
+  const wanted = name.trim().toLocaleLowerCase()
+  const candidates = allowed === null ? statuses : statuses.filter((doc) => allowed.includes(doc._id))
+  return candidates.find((doc) => doc.name.trim().toLocaleLowerCase() === wanted) ?? null
+}
+
+/** Every issue status of the workspace, a name once; one of a category Even Keel does not know is left out. */
+export function hulyStatuses(statuses: HulyStatusDoc[]): TaskStatus[] {
+  return uniqueStatuses(
+    statuses.flatMap((doc) => {
+      try {
+        return [toStatus(doc)]
+      } catch {
+        return []
+      }
+    }),
+  )
 }
 
 // `allowed` as in `closingStatus`. `null` — the issue is past the backlog.
