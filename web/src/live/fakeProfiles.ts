@@ -1,5 +1,6 @@
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProfileField, ProfileKindView, ProfilesView, ProfileView } from '../../../src/state.js'
+import type { TaskStatus } from '../../../src/tracker/model.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import { ago } from './fakeSessions.js'
 
@@ -26,9 +27,10 @@ const KINDS: ProfileKindView[] = [
     alternatives: [['HULY_EMAIL', 'HULY_PASSWORD'], ['HULY_TOKEN']],
     help: 'https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials',
     tracker: true,
+    moves: true,
   },
   { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new', mcpShared: true },
-  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpShared: true },
+  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpShared: true, moves: true },
   { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/', mcpShared: true },
   {
     kind: 'jira',
@@ -44,6 +46,7 @@ const KINDS: ProfileKindView[] = [
     alternatives: [],
     help: 'https://id.atlassian.com/manage-profile/security/api-tokens',
     mcpOAuth: true,
+    moves: true,
   },
   {
     kind: 'forgejo',
@@ -110,6 +113,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     hiddenCi: [],
     deniedPulls: [],
     rules: { terminal: ['Done', 'Canceled'] },
+    moves: { start: 'In Progress', review: 'In Review' },
     projectIds: ['ABC', 'DEMO', 'XYZ', 'OPS'],
   }
   const github: ProfileView = {
@@ -126,6 +130,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     hiddenCi: [{ project: 'ABC', remote: 'github' }],
     deniedPulls: [],
     rules: {},
+    moves: {},
     projectIds: ['feed-abc-gh'],
   }
   const forgejo: ProfileView = {
@@ -145,6 +150,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     hiddenCi: [],
     deniedPulls: [{ project: 'DEMO', remote: 'origin' }],
     rules: {},
+    moves: {},
     projectIds: [],
   }
   const linear: ProfileView = {
@@ -161,6 +167,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     hiddenCi: [],
     deniedPulls: [],
     rules: {},
+    moves: {},
     projectIds: ['feed-abc-lin'],
   }
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
@@ -170,7 +177,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     isDefault: true, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
     login: 'johndoe', expiresAt: new Date(Date.now() + 60 * DAY_MS).toISOString(),
     check: mode === 'gitlab-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'GitLab' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
-    projects: [], ci: [{ project: 'ABC', remote: 'origin' }], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+    projects: [], ci: [{ project: 'ABC', remote: 'origin' }], hiddenCi: [], deniedPulls: [], rules: {}, moves: {}, projectIds: [],
   }
   if (mode === 'gitlab-ci') return { profiles: [gitlab, { ...gitlab, id: '3f0c2b9e-0000-4000-8000-000000000006', name: 'GitLab · deploy', isDefault: false, ci: [] }], kinds: KINDS }
   if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
@@ -179,7 +186,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     isDefault: true, fields: fields('jira', { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: '' }),
     login: 'john.doe@example.com', expiresAt: null,
     check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
-    projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, projectIds: [],
+    projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, moves: {}, projectIds: [],
     ...(mode === 'jira-oauth' ? { mcpOAuth: { state: 'connected' as const } } : mode === 'jira-revoked' ? { mcpOAuth: { state: 'reconnect' as const } } : {}),
     ...(mode === 'jira-other' ? { mcpOAuth: { state: 'connected' as const, warning: OTHER_PERSON } } : {}),
   }
@@ -204,6 +211,10 @@ export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Re
     const rules = body.rules as ProfileView['rules']
     if (rules.terminal?.some((status) => status.toLowerCase() === 'todo')) throw fail('config.statusBoth', { project: 'ABC', status: 'Todo' })
     return { ...state, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, rules } : each)) } }
+  }
+  if (name === 'profiles/moves' && profile !== undefined) {
+    const moves = body.moves as ProfileView['moves']
+    return { ...state, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, moves } : each)) } }
   }
   if (name === 'profiles/link' || name === 'project/feed/profile') {
     const project = String(name === 'profiles/link' ? body.project : body.feed)
@@ -249,6 +260,13 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   throw new Error(`fake: ${name} is not supported`)
 }
 
+/** `profiles/statuses`: those of the fake tracker for a kind that moves statuses; `?profileStatuses=none|fail` — none named, or no answer. */
+export function fakeProfileStatuses(state: EvenKeelState, body: Record<string, unknown>, mode: string | null, statuses: TaskStatus[]): TaskStatus[] | null {
+  if (mode === 'fail') throw new Error('huly: not connected')
+  const kind = state.profiles.profiles.find((each) => each.id === body.id)?.kind
+  return mode === 'none' || state.profiles.kinds.find((each) => each.kind === kind)?.moves !== true ? null : statuses
+}
+
 /** The state after a fake `profiles/save` answered `id`. */
 export function fakeSaved(state: EvenKeelState, id: string, body: Record<string, unknown>): EvenKeelState {
   const view = state.profiles
@@ -269,6 +287,7 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     hiddenCi: stored?.hiddenCi ?? [],
     deniedPulls: [],
     rules: stored?.rules ?? {},
+    moves: stored?.moves ?? {},
     projectIds: stored?.projectIds ?? [],
     ...(typeof body.oauth === 'string' ? { mcpOAuth: { state: 'connected' as const } } : body.oauth === null || stored?.mcpOAuth === undefined ? {} : { mcpOAuth: stored.mcpOAuth }),
   }

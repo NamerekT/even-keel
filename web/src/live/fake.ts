@@ -19,7 +19,7 @@ import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
-import { withCompletionFailure } from './fakeCompletion.js'
+import { withCompletionFailure, withMoveFailure } from './fakeCompletion.js'
 import { withProtection } from './fakeProtection.js'
 import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
@@ -34,7 +34,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
-import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
+import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -569,6 +569,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: hung.sessionId, since: ago(80) } }]
   }
   if (params.get('chain')?.startsWith('completion') && current.state !== null) current.state = withCompletionFailure(current.state, params.get('chain')!)
+  if (params.get('chain')?.startsWith('statusMove') && current.state !== null) current.state = withMoveFailure(current.state, params.get('chain')!)
   if (params.has('forward') && current.state !== null) current.state = withCarry(current.state, params.get('forward')!, session('XYZ-CARRY', 24_000), ago(4))
   if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
   if (params.get('chain') === 'aside' && current.state !== null) {
@@ -743,6 +744,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: 'win32', user: 'evenkeel' } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
+      if (name === 'profiles/statuses') return fakeProfileStatuses(current.state, body, params.get('profileStatuses'), FAKE_VOCABULARY.statuses) as T
       const result = fakeProfilesQuery(current.state, name, body)
       if (name === 'profiles/save') {
         current = { ...current, state: fakeSaved(current.state, (result as { id: string }).id, body) }

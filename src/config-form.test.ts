@@ -91,6 +91,11 @@ describe('withProjectForm', () => {
     expect(formOf({ chain: { requiredLabels: ['Auto'] }, projects: [abc({ chain: { terminal: ['Done'] } })] }, 'id-abc').ownRules).toEqual(['terminal'])
   })
 
+  it("shows the main tracker's own status moves, none when it sets none", () => {
+    expect(formOf({ projects: [abc({ statusMoves: { review: 'In Review' } })] }, 'id-abc').moves).toEqual({ review: 'In Review' })
+    expect(formOf({ projects: [abc()] }, 'id-abc')).not.toHaveProperty('moves')
+  })
+
   it('compares a changed rule with what the project inherits from its profile', () => {
     const raw = { chain: { active: ['Todo'] }, projects: [abc()] }
     const base = { ...formOf(raw, 'id-abc'), chain: { ...formOf(raw, 'id-abc').chain, active: ['Ready'] } }

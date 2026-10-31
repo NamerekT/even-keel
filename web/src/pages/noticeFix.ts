@@ -1,3 +1,4 @@
+import type { MoveLevel } from '../../../src/notice/en.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { fieldOf, type FieldError } from './settingsField.js'
@@ -8,9 +9,16 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
 /**
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
- * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again.
+ * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
+ * status moves of the task's source (`source`) or of its tracker profile (`profile`).
  */
-export type NoticeFix = { to: 'project'; project?: string; tab: ProjectTab } | { to: 'shared'; tab: SharedTab } | { to: 'accounts' } | { to: 'resume' } | { to: 'tracker'; task: string }
+export type NoticeFix =
+  | { to: 'project'; project?: string; tab: ProjectTab }
+  | { to: 'shared'; tab: SharedTab }
+  | { to: 'accounts' }
+  | { to: 'resume' }
+  | { to: 'tracker'; task: string }
+  | { to: 'moves'; level: MoveLevel; task: string }
 
 const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
@@ -62,7 +70,13 @@ export function untrustedOf(notice: Notice | null | undefined): Untrusted | null
 /** The place a notice is fixed at: its own, or that of its first reason (the items, then the cause); `null` — none on the page. */
 export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null {
   if (notice === null || notice === undefined) return null
-  if (notice.code === 'tracker.completeRefused') return { to: 'tracker', task: notice.params.task }
+  if (notice.code === 'tracker.completeRefused') {
+    const { task, level } = notice.params
+    return level === undefined ? { to: 'tracker', task } : { to: 'moves', level, task }
+  }
+  if (notice.code === 'statusMove.refused' || notice.code === 'statusMove.outside' || notice.code === 'statusMove.notDone') {
+    return { to: 'moves', level: notice.params.level, task: notice.params.task }
+  }
   const own = BY_CODE[notice.code]
   if (own !== undefined) return own
   for (const item of notice.items ?? []) {

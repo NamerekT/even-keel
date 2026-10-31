@@ -408,6 +408,25 @@ describe('Even Keel HTTP server', () => {
     expect(await failed.json()).toEqual(refusal('github: HTTP 502'))
   })
 
+  it("answers a profile's statuses, null when it names none", async () => {
+    const statuses = await fetch(base + '/api/profiles/statuses', { method: 'POST', body: JSON.stringify({ id: 'p-huly' }) })
+    expect(await statuses.json()).toEqual([{ name: 'Todo', category: 'ToDo' }, { name: 'In Review', category: 'Active' }])
+    const none = await fetch(base + '/api/profiles/statuses', { method: 'POST', body: JSON.stringify({ id: 'p-gone' }) })
+    expect(await none.json()).toBeNull()
+  })
+
+  it("saves a profile's and a source's status moves, refusing a move that is no status name", async () => {
+    const moves = { start: 'In Progress', review: null, done: 'Done' }
+    expect((await fetch(base + '/api/profiles/moves', { method: 'POST', body: JSON.stringify({ id: 'p-huly', moves }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/moves', { method: 'POST', body: JSON.stringify({ project: 'ABC', feed: null, moves: {} }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/moves', { method: 'POST', body: JSON.stringify({ project: 'ABC', feed: 'f1', moves: { review: 'In Review' } }) })).status).toBe(200)
+    const refused = await fetch(base + '/api/profiles/moves', { method: 'POST', body: JSON.stringify({ id: 'p-huly', moves: { done: null } }) })
+    expect(refused.status).toBe(400)
+    expect(calls).toContainEqual(['profileMoves', 'p-huly', moves])
+    expect(calls).toContainEqual(['sourceMoves', 'ABC', null, {}])
+    expect(calls).toContainEqual(['sourceMoves', 'ABC', 'f1', { review: 'In Review' }])
+  })
+
   it('serves the card of a task, 404 when no tracker gives one', async () => {
     const response = await fetch(base + '/api/tasks/ABC-1')
     expect(response.status).toBe(200)

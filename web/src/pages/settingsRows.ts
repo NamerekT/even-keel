@@ -34,9 +34,12 @@ export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly Tra
  * of the main tracker (`null`) those no feed claims.
  */
 export function sourceTasks(tasks: readonly Task[], feeds: readonly Pick<FeedView, 'id' | 'key' | 'prefix'>[], feed: string | null): Task[] {
-  const feedOf = (task: Task) => feeds.find((each) => (each.prefix ?? each.key) === task.id.slice(0, task.id.lastIndexOf('-')))?.id ?? null
-  return tasks.filter((task) => feedOf(task) === feed)
+  return tasks.filter((task) => (taskFeed(feeds, task.id)?.id ?? null) === feed)
 }
+
+/** The feed a task id is of by its prefix; none — the main tracker's. */
+export const taskFeed = <T extends Pick<FeedView, 'id' | 'key' | 'prefix'>>(feeds: readonly T[], task: string): T | undefined =>
+  feeds.find((each) => (each.prefix ?? each.key) === task.slice(0, task.lastIndexOf('-')))
 
 /** The choices less those the opposite list (a draft text, one per line) already has: the config refuses a name in both. */
 export const withoutListed = (names: readonly string[], other: string): string[] =>

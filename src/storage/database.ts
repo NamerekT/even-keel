@@ -28,8 +28,8 @@ export interface Queryable {
  * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
  * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
- * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 24 the profiles' status moves (BTN-554); step 23 copies a project's own chain rules into each
- * of its feeds (BTN-553). A foreign key between tables is deferred, so that a copy inserts the
+ * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
+ * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
