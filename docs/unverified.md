@@ -97,7 +97,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message sent mid-turn has no bubble in the chat, no handoff on a full context |
-| 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot in a repository with its own MCP servers | the project's server starts beside the gateway's |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
@@ -521,10 +520,6 @@ Whole tasks ran as chain sessions of the Windows service on the machine's own si
 ### Hooks and plugins in Copilot sessions
 
 The checkpoint package's hooks from `--plugin-dir` run at every step of a chain session, and plugin skills load ([`verified.md`](verified.md), "Copilot"). Copilot drops `hookSpecificOutput.additionalContext` on `PostToolUse` and takes a top-level `additionalContext` on every event (a probe plugin, `verified.md`), so since BTN-467 Even Keel starts Copilot with `EVEN_KEEL_AGENT=copilot` and the hooks answer in the top-level shape there (`contextOutput`, covered by tests). A page message sent mid-turn reached the model on `PreToolUse` (2026-10-28, BTN-516) and one with a picture on `PostToolUse` (TSK-41, `verified.md`), though the chat showed neither. Since BTN-519 the chat shows such a message from `hook.end`'s text where Copilot writes it (`postToolUse`, seen live: one bubble per message, TSK-42) and otherwise from the mailbox at the time it was taken (`docs/sessions.md`), covered by tests only: a message taken on `preToolUse` was not seen since. The mail on `Stop` (its reason becomes the next prompt), the context nudge and a standard reached the model from a terminal against a stub (2026-10-30, BTN-471, `verified.md`). Not yet seen: repository hooks from `.claude/settings.json`, a session that writes the handoff note on a real threshold crossing. **Workaround:** keep Copilot for short tasks; if a message sent mid-turn shows no bubble in the chat, it still reached the model.
-
-### MCP servers in Copilot sessions
-
-The packages' servers reach a Copilot chain session through `--additional-mcp-config` and their tools are called ([`verified.md`](verified.md), "Copilot"). The project's own servers are turned off one by one with `--disable-mcp-server`, since Copilot has no strict mode; this was read from `--help`, not run: the repository of the check had no `.mcp.json`. If the flag is taken otherwise, a session starts the project's own server beside the gateway's. **Workaround:** take the project's `.mcp.json` servers out while it runs on Copilot.
 
 ### A spent Copilot budget
 
