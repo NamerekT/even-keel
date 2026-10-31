@@ -115,6 +115,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
 | 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth in the plaintext fallback, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
+| 86 | [A trimmed Huly server install from the service (BTN-627)](#a-trimmed-huly-server-install-from-the-service-btn-627) | every install or update of `huly@even-keel` | the install falls back to a full one and takes as long as before |
 
 ### Copilot's machine token and model availability (BTN-516)
 
@@ -545,6 +546,10 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 ### Packages on Linux and macOS
 
 Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
+
+### A trimmed Huly server install from the service (BTN-627)
+
+The trim of `@firfi/huly-mcp` (`docs/packages.md`, "Install and update") was run live only from a terminal, through the same functions: the install, the check, a copy and a check that fails on a stub (`verified.md`, "Packages"). The service's own install of `huly@even-keel` with it, under the service's account and environment, and its fall back to a full install were not seen. Assumed: the check's server starts the same way there. If not, the log says `failed its check` or `needs <package>` and every install is a full one, as slow as before; the chain is not held. To check: update `huly@even-keel` from the page and read the log for `without 18 packages took`, then `huly started in` with no `did not answer`.
 
 ### Tracker deletes refused by the gateway (BTN-541)
 

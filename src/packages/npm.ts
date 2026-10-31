@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fail } from '../notice/notice.js'
 import type { InstalledServer, ServerEntry } from './model.js'
+import { writeTrim } from './trim.js'
 
 const run = promisify(execFile)
 const NPM_TIMEOUT_MS = 5 * 60_000
@@ -67,13 +68,22 @@ export async function resolveVersion(spec: NpxSpec): Promise<string> {
   }
 }
 
-/** Installs the version into `prefix` and returns the server that runs it with node. */
-export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: string, prefix: string): Promise<InstalledServer> {
+/**
+ * `--prefer-offline`: the version is already resolved by `npm view`, so a cached package needs no metadata check.
+ * `--install-links`: a trim's stubs are copied, not linked, so a copy of the folder stands on its own.
+ */
+export function installArgs(prefix: string, target: string): string[] {
+  return ['install', '--prefix', prefix, '--no-audit', '--no-fund', '--omit=dev', '--no-save', '--prefer-offline', '--install-links', target]
+}
+
+/** Installs the version into `prefix` and returns the server that runs it with node; `drop` — packages left out (`trim.ts`). */
+export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: string, prefix: string, drop?: string[]): Promise<InstalledServer> {
   const target = `${spec.name}@${version}`
   try {
     // A missing working folder makes spawn report the executable itself as ENOENT.
     mkdirSync(prefix, { recursive: true })
-    await npm(['install', '--prefix', prefix, '--no-audit', '--no-fund', '--omit=dev', '--no-save', target], prefix)
+    if (drop !== undefined) writeTrim(prefix, spec.name, drop)
+    await npm(installArgs(prefix, target), prefix)
   } catch (error) {
     throw fail('packages.npmFailed', { spec: target }, { detail: (error as Error).message }, { cause: error })
   }
