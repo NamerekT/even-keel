@@ -350,8 +350,6 @@ export const en: Messages = {
     more: (name: string) => `More actions for ${name}`,
     moveHere: 'Here',
     moveHereFull: 'Move Even Keel or an app to this account',
-    atWork: 'At work',
-    others: 'Others',
     free: 'free',
     freeTip: (title: string, free: number, resetIn: string) => `${title}, the tightest: ${free}% left, resets in ${resetIn}`,
     appOn: (where: string) => `now on ${where}`,

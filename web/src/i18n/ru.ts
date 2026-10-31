@@ -354,8 +354,6 @@ export const ru = {
     more: (name: string) => `Другие действия: ${name}`,
     moveHere: 'Сюда',
     moveHereFull: 'Перевести на этот аккаунт Even Keel или приложение',
-    atWork: 'В работе',
-    others: 'Остальные',
     free: 'свободно',
     freeTip: (title: string, free: number, resetIn: string) => `${title}, самый тесный: свободно ${free}%, сброс через ${resetIn}`,
     appOn: (where: string) => `сейчас на ${where}`,

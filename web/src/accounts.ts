@@ -143,12 +143,6 @@ export function atWork(view: AccountView, entry: AccountEntry): boolean {
   )
 }
 
-/** The accounts drawer's two parts, each in the order of `accountGroups`: the accounts at work in full, the rest a line each. */
-export function panelSections(view: AccountView, now: Date): { working: AccountEntry[]; rest: AccountEntry[] } {
-  const ordered = accountGroups(view, now).flatMap((group) => group.entries)
-  return { working: ordered.filter((entry) => atWork(view, entry)), rest: ordered.filter((entry) => !atWork(view, entry)) }
-}
-
 export interface Tightest {
   span: LimitSpan
   /** What is left of the window, a whole percent within 0–100. */

@@ -19,32 +19,6 @@
   font-size: var(--text-12);
 }
 
-/* The drawer's two parts, "At work" and "Others", under quiet heads; the second names the column of numbers on the right. */
-.accounts__part {
-  display: flex;
-  align-items: baseline;
-  margin: 0;
-  padding: 10px 0 2px;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.accounts__part:first-child {
-  padding-top: 0;
-}
-
-/* Over the numbers, which stand left of the hidden "Here" button. */
-.accounts__part-free {
-  margin-left: auto;
-  margin-right: calc(var(--move-width) + 6px);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 /* One plain row per account: no band, no tint — its colour is the dot before the name. */
 .accounts__item {
   display: flex;
@@ -97,8 +71,7 @@
   gap: 4px;
 }
 
-.accounts,
-.accounts__part {
+.accounts {
   --move-width: 64px;
 }
 

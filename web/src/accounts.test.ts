@@ -13,7 +13,6 @@ import {
   entrySlot,
   foreignAccount,
   offeredProviders,
-  panelSections,
   readinessOf,
   tightestWindow,
 } from './accounts.js'
@@ -212,29 +211,6 @@ describe('accountGroups', () => {
       ['claude', ['global']],
       ['codex', ['work']],
     ])
-  })
-})
-
-describe('panelSections', () => {
-  const now = new Date('2026-10-10T10:00:00.000Z')
-  const of = (key: string, agent: string, patch: Partial<AccountEntry> = {}) => ({ ...entry(key, `${key}@example.com`), agent, ...patch })
-  const sections = (target: AccountView) => {
-    const { working, rest } = panelSections(target, now)
-    return { working: working.map((each) => each.key), rest: rest.map((each) => each.key) }
-  }
-
-  it('puts the accounts holding a role, running a project or a session first, by provider like the page', () => {
-    const app = { app: 'vscode' as const, account: 'editor', dir: null, error: null, sessions: [] }
-    expect(
-      sections({
-        ...view([of('spare', 'codex'), of('pool', 'codex', { projects: ['project-1'] }), of('editor', 'claude'), of('term', 'claude', { sessions: ['doe'] }), of('global', 'claude'), of('idle', 'claude')]),
-        apps: [app],
-      }),
-    ).toEqual({ working: ['global', 'editor', 'term', 'pool'], rest: ['idle', 'spare'] })
-  })
-
-  it('leaves the rest empty when every account works', () => {
-    expect(sections(view([of('global', 'claude')]))).toEqual({ working: ['global'], rest: [] })
   })
 })
 
