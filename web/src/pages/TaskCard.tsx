@@ -17,6 +17,7 @@ import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
+import { TaskRunPick } from './TaskRunPick.js'
 import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
 import './card.css'
@@ -239,6 +240,9 @@ function CardBody({ card, refused, work, live, onOpen, onChanged }: BodyProps) {
                   {card.milestone.targetDate ? <small>{t.card.due(DAY().format(card.milestone.targetDate))}</small> : null}
                 </span>
               )}
+            </Prop>
+            <Prop name={t.card.run.title} wide>
+              <TaskRunPick task={card.id} labels={card.labels.map((label) => label.name)} relabel={card.relabel} live={live} onChanged={onChanged} />
             </Prop>
             {card.parent !== null && (
               <Prop name={t.card.parent}>

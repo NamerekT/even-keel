@@ -456,7 +456,8 @@ html:has(.task-card[open]) {
 }
 
 /* The milestone stands where the text was and reads like it; the frame shows on hover and focus. */
-.task-card__milestone-pick {
+.task-card__milestone-pick,
+.task-card__run-pick {
   width: calc(100% + 16px);
   margin: -5px -8px -1px;
   padding: 4px 8px;
@@ -469,9 +470,54 @@ html:has(.task-card[open]) {
 }
 
 .task-card__milestone-pick:hover:not(:disabled),
-.task-card__milestone-pick[aria-expanded='true'] {
+.task-card__milestone-pick[aria-expanded='true'],
+.task-card__run-pick:hover:not(:disabled),
+.task-card__run-pick[aria-expanded='true'] {
   border-color: var(--border);
   background: var(--surface-muted);
+}
+
+.task-card__run {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.task-card__run-model {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--text-12)/1.45 var(--mono);
+}
+
+.task-card__run-model::placeholder {
+  color: var(--fg-muted);
+  font-family: var(--font);
+}
+
+.task-card__run-model:disabled {
+  opacity: 0.6;
+}
+
+.task-card__run-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-6);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  line-height: 1.45;
+}
+
+.task-card__run-note--warn {
+  color: var(--warn-fg);
 }
 
 .task-card__priority {
