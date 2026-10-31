@@ -3,14 +3,15 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import type { SessionView } from '../../../src/state.js'
 import { notice } from '../../../src/notice/notice.js'
 import { needsReply } from '../completion.js'
+import { spendsByKey } from '../layout/accountParts.js'
 import { formatMoment } from '../format.js'
 import { say, t } from '../i18n/index.js'
 
 export function limitPlan(hold: LimitHold, now: Date, session: SessionView, accounts: readonly AccountEntry[]): string {
   if (session.apiErrorKind === 'transient' && hold.resetsAt !== null) return say(notice('session.transientRetry', { at: formatMoment(hold.resetsAt, now) }))
   if (session.apiErrorKind === 'spend') return t.session.spendWait(hold.resetsAt === null ? null : formatMoment(hold.resetsAt, now))
-  const apiKey = accounts.find((entry) => entry.key === session.account)?.apiKey === true
-  if (hold.resetsAt === null) return apiKey ? t.session.creditOut : t.session.limitUnknown
+  const entry = accounts.find((each) => each.key === session.account)
+  if (hold.resetsAt === null) return entry !== undefined && spendsByKey(entry) ? t.session.creditOut : t.session.limitUnknown
   const at = formatMoment(hold.resetsAt, now)
   return hold.then === 'resume' ? t.session.limitResume(at) : t.session.limitRelay(at)
 }
