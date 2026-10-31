@@ -1,9 +1,11 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isAlive } from '../../agent/process.js'
 import { replyPrompt, type Ask } from '../../sessions/ask.js'
-import { replyMove, sessionOptions } from './host.js'
+import { replyMove, SdkSessions, sessionOptions, type SdkHostOptions } from './host.js'
+import { newPipe, startExecutor } from './pipe.js'
 
 const ask: Ask = {
   id: 'toolu_01',
@@ -32,6 +34,23 @@ describe('replyMove', () => {
   it('sends the reply as the next message to a session that waits on no call', () => {
     expect(replyMove('Go on with the task.', null)).toEqual({ kind: 'message' })
   })
+})
+
+describe('SdkSessions.stop', () => {
+  it('leaves no socket file of the killed executor behind', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'even-keel-sdk-'))
+    try {
+      const sessions = new SdkSessions({ dir, log: () => undefined } as unknown as SdkHostOptions)
+      const pipe = newPipe()
+      const executor = await startExecutor(pipe, sessions.registry.executorFiles('session-1', 1))
+      sessions.registry.save({ sessionId: 'session-1', name: 'ABC-1', cwd: dir, account: 'global', startedAt: 1, executor, pipe, model: null })
+      await sessions.stop('session-1')
+      expect(isAlive(executor)).toBe(false)
+      expect(existsSync(pipe)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 20_000)
 })
 
 describe('sessionOptions', () => {
