@@ -69,6 +69,11 @@ describe('cardOf', () => {
     expect(cardOf(raw(), DEFAULT_RULES, ALL).requires).toEqual([])
   })
 
+  it('says whether the tracker can write the labels', () => {
+    expect(cardOf(raw(), DEFAULT_RULES, ALL).relabel).toBe(true)
+    expect(cardOf(raw(), DEFAULT_RULES, NONE).relabel).toBe(false)
+  })
+
   it('offers the milestones in the chain order, or none when the tracker cannot move a task', () => {
     const choices = [
       { id: 'm3', label: 'v0.10', targetDate: null },

@@ -65,6 +65,8 @@ export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments'> {
   requires: string[]
   /** What the card's milestone can be changed to, in the chain's order; `null` — the tracker cannot move a task. */
   milestones: MilestonePick | null
+  /** The tracker can write the task's labels: the card's run label pick saves. */
+  relabel: boolean
 }
 
 /** What the task's connected tracker can do to move a task between the backlog and the chain. */
@@ -90,6 +92,7 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, m
     unready: (can.unready && (category === 'ToDo' || category === 'Active')) || (can.relabel && open && requiredOn(rules, raw).length > 0),
     requires: required ? rules.requiredLabels : [],
     milestones: milestones === null ? null : { ...milestones, choices: [...milestones.choices].sort(compareMilestones) },
+    relabel: can.relabel,
   }
 }
 

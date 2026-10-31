@@ -366,6 +366,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }
   }
   if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
+  if (params.get('modelLabels') === 'on' && current.state !== null) current.state.config.shared.modelLabels = true
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
