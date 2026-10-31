@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { needsCheckedCli } from './agent/providers.js'
-import { shortId } from './chain/fix.js'
+import { fixStem, shortId } from './chain/fix.js'
 import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
@@ -463,6 +463,16 @@ export function readersOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tr
   }
   readersCache.set(config, readers)
   return readers
+}
+
+/**
+ * What the session monitor keeps a session by (BTN-651): the stem of each project's fix and carry (`<KEY>-FIX`) and
+ * the prefix of every reader's task ids — a project's and each of its feeds'.
+ */
+export function sessionPrefixes(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'trackers' | 'trackerProjects' | 'feeds'>): string[] {
+  const readers = readersOf(config)
+  const stems = Object.keys(config.projects).map((project) => fixStem(config.keys, project))
+  return [...new Set([...stems, ...Object.keys(readers.projects).map((reader) => idPrefixOf(readers, reader))])]
 }
 
 /** The project a reader serves: a feed's owner, a project itself. */

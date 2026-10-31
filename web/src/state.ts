@@ -213,11 +213,12 @@ export function taskPrefix(task: string): string {
   return task.replace(/-(\d+|FIX|CARRY)$/, '')
 }
 
-type ProjectSource = Pick<EvenKeelState, 'tasks' | 'projectKeys' | 'taskPrefixes'> & Partial<Pick<EvenKeelState, 'forwards' | 'fixes'>>
+type ProjectSource = Pick<EvenKeelState, 'tasks' | 'projectKeys' | 'taskPrefixes'> & Partial<Pick<EvenKeelState, 'forwards' | 'fixes' | 'config'>>
 
 /**
  * The project of a task or of a fix episode, by id (BTN-271): the one its fix name is of, the one a carry runs in, the
- * one listing the task, else the first with its prefix; the prefix itself when no project has it.
+ * one listing the task, else the first with its prefix, else the owner of the feed with it (BTN-651); the prefix itself
+ * when none has it.
  */
 export function taskProject(state: ProjectSource | null, task: string): string {
   if (state === null) return taskPrefix(fixTaskOf(task))
@@ -226,7 +227,12 @@ export function taskProject(state: ProjectSource | null, task: string): string {
   const listed = state.tasks.find((each) => each.id === task)?.project
   if (listed !== undefined) return listed
   const prefix = taskPrefix(task)
-  return Object.keys(state.taskPrefixes).find((project) => state.taskPrefixes[project] === prefix) ?? prefix
+  const feeds = state.config?.feeds ?? {}
+  return (
+    Object.keys(state.taskPrefixes).find((project) => state.taskPrefixes[project] === prefix) ??
+    Object.keys(feeds).find((project) => feeds[project]!.some((feed) => (feed.prefix ?? feed.key) === prefix)) ??
+    prefix
+  )
 }
 
 /** The project a carry runs in (BTN-369): the one its release merges into, else the one its past episodes ran in. */
