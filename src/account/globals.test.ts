@@ -70,6 +70,8 @@ it('has a frozen schema sample for the registration table', async () => {
     const env = environment()
     expect((await openAccountHomes(frozen, env)).list().map((home) => home.key)).toEqual(['global', 'codex'])
     const copyDir = join(roots[0]!, 'backup')
+    // A backup is of the current version: the sample is brought there first, as the service's start would.
+    for (const step of STEPS.slice(15)) await frozen.exec(step)
     await backupDatabase(frozen, copyDir)
     const copy = await openDatabase(dataDirOf(copyDir))
     try {

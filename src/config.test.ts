@@ -106,6 +106,7 @@ describe('parseConfig', () => {
       trackers: { ABC: 'huly' },
       trackerProjects: {},
       feeds: {},
+      moves: {},
       brief: null,
       briefs: { ABC: null },
       settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, own: {} } },

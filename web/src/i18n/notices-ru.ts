@@ -455,6 +455,7 @@ export const noticesRu: NoticeTexts = {
   'config.feeds': (p) => `${p.where} должен быть списком источников задач, у каждого — id, трекер и ключ`,
   'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,
   'config.feedRules': (p) => `${p.where} должен быть объектом правил цепочки (${p.keys.join(', ')}), каждое — список имён; active и terminal могут быть null`,
+  'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
   'config.feedPrefix': (p) => `источник задач ${p.project} даёт ID задач ${p.prefix}-…, как и ${p.other}: дайте источнику другой ключ`,
   'config.feedPlace': (p) => `источник задач ${p.project} читает то же место трекера, что и ${p.other}, и задача попала бы в цепочку дважды`,
   'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,

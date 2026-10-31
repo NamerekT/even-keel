@@ -40,6 +40,8 @@ export async function startTask(
     delete current.starting
     delete chain.slotWait
     deps.save(state)
+    // A fix or a carry session runs no tracker task. A refused move is the page's to show, never the chain's halt.
+    if (own === undefined) void deps.moveStatus?.(chain.project, task, 'start').catch((error) => deps.log(`chain: ${task} was not moved on its start: ${String(error)}`))
   } catch (error) {
     const failure = noticeOf(error)
     // The CLI check holds the account folder for minutes and lets it go by itself (BTN-569): a wait in any mode.

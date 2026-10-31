@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultMoves, doneNamed, moveVerdict, movesOf, movesProblem } from './moves.js'
+import { defaultMoves, doneMove, doneNamed, moveVerdict, movesOf, movesProblem, statusMovesOf } from './moves.js'
 import { DEFAULT_RULES, isDone } from './rules.js'
 
 const TODO = { name: 'Todo', category: 'ToDo' } as const
@@ -113,5 +113,26 @@ describe('movesProblem', () => {
   it('lets a status the tracker did not list through by name only', () => {
     expect(movesProblem(DEFAULT_RULES, { start: 'Unknown', done: 'Unknown' }, statuses)).toBeNull()
     expect(movesProblem({ ...DEFAULT_RULES, terminal: ['Done'] }, { done: 'Unknown' }, statuses)).toEqual({ code: 'statusMoves.notDone', params: { status: 'Unknown' } })
+  })
+})
+
+describe('statusMovesOf', () => {
+  it('keeps names trimmed and null of start and review, and drops blanks as not set', () => {
+    expect(statusMovesOf({ start: ' In Progress ', review: null, done: '' }, 'x')).toEqual({ start: 'In Progress', review: null })
+  })
+
+  it('refuses another key, a null done and a value of another type', () => {
+    for (const raw of [[], { other: 'x' }, { done: null }, { start: 3 }]) {
+      expect(() => statusMovesOf(raw, 'ABC.statusMoves')).toThrow('config: ABC.statusMoves must be an object of status names')
+    }
+  })
+})
+
+describe('doneMove', () => {
+  it('says where the done status is set and whether the rules take it for done; none set — automatic', () => {
+    const rules = { ...DEFAULT_RULES, terminal: ['Done', 'Canceled'] }
+    expect(doneMove(rules, undefined, {})).toBeUndefined()
+    expect(doneMove(rules, { done: 'Done' }, {})).toEqual({ status: 'Done', level: 'profile', fits: true })
+    expect(doneMove(rules, { done: 'Done' }, { done: 'In Review' })).toEqual({ status: 'In Review', level: 'source', fits: false })
   })
 })

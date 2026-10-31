@@ -35,6 +35,7 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
+import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { DEFAULT_CI } from './settings/defaults.js'
@@ -53,6 +54,7 @@ import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
+import type { TaskStatus } from './tracker/model.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
 import { RULE_KEYS } from './config.js'
@@ -167,6 +169,10 @@ export interface SettingsControl {
   linkFeed(project: string, feed: string, profile: string | null): void
   /** The feed's own chain rule keys (BTN-553), all of them at once; refuses ones that clash with its profile's. */
   feedRules(project: string, feed: string, rules: Partial<ChainRules>): void
+  /** A tracker profile's status moves (BTN-554), all at once; refuses a status its rules would not take. */
+  profileMoves(id: string, moves: StatusMoves): Promise<void>
+  /** A task source's own status moves: the project's main tracker with `feed` null, else the feed; checked the same way. */
+  sourceMoves(project: string, feed: string | null, moves: StatusMoves): Promise<void>
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -255,6 +261,8 @@ export interface ServerDeps {
   tools: (project: string) => Promise<unknown>
   /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
   vocabulary: (projectId: string) => Promise<TrackerVocabulary | undefined>
+  /** The statuses of a tracker profile (BTN-554); `undefined` — no such profile, its kind moves none, or the tracker named none. */
+  profileStatuses: (id: string) => Promise<TaskStatus[] | undefined>
   /** The models of the account folder `key` for the model fields (`Agent.models`); `null` — none known. */
   models: (key: string) => Promise<ModelList | null>
   tasks: TaskControl
@@ -300,6 +308,8 @@ const COMMANDS: Record<string, Command> = {
   'project/feed/profile': ({ settings }, body) =>
     settings.linkFeed(projectOf(body), textOf(body.feed, 'feed'), body.profile === null ? null : textOf(body.profile, 'profile')),
   'project/feed/rules': ({ settings }, body) => settings.feedRules(projectOf(body), textOf(body.feed, 'feed'), profileRulesOf(body.rules, RULE_KEYS)),
+  'project/moves': ({ settings }, body) =>
+    settings.sourceMoves(projectOf(body), body.feed === null || body.feed === undefined ? null : textOf(body.feed, 'feed'), statusMovesOf(body.moves, 'moves')),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
@@ -349,6 +359,7 @@ const COMMANDS: Record<string, Command> = {
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
   'profiles/rules': ({ profiles }, body) => profiles.setRules(textOf(body.id, 'id'), profileRulesOf(body.rules)),
+  'profiles/moves': ({ settings }, body) => settings.profileMoves(textOf(body.id, 'id'), statusMovesOf(body.moves, 'moves')),
   'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),
 }
 
@@ -511,6 +522,20 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     let found: TrackerVocabulary | undefined
     try {
       found = await deps.vocabulary(decodeURIComponent(vocabulary[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (found === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, found)
+    return
+  }
+
+  const statuses = /^\/api\/profiles\/([^/]+)\/statuses$/.exec(path)
+  if (request.method === 'GET' && statuses !== null) {
+    let found: TaskStatus[] | undefined
+    try {
+      found = await deps.profileStatuses(decodeURIComponent(statuses[1]!))
     } catch (error) {
       sendFailure(response, error)
       return

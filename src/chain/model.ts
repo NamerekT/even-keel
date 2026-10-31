@@ -5,6 +5,7 @@ import type { Notice } from '../notice/notice.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
 import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
+import type { MoveWhen } from './moves.js'
 import type { ChainRules } from './rules.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession, LimitHold, RelayAction } from './relay.js'
 
@@ -299,6 +300,11 @@ export interface DispatcherDeps {
   asked: (task: string) => string | null
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
+  /**
+   * Moves the task to the status its source chose for its start or its pull request (BTN-554), only forward; never
+   * throws, a refusal is the page's to show. Absent — no moves.
+   */
+  moveStatus?: (project: string, task: string, when: MoveWhen) => Promise<void>
   now: () => Date
   limited: (task: string) => LimitedSession | undefined
   /** Fresh paid-usage evidence for this working session; never an account-wide list of sessions to stop. */
