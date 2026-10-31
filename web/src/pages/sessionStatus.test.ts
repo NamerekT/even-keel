@@ -33,6 +33,12 @@ describe('session limit text', () => {
     expect(limitPlan(hold, now, view, accounts)).toBe(t.session.creditOut)
   })
 
+  it('does not tell a Copilot token to top up credit: it waits for its monthly allowance', () => {
+    const view = { ...session('ABC-5', 0, 'limit'), agent: 'copilot', account: 'ci-key' }
+    const copilot = accounts.map((entry) => (entry.key === 'ci-key' ? { ...entry, agent: 'copilot' } : entry))
+    expect(limitPlan(hold, now, view, copilot)).toBe(t.session.limitUnknown)
+  })
+
   it('keeps a known monthly reset for a Copilot key', () => {
     const view = { ...session('ABC-5', 0, 'limit'), agent: 'copilot', account: 'ci-key' }
     const monthly = { ...hold, resetsAt: '2026-02-01T00:00:00Z' }

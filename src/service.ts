@@ -486,6 +486,7 @@ const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   creditBackAfter: (key, at, text) => account.creditBackAfter(key, at, text),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
+  spendMonth: (key, at) => limits.spendMonth(key, at),
 })
 
 const limits = accountsService.wireLimits(context)

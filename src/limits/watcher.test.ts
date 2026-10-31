@@ -192,3 +192,34 @@ describe('LimitsWatcher.report', () => {
     expect(watcher.limits('global')).toBeNull()
   })
 })
+
+describe('LimitsWatcher.spendMonth', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  const month = { usedPercentage: 90.7, resetsAt: '2099-01-01T00:00:00.000Z', left: 28 }
+  const polled: UsageAnswer = { kind: 'limits', limits: { fiveHour: null, sevenDay: null, month, updatedAt: '2026-01-01T12:00:00.000Z', source: 'api' } }
+
+  it('shows the month spent from a refusal until a newer poll', async () => {
+    const later = { ...polled, limits: { ...polled.limits, updatedAt: '2026-01-01T12:10:00.000Z' } } as UsageAnswer
+    const { watcher, poll } = watcherOf([() => polled, () => later])
+    await poll()
+    watcher.spendMonth('global', '2026-01-01T12:02:00.000Z')
+    expect(watcher.limits('global')).toMatchObject({ month: { usedPercentage: 100, left: 0, resetsAt: month.resetsAt }, updatedAt: '2026-01-01T12:02:00.000Z' })
+    await poll()
+    expect(watcher.limits('global')).toMatchObject({ month: { left: 28 }, updatedAt: '2026-01-01T12:10:00.000Z' })
+  })
+
+  it('leaves alone a poll newer than the refusal and an account with no month', async () => {
+    const { watcher, poll } = watcherOf([() => polled])
+    await poll()
+    watcher.spendMonth('global', '2026-01-01T11:59:00.000Z')
+    expect(watcher.limits('global')).toMatchObject({ month: { left: 28 }, updatedAt: '2026-01-01T12:00:00.000Z' })
+    const { watcher: none } = watcherOf([])
+    none.spendMonth('global', '2026-01-01T12:02:00.000Z')
+    expect(none.limits('global')).toBeNull()
+  })
+})

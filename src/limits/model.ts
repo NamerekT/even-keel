@@ -127,6 +127,21 @@ export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefine
   return extra === undefined ? latest : { ...latest, overage: extra }
 }
 
+/** A refusal that names the month's allowance spent: Copilot's `quota_exceeded` says "You have exceeded your monthly quota". */
+export function isMonthQuota(text: string | undefined): boolean {
+  return text !== undefined && /\bmonthly\b.*\b(?:quota|allowance|limit)\b/i.test(text)
+}
+
+/**
+ * The limits with their month spent by a refusal at `at` (BTN-647): the poll before it may still count requests left.
+ * `undefined` — no month known, or a poll at or after the refusal already tells.
+ */
+export function withMonthSpent(limits: RateLimits | undefined, at: string): RateLimits | undefined {
+  if (limits?.month == null || Date.parse(limits.updatedAt) >= Date.parse(at)) return undefined
+  const month = { ...limits.month, usedPercentage: 100, ...(limits.month.left !== undefined && { left: 0 }) }
+  return { ...limits, month, updatedAt: at }
+}
+
 export function exhaustedReset(limits: RateLimits | null): string | null {
   const resets = [limits?.fiveHour, limits?.sevenDay, limits?.month].flatMap((window) =>
     window !== null && window !== undefined && window.usedPercentage >= 100 ? [window.resetsAt] : [],

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import type { AccountHome } from '../account/homes.js'
-import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, withSessionLimits, type RateLimits, type SessionLimits } from './model.js'
+import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, withMonthSpent, withSessionLimits, type RateLimits, type SessionLimits } from './model.js'
 import { englishOf, notice, sameNotice, type Notice } from '../notice/notice.js'
 import type { UsageAnswer, UsageHealth } from './usage.js'
 
@@ -33,6 +33,8 @@ interface AccountLimits {
   polled: RateLimits | undefined
   /** From the `rate_limit_event`s of the account's SDK sessions. */
   streamed: RateLimits | undefined
+  /** The month a session's refusal spent, until a poll tells (`spendMonth`). */
+  refused: RateLimits | undefined
   health: UsageHealth
   /** Failed calls in a row. */
   failures: number
@@ -71,6 +73,15 @@ export class LimitsWatcher {
   report(account: string, reported: SessionLimits, at = new Date().toISOString()): void {
     const known = this.of(account)
     known.streamed = withSessionLimits(newestOf(known), reported, at)
+    this.publish()
+  }
+
+  /** A session of the account was refused for the spent month at `at`: it shows spent until a newer poll. */
+  spendMonth(account: string, at: string): void {
+    const known = this.accounts.get(account)
+    const spent = withMonthSpent(newestOf(known), at)
+    if (known === undefined || spent === undefined) return
+    known.refused = spent
     this.publish()
   }
 
@@ -200,7 +211,7 @@ export class LimitsWatcher {
   private of(key: string): AccountLimits {
     let known = this.accounts.get(key)
     if (known === undefined) {
-      known = { received: undefined, polled: undefined, streamed: undefined, health: WAITING, failures: 0 }
+      known = { received: undefined, polled: undefined, streamed: undefined, refused: undefined, health: WAITING, failures: 0 }
       this.accounts.set(key, known)
     }
     return known
@@ -220,5 +231,5 @@ function setHealth(account: AccountLimits, state: UsageHealth['state'], reason: 
 }
 
 function newestOf(known: AccountLimits | undefined): RateLimits | undefined {
-  return newestLimits(newestLimits(known?.received, known?.polled), known?.streamed)
+  return newestLimits(newestLimits(newestLimits(known?.received, known?.polled), known?.streamed), known?.refused)
 }
