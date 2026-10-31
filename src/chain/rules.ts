@@ -50,6 +50,15 @@ export function admits(rules: ChainRules, task: { status: TaskStatus; labels: st
   return rules.requiredLabels.length === 0 || task.labels.some((label) => listed(rules.requiredLabels, label))
 }
 
+/** The required label "Into the chain" puts on an open task that has none of them (BTN-509); `null` — the task needs none. */
+export function missingLabel(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): string | null {
+  if (excludes(rules, task) || admits(rules, task)) return null
+  return rules.requiredLabels[0]!
+}
+
+/** The required labels the task carries, as the tracker spells them: "To the backlog" takes them off. */
+export const requiredOn = (rules: ChainRules, task: { labels: string[] }): string[] => task.labels.filter((label) => listed(rules.requiredLabels, label))
+
 export function ownsMilestone(rules: ChainRules, task: { milestone: TaskMilestone | null }): boolean {
   const name = task.milestone?.label
   if (name !== undefined && listed(rules.excludedMilestones, name)) return false

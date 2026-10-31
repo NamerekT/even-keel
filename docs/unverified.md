@@ -49,6 +49,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 16c | [A resolved GitLab conflict while mergeability is checked](#a-resolved-gitlab-conflict-while-mergeability-is-checked-btn-441-btn-561) | PR mode on GitLab, most on GitLab.com, after any push to the merge request | the session gets a conflict that is gone and spends a turn on it |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 17a | [A task returned after a blocker or skip](#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks | an idle session may still be adopted and hold the chain |
+| 17b | [The backlog by label](#the-backlog-by-label-btn-509) | GitHub and GitLab projects with required labels | an issue does not move between the backlog and the chain from the page |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
 | 20a | [API spending cap recovery](#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |
@@ -550,6 +551,16 @@ Installing a package and the gateway's server processes were run only on Windows
 Protection's tracker switches are enforced in the MCP gateway (`docs/packages.md`, "The gateway"), checked only by unit tests: no live session has had a deleting call refused yet. Assumed: a tracker's server reaches the session under the adapter's `mcpServer` name; a deleting tool has the word `delete` in its name, or takes `method: "delete"` (GitHub's `label_write`, from memory, not read from the server's tool list); Linear's and Jira's (Rovo) deleting tools follow the same naming, and none of them is a tool without `delete` in its name. Claude and Codex are assumed to show the refusal as a failed tool call and to stop there. If an assumption is wrong, a delete goes through (a tool named otherwise, a server under another name) or a call that deletes nothing is refused (a tool named with `delete` that only reads). **Workaround:** for a delete you want, turn that tracker off in Sessions → Protection; for one you do not, keep the tracker's own permissions narrow. To check: a chain session, Claude and then Codex, asked to delete a test task on GitLab (`delete_issue`) and a label on GitHub, with the log line `Protection refused`; then the same with the tracker's switch off.
 
 ## Trackers
+
+### The backlog by label (BTN-509)
+
+An open task that lacks only a required label waits in the project's backlog, and "Into the chain"/"To the backlog" put that label on and take it off, also moving the status where the tracker has a backlog status (Huly, Linear, Jira). Checked by tests (`src/chain/rules.test.ts`, `src/tracker/control.test.ts`, `src/jira/source.test.ts`, `web/src/state.test.ts`) and on `dev:fake`; the live run on GitHub and the GitLab bench was not done in the task: a second instance needs the service's tracker profiles, and reading the live state database was refused to the session. Assumed:
+
+- a GitHub or GitLab issue without the required label shows in the backlog panel after the next poll, and "Into the chain" puts the first required label on it, so it lands in the chain where the ghost showed;
+- "To the backlog" on such an issue in the chain takes the label off and the issue goes back to the backlog at once, without waiting for a poll; on a task with a live session the button is not offered;
+- on a Jira workflow without a backlog status "To the backlog" only takes the label off; with no required labels it says the tracker cannot move the task.
+
+If one is wrong, the button ends in an error notice or the task stays where it was until the next poll. **Workaround:** set or remove the label in the tracker.
 
 ### MCP through OAuth on a tracker profile (BTN-475)
 

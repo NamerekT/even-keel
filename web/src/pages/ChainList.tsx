@@ -8,7 +8,7 @@ import { blockMetered, issueLink, type ChainBlock, type Ghost, type ReadyButton,
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, BlockMetrics, CacheRing } from '../ui/BlockMetrics.js'
-import { IntoChainIcon } from '../ui/icons.js'
+import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
@@ -47,6 +47,8 @@ interface Props {
   links: (task: string) => TaskLinks
   /** The "Move to Todo" button of a locked blocker, `null` for none. */
   ready: (block: ChainBlock) => ReadyButton | null
+  /** The task has the "To the backlog" button. */
+  unready: (block: ChainBlock) => boolean
   onCard: (task: string) => void
 }
 
@@ -62,7 +64,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, ready, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard }: Props) {
   const { ghost, leaving } = useLingering(aimed, chain)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -241,6 +243,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     onDismiss={sending ? undefined : () => void send('chain/dismiss', { project, task: block.id })}
                     ready={block.locked ? ready(block) : null}
                     onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
+                    onUnready={!unready(block) ? null : sending ? undefined : () => void send('task/unready', { task: block.id })}
                     onCard={onCard}
                   />
                 ),
@@ -450,11 +453,13 @@ interface BlockProps {
   onDismiss: (() => void) | undefined
   ready: ReadyButton | null
   onReady: (() => void) | undefined
+  /** "To the backlog"; `null` — the row has no such button, `undefined` — it is off while a command is on its way. */
+  onUnready: (() => void) | null | undefined
   onCard: (task: string) => void
 }
 
 function Block(props: BlockProps) {
-  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onDismiss, ready, onReady, onCard } =
+  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onDismiss, ready, onReady, onUnready, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -602,6 +607,19 @@ function Block(props: BlockProps) {
         {block.leftovers !== undefined && (
           <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
             {t.project.dismiss}
+          </button>
+        )}
+        {onUnready !== null && (
+          <button
+            type="button"
+            className="block__unready"
+            disabled={onUnready === undefined}
+            aria-label={t.card.unready}
+            title={t.card.unready}
+            draggable={false}
+            onClick={onUnready}
+          >
+            <OutOfChainIcon />
           </button>
         )}
         <Links links={links} onCard={onCard} />

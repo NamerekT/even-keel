@@ -346,7 +346,10 @@ export const en = {
   'request.projectList': () => 'order must be a list of projects',
 
   'task.noTracker': (p: { task: string }) => `no connected tracker serves ${p.task}`,
-  'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} cannot move it to Todo`,
+  'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} can neither put the required label on it nor move it to Todo`,
+  'task.cannotUnready': (p: { task: string }) => `the tracker of ${p.task} can neither take the required label off it nor move it to a backlog status`,
+  'task.unreadyLive': (p: { task: string }) => `${p.task} has a live session: stop it or let it finish, then move the task to the backlog`,
+  'task.inBacklog': (p: { task: string }) => `${p.task} is in the backlog already`,
   'task.cannotRelabel': (p: { task: string }) => `the tracker of ${p.task} cannot change labels`,
   'task.relabelFailed': (p: { task: string }) => `could not change labels of ${p.task}; check the tracker profile's permission to edit issues and labels, then try again`,
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,

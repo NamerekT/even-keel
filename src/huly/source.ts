@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import type { TrackerTask } from '../tracker/model.js'
+import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { quietModelNoise } from './quiet.js'
@@ -13,6 +13,7 @@ import {
   latestMessages,
   milestonesOf,
   missingBlockers,
+  backlogStatus,
   readyStatus,
   toCard,
   toStatus,
@@ -163,6 +164,15 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     return type?.statuses?.map((status) => status._id) ?? null
   }
 
+  async function moveStatus(identifier: string, pick: typeof readyStatus): Promise<TaskStatus | null> {
+    const issue = await findIssue(identifier)
+    const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(issue.space)])
+    const status = pick(issue.status, statuses, allowed)
+    if (status === null) return null
+    await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status: status._id })
+    return toStatus(status)
+  }
+
   async function peopleOf(socialIds: string[]): Promise<Map<string, string>> {
     if (socialIds.length === 0) return new Map()
     const identities = await client.findAll<{ _id: string; attachedTo: string }>(
@@ -283,14 +293,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       if (doc === undefined) return null
       return { type: doc.type ?? '', size: doc.size ?? null, body: await readFile(file) }
     },
-    async ready(identifier) {
-      const issue = await findIssue(identifier)
-      const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(issue.space)])
-      const status = readyStatus(issue.status, statuses, allowed)
-      if (status === null) return null
-      await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status: status._id })
-      return toStatus(status)
-    },
+    ready: (identifier) => moveStatus(identifier, readyStatus),
+    unready: (identifier) => moveStatus(identifier, backlogStatus),
 
     relabel: async (identifier, change) => relabelHuly(client, await findIssue(identifier), change),
     async comment(identifier, body) {

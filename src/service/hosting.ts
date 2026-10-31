@@ -445,6 +445,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     tasks: taskControl({
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
+      live: (task) => ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished'),
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       broadcast: () => ctx.hub.broadcast('state', ctx.getState()),
     }),

@@ -159,7 +159,14 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual([])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2'], waiting: ['ABC-1'], backlog: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({
+      order: ['ABC-2'],
+      waiting: ['ABC-1'],
+      backlog: [],
+      landing: { 'ABC-1': 'ABC-2' },
+      requiredLabel: { 'ABC-1': false, 'ABC-2': true },
+      error: null,
+    })
   })
 
   it('holds a task on an open blocker from outside the project task list and hands it to the page', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskStatus } from '../tracker/model.js'
-import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, ownsMilestone, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
+import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, missingLabel, ownsMilestone, requiredOn, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
 
 const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -104,6 +104,21 @@ describe('labels', () => {
 
   it('never admit a task in a terminal status', () => {
     expect(admits(DEFAULT_RULES, { status: done, labels: [] })).toBe(false)
+  })
+
+  it('name the label that lets a task in: the first required one, only for an open task without any', () => {
+    const required = rules({ requiredLabels: ['Auto', 'Цепочка'], excludedLabels: ['Вручную'] })
+    expect(missingLabel(required, { status: todo, labels: ['Bug'] })).toBe('Auto')
+    expect(missingLabel(required, { status: backlog, labels: ['цепочка'] })).toBeNull()
+    expect(missingLabel(required, { status: todo, labels: ['Вручную'] })).toBeNull()
+    expect(missingLabel(required, { status: done, labels: [] })).toBeNull()
+    expect(missingLabel(DEFAULT_RULES, { status: todo, labels: [] })).toBeNull()
+  })
+
+  it('name the required labels a task carries, as the tracker spells them', () => {
+    const required = rules({ requiredLabels: ['Auto', 'Цепочка'] })
+    expect(requiredOn(required, { labels: ['bug', ' auto ', 'Цепочка'] })).toEqual([' auto ', 'Цепочка'])
+    expect(requiredOn(DEFAULT_RULES, { labels: ['Auto'] })).toEqual([])
   })
 })
 
