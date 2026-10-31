@@ -10,6 +10,7 @@ export const composerEn = {
   steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',
   mail: {
     waiting: 'Waits for the hook',
+    queued: 'In the session · it reads it once the current tool call ends',
     delivered: (at: string, event: string) => `Delivered ${at} · ${event}`,
     events: {
       PreToolUse: 'before a tool call',

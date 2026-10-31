@@ -86,6 +86,8 @@ export interface Turn {
   startedAt: string
   /** The tool line of a call that has no result yet; `null` while the model writes or thinks. */
   tool: string | null
+  /** The user's messages the CLI queued mid-turn and the session has not taken yet (Claude's `queue-operation`); absent — none. */
+  queued?: FeedLine[]
 }
 
 /** The lines of a whole transcript from some line on, and its last turn for the chat's turn line. */
@@ -177,6 +179,8 @@ export class TranscriptFold {
   private readonly mailSeen = new Set<number>()
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
+  /** The CLI's queue of messages for the session, in order; `line` — `null` for one that is not the user's. */
+  private readonly queue: { content: string | undefined; line: FeedLine | null }[] = []
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -215,6 +219,10 @@ export class TranscriptFold {
       this.pushQueued(entry.timestamp ?? '', entry.attachment)
       return
     }
+    if (entry.type === 'queue-operation') {
+      this.pushQueueOperation(entry)
+      return
+    }
     if (entry.type !== 'assistant' && entry.type !== 'user') return
     if (typeof entry.timestamp === 'string') {
       this.firstActivityAt ??= entry.timestamp
@@ -250,6 +258,7 @@ export class TranscriptFold {
           : {
               startedAt: this.turnStartedAt,
               tool: [...this.runningTools.values()].pop() ?? null,
+              ...queuedOf(this.queue),
             },
       action: this.action,
       stage: this.stage,
@@ -415,6 +424,22 @@ export class TranscriptFold {
     if (line !== null) this.addFeed(line)
   }
 
+  /**
+   * A message sent mid-turn is queued first and taken after the running tool call (`remove`, absorbed into the turn)
+   * or at the end of the turn (`dequeue`, a new turn): until then the chat shows it as waiting, not in the feed.
+   */
+  private pushQueueOperation(entry: Entry): void {
+    const content = typeof entry.content === 'string' ? entry.content : undefined
+    if (entry.operation === 'enqueue') {
+      const user = content !== undefined && !isContextBlock(content)
+      this.queue.push({ content, line: user ? userLine(entry.timestamp ?? '', content, null, (text) => this.textOf(text)) : null })
+      return
+    }
+    if (entry.operation !== 'dequeue' && entry.operation !== 'remove') return
+    const index = content === undefined ? 0 : Math.max(0, this.queue.findIndex((each) => each.content === content))
+    this.queue.splice(index, 1)
+  }
+
   private textOf(text: string): string {
     return this.whole ? text.trim() : flatten(text, TEXT_LIMIT)
   }
@@ -520,6 +545,11 @@ export function promptOf(content: unknown): string {
     .filter((block) => block.type === 'text' && !isContextBlock(block.text ?? ''))
     .map((block) => (block.text ?? '').trim())
     .join('\n\n')
+}
+
+function queuedOf(queue: { line: FeedLine | null }[]): Pick<Turn, 'queued'> {
+  const queued = queue.flatMap((each) => (each.line === null ? [] : [each.line]))
+  return queued.length === 0 ? {} : { queued }
 }
 
 export function isContextBlock(text: string): boolean {

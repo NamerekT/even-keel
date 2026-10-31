@@ -54,6 +54,8 @@ export interface Entry {
   customTitle?: string
   aiTitle?: string
   content?: unknown
+  /** Of a `queue-operation` line: `enqueue`, `dequeue` or `remove`. */
+  operation?: string
   /** `prompt` and `origin` — of a `queued_command`: a message the CLI took into a running turn. */
   attachment?: { type?: string; url?: unknown; prompt?: unknown; origin?: { kind?: string } }
   origin?: { kind?: string }

@@ -1,5 +1,6 @@
 import { useEffect, useReducer } from 'react'
 import type { Mail } from '../../../src/sessions/mail.js'
+import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -8,11 +9,13 @@ import { letterPhase, nextLetterChange } from './letterPhase.js'
 interface Props {
   sessionId: string
   mail: Mail[]
+  /** Messages the working session has queued, not the mailbox: it takes them once its current tool call ends. */
+  queued: FeedLine[]
   onReply: (text: string) => void
 }
 
-/** The fate of the messages sent to the session mid-turn (BTN-181): waiting for the hook, delivered, or back. */
-export function ChatMail({ sessionId, mail, onReply }: Props) {
+/** The fate of the messages sent to the session mid-turn (BTN-181): waiting for the hook or the tool call, delivered, or back. */
+export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
   const { send, sending } = useCommand()
   // A delivered line fades on its own clock, not only when the state changes.
   const [, tick] = useReducer((count: number) => count + 1, 0)
@@ -24,9 +27,15 @@ export function ChatMail({ sessionId, mail, onReply }: Props) {
   })
   const now = new Date()
   const shown = mail.map((each) => ({ each, phase: letterPhase(each, now.getTime()) })).filter(({ phase }) => phase !== 'gone')
-  if (shown.length === 0) return null
+  if (shown.length === 0 && queued.length === 0) return null
   return (
     <ul className="chat__mail">
+      {queued.map((line, index) => (
+        <li key={`queued-${index}`} className="chat__letter chat__letter--waiting">
+          <span className="chat__letter-text">{line.text !== '' ? line.text : (line.files ?? []).join(', ')}</span>
+          <span className="chat__letter-fate">{t.session.chat.mail.queued}</span>
+        </li>
+      ))}
       {shown.map(({ each, phase }) => (
         <li key={each.id} className={`chat__letter chat__letter--${each.fate}${phase === 'leaving' ? ' chat__letter--leaving' : ''}`}>
           <span className="chat__letter-text">{each.text}</span>

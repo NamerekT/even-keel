@@ -68,7 +68,7 @@ interface Props {
 
 /**
  * A reply sent from this window, shown until the transcript has a prompt or an answer after the line it was sent at;
- * `steered` — it went straight into the working session, which is not respawned with it.
+ * `steered` — it went straight into the working session, which is not respawned with it, and shows as queued, not in the feed.
  */
 interface SentLine {
   line: FeedLine
@@ -92,7 +92,12 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
   const [viewing, setViewing] = useState<number | null>(null)
-  const all = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
+  const unread = lines == null ? [] : sent.filter((each) => !lines.slice(each.after).some(isReply))
+  const all = lines == null ? null : [...lines, ...unread.filter((each) => !each.steered).map((each) => each.line)]
+  // A message steered into a working session waits in the CLI's queue until its current tool call ends; the queue is
+  // read from the transcript, so it outlives closing the window, and this window's own send shows until it is there.
+  const inQueue = chat?.session.lamp === 'working' ? (turn?.queued ?? []) : []
+  const queued = [...inQueue, ...unread.filter((each) => each.steered && !inQueue.some((line) => line.text === each.line.text)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
   const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
@@ -282,6 +287,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               session={chat.session}
               aside={chat.aside}
               mail={chat.mail}
+              queued={queued}
               handle={composerRef}
               onSent={(line, steered) => {
                 pinned.current = true
