@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, withLabels, type Notice, type NoticeTexts } from './notice.js'
-import { en } from './en.js'
+import { AGENTS } from '../agent/adapters.js'
+import { AGENT_NAMES, en } from './en.js'
 
 describe('withLabels', () => {
   it('shows every project id in a text by its label, and leaves the rest as it is (BTN-271)', () => {
@@ -9,6 +10,10 @@ describe('withLabels', () => {
     expect(withLabels(text, labels)).toBe('forward: ABC (release/v1) carried 2 commit(s) into main of ABC (main)')
     expect(withLabels('chain: XYZ ended', labels)).toBe('chain: XYZ ended')
   })
+})
+
+it('names every agent as its adapter does', () => {
+  expect(AGENT_NAMES).toEqual(Object.fromEntries(Object.entries(AGENTS).map(([name, adapter]) => [name, adapter.title])))
 })
 
 describe('notices', () => {

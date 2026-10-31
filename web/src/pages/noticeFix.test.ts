@@ -19,6 +19,10 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(unknown)).toEqual({ to: 'project', tab: 'sessions' })
   })
 
+  it('sends an account the shared settings pick to their models tab', () => {
+    expect(noticeFixOf(notice('account.sharedPool', { agent: 'codex' }))).toEqual({ to: 'shared', tab: 'models' })
+  })
+
   it('sends a spent limit to the project pool and a lost sign-in to the accounts', () => {
     expect(noticeFixOf(notice('chain.limitSpent', { until: '12:00' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('account.signedOut', {}))).toEqual({ to: 'accounts' })

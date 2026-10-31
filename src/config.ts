@@ -12,7 +12,7 @@ import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, OwnKey, OwnV
 import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
-import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
+import { DEFAULT_ACCOUNTS, DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import type { Protection } from './sessions/protection.js'
 import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, PROJECT_KEY, writeRows } from './settings/file.js'
@@ -550,11 +550,15 @@ export function runSettings(config: Pick<EvenKeelConfig, 'settings' | 'provider'
 
 type PoolConfig = Pick<EvenKeelConfig, 'settings' | 'accounts'>
 
-/** The pool entries of the config: the shared pool's, then each project's own. */
+/**
+ * The pool entries of the config: the shared pool's, then each project's own. A shared entry equal to its built-in
+ * default is marked so: the settings never write a value equal to the default (`changesOf`), so nobody picked it.
+ */
 export function poolEntries(config: PoolConfig, projects: string[]): PoolEntry[] {
-  const entries = (project: string | null, accounts: Record<string, string> | undefined) =>
+  const entries = (project: string | null, accounts: Record<string, string> | undefined): PoolEntry[] =>
     Object.entries(accounts ?? {}).map(([provider, account]) => ({ project, provider, account }))
-  return [...entries(null, config.accounts), ...projects.flatMap((project) => entries(project, config.settings[project]?.accounts))]
+  const shared = entries(null, config.accounts).map((entry) => (DEFAULT_ACCOUNTS[entry.provider] === entry.account ? { ...entry, byDefault: true as const } : entry))
+  return [...shared, ...projects.flatMap((project) => entries(project, config.settings[project]?.accounts))]
 }
 
 /** The account folder each project's sessions run on by its provider (`runSettings`), as the projects on each folder. */

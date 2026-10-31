@@ -4,6 +4,8 @@ import type { UpdateBlock } from '../updates/model.js'
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 /** Whose key an API account holds, by `keyProvider`. */
 export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
+/** The agents of the account folders by their registry name, as their adapters' `title`. */
+export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' }
 
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 
@@ -256,9 +258,10 @@ export const en = {
   'account.needsLogin': (p: { account: string }) => `claude: ${p.account} needs a login first`,
   'account.globalKept': () => "Claude Code's own account cannot be removed from here",
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
-  'account.sharedPool': () => 'claude: the shared settings pick this account as their account on Claude Code; pick another one there first',
-  'account.projectPool': (p: { projects: string[] }) =>
-    `claude: the settings of projects ${list(p.projects)} pick this account as their account on Claude Code; pick another one there first`,
+  'account.sharedPool': (p: { agent: string }) =>
+    `the shared settings pick this account as their account on ${AGENT_NAMES[p.agent] ?? p.agent}; pick another one there first`,
+  'account.projectPool': (p: { agent: string; projects: string[] }) =>
+    `the settings of projects ${list(p.projects)} pick this account as their account on ${AGENT_NAMES[p.agent] ?? p.agent}; pick another one there first`,
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',

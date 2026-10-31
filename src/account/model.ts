@@ -104,6 +104,8 @@ export interface PoolEntry {
   project: string | null
   provider: string
   account: string
+  /** The shared pool's built-in default (`DEFAULT_ACCOUNTS`), which no setting picked: it does not keep the folder from removal. */
+  byDefault?: true
 }
 
 export interface LoginBlocker {
@@ -231,9 +233,10 @@ export function removeProblem(view: AccountView, key: string): Notice | undefine
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
   if (key === view.active) return notice('account.activeKept', {})
-  const named = view.pool.filter((entry) => entry.account === key)
-  if (named.some((entry) => entry.project === null)) return notice('account.sharedPool', {})
-  if (named.length > 0) return notice('account.projectPool', { projects: [...new Set(named.map((entry) => entry.project!))] })
+  const named = view.pool.filter((entry) => entry.account === key && entry.byDefault !== true)
+  if (named.some((entry) => entry.project === null)) return notice('account.sharedPool', { agent: target.agent })
+  const projects = [...new Set([...named.map((entry) => entry.project!), ...target.projects])]
+  if (projects.length > 0) return notice('account.projectPool', { agent: target.agent, projects })
   if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
   const user = target.global ? undefined : view.apps.find((app) => app.account === key)
   if (user !== undefined) return notice('account.usedByApp', { app: APP_LABELS[user.app] })
