@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, rmSync, writeSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -43,5 +43,19 @@ describe('Copilot launch without a transcript', () => {
   it('reports the sign-in fix when the CLI exits unauthenticated', async () => {
     const { result } = await launch('Copilot can be authenticated with GitHub using an OAuth Token or a Fine-Grained Personal Access Token.\n\nTo authenticate, you can use any of the following methods:\n  • Run \'gh auth login\' to authenticate with the GitHub CLI\n')
     await expect(result).rejects.toMatchObject({ notice: { code: 'copilot.notSignedIn' } })
+  })
+
+  it("trusts the session's folder in the account folder before the CLI starts", async () => {
+    const { result } = await launch('Error: Model "missing-model" from --model flag is not available.\n')
+    await expect(result).rejects.toBeDefined()
+    expect(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'))).toEqual({ trustedFolders: [dir] })
+  })
+
+  it('fails the launch without starting the CLI when config.json cannot be read', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-launch-'))
+    writeFileSync(join(dir, 'config.json'), '{ broken')
+    const cli = new CopilotCli(() => 'copilot', 1000, () => ({}), new TurnRegistry(dir))
+    const result = cli.launch({ key: 'copilot', dir, global: false, agent: 'copilot' }, { name: 'DEMO-1', cwd: dir, model: null, prompt: 'DEMO-1' })
+    await expect(result).rejects.toMatchObject({ notice: { code: 'copilot.startFailed', detail: expect.stringMatching(/trustedFolders/) } })
   })
 })

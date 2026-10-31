@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AccountStatus } from '../account/model.js'
+import { pathsOf, samePath } from '../paths.js'
 
 /**
  * A Copilot account folder is a `COPILOT_HOME` (BTN-215, `docs/accounts.md`): the CLI keeps its config, its
@@ -10,6 +11,7 @@ import type { AccountStatus } from '../account/model.js'
  * a token.
  */
 const TOKEN_FILE = 'even-keel.json'
+const CONFIG_FILE = 'config.json'
 
 /** The variables the CLI takes a token from, in its order; each beats the stored sign-in. */
 export const TOKEN_KEYS = ['COPILOT_GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'] as const
@@ -53,6 +55,36 @@ export function tokenFile(dir: string): string {
  */
 export function parseAuth(token: string | null): AccountStatus {
   return { loggedIn: true, authMethod: token === null ? 'none' : 'api_key', email: null, orgName: null, subscriptionType: null }
+}
+
+/**
+ * Adds `folder` to `trustedFolders` of the account folder's `config.json`, the rest of the file kept (BTN-645).
+ * Copilot runs the hooks of a repository's `.claude/settings.json` only in a trusted folder, its subfolders (the task
+ * worktrees) included, and picking Copilot for a project is the consent. The project's `.mcp.json` the trust also
+ * loads stays off by `--disable-mcp-server`. A file that is not a JSON object is refused rather than overwritten.
+ */
+export function trustFolder(dir: string, folder: string, platform: NodeJS.Platform = process.platform): void {
+  const file = join(dir, CONFIG_FILE)
+  let config: Record<string, unknown> = {}
+  if (existsSync(file)) {
+    const value = parseConfig(readFileSync(file, 'utf8'))
+    if (value === undefined) throw new Error(`${file} is not a JSON object, so ${folder} was not added to its trustedFolders`)
+    config = value
+  }
+  const trusted = Array.isArray(config.trustedFolders) ? config.trustedFolders : []
+  if (trusted.some((each) => typeof each === 'string' && samePath(each, folder, platform))) return
+  const path = pathsOf(platform)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(file, `${JSON.stringify({ ...config, trustedFolders: [...trusted, path.resolve(folder)] }, null, 2)}\n`)
+}
+
+function parseConfig(text: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(text)
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /** The transcript of a session in an account folder. */
