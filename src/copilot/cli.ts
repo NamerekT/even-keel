@@ -13,7 +13,7 @@ import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnSta
 import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
+import { eventsFile, parseAuth, tokenFile, tokenOf, trustFolder } from './home.js'
 import { COPILOT } from './name.js'
 import { pathFolders } from '../paths.js'
 import { protectionRules } from '../sessions/protection.js'
@@ -251,6 +251,11 @@ export class CopilotCli {
    */
   private async turn(home: AccountHome, start: SessionStart, cwd: string, session: { id: string; resume: boolean }, failure: Notice): Promise<{ pid: number; out: string; at: number }> {
     const dirs = [await mainCheckout(cwd)].filter((dir): dir is string => dir !== null)
+    try {
+      trustFolder(home.dir, dirs[0] ?? cwd)
+    } catch (error) {
+      throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })
+    }
     const place: TurnPlace = { cwd, dirs, disabled: ownServers(cwd, home.dir, start.plugins), remotes: await remotesOf(cwd) }
     const at = Date.now()
     const out = this.registry.turnFile(start.name, at)

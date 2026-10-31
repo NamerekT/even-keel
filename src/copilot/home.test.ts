@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { copilotEnv, eventsFile, parseAuth, tokenOf, writeToken } from './home.js'
+import { copilotEnv, eventsFile, parseAuth, tokenOf, trustFolder, writeToken } from './home.js'
 
 describe('copilot home', () => {
   let dir: string | undefined
@@ -30,5 +30,34 @@ describe('copilot home', () => {
 
   it('keeps the transcripts under session-state', () => {
     expect(eventsFile(join('C:', 'acc'), 'abc')).toBe(join('C:', 'acc', 'session-state', 'abc', 'events.jsonl'))
+  })
+
+  it("adds the repository to the folder's trustedFolders and keeps the rest of config.json", () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    const repo = join(dir, 'repo')
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ banner: 'never', trustedFolders: [join(dir, 'other')] }))
+    trustFolder(dir, repo)
+    expect(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'))).toEqual({ banner: 'never', trustedFolders: [join(dir, 'other'), repo] })
+  })
+
+  it('creates config.json when the folder has none and writes the path in the native spelling', () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    trustFolder(dir, `${dir.replaceAll('\\', '/')}/repo/`)
+    expect(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'))).toEqual({ trustedFolders: [join(dir, 'repo')] })
+  })
+
+  it('leaves config.json untouched when the folder is already trusted under any spelling', () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    const text = JSON.stringify({ trustedFolders: [`${join(dir, 'repo').replaceAll('\\', '/')}/`] })
+    writeFileSync(join(dir, 'config.json'), text)
+    trustFolder(dir, join(dir, 'repo'))
+    expect(readFileSync(join(dir, 'config.json'), 'utf8')).toBe(text)
+  })
+
+  it('does not overwrite a config.json it cannot read', () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    writeFileSync(join(dir, 'config.json'), '{ broken')
+    expect(() => trustFolder(dir!, join(dir!, 'repo'))).toThrow(/config\.json/)
+    expect(readFileSync(join(dir, 'config.json'), 'utf8')).toBe('{ broken')
   })
 })
