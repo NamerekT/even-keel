@@ -116,7 +116,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
 | 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth in the plaintext fallback, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
-| 86 | [A trimmed Huly server install from the service (BTN-627)](#a-trimmed-huly-server-install-from-the-service-btn-627) | an install of a `huly-mcp` version that needs a trimmed package | the install falls back to a full one and takes as long as before |
 
 ### Copilot's machine token and model availability (BTN-516)
 
@@ -346,7 +345,7 @@ The check of a key was seen live answering 200 for a working key and 401 for a m
 
 ### An API key's organization header
 
-Replacing an API account's key (BTN-418, `docs/accounts.md`, "The key's organization") refuses a key of another organization by the header a working key's answer to the models list carries: Anthropic's `anthropic-organization-id`, OpenAI's `openai-organization`. Anthropic's was checked live on 2026-10-31: a key of another organization refused, a second key of the same one taken ([verified](verified.md#accounts)). OpenAI's was checked on 2026-10-31 and does not come on `GET /v1/models` at all, only on other endpoints ([verified](verified.md#accounts)): until BTN-649 asks one of them, nothing is refused and a key of another organization replaces the old one, its spend counted under the old account. Still assumed for OpenAI: the header names the organization the same way for every key of it, project keys of different projects included; if not, a working key of the same account is refused as of another organization. **Workaround:** for the first, remove the account and add the other organization's key as its own; for the second, add the new key as a new account.
+Replacing an API account's key (BTN-418, `docs/accounts.md`, "The key's organization") refuses a key of another organization by the header a working key's answer to the models list carries: Anthropic's `anthropic-organization-id`, OpenAI's `openai-organization`. Anthropic's was checked live on 2026-10-31: a key of another organization refused, a second key of the same one taken ([verified](verified.md#accounts)), on a Claude Code account. An OpenCode account on an Anthropic key goes through the same check and comparison (`keyProvider`), and its organization was kept live, but its refusal was never pressed. The comparison runs before OpenCode's own write of the key, so only that write differs from the path checked on Claude Code. OpenAI's was checked on 2026-10-31 and does not come on `GET /v1/models` at all, only on other endpoints ([verified](verified.md#accounts)): until BTN-649 asks one of them, nothing is refused and a key of another organization replaces the old one, its spend counted under the old account. Still assumed for OpenAI: the header names the organization the same way for every key of it, project keys of different projects included; if not, a working key of the same account is refused as of another organization. **Workaround:** for the first, remove the account and add the other organization's key as its own; for the second, add the new key as a new account.
 
 ### An API key out of credit (BTN-165)
 
@@ -562,11 +561,7 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 
 ### Packages on Linux and macOS
 
-Installing a package and the gateway's server processes were run on Windows and, for `huly@even-keel` with its trimmed install, on Linux (2026-10-31, [verified.md](verified.md#packages)); macOS was not run, nor other packages on Linux. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
-
-### A trimmed Huly server install from the service (BTN-627)
-
-The trim of `@firfi/huly-mcp` (`docs/packages.md`, "Install and update") was seen live: the install, its check and a chain task's server from Even Keel's own install, and a check that fails on a stub from a terminal (`verified.md`, "Packages"). The fall back to a full install from the service was not seen: no version of the server has needed a trimmed package yet. Assumed: it goes as in the terminal, the log saying `failed its check` or `needs <package>` before a full install. If not, the package shows "install failed" and its sessions wait for it. An install made in full before BTN-627 stays in full until the next `huly-mcp` version: an update with the same version copies it (BTN-422). **Workaround:** remove `huly@even-keel` on /tools and add it again: it installs anew, trimmed or in full.
+Installing a package and the gateway's server processes were run on Windows and, for `huly@even-keel`, on Linux (2026-10-31, [verified.md](verified.md#packages)); macOS was not run, nor other packages on Linux. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ### Tracker deletes refused by the gateway (BTN-541)
 
