@@ -11,6 +11,7 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
+import { secretInput } from '../ui/secret.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
 import '../tools/addPackage.css'
 import './accountAdd.css'
@@ -393,11 +394,9 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, o
               <span className="add-package__label">{t.addAccount.key[way.id === 'token' ? 'token' : 'key']}</span>
               <input
                 className="add-package__input add-package__input--mono"
-                type="password"
+                {...secretInput()}
                 value={draft.key}
                 onChange={(event) => onDraft({ ...draft, key: event.target.value })}
-                autoComplete="off"
-                spellCheck={false}
               />
             </label>
             <label className="add-package__field">

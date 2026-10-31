@@ -9,6 +9,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { stillMotion } from '../ui/landing.js'
+import { secretInput } from '../ui/secret.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
 import './profiles.css'
@@ -269,7 +270,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
                 <input
                   id={id}
                   className="add-package__input add-package__input--mono"
-                  type={field.secret ? 'password' : 'text'}
+                  {...secretInput(field.secret)}
                   value={typed[field.name] ?? ''}
                   placeholder={field.secret && stored?.set === true ? t.profiles.kept : (t.profiles.examples[field.name] ?? '')}
                   disabled={locked}
@@ -283,8 +284,8 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
         })}
         {kind.mcpOAuth === true && <ProfileMcp kind={kind} profile={profile} body={draft} values={key} blank={blank} grant={grant} onGrant={onGrant} warning={mcpWarning}>
           <Field label={t.profiles.fieldLabels.JIRA_MCP_TOKEN!} hint={t.profiles.fieldHints.JIRA_MCP_TOKEN}>
-            {(id) => <input id={id} className="add-package__input add-package__input--mono" type="password"
-              value={typed.JIRA_MCP_TOKEN ?? ''} autoComplete="off"
+            {(id) => <input id={id} className="add-package__input add-package__input--mono" {...secretInput()}
+              value={typed.JIRA_MCP_TOKEN ?? ''}
               placeholder={profile?.fields.some((field) => field.name === 'JIRA_MCP_TOKEN' && field.set) ? t.profiles.kept : ''}
               onChange={(event) => setTyped({ ...typed, JIRA_MCP_TOKEN: event.target.value })} />}
           </Field>

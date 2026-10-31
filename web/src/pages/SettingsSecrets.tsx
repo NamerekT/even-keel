@@ -3,6 +3,7 @@ import { PAGE_TOKEN } from '../../../src/secrets/catalog.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { secretInput } from '../ui/secret.js'
 import { CLASSIFIER, CLASSIFIER_FIELDS, classifierChanges, classifierDraft, classifierVariable, type ClassifierField } from './classifier.js'
 import { fieldId, Row, Section } from './settingsParts.js'
 
@@ -40,12 +41,10 @@ export function PageToken({ state }: { state: EvenKeelState }) {
         <input
           id={id}
           className="settings__text settings__text--mono"
-          type="password"
+          {...secretInput()}
           value={value}
           placeholder={variable.set ? t.secrets.tokenSet : t.secrets.unset}
           disabled={variable.outer}
-          autoComplete="off"
-          spellCheck={false}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={onKey}
         />
@@ -112,7 +111,7 @@ export function ClassifierSettings({ state }: { state: EvenKeelState }) {
                 <input
                   id={id}
                   className="settings__text settings__text--mono"
-                  type={field === 'key' ? 'password' : 'text'}
+                  {...secretInput(field === 'key')}
                   value={draft[field]}
                   placeholder={placeholder(field, variable?.set ?? false)}
                   disabled={variable?.outer ?? true}
