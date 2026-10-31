@@ -99,7 +99,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token under the service, or on Linux and macOS | sessions do not start under the service |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message taken before a tool call has no bubble in the chat; the repository's own hooks do not run |
-| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
+| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot on a paid plan; the new session at the reset | the session stops on an unknown wording, or does not go on after the reset; press "New session" |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 | 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
@@ -538,7 +538,7 @@ The checkpoint package's hooks from `--plugin-dir` run at every step of a chain 
 
 ### A spent Copilot budget
 
-What a Copilot session writes when the AI credits or premium requests run out was never seen. The fold takes a `session.error` about billing or AI credits as spent credit and a rate limit or quota as a limit (`src/copilot/transcript.ts`). A folder with a token has its monthly allowance read (BTN-341, below), and either kind waits for its reset on the 1st; a folder on the machine's sign-in has nothing read, and its session waits for good. Any other wording stops it like an error. **Workaround:** after the budget is back, press "New session".
+The free plan's spent month was seen in the sandbox (2026-10-31, [`verified.md`](verified.md#copilot)): mid-turn, `session.error` with `errorType: "quota"`, 402, `quota_exceeded`, taken as a limit; a folder with a token then waited for the reset on the 1st, one on the machine's sign-in for the 15-minute retry. Until the next poll of the allowance the token folder's limit had no reset and the page called it an API key out of credit (BTN-647). Never seen: what a paid plan's spent AI credits or premium requests write (the fold takes a text about billing or AI credits as spent credit, any other wording stops the session like an error), the new session at the reset, and the machine sign-in's retries after the first. **Workaround:** after the budget is back, press "New session".
 
 ### A Copilot token's monthly allowance (BTN-341)
 
