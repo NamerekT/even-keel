@@ -1,4 +1,4 @@
-import { FORGES, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -236,8 +236,9 @@ export const noticesRu: NoticeTexts = {
   'account.needsLogin': (p) => `в ${p.account} сначала нужно войти`,
   'account.globalKept': () => 'собственный аккаунт Claude Code отсюда не удаляется',
   'account.activeKept': () => 'активный аккаунт не удалить — сначала переключитесь на другой',
-  'account.sharedPool': () => 'этот аккаунт выбран аккаунтом Claude Code в общих настройках — сначала выберите там другой',
-  'account.projectPool': (p) => `этот аккаунт выбран аккаунтом Claude Code в настройках проектов ${list(p.projects)} — сначала выберите там другой`,
+  'account.sharedPool': (p) => `этот аккаунт выбран аккаунтом ${AGENT_NAMES[p.agent] ?? p.agent} в общих настройках — сначала выберите там другой`,
+  'account.projectPool': (p) =>
+    `этот аккаунт выбран аккаунтом ${AGENT_NAMES[p.agent] ?? p.agent} в настройках проектов ${list(p.projects)} — сначала выберите там другой`,
   'account.signInRunning': () => 'в этот аккаунт идёт вход',
   'account.usedByApp': (p) => `этот аккаунт использует ${p.app} — сначала переключите его на другой`,
   'account.codexApp': () => 'приложения работают на Claude Code — аккаунт Codex им не отдать',

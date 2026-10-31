@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } f
 import { removeProblem, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
+import { fixLabel, useFix } from '../pages/FixButtons.js'
+import { noticeFixOf } from '../pages/noticeFix.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { usePopoverMenu } from '../ui/usePopoverMenu.js'
 import { rolesOf } from './AccountRoles.js'
@@ -28,6 +30,9 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   const roles = rolesOf(entry, view, send)
   const held = roles.filter((role) => role.held)
   const problem = removeProblem(view, entry.key)
+  const found = problem === undefined || entry.removing ? null : noticeFixOf(problem)
+  const fix = found?.to === 'shared' ? found : null
+  const go = useFix()
   const pick = (action: () => void) => { setOpen(false); action() }
   const toggleMenu = (event: MouseEvent<HTMLElement>) => {
     clickX.current = event.detail === 0 ? undefined : event.clientX
@@ -68,6 +73,8 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
             onClick={() => { if (problem === undefined && !entry.removing) pick(() => setRemoving(true)) }}>
             {t.common.remove}{problem !== undefined && <span className="roles__note">{say(problem)}</span>}
           </button></li>
+          {fix !== null && <li role="none"><button type="button" role="menuitem" className="roles__offer"
+            onClick={() => pick(() => go(fix, null))}>{fixLabel(fix)}</button></li>}
         </>}
       </ul>
       {renaming && <RenameAccount entry={entry} name={name} send={send} sending={sending} onClose={() => { setRenaming(false); button.current?.focus() }} />}

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
+import { parseConfig, poolEntries, projectsByAccount } from '../config.js'
 import { AccountHomes } from './homes.js'
 import { AccountWatcher, type AccountWatcherOptions } from './watcher.js'
 
@@ -73,4 +74,28 @@ it('removes a global account without logging out or deleting the CLI folder', as
   expect(accounts.view.accounts).toEqual([])
   expect(homes.availableGlobals().map((home) => home.key)).toEqual(['codex'])
   expect(logout).not.toHaveBeenCalled()
+})
+
+it('removes the only global account the built-in shared pool names, and the next account added takes its entry', async () => {
+  const { accounts, homes, makeShared, options } = setup()
+  const config = parseConfig({ projects: [], provider: 'copilot', accounts: { copilot: 'copilot' } })
+  options.pool = () => poolEntries(config, [])
+  await accounts.useGlobal('codex')
+  expect(makeShared).toHaveBeenLastCalledWith('codex', 'codex')
+  await accounts.remove('codex')
+  expect(accounts.view.accounts).toEqual([])
+  makeShared.mockClear()
+  await accounts.useGlobal('codex')
+  expect(homes.list().map((home) => home.key)).toEqual(['codex'])
+  expect(makeShared).toHaveBeenCalledWith('codex', 'codex')
+})
+
+it('keeps a global account a project runs on through the built-in shared pool', async () => {
+  const { accounts, options } = setup()
+  const project = { id: 'f00d-1', key: 'ABC', repo: 'C:\\abc', tracker: 'huly', provider: 'codex' }
+  const config = parseConfig({ projects: [project], provider: 'copilot', accounts: { copilot: 'copilot' } })
+  options.pool = () => poolEntries(config, [project.id])
+  options.projectsOn = (key) => projectsByAccount(config, [project.id])[key] ?? []
+  await accounts.useGlobal('codex')
+  await expect(accounts.remove('codex')).rejects.toMatchObject({ notice: { code: 'account.projectPool', params: { agent: 'codex', projects: [project.id] } } })
 })

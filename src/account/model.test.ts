@@ -511,14 +511,23 @@ describe('removeProblem', () => {
     expect(say(removeProblem(view({ apps }), 'work'))).toMatch(/VS Code uses/)
   })
 
-  it('keeps a folder a pool entry names, the shared pool or a project', () => {
-    expect(say(removeProblem(view({ pool: [{ project: null, provider: 'codex', account: 'work' }] }), 'work'))).toMatch(/shared settings/)
+  it('keeps a folder a pool entry names, the shared pool or a project, naming its agent', () => {
+    const codex = view({ accounts: [entry({}), entry({ key: 'work', agent: 'codex', global: false })], pool: [{ project: null, provider: 'codex', account: 'work' }] })
+    expect(removeProblem(codex, 'work')).toEqual({ code: 'account.sharedPool', params: { agent: 'codex' } })
+    expect(say(removeProblem(codex, 'work'))).toBe('the shared settings pick this account as their account on Codex; pick another one there first')
     const pool = [
       { project: 'ABC', provider: 'claude', account: 'work' },
       { project: 'XYZ', provider: 'codex', account: 'work' },
       { project: 'DEF', provider: 'claude', account: 'other' },
     ]
-    expect(say(removeProblem(view({ pool }), 'work'))).toMatch(/projects ABC, XYZ/)
+    expect(say(removeProblem(view({ pool }), 'work'))).toMatch(/projects ABC, XYZ pick this account as their account on Claude Code/)
     expect(removeProblem(view({ pool }), 'other-work')).toMatchObject({ code: 'account.unknown' })
+  })
+
+  it('lets go a folder only the built-in default of the shared pool names, unless a project runs on it', () => {
+    const pool = [{ project: null, provider: 'claude', account: 'work', byDefault: true as const }]
+    expect(removeProblem(view({ pool }), 'work')).toBeUndefined()
+    const running = view({ pool, accounts: [entry({}), entry({ key: 'work', global: false, projects: ['ABC'] })] })
+    expect(removeProblem(running, 'work')).toEqual({ code: 'account.projectPool', params: { agent: 'claude', projects: ['ABC'] } })
   })
 })

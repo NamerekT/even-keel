@@ -481,8 +481,18 @@ describe('parseConfig', () => {
     })
     expect(poolEntries(config, ['ABC', 'XYZ'])).toEqual([
       { project: null, provider: 'claude', account: 'work' },
-      { project: null, provider: 'codex', account: 'codex' },
+      { project: null, provider: 'codex', account: 'codex', byDefault: true },
       { project: 'ABC', provider: 'codex', account: 'codex-work' },
+    ])
+  })
+
+  it('marks the shared entries nobody picked as the built-in defaults, not the project entries naming the same folder', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', accounts: { claude: 'global' } } }, accounts: { copilot: 'copilot' } })
+    expect(poolEntries(config, ['ABC'])).toEqual([
+      { project: null, provider: 'claude', account: 'global', byDefault: true },
+      { project: null, provider: 'codex', account: 'codex', byDefault: true },
+      { project: null, provider: 'copilot', account: 'copilot' },
+      { project: 'ABC', provider: 'claude', account: 'global' },
     ])
   })
 
