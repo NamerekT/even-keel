@@ -125,6 +125,26 @@ describe('Dispatcher on a task marked NO CHANGES', () => {
     expect(marks.completed).toEqual([])
   })
 
+  it('does not wait for a session whose turn ended on a background command', async () => {
+    const marks = tracker()
+    const { launched, finished } = await running(marks.deps, handoff(), { shell: new Set(['ABC-1']) })
+    expect(marks.completed).toEqual([{ task: 'ABC-1', comment: PROMPTS.ru.unchanged.comment(REASON) }])
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('waits for a session in a background command whose branch holds work, then tells it', async () => {
+    const marks = tracker(() => ({ ahead: 1, files: 0 }))
+    const { dispatcher, relays, shell } = await running(marks.deps, handoff(), { shell: new Set(['ABC-1']) })
+    expect(relays).toEqual([])
+    expect(marks.completed).toEqual([])
+
+    shell.delete('ABC-1')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', prompt: PROMPTS.ru.unchanged.ahead('main') }])
+  })
+
   it('leaves alone a session without the mark, one at work and one of a project in PR mode', async () => {
     const plain = tracker()
     const unmarked = await running(plain.deps, handoff(null))
