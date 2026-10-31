@@ -215,6 +215,11 @@ export interface Agent {
   installed?(): boolean
   /** Optional. What the CLI's `--version` prints; without it the installed version is not compared with `checked`. */
   version?(): Promise<string>
+  /**
+   * Optional. The CLI on the machine, whichever one sessions run on: `installed` and `version` above follow Even Keel's
+   * copy once it is chosen and downloaded, this does not. The page's "Yours, X" is its version (BTN-622).
+   */
+  system?: { installed(): boolean; version(): Promise<string> }
 
   /** Optional. Picture `index` of the result of call `tool`, for the image lines of `feed`; without it the page shows none. */
   image?(home: AccountHome, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined>

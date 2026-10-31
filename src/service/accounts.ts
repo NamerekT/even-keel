@@ -328,14 +328,16 @@ export function wireCliVersions(ctx: AccountsContext): VersionWatcher {
   return new VersionWatcher({
     agents: () =>
       [...ctx.runtimes].flatMap(([name, agent]) => {
-        const version = agent.version?.bind(agent)
+        // The CLI on the machine, not the copy sessions may run on: the page's "Yours, X" is its version (BTN-622).
+        const version = agent.system?.version ?? agent.version?.bind(agent)
         if (version === undefined) return []
+        const installed = () => (agent.system?.installed() ?? agent.installed?.()) !== false
         const runsOnInstalled = () => {
           const config = ctx.configStore.current
           const own = config.cli[name] === 'system' || Boolean(process.env[`EVEN_KEEL_${name.toUpperCase()}_BIN`])
           return own && providersInUse(config, Object.keys(config.projects)).has(name)
         }
-        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
+        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
       }),
     intervalMs: ctx.CLI_VERSION_POLL_MS,
     onChange: () => ctx.hub.broadcast('state', ctx.getState()),

@@ -50,11 +50,13 @@ export const copilot: AgentAdapter = {
           })
     const envOf = (home: AccountHome) => copilotEnv(env(), home.dir)
     const bin = () => resolveCopilotBinary(env(), env().EVEN_KEEL_COPILOT_BIN || !checkedCli() ? undefined : copy?.path())
+    const system = () => resolveCopilotBinary(env())
+    const onMachine = () => findBinary(system(), env())
     const registry = new TurnRegistry(join(workDir, COPILOT))
     const cli = new CopilotCli(bin, timeoutMs, envOf, registry)
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
-      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveCopilotBinary(env()), env()), () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),
@@ -98,6 +100,7 @@ export const copilot: AgentAdapter = {
       installed: () => findBinary(bin(), env()),
       // As a session runs: without it a binary answers with the newer version it updated itself to.
       version: () => cli.version({ ...env(), COPILOT_AUTO_UPDATE: 'false' }),
+      system: { installed: onMachine, version: () => cli.version({ ...env(), COPILOT_AUTO_UPDATE: 'false' }, system()) },
       keyUsage: true,
       // A call without `cacheExpiresAt` (`mai-code-1.1-flash`) is taken for GPT's half hour.
       warmMs: (cache) => warmCacheMs(cache?.ttl ?? '30m'),

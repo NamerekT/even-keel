@@ -343,8 +343,8 @@ export class OpenCodeCli {
   }
 
   /** `opencode --version`: `1.18.25`. */
-  async version(env: NodeJS.ProcessEnv): Promise<string> {
-    return (await run(this.bin(), ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
+  async version(env: NodeJS.ProcessEnv, binary = this.bin()): Promise<string> {
+    return (await run(binary, ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
   }
 
   async authStatus(home: AccountHome): Promise<AccountStatus> {

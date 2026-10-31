@@ -50,6 +50,8 @@ export const claude: AgentAdapter = {
     const pinned = () => (env().EVEN_KEEL_CLAUDE_BIN || !checkedCli() ? undefined : copy.path())
     const envOf = (home: AccountHome) => claudeEnv(env(), home, pinned() !== undefined)
     const bin = () => resolveClaudeBinary(env(), pinned())
+    const system = () => resolveClaudeBinary(env())
+    const onMachine = () => findBinary(system(), env())
     const cli = new ClaudeCli(bin, timeoutMs, envOf)
     const projects = (home: AccountHome) => join(home.dir, 'projects')
     const remoteAt = async (home: AccountHome) => remoteAtStartup(await readText(join(home.dir, 'settings.json')))
@@ -88,7 +90,7 @@ export const claude: AgentAdapter = {
     return {
       updateMarketplace: (home, marketplace, timeout) => updateMarketplace(envOf(home), marketplace, timeout, bin()),
       addMarketplace: (home, dir, timeout) => addMarketplace(envOf(home), dir, timeout, bin()),
-      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveClaudeBinary(env()), env()), () => !!env().EVEN_KEEL_CLAUDE_BIN, 280 * 1_000_000, sdkCopy),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CLAUDE_BIN, 280 * 1_000_000, sdkCopy),
       mode: SESSION_MODE,
       env: envOf,
       launch: async (home, start) => {
@@ -123,6 +125,7 @@ export const claude: AgentAdapter = {
       logout: (home) => cli.authLogout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
+      system: { installed: onMachine, version: () => cli.version(env(), system()) },
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
       models: async () => ({ models: [...MODEL_ALIASES], complete: false }),
       contextWindow: async (home, model, settings) => parseContextWindow(await cli.context(home, workDir, model, settings)),

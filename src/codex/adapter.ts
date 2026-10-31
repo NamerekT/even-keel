@@ -46,6 +46,8 @@ export const codex: AgentAdapter = {
           })
     const envOf = (home: AccountHome) => codexEnv(env(), home)
     const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
+    const system = () => resolveCodexBinary(env())
+    const onMachine = () => findBinary(system(), env())
     const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
     const usage = new CodexUsage({
       timeoutMs,
@@ -53,7 +55,7 @@ export const codex: AgentAdapter = {
       refresh: (home) => appServer(bin(), [], workDir, envOf(home), [['account/read', { refreshToken: true }]]),
     })
     return {
-      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveCodexBinary(env()), env()), () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
       mode: SESSION_MODE,
       // GPT-5.6 and later keep a cache 30 minutes at least; the rollout does not say.
       warmMs: () => warmCacheMs('30m'),
@@ -93,6 +95,7 @@ export const codex: AgentAdapter = {
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
+      system: { installed: onMachine, version: () => cli.version(env(), system()) },
       usage: (home, at) => usage.read(home, at),
       write: async (home, { cwd, prompt, model, timeoutMs }) => {
         const started = Date.now()
