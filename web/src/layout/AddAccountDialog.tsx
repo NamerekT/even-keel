@@ -42,7 +42,7 @@ export function useOpenAdd(): (provider: Provider | null) => void {
 }
 
 /**
- * Adding an account, over the page it was opened from (BTN-352): the address holds the step (`?add=<provider>&way=<id>`),
+ * Adding an account, over the page it was opened from (BTN-352): the address holds the step (`?addAccount=<provider>&addWay=<id>`),
  * so a reload and the browser's Back keep it; what is typed lives here, so stepping back and forth keeps it too.
  */
 export function AddAccountDialog({ account }: { account: AccountView }) {

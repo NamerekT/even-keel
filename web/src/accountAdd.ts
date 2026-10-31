@@ -44,8 +44,9 @@ export interface AddAt {
   way: Way | null
 }
 
-const ADD = 'add'
-const WAY = 'way'
+/** Not `add`, the add dialog of /tools, nor `account`, the /stats filter: the dialog opens over any page (BTN-629). */
+const ADD = 'addAccount'
+const WAY = 'addWay'
 
 function providerOf(name: string | null): Provider | null {
   return PROVIDERS.find((each) => each === name) ?? null
