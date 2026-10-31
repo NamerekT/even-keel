@@ -83,7 +83,8 @@
   --mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Consolas, monospace;
 
   /* One duration per kind of motion: hover and small state changes; a dialog, panel or section showing up (ease-out);
-     a new block marked (ease-out); a skeleton sweep (linear); a lamp blinking; a spinner turning. */
+     a new block marked (ease-out); a skeleton sweep (linear); a lamp blinking; a spinner turning; the loader's boat
+     rocking (its sea runs twice as fast). */
   --motion-fast: 0.15s;
   --motion-fold: 0.12s;
   --motion-appear: 0.2s;
@@ -91,6 +92,7 @@
   --motion-skeleton: 1.4s;
   --motion-blink: 1.2s;
   --motion-spin: 0.8s;
+  --motion-sway: 2.4s;
 
   /* Behind every modal window: the page is dimmed and blurred the same way. */
   --scrim: rgb(0 0 0 / 0.6);

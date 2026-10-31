@@ -240,7 +240,8 @@ button.tools__toggle:hover {
   gap: 8px;
   width: 100%;
   max-width: 800px;
-  margin: 0 auto;
+  /* Held at the bottom even with no feed above it: while loading, on an error, for a session not found. */
+  margin: auto auto 0;
 }
 
 .transcript__turn {

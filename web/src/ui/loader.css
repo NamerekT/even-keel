@@ -1,0 +1,148 @@
+/* The page's loader (Loader.tsx): the logo's boat rocking on a running sea. The entrance and the exit take their
+   durations from loaderPhase.ts through --loader-in and --loader-out; the sway is --motion-sway. */
+
+.ui-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 160px;
+  padding: var(--space-24) var(--space-16);
+}
+
+.ui-loader--fill {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The rest of the screen under the header, less the content's own padding, so the boat sits in the screen's middle. */
+.ui-loader--page {
+  --loader-width: 120px;
+  min-height: calc(100dvh - var(--header-height) - 56px);
+}
+
+.ui-loader__scene {
+  display: grid;
+  width: var(--loader-width, 96px);
+}
+
+.ui-loader__scene > svg {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ui-loader__hull {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
+  animation: loader-rock var(--motion-sway) ease-in-out infinite;
+}
+
+.ui-loader__sail {
+  fill: var(--fg);
+}
+
+.ui-loader__jib {
+  fill: var(--fg-muted);
+}
+
+.ui-loader__keel {
+  fill: var(--lamp-done);
+}
+
+/* The sea fades out at both sides, so its ends never show. */
+.ui-loader__sea {
+  mask-image: linear-gradient(to right, transparent, black 30%, black 70%, transparent);
+}
+
+.ui-loader__wave {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  animation: loader-sea calc(var(--motion-sway) / 2) linear infinite;
+}
+
+.ui-loader__wave--deep {
+  opacity: 0.4;
+  animation-duration: var(--motion-sway);
+}
+
+.ui-loader__label {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+/* The entrance: the boat rises onto the sea as the sea spreads out; the exit is the same backwards, a little quicker. */
+.ui-loader--in {
+  animation: loader-fade var(--loader-in) ease-out both;
+}
+
+.ui-loader--in .ui-loader__boat {
+  animation: loader-rise var(--loader-in) ease-out both;
+}
+
+.ui-loader--in .ui-loader__sea {
+  animation: loader-spread var(--loader-in) ease-out both;
+}
+
+.ui-loader--out {
+  animation: loader-fade var(--loader-out) ease-in reverse both;
+}
+
+.ui-loader--out .ui-loader__boat {
+  animation: loader-rise var(--loader-out) ease-in reverse both;
+}
+
+.ui-loader--out .ui-loader__sea {
+  animation: loader-spread var(--loader-out) ease-in reverse both;
+}
+
+@keyframes loader-rock {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+
+  50% {
+    transform: translateY(-0.6px) rotate(5deg);
+  }
+}
+
+@keyframes loader-sea {
+  to {
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes loader-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes loader-rise {
+  from {
+    transform: translateY(8px) scale(0.9);
+  }
+}
+
+@keyframes loader-spread {
+  from {
+    transform: scaleX(0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-loader__hull,
+  .ui-loader__wave,
+  .ui-loader--in .ui-loader__boat,
+  .ui-loader--in .ui-loader__sea,
+  .ui-loader--out .ui-loader__boat,
+  .ui-loader--out .ui-loader__sea {
+    animation: none;
+  }
+}
