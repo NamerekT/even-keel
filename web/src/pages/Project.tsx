@@ -36,6 +36,7 @@ import {
 } from '../state.js'
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
+import { Loading } from '../ui/Loader.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -162,24 +163,26 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         </header>
         <ProjectNotices key={`notices-${key}`} state={state} project={key} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
         <EmptyCall state={state} project={key} />
-        {blocks.length === 0 ? (
-          emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
-        ) : (
-          <ChainList
-            key={key}
-            project={key}
-            chain={blocks}
-            scale={state.context}
-            trackerUrls={state.trackerUrls}
-            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus}
-            ghost={arrival.ghost}
-            arrival={arrival.arrival}
-            incoming={arrival.incoming}
-            links={links}
-            ready={(block) => readyButton(state, key, block)}
-            onCard={openCard}
-          />
-        )}
+        <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
+          {blocks.length === 0 ? (
+            emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
+          ) : (
+            <ChainList
+              key={key}
+              project={key}
+              chain={blocks}
+              scale={state.context}
+              trackerUrls={state.trackerUrls}
+              focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus}
+              ghost={arrival.ghost}
+              arrival={arrival.arrival}
+              incoming={arrival.incoming}
+              links={links}
+              ready={(block) => readyButton(state, key, block)}
+              onCard={openCard}
+            />
+          )}
+        </Loading>
         <StatsStrip project={statsKey} strip={strip} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
       </div>

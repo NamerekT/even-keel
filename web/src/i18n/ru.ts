@@ -602,6 +602,7 @@ export const ru = {
     start: 'Запустить',
     enqueue: 'В очередь',
     chainNotLoaded: 'Задачи ещё не загружены.',
+    chainLoading: 'Читаю задачи…',
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',

@@ -13,6 +13,8 @@ import { contextFill } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
+import { Loader } from '../ui/Loader.js'
+import { useLoader } from '../ui/loaderPhase.js'
 import { PullButton } from '../ui/PullChip.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -110,6 +112,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const edits = editTotals(all ?? [])
   // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
   const drop = useFileDrop(chat !== undefined, (files) => composerRef.current?.attach(files))
+  const loader = useLoader(error === null && lines === undefined)
+  // The list mounts once the loader has left, so the effects that pin it to its end wait for that too.
+  const listed = entries != null && loader === 'done'
 
   useEffect(() => {
     // Otherwise the dialog focuses its first focusable element, the head's facts, and their tip opens at once.
@@ -172,10 +177,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   useLayoutEffect(() => {
     const list = listRef.current
     if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
-  }, [lines, sent])
+  }, [lines, sent, listed])
 
   // The feed also shrinks without new lines — a message joins the mail list, the composer grows: keep a pinned feed at its end.
-  const listed = entries != null
   useEffect(() => {
     const list = listRef.current
     if (list === null) return
@@ -237,9 +241,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
           </button>
         </header>
         {error !== null && <p className="notice notice--error">{error}</p>}
-        {error === null && lines === undefined && <p className="placeholder">{t.common.reading}</p>}
-        {lines === null && <p className="placeholder">{t.session.notFound}</p>}
-        {entries != null && (
+        {loader !== 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
+        {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
+        {entries != null && listed && (
           <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
             <ol className="transcript__lines">
               {entries.map((entry, index) =>

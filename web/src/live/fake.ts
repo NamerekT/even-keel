@@ -704,7 +704,7 @@ export function createFakeSource(search: string): LiveSource {
       return current.state === null ? null : fakeRecord(current.state, sessionId)
     },
     transcript: async (sessionId, after) => {
-      await new Promise((resolve) => setTimeout(resolve, ANSWER_MS))
+      await answer()
       if (sessionId.endsWith('999')) return null
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
