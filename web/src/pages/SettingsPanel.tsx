@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
@@ -34,6 +34,7 @@ import {
   HelpTip,
   type RuleKey,
   rulesOf,
+  rulesText,
   sameBy,
   SaveBar,
   Section,
@@ -47,7 +48,9 @@ import {
   useFieldErrors,
   wholeOf,
 } from './settingsParts.js'
-import { ruleChoicesOf } from './settingsRows.js'
+import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
+import { SourceDialog, SourceLine } from './SourceDialog.js'
+import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
 import { TrustWarning } from './TrustCommands.js'
@@ -103,6 +106,7 @@ type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
 const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
+const STATUS_KEYS: readonly RuleKey[] = ['active', 'terminal']
 
 const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
 const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
@@ -179,14 +183,24 @@ export function SettingsPanel({
     (providers) => editAll(providers.map((provider) => [`models.${provider}`, ''])),
   )
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
-  const inherited = effectiveRules(shared.chain, [], profileRules)
-  const origins = ruleOrigins(chain, inherited, profileRules)
-  const ruleChoices = ruleChoicesOf(tasks, vocabularies)
+  // The rules inherit from the profile of the tracker the draft has: a tracker changed and not saved yet brings its own.
+  const ruleProfile = profileOf(state, project, text('tracker'))
+  const inheritedOf = (tracker: string) => effectiveRules(shared.chain, [], profileOf(state, project, tracker)?.rules ?? {})
+  const inherited = inheritedOf(text('tracker'))
+  const origins = ruleOrigins(chain, inherited, ruleProfile?.rules ?? {})
+  // The main tracker's tasks only: a feed's are offered in its own window (BTN-553).
+  const mainTasks = sourceTasks(tasks, config.feeds[project] ?? [], null)
+  const ruleChoices = ruleChoicesOf(mainTasks, vocabularies)
+  // Another tracker names other statuses: the project's own status lists go back to what the new one inherits, saved with it.
+  const statusesOf = (tracker: string): [string, Value][] => STATUS_KEYS.map((key) => [key, rulesText(inheritedOf(tracker))[key]])
+  const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
+  const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
+  const [configuring, setConfiguring] = useState(false)
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
-    if (next === undefined || base === undefined) return
-    await send('project/settings', { project, ...next, base })
+    if (next === undefined || base === undefined) return false
+    return send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
   const unguarded = !(switchOf(text('guard')) ?? shared.ci.guard)
@@ -409,8 +423,8 @@ export function SettingsPanel({
                   tracker === text('tracker')
                     ? edited(draft, 'trackerProject', value)
                     : tracker === saved.tracker
-                      ? reverted(draft, saved, ['tracker', 'trackerProject'])
-                      : edited(edited(draft, 'tracker', tracker), 'trackerProject', ''),
+                      ? reverted(draft, saved, ['tracker', 'trackerProject', ...STATUS_KEYS])
+                      : statusesOf(tracker).reduce((each, [key, value]) => edited(each, key, value), edited(edited(draft, 'tracker', tracker), 'trackerProject', '')),
                 )
               }
             />
@@ -418,37 +432,89 @@ export function SettingsPanel({
           {text('tracker') !== 'github' && input('intakeLabel', t.settings.intakeLabel, t.settings.intakeLabelHint, t.settings.intakeLabelNone)}
           {inheritedSwitch('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         </Section>
-        {state !== null && <FeedList state={state} project={project} />}
-        <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
-          <MilestoneFields
-            level="project"
-            rules={chain}
-            inherited={inherited}
-            origins={origins}
-            milestones={ruleChoices.milestones}
-            text={text}
-            onEdit={editAll}
-            errorOf={errorOf}
-            marks={marks}
+        {state !== null && (
+          <FeedList
+            state={state}
+            project={project}
+            tasks={tasks}
+            modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
+            mainTitle={trackerTitle}
+            main={
+              <SourceLine
+                kind={text('tracker')}
+                title={trackerTitle}
+                sourceKey={state.projectKeys[project] ?? ''}
+                own={form.ownRules.length > 0}
+                dirty={changed(draft, RULE_KEYS, same).length > 0}
+                onConfigure={() => setConfiguring(true)}
+              >
+                {statusesReset && (
+                  <Band tone="warn" action={<button type="button" className="button button--small" onClick={() => setConfiguring(true)}>{t.settings.sourceConfigure}</button>}>
+                    {t.settings.statusRulesReset}
+                  </Band>
+                )}
+              </SourceLine>
+            }
           />
-        </Section>
-        <RuleForm
-          level="project"
-          rules={chain}
-          inherited={inherited}
-          origins={origins}
-          profileName={profile?.name ?? null}
-          statuses={knownStatuses(
-            vocabularies.map((each) => each.statuses),
-            tasks.map((task) => task.status),
-            chain,
-          )}
-          labels={ruleChoices.labels}
-          modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
-          onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
-          errorOf={errorOf}
-          marks={marks}
-        />
+        )}
+        {configuring && (
+          <SourceDialog
+            kind={text('tracker')}
+            sourceKey={state?.projectKeys[project] ?? project}
+            title={ruleProfile?.name ?? trackerTitle}
+            tabs={[
+              {
+                id: 'rules',
+                title: t.settings.rules,
+                dirty: changed(draft, ['active', 'terminal', 'requiredLabels', 'excludedLabels'], same).length > 0,
+                render: () => (
+                  <RuleForm
+                    level="project"
+                    rules={chain}
+                    inherited={inherited}
+                    origins={origins}
+                    profileName={ruleProfile?.name ?? null}
+                    statuses={knownStatuses(
+                      vocabularies.map((each) => each.statuses),
+                      mainTasks.map((task) => task.status),
+                      chain,
+                    )}
+                    labels={ruleChoices.labels}
+                    modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
+                    onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
+                    errorOf={errorOf}
+                    marks={marks}
+                  />
+                ),
+              },
+              {
+                id: 'milestones',
+                title: t.settings.milestones,
+                dirty: changed(draft, ['requiredMilestones', 'excludedMilestones'], same).length > 0,
+                render: () => (
+                  <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
+                    <MilestoneFields
+                      level="project"
+                      rules={chain}
+                      inherited={inherited}
+                      origins={origins}
+                      milestones={ruleChoices.milestones}
+                      text={text}
+                      onEdit={editAll}
+                      errorOf={errorOf}
+                      marks={marks}
+                    />
+                  </Section>
+                ),
+              },
+            ]}
+            canSave={!sending && next !== undefined}
+            failure={leftover}
+            onSave={save}
+            onRevert={() => revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)}
+            onClose={() => setConfiguring(false)}
+          />
+        )}
       </>
     ),
     sessions: () => (

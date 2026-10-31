@@ -1,6 +1,6 @@
 import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
 import type { EvenKeelState, FeedView, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
-import { DEFAULT_RULES } from '../../../src/chain/rules.js'
+import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
 
@@ -112,7 +112,7 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
-  if (name === 'project/feed/add' || name === 'project/feed/remove') return withFeeds(state, name, body)
+  if (name === 'project/feed/add' || name === 'project/feed/remove' || name === 'project/feed/rules') return withFeeds(state, name, body)
   if (name !== 'project/remove') return null
   const id = String(body.project)
   if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })
@@ -135,6 +135,12 @@ function withFeeds(state: EvenKeelState, name: string, body: Record<string, unkn
   if (name === 'project/feed/remove') {
     if (!feeds.some((feed) => feed.id === body.feed)) throw fail('config.unknownFeed', {})
     return next(feeds.filter((feed) => feed.id !== body.feed))
+  }
+  if (name === 'project/feed/rules') {
+    if (!feeds.some((feed) => feed.id === body.feed)) throw fail('config.unknownFeed', {})
+    const rules = (body.rules ?? {}) as Partial<ChainRules>
+    const ruled = ({ chain: _, ...feed }: FeedView): FeedView => (Object.keys(rules).length === 0 ? feed : { ...feed, chain: rules })
+    return next(feeds.map((feed) => (feed.id === body.feed ? ruled(feed) : feed)))
   }
   const key = String(body.key).trim()
   if (!KEY.test(key)) throw fail('config.projectKey', { where: `${state.projectKeys[project] ?? project}.feeds[${feeds.length}].key`, value: key })

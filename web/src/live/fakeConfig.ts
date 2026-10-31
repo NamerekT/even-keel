@@ -139,7 +139,7 @@ export function fakeConfig(account?: string | null): ConfigView {
         own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
       }),
       XYZ: project('D:/Projects/xyz', {
-        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, ownRules: ['requiredLabels'], provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
+        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'], terminal: ['Done', 'Canceled', 'Wont do'] }, ownRules: ['requiredLabels', 'terminal'], provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
         checkpointShares: { first: 65, late: 80, hard: 90 },
         own: { 'stats.checkpointShares.first': 65, 'stats.checkpointShares.late': 80, 'stats.checkpointShares.hard': 90 },
       }),
@@ -157,7 +157,7 @@ export function fakeConfig(account?: string | null): ConfigView {
     feeds: {
       ABC: [
         { id: 'feed-abc-gh', tracker: 'github', key: 'ABCGH', place: 'octo-org/storefront-ideas' },
-        { id: 'feed-abc-lin', tracker: 'linear', key: 'WEB', place: 'Web app' },
+        { id: 'feed-abc-lin', tracker: 'linear', key: 'WEB', place: 'Web app', chain: { terminal: ['Done', 'Canceled', 'Duplicate'] } },
       ],
     },
     trackerLocked: ['ABC', 'DEMO', 'feed-abc-gh'],

@@ -23,7 +23,10 @@ are kept in the profile (`tracker_profiles.rules`, only the keys set), edited in
 `/settings`, and stay out of `config-export` with the profiles (`docs/trackers.md`, "Profiles"). A project's save
 writes a rule key only where its value differs from what the project inherits — the profile's over the shared one
 (BTN-334, `withProjectForm`): a value equal to the profile's stays inherited, so a later change of the profile reaches
-the project. The page edits the rules by status and by label, one form on the three levels (`docs/web.md`).
+the project. A task of a feed (BTN-553) takes these four rules and the milestone rules from the **feed** instead of the
+project: feed → feed's profile → Even Keel (the milestone rules skip the profile), the project's own rules never
+reaching it, since its statuses and labels are another tracker's. The feed keeps only the keys it sets (`feeds[].chain`), saved from the feed's window in the Tracker
+tab by `project/feed/rules`. The page edits the rules by status and by label, one form on every level (`docs/web.md`).
 
 Some settings are maps whose entries override one by one: `models`, `accounts` and `execution` by provider. A project's
 `models.codex` replaces only the shared `models.codex`; the shared `models.claude` still applies to it.

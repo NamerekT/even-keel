@@ -3,7 +3,9 @@ import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import type { TaskStatus } from '../../../src/tracker/model.js'
 import {
   effectiveRules,
+  feedRulesOf,
   knownStatuses,
+  ownRulesOf,
   labelRows,
   milestoneModeOf,
   ruleOrigins,
@@ -162,5 +164,21 @@ describe('a project’s rules', () => {
     const inherited = effectiveRules(shared, [], profile)
     const origins = ruleOrigins(rules({ ...inherited, terminal: ['Done'] }), inherited, profile)
     expect(origins).toMatchObject({ active: 'profile', terminal: 'project', requiredLabels: 'shared', excludedLabels: 'profile' })
+  })
+})
+
+describe('the rules of a feed', () => {
+  const shared: ChainRules = { ...DEFAULT_RULES, excludedLabels: ['Never'] }
+  const profile = { terminal: ['Shipped'], excludedLabels: ['wontfix'] }
+
+  it('are its own keys over its profile over the shared ones, nothing of the project', () => {
+    expect(feedRulesOf(shared, profile, { requiredLabels: ['agent'] })).toEqual({ ...DEFAULT_RULES, terminal: ['Shipped'], excludedLabels: ['wontfix'], requiredLabels: ['agent'] })
+    expect(feedRulesOf(shared, {}, { active: null })).toEqual(shared)
+  })
+
+  it('save only the keys that differ from what the feed inherits, a status list back to the categories as null', () => {
+    const inherited = feedRulesOf(shared, profile)
+    expect(ownRulesOf({ ...inherited, requiredLabels: ['agent'], terminal: null }, inherited)).toEqual({ requiredLabels: ['agent'], terminal: null })
+    expect(ownRulesOf(inherited, inherited)).toEqual({})
   })
 })

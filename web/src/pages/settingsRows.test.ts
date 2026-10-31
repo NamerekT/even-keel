@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from '../../../src/tracker/model.js'
-import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf, withoutListed } from './settingsRows.js'
+import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf, sourceTasks, withoutListed } from './settingsRows.js'
 
 describe('rows of a list field', () => {
   it('keeps an empty row being typed, and has none for an empty text', () => {
@@ -63,6 +63,18 @@ describe('choices for the chain rules', () => {
       labels: ['Bug', 'Docs', 'Research', 'ui'],
       milestones: ['v1.1'],
     })
+  })
+
+  it("offers a source only its own tasks: a feed's by the prefix of their ids, the main tracker's the rest", () => {
+    const of = (id: string, labels: string[]) => ({ ...task('Todo', labels), id }) as Task
+    const tasks = [of('ABC-1', ['main']), of('ABCGH-2', ['github']), of('NAM-3', ['huly'])]
+    const feeds = [
+      { id: 'f1', tracker: 'github', key: 'ABCGH' },
+      { id: 'f2', tracker: 'huly', key: 'NAMF', prefix: 'NAM' },
+    ]
+    expect(ruleChoicesOf(sourceTasks(tasks, feeds, null)).labels).toEqual(['main'])
+    expect(ruleChoicesOf(sourceTasks(tasks, feeds, 'f1')).labels).toEqual(['github'])
+    expect(ruleChoicesOf(sourceTasks(tasks, feeds, 'f2'), [{ statuses: [], labels: ['Docs'] }]).labels).toEqual(['Docs', 'huly'])
   })
 
   it('does not offer a name the opposite list has, whatever its case and spaces', () => {

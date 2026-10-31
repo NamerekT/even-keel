@@ -237,19 +237,14 @@
   flex: 1 1 14em;
 }
 
-/* The project's task feeds (BTN-66): a line per feed, then the fields of a new one. */
+/* The project's task sources (BTN-66, BTN-553): a row per source, then the fields of a new feed. */
 .feeds__row {
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.feeds__line {
-  align-items: center;
-}
-
-.feeds__place {
-  flex: 1 1 12em;
-  color: var(--fg-muted);
+.feeds__row:last-child {
+  border-bottom: 0;
 }
 
 .feeds__add {

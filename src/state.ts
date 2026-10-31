@@ -401,6 +401,8 @@ export interface FeedView {
   place?: string
   /** The chain rule keys the feed sets itself (BTN-553), over its profile's and the shared ones; none — it sets none. */
   chain?: Partial<ChainRules>
+  /** The prefix of the feed's task ids (`idPrefixOf`): a task of the project is the feed's by it; none — the feed's key. */
+  prefix?: string
 }
 
 /** A feed the page adds: a new id is given by the service. */

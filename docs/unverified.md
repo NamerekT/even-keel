@@ -83,6 +83,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
+| 41a | [A feed's own chain rules](#a-feeds-own-chain-rules-btn-553) | projects with task feeds, on upgrade and when editing a feed's rules | a feed takes other tasks than before the upgrade, or a saved rule waits for a restart |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, OpenCode; Copilot's edit refusal after BTN-640 | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
@@ -613,6 +614,10 @@ Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (
 A GitHub feed of a Huly project ran as a live chain (BTN-326, 2026-10-23): the feed was read on its own profile, that profile's required and excluded labels sorted its issues while the Huly tasks kept the project's rules, its task and a Huly one ran in one chain by priority, its session got the brief with the `Tracker: GitHub, project <owner>/<repo>` line, it was closed in GitHub after the merge, `fillMilestone` filled a feed issue's milestone from another feed issue, the `/status` page showed three connections with the feed under its tracker, and Tally named it by its own id with its title and link (its status and "done" stay empty: Tally reads them from Huly only).
 
 Not seen live: a feed on a second Huly workspace (whether a session reads it through the brief when no server signed in as its profile is brought), PR mode and a question in a tracker comment for a feed's task (both go to the feed's tracker by code), run labels on a feed's task, and the Tally check's "failed" and "halted". If a feed's session cannot read its task, **workaround:** set the project's `brief` to `true`; if its pull request or question lands in the wrong tracker, close the task in its tracker by hand.
+
+### A feed's own chain rules (BTN-553)
+
+Covered by tests: a feed's task takes the feed's rules over its profile's and the shared ones and never the project's, `project/feed/rules` keeps only the keys given, and step 23 and the v23 file migration copy a project's own rules into each of its feeds. The windows of the Tracker tab were looked at in `dev:fake` only. Not seen live: the upgrade of a real database whose project has its own rules and a feed (the feed should take the same tasks as before), a feed's window suggesting its own tracker's statuses and labels from a real tracker, and a save there reaching the next poll's order without a restart. If a feed takes tasks it did not before, **workaround:** open the feed's window from the Tracker tab and set its statuses and labels.
 
 ### A removed key and the global folder's daemon
 
