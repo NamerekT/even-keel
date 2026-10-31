@@ -13,9 +13,10 @@ import {
   activeChain,
   backlogTasks,
   backlogWork,
-  canReady,
+  canUnready,
   chainBlocks,
   fixBlockOf,
+  hasLiveSession,
   chainControls,
   chainStatus,
   ciWaitText,
@@ -177,6 +178,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             incoming={arrival.incoming}
             links={links}
             ready={(block) => readyButton(state, key, block)}
+            unready={(block) => block.open && !block.locked && canUnready(state, key, block)}
             onCard={openCard}
           />
         )}
@@ -194,8 +196,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               tasks={backlog}
               works={backlogWorks}
               trackerUrls={state.trackerUrls}
-              canReady={canReady(state, key)}
-              refused={order?.refused ?? {}}
+              ready={(task) => readyButton(state, key, { id: task.id, stage: task.status.category, locked: false })}
               links={links}
               onCard={openCard}
               onClose={close}
@@ -234,6 +235,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             tracker={state.trackers.find((view) => view.projects.includes(taskProject(state, opened)))?.title ?? null}
             refused={state.chain.projects[taskProject(state, opened)]?.refused?.[opened] ?? null}
             work={shownWork(state, taskProject(state, opened), opened)}
+            live={hasLiveSession(state, opened)}
             onOpen={openCard}
             onClose={closeCard}
           />

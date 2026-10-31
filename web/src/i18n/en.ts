@@ -1250,7 +1250,7 @@ export const en: Messages = {
     lockedHint:
       'A lock instead of the state lamp marks a blocker outside the chain. Use “Move to Todo” in its number slot or change its status in the tracker. A blocker labelled Manual must be completed by you.',
     lockedTitle: 'Blocker outside the chain: open the task in the tracker',
-    readyRefused: (reason: string) => `Moving it to Todo would stop the chain: ${reason}`,
+    readyRefused: (reason: string) => `Taking it into the chain would stop the chain: ${reason}`,
     tasks,
     noMilestone: 'No milestone',
     hidden: (tasks: string) => `hidden · ${tasks}`,
@@ -1355,8 +1355,10 @@ export const en: Messages = {
     noDescription: 'No description.',
     comments: (count: number) => `Comments · ${count}`,
     noAuthor: 'no author',
-    ready: 'Move to Todo',
-    readyHint: 'The task is in the backlog: the chain takes it once it is in Todo.',
+    ready: 'Into the chain',
+    readyHint: 'The task is in the backlog: this moves it to Todo and puts on the label the chain requires.',
+    unready: 'To the backlog',
+    unreadyHint: 'Takes the task out of the chain: back to a backlog status, the labels the chain requires off.',
     attachments: 'Attachments',
     download: (name: string) => `Download ${name}`,
     viewer: {

@@ -68,6 +68,16 @@ export function IntoChainIcon() {
   )
 }
 
+/** Out of the chain, back to the backlog at its right: the mirror of `IntoChainIcon`. */
+export function OutOfChainIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13.5 2.5v11" />
+      <path d="M2.5 8h8M7.25 4.75 10.5 8l-3.25 3.25" />
+    </svg>
+  )
+}
+
 export function StackIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">

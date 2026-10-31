@@ -114,6 +114,14 @@ export function readyState(current: LinearState, states: TeamStateDoc[]): TeamSt
   return ready
 }
 
+/** The mirror of `readyState` (BTN-509): the team's first `backlog` state for an `unstarted` or `started` task; `null` — the task is neither. */
+export function backlogState(current: LinearState, states: TeamStateDoc[]): TeamStateDoc | null {
+  if (current.type !== 'unstarted' && current.type !== 'started') return null
+  const backlog = states.filter((state) => state.type === 'backlog').sort((a, b) => a.position - b.position)[0]
+  if (backlog === undefined) throw new Error('linear: the team has no backlog state')
+  return backlog
+}
+
 export function toTrackerTask(issue: LinearIssue): TrackerTask {
   const milestone = issue.projectMilestone
   return {

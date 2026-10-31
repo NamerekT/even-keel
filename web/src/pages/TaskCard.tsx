@@ -34,11 +34,13 @@ interface Props {
   refused: Notice | null
   /** Work in the task's folder that main does not hold (BTN-298). */
   work: TaskWork | null
+  /** A session of the task is live: no "To the backlog" (invariant 1). */
+  live: boolean
   onOpen: (task: string) => void
   onClose: () => void
 }
 
-export function TaskCard({ task, link, tracker, refused, work, onOpen, onClose }: Props) {
+export function TaskCard({ task, link, tracker, refused, work, live, onOpen, onClose }: Props) {
   const { card: load } = useLive()
   const [card, setCard] = useState<Card | null | undefined>(undefined)
   const [error, setError] = useState<Notice | null>(null)
@@ -96,7 +98,7 @@ export function TaskCard({ task, link, tracker, refused, work, onOpen, onClose }
           {error !== null && <p className="notice notice--error">{say(error)}</p>}
           {card === undefined && error === null && <Loading />}
           {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
-          {card != null && <CardBody card={card} refused={refused} work={work} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
+          {card != null && <CardBody card={card} refused={refused} work={work} live={live} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
         </div>
       </div>
     </dialog>
@@ -118,11 +120,12 @@ interface BodyProps {
   card: Card
   refused: Notice | null
   work: TaskWork | null
+  live: boolean
   onOpen: (task: string) => void
   onChanged: () => void
 }
 
-function CardBody({ card, refused, work, onOpen, onChanged }: BodyProps) {
+function CardBody({ card, refused, work, live, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
   const markdown = useMarkdown(onOpen, card.attachments)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
@@ -202,6 +205,19 @@ function CardBody({ card, refused, work, onOpen, onChanged }: BodyProps) {
                 {t.card.ready}
               </button>
               <span className="task-card__hint">{refused === null ? t.card.readyHint : t.chain.readyRefused(say(refused))}</span>
+            </div>
+          )}
+          {card.unready && !live && (
+            <div className="task-card__ready">
+              <button
+                type="button"
+                className="button"
+                disabled={sending}
+                onClick={() => void send('task/unready', { task: card.id }).then((ok) => ok && onChanged())}
+              >
+                {t.card.unready}
+              </button>
+              <span className="task-card__hint">{t.card.unreadyHint}</span>
             </div>
           )}
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}

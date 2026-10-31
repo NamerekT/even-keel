@@ -259,7 +259,57 @@
   color: var(--fg-muted);
 }
 
-.chain .block__ready .icon {
+/* "To the backlog": quiet until the row is pointed at or holds the focus */
+.chain .block__unready {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.chain .block__unready::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.chain .block:hover .block__unready,
+.chain .block:focus-within .block__unready {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .chain .block__unready {
+    opacity: 1;
+  }
+}
+
+.chain .block__unready:hover:not(:disabled),
+.chain .block__unready:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.chain .block__unready:disabled {
+  cursor: progress;
+}
+
+.chain .block__ready .icon,
+.chain .block__unready .icon {
   width: 13px;
   height: 13px;
   stroke-width: 1.75;

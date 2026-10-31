@@ -4,7 +4,7 @@ import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
 import { chainOrder, waitingBlockers, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
-import { admits, isActive, isTerminal, type ChainRules } from './rules.js'
+import { admits, isActive, isTerminal, missingLabel, requiredOn, type ChainRules } from './rules.js'
 
 /** Each project's tasks as the dispatcher last sorted them, and the order and views the page gets from them. */
 export class TaskLists {
@@ -64,10 +64,11 @@ export class TaskLists {
           ...(Object.keys(landing).length > 0 ? { landing } : {}),
           ...(Object.keys(landingMilestones).length > 0 ? { landingMilestones } : {}),
           ...(Object.keys(refused).length > 0 ? { refused } : {}),
+          ...this.requiredLabels(project),
           error: null,
         }
       } catch (error) {
-        result[project] = { order: [], waiting, ...extra, backlog, error: noticeOf(error) }
+        result[project] = { order: [], waiting, ...extra, backlog, ...this.requiredLabels(project), error: noticeOf(error) }
       }
     }
     return result
@@ -131,6 +132,16 @@ export class TaskLists {
     }
   }
 
+  private requiredLabels(project: string): Pick<ProjectOrder, 'requiredLabel'> {
+    const requiredLabel: Record<string, boolean> = {}
+    for (const task of [...(this.tasks.get(project) ?? []), ...(this.backlog.get(project) ?? []), ...(this.waiting.get(project) ?? [])]) {
+      const rules = this.deps.rules(project, task.id)
+      if (missingLabel(rules, task) !== null) requiredLabel[task.id] = false
+      else if (requiredOn(rules, task).length > 0) requiredLabel[task.id] = true
+    }
+    return Object.keys(requiredLabel).length > 0 ? { requiredLabel } : {}
+  }
+
   /** Called only once the chain's own order builds, so a refusal is the task's doing. */
   private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'landingMilestones' | 'refused'> {
     const chain = this.tasks.get(project) ?? []
@@ -140,8 +151,12 @@ export class TaskLists {
     const landingMilestones: NonNullable<ProjectOrder['landingMilestones']> = {}
     const refused: Record<string, Notice> = {}
     const donor = this.deps.fillsMilestone?.(project) ? activeMilestone(chain, this.currentOf(project)) : undefined
-    for (const task of [...(this.backlog.get(project) ?? []), ...blockers]) {
-      if (!admits(this.deps.rules(project, task.id), task)) continue
+    for (const listed of [...(this.backlog.get(project) ?? []), ...blockers]) {
+      const rules = this.deps.rules(project, listed.id)
+      // "Into the chain" puts the missing required label on: the place is the labelled task's.
+      const label = missingLabel(rules, listed)
+      const task = label === null ? listed : { ...listed, labels: [...listed.labels, label] }
+      if (!admits(rules, task)) continue
       const planned = [...chain, task, ...blockers.filter((each) => each.id !== task.id)]
       const candidate = milestoneCandidate(task, donor, planned)
       const tasks = [...chain, candidate]
