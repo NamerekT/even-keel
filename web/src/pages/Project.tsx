@@ -59,7 +59,7 @@ import { ProjectNotices } from './ProjectNotices.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
-import { ToolsLink } from './ToolsLink.js'
+import { ToolsChip } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
 import './project.css'
 
@@ -158,7 +158,12 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && <div className="hblock project__tools">{tools}</div>}
-          <ChainControls state={state} project={key} narrow={narrow}>
+          <ChainControls
+            state={state}
+            project={key}
+            narrow={narrow}
+            beside={<ToolsChip key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />}
+          >
             {look === 'tag' && tools}
           </ChainControls>
         </header>
@@ -183,8 +188,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             onCard={openCard}
           />
         )}
-        <StatsStrip project={statsKey} strip={strip} />
-        <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
+        <StatsStrip project={statsKey} strip={strip} onCard={openCard} />
       </div>
       {column && (
         <div className={tabs ? 'project__side project__side--tabs' : 'project__side'}>
@@ -291,8 +295,20 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
 }
 
 
-/** On a narrow screen the two buttons are one block of segments, like the head's other blocks. */
-function ChainControls({ state, project, narrow, children }: { state: EvenKeelState; project: string; narrow: boolean; children?: ReactNode }) {
+/** On a narrow screen the two buttons are one block of segments, like the head's other blocks. `beside` follows the status chip. */
+function ChainControls({
+  state,
+  project,
+  narrow,
+  beside,
+  children,
+}: {
+  state: EvenKeelState
+  project: string
+  narrow: boolean
+  beside?: ReactNode
+  children?: ReactNode
+}) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
   const controls = chainControls(status, state.chain.projects[project])
@@ -334,6 +350,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
       <div className="project__controls">
         <StatusChip status={status} />
         {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
+        {beside}
         {narrow ? (
           <div className="hblock project__buttons">
             {first}

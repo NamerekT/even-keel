@@ -1208,6 +1208,10 @@ export const ru = {
     noSnapshots: 'снимков лимита за 30 дней нет',
     since: (day: string) => ` с ${day}`,
     sessions: 'Сессии',
+    median: 'Медианная задача',
+    medianTip: (count: number, days: number) =>
+      `По ${count} ${forms('закрытой задаче', 'закрытым задачам', 'закрытым задачам')(count)} с расходом за ${days} дней: медиана цены и медиана активного времени, каждая сама по себе`,
+    top: 'Самые дорогие задачи',
     more: 'Подробнее →',
     spark: (label: string) => `${label}, по дням`,
   },

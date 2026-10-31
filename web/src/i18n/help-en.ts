@@ -8,7 +8,7 @@ export const helpEn = {
   priority: 'Priority and card marks',
   session: 'Session strip',
   open: 'Select a task row to open its session. The title in the session panel opens the task card.',
-  samples: { action: 'Reading files', status: 'In Progress', updated: 'updated 16 s ago' },
+  samples: { action: 'Reading files', updated: 'updated 16 s ago' },
   card: {
     number: 'Position among the open tasks in the chain. Its colour shows priority, not session state.',
     current: 'The triangle replaces the position number on the current task.',
@@ -16,7 +16,6 @@ export const helpEn = {
     blockers: 'Lock + count: tasks that must finish before this one. Point at the count to see them.',
     dependents: 'Key + count: tasks waiting for this one to finish. Point at the count to see them.',
     model: 'The agent and model selected by the task label.',
-    status: 'The task status in the tracker, shown when there is no session or launch in progress.',
     milestone: 'Beside a milestone name: opens its release notes draft.',
     forge: 'The smiths mark an agent fixing the project branch or merging a release carry. They move while it works; the lamp beside the row key shows its state. Crossed hammers mark a finished fix.',
     action: 'Current session action. The filled part of this strip and its percentage show context used, not the task estimate.',

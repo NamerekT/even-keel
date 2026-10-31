@@ -364,11 +364,26 @@
   margin-bottom: 6px;
 }
 
-/* The band on the project page (`ToolsLink`, a `.ui-band`) */
+/* The chip in the project head (`ToolsChip`): quiet with only advice, amber with problems */
 
-.tools-link__advice {
-  color: var(--fg-muted);
-  font-size: var(--text-13);
+.chip--tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip.chip--tools-warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.chip--tools:not(.chip--tools-warn):hover {
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.chip--tools .chip__count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Loading: the matrix outline */

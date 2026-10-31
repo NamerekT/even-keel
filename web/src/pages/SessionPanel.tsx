@@ -109,9 +109,9 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           ×
         </button>
       </header>
-      {(block.skipped || block.interrupted || block.work !== undefined) && (
+      {/* A skipped task has no flag here: its Restore button says so in its tip. */}
+      {(block.interrupted || block.work !== undefined) && (
         <p className="panel__status">
-          {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
@@ -249,15 +249,9 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }:
         )}
         {block.open &&
           (block.skipped ? (
-            <button
-              type="button"
-              className="button"
-              disabled={sending}
-              title={t.session.skippedTitle}
-              onClick={() => void send('chain/unskip', body)}
-            >
+            <PanelButton tip={t.session.skippedTitle} held={null} sending={sending} onClick={() => void send('chain/unskip', body)}>
               {t.common.restore}
-            </button>
+            </PanelButton>
           ) : (
             <PanelButton
               tip={isCarryName(block.id) ? t.session.skipCarry : fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}

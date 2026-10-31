@@ -1,26 +1,34 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
-import type { StatsFilter } from '../../../src/stats/model.js'
+import type { PeriodQuery, StatsFilter } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, loadedData, useStatsAnswer } from '../stats/common.js'
-import { formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
+import { formatDuration, formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
 import { chartData } from '../stats/history.js'
 import { formatDay, formatRange, localDay, resolvePeriod } from '../stats/period.js'
 import { seriesStyle } from '../ui/series.js'
+import { Tipped } from '../ui/Tipped.js'
+import { stripTasks, type StripTasks } from './stripTasks.js'
 import '../stats/stats.css'
 
 const DAYS = 30
 
 export type StripData = ReturnType<typeof useStrip>
 
-/** The project's last 30 days from the stats, drawn in its `slot`; the page reads it once for the strip and the idle panel. */
+/**
+ * The project's last 30 days from the stats, drawn in its `slot`; the page reads it once for the strip and the idle panel.
+ * The tasks come from the same period query as `/stats?projects=<key>` behind "More →", so both share the server's cache.
+ */
 export function useStrip(project: string, slot: number | null) {
-  const { statsHistory } = useLive()
+  const { statsHistory, statsPeriod } = useLive()
   const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }), [])
   const loaded = useStatsAnswer(JSON.stringify(filter), () => statsHistory(filter))
   const history = loadedData(loaded)
   const range = resolvePeriod({ preset: '30d' }, localDay(new Date()), null)
+  const query: PeriodQuery = { ...filter, ...range, projects: [project] }
+  const period = loadedData(useStatsAnswer(JSON.stringify(query), () => statsPeriod(query)))
+  const tasks = useMemo(() => (period === null ? null : stripTasks(period.tasks)), [period])
 
   const summary = useMemo(() => {
     if (history === null) return null
@@ -36,10 +44,10 @@ export function useStrip(project: string, slot: number | null) {
     }
   }, [history, project, slot, range.from])
 
-  return { loaded, summary, range }
+  return { loaded, summary, range, tasks }
 }
 
-export function StatsStrip({ project, strip: { loaded, summary, range } }: { project: string; strip: StripData }) {
+export function StatsStrip({ project, strip: { loaded, summary, range, tasks }, onCard }: { project: string; strip: StripData; onCard: (task: string) => void }) {
   return (
     <section className="strip" aria-label={t.strip.label(project, DAYS)}>
       {loaded === null ? (
@@ -66,12 +74,50 @@ export function StatsStrip({ project, strip: { loaded, summary, range } }: { pro
             </div>
           </dl>
           <Sparkline values={summary.days} slot={summary.slot} label={formatRange(range)} />
+          {tasks !== null && <TaskFacts tasks={tasks} onCard={onCard} />}
         </>
       )}
       <Link className="strip__more" to={`/stats?projects=${encodeURIComponent(project)}`}>
         {t.strip.more}
       </Link>
     </section>
+  )
+}
+
+/** The middle finished task and the costliest ones; a narrow screen hides them, the strip keeps its spend. */
+function TaskFacts({ tasks: { median, top }, onCard }: { tasks: StripTasks; onCard: (task: string) => void }) {
+  if (median === null && top.length === 0) return null
+  return (
+    <dl className="strip__facts strip__tasks">
+      {median !== null && (
+        <div>
+          <dt>{t.strip.median}</dt>
+          <dd>
+            <Tipped tip={t.strip.medianTip(median.count, DAYS)} inline>
+              {formatUsd(median.cost)}
+              {median.activeS !== null && <span className="strip__since"> · {formatDuration(median.activeS)}</span>}
+            </Tipped>
+          </dd>
+        </div>
+      )}
+      {top.length > 0 && (
+        <div>
+          <dt>{t.strip.top}</dt>
+          <dd className="strip__top">
+            {top.map((row) => (
+              <span key={row.task} className="strip__task">
+                <Tipped tip={row.title ?? row.task} inline>
+                  <button type="button" className="strip__key" onClick={() => onCard(row.task)}>
+                    {row.task}
+                  </button>
+                </Tipped>
+                <span className="strip__since">{formatUsd(row.cost)}</span>
+              </span>
+            ))}
+          </dd>
+        </div>
+      )}
+    </dl>
   )
 }
 

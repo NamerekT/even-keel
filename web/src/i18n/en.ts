@@ -1197,6 +1197,10 @@ export const en: Messages = {
     noSnapshots: 'no limit snapshots in 30 days',
     since: (day: string) => ` since ${day}`,
     sessions: 'Sessions',
+    median: 'Median task',
+    medianTip: (count: number, days: number) =>
+      `Of ${count} finished ${forms('task', 'tasks')(count)} with spend in ${days} days: the median cost and the median active time, each on its own`,
+    top: 'Costliest tasks',
     more: 'More →',
     spark: (label: string) => `${label}, by day`,
   },
