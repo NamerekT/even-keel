@@ -159,6 +159,8 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     usage: ctx.limits.usage(ctx.activeAccount()),
     account: {
       ...ctx.account.view,
+      // Read with `cliCopies` below, so the page never sees a CLI as found there and missing here.
+      missing: ctx.account.missingNow(),
       headerLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, headerLevels({
         shared: runSettings(ctx.configStore.current, undefined),
         project: runSettings(ctx.configStore.current, project),

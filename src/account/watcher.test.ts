@@ -116,6 +116,15 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     expect(checked).toEqual([OLD])
   })
 
+  it('names a CLI installed since the last poll as found at once, as the CLI copy does (BTN-639)', async () => {
+    const { accounts, options } = await watcher(() => ({ state: 'ok' }))
+    let absent = ['opencode']
+    options.missing = () => absent
+    await accounts.refresh()
+    absent = []
+    expect(accounts.missingNow()).toEqual([])
+  })
+
   it('gives a signed-out folder the e-mail it was last signed in as, and the account it is named after (BTN-528)', async () => {
     const { accounts, options } = await watcher(() => ({ state: 'ok' }))
     options.signedInAs = () => ({ last: 'john.doe@example.com', former: 'jane.roe@example.com' })
