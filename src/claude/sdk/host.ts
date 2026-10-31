@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import type { AccountHome } from '../../account/homes.js'
@@ -244,6 +244,8 @@ export class SdkSessions {
         await delay(EXIT_POLL_MS)
       }
     }
+    // A killed executor cannot remove its Unix socket itself.
+    if (process.platform !== 'win32') rmSync(current.pipe, { force: true })
     connection?.query.close()
     this.registry.save({ ...current, stopped: true })
     return true
