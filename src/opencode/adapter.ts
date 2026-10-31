@@ -48,9 +48,11 @@ export const opencode: AgentAdapter = {
           })
     const envOf = (home: AccountHome) => openCodeEnv(env(), home.dir)
     const bin = () => resolveOpenCodeBinary(env(), env().EVEN_KEEL_OPENCODE_BIN || !checkedCli() ? undefined : copy?.path())
+    const system = () => resolveOpenCodeBinary(env())
+    const onMachine = () => findBinary(system(), env())
     const cli = new OpenCodeCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, OPENCODE)))
     return {
-      cli: cliCopy(copy, { checkedCli }, version, () => findBinary(resolveOpenCodeBinary(env()), env()), () => !!env().EVEN_KEEL_OPENCODE_BIN, 170 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_OPENCODE_BIN, 170 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),
@@ -92,6 +94,7 @@ export const opencode: AgentAdapter = {
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
+      system: { installed: onMachine, version: () => cli.version(env(), system()) },
       write: (home, turn) => cli.write(home, turn),
       // `run -m` takes nothing but `<provider>/<model>` of a provider the account is signed in to; an empty list says nothing.
       models: async (home) => {

@@ -74,8 +74,8 @@ export class ClaudeCli {
   }
 
   /** `claude --version`: `2.1.303 (Claude Code)`. */
-  async version(env: NodeJS.ProcessEnv): Promise<string> {
-    return (await run(this.bin(), ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
+  async version(env: NodeJS.ProcessEnv, binary = this.bin()): Promise<string> {
+    return (await run(binary, ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
   }
 
   async authStatus(home: AccountHome): Promise<AccountStatus> {
