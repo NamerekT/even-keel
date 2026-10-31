@@ -156,11 +156,11 @@ checked; the denied calls reached neither recording stub ([verified.md](verified
 
 On Linux (2026-10-31, a real model in a chain session of the service) the push patterns were refused by OpenCode
 itself, `cd . && …` included, but `git -C . push --force` went through (BTN-642), and a Huly comment was deleted
-through the server's `invoke_tool` meta-tool, which neither the native rules nor the gateway look inside (BTN-641,
-any agent) ([verified.md](verified.md#opencode)). The `rm -rf` groups on Linux, macOS, other agents/subagents and
-the remaining equivalent spellings stay unchecked. **Workaround:** until BTN-641, keep Huly records worth keeping
-out of reach of chain sessions or turn the Huly package off; retain server-side branch protection and use disposable
-targets when checking native rules.
+through the server's `invoke_tool` meta-tool, which neither the native rules nor the gateway looked inside (BTN-641,
+any agent) ([verified.md](verified.md#opencode)). Since BTN-641 the gateway looks into the nested call; that is
+checked by unit tests only ([Tracker deletes refused by the gateway](#tracker-deletes-refused-by-the-gateway-btn-541)).
+The `rm -rf` groups on Linux, macOS, other agents/subagents and the remaining equivalent spellings stay unchecked.
+**Workaround:** retain server-side branch protection and use disposable targets when checking native rules.
 
 ### API spending cap recovery
 
@@ -559,7 +559,7 @@ The trim of `@firfi/huly-mcp` (`docs/packages.md`, "Install and update") was see
 
 ### Tracker deletes refused by the gateway (BTN-541)
 
-Protection's tracker switches are enforced in the MCP gateway (`docs/packages.md`, "The gateway"), checked only by unit tests: no live session has had a deleting call refused yet. Assumed: a tracker's server reaches the session under the adapter's `mcpServer` name; a deleting tool has the word `delete` in its name, or takes `method: "delete"` (GitHub's `label_write`, from memory, not read from the server's tool list); Linear's and Jira's (Rovo) deleting tools follow the same naming, and none of them is a tool without `delete` in its name. Claude and Codex are assumed to show the refusal as a failed tool call and to stop there. If an assumption is wrong, a delete goes through (a tool named otherwise, a server under another name) or a call that deletes nothing is refused (a tool named with `delete` that only reads). **Workaround:** for a delete you want, turn that tracker off in Sessions → Protection; for one you do not, keep the tracker's own permissions narrow. To check: a chain session, Claude and then Codex, asked to delete a test task on GitLab (`delete_issue`) and a label on GitHub, with the log line `Protection refused`; then the same with the tracker's switch off.
+Protection's tracker switches are enforced in the MCP gateway (`docs/packages.md`, "The gateway"), checked only by unit tests: no live session has had a deleting call refused yet. Assumed: a tracker's server reaches the session under the adapter's `mcpServer` name; a deleting tool has the word `delete` in its name, or takes `method: "delete"` (GitHub's `label_write`, from memory, not read from the server's tool list); Linear's and Jira's (Rovo) deleting tools follow the same naming, and none of them is a tool without `delete` in its name. A dispatcher that calls another tool by name (Huly's `invoke_tool` with `toolName` and `arguments`, BTN-641) is judged by the tool it calls; Huly's is the only one seen, GitHub's, GitLab's (`@zereight/mcp-gitlab` 2.3.11 has none), Linear's and Jira's are assumed to have none or to name the tool in `toolName`, `tool_name`, or `name`/`tool` of a tool named like `call_tool`. Claude and Codex are assumed to show the refusal as a failed tool call and to stop there. If an assumption is wrong, a delete goes through (a tool named otherwise, a server under another name) or a call that deletes nothing is refused (a tool named with `delete` that only reads). **Workaround:** for a delete you want, turn that tracker off in Sessions → Protection; for one you do not, keep the tracker's own permissions narrow. To check: a chain session, Claude and then Codex, asked to delete a test task on GitLab (`delete_issue`) and a label on GitHub, with the log line `Protection refused`; then a Huly comment deleted through `invoke_tool`; then the same with the tracker's switch off.
 
 ## Trackers
 
