@@ -97,7 +97,6 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot with a token, or on Linux and macOS | sessions do not start under the service |
-| 69a | [Copilot from npm on Windows](#copilot-from-npm-on-windows-btn-623) | Copilot installed with `npm install -g` on Windows, CLI version Yours | the chain pauses; set CLI version to Checked or `EVEN_KEEL_COPILOT_BIN` |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | a chat message sent mid-turn has no bubble in the chat, no handoff on a full context |
 | 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
@@ -116,7 +115,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 83 | [A Claude plan change](#a-claude-plan-change-btn-393) | Claude subscriptions moved between Pro and Max | the card keeps the old plan or no bars, or the account asks to sign in |
 | 84 | [The instruction size ceiling in a Claude session](#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
 | 85 | [Copilot's machine token and model availability (BTN-516)](#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth in the plaintext fallback, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
-| 86 | [A trimmed Huly server install from the service (BTN-627)](#a-trimmed-huly-server-install-from-the-service-btn-627) | every install or update of `huly@even-keel` | the install falls back to a full one and takes as long as before |
+| 86 | [A trimmed Huly server install from the service (BTN-627)](#a-trimmed-huly-server-install-from-the-service-btn-627) | an install of a `huly-mcp` version that needs a trimmed package | the install falls back to a full one and takes as long as before |
 
 ### Copilot's machine token and model availability (BTN-516)
 
@@ -520,10 +519,6 @@ Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL
 
 Whole tasks ran as chain sessions of the Windows service on the machine's own sign-in, which reached session 0 ([`verified.md`](verified.md), "Copilot"). A question answered from the page's chat resumed the session inside the chain (TSK-42, `verified.md`). Never run on a folder with a token, never on Linux or macOS, where the sign-in sits in another store and may not reach a service. **Workaround:** add the Copilot account with a fine-grained token, or run the task on another provider (a run label).
 
-### Copilot from npm on Windows (BTN-623)
-
-With CLI version Yours, Even Keel looks for the native `copilot.exe` of `npm install -g @github/copilot` beside the npm folder on the PATH or in `%APPDATA%\npm`, since npm's own wrappers need a shell. The search was checked on a real npm layout from a terminal ([`verified.md`](verified.md), "Copilot"); a chain session started from it, and the pause that names a binary which cannot be started, with its button to the setting, were not seen. **Workaround:** set Copilot's CLI version to Checked, or point `EVEN_KEEL_COPILOT_BIN` in `.env` at the `copilot.exe` under `node_modules`.
-
 ### Hooks and plugins in Copilot sessions
 
 The checkpoint package's hooks from `--plugin-dir` run at every step of a chain session, and plugin skills load ([`verified.md`](verified.md), "Copilot"). Copilot drops `hookSpecificOutput.additionalContext` on `PostToolUse` and takes a top-level `additionalContext` on every event (a probe plugin, `verified.md`), so since BTN-467 Even Keel starts Copilot with `EVEN_KEEL_AGENT=copilot` and the hooks answer in the top-level shape there (`contextOutput`, covered by tests). A page message sent mid-turn reached the model on `PreToolUse` (2026-10-28, BTN-516) and one with a picture on `PostToolUse` (TSK-41, `verified.md`), though the chat showed neither. Since BTN-519 the chat shows such a message from `hook.end`'s text where Copilot writes it (`postToolUse`, seen live: one bubble per message, TSK-42) and otherwise from the mailbox at the time it was taken (`docs/sessions.md`), covered by tests only: a message taken on `preToolUse` was not seen since. The mail on `Stop` (its reason becomes the next prompt), the context nudge and a standard reached the model from a terminal against a stub (2026-10-30, BTN-471, `verified.md`). Not yet seen: repository hooks from `.claude/settings.json`, a session that writes the handoff note on a real threshold crossing. **Workaround:** keep Copilot for short tasks; if a message sent mid-turn shows no bubble in the chat, it still reached the model.
@@ -554,7 +549,7 @@ Installing a package and the gateway's server processes were run only on Windows
 
 ### A trimmed Huly server install from the service (BTN-627)
 
-The trim of `@firfi/huly-mcp` (`docs/packages.md`, "Install and update") was run live only from a terminal, through the same functions: the install, the check, a copy and a check that fails on a stub (`verified.md`, "Packages"). The service's own install of `huly@even-keel` with it, under the service's account and environment, and its fall back to a full install were not seen. Assumed: the check's server starts the same way there. If not, the log says `failed its check` or `needs <package>` and every install is a full one, as slow as before; the chain is not held. To check: update `huly@even-keel` from the page and read the log for `without 18 packages took`, then `huly started in` with no `did not answer`.
+The trim of `@firfi/huly-mcp` (`docs/packages.md`, "Install and update") was seen live: the install, its check and a chain task's server from Even Keel's own install, and a check that fails on a stub from a terminal (`verified.md`, "Packages"). The fall back to a full install from the service was not seen: no version of the server has needed a trimmed package yet. Assumed: it goes as in the terminal, the log saying `failed its check` or `needs <package>` before a full install. If not, the package shows "install failed" and its sessions wait for it. An install made in full before BTN-627 stays in full until the next `huly-mcp` version: an update with the same version copies it (BTN-422). **Workaround:** remove `huly@even-keel` on /tools and add it again: it installs anew, trimmed or in full.
 
 ### Tracker deletes refused by the gateway (BTN-541)
 
