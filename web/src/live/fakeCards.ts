@@ -2,7 +2,8 @@ import { compareMilestones } from '../../../src/chain/order.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
-import { runLabelOf, type MilestoneChoice, type TaskMilestone } from '../../../src/tracker/model.js'
+import { changedLabels, type LabelChange } from '../../../src/tracker/labels.js'
+import { runLabelOf, toTask, type MilestoneChoice, type TaskMilestone } from '../../../src/tracker/model.js'
 
 const DESCRIPTION = `## Goal
 
@@ -85,7 +86,16 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     unready: task.status.category === 'ToDo' || task.status.category === 'Active',
     requires: [],
     milestones: { current: task.milestone?.label ?? null, choices: fakeMilestones(state, id) },
+    relabel: mode !== 'readonly',
   }
+}
+
+export function fakeRelabel(state: EvenKeelState, id: string, change: LabelChange): EvenKeelState {
+  const relabeled = (task: ProjectTask): ProjectTask => {
+    const { labels, runLabels } = toTask({ ...task, labels: changedLabels(task.labels, change) })
+    return { ...task, labels, runLabels }
+  }
+  return { ...state, tasks: state.tasks.map((task) => (task.id === id ? relabeled(task) : task)) }
 }
 
 /** The fake's milestones are those its tasks of the project have, each by its label. */
