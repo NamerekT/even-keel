@@ -750,9 +750,10 @@ export function queuedAfter(chain: EvenKeelState['chain'], project: string): str
   return chain.active.length === 1 ? chain.active[0]!.project : null
 }
 
-export function sessionElapsed(view: SessionView, now: Date): number {
+/** From the launch to now; a finished session, or one waiting out a limit, stops at its last activity. */
+export function sessionElapsed(view: SessionView, now: Date, limited = false): number {
   const start = Date.parse(view.startedAt)
-  const end = view.lamp === 'finished' ? Date.parse(view.lastActivityAt ?? view.startedAt) : now.getTime()
+  const end = view.lamp === 'finished' || limited ? Date.parse(view.lastActivityAt ?? view.startedAt) : now.getTime()
   return Math.max(0, end - start)
 }
 

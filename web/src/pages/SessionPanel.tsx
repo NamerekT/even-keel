@@ -337,7 +337,7 @@ function SessionBody({ session, limit, refusal = null, scale, whole }: { session
           <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
         </Fact>
         <Fact label={t.session.time}>
-          <TipValue value={formatClock(sessionElapsed(session, now))}>
+          <TipValue value={formatClock(sessionElapsed(session, now, limited))}>
             <span className="panel__part">
               <span className="panel__part-label">{t.session.startedAt}</span>
               <b>

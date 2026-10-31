@@ -1394,6 +1394,10 @@ describe('sessionElapsed', () => {
     expect(sessionElapsed(view('ABC-1', 'finished', null), now)).toBe(0)
   })
 
+  it('stops at the last activity while the session waits out a limit', () => {
+    expect(sessionElapsed(view('ABC-1', 'waiting', '2026-01-01T09:10:00.000Z'), now, true)).toBe(10 * 60_000)
+  })
+
   it('is zero when the launch is ahead of the clock', () => {
     expect(sessionElapsed(view('ABC-1', 'working', null), new Date('2026-01-01T08:59:00.000Z'))).toBe(0)
   })
