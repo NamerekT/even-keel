@@ -161,6 +161,43 @@ describe('Jira task source', () => {
     expect(lines).toEqual(['jira: ABC-1 is not closed: its workflow has no transition from In Progress to a status of the Done category'])
   })
 
+  it('closes through the transition to the done status of the name picked, and through no other', async () => {
+    const shipped = { ...DONE, id: '10009', name: 'Shipped' }
+    const transitions = { body: { transitions: [{ id: '31', name: 'Finish', to: DONE }, { id: '32', name: 'Ship', to: shipped }, { id: '11', name: 'Back', to: TODO }] } }
+    const before = { body: { fields: { status: PROGRESS } } }
+    const { source, calls } = await connect([before, transitions, { status: 204 }, before, transitions, before, transitions, { body: { fields: { status: DONE } } }])
+    expect(await source.complete!('ABC-1', 'shipped')).toBe(true)
+    expect(calls[4]).toMatchObject({ method: 'POST', body: { transition: { id: '32' } } })
+    await expect(source.complete!('ABC-1', 'Released')).rejects.toThrow('jira: ABC-1 has no transition from In Progress to "Released" of the Done category')
+    await expect(source.complete!('ABC-1', 'To Do')).rejects.toThrow('jira: ABC-1 has no transition from In Progress to "To Do" of the Done category')
+    expect(await source.complete!('ABC-1', 'Shipped')).toBe(false)
+  })
+
+  it('moves an issue through the transition into the status of the name, and gives null with a line where there is none', async () => {
+    const { source, calls, lines } = await connect([
+      { body: { fields: { status: TODO } } },
+      { body: { transitions: [{ id: '21', name: 'Start', to: PROGRESS }, { id: '31', name: 'Finish', to: DONE }] } },
+      { status: 204 },
+      { body: { fields: { status: TODO } } },
+      { body: { transitions: [{ id: '31', name: 'Finish', to: DONE }] } },
+    ])
+    expect(await source.moveTo!('ABC-1', 'in progress')).toEqual({ name: 'In Progress', category: 'Active' })
+    expect(calls[4]).toMatchObject({ method: 'POST', url: `${SITE}/rest/api/3/issue/ABC-1/transitions`, body: { transition: { id: '21' } } })
+    expect(await source.moveTo!('ABC-1', 'In Progress')).toBeNull()
+    expect(lines).toEqual(['jira: ABC-1 stays in To Do: its workflow has no transition from it to "In Progress"'])
+  })
+
+  it('reads every status of the site with its category, a name once', async () => {
+    const { source, calls } = await connect([{ body: [BACKLOG, TODO, PROGRESS, { ...TODO, id: '20001' }, DONE] }])
+    expect(await source.statuses!()).toEqual([
+      { name: BACKLOG.name, category: 'UnStarted' },
+      { name: TODO.name, category: 'ToDo' },
+      { name: PROGRESS.name, category: 'Active' },
+      { name: DONE.name, category: 'Won' },
+    ])
+    expect(calls[2]!.url).toBe(`${SITE}/rest/api/3/status`)
+  })
+
   it('moves a backlog issue to the first ready status and leaves a ready one alone', async () => {
     const { source, calls } = await connect([
       { body: { fields: { status: BACKLOG } } },

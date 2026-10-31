@@ -11,6 +11,13 @@ export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktr
 
 const list = (items: string[]) => items.join(', ')
 
+/** Where a status move is set (BTN-554): its notices lead to that setting. */
+export type MoveLevel = 'profile' | 'source'
+type MoveWhen = 'start' | 'review'
+
+/** The status move settings as the page labels them. */
+const MOVE_LABELS: Record<MoveWhen | 'done', string> = { start: '“On task start”', review: '“On pull request”', done: '“On task completion”' }
+
 const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   excludeFile: () => 'find the exclude file of',
   addWorktree: (task) => `add the worktree of ${task} to`,
@@ -44,7 +51,19 @@ export const en = {
     : 'For this chain account, turn off additional paid usage or set its monthly budget in GitHub.',
   'account.overageSettings': () => 'Provider spending settings',
   'tracker.closePending': () => 'tracker refused closure',
-  'tracker.completeRefused': (p: { task: string }) => `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically. Tracker response`,
+  'tracker.completeRefused': (p: { task: string; status?: string; level?: MoveLevel }) =>
+    p.status === undefined
+      ? `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically. Tracker response`
+      : `${p.task} is merged, but the tracker refused to move it to "${p.status}" (${MOVE_LABELS.done}). Fill the required field, pick another status in ${MOVE_LABELS.done} or close the task yourself. Even Keel retries automatically. Tracker response`,
+  'statusMove.refused': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
+    `The tracker did not move ${p.task} to "${p.status}" (${MOVE_LABELS[p.setting]}). The chain goes on; pick another status in ${MOVE_LABELS[p.setting]} or move the task yourself. Tracker response`,
+  'statusMove.outside': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
+    `${p.task} stayed where it was: "${p.status}" of ${MOVE_LABELS[p.setting]} is out of the chain by its rules, and the chain would let the task go at once. Pick a status in the chain.`,
+  'statusMove.notDone': (p: { task: string; status: string; level: MoveLevel }) =>
+    `${p.task} is merged, but stays open: the chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done. Pick a done status there. Even Keel retries automatically.`,
+  'statusMoves.outside': (p: { status: string; setting: MoveWhen }) =>
+    `"${p.status}" of ${MOVE_LABELS[p.setting]} is out of the chain by the chain rules: the chain would let a task go as soon as it moved there. Pick a status in the chain.`,
+  'statusMoves.notDone': (p: { status: string }) => `The chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done: the chain would never see a task there closed. Pick a done status.`,
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',

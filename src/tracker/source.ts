@@ -49,9 +49,22 @@ export interface TaskSource {
   /**
    * Optional. Moves a task to a `Won` status; Even Keel calls it once it sees the task's branch merged into `main`.
    * Must do nothing and return `false` for a task that is already `Won` or `Lost`: something else (a git hook, a person)
-   * may have closed it first. `true` — the task was moved.
+   * may have closed it first. `true` — the task was moved. `status` — the name of the `Won` status the user picked
+   * (BTN-554): throws, saying which status and from where, when the task's project has none such or (Jira) no transition
+   * into it, never falling back to another; none — the tracker's first done status.
    */
-  complete?(id: string): Promise<boolean>
+  complete?(id: string, status?: string): Promise<boolean>
+  /**
+   * Optional. Moves a task to the status of this name, compared ignoring case (BTN-554): Even Keel calls it when it starts
+   * the task and when it opens the task's pull request. Returns the new status; `null` — the task's project has no such
+   * status or (Jira) no transition into it from where the task is, and nothing was done.
+   */
+  moveTo?(id: string, status: string): Promise<TaskStatus | null>
+  /**
+   * Optional. Every status the profile's tracker has, whatever the project, a name once (BTN-554): the profile's settings
+   * offer them before it has a project. Without it, or with `moveTo`'s absence, the status moves are not offered.
+   */
+  statuses?(): Promise<TaskStatus[]>
   /**
    * Optional. How a pull request names the task's issue to close it on merge: GitHub issues `owner/repo#N`, GitLab
    * issues the issue's address; `null` — not a task of this tracker. In PR mode Even Keel ends the body of the task's
@@ -324,7 +337,9 @@ export interface Tracker {
   chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
   tasks(ids: string[]): Promise<Task[]>
   brief?(id: string): Promise<TaskBrief>
-  complete?(id: string): Promise<boolean>
+  complete?(id: string, status?: string): Promise<boolean>
+  moveTo?(id: string, status: string): Promise<TaskStatus | null>
+  statuses?(): Promise<TaskStatus[]>
   closingRef?(id: string): string | null
   children?(id: string): Promise<Task[]>
   card?(id: string): Promise<TrackerCard>
@@ -358,7 +373,9 @@ export function trackerOf(source: TaskSource): Tracker {
     close: () => source.close(),
   }
   if (source.brief !== undefined) tracker.brief = (id) => source.brief!(id)
-  if (source.complete !== undefined) tracker.complete = (id) => source.complete!(id)
+  if (source.complete !== undefined) tracker.complete = (id, status) => (status === undefined ? source.complete!(id) : source.complete!(id, status))
+  if (source.moveTo !== undefined) tracker.moveTo = (id, status) => source.moveTo!(id, status)
+  if (source.statuses !== undefined) tracker.statuses = () => source.statuses!()
   if (source.closingRef !== undefined) tracker.closingRef = (id) => source.closingRef!(id)
   if (source.children !== undefined) tracker.children = async (id) => (await source.children!(id)).map(toTask)
   if (source.card !== undefined) tracker.card = (id) => source.card!(id)
