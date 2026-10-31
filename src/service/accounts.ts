@@ -20,9 +20,8 @@ import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
-import { fixStem } from '../chain/fix.js'
 import { withUnattended } from '../chain/relay.js'
-import { idPrefixOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings } from '../config.js'
+import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
 import { LimitsWatcher } from '../limits/watcher.js'
 import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -530,12 +529,7 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
     emailOf: (key) => ctx.account.emailOf(key),
     apiKey: (key) => ctx.account.apiKey(key),
     keyLimits: (key) => ctx.account.apiKey(key) && !ctx.spendsByKey(key),
-    // The stems name the fix and carry sessions (`<KEY>-FIX`, `<KEY>-CARRY`), the prefixes the tasks of projects whose ids are the tracker's own.
-    projectKeys: () => {
-      const config = ctx.configStore.current
-      const projects = Object.keys(config.projects)
-      return [...new Set([...projects.map((project) => fixStem(config.keys, project)), ...projects.map((project) => idPrefixOf(config, project))])]
-    },
+    projectKeys: () => sessionPrefixes(ctx.configStore.current),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
     approval: (sessionId) => ctx.approvals.ask(sessionId),
     intervalMs: ctx.SESSION_POLL_MS,

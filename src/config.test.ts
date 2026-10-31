@@ -17,6 +17,7 @@ import {
   readersOf,
   readKeyOf,
   runSettings,
+  sessionPrefixes,
   withIds,
 } from './config.js'
 import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
@@ -245,6 +246,8 @@ describe('parseConfig', () => {
     expect(readerOf(config, 'ABC', 'ABCGH-4')).toBe('feed-1')
     expect(readerOf(config, 'ABC', 'ABC-4')).toBe('ABC')
     expect(readerOf(config, 'XYZ', 'XYZ-4')).toBe('XYZ')
+    // BTN-651: the monitor keeps a feed task's session only by its prefix.
+    expect(sessionPrefixes(config)).toEqual(['ABC', 'XYZ', 'ABCGH'])
   })
 
   it('rejects a feed that is not an object, lacks its id or names an unknown tracker, a bad key or a bad place', () => {
