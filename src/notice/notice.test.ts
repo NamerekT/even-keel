@@ -42,6 +42,14 @@ describe('notices', () => {
     )
   })
 
+  it('puts a cause after a whole sentence as the next one, not after a colon', () => {
+    const cause = notice('copilot.startFailed', { task: 'ABC-1', cwd: '/w' }, { detail: 'spawn x ENOENT' })
+    expect(englishOf(notice('copilot.binaryMissing', { bin: 'x' }, { cause }))).toBe(
+      `${en['copilot.binaryMissing']({ bin: 'x' })} ${en['copilot.startFailed']({ task: 'ABC-1', cwd: '/w' })}: spawn x ENOENT`,
+    )
+    expect(englishOf(notice('copilot.binaryMissing', { bin: 'x' }, { detail: 'line 1\nline 2' }))).toBe(`${en['copilot.binaryMissing']({ bin: 'x' })}\nline 1\nline 2`)
+  })
+
   it('renders through another language', () => {
     const texts: NoticeTexts = { ...en, 'chain.midTurn': (p) => `${p.task} mitten im Zug` }
     expect(renderNotice(notice('chain.midTurn', { task: 'ABC-1' }, { detail: 'x' }), texts)).toBe('ABC-1 mitten im Zug: x')
