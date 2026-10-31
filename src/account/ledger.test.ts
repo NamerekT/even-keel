@@ -29,7 +29,16 @@ describe('noteAccount', () => {
       removing: [],
     }
     expect(noteAccount(ledger, 'global', 'john@example.com', now)).toBeUndefined()
-    expect(noteAccount(ledger, 'global', null, now)).toBeUndefined()
+    expect(noteAccount(ledger, 'global', undefined, now)).toBeUndefined()
+  })
+
+  it('notes a folder signed in with no identity after one that had it, so a later limit is not taken for a switch', () => {
+    const named = nameAccount(noteAccount(emptyLedger(), 'probe', 'probe', new Date('2026-09-27T10:00:00.000Z'))!, 'probe', 'Probe')
+    const noted = noteAccount(named, 'probe', null, now)
+    expect(noted?.accounts.probe).toEqual({ email: null, since: '2026-09-27T16:00:00.000Z', previous: 'probe', name: 'Probe' })
+    expect(accountAt(noted!, 'probe', '2026-09-27T16:30:00.000Z')).toBeNull()
+    expect(noteAccount(noted!, 'probe', null, now)).toBeUndefined()
+    expect(noteAccount(emptyLedger(), 'opencode', null, now)).toBeUndefined()
   })
 
   it('keeps each folder to itself', () => {
