@@ -6,7 +6,6 @@ import { settingsOf, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
 import { Packages } from './service.js'
 import { loadPackages, savePackages } from './store.js'
-import { checkServer, trimOf } from './trim.js'
 
 vi.mock('./npm.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./npm.js')>()
@@ -22,17 +21,11 @@ vi.mock('./npm.js', async (importOriginal) => {
   }
 })
 
-vi.mock('./trim.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./trim.js')>()
-  return { ...actual, checkServer: vi.fn(async () => null) }
-})
-
 let dir: string | undefined
 afterEach(() => {
   if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
   dir = undefined
   vi.mocked(installPinned).mockClear()
-  vi.mocked(checkServer).mockReset().mockResolvedValue(null)
 })
 
 function fixture() {
@@ -64,37 +57,6 @@ function fixture() {
   const lines: string[] = []
   return { packages: new Packages(deps), file, cache: deps.cache, plugin, lines, reload: () => new Packages(deps) }
 }
-
-describe('a trimmed server install', () => {
-  const huly: ServerEntry = { command: 'npx', args: ['-y', '@firfi/huly-mcp@1.0.0'] }
-  const trims = () => vi.mocked(installPinned).mock.calls.map((call) => call[4])
-
-  it('leaves out the listed packages and keeps the install once the server answers', async () => {
-    const { packages, plugin } = fixture()
-    plugin('1.0.0', 'all', huly)
-    await packages.install('tools@example')
-    expect(trims()).toEqual([trimOf('@firfi/huly-mcp')!.drop])
-    expect(checkServer).toHaveBeenCalledTimes(1)
-  })
-
-  it('installs the server in full when it fails its check, and logs the package it needed', async () => {
-    vi.mocked(checkServer).mockResolvedValue('exited with 1: Error: svelte is not installed: Even Keel left it out of @firfi/huly-mcp')
-    const { packages, plugin, lines, file } = fixture()
-    plugin('1.0.0', 'all', huly)
-    await packages.install('tools@example')
-    expect(trims()).toEqual([trimOf('@firfi/huly-mcp')!.drop, undefined])
-    expect(lines.some((line) => line.includes('needs svelte'))).toBe(true)
-    expect(loadPackages(file)!.packages['tools@example']!.installs).toHaveLength(1)
-  })
-
-  it('installs any other server whole and does not start it', async () => {
-    const { packages, plugin } = fixture()
-    plugin('1.0.0', 'all', { command: 'npx', args: ['-y', 'example-mcp@1.0.0'] })
-    await packages.install('tools@example')
-    expect(trims()).toEqual([undefined])
-    expect(checkServer).not.toHaveBeenCalled()
-  })
-})
 
 describe('pinned servers across plugin updates', () => {
   const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })

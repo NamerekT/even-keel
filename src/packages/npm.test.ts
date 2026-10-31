@@ -33,10 +33,9 @@ describe('binOf', () => {
 })
 
 describe('installArgs', () => {
-  it('trusts the npm cache and copies the stubs a trim points to', () => {
+  it('trusts the npm cache', () => {
     const args = installArgs('C:\\cache\\x', 'x@1.0.0')
     expect(args).toContain('--prefer-offline')
-    expect(args).toContain('--install-links')
     expect(args.at(-1)).toBe('x@1.0.0')
   })
 })
