@@ -1,6 +1,31 @@
 import { describe, expect, it } from 'vitest'
+import type { AccountHome } from '../account/homes.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { callFailure, parseWarmAnswer, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+import { FolderCalls, type CallOptions, type CallOutput } from './calls.js'
+import { callFailure, ClaudeCli, parseWarmAnswer, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+
+describe('ClaudeCli.usage', () => {
+  class Timeouts extends FolderCalls {
+    readonly seen: number[] = []
+    override run(_folder: string, _file: string, _args: string[], { timeoutMs }: CallOptions): Promise<CallOutput> {
+      this.seen.push(timeoutMs)
+      return Promise.resolve({ stdout: '', stderr: '' })
+    }
+  }
+  const home: AccountHome = { key: 'one', dir: '/accounts/one', global: false, agent: 'claude' }
+
+  // BTN-632: at the start /usage waits for the folder behind a /context probe per session, and its first poll timed out.
+  it('waits for the folder longer than the other short calls, at most until the next poll', async () => {
+    const calls = new Timeouts()
+    const cli = new ClaudeCli(() => 'claude', 30_000, () => ({}), calls)
+    await cli.context(home, '/work', 'sonnet')
+    await cli.usage(home, '/work')
+    const [context, usage] = calls.seen
+    expect(context).toBe(30_000)
+    expect(usage).toBeGreaterThanOrEqual(4 * context!)
+    expect(usage).toBeLessThan(5 * 60_000)
+  })
+})
 
 describe('callFailure', () => {
   const failed = (fields: object) => Object.assign(new Error('Command failed: C:\\cli\\claude.exe -p /usage\nnoise'), fields)

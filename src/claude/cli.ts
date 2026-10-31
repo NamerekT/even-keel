@@ -26,6 +26,11 @@ const APPEAR_POLL_MS = 250
 const EXIT_POLL_MS = 100
 const CLOCK_SKEW_MS = 5_000
 const WARM_TIMEOUT_MS = 3 * 60_000
+/**
+ * The wait for the folder counts: at the start `/usage` queues behind a `/context` probe per session, ~5 s each and
+ * slower under the start's load, and 30 s were not enough (BTN-632). Under the 5-minute poll, which is not hurried.
+ */
+const USAGE_TIMEOUT_MS = 2 * 60_000
 
 /** `EVEN_KEEL_CLAUDE_BIN`, else Even Keel's own copy of the checked version (`pinned`), else the installed CLI. */
 export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
@@ -87,7 +92,7 @@ export class ClaudeCli {
 
   async usage(home: AccountHome, cwd: string): Promise<string> {
     try {
-      return (await this.call(home, ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], cwd)).stdout
+      return (await this.call(home, ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], cwd, undefined, USAGE_TIMEOUT_MS)).stdout
     } catch (error) {
       throw new Error(callFailure(error), { cause: error })
     }
@@ -103,8 +108,8 @@ export class ClaudeCli {
   }
 
   /** A short call that may renew the folder's sign-in: through `FolderCalls`, one at a time and never killed on a timeout. */
-  private call(home: AccountHome, args: string[], cwd?: string, maxBuffer?: number) {
-    return this.calls.run(home.dir, this.bin(), args, { cwd, env: this.envOf(home), timeoutMs: this.timeoutMs, maxBuffer })
+  private call(home: AccountHome, args: string[], cwd?: string, maxBuffer?: number, timeoutMs = this.timeoutMs) {
+    return this.calls.run(home.dir, this.bin(), args, { cwd, env: this.envOf(home), timeoutMs, maxBuffer })
   }
 
   async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
