@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { isAlive, killTree, parseProcessTable, treeTargets } from './process.js'
 
@@ -29,15 +30,25 @@ describe('treeTargets', () => {
 
 const setsid = process.platform === 'linux' && spawnSync('setsid', ['--version']).status === 0
 
+/** In a CI container PID 1 may never reap orphans: the killed command stays a zombie that `kill(pid, 0)` still finds. */
+function running(pid: number): boolean {
+  if (!isAlive(pid)) return false
+  try {
+    return readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ').at(-1)![0] !== 'Z'
+  } catch {
+    return false
+  }
+}
+
 describe.runIf(setsid)('killTree on Linux', () => {
-  it('kills a command the turn ran in its own session', async () => {
+  it('kills a command the turn ran in its own session', { timeout: 15_000 }, async () => {
     const turn = spawn('sh', ['-c', 'setsid sleep 30 & echo $!; wait'], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] })
     const command = Number(await new Promise<string>((resolve) => turn.stdout.once('data', (data) => resolve(String(data)))))
-    expect(isAlive(command)).toBe(true)
+    expect(running(command)).toBe(true)
 
     await killTree(turn.pid!)
 
-    await expect.poll(() => isAlive(command), { timeout: 5_000 }).toBe(false)
-    await expect.poll(() => isAlive(turn.pid!), { timeout: 5_000 }).toBe(false)
+    await expect.poll(() => running(command), { timeout: 5_000 }).toBe(false)
+    await expect.poll(() => running(turn.pid!), { timeout: 5_000 }).toBe(false)
   })
 })
