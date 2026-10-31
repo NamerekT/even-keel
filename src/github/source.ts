@@ -2,9 +2,10 @@ import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
-import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
+import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { Skipped, trustedAuthor } from './trust.js'
+import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
 
 export interface GithubSettings {
   token: string
@@ -153,9 +154,6 @@ const REPOSITORY_LABELS = `query($owner: String!, $name: String!, $after: String
   repository(owner: $owner, name: $name) { labels(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { name } } }
 }`
 
-/** Where GitHub keeps the files dropped into a comment. */
-const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
-
 export async function connectGithub(
   settings: GithubSettings,
   timeoutMs: number,
@@ -219,6 +217,44 @@ export async function connectGithub(
     const issue = data.repository?.issue
     if (issue == null) throw new TrackerNotFound(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
     return { repo, issue }
+  }
+
+  /** A comment's file, with the token or without; the HTTP status when GitHub gives none. */
+  async function fetchUpload(link: string, withToken: boolean): Promise<TaskFile | number> {
+    const headers: Record<string, string> = { 'user-agent': 'even-keel' }
+    if (withToken) headers.authorization = `bearer ${settings.token}`
+    const response = await trackedFetch(fetchImpl, link, { headers, signal: AbortSignal.timeout(timeoutMs) }, '/uploads/[redacted]')
+    if (!response.ok || response.body === null) {
+      await response.body?.cancel()
+      return response.status
+    }
+    const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
+    return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
+  }
+
+  /** The signed link of an upload in the `body_html` of the task's comments, read now: a signed link lives minutes. */
+  async function signedUpload(id: string, upload: string): Promise<{ link: string } | { reason: string }> {
+    const parsed = parseTaskId(id)
+    if (parsed === null) return { reason: `${id} is not a task id` }
+    const repo = repoOfTasks(parsed.project)
+    const issue = `${repo.owner}/${repo.name}#${parsed.number}`
+    let page: string | null = `https://api.github.com/repos/${repo.owner}/${repo.name}/issues/${parsed.number}/comments?per_page=100`
+    while (page !== null) {
+      const response = await trackedFetch(fetchImpl, page, {
+        headers: { authorization: `bearer ${settings.token}`, accept: 'application/vnd.github.html+json', 'user-agent': 'even-keel' },
+        signal: AbortSignal.timeout(timeoutMs),
+      }, '/repos/issues/comments')
+      if (!response.ok) {
+        await response.body?.cancel()
+        return { reason: `the comments of ${issue} got HTTP ${response.status}` }
+      }
+      for (const comment of (await response.json()) as { body_html?: string }[]) {
+        const link = signedLink(comment.body_html ?? '', upload)
+        if (link !== null) return { link }
+      }
+      page = nextPage(response.headers.get('link'))
+    }
+    return { reason: 'the token got no file and no comment links it signed' }
   }
 
   const { viewer } = await graphql<{ viewer: { login: string } }>('query { viewer { login } }')
@@ -456,13 +492,26 @@ export async function connectGithub(
       return saved.map((label) => label.name)
     },
 
-    // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.
-    async file(_id, file) {
+    // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts. A fine-grained token
+    // gets no upload of a private repository, so then the comment's signed link is fetched, with no token (BTN-652).
+    async file(id, file) {
       if (!UPLOADS.test(file)) return null
-      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: `bearer ${settings.token}`, 'user-agent': 'even-keel' }, signal: AbortSignal.timeout(timeoutMs) }, '/uploads/[redacted]')
-      if (!response.ok || response.body === null) return null
-      const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
-      return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
+      const upload = uploadId(file)
+      const unavailable = (reason: string) => {
+        log(`github: ${id}: ${upload === null ? 'a comment file' : `the comment file ${upload}`} is not available: ${reason}`)
+        return null
+      }
+      try {
+        const direct = await fetchUpload(file, true)
+        if (typeof direct !== 'number') return direct
+        if (upload === null) return unavailable(`the token got HTTP ${direct} for ${file.split('?')[0]}`)
+        const signed = await signedUpload(id, upload)
+        if ('reason' in signed) return unavailable(signed.reason)
+        const found = await fetchUpload(signed.link, false)
+        return typeof found === 'number' ? unavailable(`its signed link got HTTP ${found}`) : found
+      } catch (error) {
+        return unavailable((error as Error).message)
+      }
     },
 
     close: async () => {},
