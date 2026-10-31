@@ -243,6 +243,7 @@ export const en = {
 
   'copilot.startFailed': (p: { task: string; cwd: string }) => `copilot: could not start ${p.task} in ${p.cwd}`,
   'copilot.modelUnavailable': (p: { model: string }) => `Copilot cannot use the model “${p.model}”. Choose an available model in Model in the project's session settings (or change the task's model label), then choose “New session”.`,
+  'copilot.notSignedIn': () => 'Copilot is not signed in on this machine. Run “gh auth login” as the user Even Keel runs as, or add a Copilot account with its own token on the Accounts page, then choose “New session”.',
   'copilot.resumeFailed': (p: { task: string; cwd: string }) => `copilot: could not resume ${p.task} in ${p.cwd}`,
   'copilot.unknownSession': (p: { session: string }) => `copilot: Even Keel did not start the session ${p.session}`,
   'copilot.stillRunning': (p: { session: string }) => `copilot: the turn of ${p.session} was killed but is still running`,
