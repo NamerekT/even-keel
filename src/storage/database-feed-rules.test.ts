@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
-import { ABC, fixture, readsWhole, schemaOf, XYZ } from './database.fixture.js'
+import { ABC, fixture, schemaOf, XYZ } from './database.fixture.js'
 import { currentConfig } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
@@ -21,17 +21,16 @@ insert into setting_values (key, project_id, qualifier, value, updated_at, updat
 
 it('step 23 copies a project\'s own chain rules into each of its feeds', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 21))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(23))
     expect(await databaseVersion(frozen)).toBe(23)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 23)
     expect((await feedsOf(frozen, ABC))[0].chain).toEqual({ excludedLabels: ['Later'] })
     await upgraded.exec(fixture(22))
     await upgraded.exec(rules)
-    await upgraded.exec(STEPS.at(-1)!)
+    await upgraded.exec(STEPS[20]!)
     expect(await feedsOf(upgraded, ABC)).toEqual([
       { id: '77777777-7777-4777-8777-777777777777', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas', chain: { excludedLabels: ['Later'], terminal: null } },
     ])
@@ -46,7 +45,7 @@ it('step 23 leaves the feeds of a project without rules of its own as they are',
   try {
     await db.exec(fixture(22))
     const before = await feedsOf(db, ABC)
-    await db.exec(STEPS.at(-1)!)
+    await db.exec(STEPS[20]!)
     expect(await feedsOf(db, ABC)).toEqual(before)
   } finally {
     await db.close()

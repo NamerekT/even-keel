@@ -1,4 +1,5 @@
 import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PINNED_PROVIDERS, PROVIDERS } from '../agent/providers.js'
+import { statusMovesOf } from '../chain/moves.js'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
@@ -358,6 +359,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value !== null && typeof value !== 'string') throw fail('config.intakeLabel', { where: at(place, 'intakeLabel') })
     return value === null || value.trim() === '' ? null : value.trim()
   } },
+  // The statuses the project's main tracker moves its tasks into (BTN-554), over its profile's; a feed keeps its own.
+  { key: 'statusMoves', kind: 'json', scopes: ['project'], lands: ['settings'], default: {}, check: (value, place) => statusMovesOf(value, at(place, 'statusMoves')) },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null

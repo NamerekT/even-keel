@@ -1,6 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
+import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
 import type { CiKind, CiView, RemoteProfiles } from './ci/model.js'
 import type { Language } from './language.js'
@@ -757,6 +758,8 @@ export interface ProfileView {
   deniedPulls: CiRemote[]
   /** A tracker's: the chain rules it sets for its projects (BTN-66), only the keys set. */
   rules: Partial<Pick<ChainRules, 'active' | 'terminal' | 'requiredLabels' | 'excludedLabels'>>
+  /** A tracker's whose kind moves statuses: the statuses it moves its projects' tasks into (BTN-554), only the keys set. */
+  moves: StatusMoves
   /** A tracker's: the ids of the projects that run on it or have a feed on it, for the rules' suggestions. */
   projectIds: string[]
 }
@@ -808,6 +811,8 @@ export interface ProfileKindView {
   /** Sets of fields of which a profile fills one (Huly: a token, or an e-mail and a password). */
   alternatives: string[][]
   help: string
+  /** A tracker's that moves a task to a named status (BTN-554): its profiles and sources set the status moves. */
+  moves?: boolean
 }
 
 /** A variable of the pool a package or a tracker reads; its value never leaves the service. */

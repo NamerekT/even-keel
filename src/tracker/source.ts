@@ -300,6 +300,8 @@ export interface TrackerAdapter {
    * (Jira: `JIRA_BASIC_AUTH` — the Basic header of `JIRA_EMAIL` and `JIRA_TOKEN`); `from` — the variables it reads.
    */
   mcpValues?: Readonly<Record<string, DerivedKey>>
+  /** Optional. Its connection moves a task to a named status and lists the statuses (`moveTo`, `statuses`; BTN-554). */
+  moves?: true
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
   /**

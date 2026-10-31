@@ -1,4 +1,4 @@
-import { notice, type Notice } from '../notice/notice.js'
+import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { TaskStatus } from '../tracker/model.js'
 import { isActive, isDone, sameName, type ChainRules } from './rules.js'
 
@@ -18,6 +18,22 @@ export interface StatusMoves {
 export const MOVE_SETTINGS = ['start', 'review', 'done'] as const
 export type MoveSetting = (typeof MOVE_SETTINGS)[number]
 export type MoveWhen = Exclude<MoveSetting, 'done'>
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** The status moves of a config entry, names trimmed and blanks dropped as not set; throws `config.statusMoves`. */
+export function statusMovesOf(raw: unknown, where: string): StatusMoves {
+  const invalid = () => fail('config.statusMoves', { where })
+  if (!isRecord(raw)) throw invalid()
+  const moves: StatusMoves = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(MOVE_SETTINGS as readonly string[]).includes(key)) throw invalid()
+    if (value === null && key !== 'done') moves[key as MoveWhen] = null
+    else if (typeof value !== 'string') throw invalid()
+    else if (value.trim() !== '') moves[key as MoveSetting] = value.trim()
+  }
+  return moves
+}
 
 /** What a source runs on: `null` of `start`/`review` — leave the status; of `done` — automatic. */
 export interface Moves {
@@ -77,6 +93,12 @@ export function movesProblem(rules: ChainRules, moves: StatusMoves, statuses: re
   return fits ? null : notice('statusMoves.notDone', { status: done })
 }
 
+/** `movesProblem` as a refused save. */
+export function checkMoves(rules: ChainRules, moves: StatusMoves, statuses: readonly TaskStatus[]): void {
+  const problem = movesProblem(rules, moves, statuses)
+  if (problem !== null) throw new NoticeError(problem)
+}
+
 const REVIEW_NAME = /review|ревью/i
 
 /**
@@ -86,4 +108,18 @@ const REVIEW_NAME = /review|ревью/i
 export function defaultMoves(rules: ChainRules, statuses: readonly TaskStatus[]): { start: string | null; review: string | null } {
   const started = statuses.filter((status) => status.category === 'Active' && isActive(rules, status))
   return { start: started[0]?.name ?? null, review: started.find((status) => REVIEW_NAME.test(status.name))?.name ?? null }
+}
+
+/** The done status a source closes its tasks into, where it is set, and whether the rules take it for done. */
+export interface DoneMove {
+  status: string
+  level: 'source' | 'profile'
+  fits: boolean
+}
+
+/** `undefined` — the close is automatic: the tracker's first done status. */
+export function doneMove(rules: ChainRules, profile: StatusMoves | undefined, source: StatusMoves | undefined): DoneMove | undefined {
+  const status = movesOf(profile, source).done
+  const level = moveLevel(profile, source, 'done')
+  return status === null || level === null ? undefined : { status, level, fits: doneNamed(rules, status) }
 }

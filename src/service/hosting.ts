@@ -32,7 +32,8 @@ import { mailFor } from '../sessions/mailRelay.js'
 import { noteAtEnd } from '../sessions/note.js'
 import { root, source } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
-import { cleanRules, projectRules } from '../profiles/rules.js'
+import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
+import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
 import type { EvenKeelState } from '../state.js'
 import { withinWindow } from '../stats/checkpoint.js'
@@ -126,6 +127,8 @@ type HostingContext = Pick<ServiceContext,
   | 'updater'
   | 'updates'
   | 'vocabularies'
+  | 'profileStatuses'
+  | 'statusMover'
   | 'works'
   | 'writes'
 >
@@ -173,7 +176,13 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
         hasAccount: ctx.hasAccount,
       })])),
     },
-    trackers: ctx.trackers.views(),
+    trackers: ctx.trackers.views().map((view) => {
+      const moveFailures = Object.fromEntries(view.projects.flatMap((reader) => {
+        const failures = ctx.statusMover.failures(reader)
+        return failures.length === 0 ? [] : [[reader, failures]]
+      }))
+      return Object.keys(moveFailures).length === 0 ? view : { ...view, moveFailures }
+    }),
     trackerUrls: {
       default: ctx.trackers.setupOf(null)?.issueUrl(null) ?? null,
       projects: Object.fromEntries(Object.keys(ctx.readers().projects).map((reader) => [idPrefixOf(ctx.readers(), reader), ctx.trackers.setupOf(reader)?.issueUrl(reader) ?? null])),
@@ -318,6 +327,25 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.saveFeedRules(project, feed, rules)
         console.log(`page: the chain rules of the task feed ${found.key} of ${projectLabel(ctx.configStore.current, project)} are written to the config`)
       },
+      profileMoves: async (id, moves) => {
+        const profile = ctx.profiles.current().profiles.find((each) => each.id === id)
+        if (profile === undefined) throw fail('profiles.unknown', {})
+        const statuses = (await ctx.profileStatuses.get(id).catch(() => undefined)) ?? []
+        checkMoves(rulesWith(ctx.configStore.current.chain, {}, profile.rules), moves, statuses)
+        ctx.profiles.setMoves(id, moves)
+        console.log(`page: the status moves of the profile ${profile.name} are saved`)
+      },
+      sourceMoves: async (project, feed, moves) => {
+        const config = ctx.configStore.current
+        const found = feed === null ? undefined : config.feeds[project]?.find((each) => each.id === feed)
+        if (feed !== null && found === undefined) throw fail('config.unknownFeed', {})
+        const set = ctx.profiles.current()
+        const profile = profileFor(set, found?.id ?? project, found?.tracker ?? config.trackers[project] ?? '')
+        const statuses = profile === undefined ? [] : ((await ctx.profileStatuses.get(profile.id).catch(() => undefined)) ?? [])
+        checkMoves(projectRules(config, set, project, found), moves, statuses)
+        ctx.configStore.saveMoves(project, feed, moves)
+        console.log(`page: the status moves of ${found === undefined ? 'the main tracker' : `the task feed ${found.key}`} of ${projectLabel(config, project)} are written to the config`)
+      },
       dismissUpdate: (version) => {
         ctx.dismissedUpdate = version
         ctx.writes.add('the dismissed update', setStateValue(ctx.db, 'updates.dismissed', version))
@@ -449,6 +477,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return received === null ? view : { ...view, received: { ...received, account: ctx.sessionAccount(received.sessionId, received.at) } }
     },
     vocabulary: (id) => (Object.hasOwn(ctx.readers().projects, id) ? ctx.vocabularies.get(id) : Promise.resolve(undefined)),
+    profileStatuses: (id) => ctx.profileStatuses.get(id),
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

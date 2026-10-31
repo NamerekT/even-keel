@@ -143,6 +143,46 @@ describe('MergeCloser', () => {
     expect(closer.failures('XYZ')).toHaveLength(1)
   })
 
+  it('closes into the done status of the task source, and a refusal names it and the level it came from', async () => {
+    let fail = true
+    const calls: [string, string | undefined][] = []
+    const closer = new MergeCloser({
+      merged: async () => true,
+      done: () => ({ status: 'Released', level: 'source', fits: true }),
+      complete: async (task, status) => {
+        calls.push([task, status])
+        if (fail) throw new Error('tracker: refused')
+        return true
+      },
+    })
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
+    expect(closer.failures('ABC')).toEqual([
+      { code: 'tracker.completeRefused', params: { task: 'ABC-1', status: 'Released', level: 'source' }, detail: 'tracker: refused' },
+    ])
+    fail = false
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual(['ABC-1'])
+    expect(calls).toEqual([['ABC-1', 'Released'], ['ABC-1', 'Released']])
+    expect(closer.failures('ABC')).toEqual([])
+  })
+
+  it('does not close a task into a status outside the done ones, and says so until the setting is fixed', async () => {
+    let done = { status: 'In Review', level: 'profile' as const, fits: false }
+    const completed: string[] = []
+    const closer = new MergeCloser({
+      merged: async () => true,
+      done: () => done,
+      complete: async (task) => completed.push(task) > 0,
+    })
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
+    expect(completed).toEqual([])
+    expect(closer.failures('ABC')).toEqual([
+      { code: 'statusMove.notDone', params: { task: 'ABC-1', status: 'In Review', level: 'profile' } },
+    ])
+    done = { status: 'Done', level: 'profile', fits: true }
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual(['ABC-1'])
+    expect(closer.failures('ABC')).toEqual([])
+  })
+
   it('does not call a git failure a tracker refusal', async () => {
     const closer = new MergeCloser({ merged: async () => { throw new Error('git unavailable') }, complete: async () => true })
     await closer.sweep('ABC', ['ABC-1'])

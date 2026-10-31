@@ -1,4 +1,5 @@
 import type { Dispatcher } from '../chain/dispatcher.js'
+import type { DoneMove } from '../chain/moves.js'
 import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
 import { branchMerged } from '../git/merged.js'
@@ -30,6 +31,8 @@ export interface TrackerStartDeps {
   /** The tasks of the reader the chain started since then, closed ones included. */
   ranSince: (project: string, since: Date) => string[]
   dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'preview'>
+  /** The done status the reader's source closes into (BTN-554); none — the tracker's first. */
+  doneOf?: (project: string) => DoneMove | undefined
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
   /** The project's main branch, where a merged task branch lands. */
@@ -88,13 +91,14 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
 
   const closer = new MergeCloser({
     merged: (project, task) => branchMerged(runGit, repoOf(project), task, mainBranch(project)),
-    complete: (task) => link.run((tracker) => tracker.complete!(task)),
+    complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
+    done: (project) => deps.doneOf?.(project),
     onError: report,
   })
 
   const parentCloser = new ParentCloser({
     children: (task) => link.run((tracker) => tracker.children!(task)),
-    complete: (task) => link.run((tracker) => tracker.complete!(task)),
+    complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
     onError: report,
   })
 
@@ -228,8 +232,10 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       if (stopped) return
       view.completionFailures ??= {}
       view.completionFailures[project] = closer.failures(project)
-      if (!closesParents) return
-      for (const task of await parentCloser.sweep(parents, tasks)) {
+      const done = deps.doneOf?.(project)
+      // A done status the rules do not take closes no parent either; the closer above already says so.
+      if (!closesParents || done?.fits === false) return
+      for (const task of await parentCloser.sweep(parents, tasks, done?.status)) {
         console.log(`${title}: closed ${task}, all its subtasks are closed`)
       }
     } catch (error) {
@@ -238,7 +244,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       noteRead(project, failure)
     }
   }
-  const own =new Map<string, () => Promise<void>>()
+  const own = new Map<string, () => Promise<void>>()
   for (const project of projects) {
     const refresh = async () => {
       await refreshProject(project)

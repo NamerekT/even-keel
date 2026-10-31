@@ -1,3 +1,4 @@
+import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import { DEFAULT_RULES, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import { CI_KINDS } from './ci/model.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, readKeyOf, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
@@ -243,6 +244,27 @@ export function withFeedRules(raw: unknown, id: string, feedId: string, rules: P
       return Object.keys(chain).length === 0 ? rest : { ...rest, chain }
     }
     return { ...entry, feeds: feeds.map((feed) => (isPlainObject(feed) && feed.id === feedId ? ruled(feed) : feed)) }
+  })
+}
+
+/**
+ * The raw config with a task source's own status moves (BTN-554): the project's main tracker (`feedId` null, its
+ * `statusMoves` row) or a feed (its `moves`); none set drops them.
+ */
+export function withSourceMoves(raw: unknown, id: string, feedId: string | null, moves: StatusMoves): Record<string, unknown> {
+  const clean = statusMovesOf(moves, 'moves')
+  const empty = Object.keys(clean).length === 0
+  return withEntry(raw, id, (entry) => {
+    if (feedId === null) {
+      return writeRows(entry, [empty ? { op: 'unset', key: 'statusMoves', project: id, qualifier: '' } : { op: 'set', key: 'statusMoves', project: id, qualifier: '', value: clean }])
+    }
+    const feeds = Array.isArray(entry.feeds) ? (entry.feeds as unknown[]) : []
+    if (!feeds.some((feed) => isPlainObject(feed) && feed.id === feedId)) throw fail('config.unknownFeed', {})
+    const moved = (feed: Record<string, unknown>) => {
+      const { moves: _, ...rest } = feed
+      return empty ? rest : { ...rest, moves: clean }
+    }
+    return { ...entry, feeds: feeds.map((feed) => (isPlainObject(feed) && feed.id === feedId ? moved(feed) : feed)) }
   })
 }
 

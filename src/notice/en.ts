@@ -501,6 +501,8 @@ export const en = {
   'config.feedField': (p: { where: string; field: string }) => `config: ${p.where} needs its ${p.field}`,
   'config.feedRules': (p: { where: string; keys: string[] }) =>
     `config: ${p.where} must be an object of chain rules (${p.keys.join(', ')}), each a list of names; active and terminal may be null`,
+  'config.statusMoves': (p: { where: string }) =>
+    `config: ${p.where} must be an object of status names: start and review a name or null, done a name`,
   'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
     `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
   'config.feedPlace': (p: { project: string; other: string }) =>

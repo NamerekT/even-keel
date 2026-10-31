@@ -2,8 +2,8 @@ import { isOpen, type Task } from './model.js'
 
 export interface ParentCloserOptions {
   children: (parent: string) => Promise<Task[]>
-  /** `false` — the parent was already closed. */
-  complete: (task: string) => Promise<boolean>
+  /** `false` — the parent was already closed. `status` — the done status to close it into; none — the tracker's first. */
+  complete: (task: string, status?: string) => Promise<boolean>
   onError?: (error: unknown) => void
 }
 
@@ -14,14 +14,14 @@ export interface ParentCloserOptions {
 export class ParentCloser {
   constructor(private readonly options: ParentCloserOptions) {}
 
-  async sweep(parents: Task[], tasks: Task[]): Promise<string[]> {
+  async sweep(parents: Task[], tasks: Task[], status?: string): Promise<string[]> {
     const known = [...parents, ...tasks]
     const closed: string[] = []
     for (const parent of parents) {
       if (known.some((task) => task.parent === parent.id && isOpen(task.status))) continue
       try {
         if (!finished(await this.options.children(parent.id))) continue
-        if (await this.options.complete(parent.id)) closed.push(parent.id)
+        if (await (status === undefined ? this.options.complete(parent.id) : this.options.complete(parent.id, status))) closed.push(parent.id)
       } catch (error) {
         this.options.onError?.(error)
       }

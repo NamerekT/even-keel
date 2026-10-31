@@ -149,6 +149,7 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const groups = version < 20 ? trackerGroupsOwned(windows) : windows
   const cli = version < 21 ? cliChecked(groups) : groups
   const sdk = version < 22 ? sdkChecked(cli) : cli
+  // v23 → v24: a project's `statusMoves` and a feed's `moves` (BTN-554) are optional; the restamp above is all it takes.
   return version < 23 ? feedsRuled(sdk) : sdk
 }
 

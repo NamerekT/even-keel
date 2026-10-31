@@ -1,10 +1,13 @@
+import type { DoneMove } from '../chain/moves.js'
 import { notice, type Notice } from '../notice/notice.js'
 import { errorText } from './link.js'
 
 export interface MergeCloserOptions {
   merged: (project: string, task: string) => Promise<boolean>
-  /** `false` — the task was already closed. */
-  complete: (task: string) => Promise<boolean>
+  /** `false` — the task was already closed. `status` — the done status to close it into; none — the tracker's first. */
+  complete: (task: string, status?: string) => Promise<boolean>
+  /** The done status the reader's source closes into (BTN-554); none — automatic. */
+  done?: (project: string) => DoneMove | undefined
   onError?: (error: unknown) => void
 }
 
@@ -33,11 +36,17 @@ export class MergeCloser {
           refused.delete(task)
           continue
         }
+        const done = this.options.done?.(project)
+        if (done !== undefined && !done.fits) {
+          refused.set(task, notice('statusMove.notDone', { task, status: done.status, level: done.level }))
+          continue
+        }
         let moved: boolean
         try {
-          moved = await this.options.complete(task)
+          moved = await (done === undefined ? this.options.complete(task) : this.options.complete(task, done.status))
         } catch (error) {
-          refused.set(task, notice('tracker.completeRefused', { task }, { detail: errorText(error) }))
+          const named = done === undefined ? {} : { status: done.status, level: done.level }
+          refused.set(task, notice('tracker.completeRefused', { task, ...named }, { detail: errorText(error) }))
           this.options.onError?.(error)
           continue
         }
