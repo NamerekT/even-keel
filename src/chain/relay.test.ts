@@ -5,7 +5,9 @@ import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS } from './prompts.js'
 import {
+  answered,
   carryPrompt,
+  failedOf,
   fixPrompt,
   handoffPrompt,
   holdOf,
@@ -260,10 +262,47 @@ describe('handoffPrompt', () => {
     expect(handoff('ABC-1', session())).toContain(CLEANUP_NOTE)
   })
 
+  it('names each session that failed before its first answer, with its error and its transcript, after the main one', () => {
+    const failed = [
+      { sessionId: 'b-session', transcript: 'C:/other/projects/repo/b-session.jsonl', error: 'Invalid API key' },
+      { sessionId: 'c-session', transcript: null, error: null },
+    ]
+    const prompt = handoffPrompt('ABC-1', session(), 'limit', 'ru', 'main', false, failed)
+    const lines = prompt.split('\n')
+    const main = lines.findIndex((text) => text.includes('abc-session.jsonl'))
+    const first = lines.findIndex((text) => text.includes('b-session.jsonl'))
+    expect(main).toBeGreaterThan(-1)
+    expect(first).toBeGreaterThan(main)
+    expect(lines[first]).toContain('Invalid API key')
+    expect(lines[first + 1]).toContain('до первого ответа')
+    expect(prompt).not.toContain('null')
+  })
+
   it('fails instead of leaving a blank where the working folder or the branch should be', () => {
     expect(() => handoff('ABC-1', session({ workdir: '' }))).toThrow(/Рабочая папка/)
     expect(() => handoff('ABC-1', session({ branch: ' ' }))).toThrow(/Ветка/)
     expect(() => handoff('', session())).toThrow(/prompt/)
+  })
+})
+
+describe('answered', () => {
+  it('counts a reply or a step of the model, not a prompt and an error alone', () => {
+    const failed = session({ lastReplyAt: null, recent: [line('ABC-1', 'prompt'), line('Invalid API key', 'error')] })
+    expect(answered(failed)).toBe(false)
+    expect(answered({ ...failed, recent: [line('Read src/a.ts')] })).toBe(true)
+    expect(answered({ ...failed, lastReplyAt: '2026-09-27T14:38:50.000Z' })).toBe(true)
+  })
+})
+
+describe('failedOf', () => {
+  it('keeps the transcript and the last error of a session that never answered', () => {
+    const recent = [line('ABC-1', 'prompt'), line('Overloaded', 'error'), line('Invalid API key', 'error')]
+    expect(failedOf(session({ lastReplyAt: null, recent }))).toEqual({
+      sessionId: 'abc-session',
+      transcript: 'C:/claude/projects/repo/abc-session.jsonl',
+      error: 'Invalid API key',
+    })
+    expect(failedOf(session({ lastReplyAt: null, transcript: null }))).toEqual({ sessionId: 'abc-session', transcript: null, error: null })
   })
 })
 

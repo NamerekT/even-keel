@@ -27,6 +27,8 @@ export type TurnEnd =
   | { noChanges: string }
   | { ask: string }
   | { limit: string }
+  /** The API refuses before the model's first answer (a bad key): only the error reaches the transcript. */
+  | { fail: string }
   /** The process dies mid-turn. */
   | { crash: true }
 
@@ -227,6 +229,10 @@ export class ScriptedAgent implements Agent {
     } else if ('limit' in end) {
       session.entry = resting
       session.summary = { ...said(end.limit), apiError: { kind: 'limit', text: end.limit, at } }
+    } else if ('fail' in end) {
+      session.entry = resting
+      const feed = [...session.summary.feed, { at, kind: 'error' as const, text: end.fail }]
+      session.summary = { ...session.summary, feed, lastActivityAt: at, apiError: { kind: 'error', text: end.fail, at } }
     } else if ('checkpoint' in end) {
       session.entry = resting
       session.summary = { ...said(`CHECKPOINT: ${end.checkpoint}`), checkpoint: end.checkpoint }

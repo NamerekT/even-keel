@@ -39,6 +39,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 11a | [Mail resumed while a chain stops](#mail-resumed-while-a-chain-stops-btn-427) | chat users with a stop pending or a failed delivery | a message may need sending again; a delivery failure may pause the chain |
 | 11b | [The chat's `/handoff` in a real session](#the-chats-handoff-in-a-real-session-btn-557) | chat users handing a task over by hand | the session keeps the task instead of handing it over |
 | 11c | [Chat mail after the task's merge](#chat-mail-after-the-tasks-merge-btn-558) | chat users writing to a session that has just merged | the request lands uncommitted in the closed task's worktree |
+| 11d | [A handoff past a failed session](#a-handoff-past-a-failed-session-btn-650) | chains where a new session fails before its first answer (a bad key, no credit) | the next session starts without the plan of the one that worked |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | macOS (Linux checked) | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | macOS with packages (Linux checked with Huly) | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
@@ -298,6 +299,10 @@ The shared five-minute confirmed replacement and thirty-minute hang rule is cove
 ### Temporary model errors (BTN-498)
 
 Only Codex's `Selected model is at capacity. Please try a different model.` was reported from a real refusal (2026-10-27). Unit tests cover all four transcript formats, the `overloaded_error` and `server_is_overloaded` codes, 503/529 with an overload/unavailability message, a 15-minute retry doubling up to four hours, reset on success, cancellation by a human answer or a replacement, and keep-warm after an overloaded ping. The fake page checks the waiting lamp, next-attempt time, chat and replacement controls. Not run through a real provider outage: Claude, OpenCode and Copilot variants, Codex's code-only overload, a scheduled resume under the service, and a Claude keep-warm fork refused by the overload and later recovering. A refusal with an unknown spelling remains a permanent error and waits for a person; a misclassified refusal could resume unnecessarily. **Workaround:** answer from the chat, choose another model and use "New session", or pause the chain to stop automatic retries. No overload is manufactured against a live provider.
+
+### A handoff past a failed session (BTN-650)
+
+A handoff from a session that failed before its first answer carries the steps, the last message, the note and the transcript of the session before it, plus a line on each failed one (`docs/chain.md`). Unit tests and an end-to-end scenario with the scripted agent cover one and two failed sessions in a row. Not run live: a real `Invalid API key` or empty-balance session on an API-key account followed by "New session", a limit or an account switch, with the earlier session's transcript in another account's folder. The memory of the session before is lost on a service restart: a handoff after it carries the failed session alone. **Workaround:** point the new session at the earlier transcript in the chat.
 
 ### A task closed by `NO CHANGES:` (EKR-10)
 

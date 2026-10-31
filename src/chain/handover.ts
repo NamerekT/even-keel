@@ -3,7 +3,19 @@ import { isSpendingLimit } from '../limits/spending.js'
 import { LimitRetries } from '../limits/retry.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move, ReturnReason } from './model.js'
 import { isOwnName } from './fix.js'
-import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession, type LimitedSession } from './relay.js'
+import {
+  answered,
+  failedOf,
+  handoffPrompt,
+  holdOf,
+  relayStep,
+  withReport,
+  withReset,
+  type FailedSession,
+  type HandoffReason,
+  type HandoffSession,
+  type LimitedSession,
+} from './relay.js'
 
 const UNANSWERED_MS = 10 * 60_000
 
@@ -25,6 +37,8 @@ function settle(current: CurrentTask): void {
 // and when a released task returns; and how long an unattended chain waits for a quiet one.
 export class Handovers {
   private readonly transientRetries = new LimitRetries()
+  /** By task: the session its last handover started and the answered one it carried on from; in memory only. */
+  private readonly sources = new Map<string, { sessionId: string; source: HandoffSession; failed: FailedSession[] }>()
 
   constructor(
     private readonly state: ChainState,
@@ -310,12 +324,27 @@ export class Handovers {
     this.deps.save(this.state)
   }
 
+  /**
+   * A session that never answered hands over what the session before it left (BTN-650): its steps, last message, note
+   * and transcript, as the handover that started the failed one kept them; the folder and the stop stay the failed one's.
+   */
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const report = isOwnName(task) ? withReport(task, '', this.reportOf(task)) : ''
     const located = await this.deps.locate(session)
-    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false)
+    const { source, failed } = this.sourceOf(task, located)
+    const { transcript, recent, lastMessage, checkpoint } = source
+    const from = source === located ? located : { ...located, transcript, recent, lastMessage, checkpoint }
+    const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed)
     const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
-    return this.deps.relay(task, located, told + report, reason)
+    const sessionId = await this.deps.relay(task, from, told + report, reason)
+    this.sources.set(task, { sessionId, source, failed })
+    return sessionId
+  }
+
+  private sourceOf(task: string, session: HandoffSession): { source: HandoffSession; failed: FailedSession[] } {
+    const earlier = this.sources.get(task)
+    if (answered(session) || earlier?.sessionId !== session.sessionId) return { source: session, failed: [] }
+    return { source: earlier.source, failed: [...earlier.failed, failedOf(session)] }
   }
 
   private reportOf(task: string): string | undefined {

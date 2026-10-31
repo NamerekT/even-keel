@@ -56,6 +56,8 @@ export interface PromptTexts {
   blockersClosed: (blockers: string[]) => string
   workdir: (path: string) => string
   transcript: (path: string) => string
+  /** A session started after the previous one that failed before its first answer (BTN-650). */
+  failed: (error: string | null, transcript: string | null) => string
   note: (path: string) => string
   begin: (main: string) => string
   recentSteps: string
@@ -151,6 +153,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     blockersClosed: (blockers) => fill`Закрытые блокеры: ${blockers.join(', ')}. Прочитай описание задачи и результаты этих блокеров перед продолжением.`,
     workdir: (path) => fill`- Рабочая папка: ${path} — работай в ней, новый worktree не создавай.`,
     transcript: (path) => fill`- Транскрипт прошлой сессии: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
+    failed: (error, transcript) =>
+      `- Затем новая сессия упала до первого ответа${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`, её транскрипт: ${transcript}`}.`,
     note: (path) => fill`- Записка о передаче: ${path} — прочитай её первой: что сделано, что осталось, следующая команда.`,
     begin: (main) => fill`- Начни с git status, git log ${main}..HEAD и описания задачи.`,
     handoff: (extra) => {
@@ -259,6 +263,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     blockersClosed: (blockers) => fill`Closed blockers: ${blockers.join(', ')}. Read the task description and these blockers\' results before continuing.`,
     workdir: (path) => fill`- Working folder: ${path} — work in it, do not create a new worktree.`,
     transcript: (path) => fill`- Transcript of the previous session: ${path} — do not read it whole; grep it if something is missing.`,
+    failed: (error, transcript) =>
+      `- Then a new session failed before its first answer${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`; its transcript: ${transcript}`}.`,
     note: (path) => fill`- Handoff note: ${path} — read it first: what is done, what is left, the next command.`,
     begin: (main) => fill`- Start with git status, git log ${main}..HEAD and the task description.`,
     handoff: (extra) => {

@@ -83,6 +83,26 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(run.agent.calls.filter((call) => call.kind === 'stop').map((call) => call.sessionId)).toContain(first!.sessionId)
   })
 
+  it('hands over past a session that failed before its first answer to what the one before it left', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', checkpoint('.temp/handoff.md', 'Half of it is done.\n'), ends({ fail: 'Invalid API key' }), commitAndMerge())
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    const failed = () => run.agent.sessionsOf('ABC-1')[1]
+    await run.until(() => failed()?.state === 'done', 'the second session failed')
+    await run.until(() => run.service.sessions.some((view) => view.sessionId === failed()!.sessionId), 'the failed session seen')
+
+    await run.post('chain/restart', { project: PROJECT_ID, task: 'ABC-1' })
+
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    const [, second, third] = launches()
+    expect(launches()).toHaveLength(3)
+    expect(run.agent.calls.filter((call) => call.kind === 'stop').at(-1)?.sessionId).toBe(second!.sessionId)
+    expect(third!.cwd).toBe(second!.cwd)
+    expect(third!.prompt).toContain('handoff.md')
+    expect(third!.prompt).toContain('Invalid API key')
+  })
+
   it('keeps its chain through a restart and leaves the working session alone', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')

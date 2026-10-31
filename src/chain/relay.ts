@@ -184,6 +184,27 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow, warmM
 }
 
 
+/** A session that failed before its first answer (BTN-650): a handover from it carries the steps of the one before. */
+export interface FailedSession {
+  sessionId: string
+  transcript: string | null
+  /** The last API error of its feed, `null` — none. */
+  error: string | null
+}
+
+const isStep = (line: FeedLine) => line.kind === 'text' || line.kind === 'tool'
+
+/** Whether the model answered the session at least once: a reply or a step, not only its prompt and an API error. */
+export function answered(session: HandoffSession): boolean {
+  return session.lastReplyAt !== null || session.recent.some(isStep)
+}
+
+export function failedOf(session: HandoffSession): FailedSession {
+  const error = session.recent.findLast((line) => line.kind === 'error')?.text.trim() || null
+  return { sessionId: session.sessionId, transcript: session.transcript, error }
+}
+
+/** `failed` — the sessions after `session` that failed before their first answer, oldest first. */
 export function handoffPrompt(
   task: string,
   session: HandoffSession,
@@ -191,17 +212,19 @@ export function handoffPrompt(
   language: Language,
   main = 'main',
   pullRequests = false,
+  failed: FailedSession[] = [],
 ): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.why[reason], text.workdir(session.workdir)]
   if (session.branch !== null) lines.push(text.branch(session.branch))
   lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
+  for (const empty of failed) lines.push(text.failed(empty.error, empty.transcript))
   const note = noteOf(session)
   if (note !== null) lines.push(text.note(note))
   lines.push(text.begin(main))
   if (note !== null) return lines.join('\n') + '\n'
-  const steps = session.recent.filter((line) => line.kind === 'text' || line.kind === 'tool').slice(-HANDOFF_STEPS)
+  const steps = session.recent.filter(isStep).slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'
