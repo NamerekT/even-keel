@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { binOf, latestOf, parseNpx, pinnedEntry } from './npm.js'
+import { binOf, installArgs, latestOf, parseNpx, pinnedEntry } from './npm.js'
 
 describe('parseNpx', () => {
   it('reads the package, its range and the arguments after it', () => {
@@ -29,6 +29,15 @@ describe('binOf', () => {
     expect(binOf({ bin: { other: 'a.js', 'huly-mcp': 'b.js' } }, '@firfi/huly-mcp')).toBe('b.js')
     expect(binOf({ bin: { first: 'a.js' } }, 'pkg')).toBe('a.js')
     expect(binOf({}, 'pkg')).toBeNull()
+  })
+})
+
+describe('installArgs', () => {
+  it('trusts the npm cache and copies the stubs a trim points to', () => {
+    const args = installArgs('C:\\cache\\x', 'x@1.0.0')
+    expect(args).toContain('--prefer-offline')
+    expect(args).toContain('--install-links')
+    expect(args.at(-1)).toBe('x@1.0.0')
   })
 })
 
