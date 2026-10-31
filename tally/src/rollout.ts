@@ -8,7 +8,9 @@ import { placeOf, taskOf } from './task.js'
  * A Codex rollout (`<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`, older ones compressed to `.jsonl.zst`):
  * lines `{timestamp, type, payload}`. A response is a `token_usage_record` (codex-cli 0.162: `response_id` and the
  * response's `usage`); a CLI that wrote none (0.148) leaves only `token_count`, whose `last_token_usage` is then the
- * response, keyed by the session and the running total. Only `messages` and `sessions` are written: `lines` stay Claude's.
+ * response, keyed by the session and the running total. A `token_count` after the file's first record is never a response:
+ * a turn stopped between a record and its `token_count` leaves the later totals off the records' (BTN-626).
+ * Only `messages` and `sessions` are written: `lines` stay Claude's.
  */
 const ROLLOUT = /(?:^|[\\/])rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl(?:\.zst)?$/i
 
@@ -37,7 +39,6 @@ export function rolloutSession(path: string): string | null {
 export class RolloutBuilder {
   private readonly records = new Map<string, MessageRow>()
   private readonly counts = new Map<number, MessageRow>()
-  private readonly recordTotals = new Set<number>()
   private turn: Turn = { model: null, effort: null }
   private cwd: string | null = null
   private branch: string | null = null
@@ -70,10 +71,8 @@ export class RolloutBuilder {
       const id = str(payload.response_id)
       const usage = usageOf(record(payload.usage))
       if (id === null || usage === null) return
-      const total = record(payload.thread_token_usage)?.total_tokens
-      if (typeof total === 'number') this.recordTotals.add(total)
       this.records.set(id, this.row(id, at, usage))
-    } else if (line.type === 'event_msg' && payload.type === 'token_count') {
+    } else if (line.type === 'event_msg' && payload.type === 'token_count' && this.records.size === 0) {
       const info = record(payload.info)
       const total = record(info?.total_token_usage)?.total_tokens
       const usage = usageOf(record(info?.last_token_usage))
@@ -82,11 +81,10 @@ export class RolloutBuilder {
     }
   }
 
-  /** The batch of the whole rollout: a `token_count` a record already gave is not counted again. */
   finish(): Batch {
     const batch = emptyBatch()
     for (const [id, row] of this.records) batch.messages.set(id, row)
-    for (const [total, row] of this.counts) if (!this.recordTotals.has(total)) batch.messages.set(row.messageId, row)
+    for (const row of this.counts.values()) batch.messages.set(row.messageId, row)
     if (batch.messages.size === 0) return batch
     const launch = this.context.launches.get(this.sessionId)
     batch.sessions.set(this.sessionId, {
