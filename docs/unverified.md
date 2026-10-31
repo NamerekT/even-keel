@@ -40,7 +40,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 11b | [The chat's `/handoff` in a real session](#the-chats-handoff-in-a-real-session-btn-557) | chat users handing a task over by hand | the session keeps the task instead of handing it over |
 | 11c | [Chat mail after the task's merge](#chat-mail-after-the-tasks-merge-btn-558) | chat users writing to a session that has just merged | the request lands uncommitted in the closed task's worktree |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | macOS (Linux checked) | a worktree is left behind after Done |
-| 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
+| 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | macOS with packages (Linux checked with Huly) | the chain waits on a package that does not start |
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
 | 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex, Copilot, OpenCode on Linux, macOS | a stopped turn goes on, or a reused pid is killed |
 | 16 | [Forgejo token rights for pull requests](#forgejo-token-rights-for-pull-requests-ekr-9) | PR mode on Forgejo with a token made by the guide | the comments of the conversation are not read, or the open is refused |
@@ -545,7 +545,7 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 
 ### Packages on Linux and macOS
 
-Installing a package and the gateway's server processes were run only on Windows. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
+Installing a package and the gateway's server processes were run on Windows and, for `huly@even-keel` with its trimmed install, on Linux (2026-10-31, [verified.md](verified.md#packages)); macOS was not run, nor other packages on Linux. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ### A trimmed Huly server install from the service (BTN-627)
 
