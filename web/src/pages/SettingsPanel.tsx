@@ -13,7 +13,6 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { PROJECT_SLOTS, projectLabel } from '../state.js'
-import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
@@ -44,12 +43,12 @@ import {
   shown,
   SwitchField,
   unplaced,
-  UnsavedDot,
   useFieldErrors,
   wholeOf,
 } from './settingsParts.js'
 import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
+import { useSourceMoves } from './SourceMoves.js'
 import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
@@ -67,30 +66,9 @@ import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
 import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
-import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { AddPullProfile, PullHint } from './PullButtons.js'
 import { FORGES } from '../../../src/notice/en.js'
 import './settings.css'
-
-const CHIP_CLASS: Record<ChipLook, string> = { tag: 'tag tag--settings', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
-
-export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: boolean; look?: ChipLook; dirty: boolean; onToggle: () => void }) {
-  const seg = look === 'seg'
-  return (
-    <button
-      type="button"
-      className={CHIP_CLASS[look]}
-      aria-expanded={open}
-      aria-label={seg ? t.settings.open : undefined}
-      title={t.settings.title}
-      onClick={onToggle}
-    >
-      <SlidersIcon />
-      {!seg && t.settings.open}
-      {dirty && <UnsavedDot />}
-    </button>
-  )
-}
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
@@ -196,6 +174,7 @@ export function SettingsPanel({
   const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
   const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
   const [configuring, setConfiguring] = useState(false)
+  const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
@@ -444,8 +423,8 @@ export function SettingsPanel({
                 kind={text('tracker')}
                 title={trackerTitle}
                 sourceKey={state.projectKeys[project] ?? ''}
-                own={form.ownRules.length > 0}
-                dirty={changed(draft, RULE_KEYS, same).length > 0}
+                own={form.ownRules.length > 0 || form.moves !== undefined}
+                dirty={changed(draft, RULE_KEYS, same).length > 0 || moves.dirty}
                 onConfigure={() => setConfiguring(true)}
               >
                 {statusesReset && (
@@ -507,11 +486,15 @@ export function SettingsPanel({
                   </Section>
                 ),
               },
+              ...(moves.tab === null ? [] : [moves.tab]),
             ]}
-            canSave={!sending && next !== undefined}
-            failure={leftover}
-            onSave={save}
-            onRevert={() => revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)}
+            canSave={!sending && !moves.sending && next !== undefined}
+            failure={leftover ?? moves.failure}
+            onSave={async () => (await save()) && moves.save()}
+            onRevert={() => {
+              revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)
+              moves.revert()
+            }}
             onClose={() => setConfiguring(false)}
           />
         )}

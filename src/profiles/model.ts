@@ -1,3 +1,4 @@
+import type { StatusMoves } from '../chain/moves.js'
 import type { ChainRules } from '../chain/rules.js'
 import type { TrackerAdapter } from '../tracker/source.js'
 import type { OAuthRecord } from './oauth-protocol.js'
@@ -31,6 +32,8 @@ export interface TrackerProfile {
   expiresAt: string | null
   /** The chain rules of its projects, between the shared ones and a project's own; none — it sets none. */
   rules?: ProfileRules
+  /** The statuses its projects' tasks are moved into (BTN-554); none — it sets none. */
+  moves?: StatusMoves
   /** MCP-only credentials: never part of the key pool or agent settings. */
   mcpOAuth?: OAuthRecord
 }
@@ -47,7 +50,7 @@ export interface ProfileSet {
 export type Adapters = Readonly<Record<string, TrackerAdapter>>
 
 /** What the profiles need of a kind: a tracker adapter's, or a CI's that is no tracker (Forgejo, BTN-201). */
-export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' | 'hostVariables' | 'alternatives' | 'help' | 'profileName' | 'account' | 'mcpKeys'> {
+export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' | 'hostVariables' | 'alternatives' | 'help' | 'profileName' | 'account' | 'mcpKeys' | 'moves'> {
   /** Whether the values make a profile: `false` — none of them is set; throws when they are set only in part. */
   complete(values: Record<string, string | undefined>): boolean
   /**
@@ -70,6 +73,7 @@ export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): Profil
       ...(adapter.alternatives === undefined ? {} : { alternatives: adapter.alternatives }),
       help: adapter.help,
       ...(adapter.mcpKeys === undefined ? {} : { mcpKeys: adapter.mcpKeys }),
+      ...(adapter.moves === undefined ? {} : { moves: adapter.moves }),
       profileName: (values, account) => adapter.profileName(values, account),
       account: (values, timeoutMs) => adapter.account(values, timeoutMs),
       projects: (values, query, timeoutMs) => adapter.projects(values, query, timeoutMs),

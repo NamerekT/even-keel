@@ -8,6 +8,7 @@ export const huly: TrackerAdapter = {
   alternatives: ALTERNATIVES,
   help: 'https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials',
   mcpServer: 'huly',
+  moves: true,
   profileName: (values, account) => account?.name ?? `Huly · ${values.HULY_WORKSPACE ?? ''}`,
   account: async (values, timeoutMs) => (await import('./profile.js')).hulyAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).hulyProjects(values, query, timeoutMs),

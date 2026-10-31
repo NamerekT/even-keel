@@ -1,7 +1,8 @@
+import { sameName } from '../chain/rules.js'
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
-import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { backlogState, linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
 
@@ -105,6 +106,11 @@ const ISSUE_READY = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) {
     nodes { id state { name type } team { states(first: 100) { nodes { id name type position } } } }
   }
+}`
+
+// The states of every team the key sees, for the profile's status moves (BTN-554).
+const WORKFLOW_STATES = `query($after: String) {
+  workflowStates(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { name type } }
 }`
 
 const MOVE_ISSUE =`mutation($id: String!, $state: String!) {
@@ -280,12 +286,30 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     ready: (id) => moveState(id, readyState),
     unready: (id) => moveState(id, backlogState),
+    moveTo: (id, name) => moveState(id, (_current, states) => states.find((state) => sameName(state.name, name)) ?? null),
 
-    async complete(id) {
-      const issue = await oneIssue<{ id: string; state: { type: string }; team: { states: { nodes: { id: string; position: number }[] } } }>(id, ISSUE_STATE)
+    async statuses() {
+      const states: LinearState[] = []
+      let after: string | null = null
+      do {
+        const { workflowStates }: { workflowStates: Connection<LinearState> } = await graphql(WORKFLOW_STATES, { after })
+        states.push(...workflowStates.nodes)
+        after = workflowStates.pageInfo.hasNextPage ? workflowStates.pageInfo.endCursor : null
+      } while (after !== null)
+      return uniqueStatuses(states.map(linearStatus))
+    },
+
+    async complete(id, name) {
+      const issue =
+        name === undefined
+          ? await oneIssue<{ id: string; state: { type: string }; team: { states: { nodes: { id: string; position: number }[] } } }>(id, ISSUE_STATE)
+          : await oneIssue<{ id: string; state: LinearState; team: { states: { nodes: TeamStateDoc[] } } }>(id, ISSUE_READY)
       if (CLOSED_TYPES.has(issue.state.type)) return false
-      const done = [...issue.team.states.nodes].sort((a, b) => a.position - b.position)[0]
-      if (done === undefined) throw new Error(`linear: the team of ${id} has no completed state`)
+      const done =
+        name === undefined
+          ? [...issue.team.states.nodes].sort((a, b) => a.position - b.position)[0]
+          : (issue.team.states.nodes as TeamStateDoc[]).find((state) => state.type === 'completed' && sameName(state.name, name))
+      if (done === undefined) throw new Error(`linear: the team of ${id} has no completed state${name === undefined ? '' : ` "${name}"`}`)
       const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(MOVE_ISSUE, { id: issue.id, state: done.id })
       if (!issueUpdate.success) throw new Error(`linear: ${id} was not moved to ${done.id}`)
       return true

@@ -52,7 +52,8 @@ import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerLink } from './tracker/link.js'
 import { type Task } from './tracker/model.js'
-import { Vocabularies } from './tracker/vocabulary.js'
+import { profileStatusesOf } from './tracker/statuses.js'
+import { KeptReads, Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
 import { installed } from './updates/watcher.js'
 import * as accountsService from './service/accounts.js'
@@ -232,6 +233,7 @@ const context = {
   get pullRefusals() { return pullRefusals },
   get pullRequestsOn() { return pullRequestsOn },
   get readerFor() { return readerFor },
+  get readerMoves() { return readerMoves },
   get readerRules() { return readerRules },
   get readerTasks() { return readerTasks },
   get readers() { return readers },
@@ -266,6 +268,7 @@ const context = {
   get spendsByKey() { return spendsByKey },
   get startedAt() { return startedAt },
   get stateDb() { return stateDb },
+  get statusMover() { return statusMover },
   get stateDir() { return stateDir },
   get stats() { return stats },
   get steering() { return steering },
@@ -291,6 +294,7 @@ const context = {
   get updates() { return updates },
   get vacateSlot() { return vacateSlot },
   get vocabularies() { return vocabularies },
+  get profileStatuses() { return profileStatuses },
   get vscode() { return vscode },
   get warmable() { return warmable },
   get wedgedSessions() { return wedgedSessions },
@@ -368,6 +372,8 @@ const rulesClashes = new Map<string, string>()
 const readerRules = trackersService.wireReaderRules(context)
 /** The project's rules; with a task, those of the feed it comes from. */
 const rulesOf = (project: string, task?: string) => readerRules(task === undefined ? project : readerFor(project, task))
+const readerMoves = trackersService.wireReaderMoves(context)
+const statusMover = trackersService.wireStatusMover(context)
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
 const mailbox = await Mailbox.open(db, writes, () => new Date())
@@ -388,6 +394,8 @@ const refreshProject = async (project: string): Promise<boolean> => {
   return found.length > 0
 }
 const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(async (tracker) => tracker.vocabulary?.(project)))
+/** The statuses of each tracker profile (BTN-554), for its status moves. */
+const profileStatuses = new KeptReads((id) => profileStatusesOf(ADAPTERS, profiles.current(), id))
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),

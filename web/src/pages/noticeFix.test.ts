@@ -6,6 +6,13 @@ describe('noticeFixOf', () => {
   it('opens the merged task refused by its tracker', () => {
     expect(noticeFixOf(notice('tracker.completeRefused', { task: 'ABC-1' }))).toEqual({ to: 'tracker', task: 'ABC-1' })
   })
+  it('sends a status move to the setting it was chosen at: the profile or the source', () => {
+    expect(noticeFixOf(notice('tracker.completeRefused', { task: 'ABC-1', status: 'Closed', level: 'source' }))).toEqual({ to: 'moves', level: 'source', task: 'ABC-1' })
+    expect(noticeFixOf(notice('statusMove.notDone', { task: 'ABC-1', status: 'Closed', level: 'profile' }))).toEqual({ to: 'moves', level: 'profile', task: 'ABC-1' })
+    const refused = notice('statusMove.refused', { task: 'ABC-2', status: 'In Progress', setting: 'start', level: 'profile' })
+    expect(noticeFixOf(refused)).toEqual({ to: 'moves', level: 'profile', task: 'ABC-2' })
+    expect(noticeFixOf(notice('statusMove.outside', { task: 'ABC-2', status: 'Backlog', setting: 'review', level: 'source' }))).toEqual({ to: 'moves', level: 'source', task: 'ABC-2' })
+  })
   it('sends a wrong main branch to the repository tab of the project', () => {
     expect(noticeFixOf(notice('git.noBranch', { project: 'ABC', branch: 'dev', repo: 'D:/abc' }))).toEqual({ to: 'project', tab: 'repo' })
     expect(noticeFixOf(notice('forward.foreign', { from: 'ABC', into: 'ABD' }))).toEqual({ to: 'project', tab: 'repo' })

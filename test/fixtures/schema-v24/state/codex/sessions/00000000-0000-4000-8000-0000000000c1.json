@@ -1,0 +1,10 @@
+{
+  "version": 24,
+  "sessionId": "00000000-0000-4000-8000-0000000000c1",
+  "name": "XYZ-7",
+  "cwd": "C:\\repos\\other-project\\.claude\\worktrees\\xyz-7",
+  "account": "codex",
+  "startedAt": 1790841600000,
+  "pid": 4242,
+  "out": "C:\\even-keel\\state\\codex\\turns\\XYZ-7-1790841600000.jsonl"
+}

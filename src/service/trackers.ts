@@ -1,5 +1,6 @@
 import { ranSince } from '../chain/launches.js'
 import { isOwnName } from '../chain/fix.js'
+import { doneMove } from '../chain/moves.js'
 import { saveQuestions } from '../chain/store.js'
 import { parseRemote } from '../ci/remote.js'
 import { intakeRepo } from '../intake/github.js'
@@ -11,6 +12,7 @@ import { projectRules } from '../profiles/rules.js'
 import { setStateValue } from '../storage/service-state.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { parseTaskId } from '../tracker/model.js'
+import { StatusMover, type MovePlan } from '../tracker/mover.js'
 import { TrackerQuestions, type AskingSession } from '../tracker/questions.js'
 import { ReaderTasks } from '../tracker/readers.js'
 import { startTracker } from '../tracker/start.js'
@@ -41,10 +43,12 @@ type TrackersContext = Pick<ServiceContext,
   | 'ownerOfReader'
   | 'packages'
   | 'postedQuestions'
+  | 'profileStatuses'
   | 'profiles'
   | 'projectOf'
   | 'promptLanguage'
   | 'readerFor'
+  | 'readerMoves'
   | 'readerRules'
   | 'readerTasks'
   | 'readers'
@@ -74,6 +78,39 @@ export function wireReaderRules(ctx: TrackersContext): (reader: string) => impor
   }
 }
 
+/**
+ * What a reader's tasks are moved by (BTN-554): its rules, its tracker profile's status moves and its own — a feed's
+ * `moves`, the main tracker's `statusMoves`. `undefined` — its tracker moves no statuses.
+ */
+export function wireReaderMoves(ctx: TrackersContext): (reader: string) => MovePlan | undefined {
+  return (reader) => {
+    const tracker = ctx.readers().trackers[reader]
+    if (tracker === undefined || ADAPTERS[tracker]?.moves === undefined) return undefined
+    const feed = ctx.feedOf(reader)
+    const profile = profileFor(ctx.profiles.current(), reader, tracker)?.moves
+    const source = feed === undefined ? ctx.configStore.current.moves[reader] : feed.moves
+    return { reader, rules: ctx.readerRules(reader), ...(profile !== undefined && { profile }), ...(source !== undefined && { source }) }
+  }
+}
+
+/** Moves a task on its start and its pull request through its reader's link; a refusal is logged and shown on the page. */
+export function wireStatusMover(ctx: TrackersContext): StatusMover {
+  return new StatusMover({
+    plan: (project, task) => ctx.readerMoves(ctx.readerFor(project, task)),
+    current: async (reader, task) => (await ctx.linkOf(reader)?.run((tracker) => tracker.tasks([task])))?.[0]?.status,
+    statuses: async (reader) => {
+      const profile = profileFor(ctx.profiles.current(), reader, ctx.readers().trackers[reader] ?? '')
+      return (profile === undefined ? undefined : await ctx.profileStatuses.get(profile.id)) ?? []
+    },
+    moveTo: async (reader, task, status) => {
+      const link = ctx.linkOf(reader)
+      return link === undefined ? null : link.run((tracker) => (tracker.moveTo === undefined ? Promise.resolve(null) : tracker.moveTo(task, status)))
+    },
+    log: (line) => console.log(line),
+    changed: () => ctx.hub.broadcast('state', ctx.getState()),
+  })
+}
+
 export function wireTrackers(ctx: TrackersContext): Trackers {
   return new Trackers({
     adapters: ADAPTERS,
@@ -91,6 +128,10 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
           return ranSince(own, project, since).filter((task) => ctx.readerFor(project, task) === reader)
         },
         dispatcher: ctx.readerTasks,
+        doneOf: (reader) => {
+          const plan = ctx.readerMoves(reader)
+          return plan === undefined ? undefined : doneMove(plan.rules, plan.profile, plan.source)
+        },
         fillsMilestone: (reader) => ctx.configStore.current.settings[ctx.ownerOfReader(reader)]?.fillMilestone ?? false,
         mainBranch: (reader) => ctx.branchOf(ctx.ownerOfReader(reader)),
         readKey: (reader) => readKeyOf(ctx.readers(), reader),

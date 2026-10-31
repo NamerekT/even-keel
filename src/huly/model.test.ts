@@ -8,6 +8,8 @@ import {
   milestonesOf,
   missingBlockers,
   hulyPriority,
+  hulyStatuses,
+  namedStatus,
   personName,
   readyStatus,
   toCard,
@@ -157,6 +159,29 @@ describe('closingStatus', () => {
 
   it('fails when the project has no Won status', () => {
     expect(() => closingStatus('tracker:status:Todo', statuses, ['tracker:status:Todo'])).toThrow(/no done status/)
+  })
+
+  it('moves to the Won status of the name picked, and to no other', () => {
+    expect(closingStatus('tracker:status:InProgress', [...statuses, custom], null, 'shipped')).toBe('custom-shipped')
+    expect(closingStatus('tracker:status:Done', [...statuses, custom], null, 'Shipped')).toBeNull()
+    expect(() => closingStatus('tracker:status:InProgress', [...statuses, custom], ['tracker:status:Done'], 'Shipped')).toThrow('huly: the project has no status "Shipped"')
+    expect(() => closingStatus('tracker:status:InProgress', statuses, null, 'Canceled')).toThrow('huly: "Canceled" is not a done status, it is Lost')
+  })
+})
+
+describe('namedStatus', () => {
+  it('finds the status of the name among the project’s, ignoring case', () => {
+    expect(namedStatus(' in review ', statuses, null)?._id).toBe('custom-review')
+    expect(namedStatus('In Review', statuses, ['tracker:status:Todo', 'tracker:status:InProgress'])).toBeNull()
+    expect(namedStatus('Shipped', statuses, null)).toBeNull()
+  })
+})
+
+describe('hulyStatuses', () => {
+  it('gives every status of the workspace a name once, leaving out ones of an unknown category', () => {
+    const other = { _id: 'other-done', name: 'done', category: 'task:statusCategory:Won' }
+    const odd = { _id: 'odd', name: 'Odd', category: 'recruit:category:Hired' }
+    expect(hulyStatuses([...statuses, other, odd]).map((status) => status.name)).toEqual(['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled'])
   })
 })
 

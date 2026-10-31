@@ -27,6 +27,8 @@ export interface TrackerView {
   readAt: Record<string, string>
   /** Refused closes of merged tasks, by reader; retried on the next full read. In memory only. */
   completionFailures?: Record<string, Notice[]>
+  /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
+  moveFailures?: Record<string, Notice[]>
 }
 
 export const worthBroadcast = (before: TrackerHealth, after: TrackerHealth): boolean =>

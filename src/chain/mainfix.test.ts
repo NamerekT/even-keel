@@ -39,12 +39,13 @@ async function working(wait: number | null = 0) {
 
 describe('Dispatcher and a red main without a fix task', () => {
   it('starts a session without a task and checks its push', async () => {
-    const { dispatcher, launched, fixes, finished, clock, ci } = await withoutTask()
+    const { dispatcher, launched, fixes, finished, clock, ci, moves } = await withoutTask()
     ci.verdict = red
     dispatcher.check()
     await dispatcher.idle()
     expect(ci.created).toEqual([])
     expect(fixes).toEqual([{ project: 'ABC', name: 'ABC-FIX', report: 'fix main: log' }])
+    expect(moves.filter((move) => move.endsWith('ABC-FIX'))).toEqual([])
     expect(dispatcher.state.ci.ABC?.fix).toEqual({ task: 'ABC-FIX', at: '2026-09-26T12:00:00.000Z', commit: 'bbbbbbbbbb', report: 'fix main: log' })
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-2' })
     expect(dispatcher.held('ABC')).toEqual([])

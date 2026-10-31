@@ -38,6 +38,11 @@
   container-type: inline-size;
 }
 
+/* A source's pick reads "as in the profile (<status>)": the short names beside it leave the room. */
+.settings__form .settings__moves {
+  --control-width: 19em;
+}
+
 .panel.settings .settings__form {
   --control-width: 11.5em;
 }

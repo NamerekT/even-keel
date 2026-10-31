@@ -4,6 +4,8 @@ import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
 
 const list = (items: string[]) => items.join(', ')
+
+const MOVE_LABELS = { start: '«При старте задачи»', review: '«При открытии PR»', done: '«При завершении задачи»' } as const
 const chats = (count: number) => `${count} ${plural('ru', count, { one: 'чат', few: 'чата', many: 'чатов', other: 'чата' })}`
 
 const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
@@ -39,7 +41,19 @@ export const noticesRu: NoticeTexts = {
     : 'Для этого аккаунта цепочки выключите дополнительные платные расходы или задайте месячный бюджет в GitHub.',
   'account.overageSettings': () => 'Денежные настройки провайдера',
   'tracker.closePending': () => 'трекер не даёт закрыть',
-  'tracker.completeRefused': (p) => `Задача ${p.task} влита, но трекер не даёт её закрыть. Заполните требуемое поле или закройте задачу в трекере вручную. Even Keel повторит попытку автоматически. Ответ трекера`,
+  'tracker.completeRefused': (p) =>
+    p.status === undefined
+      ? `Задача ${p.task} влита, но трекер не даёт её закрыть. Заполните требуемое поле или закройте задачу в трекере вручную. Even Keel повторит попытку автоматически. Ответ трекера`
+      : `Задача ${p.task} влита, но трекер не даёт перевести её в «${p.status}» (${MOVE_LABELS.done}). Заполните требуемое поле, выберите другой статус в ${MOVE_LABELS.done} или закройте задачу вручную. Even Keel повторит попытку автоматически. Ответ трекера`,
+  'statusMove.refused': (p) =>
+    `Трекер не перевёл ${p.task} в «${p.status}» (${MOVE_LABELS[p.setting]}). Цепочка идёт дальше; выберите другой статус в ${MOVE_LABELS[p.setting]} или переведите задачу вручную. Ответ трекера`,
+  'statusMove.outside': (p) =>
+    `${p.task} осталась в прежнем статусе: «${p.status}» из ${MOVE_LABELS[p.setting]} вне цепи по её правилам, и цепочка сразу отпустила бы задачу. Выберите статус в цепи.`,
+  'statusMove.notDone': (p) =>
+    `Задача ${p.task} влита, но не закрыта: правила цепи не считают «${p.status}» из ${MOVE_LABELS.done} завершением. Выберите там статус Done. Even Keel повторит попытку автоматически.`,
+  'statusMoves.outside': (p) =>
+    `«${p.status}» из ${MOVE_LABELS[p.setting]} вне цепи по её правилам: цепочка отпустит задачу, как только та туда перейдёт. Выберите статус в цепи.`,
+  'statusMoves.notDone': (p) => `Правила цепи не считают «${p.status}» из ${MOVE_LABELS.done} завершением: цепочка не узнает, что задача закрыта. Выберите статус Done.`,
   'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
   'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',
@@ -441,6 +455,7 @@ export const noticesRu: NoticeTexts = {
   'config.feeds': (p) => `${p.where} должен быть списком источников задач, у каждого — id, трекер и ключ`,
   'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,
   'config.feedRules': (p) => `${p.where} должен быть объектом правил цепочки (${p.keys.join(', ')}), каждое — список имён; active и terminal могут быть null`,
+  'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
   'config.feedPrefix': (p) => `источник задач ${p.project} даёт ID задач ${p.prefix}-…, как и ${p.other}: дайте источнику другой ключ`,
   'config.feedPlace': (p) => `источник задач ${p.project} читает то же место трекера, что и ${p.other}, и задача попала бы в цепочку дважды`,
   'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,

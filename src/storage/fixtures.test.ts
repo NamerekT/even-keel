@@ -44,6 +44,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.settings[XYZ]?.autoCompactWindow).toBeNull()
     expect(config.ownRules[ABC]).toEqual({ excludedLabels: ['Later'] })
     expect(config.feeds[ABC]?.map((feed) => feed.chain)).toEqual([{ requiredLabels: ['agent'] }])
+    expect(config.moves).toEqual({ [ABC]: { start: 'In Progress', review: null, done: 'Done' } })
     expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
     expect(config).toMatchObject({
       provider: 'claude',

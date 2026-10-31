@@ -17,6 +17,20 @@ describe('Dispatcher', () => {
     expect(journal).toEqual([{ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-2', sessionId: 'session-1' }])
   })
 
+  it('moves the started task to its start status, and a move that fails neither halts the chain nor undoes the start', async () => {
+    const { dispatcher, launched, journal, moves, log } = setup({ failMove: true })
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(moves).toEqual(['start/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(journal).toHaveLength(1)
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1', sessionId: 'session-1' }, error: null, paused: false })
+    expect(log.at(-1)).toContain('ABC-1 was not moved on its start')
+  })
+
   it('notes in the launch log the provider of a run label the launch could not honour', async () => {
     const { dispatcher, journal } = setup({ fallback: { 'ABC-1': 'codex' } })
     dispatcher.setTasks('ABC', [task('ABC-1')])

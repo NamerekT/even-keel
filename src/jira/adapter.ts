@@ -10,6 +10,7 @@ export const jira: TrackerAdapter = {
   hostVariables: [JIRA_URL],
   help: 'https://id.atlassian.com/manage-profile/security/api-tokens',
   mcpServer: 'jira',
+  moves: true,
   // Atlassian's MCP server takes an API token only as a Basic header of the e-mail and the token.
   mcpValues: {
     JIRA_BASIC_AUTH: {

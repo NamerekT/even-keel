@@ -1,6 +1,7 @@
 import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
 import type { EvenKeelState, FeedView, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
 import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
+import type { StatusMoves } from '../../../src/chain/moves.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
 
@@ -113,6 +114,7 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
   if (name === 'project/feed/add' || name === 'project/feed/remove' || name === 'project/feed/rules') return withFeeds(state, name, body)
+  if (name === 'project/moves') return withMoves(state, body)
   if (name !== 'project/remove') return null
   const id = String(body.project)
   if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })
@@ -148,6 +150,21 @@ function withFeeds(state: EvenKeelState, name: string, body: Record<string, unkn
   if (taken.includes(key)) throw fail('config.feedPrefix', { project: state.projectLabels[project] ?? project, prefix: key, other: key })
   const place = typeof body.place === 'string' && body.place.trim() !== '' ? body.place.trim() : undefined
   return next([...feeds, { id: crypto.randomUUID(), tracker: String(body.tracker), key, ...(place === undefined ? {} : { place }) }])
+}
+
+/** `project/moves` sets the status moves of the project's main tracker (`feed: null`) or of one of its feeds; none set drops the key. */
+function withMoves(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
+  const project = String(body.project)
+  const moves = (body.moves ?? {}) as StatusMoves
+  const set = <T extends { moves?: StatusMoves }>({ moves: _, ...rest }: T): T => (Object.keys(moves).length === 0 ? (rest as T) : { ...rest, moves } as T)
+  if (body.feed === null) {
+    const form = state.config.projects[project]
+    if (form === undefined) throw fail('config.unknownProject', { key: project })
+    return { ...state, config: { ...state.config, projects: { ...state.config.projects, [project]: set(form) } } }
+  }
+  const feeds = state.config.feeds[project] ?? []
+  if (!feeds.some((feed) => feed.id === body.feed)) throw fail('config.unknownFeed', {})
+  return { ...state, config: { ...state.config, feeds: { ...state.config.feeds, [project]: feeds.map((feed) => (feed.id === body.feed ? set(feed) : feed)) } } }
 }
 
 const mapsOf = (keys: Record<string, string>, forms: Record<string, ProjectForm>) =>

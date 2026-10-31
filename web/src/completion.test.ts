@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { notice } from '../../src/notice/notice.js'
 import { createFakeSource } from './live/fake.js'
 import { cardTask, chainBlocks, waitingSessions } from './state.js'
-import { completionNotices, completionTasks } from './completion.js'
+import { completionNotices, completionTasks, moveNotices } from './completion.js'
 
 afterEach(() => vi.useRealTimers())
 
@@ -43,5 +43,27 @@ describe('refused merged-task completion', () => {
     state.tasks.find((each) => each.id === 'ABC-5')!.status = { name: 'Done', category: 'Won' }
     expect(completionNotices(state, 'ABC')).toEqual([])
     expect(cardTask(state, 'ABC')?.lamp).toBe('done')
+  })
+
+  it('takes a done status the rules refuse for a refused close too', () => {
+    const { state, tracker } = fixture()
+    tracker.completionFailures = { ABC: [notice('statusMove.notDone', { task: 'ABC-5', status: 'Closed', level: 'profile' })] }
+    expect(completionNotices(state, 'ABC').map((each) => each.code)).toEqual(['statusMove.notDone'])
+    expect(completionTasks(state).has('ABC-5')).toBe(true)
+  })
+})
+
+describe('refused status moves', () => {
+  it("shows a project's and its feeds' failed moves of open tasks only", () => {
+    const { state, tracker } = fixture()
+    tracker.completionFailures = {}
+    const refused = notice('statusMove.refused', { task: 'ABC-5', status: 'In Progress', setting: 'start', level: 'profile' }, { detail: 'huly: HTTP 500' })
+    tracker.moveFailures = { 'feed-id': [refused] }
+    state.config.feeds.ABC = [{ id: 'feed-id' } as NonNullable<typeof state.config.feeds.ABC>[number]]
+    expect(moveNotices(state, 'ABC')).toEqual([refused])
+    expect(moveNotices(state, 'DEMO')).toEqual([])
+    expect(completionTasks(state).size).toBe(0)
+    state.tasks.find((each) => each.id === 'ABC-5')!.status = { name: 'Canceled', category: 'Lost' }
+    expect(moveNotices(state, 'ABC')).toEqual([])
   })
 })
