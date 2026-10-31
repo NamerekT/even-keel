@@ -74,6 +74,22 @@ describe('RolloutBuilder', () => {
     ])
   })
 
+  it('counts no token_count after the first record, even once a turn stopped between a record and its token_count shifted the totals', () => {
+    const batch = build([
+      meta(),
+      context('2026-10-29T10:00:00.000Z', 'gpt-6.1-sol'),
+      record('2026-10-29T10:00:10.000Z', 'resp_1', usage(1000, 0, 100), usage(1000, 0, 100)),
+      count('2026-10-29T10:00:10.010Z', usage(1000, 0, 100), usage(1000, 0, 100)),
+      record('2026-10-29T10:00:20.000Z', 'resp_2', usage(2000, 1000, 200), usage(3000, 1000, 300)),
+      context('2026-10-29T10:05:00.000Z', 'gpt-6.1-sol'),
+      record('2026-10-29T10:05:10.000Z', 'resp_3', usage(3000, 2000, 300), usage(6000, 3000, 600)),
+      count('2026-10-29T10:05:10.010Z', usage(3000, 2000, 300), usage(4000, 2000, 400)),
+      record('2026-10-29T10:05:20.000Z', 'resp_4', usage(4000, 3000, 400), usage(10000, 6000, 1000)),
+      count('2026-10-29T10:05:20.010Z', usage(4000, 3000, 400), usage(8000, 5000, 800)),
+    ])
+    expect([...batch.messages.keys()]).toEqual(['resp_1', 'resp_2', 'resp_3', 'resp_4'])
+  })
+
   it('writes the session with its launch and span, and none for a rollout without a single response', () => {
     const launches = launchMap([{ at: '2026-10-17T13:33:00.000Z', task: 'BTN-46', sessionId: SESSION, reason: 'relay' }] as never)
     const batch = build([meta(), context('2026-10-17T13:33:18.000Z', 'gpt-5.6-luna'), record('2026-10-17T13:34:34.201Z', 'resp_1', usage(10, 0, 5), usage(10, 0, 5))], launches)
