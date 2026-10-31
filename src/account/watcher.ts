@@ -181,6 +181,14 @@ export class AccountWatcher {
     }
   }
 
+  /**
+   * The agents whose CLI is not found right now. `view` names them as of the last poll, up to a minute old, while the
+   * page's CLI copy is read live: a CLI installed meanwhile closed the install window but left "CLI not found" (BTN-639).
+   */
+  missingNow(): string[] {
+    return this.options.missing()
+  }
+
   emailOf(key: string): string | null {
     return this.known.find((known) => known.home.key === key)?.status?.email ?? null
   }
