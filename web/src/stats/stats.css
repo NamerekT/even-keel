@@ -665,6 +665,39 @@
   border-radius: var(--radius-small);
 }
 
+/* The tasks' facts follow the sparkline, wrapping under the spend where the strip is short; a narrow screen keeps only the spend. */
+.strip__top {
+  display: flex;
+  gap: 16px;
+}
+
+.strip__task {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.strip__key {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.strip__key:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .strip__tasks {
+    display: none;
+  }
+}
+
 .strip__more {
   margin-left: auto;
   color: var(--accent);

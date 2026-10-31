@@ -69,7 +69,6 @@ export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
     <Sign sample={<span className="links__count"><KeyIcon /><span className="links__number">3</span></span>}>{t.help.card.dependents}</Sign>
     <Sign sample={<span className="chain"><BlockLockIcon /></span>}>{t.chain.lockedHint}</Sign>
     <Sign wide sample={<span className="tag">{model}</span>}>{t.help.card.model}</Sign>
-    <Sign wide sample={<span className="block__status">{t.help.samples.status}</span>}>{t.help.card.status}</Sign>
     <Sign sample={<ChangelogIcon />}>{t.help.card.milestone}</Sign>
     <Sign wide sample={<><Forge lamp="working" /><Forge lamp="fixed" /></>}>{t.help.card.forge}</Sign>
   </>

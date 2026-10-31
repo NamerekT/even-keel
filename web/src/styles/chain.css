@@ -469,12 +469,6 @@ a.button.pull-button__link {
   text-underline-offset: 3px;
 }
 
-.block__status {
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  white-space: nowrap;
-}
-
 .block__divider {
   grid-column: title;
   grid-row: 1 / -1;

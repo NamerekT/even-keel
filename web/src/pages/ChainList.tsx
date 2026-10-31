@@ -239,7 +239,6 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     arrival={arrival?.id === block.id ? arrival : null}
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
-                    onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
                     onDismiss={sending ? undefined : () => void send('chain/dismiss', { project, task: block.id })}
                     ready={block.locked ? ready(block) : null}
                     onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
@@ -346,11 +345,6 @@ function keyChars(blocks: ChainBlock[]): number {
   return Math.max(0, ...blocks.map((block) => block.id.length))
 }
 
-/** The lamp already tells done, canceled and not started apart; only "In Progress" from "In Review" needs the word. */
-function shownStatus(block: ChainBlock): string | null {
-  return block.stage === 'Active' ? block.status : null
-}
-
 /** A copy of a block that left the chain, kept until it folds away: into the archive line if the task closed. */
 function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: boolean; beat: number }) {
   const style = { '--beat': `${beat}ms` } as CSSProperties
@@ -363,7 +357,7 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
       </div>
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">{block.title}</p>
-      <div className="block__side">{shownStatus(block) !== null && <span className="block__status">{shownStatus(block)}</span>}</div>
+      <div className="block__side" />
     </li>
   )
 }
@@ -449,7 +443,6 @@ interface BlockProps {
   arrival: Arrival | null
   offset: Point | undefined
   onHover: (inside: boolean) => void
-  onReturn: (() => void) | undefined
   onDismiss: (() => void) | undefined
   ready: ReadyButton | null
   onReady: (() => void) | undefined
@@ -459,7 +452,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onDismiss, ready, onReady, onUnready, onCard } =
+  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -483,7 +476,6 @@ function Block(props: BlockProps) {
   // The ring takes the place of the current row's ▶, or the empty one of a row without a number.
   const ring = metered?.cache != null && (block.current || number === undefined) ? metered.cache : null
   const share = tier === 'past' ? null : estimateShare(block.estimate)
-  const status = shownStatus(block)
   const fix = isOwnName(block.id)
   const style = {
     ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
@@ -595,14 +587,8 @@ function Block(props: BlockProps) {
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
-        {status !== null && metered === null && block.start === null && <span className="block__status">{status}</span>}
         {metered !== null && !acting && (
           <BlockMetrics project={project} session={metered} sessions={block.sessions} scale={scale} ring={ring === null} />
-        )}
-        {block.skipped && (
-          <button type="button" className="button button--small block__return" disabled={onReturn === undefined} onClick={onReturn}>
-            {t.common.restore}
-          </button>
         )}
         {block.leftovers !== undefined && (
           <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
