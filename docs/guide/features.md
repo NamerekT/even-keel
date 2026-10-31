@@ -48,7 +48,9 @@ other spellings of those targets (`C:\`, `C:/`, `~/`, `~/*`, `$HOME/`, `../`, `.
 Copilot rule of your own is written `shell(<command>:*)` for a prefix; a `*` anywhere else in it matches nothing. What does not hold on Codex, as seen live: a command with a redirection (`2>&1`, `> file`),
 a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
 in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a
-refspec of another branch, merged flags (`-uf`, `-Rf`, `-r -f`) and `git -C <dir> push`. Chains joined by `;`, `&&` or `|` are
+refspec of another branch, merged flags (`-uf`, `-Rf`, `-r -f`) and git's options before `push` other than `-C .` and `--no-pager`
+(`git -C <dir> push`, `git -c <key=value> push`), and Copilot likewise catches only those two. Claude Code and OpenCode also deny
+the push rules behind any such options (`git -C <dir> push --force`). Chains joined by `;`, `&&` or `|` are
 checked command by command. Huly deletion tools are also denied natively for Claude, Copilot and OpenCode. OpenCode receives command
 glob denies and tracker tool denies in its session configuration. Its additional rules are command patterns, one
 per line: `*` matches any text and `?` one character (for example, `git reset --hard*`). Its default patterns cover
