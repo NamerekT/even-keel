@@ -209,7 +209,11 @@ function main(pipe: string, logFile: string, spillFile: string): void {
     log(`the pipe failed: ${error.message}`)
     process.exit(1)
   })
-  if (process.platform !== 'win32') rmSync(pipe, { force: true })
+  if (process.platform !== 'win32') {
+    rmSync(pipe, { force: true })
+    // A Unix socket outlives the process that listens on it; a named pipe goes with it.
+    process.once('exit', () => rmSync(pipe, { force: true }))
+  }
   server.listen(pipe, () => log(`listening on ${pipe}, pid ${process.pid}`))
   leaveIn(FIRST_HOST_MS)
 }
