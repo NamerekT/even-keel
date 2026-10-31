@@ -51,7 +51,8 @@ import { ModelOffers } from './ModelOffers.js'
 import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
-import { useModels } from './useModels.js'
+import { offersOf, useModelCatalog } from './useModels.js'
+import { useModelReset } from './modelReset.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
@@ -229,7 +230,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const leftover = unplaced(null, failure, config)
   const text = (key: string) => draft.edit[key] as string
   const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
-  const modelOffers = useModels(offered.map((provider) => text(`accounts.${provider}`)))
+  const models = useModelCatalog(offered.map((provider) => text(`accounts.${provider}`)))
   const titleOf = (id: GroupId) => t.shared[id]
   const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote }
   const groupTitle = (id: GroupId) => (
@@ -243,6 +244,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
+  useModelReset(
+    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: text(`accounts.${provider}`), model: text(`models.${provider}`) })),
+    models,
+    (providers) => editAll(providers.map((provider) => [`models.${provider}`, ''])),
+  )
   const save = async () => {
     if (next === undefined || base === undefined) return
     await send('settings', { ...next, base } as unknown as Record<string, unknown>)
@@ -407,7 +413,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             providers={offered}
             cell={(column, provider) => {
               const name = providerName(provider)
-              if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), modelOffers[text(`accounts.${provider}`)] ?? [])
+              if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), offersOf(models, text(`accounts.${provider}`)))
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
               // The CLI's source is switched at once, not with the form: the checked copy asks before its download. An
               // execution picked that runs only on the copy switches to it and locks it, before the form is saved.
