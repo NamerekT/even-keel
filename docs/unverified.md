@@ -78,6 +78,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
 | 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly and Linear profiles; a GitHub token that cannot write labels | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
+| 37i | [The task card's run label pick](#the-task-cards-run-label-pick-btn-508) | projects with run labels on, picking the model from the card | the card shows the old pick after a save until the next read; refresh the project |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
@@ -668,6 +669,10 @@ Fixture tests cover label removal/addition, creation of missing definitions, cas
 - Linear: on a scratch team issue, reuse a workspace label, create a team label and swap labels. Verify a group is never attached and a refused mutation reaches the page as `task.relabelFailed`.
 
 On each setup, call `POST /api/task/labels` for a loaded task (also one from a feed), check that `trackers[].relabel` is true and the state event already has the saved labels and their model/question meaning before the next poll. Assumed: the fixture shapes match the provider's deployed schema and collection triggers. If wrong, the labels or chain rules can be stale, a missing label is not created, or an operation fails after a partial change. **Workaround:** refresh and inspect the issue in its tracker, edit the labels there, then refresh the project. A new definition may remain after a refused assignment; check it before retrying.
+
+### The task card's run label pick (BTN-508)
+
+Checked only on `dev:fake` (`?modelLabels=on`, `?card=readonly`) and by the tests of `runPickOf`/`runPickChange`. Not seen on the service: on a Huly task of a project with run labels on, pick a provider and a model in the card, save, and check that the tracker has exactly one run label (a task with two first: both replaced), the card and the chain row show it at once, and the next session of the task starts on that model; then "As the project" takes it off. Assumed: the label write of BTN-507 and the card's fresh read return the new labels before the next poll. If wrong, the card shows the old pick after a save until the tracker is read again. **Workaround:** refresh the project, or edit the label in the tracker.
 
 ### Your own skills as a package (BTN-339)
 
