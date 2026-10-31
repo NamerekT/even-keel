@@ -74,6 +74,8 @@ export function sameNotice(a: Notice | null, b: Notice | null): boolean {
   return a === b || (a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b))
 }
 
+// A head that is a whole sentence ("…, then resume the chain.") takes its tail as the next one, not after a colon.
 function joined(head: string, tail: string): string {
-  return tail.includes('\n') ? `${head}:\n${tail}` : `${head}: ${tail}`
+  const mark = /[.!?]$/.test(head) ? '' : ':'
+  return tail.includes('\n') ? `${head}${mark}\n${tail}` : `${head}${mark} ${tail}`
 }
