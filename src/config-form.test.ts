@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -337,6 +337,24 @@ describe('withFeed and withoutFeed (BTN-66)', () => {
     const raw = { projects: [abc({ feeds: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] })] }
     expect(withoutFeed(raw, 'id-abc', 'feed-1')).toEqual({ projects: [abc()] })
     expect(() => withoutFeed(raw, 'id-abc', 'feed-2')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownFeed' }) }))
+  })
+})
+
+describe('withFeedRules (BTN-553)', () => {
+  const ideas = { id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }
+
+  it("writes the feed's own rule keys, cleaned, the other feeds and the project left as they are", () => {
+    const other = { id: 'feed-2', tracker: 'huly', key: 'HUL', chain: { active: ['Todo'] } }
+    const raw = { projects: [abc({ chain: { active: ['Ready'] }, feeds: [ideas, other] })] }
+    const next = withFeedRules(raw, 'id-abc', 'feed-1', { active: [' triage ', '', 'triage'], terminal: null, requiredLabels: undefined, excludedMilestones: ['Someday'] })
+    expect(next.projects).toEqual([abc({ chain: { active: ['Ready'] }, feeds: [{ ...ideas, chain: { active: ['triage'], terminal: null, excludedMilestones: ['Someday'] } }, other] })])
+    expect(parseConfig(next).feeds['id-abc']![0]!.chain).toEqual({ active: ['triage'], terminal: null, excludedMilestones: ['Someday'] })
+  })
+
+  it('drops the key once the feed sets no rule, and refuses a feed the project lacks', () => {
+    const raw = { projects: [abc({ feeds: [{ ...ideas, chain: { active: ['triage'] } }] })] }
+    expect(withFeedRules(raw, 'id-abc', 'feed-1', {}).projects).toEqual([abc({ feeds: [ideas] })])
+    expect(() => withFeedRules(raw, 'id-abc', 'feed-2', {})).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownFeed' }) }))
   })
 })
 

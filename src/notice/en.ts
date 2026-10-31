@@ -480,6 +480,8 @@ export const en = {
     `config: the chain has started tasks of ${p.key}, so its tracker and profile stay; tasks of another tracker come in through a task feed`,
   'config.feeds': (p: { where: string }) => `config: ${p.where} must be a list of task feeds, each an object with its id, tracker and key`,
   'config.feedField': (p: { where: string; field: string }) => `config: ${p.where} needs its ${p.field}`,
+  'config.feedRules': (p: { where: string; keys: string[] }) =>
+    `config: ${p.where} must be an object of chain rules (${p.keys.join(', ')}), each a list of names; active and terminal may be null`,
   'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
     `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
   'config.feedPlace': (p: { project: string; other: string }) =>

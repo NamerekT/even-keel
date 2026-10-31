@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
@@ -107,6 +107,11 @@ export class ConfigStore {
     const id = randomUUID()
     this.write(withFeed(this.raw(), this.idOf(project), { id, ...draft }))
     return id
+  }
+
+  /** Writes the feed's own chain rule keys (BTN-553), by the same rule as `saveProject`. */
+  saveFeedRules(project: string, feed: string, rules: Partial<ChainRules>): void {
+    this.write(withFeedRules(this.raw(), this.idOf(project), feed, rules))
   }
 
   /** Drops the project's feed, by the same rule as `saveProject`. */

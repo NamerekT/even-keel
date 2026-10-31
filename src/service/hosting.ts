@@ -15,7 +15,7 @@ import { mergeCheck } from '../chain/mainci.js'
 import { pullReadiness } from '../review/open.js'
 import { archivedShown } from '../chain/archive.js'
 import { ConfigStore } from '../config-store.js'
-import { idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, runSettings } from '../config.js'
+import { idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
 import { guardHosts, guardToken } from '../guard.js'
@@ -32,6 +32,7 @@ import { mailFor } from '../sessions/mailRelay.js'
 import { noteAtEnd } from '../sessions/note.js'
 import { root, source } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
+import { cleanRules, projectRules } from '../profiles/rules.js'
 import { profilesControl } from '../profiles/control.js'
 import type { EvenKeelState } from '../state.js'
 import { withinWindow } from '../stats/checkpoint.js'
@@ -309,6 +310,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         if (found === undefined) throw fail('config.unknownFeed', {})
         if (ctx.lockedReaders().includes(feed)) throw fail('config.feedLocked', { project: projectLabel(ctx.configStore.current, project), key: found.key })
         ctx.profiles.link(feed, profile, true)
+      },
+      feedRules: (project, feed, rules) => {
+        const found = ctx.configStore.current.feeds[project]?.find((each) => each.id === feed)
+        if (found === undefined) throw fail('config.unknownFeed', {})
+        projectRules(ctx.configStore.current, ctx.profiles.current(), project, { ...found, chain: cleanRules(rules, RULE_KEYS) })
+        ctx.configStore.saveFeedRules(project, feed, rules)
+        console.log(`page: the chain rules of the task feed ${found.key} of ${projectLabel(ctx.configStore.current, project)} are written to the config`)
       },
       dismissUpdate: (version) => {
         ctx.dismissedUpdate = version

@@ -4,7 +4,7 @@ import { saveQuestions } from '../chain/store.js'
 import { parseRemote } from '../ci/remote.js'
 import { intakeRepo } from '../intake/github.js'
 import { Intake, type IntakePlace } from '../intake/intake.js'
-import { idPrefixOf, ownerOf, projectLabel, readerIds, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
+import { feedRules, idPrefixOf, ownerOf, projectLabel, readerIds, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
 import { profileFor } from '../profiles/model.js'
 import { projectRules } from '../profiles/rules.js'
@@ -60,15 +60,16 @@ type TrackersContext = Pick<ServiceContext,
 export function wireReaderRules(ctx: TrackersContext): (reader: string) => import("../chain/rules.js").ChainRules {
   return (reader: string) => {
     const project = ctx.ownerOfReader(reader)
+    const feed = ctx.feedOf(reader)
     try {
-      const rules = projectRules(ctx.configStore.current, ctx.profiles.current(), project, ctx.feedOf(reader))
+      const rules = projectRules(ctx.configStore.current, ctx.profiles.current(), project, feed)
       ctx.rulesClashes.delete(reader)
       return rules
     } catch (error) {
       const text = englishOf(noticeOf(error))
       if (ctx.rulesClashes.get(reader) !== text) console.log(`rules: the tracker profile's rules are left out: ${text}`)
       ctx.rulesClashes.set(reader, text)
-      return ctx.configStore.current.rules[project]!
+      return feed === undefined ? ctx.configStore.current.rules[project]! : feedRules(ctx.configStore.current, feed)
     }
   }
 }
