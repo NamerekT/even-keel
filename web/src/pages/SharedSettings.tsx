@@ -2,7 +2,7 @@ import { Fragment, useEffect, type ReactNode } from 'react'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { protectionOf, protectionText } from './protectionDraft.js'
 import { useSearchParams } from 'react-router'
-import { EXECUTION_MODES, needsCheckedCli } from '../../../src/agent/providers.js'
+import { EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CliSourceChoice } from '../layout/CliSource.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
@@ -416,10 +416,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), offersOf(models, text(`accounts.${provider}`)))
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
               // The CLI's source is switched at once, not with the form: the checked copy asks before its download. An
-              // execution picked that runs only on the copy switches to it and locks it, before the form is saved.
+              // execution picked that runs only on the copy switches to it and locks it, before the form is saved; one moved
+              // off keeps the lock until the form is saved, or the service refuses the switch.
               if (column === 'cli') {
                 if (!state.cliCopies?.[provider]) return null
-                return <CliSourceChoice provider={provider} label={t.shared.cliOf(name)} locked={needsCheckedCli(provider, text(`execution.${provider}`))} />
+                return <CliSourceChoice provider={provider} label={t.shared.cliOf(name)} execution={text(`execution.${provider}`)} />
               }
               const modes = EXECUTION_MODES[provider]
               return modes === undefined
