@@ -180,7 +180,7 @@ export class RolloutFold {
     this.touch(at)
     const transient = isTransientError(text) || (typeof code === 'string' && isTransientError(code))
     this.apiError = { kind: CREDIT_TEXT.test(text) ? 'credit' : transient ? 'transient' : LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
-    this.addFeed({ at, kind: 'error', text })
+    this.addAction({ at, kind: 'error', text })
   }
 
   /** `tail` marks an item of a turn that has already ended, such as a command its end killed: it keeps the turn's error and marks. */

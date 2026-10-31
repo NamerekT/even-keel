@@ -186,6 +186,13 @@ describe('TranscriptFold', () => {
     expect(summary.action).toMatchObject({ kind: 'text', text: 'All tests pass.' })
   })
 
+  it('makes an API error the current action until the session acts again', () => {
+    const lines = [assistant('m1', [tool('Bash', { command: 'npm test', description: 'Run the test suite' })]), apiError('rate_limit', "You've hit your session limit · resets 1:30am")]
+    expect(fold(lines).summary().action).toMatchObject({ kind: 'error', text: "You've hit your session limit · resets 1:30am" })
+    expect(fold([apiError('rate_limit', "You've hit your session limit · resets 1:30am")]).summary().action).toMatchObject({ kind: 'error' })
+    expect(fold([...lines, assistant('m2', [text('Back to work.')])]).summary().action).toMatchObject({ kind: 'text', text: 'Back to work.' })
+  })
+
   it('summarises tool inputs briefly', () => {
     const summary = fold([
       assistant('m1', [

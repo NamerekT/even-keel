@@ -287,7 +287,7 @@ export class CopilotFold {
     const kind = data.errorCode === 'billing_not_configured' || CREDIT_TEXT.test(brief) ? 'credit' : transient ? 'transient' : (known ?? (LIMIT_TEXT.test(brief) ? 'limit' : 'error'))
     this.apiError = { kind, text: brief, at }
     this.running.clear()
-    this.addFeed({ at, kind: 'error', text: brief })
+    this.addAction({ at, kind: 'error', text: brief })
   }
 
   /** The chat's messages handed to the session, as the user's prompts, each id once; whether `text` held any. */

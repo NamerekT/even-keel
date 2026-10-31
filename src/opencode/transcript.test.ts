@@ -98,6 +98,7 @@ describe('foldSession', () => {
       [promptText],
     )
     expect(summary.apiError).toMatchObject({ kind: 'limit', text: 'Rate limit reached for requests' })
+    expect(summary.action).toMatchObject({ kind: 'error', text: 'Rate limit reached for requests' })
     const other = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error: { name: 'UnknownError', data: {} } }))], [promptText])
     expect(other.apiError).toMatchObject({ kind: 'error', text: 'UnknownError' })
   })

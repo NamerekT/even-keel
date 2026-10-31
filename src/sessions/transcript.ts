@@ -279,7 +279,7 @@ export class TranscriptFold {
     if (entry.isApiErrorMessage === true) {
       const text = flatten(blocks.map((block) => block.text ?? '').join(' '), TEXT_LIMIT) || String(entry.error)
       this.apiError = { kind: isSpendingLimit(text) ? 'spend' : API_ERROR_KINDS.get(entry.error) ?? (isTransientError(text) ? 'transient' : 'error'), text, at }
-      this.addFeed({ at, kind: 'error', text })
+      this.addAction({ at, kind: 'error', text })
       return
     }
     if (entry.message?.model === '<synthetic>') return
@@ -361,7 +361,7 @@ export class TranscriptFold {
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
       this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }
-      this.addFeed({ at, kind: 'error', text: WRAP_UP_TEXT })
+      this.addAction({ at, kind: 'error', text: WRAP_UP_TEXT })
     } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
       this.wrapUp = null
       this.checkpoint = null

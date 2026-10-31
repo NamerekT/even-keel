@@ -198,6 +198,7 @@ describe('RolloutFold', () => {
     expect(fold([event({ type: 'error', message: 'stream disconnected' })]).summary().apiError).toMatchObject({ kind: 'error', text: 'stream disconnected' })
     const limit = fold([event({ type: 'error', message: "You've hit your usage limit. Try again later." })]).summary()
     expect(limit.apiError?.kind).toBe('limit')
+    expect(limit.action).toMatchObject({ kind: 'error', text: "You've hit your usage limit. Try again later." })
     expect(limit.feed.at(-1)?.kind).toBe('error')
   })
 

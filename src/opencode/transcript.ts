@@ -265,7 +265,7 @@ class SessionFold {
     const diagnostic = kind === 'model' ? notice('chain.modelUnavailable', { model: this.model ?? (refused === undefined ? 'OpenAI' : `openai/${refused}`) }) : error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
     const text = diagnostic === undefined ? brief : englishOf(diagnostic)
     this.apiError = { kind, text, at, ...(diagnostic === undefined ? {} : { notice: diagnostic }) }
-    this.addFeed({ at, kind: 'error', text, ...(diagnostic === undefined ? {} : { notice: diagnostic }) })
+    this.addAction({ at, kind: 'error', text, ...(diagnostic === undefined ? {} : { notice: diagnostic }) })
   }
 
   /** The chat's messages handed to the session, as the user's prompts, each id once; whether `text` held any. */
