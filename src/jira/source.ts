@@ -2,7 +2,7 @@ import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import { fail } from '../notice/notice.js'
 import { commentsAfterId } from '../tracker/comments.js'
-import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
 import { JiraApi } from './api.js'
@@ -137,18 +137,21 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     return comments
   }
 
-  async function ready(id: string): Promise<TaskStatus | null> {
+  /** Through the workflow's first transition from one of `from` into `to`; `null` — the issue is in none of `from`. */
+  async function move(id: string, from: StatusCategory[], to: StatusCategory, wanted: string): Promise<TaskStatus | null> {
     const { fields } = await issueOf(id, ['status'])
     const catalogs = new Map<string, Promise<JiraStatus[]>>()
     await resolveStatuses([{ key: id, fields }], catalogs)
-    if (jiraStatus(fields.status).category !== 'UnStarted') return null
+    if (!from.includes(jiraStatus(fields.status).category)) return null
     const transitions = await transitionsOf(id)
     await resolveStatuses(transitions.map((each) => ({ key: id, fields: { summary: '', status: each.to } })), catalogs)
-    const to = transitions.find((each) => jiraStatus(each.to).category === 'ToDo')
-    if (to === undefined) throw new Error(`jira: ${id} has no transition from ${fields.status.name} to a ready status`)
-    await transition(id, to)
-    return jiraStatus(to.to)
+    const found = transitions.find((each) => jiraStatus(each.to).category === to)
+    if (found === undefined) throw new Error(`jira: ${id} has no transition from ${fields.status.name} to a ${wanted} status`)
+    await transition(id, found)
+    return jiraStatus(found.to)
   }
+
+  const ready = (id: string) => move(id, ['UnStarted'], 'ToDo', 'ready')
 
   return {
     async chainTasks(project, open) {
@@ -220,6 +223,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     },
 
     ready,
+    unready: (id) => move(id, ['ToDo', 'Active'], 'UnStarted', 'backlog'),
 
     async relabel(id, change) {
       const issue = await issueOf(id, ['labels'])

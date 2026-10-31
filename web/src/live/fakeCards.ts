@@ -82,6 +82,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     comments: plain ? [] : COMMENTS.map((comment, index) => ({ ...comment, at: Date.now() - (COMMENTS.length - index) * 3_600_000 })),
     attachments: plain ? [] : ATTACHMENTS,
     ready: task.status.category === 'UnStarted',
+    unready: task.status.category === 'ToDo' || task.status.category === 'Active',
     requires: [],
     milestones: { current: task.milestone?.label ?? null, choices: fakeMilestones(state, id) },
   }
@@ -120,5 +121,16 @@ export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {
     ...state.chain.projects,
     [project]: { ...order, order: placed, waiting: order.waiting.filter((each) => each !== id), backlog: order.backlog.filter((each) => each !== id), landing, landingMilestones },
   }
+  return { ...state, tasks, chain: { ...state.chain, projects } }
+}
+
+export function fakeUnready(state: EvenKeelState, id: string): EvenKeelState {
+  const task = state.tasks.find((each) => each.id === id)
+  if (task === undefined || (task.status.category !== 'ToDo' && task.status.category !== 'Active')) throw fail('task.inBacklog', { task: id })
+  const project = id.split('-')[0]!
+  const order = state.chain.projects[project]
+  const tasks: ProjectTask[] = state.tasks.map((each) => (each.id === id ? { ...each, status: { name: 'Backlog', category: 'UnStarted' } } : each))
+  if (order === undefined) return { ...state, tasks }
+  const projects = { ...state.chain.projects, [project]: { ...order, order: order.order.filter((each) => each !== id), backlog: [...order.backlog, id] } }
   return { ...state, tasks, chain: { ...state.chain, projects } }
 }

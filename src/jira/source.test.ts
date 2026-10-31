@@ -173,6 +173,18 @@ describe('Jira task source', () => {
     expect(await source.ready!('ABC-1')).toBeNull()
   })
 
+  it('moves a ready or started issue back to the first backlog status and leaves a backlog one alone', async () => {
+    const { source, calls } = await connect([
+      { body: { fields: { status: PROGRESS } } },
+      { body: { transitions: [{ id: '11', name: 'Ready', to: TODO }, { id: '31', name: 'Park', to: BACKLOG }] } },
+      { status: 204 },
+      { body: { fields: { status: BACKLOG } } },
+    ])
+    expect(await source.unready!('ABC-1')).toEqual({ name: 'Backlog', category: 'UnStarted' })
+    expect(calls[4]!.body).toEqual({ transition: { id: '31' } })
+    expect(await source.unready!('ABC-1')).toBeNull()
+  })
+
   it('posts a comment as ADF and reads the later ones as Markdown with their files', async () => {
     const media = { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: '1' }] }, { type: 'mediaSingle', content: [{ type: 'media', attrs: { id: 'm', alt: 'log.txt' } }] }] }
     const { source, calls } = await connect([

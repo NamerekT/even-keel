@@ -138,9 +138,20 @@ describe('Dispatcher', () => {
   })
 
   it('tells no place for a backlog task the chain would still not take', () => {
-    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
-    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['ready'] }, task('ABC-2', backlog), { ...task('ABC-3', backlog), labels: ['ready'] }])
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'], excludedLabels: ['Manual'] } } })
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['ready'] }, { ...task('ABC-2', backlog), labels: ['ready', 'Manual'] }, { ...task('ABC-3', backlog), labels: ['ready'] }])
     expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': null })
+  })
+
+  it('places a task without the required label as "Into the chain" would let it in, with the label on', () => {
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['ready'] }, { ...task('ABC-2'), priority: 'urgent' }, task('ABC-3', backlog)])
+    expect(dispatcher.orders()['ABC']).toMatchObject({
+      order: ['ABC-1'],
+      backlog: ['ABC-2', 'ABC-3'],
+      landing: { 'ABC-2': 'ABC-1', 'ABC-3': null },
+      requiredLabel: { 'ABC-1': true, 'ABC-2': false, 'ABC-3': false },
+    })
   })
 
   it('tells the place of a waiting blocker the chain would take, but not of one it would not', () => {
@@ -185,7 +196,14 @@ describe('Dispatcher', () => {
   it('lists in the backlog the tasks still without a required label', () => {
     const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
     dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2'), labels: ['ready'] }])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2'], waiting: [], backlog: ['ABC-1'], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({
+      order: ['ABC-2'],
+      waiting: [],
+      backlog: ['ABC-1'],
+      landing: { 'ABC-1': 'ABC-2' },
+      requiredLabel: { 'ABC-1': false, 'ABC-2': true },
+      error: null,
+    })
   })
 
   it('stops waiting for a current task returned to backlog once its session is not mid-turn', async () => {

@@ -215,6 +215,12 @@ export interface ProjectOrder {
   landingMilestones?: Record<string, TaskMilestone>
   /** Those of them whose move would leave the chain without an order, with the reason. Set when there are any. */
   refused?: Record<string, Notice>
+  /**
+   * For the chain's, the backlog's and the waiting tasks whose rules require a label: `true` — the task has one, "To the
+   * backlog" takes them off; `false` — it has none, "Into the chain" puts one on (BTN-509). A task an excluded label keeps out
+   * is not listed. Set when there are any.
+   */
+  requiredLabel?: Record<string, boolean>
   /** The project's tasks with a pull request open or closed but not cleaned up after; set when there are any. */
   reviews?: ReviewView[]
   error: Notice | null

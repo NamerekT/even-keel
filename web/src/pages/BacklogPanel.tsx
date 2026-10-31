@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import type { TaskWork, TrackerUrls } from '../../../src/state.js'
-import type { Notice } from '../../../src/notice/notice.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { issueLink, type TaskLinks } from '../state.js'
+import { issueLink, type ReadyButton, type TaskLinks } from '../state.js'
 import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
@@ -54,10 +53,8 @@ interface Props {
   /** The work left in the tasks' folders, by task. */
   works: Record<string, TaskWork>
   trackerUrls: TrackerUrls
-  /** The project's tracker can move a backlog task to Todo. */
-  canReady: boolean
-  /** Why a task cannot be moved to Todo: the chain would lose its order. */
-  refused: Record<string, Notice>
+  /** The task's "Into the chain" button, `null` for none. */
+  ready: (task: Task) => ReadyButton | null
   links: (task: string) => TaskLinks
   onCard: (task: string) => void
   onClose: () => void
@@ -70,7 +67,7 @@ interface Props {
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, works, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, works, trackerUrls, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -119,7 +116,7 @@ export function BacklogPanel({ tasks, works, trackerUrls, canReady, refused, lin
       <p className="chain__hint">{t.project.backlogHint}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ol
-        className={canReady ? 'backlog__list backlog__list--ready' : 'backlog__list'}
+        className={rows.some((task) => buttonOf(task) !== null) ? 'backlog__list backlog__list--ready' : 'backlog__list'}
         onMouseMove={pointAt}
         onFocus={pointAt}
         onMouseLeave={() => onPoint(null)}
@@ -127,18 +124,19 @@ export function BacklogPanel({ tasks, works, trackerUrls, canReady, refused, lin
       >
         {rows.map((task) => {
           const link = issueLink(trackerUrls, task.id)
-          const reason = refused[task.id]
+          const button = buttonOf(task)
+          const reason = button?.refused ?? null
           const gone = task.id === leaving || task.id === out?.task.id
           return (
             <li key={task.id} className={`backlog__row backlog__row--${task.priority}${gone ? ' backlog__row--leaving' : ''}`}>
-              {canReady && task.status.category === 'UnStarted' && (
+              {button !== null && (
                 <button
                   type="button"
                   className="backlog__ready"
-                  disabled={sending || reason !== undefined}
+                  disabled={sending || reason !== null}
                   aria-label={t.card.ready}
-                  title={reason === undefined ? undefined : t.chain.readyRefused(say(reason))}
-                  data-ready={reason === undefined ? task.id : undefined}
+                  title={reason === null ? undefined : t.chain.readyRefused(say(reason))}
+                  data-ready={reason === null ? task.id : undefined}
                   onClick={() => ready(task)}
                 >
                   <IntoChainIcon />

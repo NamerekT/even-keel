@@ -20,6 +20,8 @@ export interface TrackerView {
   ready: boolean
   /** The connected adapter can edit task labels. */
   relabel?: boolean
+  /** The connected adapter can move a ready or started task back to the backlog status. */
+  unready?: boolean
   health: TrackerHealth
   /** When each reader's tasks were last read in full, by its id (a project's, or a feed's); one not read yet has none. */
   readAt: Record<string, string>
