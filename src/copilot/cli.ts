@@ -16,7 +16,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { eventsFile, parseAuth, tokenFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
 import { protectionRules } from '../sessions/protection.js'
-import { modelRefusal, outputError, type TurnError } from './errors.js'
+import { outputError, refusalNotice, type TurnError } from './errors.js'
 
 const run = promisify(execFile)
 
@@ -257,7 +257,7 @@ export class CopilotCli {
       if (child.pid !== undefined && ((await size(transcript)) > before || (exited && sessionOf(text) === session.id))) return { pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
-        const refusal = modelRefusal(outputError(text) ?? '')
+        const refusal = refusalNotice(outputError(text) ?? '')
         if (refusal !== undefined) throw new NoticeError(refusal)
         throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
       }
