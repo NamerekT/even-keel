@@ -33,49 +33,59 @@ describe('addOf', () => {
     expect(addOf(search('step=agent'))).toBeNull()
   })
 
+  it("stays closed on the add dialog of /tools (BTN-629)", () => {
+    expect(addOf(search('projects=A&add=huly%40even-keel'))).toBeNull()
+    expect(addOf(search('add=&way=apiKey'))).toBeNull()
+  })
+
   it('opens on the provider pick when the provider is not given or not known', () => {
-    expect(addOf(search('add='))).toEqual({ provider: null, way: null })
-    expect(addOf(search('add'))).toEqual({ provider: null, way: null })
-    expect(addOf(search('add=gemini&way=apiKey'))).toEqual({ provider: null, way: null })
+    expect(addOf(search('addAccount='))).toEqual({ provider: null, way: null })
+    expect(addOf(search('addAccount'))).toEqual({ provider: null, way: null })
+    expect(addOf(search('addAccount=gemini&addWay=apiKey'))).toEqual({ provider: null, way: null })
   })
 
   it("takes the provider's way, its first when not given or not its own", () => {
-    expect(addOf(search('add=codex&way=apiKey'))).toEqual({ provider: 'codex', way: WAYS.codex[1] })
-    expect(addOf(search('add=codex'))).toEqual({ provider: 'codex', way: WAYS.codex[0] })
-    expect(addOf(search('add=claude&way=machine'))).toEqual({ provider: 'claude', way: WAYS.claude[0] })
-    expect(addOf(search('add=opencode&way=free'))?.way?.id).toBe('free')
+    expect(addOf(search('addAccount=codex&addWay=apiKey'))).toEqual({ provider: 'codex', way: WAYS.codex[1] })
+    expect(addOf(search('addAccount=codex'))).toEqual({ provider: 'codex', way: WAYS.codex[0] })
+    expect(addOf(search('addAccount=claude&addWay=machine'))).toEqual({ provider: 'claude', way: WAYS.claude[0] })
+    expect(addOf(search('addAccount=opencode&addWay=free'))?.way?.id).toBe('free')
   })
 })
 
 describe('withAdd', () => {
   it("opens the dialog over the page's own address, keeping its parameters", () => {
-    expect(withAdd('?step=agent&projects=none', 'codex')).toBe('?step=agent&projects=none&add=codex')
-    expect(withAdd('', 'claude', 'apiKey')).toBe('?add=claude&way=apiKey')
-    expect(withAdd('', null)).toBe('?add=')
+    expect(withAdd('?step=agent&projects=none', 'codex')).toBe('?step=agent&projects=none&addAccount=codex')
+    expect(withAdd('', 'claude', 'apiKey')).toBe('?addAccount=claude&addWay=apiKey')
+    expect(withAdd('', null)).toBe('?addAccount=')
   })
 
   it('replaces a way of another step', () => {
-    expect(withAdd('?add=claude&way=apiKey', null)).toBe('?add=')
-    expect(withAdd('?add=claude&way=apiKey', 'claude', 'subscription')).toBe('?add=claude&way=subscription')
+    expect(withAdd('?addAccount=claude&addWay=apiKey', null)).toBe('?addAccount=')
+    expect(withAdd('?addAccount=claude&addWay=apiKey', 'claude', 'subscription')).toBe('?addAccount=claude&addWay=subscription')
   })
 
   it("closes back to the page's own address", () => {
-    expect(withoutAdd('?step=agent&add=codex&way=apiKey')).toBe('?step=agent')
-    expect(withoutAdd('?add=')).toBe('')
+    expect(withoutAdd('?step=agent&addAccount=codex&addWay=apiKey')).toBe('?step=agent')
+    expect(withoutAdd('?addAccount=')).toBe('')
+  })
+
+  it("leaves the add dialog of /tools alone (BTN-629)", () => {
+    expect(withAdd('?projects=A&add=huly%40even-keel', null)).toBe('?projects=A&add=huly%40even-keel&addAccount=')
+    expect(withoutAdd('?projects=A&add=huly%40even-keel&addAccount=codex&addWay=apiKey')).toBe('?projects=A&add=huly%40even-keel')
   })
 })
 
 describe('legacyAdd', () => {
   it('sends the old add page to the accounts list with the dialog open', () => {
-    expect(legacyAdd(search(''))).toBe('/accounts?add=')
-    expect(legacyAdd(search('provider=codex&back=%2Fsetup%3Fstep%3Dagent'))).toBe('/accounts?add=codex')
+    expect(legacyAdd(search(''))).toBe('/accounts?addAccount=')
+    expect(legacyAdd(search('provider=codex&back=%2Fsetup%3Fstep%3Dagent'))).toBe('/accounts?addAccount=codex')
   })
 
   it("takes its connection as the provider's way", () => {
-    expect(legacyAdd(search('provider=claude&connection=apiKey'))).toBe('/accounts?add=claude&way=apiKey')
-    expect(legacyAdd(search('provider=copilot&connection=apiKey'))).toBe('/accounts?add=copilot&way=token')
-    expect(legacyAdd(search('provider=opencode&connection=cli'))).toBe('/accounts?add=opencode')
-    expect(legacyAdd(search('provider=gemini&connection=apiKey'))).toBe('/accounts?add=')
+    expect(legacyAdd(search('provider=claude&connection=apiKey'))).toBe('/accounts?addAccount=claude&addWay=apiKey')
+    expect(legacyAdd(search('provider=copilot&connection=apiKey'))).toBe('/accounts?addAccount=copilot&addWay=token')
+    expect(legacyAdd(search('provider=opencode&connection=cli'))).toBe('/accounts?addAccount=opencode')
+    expect(legacyAdd(search('provider=gemini&connection=apiKey'))).toBe('/accounts?addAccount=')
   })
 })
 
