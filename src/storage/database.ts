@@ -28,7 +28,8 @@ export interface Queryable {
  * and the profile and status of an archived task (BTN-66); step 13 gives each project without a `tracker` row of its own
  * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
- * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558). A foreign key between tables is deferred, so that a copy inserts the
+ * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
+ * of its feeds (BTN-553). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -277,6 +278,23 @@ export const STEPS: readonly string[] = [
   // Why a chat message came back (BTN-558): the session asked, is gone, or the task is over for the chain.
   `
   alter table mailbox add column reason text check (reason in ('asked', 'gone', 'closed'));
+  `,
+  // A feed keeps its own chain rules and the project's no longer reach its tasks (BTN-553): each feed without its own
+  // gets a copy of the project's rule rows, so it takes the same tasks as before.
+  `
+  update projects p
+     set feeds = (
+       select jsonb_agg(case when f ? 'chain' then f else f || jsonb_build_object('chain', own.rules) end order by n)::text
+         from jsonb_array_elements(p.feeds::jsonb) with ordinality as e(f, n)
+     )
+    from (
+      select project_id, jsonb_object_agg(substr(key, 7), value::jsonb) as rules
+        from setting_values
+       where key in ('chain.active', 'chain.terminal', 'chain.requiredLabels', 'chain.excludedLabels', 'chain.requiredMilestones', 'chain.excludedMilestones')
+         and project_id is not null and qualifier = ''
+       group by project_id
+    ) own
+   where own.project_id = p.id and p.feeds <> '[]';
   `,
 ]
 

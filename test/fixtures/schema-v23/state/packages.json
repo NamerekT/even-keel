@@ -1,0 +1,120 @@
+{
+  "version": 23,
+  "packages": {
+    "huly@even-keel": {
+      "kind": "plugin",
+      "plugin": {
+        "name": "huly",
+        "marketplace": "even-keel"
+      },
+      "default": true,
+      "settings": {},
+      "installs": [
+        {
+          "id": "a1b2c3",
+          "version": "0.4.1",
+          "at": "2026-10-16T09:00:00.000Z",
+          "servers": {
+            "huly": {
+              "entry": {
+                "command": "node",
+                "args": [
+                  "C:\\even-keel\\state\\packages\\huly@even-keel\\a1b2c3\\servers\\huly\\node_modules\\@firfi\\huly-mcp\\dist\\index.cjs"
+                ],
+                "env": {
+                  "HULY_URL": "${HULY_URL}",
+                  "HULY_EMAIL": "${HULY_EMAIL}",
+                  "HULY_PASSWORD": "${HULY_PASSWORD}",
+                  "TOOLSETS": "issues,projects"
+                }
+              },
+              "npm": {
+                "name": "@firfi/huly-mcp",
+                "version": "0.53.0"
+              }
+            }
+          },
+          "extras": true
+        },
+        {
+          "id": "d4e5f6",
+          "version": "0.4.2",
+          "at": "2026-10-17T09:00:00.000Z",
+          "servers": {
+            "huly": {
+              "entry": {
+                "command": "node",
+                "args": [
+                  "C:\\even-keel\\state\\packages\\huly@even-keel\\d4e5f6\\servers\\huly\\node_modules\\@firfi\\huly-mcp\\dist\\index.cjs"
+                ],
+                "env": {
+                  "HULY_URL": "${HULY_URL}",
+                  "HULY_EMAIL": "${HULY_EMAIL}",
+                  "HULY_PASSWORD": "${HULY_PASSWORD}",
+                  "TOOLSETS": "issues,projects,comments"
+                }
+              },
+              "npm": {
+                "name": "@firfi/huly-mcp",
+                "version": "0.53.1"
+              }
+            }
+          },
+          "extras": true
+        }
+      ]
+    },
+    "github": {
+      "kind": "mcp",
+      "server": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/",
+        "headers": {
+          "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        }
+      },
+      "default": false,
+      "settings": {},
+      "installs": [
+        {
+          "id": "g7h8i9",
+          "version": null,
+          "at": "2026-10-17T09:05:00.000Z",
+          "servers": {
+            "github": {
+              "entry": {
+                "type": "http",
+                "url": "https://api.githubcopilot.com/mcp/",
+                "headers": {
+                  "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                }
+              },
+              "npm": null
+            }
+          },
+          "extras": false
+        }
+      ]
+    }
+  },
+  "projects": {
+    "22222222-2222-4222-8222-222222222222": {
+      "on": [
+        "github"
+      ],
+      "off": [],
+      "settings": {
+        "huly@even-keel": {
+          "TOOLSETS": "issues"
+        }
+      }
+    }
+  },
+  "pins": {
+    "11111111-1111-4111-8111-111111111111": {
+      "ABC-2": {
+        "huly@even-keel": "a1b2c3"
+      }
+    }
+  }
+}
