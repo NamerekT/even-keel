@@ -3,7 +3,7 @@ import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CODEX_ACCOUNT, GLOBAL_ACCOUNT } from '../account/model.js'
 import { isTransport } from '../account/transport.js'
-import { parseConfig, withIds } from '../config.js'
+import { parseConfig, RULE_KEYS, withIds } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
 import { packageOverrides } from './package-settings.js'
@@ -148,7 +148,24 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const windows = version < 19 ? configV19(prompts) : prompts
   const groups = version < 20 ? trackerGroupsOwned(windows) : windows
   const cli = version < 21 ? cliChecked(groups) : groups
-  return version < 22 ? sdkChecked(cli) : cli
+  const sdk = version < 22 ? sdkChecked(cli) : cli
+  return version < 23 ? feedsRuled(sdk) : sdk
+}
+
+/**
+ * v22 → v23: a feed keeps its own chain rules and the project's no longer reach its tasks (BTN-553); each feed of a
+ * project with rules of its own gets a copy of them, so it takes the same tasks as before.
+ */
+export function feedsRuled(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if (!Array.isArray(raw.projects)) return stamped(raw)
+  const projects = raw.projects.map((project: unknown) => {
+    if (!isRecord(project) || !Array.isArray(project.feeds) || !isRecord(project.chain)) return project
+    const own = Object.fromEntries(RULE_KEYS.flatMap((key) => (isRecord(project.chain) && key in project.chain ? [[key, project.chain[key]]] : [])))
+    if (Object.keys(own).length === 0) return project
+    return { ...project, feeds: project.feeds.map((feed: unknown) => (isRecord(feed) && !('chain' in feed) ? { ...feed, chain: own } : feed)) }
+  })
+  return stamped({ ...raw, projects })
 }
 
 /**
