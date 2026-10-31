@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AccountLogin, AccountView } from '../../../src/account/model.js'
-import { addDepth, addOf, dirty, freshKeys, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
+import { addDepth, addOf, dirty, freshKeys, wayGiven, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
 import { cliMissing, deviceLogin, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -96,7 +96,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   // A provider with no CLI to run asks for one over the provider pick (BTN-599): closing that leaves the pick open.
   const copyNeeded = copy !== undefined && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system) ? at.provider : null
   const provider = at.provider !== null && copyNeeded === null && !cliMissing(account, at.provider) ? at.provider : null
-  const newAccount = new URLSearchParams(location.search).has('way')
+  const newAccount = wayGiven(new URLSearchParams(location.search))
   const [checked, setChecked] = useState<string | null>(null)
   useEffect(() => {
     if (provider === null || newAccount || login !== null) return

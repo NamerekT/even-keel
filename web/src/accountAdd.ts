@@ -57,6 +57,11 @@ function wayOf(provider: Provider, id: string | null): Way {
   return ways.find((way) => way.id === id) ?? ways[0]!
 }
 
+/** A way is picked in the address: the dialog then goes to it and does not offer the CLI's sign-in on the machine. */
+export function wayGiven(search: URLSearchParams): boolean {
+  return search.has(WAY)
+}
+
 /**
  * The add dialog from the address of the page it is over, so a reload and the browser's Back keep it: null — closed;
  * an unknown provider — its pick; the way picked, the provider's first when absent.
