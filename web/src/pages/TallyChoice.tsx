@@ -3,6 +3,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { TALLY_MODES, type TallyMode } from '../../../src/stats/mode.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { secretInput } from '../ui/secret.js'
 import { Section } from './settingsParts.js'
 import './accounts.css'
 import './tally.css'
@@ -112,7 +113,7 @@ export function TallyServerFields({ state, onDone, onCancel }: ServerProps) {
           <span className="tally-server__label">{LABELS[field]()}</span>
           <input
             className="account__input"
-            type={isPassword(field) ? 'password' : 'text'}
+            {...secretInput(isPassword(field))}
             inputMode={field === 'port' ? 'numeric' : undefined}
             value={server[field]}
             placeholder={field === 'port' ? '5432' : isPassword(field) && valueOf(state, VARIABLES[field])?.set ? t.tally.passwordKept : undefined}

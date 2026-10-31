@@ -70,6 +70,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
+| 36a | [Secret fields and the browser's password manager](#secret-fields-and-the-browsers-password-manager-btn-633) | everyone typing a key or a password on the page | Chrome or Edge still offers to save it; decline with "Never" |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
@@ -215,6 +216,10 @@ A marketplace added from a local path is read from its folder, so an update of t
 ### Header account after a labelled task closes (BTN-539)
 
 The server selector and fake page cover a saved session account, changed project settings, paused/stopped chains, fallback, deduplication, skipped/held tasks and the next ordered task after Done. The real service has not been watched while a labelled task closes and the next labelled task waits to start. Check that the header switches immediately on the tracker update, before launch, and keeps the current session's original folder after a settings change. **Workaround:** read the session's account and the project's Providers and models settings until this live check passes.
+
+### Secret fields and the browser's password manager (BTN-633)
+
+A key, token or password field is a text field dotted by `-webkit-text-security` (`secretInput`, `web/src/ui/secret.ts`), so Chrome and Edge are assumed not to offer "Save password?" for it: their password manager watches only `type="password"` fields. Checked headless: every secret field of the settings, the Tally form, the account dialog and the package keys is a text field with its value in dots; but headless Chromium has no password manager, so the bubble itself was never watched. Not seen either: Firefox, where `CSS.supports('-webkit-text-security', 'disc')` decides — false leaves the field a password and the offer stays. To check, in a desktop Chrome or Edge: fill the Tally writer password and press "Check and save", add an account with a key, save a package key and the page token; no bubble should come up. **If it does:** decline it with "Never" for the page's address.
 
 ### The wizard's trust check
 

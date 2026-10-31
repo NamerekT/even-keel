@@ -5,6 +5,7 @@ import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
+import { secretInput } from '../ui/secret.js'
 import { Tipped } from '../ui/Tipped.js'
 import { importOffers, keyLabel, marketplaceCommand, type Dismissed } from './packageView.js'
 
@@ -122,12 +123,10 @@ function KeyRow({ entry }: { entry: KeyView }) {
       <form className="packages__key-form" onSubmit={(event) => void submit(event)}>
         <input
           className="packages__input"
-          type="password"
+          {...secretInput()}
           value={value}
           placeholder={entry.set ? t.packages.keySaved : undefined}
           aria-label={t.packages.keyValue(label)}
-          autoComplete="off"
-          spellCheck={false}
           onChange={(event) => setValue(event.target.value)}
         />
         <button type="submit" className="button button--small" disabled={sending || value === ''}>

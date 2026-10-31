@@ -4,6 +4,7 @@ import { COPILOT } from '../../../src/copilot/name.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { secretInput } from '../ui/secret.js'
 import '../tools/addPackage.css'
 
 /** Copilot's account holds a GitHub token, the others an API key. */
@@ -59,11 +60,9 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
             <span className="add-package__label">{t.account.newKey[word]}</span>
             <input
               className="add-package__input add-package__input--mono"
-              type="password"
+              {...secretInput()}
               value={key}
               onChange={(event) => setKey(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
               autoFocus
             />
           </label>
