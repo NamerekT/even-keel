@@ -8,11 +8,13 @@ import {
   cardLinks,
   closingStatus,
   hulyPriority,
+  hulyStatuses,
   ISSUE_CLASS,
   labeled,
   latestMessages,
   milestonesOf,
   missingBlockers,
+  namedStatus,
   backlogStatus,
   readyStatus,
   toCard,
@@ -242,14 +244,16 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         : ''
       return { title: issue.title, description }
     },
-    async complete(identifier) {
+    async complete(identifier, name) {
       const issue = await findIssue(identifier)
       const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(issue.space)])
-      const status = closingStatus(issue.status, statuses, allowed)
+      const status = closingStatus(issue.status, statuses, allowed, name)
       if (status === null) return false
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status })
       return true
     },
+    moveTo: (identifier, name) => moveStatus(identifier, (_current, statuses, allowed) => namedStatus(name, statuses, allowed)),
+    statuses: async () => hulyStatuses(await findStatuses()),
     async children(identifier) {
       const issue = await findIssue(identifier)
       const [issues, statuses] = await Promise.all([findIssues({ attachedTo: issue._id }), findStatuses()])

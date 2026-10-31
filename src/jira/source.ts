@@ -2,7 +2,7 @@ import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import { fail } from '../notice/notice.js'
 import { commentsAfterId } from '../tracker/comments.js'
-import { parseTaskId, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, uniqueStatuses, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
 import { JiraApi } from './api.js'
@@ -186,16 +186,36 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       return { title: fields.summary, description: adfToMarkdown(fields.description) }
     },
 
-    async complete(id) {
+    async complete(id, name) {
       const { fields } = await issueOf(id, ['status'])
       if (jiraStatus(fields.status).category === 'Won') return false
-      const to = (await transitionsOf(id)).find((each) => each.to.statusCategory.key === 'done')
+      const to = (await transitionsOf(id)).find((each) => each.to.statusCategory.key === 'done' && (name === undefined || sameName(each.to.name, name)))
+      if (to === undefined && name !== undefined) throw new Error(`jira: ${id} has no transition from ${fields.status.name} to "${name}" of the Done category`)
       if (to === undefined) {
         log(`jira: ${id} is not closed: its workflow has no transition from ${fields.status.name} to a status of the Done category`)
         return false
       }
       await transition(id, to)
       return true
+    },
+
+    async moveTo(id, name) {
+      const { fields } = await issueOf(id, ['status'])
+      const catalogs = new Map<string, Promise<JiraStatus[]>>()
+      await resolveStatuses([{ key: id, fields }], catalogs)
+      if (sameName(fields.status.name, name)) return jiraStatus(fields.status)
+      const to = (await transitionsOf(id)).find((each) => sameName(each.to.name, name))
+      if (to === undefined) {
+        log(`jira: ${id} stays in ${fields.status.name}: its workflow has no transition from it to "${name}"`)
+        return null
+      }
+      await resolveStatuses([{ key: id, fields: { summary: '', status: to.to } }], catalogs)
+      await transition(id, to)
+      return jiraStatus(to.to)
+    },
+
+    async statuses() {
+      return uniqueStatuses((await api.rest<JiraStatus[]>('/status')).map(jiraStatus))
     },
 
     async children(id) {
