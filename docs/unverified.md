@@ -46,7 +46,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
 | 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex, Copilot on Linux; all three on macOS; a reused pid; OpenCode's shell command after a stop through the service (BTN-643) | a stopped turn or its command goes on, or a reused pid is killed |
 | 16 | [Forgejo token rights for pull requests](#forgejo-token-rights-for-pull-requests-ekr-9) | PR mode on Forgejo with a token made by the guide | the comments of the conversation are not read, or the open is refused |
-| 16a | [Retrying a pull request after fixing access](#retrying-a-pull-request-after-fixing-access-btn-407) | PR mode paused after a refused open | the pull request stays unopened after Resume |
+| 16a | [Retrying a pull request after fixing access](#retrying-a-pull-request-after-fixing-access-btn-407) | PR mode paused after a refused open, fixed by switching the project's profile | the pull request stays unopened after Resume |
 | 16b | [A session's own comment on its pull request](#a-sessions-own-comment-on-its-pull-request-btn-442) | PR mode on Forgejo (GitHub checked) with sessions that comment on their pull request | the session gets its own comment back as a remark once |
 | 16c | [A resolved GitLab conflict while mergeability is checked](#a-resolved-gitlab-conflict-while-mergeability-is-checked-btn-441-btn-561) | PR mode on GitLab, most on GitLab.com, after any push to the merge request | the session gets a conflict that is gone and spends a turn on it |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
@@ -73,11 +73,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 36a | [Secret fields and the browser's password manager](#secret-fields-and-the-browsers-password-manager-btn-633) | everyone typing a key or a password on the page | Chrome or Edge still offers to save it; decline with "Never" |
-| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles | a project's CI reads with another profile's token |
+| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles on private repositories | a project's CI reads with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
-| 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly and Linear profiles; a GitHub token that cannot write labels | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
+| 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly and Linear profiles | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
 | 37h2 | [Statuses on actions](#statuses-on-actions-btn-554) | Huly, Linear and Jira projects with a status chosen for a start, a pull request or the close | a task is not moved, moved where its workflow forbids, or a merged task stays open; move or close it in the tracker |
 | 37i | [The task card's run label pick](#the-task-cards-run-label-pick-btn-508) | projects with run labels on, picking the model from the card | the card shows the old pick after a save until the next read; refresh the project |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
@@ -385,7 +385,7 @@ Tests cover the expansion of `/handoff [extra]` in both languages, a tracker com
 
 ### Retrying a pull request after fixing access (BTN-407)
 
-Covered by dispatcher tests: Start or Resume on `review.notOpened` forgets only the current task's refused mark and retries it without touching its session; another refusal pauses with its new cause and is not retried on each tick. Not checked live: changing the project's remote profile or renewing its token after a real forge refusal, then pressing Resume on the running service. If the new credentials are not picked up, the chain pauses again. **Workaround:** check the profile's access and answer the task's session in the chat to have it mark again, or restart the service to forget the refused mark.
+Covered by dispatcher tests: Start or Resume on `review.notOpened` forgets only the current task's refused mark and retries it without touching its session; another refusal pauses with its new cause and is not retried on each tick. Checked live on GitHub on 2026-10-31 ([verified log](verified.md#sessions)): a token's Pull requests raised in place after a real 403, then Resume, opened the pull request in the same session with no restart. Not checked live: switching the project's remote profile to another one after a refusal, then pressing Resume. If the new credentials are not picked up, the chain pauses again. **Workaround:** check the profile's access and answer the task's session in the chat to have it mark again, or restart the service to forget the refused mark.
 
 ### A session's own comment on its pull request (BTN-442)
 
@@ -619,7 +619,7 @@ A grant revoked in id.atlassian.com → Connected apps was seen in BTN-489: the 
 
 ### Two profiles of one tracker (BTN-200)
 
-Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (2026-10-25): each its own connection, and each project's gateway server listing its own workspace's projects. Not run: two GitHub profiles, where each project's GitHub Actions runs should be read with its own profile's token — covered by tests. If a project's CI reads with another profile's token (a private repository's runs do not show), **workaround:** keep one GitHub profile.
+Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (2026-10-25): each its own connection, and each project's gateway server listing its own workspace's projects. Two GitHub profiles of one account ran on 2026-10-31 ([verified log](verified.md#trackers)): each project's tracker, CI and pull requests took its own profile, and the narrower token's refusal stopped a pull request the other had opened. Its repositories were public, though, so a run read with the wrong token would have shown too: a private repository's GitHub Actions runs on two profiles are covered by tests only. If a project's CI reads with another profile's token (a private repository's runs do not show), **workaround:** keep one GitHub profile.
 
 ### Task feeds from another tracker (BTN-66)
 
@@ -681,10 +681,9 @@ The intake (`docs/trackers.md`, "Taking GitHub issues in") ran whole against Git
 
 ### Writing task labels (BTN-507)
 
-Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Adding existing Huly workspace labels and preserving other labels was subsequently checked through the standalone assignment script ([verified log](verified.md#trackers)); creation, removal, different-case matching and refusals remain unverified live. GitLab and Jira are checked whole, GitHub except the refusal ([verified log](verified.md#trackers)). Still to check separately on each provider:
+Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Adding existing Huly workspace labels and preserving other labels was subsequently checked through the standalone assignment script ([verified log](verified.md#trackers)); creation, removal, different-case matching and refusals remain unverified live. GitLab, Jira and GitHub are checked whole, GitHub's refusal on an Issues-read-only token on 2026-10-31 ([verified log](verified.md#trackers)). Still to check separately on each provider:
 
 - Huly: on a scratch issue, remove an existing label and add an existing workspace label with different case plus a new one. Verify the workspace definition, references and issue label counter; repeat with a profile that cannot write labels.
-- GitHub: repeat the swap with an Issues-read-only token and check that the refusal reaches the page and leaves no partial change.
 - Linear: on a scratch team issue, reuse a workspace label, create a team label and swap labels. Verify a group is never attached and a refused mutation reaches the page as `task.relabelFailed`.
 
 On each setup, call `POST /api/task/labels` for a loaded task (also one from a feed), check that `trackers[].relabel` is true and the state event already has the saved labels and their model/question meaning before the next poll. Assumed: the fixture shapes match the provider's deployed schema and collection triggers. If wrong, the labels or chain rules can be stale, a missing label is not created, or an operation fails after a partial change. **Workaround:** refresh and inspect the issue in its tracker, edit the labels there, then refresh the project. A new definition may remain after a refused assignment; check it before retrying.
