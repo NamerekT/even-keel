@@ -87,7 +87,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, OpenCode; Copilot's edit refusal after BTN-640 | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
-| 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories | the page cannot open an attached file |
+| 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories, after BTN-652 | an image in a tracker answer does not reach the session with a fine-grained token |
 | 52a | [A parent closed on Linear](#a-parent-closed-on-linear-btn-606) | Linear projects with sub-issues (GitHub checked) | the parent stays open after its subtasks are done; close it by hand |
 | 52b | [The wizard's GitLab project from the remote](#the-wizards-gitlab-project-from-the-remote-btn-607) | new GitLab projects in the wizard | the field stays empty or holds a wrong path; type the project's path |
 | 53 | [A removed key and the global folder's daemon](#a-removed-key-and-the-global-folders-daemon) | anyone removing a key | the removed key stays with the folder's sessions until its daemon exits |
@@ -627,7 +627,7 @@ A removed key also stops the global folder's daemon (`claude daemon stop --any` 
 
 ### GitHub attachments of a private repository
 
-Downloading a file attached to an issue comment through the page's file route with the token ran live on a public repository (BTN-278, 2026-10-24): an image came back whole, `inline`. GitHub serves such a file of a public repository without a token too, so that the token gets a private repository's file has not been tried; if it does not, the page cannot open that file (`docs/trackers.md`).
+Downloading a file attached to an issue comment through the page's file route with the token ran live on a public repository (BTN-278, 2026-10-24): an image came back whole, `inline`. GitHub serves such a file of a public repository without a token too. On a private repository (2026-10-31) the route gave 404 with a fine-grained token, while the same request with a classic token (`repo`) or the `gh` CLI's OAuth token got the image: a fine-grained token never gets a private repository's upload. So an image in a tracker answer to a session's question stays a link the session cannot open, with no log line; the comment's `body_html` carries a signed `private-user-images` link that downloads without a token, the way BTN-652 is to take. **Workaround:** a classic token with `repo` in the GitHub profile, or attach the picture to the page's chat instead.
 
 ### A parent closed on Linear (BTN-606)
 
