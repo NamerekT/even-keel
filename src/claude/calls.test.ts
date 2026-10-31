@@ -57,6 +57,19 @@ describe('FolderCalls', () => {
     expect(Date.now() - started).toBeLessThan(3_000)
   })
 
+  it('starts a priority call right after the running one, ahead of the waiting ordinary calls', async () => {
+    const calls = new FolderCalls()
+    const quick = (priority?: boolean) => calls.run('/accounts/one', NODE, sleeper(0), { env, timeoutMs: 10_000, priority })
+    const running = calls.run('/accounts/one', NODE, sleeper(500), { env, timeoutMs: 10_000 })
+    const ordinary = [quick(), quick()]
+    const urgent = [quick(true), quick(true)]
+    const [first, a, b, p, q] = (await Promise.all([running, ...ordinary, ...urgent])).map((output) => span(output.stdout))
+    expect(p[0]).toBeGreaterThanOrEqual(first[1])
+    expect(q[0]).toBeGreaterThanOrEqual(p[1])
+    expect(a[0]).toBeGreaterThanOrEqual(q[1])
+    expect(b[0]).toBeGreaterThanOrEqual(a[1])
+  })
+
   it('keeps the output of a failed call on its error', async () => {
     const calls = new FolderCalls()
     const failed = calls.run('/accounts/one', NODE, ['-e', 'console.log("{}");process.exit(1)'], { env, timeoutMs: 5_000 })
