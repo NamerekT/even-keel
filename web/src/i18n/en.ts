@@ -608,6 +608,7 @@ export const en: Messages = {
     start: 'Start',
     enqueue: 'Queue',
     chainNotLoaded: 'Tasks are not loaded yet.',
+    chainLoading: 'Reading the tasks…',
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',

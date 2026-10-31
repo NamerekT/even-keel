@@ -216,7 +216,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?cliCheck=mixed\|passed` | the automatic CLI check's banner (`CliCheckBanner`, BTN-569): Claude Code waiting for a free account and a failed Codex run, or one passed run |
 | `?fallback=on` | ABC-10 was launched on the project's provider because its `Codex` label had no account in the pool: the toast in the corner |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
-| `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |
+| `?delay=<ms>` | answers (stats, tools, card, session, transcript) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, loaders, dimming and the busy button |
 
 The default stats fixture includes separate Sol, Terra, Astra, Luna and DeepSeek comparison rows, sub-1% model shares, and 13 components (use `range=all` for "Show all"). `beforeModels`/`afterModels` select comparison families just as on the real page; no mark compares the page period on both sides. A long `account` value on `/stats` also exercises full wrapping names in "Limits by account".
 

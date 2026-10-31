@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { fallbackPassed, instructionsFor, skillFoldersFor, type InstructionFile } from '../../../src/agent/projectRules.js'
 import type { PackagesView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
-import { useToolsViews } from '../tools/useToolsViews.js'
+import { useToolsViews, type Loaded } from '../tools/useToolsViews.js'
+import { Loading } from '../ui/Loader.js'
 import { sessionGets } from './sessionRules.js'
 import { providerName } from './settingsRun.js'
 import './sessionRules.css'
@@ -28,7 +29,28 @@ export function SessionGets({
   standards: string[]
 }) {
   const loaded = useToolsViews([project], trim).get(project)
-  if (loaded === undefined || loaded.state === 'loading') return <p className="settings__hint">{t.settings.gets.loading}</p>
+  return (
+    <Loading busy={loaded === undefined || loaded.state === 'loading'} label={t.settings.gets.loading}>
+      {loaded !== undefined && loaded.state !== 'loading' && <Gets loaded={loaded} agent={agent} prompts={prompts} packages={packages} project={project} standards={standards} />}
+    </Loading>
+  )
+}
+
+function Gets({
+  loaded,
+  agent,
+  prompts,
+  packages,
+  project,
+  standards,
+}: {
+  loaded: Exclude<Loaded, { state: 'loading' }>
+  agent: string
+  prompts: { shared: boolean; project: boolean }
+  packages: PackagesView | null
+  project: string
+  standards: string[]
+}) {
   const rules = loaded.state === 'ready' ? (loaded.view?.rules ?? null) : null
   if (rules === null) return <p className="settings__hint">{t.settings.gets.unknown}</p>
   const gets = sessionGets(agent, rules, prompts, packages, project)
