@@ -56,6 +56,7 @@ type ChainContext = Pick<ServiceContext,
   | 'agentOf'
   | 'agentStatus'
   | 'agents'
+  | 'agentsRead'
   | 'approvals'
   | 'approved'
   | 'archive'
@@ -355,6 +356,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     limitsUnread: (project, task) => ctx.limits.unread(ctx.choiceFor(project, task).account),
     packagesBlocked: (project) => ctx.packages.blocked(project),
     accountsRead: () => ctx.account.ready,
+    sessionsRead: () => ctx.agentsRead,
     promptLanguage: (task) => ctx.promptLanguage(ctx.projectOf(task)),
     mainBranch: (task) => {
       const project = ctx.projectOf(task)
@@ -517,6 +519,7 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
     branch: ctx.branchOf,
     label: (project) => projectLabel(ctx.configStore.current, project),
     quiet: (project) => {
+      if (!ctx.agentsRead) return false
       const status = (task: string) => ctx.agentStatus(task)
       return chainQuiet(ctx.dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
     },

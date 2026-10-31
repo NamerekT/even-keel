@@ -428,6 +428,10 @@ const tasksByProject = new Map<string, Task[]>()
 const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
+/**
+ * The monitor has read the sessions and their views once since the start. Until then a session's status is unknown,
+ * not idle: the chain and the forward merges wait, and the account watcher keeps every folder (BTN-646).
+ */
 let agentsRead = false
 const launches: LaunchEntry[] = await readLaunches(db)
 /** The tasks the chain ran and saw closed, in memory as the database keeps them. */

@@ -326,6 +326,11 @@ export interface DispatcherDeps {
    * do nothing rather than pause on it; the first read checks them again.
    */
   accountsRead: () => boolean
+  /**
+   * The monitor has read the sessions once since the service's start. Until then `busy`, `liveSession` and the
+   * sessions a cleanup stops know nothing, so the chains do nothing rather than take a working session for a free one (BTN-646).
+   */
+  sessionsRead: () => boolean
   /** The language of the prompts of the task's project. */
   promptLanguage: (task: string) => Language
   /** The main branch of the task's project, which the prompts name. */

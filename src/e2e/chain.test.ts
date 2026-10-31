@@ -123,6 +123,29 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(resumes()).toEqual([])
   })
 
+  it('stops the session of a task done before the first read of the sessions after a restart, then removes its folder', async () => {
+    run.board.add('ABC-1')
+    const gate = new Gate()
+    run.agent.script('ABC-1', parked(gate, commitAndMerge('ABC-1.txt')))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const session = launches()[0]!
+
+    const listing = new Gate()
+    await run.restart(() => (run.agent.listing = listing))
+    gate.open()
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    await run.pass(60_000)
+    expect(existsSync(session.cwd)).toBe(true)
+
+    run.agent.listing = null
+    listing.open()
+    await run.until(() => !existsSync(session.cwd), 'the worktree of ABC-1 removed')
+    expect(run.agent.calls.filter((call) => call.kind === 'stop').map((call) => call.sessionId)).toEqual([session.sessionId])
+    expect(run.service.dispatcher.state.leftovers).toEqual({})
+  })
+
   it('closes a task that needed no change with the reason as a comment', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')

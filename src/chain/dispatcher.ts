@@ -604,7 +604,7 @@ export class Dispatcher {
   }
 
   private async advance(): Promise<void> {
-    if (!this.deps.accountsRead()) return
+    if (!this.deps.accountsRead() || !this.deps.sessionsRead()) return
     await this.cleanups.sweep()
     await this.reviews.sweep()
     await this.waits.settle()

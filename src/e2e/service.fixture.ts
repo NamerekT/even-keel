@@ -40,13 +40,15 @@ export class Harness {
     await this.boot()
   }
 
-  /** Stops the service and starts it anew on the same folder, as a restart of the machine's service would. */
-  async restart(): Promise<void> {
+  /** Stops the service and starts it anew on the same folder, as a restart of the machine's service would; `between` runs while it is down. */
+  async restart(between?: () => void): Promise<void> {
     await this.halt()
+    between?.()
     await this.boot()
   }
 
   async stop(): Promise<void> {
+    this.agent.listing?.open()
     await this.halt()
     vi.useRealTimers()
     Object.assign(console, this.console)
