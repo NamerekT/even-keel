@@ -212,6 +212,13 @@ describe('taskProject', () => {
     expect(taskProject(state, 'ABC_IDB-FIX')).toBe('id-b')
     expect(taskProject(state, 'NOPE-1')).toBe('NOPE')
   })
+
+  it('finds the project of a feed task it does not list by the feed prefix (BTN-651)', () => {
+    const feeds = { XYZ: [{ id: 'feed-gh', tracker: 'github', key: 'XYZGH', prefix: 'XYZGH' }] }
+    const state = stateOf({ config: { shared: FAKE_SHARED, projects: {}, trackers: [], feeds, trackerLocked: [] } })
+    expect(taskProject(state, 'XYZGH-3')).toBe('XYZ')
+    expect(taskProject(state, 'ABC-3')).toBe('ABC')
+  })
 })
 
 describe('openQuestions', () => {
