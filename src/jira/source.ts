@@ -137,8 +137,11 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     return comments
   }
 
-  /** Through the workflow's first transition from one of `from` into `to`; `null` — the issue is in none of `from`. */
-  async function move(id: string, from: StatusCategory[], to: StatusCategory, wanted: string): Promise<TaskStatus | null> {
+  /**
+   * Through the workflow's first transition from one of `from` into `to`; `null` — the issue is in none of `from`, or, with
+   * `wanted` null, its workflow has no such transition.
+   */
+  async function move(id: string, from: StatusCategory[], to: StatusCategory, wanted: string | null): Promise<TaskStatus | null> {
     const { fields } = await issueOf(id, ['status'])
     const catalogs = new Map<string, Promise<JiraStatus[]>>()
     await resolveStatuses([{ key: id, fields }], catalogs)
@@ -146,6 +149,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     const transitions = await transitionsOf(id)
     await resolveStatuses(transitions.map((each) => ({ key: id, fields: { summary: '', status: each.to } })), catalogs)
     const found = transitions.find((each) => jiraStatus(each.to).category === to)
+    if (found === undefined && wanted === null) return null
     if (found === undefined) throw new Error(`jira: ${id} has no transition from ${fields.status.name} to a ${wanted} status`)
     await transition(id, found)
     return jiraStatus(found.to)
@@ -223,7 +227,8 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     },
 
     ready,
-    unready: (id) => move(id, ['ToDo', 'Active'], 'UnStarted', 'backlog'),
+    // A board's backlog is often a view, not a status: without one only the required label goes.
+    unready: (id) => move(id, ['ToDo', 'Active'], 'UnStarted', null),
 
     async relabel(id, change) {
       const issue = await issueOf(id, ['labels'])

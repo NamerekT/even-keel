@@ -185,6 +185,15 @@ describe('Jira task source', () => {
     expect(await source.unready!('ABC-1')).toBeNull()
   })
 
+  it('leaves an issue alone when its workflow has no backlog status: the board keeps the backlog by label', async () => {
+    const { source, calls } = await connect([
+      { body: { fields: { status: TODO } } },
+      { body: { transitions: [{ id: '21', name: 'Start', to: PROGRESS }] } },
+    ])
+    expect(await source.unready!('ABC-1')).toBeNull()
+    expect(calls).toHaveLength(4)
+  })
+
   it('posts a comment as ADF and reads the later ones as Markdown with their files', async () => {
     const media = { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: '1' }] }, { type: 'mediaSingle', content: [{ type: 'media', attrs: { id: 'm', alt: 'log.txt' } }] }] }
     const { source, calls } = await connect([

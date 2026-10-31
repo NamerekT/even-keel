@@ -93,11 +93,13 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const listed = readerTasks.get(reader)?.find((each) => each.id === task)
       const rules = rulesOf(project!, task)
       const remove = listed === undefined ? rules.requiredLabels : requiredOn(rules, listed)
+      // A Jira workflow may have no backlog status: a ready task left alone there is not "in the backlog".
+      const parked = listed === undefined || listed.status.category === 'UnStarted' || missingLabel(rules, listed) !== null
       const moved = await link.run(async (tracker) => {
         const labels = remove.length === 0 || tracker.relabel === undefined ? undefined : await relabeled(tracker, task, { add: [], remove })
         const status = await tracker.unready?.(task)
         if (labels === undefined && (status ?? null) === null) {
-          if (remove.length > 0 || tracker.unready === undefined) throw fail('task.cannotUnready', { task })
+          if (remove.length > 0 || tracker.unready === undefined || !parked) throw fail('task.cannotUnready', { task })
           throw fail('task.inBacklog', { task })
         }
         return { labels, status }
