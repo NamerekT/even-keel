@@ -39,6 +39,17 @@ describe('session protection', () => {
     expect(deletesRecord('label_write', null)).toBe(false)
   })
 
+  it('looks into the tool a dispatcher such as Huly\'s invoke_tool calls', () => {
+    expect(deletesRecord('invoke_tool', { toolName: 'delete_comment', arguments: { project: 'TSK', commentId: 'c1' } })).toBe(true)
+    expect(deletesRecord('invoke_tool', { toolName: 'label_write', arguments: { method: 'delete', name: 'bug' } })).toBe(true)
+    expect(deletesRecord('invoke_tool', { toolName: 'label_write', arguments: '{"method":"delete"}' })).toBe(true)
+    expect(deletesRecord('call_tool', { name: 'deleteIssue', args: {} })).toBe(true)
+    expect(deletesRecord('invoke_tool', { toolName: 'invoke_tool', arguments: { toolName: 'delete_issue' } })).toBe(true)
+    expect(deletesRecord('invoke_tool', { toolName: 'list_comments', arguments: { project: 'TSK' } })).toBe(false)
+    expect(deletesRecord('invoke_tool', { toolName: 'label_write', arguments: '{"method":"update"}' })).toBe(false)
+    expect(deletesRecord('create_label', { name: 'delete-me' })).toBe(false)
+  })
+
   it('writes Copilot rules as command prefixes, its only wildcard being a trailing :*', () => {
     const rules = protectionRules(DEFAULT_PROTECTION, ['origin'])
     expect(rules.copilot.filter(rule => rule.replace(/:\*\)$/, ')').includes('*'))).toEqual([])

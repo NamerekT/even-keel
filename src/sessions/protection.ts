@@ -13,11 +13,27 @@ export type ProtectionGroup = (typeof PROTECTION_GROUPS)[number]
 /** Each tracker's own group, by the adapter's key: the MCP gateway refuses the delete calls of its server (BTN-541). */
 export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly: 'deleteHuly', github: 'deleteGithub', gitlab: 'deleteGitlab', linear: 'deleteLinear', jira: 'deleteJira' }
 
-/** A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), or one with `method: "delete"` (GitHub's `label_write`). */
+/**
+ * A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), one with
+ * `method: "delete"` (GitHub's `label_write`), or a dispatcher (Huly's `invoke_tool`) calling such a tool (BTN-641).
+ */
 export function deletesRecord(tool: string, args: unknown): boolean {
   const words = tool.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
-  const method = typeof args === 'object' && args !== null ? (args as { method?: unknown }).method : undefined
-  return words.includes('delete') || (typeof method === 'string' && method.toLowerCase() === 'delete')
+  const fields = typeof args === 'object' && args !== null ? args as Record<string, unknown> : {}
+  if (words.includes('delete') || (typeof fields.method === 'string' && fields.method.toLowerCase() === 'delete')) return true
+  const dispatcher = words.includes('tool') && ['invoke', 'call', 'execute', 'run'].some(word => words.includes(word))
+  const nested = [fields.toolName, fields.tool_name, ...(dispatcher ? [fields.name, fields.tool] : [])].find(name => typeof name === 'string')
+  return typeof nested === 'string' && deletesRecord(nested, parsed(fields.arguments ?? fields.args ?? fields.params ?? fields.input))
+}
+
+/** Huly's `invoke_tool` takes its `arguments` as an object or as their JSON text. */
+function parsed(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  try {
+    return JSON.parse(value)
+  } catch {
+    return undefined
+  }
 }
 const DELETE_TOOLS = ['issue', 'project', 'component', 'milestone', 'label', 'comment', 'attachment', 'issue_template', 'drawing', 'activity_reply', 'related_issue_space_target'].map(name => `delete_${name}`)
 

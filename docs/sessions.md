@@ -104,7 +104,8 @@ edits them. New launches read current values; running processes are left alone. 
 OS sandbox or a guarantee against equivalent commands.
 
 The tracker groups (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's
-deleting `tools/call` for every agent, Codex included (`docs/packages.md`, "The gateway"). `deleteHuly` also keeps
+deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool`
+(BTN-641; `docs/packages.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps
 Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none (native lists per tracker are
 an idea for 0.3). The page shows "Deleting tracker records" over the five tracker switches; it stores nothing: it is on
 while all five are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the
