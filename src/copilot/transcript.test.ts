@@ -93,6 +93,7 @@ describe('foldEvents', () => {
   it('takes a rate limit as a limit and a missing billing as credit', () => {
     const limit = foldEvents([start, prompt, event(2, 'session.error', { errorType: 'rate_limit', message: 'You have hit the rate limit' })].join('\n'))
     expect(limit.apiError).toMatchObject({ kind: 'limit', text: 'You have hit the rate limit' })
+    expect(limit.action).toMatchObject({ kind: 'error', text: 'You have hit the rate limit' })
     const credit = foldEvents([start, prompt, event(2, 'session.error', { errorType: 'error', errorCode: 'billing_not_configured', message: 'Billing is off' })].join('\n'))
     expect(credit.apiError?.kind).toBe('credit')
     const other = foldEvents([start, prompt, event(2, 'session.error', { errorType: 'error', message: 'socket hang up' })].join('\n'))

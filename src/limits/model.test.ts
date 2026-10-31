@@ -192,6 +192,16 @@ describe('limitReopenedAt', () => {
     expect(limitReopenedAt(chatGpt(undefined), HIT, NAMED)).toBeNull()
   })
 
+  it('waits for the named reset when a reading comes just before it', () => {
+    // Live 2026-10-31: /usage showed the five-hour window unstarted at 00:48:05, the CLI refused until 00:50.
+    const named = '2026-10-31T00:50:00.000Z'
+    const hit = '2026-10-30T21:08:11.299Z'
+    const reading = (updatedAt: string) => ({ fiveHour: null, sevenDay: window(14, '2026-11-06T15:00:00.000Z'), updatedAt, source: 'usage' as const })
+    expect(limitReopenedAt(reading('2026-10-31T00:48:05.221Z'), hit, named)).toBeNull()
+    expect(limitReopenedAt({ ...chatGpt(true), updatedAt: '2026-10-31T00:45:00.000Z' }, hit, named)).toBeNull()
+    expect(limitReopenedAt(reading('2026-10-31T00:30:00.000Z'), hit, named)).toBe('2026-10-31T00:30:00.000Z')
+  })
+
   it('ignores an answer taken before the refusal or none at all', () => {
     expect(limitReopenedAt(chatGpt(true, '2026-10-28T08:55:00.000Z'), HIT, NAMED)).toBeNull()
     expect(limitReopenedAt(chatGpt(true, HIT), HIT, NAMED)).toBeNull()
