@@ -540,7 +540,6 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
     onAgents: (list) => {
       const before = JSON.stringify(ctx.account.view.loginBlock)
       ctx.agents = list
-      ctx.agentsRead = true
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
       if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcast('state', ctx.getState())
     },
@@ -552,6 +551,8 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
         if (account !== undefined) ctx.models.invalidate(account)
       }
       ctx.sessions = views
+      // Set with the views, not with the entries: the tick reads them after its entries, and `liveView` needs both.
+      ctx.agentsRead = true
       ctx.logStartupDialogs(views)
       ctx.hub.broadcast('state', ctx.getState())
       ctx.dispatcher.check()

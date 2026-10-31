@@ -76,6 +76,8 @@ export class ScriptedAgent implements Agent {
   private readonly sessions_ = new Map<string, Session>()
   private readonly running = new Set<Promise<void>>()
   private parked = 0
+  /** Holds every listing of the sessions until it opens, as a long first read of the monitor after a restart does. */
+  listing: Gate | null = null
 
   constructor(private readonly repo: () => string) {}
 
@@ -137,6 +139,11 @@ export class ScriptedAgent implements Agent {
   }
 
   async sessions(home: AccountHome): Promise<AgentEntry[]> {
+    await this.listing?.passed
+    return this.listed(home)
+  }
+
+  private listed(home: AccountHome): AgentEntry[] {
     return [...this.sessions_.values()].filter((session) => session.entry.account === home.key).map((session) => ({ ...session.entry }))
   }
 
@@ -159,7 +166,7 @@ export class ScriptedAgent implements Agent {
   }
 
   async transcripts(home: AccountHome): Promise<string[]> {
-    return (await this.sessions(home)).map((entry) => entry.sessionId)
+    return this.listed(home).map((entry) => entry.sessionId)
   }
 
   async authStatus() {

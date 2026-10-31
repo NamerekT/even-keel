@@ -52,6 +52,8 @@ export interface SetupOptions {
   packagesBlocked?: Set<string>
   /** Whether the service has read its account folders since its start; absent — it has. */
   accountsRead?: boolean
+  /** Whether the monitor has read the sessions since the service's start; absent — it has. */
+  sessionsRead?: boolean
   busy?: Set<string>
   silentSince?: Record<string, string>
   waiting?: Set<string>
@@ -146,6 +148,7 @@ export function setup(options: SetupOptions = {}) {
     limitsUnread: () => options.limitsUnread ?? false,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     accountsRead: () => options.accountsRead ?? true,
+    sessionsRead: () => options.sessionsRead ?? true,
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
     resume: async (_task, session) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canceled, done, setup, task, todo } from './dispatcher.fixture.js'
+import { canceled, done, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
 import { englishOf, notice, textNotice } from '../notice/notice.js'
@@ -40,6 +40,22 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  it('does not clean up after a done task before the first read of the sessions since the start', async () => {
+    const state = { ...emptyChainState(), active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'session-1', since: '2026-10-31T07:54:28.000Z' }, paused: false, error: null }] }
+    const options: SetupOptions = { state, sessionsRead: false }
+    const { dispatcher, launched, finished } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+    expect(launched).toEqual([])
+
+    options.sessionsRead = true
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-2'])
   })
 
   it('cleans up at once after a done task whose session ended its turn with a background command still running', async () => {
