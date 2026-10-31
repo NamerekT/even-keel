@@ -51,7 +51,8 @@ import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ModelOffers } from './ModelOffers.js'
 import { TrustWarning } from './TrustCommands.js'
-import { useModels } from './useModels.js'
+import { offersOf, useModelCatalog } from './useModels.js'
+import { useModelReset } from './modelReset.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
 import { CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, tokensOf, valuesOf } from './projectForm.js'
@@ -156,7 +157,7 @@ export function SettingsPanel({
   const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
   // The model is offered from the account its row runs on: the project's own, else the shared one.
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
-  const modelOffers = useModels(offered.map(rowAccount))
+  const models = useModelCatalog(offered.map(rowAccount))
   // Claude takes the project's tasks as its agent, or any task by its run label (BTN-429): the form's values, not the saved ones.
   const mayRunClaude = (text('provider') || shared.provider) === CLAUDE || (switchOf(text('modelLabels')) ?? shared.modelLabels)
 
@@ -172,6 +173,11 @@ export function SettingsPanel({
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
   const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
+  useModelReset(
+    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: rowAccount(provider), model: text(`models.${provider}`) })),
+    models,
+    (providers) => editAll(providers.map((provider) => [`models.${provider}`, ''])),
+  )
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
   const inherited = effectiveRules(shared.chain, [], profileRules)
   const origins = ruleOrigins(chain, inherited, profileRules)
@@ -486,7 +492,7 @@ export function SettingsPanel({
                   </div>
                 )
               }
-              const offers = modelOffers[rowAccount(provider)] ?? []
+              const offers = offersOf(models, rowAccount(provider))
               const sharedModel = shared.models[provider] ?? t.settings.cliDefault
               return (
                 <div className={marks.box(key)}>
