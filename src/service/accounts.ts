@@ -483,7 +483,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     onChange: () => {
       let changed = false
       for (const entry of ctx.account.view.accounts) {
-        const noted = noteAccount(ctx.ledger, entry.key, entry.status?.loggedIn === true ? entry.status.email : null, new Date())
+        const noted = noteAccount(ctx.ledger, entry.key, entry.status?.loggedIn === true ? entry.status.email : undefined, new Date())
         if (noted === undefined) continue
         ctx.saveAccounts(noted)
         changed = true

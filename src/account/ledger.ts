@@ -27,12 +27,17 @@ export function emptyLedger(): AccountLedger {
   return { accounts: {}, removing: [] }
 }
 
-export function noteAccount(ledger: AccountLedger, key: string, email: string | null, now: Date): AccountLedger | undefined {
+/**
+ * `email` is `undefined` while the folder is signed out (nothing to note) and `null` when it is signed in with no
+ * identity, as an OpenCode folder: a key folder reused that way no longer holds the key it was noted with, and a stale
+ * record would make every limit of its sessions look like an account switch to the chain.
+ */
+export function noteAccount(ledger: AccountLedger, key: string, email: string | null | undefined, now: Date): AccountLedger | undefined {
   const record = ledger.accounts[key]
-  if (email === null || email === record?.email) return undefined
+  if (email === undefined || email === (record?.email ?? null)) return undefined
   const { name, ...kept } = record ?? { email: null, since: null, previous: null }
   // The name the user gave belonged to the account that signed out of the folder, not to the one in it now (BTN-528).
-  const another = kept.email !== null && kept.email.toLowerCase() !== email.toLowerCase()
+  const another = kept.email !== null && email !== null && kept.email.toLowerCase() !== email.toLowerCase()
   const noted = { ...kept, ...(!another && name !== undefined && { name }), email, since: now.toISOString(), previous: kept.email }
   return { ...ledger, accounts: { ...ledger.accounts, [key]: noted } }
 }
