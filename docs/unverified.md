@@ -54,6 +54,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | on macOS a session may not outlive a restart |
 | 20a | [API spending cap recovery](#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |
 | 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain waits forever after a top-up |
+| 21a | [A dead `--bg` job left blocked by its daemon](#a-dead---bg-job-left-blocked-by-its-daemon-btn-648) | Claude `--bg` sessions whose daemon exited on its own | every Resume pauses the chain on a failed stop, or a starting session is taken for dead |
 | 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | the chain waits forever after a top-up, or a funded key's turn is priced wrong |
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 23a | [An API key's organization header](#an-api-keys-organization-header) | replacing an OpenAI API key (Anthropic checked) | a key of another organization replaces the old one, or a key of the same one is refused |
@@ -350,6 +351,10 @@ Replacing an API account's key (BTN-418, `docs/accounts.md`, "The key's organiza
 ### An API key out of credit (BTN-165)
 
 The refusal was seen live on 2026-10-29 (CLI 2.1.310, an Agent SDK and a `--bg` session on a key at zero, [verified log](verified.md#claude-limits)): the CLI wrote `error: "billing_error"`, status 400 and "Credit balance is too low", Even Keel held the session as `credit` (`docs/chain.md`, exception 1), and switching the task's account handed it over to a new session. The check that the credit is back — one output token through `/v1/messages`, an answer of 2xx — was never run against a topped-up key: if it never says 2xx, the chain keeps waiting. **Workaround:** press "New session" on the task after the top-up, or switch the account.
+
+### A dead `--bg` job left blocked by its daemon (BTN-648)
+
+Seen on 2026-10-31 on a `--bg` session of a key at zero: its daemon retired the job, settled it `done` and exited, yet `jobs/<id>/state.json` stayed `blocked` with "Credit balance is too low", so `claude agents` kept listing it. Every Resume of the chain called `claude stop` on it, got "couldn't confirm … was stopped" and paused. Now a job with no live `sessions/<pid>.json` that the folder's daemon does not hold (no `daemon/roster.json`, its supervisor gone, or no worker of that id) counts as gone (`daemonJobs` in `src/claude/cli.ts`); checked only by unit tests, on a roster copied from the host. Assumed: the daemon adds a job to `workers` as it spawns it, before `claude agents` lists it, so a session starting before its first turn is never taken for dead; and a supervisor that rewrites the roster started before its `updatedAt`. If not, a starting session is passed over by a stop (the chain may start a second one in the folder) or a dead one still pauses the chain. **Workaround:** remove the job's `jobs/<id>` folder from the account folder. To check: Resume the chain whose session hangs that way; the log has no `could not stop` and no `hangs on a Claude Code dialog` for it, and the next session starts.
 
 ### The chat's turn line while an answer is delivered to Codex or after the chain stopped (BTN-188)
 

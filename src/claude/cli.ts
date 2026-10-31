@@ -421,7 +421,30 @@ function isOver(agent: AgentEntry): boolean {
 
 /** `failed` and `stopped` do not mean the process exited: a session that failed at start keeps running, and so does one stopped through a daemon that `claude stop` could not reach. */
 function isGone(agent: AgentEntry | undefined): boolean {
-  return agent === undefined || (isOver(agent) && agent.pid === undefined)
+  return agent === undefined || agent.abandoned === true || (isOver(agent) && agent.pid === undefined)
+}
+
+/**
+ * The jobs the folder's daemon holds, by the workers of `daemon/roster.json`, keyed by job id. A daemon that retires
+ * its last job and exits leaves the file with no workers, while the job's `state.json` may stay `blocked` (BTN-648).
+ * None when the file is gone or its supervisor no longer runs; `undefined` when it cannot be read.
+ */
+async function daemonJobs(home: AccountHome): Promise<ReadonlySet<string> | undefined> {
+  let raw: string
+  try {
+    raw = await readFile(join(home.dir, 'daemon', 'roster.json'), 'utf8')
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? new Set() : undefined
+  }
+  let roster: unknown
+  try {
+    roster = JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+  const { supervisorPid, updatedAt, workers } = (roster ?? {}) as Record<string, unknown>
+  if (typeof supervisorPid !== 'number' || typeof updatedAt !== 'number' || typeof workers !== 'object' || workers === null) return undefined
+  return (await sessionProcessAlive(supervisorPid, updatedAt)) ? new Set(Object.keys(workers)) : new Set()
 }
 
 export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
@@ -444,12 +467,16 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
  * What only the job file of a session tells. A blocked session without a live `sessions/<pid>.json` has not begun
  * its first turn: it hangs on a startup dialog, and `claude agents` shows it only as `blocked`, like one with a question.
  * A live session that waits has its open `AskUserQuestion` there and not yet in the transcript, and every live one
- * the model it was started with.
+ * the model it was started with. An unfinished job with no live record that the daemon does not hold is abandoned:
+ * a starting one is already a worker of the daemon.
  */
 async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
+  const processless = (agent: AgentEntry) => agent.pid === undefined && !isOver(agent)
+  const held = agents.some(processless) ? await daemonJobs(home) : undefined
   return Promise.all(
     agents.map(async (agent) => {
       const { id } = agent
+      if (id !== undefined && processless(agent) && held?.has(id) === false) return { ...agent, abandoned: true }
       const dialog = agent.state === 'blocked' && agent.pid === undefined
       if (id === undefined || !(dialog || agent.pid !== undefined)) return agent
       const job = await readFile(join(home.dir, 'jobs', id, 'state.json'), 'utf8').catch(() => undefined)
