@@ -24,7 +24,10 @@ export class Unchanged {
     const unchanged = this.deps.unchanged
     const { project } = chain
     const { task } = current
-    if (unchanged === undefined || this.deps.busy(task) || this.deps.pullRequests?.(task) === true) return false
+    // A turn that ended on a background command is over, as for Done (BTN-202): only a clean branch goes on without it.
+    const busy = this.deps.busy(task)
+    const shell = busy && this.deps.shell(task)
+    if (unchanged === undefined || (busy && !shell) || this.deps.pullRequests?.(task) === true) return false
     const session = this.deps.handoff(task)
     if (session === undefined || session.sessionId !== current.sessionId) return false
     const reason = session.noChanges ?? null
@@ -41,6 +44,11 @@ export class Unchanged {
       return true
     }
     if (changes.ahead > 0 || changes.files > 0) {
+      if (shell) {
+        // The work is not over: the session is told once its command ends or counts as hung.
+        this.tried.delete(task)
+        return false
+      }
       // Told as a chat answer is, by `--resume` whatever its cache: the reply belongs to the session's own turn.
       const what = changes.ahead > 0 ? `${changes.ahead} commit(s) beyond ${main}` : 'uncommitted changes'
       this.deps.log(`chain: ${task} is marked as needing no change, but its branch has ${what}; the session is told`)
