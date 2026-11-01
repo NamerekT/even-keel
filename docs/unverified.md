@@ -83,12 +83,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
-| 37h | [Writing task labels](#writing-task-labels-btn-507) | Huly profiles that cannot write labels (Huly and Linear checked) | a label is not created or attached, or a refused write leaves a partial change; refresh and edit labels in the tracker |
 | 37h2 | [Statuses on actions](#statuses-on-actions-btn-554) | projects in PR mode with a pull request move, a chosen done status or a feed's own moves (the start move and the automatic close checked) | a task is not moved, moved where its workflow forbids, or a merged task stays open; move or close it in the tracker |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
-| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace (PR mode checked) | a feed's session cannot read its task |
+| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | the `/status` page's Tally tile when Tally failed or halted (PR mode and a second Huly workspace checked) | the tile does not show a failing or halted Tally; read the log |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, OpenCode; Copilot's edit refusal after BTN-640 | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
@@ -648,7 +647,7 @@ A GitHub feed of a Huly project ran as a live chain (BTN-326, 2026-10-23): the f
 
 PR mode, a question in a tracker comment and a run label on a GitHub feed's tasks ran live on 2026-10-31 after BTN-651 ([verified log](verified.md#sessions)): the pull requests closed the feed's issues, and the question and its answer went through the feed issue.
 
-Not seen live: a feed on a second Huly workspace (whether a session reads it through the brief when no server signed in as its profile is brought) and the Tally check's "failed" and "halted". If a feed's session cannot read its task, **workaround:** set the project's `brief` to `true`.
+A Huly feed from a second workspace ran on 2026-11-01 ([verified log](verified.md#trackers)): with no server signed in as its profile, its session got the task in the prompt though the project's `brief` was `false`. Not seen live: the `/status` page's Tally tile in its "failed" and "halted" states.
 
 ### A removed key and the global folder's daemon
 
@@ -687,10 +686,6 @@ The carry session (`docs/chain.md`, "The carry session") is covered by tests of 
 ### A conflict given to the agent by itself (BTN-370)
 
 The carry session asked for at the conflict itself (`carryAgent` or unattended mode, `docs/chain.md`, "The carry session") is covered by tests of the forward tick with git's answers only, never run live. Assumed: that the session asked for from the forward tick, outside a press of the page, lands in the main project's chain as the button's does, and that unattended mode letting an idle carry session go leaves no second one for the same release commit. If wrong, a conflict waits on the page with no session, or sessions pile up on one conflict. **Workaround:** turn the switch off and press "Resolve with the agent", or merge by hand.
-
-### Writing task labels (BTN-507)
-
-Fixture tests cover label removal/addition, creation of missing definitions, case matching and refusals for Huly, GitHub, GitLab, Linear and Jira; the HTTP command and immediate service-state update are tested locally. No disposable provider setup was used for this task. Adding existing Huly workspace labels and preserving other labels was subsequently checked through the standalone assignment script ([verified log](verified.md#trackers)); removal, different-case matching and creation on Huly and on Linear, and Linear's refusal of a label group, passed on 2026-11-01. GitLab, Jira and GitHub are checked whole, GitHub's refusal on an Issues-read-only token on 2026-10-31 ([verified log](verified.md#trackers)). Huly's label counters (the issue's and each definition's) stayed true after a create, an attach and a removal on 2026-11-01. Still to check: on Huly, a profile that cannot write labels. Assumed: the fixture shapes match the provider's deployed schema and collection triggers. If wrong, the labels or chain rules can be stale, a missing label is not created, or an operation fails after a partial change. **Workaround:** refresh and inspect the issue in its tracker, edit the labels there, then refresh the project. A new definition may remain after a refused assignment; check it before retrying.
 
 ### Your own skills as a package (BTN-339)
 
