@@ -222,7 +222,10 @@ function fakeState(
             { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, answers: 0, account: 'john.doe@example.com' },
             { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, answers: 2, compactions: 1, account: 'jane.roe@example.com' },
           ],
-          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
+          'ABC-4': [
+            { sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'checkpoint', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+            { sessionId: '00000000-0000-4000-8000-000000000104', at: ago(960), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+          ],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
           'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
           'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],

@@ -126,7 +126,6 @@ export const sessionEn = {
   limitRelay: (at: string) =>
     `After the limit resets at ${at} the dispatcher starts a new session in the same working folder.`,
   list: 'Sessions of the task',
-  resets: (count: number, breakdown: string) => ` · context resets: ${count} (${breakdown})`,
   compacted: (count: number) => ` · compactions: ${count}`,
   resumed: (count: number) => ` · resumed after the limit${count > 1 ? ` ×${count}` : ''}`,
   answered: (count: number) => ` · answered${count > 1 ? ` ×${count}` : ''}`,

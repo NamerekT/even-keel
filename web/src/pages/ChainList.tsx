@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { blockMetered, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
-import { ActionMeter, BlockMetrics, CacheRing } from '../ui/BlockMetrics.js'
+import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -362,7 +362,7 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
   )
 }
 
-/** A row of the unfolded archive: one quiet line, its milestone named only where the milestone changes. */
+/** A row of the unfolded archive: one quiet line, its context resets and its milestone, named only where the milestone changes. */
 function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milestone: string | null; focused: boolean }) {
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
@@ -376,7 +376,10 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
         {block.title}
         {isOwnName(block.id) && <Forge lamp={block.lamp} />}
       </span>
-      {milestone !== null && <span className="archived__milestone">{milestone}</span>}
+      <span className="archived__side">
+        <ResetsBadge sessions={block.sessions} />
+        {milestone !== null && <span className="archived__milestone">{milestone}</span>}
+      </span>
     </li>
   )
 }

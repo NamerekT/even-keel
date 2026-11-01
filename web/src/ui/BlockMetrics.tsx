@@ -79,19 +79,25 @@ function contextTip(session: SessionView, scale: ContextScale, percent: number):
 
 function Extras({ project, session, sessions }: { project: string; session: SessionView; sessions: TaskSession[] }) {
   const { state } = useLive()
-  const resets = contextResets(sessions)
   return (
     <>
       {foreignAccount(state?.account, project, session.account) && <AccountMark email={session.account!} />}
-      {resets.total > 0 && (
-        <Tipped tip={[<span key="title">{t.chain.resetsTitle}</span>, <span key="of">{t.chain.resetsOf(resets)}</span>]}>
-          <span className="block__resets" role="img" aria-label={t.chain.resets(resets.total)}>
-            <HandoffIcon />
-            {resets.total}
-          </span>
-        </Tipped>
-      )}
+      <ResetsBadge sessions={sessions} />
     </>
+  )
+}
+
+/** The task's context resets as an icon and a number, the breakdown in its tip; nothing while there were none. */
+export function ResetsBadge({ sessions }: { sessions: TaskSession[] }) {
+  const resets = contextResets(sessions)
+  if (resets.total === 0) return null
+  return (
+    <Tipped tip={[<span key="title">{t.chain.resetsTitle}</span>, <span key="of">{t.chain.resetsOf(resets)}</span>]}>
+      <span className="block__resets" role="img" aria-label={t.chain.resets(resets.total)}>
+        <HandoffIcon />
+        {resets.total}
+      </span>
+    </Tipped>
   )
 }
 

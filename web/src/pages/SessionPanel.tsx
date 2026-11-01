@@ -16,7 +16,7 @@ import { useNow } from '../layout/useNow.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
-import { cacheTone, contextFill, contextResets, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { cacheTone, contextFill, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
@@ -535,14 +535,10 @@ interface SessionListProps {
 }
 
 function SessionList({ rows, current, onOpen }: SessionListProps) {
-  const resets = contextResets(rows)
   const now = useNow(60_000)
   return (
     <section className="panel__sessions" aria-label={t.session.list}>
-      <SectionLabel>
-        {t.session.list}
-        {resets.total > 0 && t.session.resets(resets.total, t.chain.resetsOf(resets))}
-      </SectionLabel>
+      <SectionLabel>{t.session.list}</SectionLabel>
       <ul className="sessions">
         {rows.map((row) => (
           <li key={row.sessionId}>
