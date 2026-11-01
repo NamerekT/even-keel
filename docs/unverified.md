@@ -84,6 +84,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
 | 37h2 | [Statuses on actions](#statuses-on-actions-btn-554) | projects in PR mode with a pull request move, a chosen done status or a feed's own moves (the start move and the automatic close checked) | a task is not moved, moved where its workflow forbids, or a merged task stays open; move or close it in the tracker |
+| 37h3 | [Profiles after a restart of the service](#profiles-after-a-restart-of-the-service-btn-678) | everyone, after each restart of the service | profiles stay "not answering" for up to 15 minutes; press Check on the profile |
 | 37h1 | [Scheduled break-label assignment](#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
 | 39a | [A conflict resolved by an agent](#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict | the carry row stays open after the merge; skip it |
 | 39b | [A conflict given to the agent by itself](#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended | a conflict gets no session, or several; press the button instead |
@@ -643,6 +644,10 @@ Atlassian gives an MCP grant to whoever is signed in to Atlassian in the browser
 ### A Jira MCP grant revoked in Atlassian (BTN-589)
 
 A grant revoked in id.atlassian.com → Connected apps was seen in BTN-489: the token check answered 401 `invalid_token`, the refresh 403 `unauthorized_client`, and the probe asked Atlassian's token endpoint every 30 s, two log lines each time. Now any 4xx of the token endpoint with an OAuth `error` (but `slow_down`, `temporarily_unavailable`, `server_error`, 408 and 429) marks the grant for reconnecting, so the row says "MCP: reconnect needed" and nothing more goes to Atlassian; the gateway and the refresh log a failure once per reason and once when it works again, and a failing probe waits longer each time, up to an hour. Checked only by tests on fake providers. If Atlassian answers a revoked grant otherwise (a 5xx, a 4xx without `error`), the profile stays "connected" and is asked again less and less often; press "Connect again" in the profile dialog. If a passing refusal looks like these, a working grant is marked for reconnecting and needs one.
+
+### Profiles after a restart of the service (BTN-678)
+
+The first profile check comes 15 s after the start, when every call of the service timed out for about a minute (seen 2026-11-01), and its "not answering" used to stay until the next round, 15 minutes later. Now a check without an answer is tried again in 1, 2 and 4 minutes, and once the profile's tracker link turns live or a CI on its token answers again (`docs/trackers.md`, "Profiles"). Checked only by tests on fake trackers. Not checked: a real restart, where the profiles' rows turn green within a couple of minutes, while the chains already read. If it is wrong, the rows stay red until the round; press **Check** on the profile.
 
 ### Two profiles of one tracker (BTN-200)
 

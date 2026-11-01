@@ -36,6 +36,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
   const calls = { runs: 0, jobs: [] as number[] }
   const logs: string[] = []
   let changes = 0
+  let recovered = 0
   const jobs: CiJob[] = options.jobs ?? [{ id: 1, name: 'test', status: 'success', startedAt: null, stoppedAt: null, steps: null }]
   const source: CiSource = {
     ...(options.log === undefined ? {} : { log: options.log }),
@@ -67,9 +68,11 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     now: () => new Date(clock),
     log: (message) => logs.push(message),
     onChange: () => changes++,
+    onRecovered: () => recovered++,
   })
   return {
     watch,
+    recovered: () => recovered,
     calls,
     refs,
     branches,
@@ -212,6 +215,7 @@ describe('CiWatch', () => {
     t.push('sha9')
     await t.watch.tick()
     expect(t.logs.slice(1)).toEqual(['ci: origin of D:/repos/app answers again', 'ci: origin of D:/repos/app: Forgejo: the API answered HTTP 404'])
+    expect(t.recovered()).toBe(1)
   })
 
   it('is off without a token and never asks', async () => {

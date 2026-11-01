@@ -13,6 +13,8 @@ interface CiWiring {
   timeoutMs: number
   log: (message: string) => void
   onChange: () => void
+  /** A project's CI on `target` answers again after an error. */
+  recovered?: (project: string, target: CiTarget) => void
   profiles: () => readonly TrackerProfile[]
 }
 
@@ -23,7 +25,7 @@ export function createCiWatches(wiring: CiWiring): CiWatches<CiWatch> {
   const source = (project: string, target: CiTarget) => sources.of(target, wiring.token(project, target))
   return new CiWatches({
     targets: (repo) => projectTargets(git, repo, wiring.profiles()),
-    watch: (project, repo, target) => new CiWatch({ target, source: source(project, target), git, repo, main: () => wiring.branch(project), log, onChange }),
+    watch: (project, repo, target) => new CiWatch({ target, source: source(project, target), git, repo, main: () => wiring.branch(project), log, onChange, onRecovered: () => wiring.recovered?.(project, target) }),
     source,
     log,
   })

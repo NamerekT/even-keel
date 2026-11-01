@@ -720,5 +720,9 @@ export function wireCiWatches(ctx: ChainContext): import("../ci/watches.js").CiW
       ctx.hub.broadcast('state', ctx.getState())
       ctx.dispatcher.check()
     },
+    recovered: (project, target) => {
+      const profile = ctx.ciTokenOf(project, target)?.profile
+      if (profile !== undefined) ctx.profiles.recheckSoon(profile)
+    },
   })
 }

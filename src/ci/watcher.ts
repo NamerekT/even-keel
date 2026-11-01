@@ -24,6 +24,8 @@ export interface CiWatchDeps {
   now?: () => Date
   log: (message: string) => void
   onChange: () => void
+  /** The CI answers again after an error: the profile whose token it takes is checked again (BTN-678). */
+  onRecovered?: () => void
 }
 
 // One CI of one repository. A push is seen locally: `git push` and `git fetch` move `refs/remotes/<remote>/<main branch>`,
@@ -150,7 +152,10 @@ export class CiWatch {
       if (pushed !== null && runs.some((each) => each.commit === pushed.commit || Date.parse(each.createdAt) >= Date.parse(pushed.at))) {
         this.view.pushed = null
       }
-      if (this.view.health === 'error') this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo} answers again`)
+      if (this.view.health === 'error') {
+        this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo} answers again`)
+        this.deps.onRecovered?.()
+      }
       this.view.health = 'ok'
       this.view.error = null
     } catch (error) {

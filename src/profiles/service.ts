@@ -17,8 +17,12 @@ import type { GatewayOAuth } from '../packages/gateway.js'
 /** How often every profile is checked again: a revoked token turns its profile red and pauses its chains. */
 export const RECHECK_MS = 15 * 60_000
 const FIRST_CHECK_MS = 15_000
-/** A profile is checked again on a tracker's failure at most this often. */
+/**
+ * A profile whose tracker did not answer is checked again in this time, then in twice and four times it, before it is
+ * left to the round; and once its tracker or CI link answers again, at most this often (BTN-678).
+ */
 const SOON_MS = 60_000
+const SOON_RETRIES = 3
 
 export interface ProfilesDeps {
   db: Db
@@ -76,6 +80,9 @@ export class Profiles {
   /** The person each profile's tracker credentials act as, from its last check: an MCP grant's person is compared with it. */
   private readonly users = new Map<string, TrackerUser>()
   private timer: NodeJS.Timeout | undefined
+  private running = false
+  /** The retries of the profiles whose last check got no answer, by id; `timer` is gone once they are spent. */
+  private readonly retries = new Map<string, { count: number; timer?: NodeJS.Timeout }>()
 
   constructor(private readonly deps: ProfilesDeps) {
     this.set = deps.set
@@ -299,6 +306,7 @@ export class Profiles {
   }
 
   start(): void {
+    this.running = true
     const run = () => void this.recheck()
     this.timer = setTimeout(() => {
       run()
@@ -309,8 +317,11 @@ export class Profiles {
   }
 
   stop(): void {
+    this.running = false
     clearTimeout(this.timer)
     clearInterval(this.timer)
+    for (const retry of this.retries.values()) clearTimeout(retry.timer)
+    this.retries.clear()
   }
 
   /** Checks every profile, or the one, against its tracker. */
@@ -319,11 +330,30 @@ export class Profiles {
     await Promise.all(profiles.map((profile) => this.recheckOne(profile)))
   }
 
-  /** A tracker link of the profile went down: checks it again unless it was checked within a minute. */
+  /** A tracker or CI link of the profile answers again: checks it again if its last check got no answer, at most once a minute. */
   recheckSoon(id: string): void {
-    const at = this.checks.get(id)?.at
-    if (at !== null && at !== undefined && Date.parse(this.now()) - Date.parse(at) < SOON_MS) return
+    const check = this.checks.get(id)
+    if (check?.state !== 'unreachable') return
+    if (check.at !== null && Date.parse(this.now()) - Date.parse(check.at) < SOON_MS) return
     void this.recheck(id)
+  }
+
+  /** A check that got no answer is tried again soon, a few times; any other outcome ends the retries. */
+  private retryLater(id: string, state: ProfileCheck['state']): void {
+    const before = this.retries.get(id)
+    clearTimeout(before?.timer)
+    if (state !== 'unreachable' || !this.running) {
+      this.retries.delete(id)
+      return
+    }
+    const count = before?.count ?? 0
+    if (count >= SOON_RETRIES) {
+      this.retries.set(id, { count })
+      return
+    }
+    const timer = setTimeout(() => void this.recheck(id), SOON_MS * 2 ** count)
+    timer.unref()
+    this.retries.set(id, { count: count + 1, timer })
   }
 
   private async recheckOne(profile: TrackerProfile): Promise<void> {
@@ -342,6 +372,7 @@ export class Profiles {
       if (before?.state !== check.state) this.deps.log(`profiles: ${profile.name}: ${englishOf(failure)}`)
     }
     this.checks.set(profile.id, check)
+    this.retryLater(profile.id, check.state)
     if (account !== undefined) this.remember(profile.id, account)
     const current = this.profile(profile.id)
     if (account !== undefined && current !== undefined && (current.login !== account.login || current.expiresAt !== account.expiresAt)) {

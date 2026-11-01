@@ -79,6 +79,7 @@ describe('Profiles', { timeout: 60_000 }, () => {
     )
   })
   afterEach(async () => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     await writes.settled()
     await db.close()
@@ -378,6 +379,89 @@ describe('Profiles', { timeout: 60_000 }, () => {
     await profiles.recheck()
     expect(profiles.view().profiles[0]!.check.state).toBe('unreachable')
     expect(profiles.refused(ABC)).toBeUndefined()
+  })
+
+  describe('an unreachable profile is checked again soon (BTN-678)', () => {
+    /** A tracker that does not answer until `up`; its profile already knows the login, so a check writes nothing. */
+    const flaky = () => {
+      const state = { up: false, calls: 0 }
+      const kind = {
+        ...fake,
+        account: async () => {
+          state.calls++
+          if (!state.up) throw new Error('ECONNREFUSED')
+          return { login: 'abc-user', name: 'Fake · abc', expiresAt: null }
+        },
+      } as unknown as TrackerAdapter
+      const profiles = make({ profiles: [{ ...profile('p1', 'abc', true), login: 'abc-user' }], links: {} }, {
+        kinds: profileKinds({ fake: kind }),
+        now: () => new Date(),
+      })
+      return { state, profiles, check: () => profiles.view().profiles[0]!.check.state }
+    }
+    const MINUTE = 60_000
+
+    it('a first check after the start that gets no answer is retried in a minute, not at the next round', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+      const { state, profiles, check } = flaky()
+      profiles.start()
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(check()).toBe('unreachable')
+      state.up = true
+      await vi.advanceTimersByTimeAsync(MINUTE - 1)
+      expect(state.calls).toBe(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(check()).toBe('ok')
+      await vi.advanceTimersByTimeAsync(10 * MINUTE)
+      expect(state.calls).toBe(2)
+      profiles.stop()
+    })
+
+    it('retries in 1, 2 and 4 minutes, then leaves the profile to the round', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+      const { state, profiles } = flaky()
+      profiles.start()
+      await vi.advanceTimersByTimeAsync(15_000)
+      const calls: number[] = []
+      for (let minute = 1; minute <= 14; minute++) {
+        await vi.advanceTimersByTimeAsync(MINUTE)
+        calls.push(state.calls)
+      }
+      expect(calls).toEqual([2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4])
+      await vi.advanceTimersByTimeAsync(MINUTE)
+      expect(state.calls).toBe(5)
+      await vi.advanceTimersByTimeAsync(14 * MINUTE)
+      expect(state.calls).toBe(5)
+      profiles.stop()
+    })
+
+    it('a refused profile waits for the round', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+      const account = vi.fn(async () => {
+        throw new CredentialsRefused('401 Unauthorized')
+      })
+      const profiles = make({ profiles: [profile('p1', 'bad', true)], links: {} }, { kinds: profileKinds({ fake: { ...fake, account } as unknown as TrackerAdapter }), now: () => new Date() })
+      profiles.start()
+      await vi.advanceTimersByTimeAsync(10 * MINUTE)
+      expect(account).toHaveBeenCalledTimes(1)
+      profiles.stop()
+    })
+
+    it('a link of the profile that answers again rechecks it when unreachable, at most once a minute', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      const { state, profiles, check } = flaky()
+      await profiles.recheck('p1')
+      profiles.recheckSoon('p1')
+      expect(state.calls).toBe(1)
+      vi.setSystemTime(Date.now() + MINUTE)
+      state.up = true
+      profiles.recheckSoon('p1')
+      await vi.waitFor(() => expect(check()).toBe('ok'))
+      vi.setSystemTime(Date.now() + 10 * MINUTE)
+      profiles.recheckSoon('p1')
+      expect(state.calls).toBe(2)
+      profiles.recheckSoon('missing')
+    })
   })
 
   it('shows secrets as set only, and the kinds a profile can be made for', () => {

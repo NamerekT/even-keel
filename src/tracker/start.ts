@@ -43,6 +43,8 @@ export interface TrackerStartDeps {
   broadcast: () => void
   /** Filled here: a read of the project's tasks out of turn, for each project of the tracker. */
   refreshers: Map<string, () => Promise<void>>
+  /** The link turned live, by the tracker's `view.name` (its profile's id): a profile check that got no answer is redone. */
+  recovered?: (name: string) => void
 }
 
 /** A running tracker: its credentials change on the fly, and it stops when its projects or variables are gone. */
@@ -80,6 +82,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const before = view.health
       view.health = health
       if (worthBroadcast(before, health)) broadcast()
+      if (health.state === 'live' && before.state !== 'live' && !stopped) deps.recovered?.(name)
     },
   })
   links.set(name, link)

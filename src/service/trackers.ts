@@ -138,6 +138,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
         readKey: (reader) => readKeyOf(ctx.readers(), reader),
         broadcast: () => ctx.hub.broadcast('state', ctx.getState()),
         refreshers: ctx.refreshers,
+        recovered: (profile) => ctx.profiles.recheckSoon(profile),
       }),
     tasksByProject: ctx.readerTasks,
     refreshers: ctx.refreshers,

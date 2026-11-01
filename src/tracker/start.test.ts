@@ -218,4 +218,27 @@ describe('startTracker', () => {
     await refreshers.get('APP')!()
     expect(logs).toHaveBeenCalledTimes(1)
   })
+
+  it('says so each time the link turns live, so the profile is checked again (BTN-678)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let down = false
+    const recovered = vi.fn()
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => {
+        if (down) throw new Error('fetch failed')
+        return { tasks: [], statuses: [] }
+      },
+      tasks: async () => [], close: async () => {},
+    }), { recovered })
+    await vi.waitFor(() => expect(recovered).toHaveBeenCalledTimes(1))
+    expect(recovered).toHaveBeenCalledWith('huly')
+    down = true
+    await refreshers.get('APP')!()
+    expect(view.health.state).toBe('down')
+    await refreshers.get('APP')!()
+    down = false
+    await refreshers.get('APP')!()
+    await refreshers.get('APP')!()
+    expect(recovered).toHaveBeenCalledTimes(2)
+  })
 })
