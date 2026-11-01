@@ -7,7 +7,6 @@ import { pathToFileURL } from 'node:url'
 import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import {
   hungEntry,
-  parseJsonc,
   parseModels,
   parseWriteAnswer,
   pluginFiles,
@@ -188,15 +187,6 @@ describe('a turn of its own', () => {
     const failed = event({ type: 'error', error: { name: 'APIError', data: { message: 'Rate limit exceeded' } } })
     expect(() => parseWriteAnswer(failed, null, 0)).toThrow('Rate limit exceeded')
     expect(() => parseWriteAnswer(finish({ input: 1 }, 0), null, 0)).toThrow('the turn ended with no message')
-  })
-})
-
-describe('parseJsonc', () => {
-  it('reads comments and trailing commas, keeping slashes inside strings', () => {
-    const text = '{\n  // servers\n  "mcp": { "a": { "url": "http://example.com/x" }, /* b */ },\n}'
-    expect(parseJsonc(text)).toEqual({ mcp: { a: { url: 'http://example.com/x' } } })
-    expect(parseJsonc('[1]')).toBeUndefined()
-    expect(parseJsonc('{')).toBeUndefined()
   })
 })
 

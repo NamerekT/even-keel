@@ -13,6 +13,7 @@ import { passedSkillFolders } from '../agent/projectRules.js'
 import { isAlive, killTree } from '../agent/process.js'
 import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from '../codex/process.js'
 import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
+import { parseJsonc } from '../jsonc.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { AgentEntry } from '../sessions/agents.js'
@@ -191,17 +192,6 @@ export function projectServers(cwd: string): string[] {
     if (typeof mcp === 'object' && mcp !== null) for (const name of Object.keys(mcp)) names.add(name)
   }
   return [...names]
-}
-
-/** JSON with comments and trailing commas, as OpenCode reads its config; `undefined` when it is not even that. */
-export function parseJsonc(text: string): Record<string, unknown> | undefined {
-  const bare = text.replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (_match, string: string | undefined) => string ?? '').replace(/,(\s*[}\]])/g, '$1')
-  try {
-    const value: unknown = JSON.parse(bare)
-    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined
-  } catch {
-    return undefined
-  }
 }
 
 /** The session id of a turn, from the first event of `opencode run --format json` that carries one. */

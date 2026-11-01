@@ -54,6 +54,16 @@ describe('copilot home', () => {
     expect(readFileSync(join(dir, 'config.json'), 'utf8')).toBe(text)
   })
 
+  it('reads the comment header Copilot writes into config.json and keeps it', () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    const header = '// User settings belong in settings.json.\n// This file is managed automatically.\n'
+    writeFileSync(join(dir, 'config.json'), `${header}{\n  "firstLaunchAt": "2026-10-24T00:02:54.777Z"\n}\n`)
+    trustFolder(dir, join(dir, 'repo'))
+    const text = readFileSync(join(dir, 'config.json'), 'utf8')
+    expect(text.startsWith(header)).toBe(true)
+    expect(JSON.parse(text.slice(header.length))).toEqual({ firstLaunchAt: '2026-10-24T00:02:54.777Z', trustedFolders: [join(dir, 'repo')] })
+  })
+
   it('does not overwrite a config.json it cannot read', () => {
     dir = mkdtempSync(join(tmpdir(), 'copilot-'))
     writeFileSync(join(dir, 'config.json'), '{ broken')
