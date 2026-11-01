@@ -119,7 +119,8 @@ schema version of a file of the format.
 - **Locations and binaries** — `EVEN_KEEL_CONFIG` (since BTN-199 only the file imported at the first start),
   `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
   `EVEN_KEEL_CODEX_ACCOUNTS_DIR`, `EVEN_KEEL_CLAUDE_BIN`, `EVEN_KEEL_CODEX_BIN`: needed before the storage is open (the
-  database lives in the state folder), so they stay in the environment.
+  database lives in the state folder), so they stay in the environment. So does `EVEN_KEEL_CPU_PROFILE`, a diagnostic
+  of the start (`docs/service.md`, "A slow start").
 - **Tally's connection** — `TALLY_DB_*`, `TALLY_*_USER`, `TALLY_LLM_URL`, `TALLY_LLM_MODEL`, `TALLY_CONFIG`,
   `EVEN_KEEL_URL`: the collector's, which can run against an external Postgres. Tally's own file stays its own; its
   prices are reference data, already loaded into its `model_prices` table.
