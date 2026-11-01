@@ -18,18 +18,37 @@ afterEach(() => {
 
 const binary = (folder: string) => join(folder, 'bin', 'cli.exe')
 
-function pinned(name: string, changed: () => void, fail = false) {
+/** `steps` are the `received, total` pairs the fetch reports; the last one comes after the files are in place. */
+function pinned(name: string, changed: () => void, fail = false, steps: [number, number][] = [[5, 10], [10, 10]]) {
   return new PinnedCli({
     dir: join(dir, name), version: '1.0.0', binary, log: vi.fn(), onReady: vi.fn(), onChange: changed,
     fetch: async (into, progress) => {
-      progress?.(5, 10)
+      for (const [received, total] of steps.slice(0, -1)) progress?.(received, total)
       if (fail) throw new Error('offline')
       mkdirSync(join(into, 'bin'), { recursive: true })
       writeFileSync(binary(into), 'binary')
-      progress?.(10, 10)
+      progress?.(...steps[steps.length - 1]!)
     },
   })
 }
+
+/** What the page's progress line shows for a view, in the order a download must go through them. */
+const STAGES = ['preparing', 'bytes', 'unpacking'] as const
+const stage = (view: CliCopyView) => view.total === 0 ? 'preparing' : view.received === view.total ? 'unpacking' : 'bytes'
+
+function stages(sdk: [number, number][], cliReady = false) {
+  const seen: (typeof STAGES)[number][] = []
+  const changed = () => { if (copy.view().status === 'downloading') seen.push(stage(copy.view())) }
+  const cli = pinned('cli', changed, false, [[0, 300], [150, 300], [300, 300]])
+  if (cliReady) {
+    mkdirSync(join(dir, 'cli', '1.0.0', 'bin'), { recursive: true })
+    writeFileSync(binary(join(dir, 'cli', '1.0.0')), 'binary')
+  }
+  const copy = cliCopy(cli, { checkedCli: () => true }, '1.0.0', () => true, () => false, 100, pinned('sdk', changed, false, sdk))
+  return { copy, seen }
+}
+
+const forwardOnly = (seen: string[]) => seen.every((current, i) => i === 0 || STAGES.indexOf(current as never) >= STAGES.indexOf(seen[i - 1] as never))
 
 function fixture(fail = false) {
   const seen: CliCopyView['status'][] = []
@@ -45,6 +64,29 @@ describe('cliCopy', () => {
     expect(seen.length).toBeGreaterThan(0)
     expect(seen.every((status) => status === 'downloading')).toBe(true)
     expect(copy.view().status).toBe('ready')
+  })
+
+  it('never goes back from unpacking to bytes when the second package starts', async () => {
+    // npm's tarball comes chunked: no content-length, so its total is 0.
+    const { copy, seen } = stages([[0, 0], [3, 0], [6, 0], [6, 0]])
+    await copy.download()
+    expect(seen).toContain('bytes')
+    expect(seen.at(-1)).toBe('unpacking')
+    expect(forwardOnly(seen), seen.join(' → ')).toBe(true)
+  })
+
+  it('never goes back to bytes when the second package knows its size', async () => {
+    const { copy, seen } = stages([[0, 20], [10, 20], [20, 20]])
+    await copy.download()
+    expect(forwardOnly(seen), seen.join(' → ')).toBe(true)
+    expect(copy.view()).toMatchObject({ status: 'ready' })
+  })
+
+  it('shows the bytes of the second package when the CLI is already in place', async () => {
+    const { copy, seen } = stages([[0, 20], [10, 20], [20, 20]], true)
+    await copy.download()
+    expect(seen).toContain('bytes')
+    expect(forwardOnly(seen), seen.join(' → ')).toBe(true)
   })
 
   it('reports a failed first package once the download ends', async () => {

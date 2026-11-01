@@ -63,7 +63,6 @@ function CheckedSwitch({ provider }: { provider: string }) {
   const { pick, dialog, sending, failure } = useCheckedSwitch(provider)
   return (
     <>
-      {' '}
       <button type="button" className="button button--small" disabled={sending} onClick={pick}>
         {cliText().switch}
       </button>

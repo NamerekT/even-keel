@@ -55,7 +55,7 @@ export const codex: AgentAdapter = {
       refresh: (home) => appServer(bin(), [], workDir, envOf(home), [['account/read', { refreshToken: true }]]),
     })
     return {
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 175 * 1_000_000),
       mode: SESSION_MODE,
       // GPT-5.6 and later keep a cache 30 minutes at least; the rollout does not say.
       warmMs: () => warmCacheMs(CODEX_TTL),

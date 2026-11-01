@@ -61,6 +61,11 @@
   gap: var(--space-4);
 }
 
+/* A button after a notice's sentence: room for its focus ring. */
+.banner__list .button {
+  margin-left: var(--space-8);
+}
+
 .app__header {
   position: sticky;
   top: 0;

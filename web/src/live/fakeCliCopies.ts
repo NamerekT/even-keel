@@ -4,7 +4,7 @@ import { notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 
 const VERSIONS: Record<string, string> = { claude: '2.1.310', codex: '0.164.0', opencode: '1.18.25', copilot: '1.0.98' }
-const SIZES: Record<string, number> = { claude: 280, codex: 440, opencode: 170, copilot: 155 }
+const SIZES: Record<string, number> = { claude: 280, codex: 175, opencode: 170, copilot: 155 }
 const INSTALLED: Record<string, string> = { claude: '2.1.312', codex: '0.165.0', opencode: '1.19.5', copilot: '1.0.99' }
 
 export function withCliCopies(state: EvenKeelState, params: URLSearchParams): EvenKeelState {
