@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { listedModels, parseLoginStatus, parseWriteAnswer, turnArgs, writeArgs } from './cli.js'
+import { forkSpend, listedModels, parseLoginStatus, parseWriteAnswer, turnArgs, warmArgs, writeArgs } from './cli.js'
+import { mcpArgs } from './mcp.js'
 
 describe('listedModels', () => {
   it("takes the models of the app-server's list, the hidden ones left out", () => {
@@ -20,6 +21,47 @@ describe('writeArgs', () => {
   it('asks for one read-only turn that keeps no rollout, prints its events and reads the prompt from stdin', () => {
     expect(writeArgs(null)).toEqual(['exec', '--json', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-'])
     expect(writeArgs('gpt-6.1-sol')).toEqual(['exec', '--json', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-m', 'gpt-6.1-sol', '-'])
+  })
+})
+
+describe('warmArgs', () => {
+  const ID = '01a19652-0000-7000-8000-000000000000'
+
+  it("forks the session read-only with no hooks and no rollout, its model, servers and plugins before fork, the prompt on stdin", () => {
+    const start = { model: 'gpt-6.1-sol', mcp: [{ name: 'huly', url: 'http://127.0.0.1:4747/mcp/huly' }] }
+    expect(warmArgs(start, ID, ['-c', 'plugins.x=1'])).toEqual([
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--sandbox',
+      'read-only',
+      '--disable',
+      'hooks',
+      '-c',
+      'project_doc_fallback_filenames=["CLAUDE.md"]',
+      '-m',
+      'gpt-6.1-sol',
+      ...mcpArgs(start.mcp),
+      '-c',
+      'plugins.x=1',
+      'fork',
+      ID,
+      '-',
+    ])
+    expect(warmArgs({ model: null }, ID).slice(-4)).toEqual(['project_doc_fallback_filenames=["CLAUDE.md"]', 'fork', ID, '-'])
+  })
+})
+
+describe('forkSpend', () => {
+  it("takes the source session's total out of the fork's usage, which adds it to the fork's own request", () => {
+    const fork = { model: 'gpt-6-luna', tokens: { input: 42_069, output: 1_020, cacheRead: 62_592, cacheWrite: 0 }, cost: null, durationMs: 3_000 }
+    const source = { input: 40_442, output: 1_015, cacheRead: 11_136, cacheWrite: 0 }
+    expect(forkSpend(fork, source)).toEqual({ ...fork, tokens: { input: 1_627, output: 5, cacheRead: 51_456, cacheWrite: 0 } })
+  })
+
+  it('counts nothing below zero when the source total outgrew the fork', () => {
+    const fork = { model: null, tokens: { input: 10, output: 1, cacheRead: 100, cacheWrite: 0 }, cost: null, durationMs: 0 }
+    expect(forkSpend(fork, { input: 20, output: 0, cacheRead: 50, cacheWrite: 0 }).tokens).toEqual({ input: 0, output: 1, cacheRead: 50, cacheWrite: 0 })
   })
 })
 

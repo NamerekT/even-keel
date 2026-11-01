@@ -159,6 +159,14 @@ describe('RolloutFold', () => {
     expect(summary.tokens).toEqual({ input: 15000, cacheRead: 24000, cacheWrite: 0, output: 120 })
   })
 
+  it("takes the cache for warm 30 minutes from the last model call, which a limits-only count is not", () => {
+    expect(fold([meta(), started(), user('BTN-1')]).summary().cache).toBeNull()
+    const call = tokens(25000, 24000, [39000, 24000, 120])
+    const limitsOnly = event({ type: 'token_count', info: null, rate_limits: { limit_id: 'premium' } })
+    const until = new Date(Date.parse(JSON.parse(call).timestamp) + 30 * 60_000).toISOString()
+    expect(fold([meta(), tokens(14000, 0, [14000, 0, 100]), call, agent('Done.'), limitsOnly]).summary().cache).toEqual({ ttl: '30m', until })
+  })
+
   it('takes the context window the model runs with from the turn start and each token count', () => {
     expect(fold([meta()]).summary().contextWindow).toBeNull()
     expect(fold([meta(), started()]).summary().contextWindow).toBe(258400)

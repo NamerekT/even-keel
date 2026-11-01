@@ -12,7 +12,10 @@ import {
   noChangesOf,
   pullRequestOf,
   stageOfCommand,
+  TTL_MS,
   userLine,
+  type CacheTtl,
+  type CacheWindow,
   type FeedLine,
   type Stage,
   type TokenTotals,
@@ -36,6 +39,7 @@ const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3,
 const FIVE_HOURS = 300
 const WEEK = 10_080
 const MONTH = 43_200
+export const CODEX_TTL: CacheTtl = '30m'
 const ROLLOUT = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i
 
 interface Line {
@@ -64,6 +68,7 @@ export class RolloutFold {
   private workdir: string | null = null
   private model: string | null = null
   private turnStartedAt: string | null = null
+  private lastCallAt: string | null = null
   private endedTurn: string | null = null
   private readonly mailSeen = new Set<number>()
   private readonly imagePaths = new Map<string, string>()
@@ -105,7 +110,7 @@ export class RolloutFold {
     if (payload.type === 'task_started') {
       this.turnStartedAt = at
       this.pushWindow(payload.model_context_window)
-    } else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
+    } else if (payload.type === 'token_count') this.pushTokens(at, record(payload.info))
     else if (payload.type === 'error') this.pushError(at, errorText(payload.message), payload.codex_error_info)
     else if (payload.type === 'task_complete') {
       if (typeof payload.turn_id === 'string') this.endedTurn = payload.turn_id
@@ -118,7 +123,7 @@ export class RolloutFold {
       contextTokens: this.contextTokens,
       contextWindow: this.contextWindow,
       compactions: this.compactions,
-      cache: null,
+      cache: this.cacheWindow(),
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: null },
       action: this.action,
@@ -142,10 +147,22 @@ export class RolloutFold {
     }
   }
 
-  private pushTokens(info: Record<string, unknown> | undefined): void {
+  /**
+   * The rollout says nothing of the cache: it is taken as written at the last model call and living the 30 minutes
+   * every model we run keeps it (`docs/sessions.md`, "Every agent's cache").
+   */
+  private cacheWindow(): CacheWindow | null {
+    const at = this.lastCallAt === null ? NaN : Date.parse(this.lastCallAt)
+    return Number.isNaN(at) ? null : { ttl: CODEX_TTL, until: new Date(at + TTL_MS[CODEX_TTL]).toISOString() }
+  }
+
+  private pushTokens(at: string, info: Record<string, unknown> | undefined): void {
     const last = record(info?.last_token_usage)
     const total = record(info?.total_token_usage)
-    if (last !== undefined) this.contextTokens = count(last.input_tokens)
+    if (last !== undefined) {
+      this.contextTokens = count(last.input_tokens)
+      this.lastCallAt = at
+    }
     this.pushWindow(info?.model_context_window)
     if (total === undefined) return
     const cached = count(total.cached_input_tokens)

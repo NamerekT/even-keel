@@ -13,7 +13,7 @@ import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_M
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex, CODEX_PACKAGE } from './release.js'
-import { foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
+import { CODEX_TTL, foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
 import { CodexUsage } from './usage.js'
@@ -58,7 +58,8 @@ export const codex: AgentAdapter = {
       cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 440 * 1_000_000),
       mode: SESSION_MODE,
       // GPT-5.6 and later keep a cache 30 minutes at least; the rollout does not say.
-      warmMs: () => warmCacheMs('30m'),
+      warmMs: () => warmCacheMs(CODEX_TTL),
+      warm: (home, { sessionId }, start) => cli.warm(home, sessionId, start),
       env: envOf,
       launch: (home, start) => usage.session(home, () => cli.launch(home, start)),
       resume: (home, { sessionId }, start) => usage.session(home, () => cli.resume(home, sessionId, start)),

@@ -7,19 +7,25 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
+import { runWithInput } from '../agent/oneturn.js'
 import { isAlive, killTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
+import type { TokenTotals } from '../sessions/transcript.js'
+import type { TurnSpend } from '../state.js'
 import { mcpArgs } from './mcp.js'
 import { writeProtection } from './protection.js'
 import { type CodexPlugins, UntrustedHooks } from './plugins.js'
 import { APPEAR_TIMEOUT_MS, polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
+import { foldRollout, RolloutFold } from './rollout.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
 
 const run = promisify(execFile)
 
 const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
+/** Loading a long rollout takes longer than a short call. */
+const WARM_TIMEOUT_MS = 3 * 60_000
 const TRIPLES: Record<string, string> = { x64: 'x86_64-pc-windows-msvc', arm64: 'aarch64-pc-windows-msvc' }
 
 /** Chain sessions run without a human: the model approves its own actions (BTN-168). */
@@ -59,6 +65,41 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
     ...(resumeId === undefined ? [] : ['resume', resumeId]),
     prompt,
   ]
+}
+
+/**
+ * The keep-warm ping (BTN-564): a fork of the session for one turn that keeps no rollout, with the session's model,
+ * servers and plugins, so that its prompt is the session's and reads its cache. Read-only refuses a tool call; the
+ * hooks are off, so that a package's Stop hook takes no mail meant for the waiting session (checked on 0.164.0, BTN-677).
+ */
+export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp'>, sessionId: string, plugins: string[] = []): string[] {
+  const { model, mcp = [] } = start
+  return [
+    'exec',
+    '--json',
+    '--ephemeral',
+    '--sandbox',
+    'read-only',
+    '--disable',
+    'hooks',
+    '-c',
+    'project_doc_fallback_filenames=["CLAUDE.md"]',
+    ...(model === null ? [] : ['-m', model]),
+    ...mcpArgs(mcp),
+    ...plugins,
+    'fork',
+    sessionId,
+    '-',
+  ]
+}
+
+/**
+ * What the ping's own request read and wrote: a fork's `turn.completed.usage` adds the source session's whole total
+ * (its last `total_token_usage`) to it (codex-cli 0.164.0, BTN-677).
+ */
+export function forkSpend(fork: TurnSpend, source: TokenTotals): TurnSpend {
+  const less = (key: keyof TokenTotals) => Math.max(0, fork.tokens[key] - source[key])
+  return { ...fork, tokens: { input: less('input'), output: less('output'), cacheRead: less('cacheRead'), cacheWrite: less('cacheWrite') } }
 }
 
 /**
@@ -168,6 +209,20 @@ export class CodexCli {
     const { stopped: _, ...kept } = session
     await this.saveTurn({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
     return sessionId
+  }
+
+  /**
+   * The keep-warm ping (`warmArgs`) in the session's own folder, the prompt on stdin. The session's total is read before
+   * the fork, which adds it to its own usage; the session waits, so no turn of its own moves it meanwhile.
+   */
+  async warm(home: AccountHome, sessionId: string, start: SessionStart): Promise<TurnSpend> {
+    const { cwd } = await this.known(sessionId)
+    const source = await foldRollout(home.dir, sessionId, new RolloutFold(0))
+    if (source === undefined) throw new Error(`no rollout of ${sessionId} in ${home.dir}`)
+    const plugins = await this.pluginArgs(home, start, cwd)
+    const started = Date.now()
+    const stdout = await runWithInput(this.bin(), warmArgs(start, sessionId, plugins), start.prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS })
+    return forkSpend(parseWriteAnswer(stdout, start.model, Date.now() - started).spend, source.tokens)
   }
 
   async stop(sessionId: string): Promise<void> {
