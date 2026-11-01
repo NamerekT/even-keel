@@ -188,6 +188,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?account=out\|expired\|login\|failed\|unknown\|cliMissing` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in; `cliMissing` renders the install command in a sign-in error |
 | `?account=secondFree` | a Codex sign-in refused as a second free account after the CLI said `Successfully logged in` (BTN-389) |
 | `?account=rows\|rows-noCodex\|rows-long\|empty` | provider rows on the page and in the drawer: rejected Test API key, shared ChatGPT pool, missing 5-hour reading, 99% weekly usage, an exhausted Codex window and OpenCode/Copilot token counts; `rows-noCodex` omits Codex while keeping it available in Add account, `rows-long` gives the active account a long display name, `empty` has no accounts. Combine with `lang=ru` for narrow translated rows |
+| `?account=outdated` | the active account's limits are 17 hours old and no poll has confirmed them since the restart (BTN-631): muted values and bars, a "Last read … ago" line under the name, the age in the header card |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
 | `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, counted in the card's sessions line and listed by their tab titles in its tip |

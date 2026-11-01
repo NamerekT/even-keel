@@ -22,6 +22,7 @@ import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
 import { withUnattended } from '../chain/relay.js'
 import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
+import { saveLimits } from '../limits/saved.js'
 import { LimitsWatcher } from '../limits/watcher.js'
 import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -124,6 +125,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'requireModel'
   | 'runtimes'
   | 'saveAccounts'
+  | 'savedLimits'
   | 'sayBlankedSecrets'
   | 'secretsSaid'
   | 'sessions'
@@ -288,6 +290,8 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     ready: (): boolean => ctx.account.ready,
     apiKey: ctx.spendsByKey,
     needsLogin: (key) => ctx.account.needsLogin(key),
+    saved: ctx.savedLimits,
+    save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.db, key, limits)),
     onChange: () => {
       ctx.hub.broadcast('state', ctx.getState())
       ctx.dispatcher.check()
@@ -462,6 +466,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     configPending: (key) => ctx.daemons.pending(key),
     limits: (key) => ctx.limits.limits(key),
     usage: (key) => ctx.limits.usage(key),
+    limitsOutdated: (key) => ctx.limits.outdated(key),
     lastLimit: (key) => ctx.limitRetries.lastAt(key),
     checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
     keyCheckMs: KEY_CHECK_MS,

@@ -269,6 +269,10 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     return { ...signedIn, login: { ...FAKE_DEVICE_LOGIN, deviceCode: null, output, error }, loginBlock: null }
   }
   if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: textNotice('claude: auth status timed out') }, work] }
+  if (mode === 'outdated') {
+    const old = { ...limits, sevenDay: { ...limits.sevenDay!, usedPercentage: 45 }, updatedAt: ago(17 * 60), source: 'statusline' as const }
+    return { ...signedIn, accounts: [{ ...global, limits: old, usage: fakeUsage('waiting'), limitsOutdated: true }, work] }
+  }
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }

@@ -187,6 +187,7 @@ export const en: Messages = {
     reset: (title: string, resetIn: string, source: string) => `${title}: resets in ${resetIn}${source}`,
     resetAt: (resetIn: string, at: string) => `resets in ${resetIn} — ${at}`,
     updated: (source: string, ago: string) => `${source}, ${ago}`,
+    outdated: (ago: string) => `Last read ${ago}, not checked since the restart`,
   },
   status: {
     levels: { ok: 'all good', warn: 'warnings', error: 'failures', off: 'no data' },

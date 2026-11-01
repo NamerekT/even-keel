@@ -77,6 +77,8 @@ export interface AccountWatcherOptions {
   configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
+  /** Optional. The limits are old and unconfirmed since the start (`LimitsWatcher.outdated`). */
+  limitsOutdated?: (key: string) => boolean
   /** Optional. When an account whose limit nothing tells last hit it (`LimitRetries`). */
   lastLimit?: (key: string) => string | null
   /** Whether the agent's provider takes the key. */
@@ -165,6 +167,7 @@ export class AccountWatcher {
         ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
+        ...(this.options.limitsOutdated?.(home.key) === true && { limitsOutdated: true }),
         lastLimitAt: this.options.lastLimit?.(home.key) ?? null,
         spendingLimit: this.credit.spendingLimit(home.key, now),
       }

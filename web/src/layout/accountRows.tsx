@@ -129,6 +129,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : t.account.needsLogin}</span>}
         {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
         {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
+        {outdatedText(entry, now) !== null && <span className="account-row__outdated">{outdatedText(entry, now)}</span>}
       </div>
       {page && roles}
       <div className="account-windows">
@@ -149,10 +150,10 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
 function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSpan; now: Date }) {
   const window = entry.limits?.[span] ?? null
   const percent = window === null ? 0 : Math.round(Math.max(0, Math.min(100, window.usedPercentage)))
-  const heat = percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
+  const heat = entry.limitsOutdated ? ' account-value--outdated' : percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
   const reset = window === null ? '' : formatSpan(window.resetsAt, now)
   const source = entry.limits === null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
-  const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), source, staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
+  const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
   return <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">
@@ -168,8 +169,14 @@ export function CompactLimit({ entry, now }: { entry: AccountEntry | undefined; 
   const tightest = entry === undefined || limitsNote(entry) !== null ? null : tightestWindow(entry.limits)
   if (tightest === null) return <span className="account-compact__none">—</span>
   const used = 100 - tightest.free
-  const heat = used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
+  const heat = entry?.limitsOutdated ? ' account-value--outdated' : used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
   const summary = t.account.freeTip(spanNames(tightest.span).title, tightest.free, formatSpan(tightest.window.resetsAt, now))
   const source = entry?.limits == null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
-  return <Tipped inline focusable className={`account-compact__value${heat}`} tip={[summary, source, entry === undefined ? null : staleText(entry)].filter(Boolean).join(' · ')}>{used}%</Tipped>
+  const notes = entry === undefined ? [] : [outdatedText(entry, now), staleText(entry)]
+  return <Tipped inline focusable className={`account-compact__value${heat}`} tip={[summary, source, ...notes].filter(Boolean).join(' · ')}>{used}%</Tipped>
+}
+
+/** Limits older than a poll's interval that no poll has confirmed since the restart (BTN-631). */
+export function outdatedText(entry: AccountEntry, now: Date): string | null {
+  return entry.limitsOutdated && entry.limits !== null ? t.limits.outdated(formatAgo(entry.limits.updatedAt, now)) : null
 }

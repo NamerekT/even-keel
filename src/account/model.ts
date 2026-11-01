@@ -61,6 +61,8 @@ export interface AccountEntry {
   transport?: Transport
   limits: RateLimits | null
   usage: UsageHealth
+  /** `limits` are older than a poll's interval and no poll has confirmed them since the start (BTN-631). */
+  limitsOutdated?: boolean
   /** When an account whose limit nothing tells last hit it, by the chain's sessions since the start (BTN-342). */
   lastLimitAt?: string | null
   /** The spending cap a current chain is waiting out; absent or null when none is known. */

@@ -180,6 +180,19 @@
   font-weight: 400;
 }
 
+/* Old limits no poll has confirmed since the restart (BTN-631). */
+.limit--outdated .limit__value {
+  color: var(--fg-muted);
+}
+
+.limit--outdated .limit__fill {
+  stroke: var(--fg-muted);
+}
+
+.limit--outdated .meter__fill {
+  background: var(--fg-muted);
+}
+
 /* The full numbers of the account block, on hover or keyboard focus; the click opens the drawer instead. */
 .account-card {
   position: absolute;

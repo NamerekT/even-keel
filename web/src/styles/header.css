@@ -188,6 +188,10 @@
   color: var(--lamp-error);
 }
 
+.meter--outdated .meter__fill {
+  background: var(--fg-muted);
+}
+
 .meter__value {
   color: var(--fg);
   font-size: var(--text-13);

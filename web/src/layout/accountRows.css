@@ -56,6 +56,7 @@
 .account-role--none { border: 1px dashed var(--border); color: var(--fg-muted); }
 .account-shared { color: var(--fg-muted); min-width: 24px; min-height: 24px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .account-row__error { color: var(--error-fg); font-size: var(--text-12); }
+.account-row__outdated { color: var(--fg-muted); font-size: var(--text-12); }
 .account-meter { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; font-size: var(--text-12); font-variant-numeric: tabular-nums; }
 .account-meter__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-4); }
 .account-meter__top > span:last-child:not(.account-meter__what) { color: var(--fg-muted); white-space: nowrap; }
@@ -70,6 +71,8 @@
 .account-value--full { color: var(--lamp-error); }
 .account-value--warm .account-meter__bar i { background: var(--lamp-waiting); }
 .account-value--full .account-meter__bar i { background: var(--lamp-error); }
+.account-value--outdated { color: var(--fg-muted); }
+.account-value--outdated .account-meter__bar i { background: var(--fg-muted); }
 .account-sum { display: flex; align-items: baseline; gap: var(--space-6); min-width: 0; font-size: var(--text-14); font-variant-numeric: tabular-nums; }
 .account-sum strong { font-weight: 600; }
 .account-detail { min-width: 0; }
@@ -105,7 +108,7 @@
   .account-blocks { gap: var(--space-12); }
   .account-grid, .account-blocks--page .account-grid { display: flex; gap: var(--space-8); padding: var(--space-12); min-height: 48px; }
   .account-grid--head, .account-blocks--page .account-grid--head { min-height: 0; padding-top: var(--space-8); padding-bottom: var(--space-8); }
-  .account-grid--head > :not(.account-access__title), .account-windows, .account-detail, .account-plan, .account-row__error { display: none; }
+  .account-grid--head > :not(.account-access__title), .account-windows, .account-detail, .account-plan, .account-row__error, .account-row__outdated { display: none; }
   .account-who { display: contents; }
   .account-who__name { flex: 1; min-width: 0; }
   .account-who .accounts__email { font-size: var(--text-13); }
