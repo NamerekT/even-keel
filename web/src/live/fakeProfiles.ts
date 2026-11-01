@@ -260,11 +260,15 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   throw new Error(`fake: ${name} is not supported`)
 }
 
-/** `profiles/statuses`: those of the fake tracker for a kind that moves statuses; `?profileStatuses=none|fail` — none named, or no answer. */
+/**
+ * `profiles/statuses`: those of the fake tracker for a kind that moves statuses; `?profileStatuses=none|fail` — none
+ * named, or no answer; `renamed` — without "In Review", so the Huly profile's chosen review status is not in the tracker.
+ */
 export function fakeProfileStatuses(state: EvenKeelState, body: Record<string, unknown>, mode: string | null, statuses: TaskStatus[]): TaskStatus[] | null {
   if (mode === 'fail') throw new Error('huly: not connected')
   const kind = state.profiles.profiles.find((each) => each.id === body.id)?.kind
-  return mode === 'none' || state.profiles.kinds.find((each) => each.kind === kind)?.moves !== true ? null : statuses
+  if (mode === 'none' || state.profiles.kinds.find((each) => each.kind === kind)?.moves !== true) return null
+  return mode === 'renamed' ? statuses.filter((status) => status.name !== 'In Review') : statuses
 }
 
 /** The state after a fake `profiles/save` answered `id`. */

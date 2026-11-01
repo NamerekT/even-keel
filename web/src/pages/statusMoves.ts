@@ -32,16 +32,20 @@ export function profileMoveLabel(key: MoveSetting, profile: StatusMoves | undefi
   return typeof value === 'string' ? value : key === 'done' ? t.profiles.moves.auto : t.profiles.moves.leave
 }
 
+/** A chosen status the tracker's read statuses lack (BTN-667): a save refuses it, a move to it fails. None read — unknown, not missing. */
+export const missingMove = (value: string, statuses: readonly TaskStatus[]): boolean =>
+  value !== '' && value !== LEAVE && statuses.length > 0 && !statuses.some((status) => sameName(status.name, value))
+
 /**
  * The choices of a move: a profile's (`profile` absent) — "leave" or "automatic" and the statuses; a source's — "as in
  * the profile", "leave" for start and review, and the statuses. Start and review offer those in the chain, completion
- * the done ones; a chosen status the list lacks stays, so the field never shows a blank.
+ * the done ones; a chosen status the list lacks stays, so the field never shows a blank, marked when the tracker lacks it.
  */
 export function moveOptions(key: MoveSetting, rules: ChainRules, statuses: readonly TaskStatus[], value: string, profile?: StatusMoves): SelectOption[] {
   const fits = statuses.filter((status) => (key === 'done' ? isDone(rules, status) : isActive(rules, status))).map((status) => status.name)
   const named = value === '' || value === LEAVE || fits.some((name) => sameName(name, value)) ? fits : [...fits, value]
   const first: SelectOption[] = [{ value: '', label: moveLabel(key, '', profile) }, ...(profile === undefined || key === 'done' ? [] : [{ value: LEAVE, label: t.profiles.moves.leave }])]
-  return [...first, ...named.map((name) => ({ value: name, label: name }))]
+  return [...first, ...named.map((name) => ({ value: name, label: name === value && missingMove(name, statuses) ? t.profiles.moves.missing(name) : name }))]
 }
 
 /** What a draft value of a move reads as: `''` — the default of a profile, the profile's value of a source. */

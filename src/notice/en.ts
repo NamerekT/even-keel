@@ -66,6 +66,8 @@ export const en = {
   'statusMoves.outside': (p: { status: string; setting: MoveWhen }) =>
     `"${p.status}" of ${MOVE_LABELS[p.setting]} is out of the chain by the chain rules: the chain would let a task go as soon as it moved there. Pick a status in the chain.`,
   'statusMoves.notDone': (p: { status: string }) => `The chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done: the chain would never see a task there closed. Pick a done status.`,
+  'statusMoves.unknown': (p: { status: string; setting: MoveWhen | 'done' }) =>
+    `The tracker has no status "${p.status}" for ${MOVE_LABELS[p.setting]}: the move would fail when it comes. Pick a status from the list.`,
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',

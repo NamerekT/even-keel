@@ -4,10 +4,11 @@ import type { ChainRules } from '../../../src/chain/rules.js'
 import type { TaskStatus } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
 import { Select } from '../ui/Select.js'
 import type { Value } from './settingsDraft.js'
 import { fieldId, Row, Section, type Marks } from './settingsParts.js'
-import { moveLabel, moveOptions, type MovesText } from './statusMoves.js'
+import { missingMove, moveLabel, moveOptions, type MovesText } from './statusMoves.js'
 
 /** The statuses a tracker profile's tracker lists (BTN-554): `undefined` — reading, `null` — none read. */
 export function useProfileStatuses(id: string | undefined): TaskStatus[] | null | undefined {
@@ -54,6 +55,8 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
       {MOVE_SETTINGS.map((key) => {
         const [label, hint] = LABELS[key]()
         const id = fieldId(`${idPrefix}-move-${key}`)
+        const select = <Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} onChange={(value) => onEdit(key, value)} />
+        const missing = missingMove(text[key], statuses ?? [])
         return (
           <Row
             key={key}
@@ -62,7 +65,11 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
             hint={hint}
             htmlFor={id}
             mark={marks.note(key, (value: Value) => moveLabel(key, String(value), profile))}
-            control={<Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} onChange={(value) => onEdit(key, value)} />}
+            control={
+              <FieldStrip line={missing ? { tone: 'plain', text: t.profiles.moves.missingNote, short: t.profiles.moves.missingShort } : null} fold>
+                {select}
+              </FieldStrip>
+            }
           />
         )
       })}

@@ -75,11 +75,16 @@ export function moveVerdict(when: MoveWhen, rules: ChainRules, current: TaskStat
 export const doneNamed = (rules: ChainRules, name: string): boolean => rules.terminal === null || rules.terminal.some((each) => sameName(each, name))
 
 /**
- * The first choice the rules do not allow, by the statuses the tracker lists: a start or review status out of the chain,
- * a done status the chain does not take for done. A status the tracker did not list is judged by its name only.
+ * The first choice the rules do not allow, by the statuses the tracker lists: a status the list lacks, a start or review
+ * status out of the chain, a done status the chain does not take for done. With no statuses read there is nothing to
+ * check a name against, so a done status is judged by its name only.
  */
 export function movesProblem(rules: ChainRules, moves: StatusMoves, statuses: readonly TaskStatus[]): Notice | null {
   const known = (name: string) => statuses.find((status) => sameName(status.name, name))
+  for (const setting of MOVE_SETTINGS) {
+    const name = moves[setting]
+    if (typeof name === 'string' && statuses.length > 0 && known(name) === undefined) return notice('statusMoves.unknown', { status: name, setting })
+  }
   for (const setting of ['start', 'review'] as const) {
     const name = moves[setting]
     if (typeof name !== 'string') continue

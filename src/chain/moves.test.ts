@@ -110,9 +110,15 @@ describe('movesProblem', () => {
     expect(movesProblem({ ...DEFAULT_RULES, terminal: ['Canceled'] }, { done: 'Done' }, statuses)).toEqual({ code: 'statusMoves.notDone', params: { status: 'Done' } })
   })
 
-  it('lets a status the tracker did not list through by name only', () => {
-    expect(movesProblem(DEFAULT_RULES, { start: 'Unknown', done: 'Unknown' }, statuses)).toBeNull()
-    expect(movesProblem({ ...DEFAULT_RULES, terminal: ['Done'] }, { done: 'Unknown' }, statuses)).toEqual({ code: 'statusMoves.notDone', params: { status: 'Unknown' } })
+  it('refuses a status the tracker does not list, by the same name match', () => {
+    expect(movesProblem(DEFAULT_RULES, { start: 'In Progress', review: 'Unknown' }, statuses)).toEqual({ code: 'statusMoves.unknown', params: { status: 'Unknown', setting: 'review' } })
+    expect(movesProblem(DEFAULT_RULES, { done: 'Gone' }, statuses)).toEqual({ code: 'statusMoves.unknown', params: { status: 'Gone', setting: 'done' } })
+    expect(movesProblem(DEFAULT_RULES, { start: 'in progress', done: 'DONE' }, statuses)).toBeNull()
+  })
+
+  it('judges a status by its name only when the tracker listed none', () => {
+    expect(movesProblem(DEFAULT_RULES, { start: 'Unknown', done: 'Unknown' }, [])).toBeNull()
+    expect(movesProblem({ ...DEFAULT_RULES, terminal: ['Done'] }, { done: 'Unknown' }, [])).toEqual({ code: 'statusMoves.notDone', params: { status: 'Unknown' } })
   })
 })
 

@@ -1,6 +1,6 @@
 import { ranSince } from '../chain/launches.js'
 import { isOwnName } from '../chain/fix.js'
-import { doneMove } from '../chain/moves.js'
+import { doneMove, movesProblem } from '../chain/moves.js'
 import { saveQuestions } from '../chain/store.js'
 import { parseRemote } from '../ci/remote.js'
 import { intakeRepo } from '../intake/github.js'
@@ -12,6 +12,7 @@ import { projectRules } from '../profiles/rules.js'
 import { setStateValue } from '../storage/service-state.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { parseTaskId } from '../tracker/model.js'
+import { changedMoves } from '../tracker/move-check.js'
 import { StatusMover, type MovePlan } from '../tracker/mover.js'
 import { TrackerQuestions, type AskingSession } from '../tracker/questions.js'
 import { ReaderTasks } from '../tracker/readers.js'
@@ -229,6 +230,28 @@ export function projectsChanged(ctx: TrackersContext, before: EvenKeelConfig): v
   }
   const remoteProfiles = (config: EvenKeelConfig) => JSON.stringify(Object.entries(config.settings).map(([key, settings]) => [key, settings.remoteProfiles]))
   if (remoteProfiles(before) !== remoteProfiles(after)) ctx.ciWatches.tokensChanged()
+  void checkChangedMoves(ctx, before)
+}
+
+/**
+ * Logs the status moves a config change set that a save from the page would refuse (BTN-667): a `config-import` writes
+ * them past that check. The tracker's statuses not read — nothing to check, as on a save; the page marks the field anyway.
+ */
+async function checkChangedMoves(ctx: TrackersContext, before: EvenKeelConfig): Promise<void> {
+  const config = ctx.configStore.current
+  for (const { project, feed, moves } of changedMoves(before, config)) {
+    const set = ctx.profiles.current()
+    const profile = profileFor(set, feed?.id ?? project, feed?.tracker ?? config.trackers[project] ?? '')
+    if (profile === undefined) continue
+    try {
+      const statuses = (await ctx.profileStatuses.get(profile.id).catch(() => undefined)) ?? []
+      const problem = movesProblem(projectRules(config, set, project, feed), moves, statuses)
+      const where = feed === undefined ? 'the main tracker' : `the task feed ${feed.key}`
+      if (problem !== null) console.warn(`config: the status moves of ${where} of ${projectLabel(config, project)} are applied, but a save would refuse them: ${englishOf(problem)}`)
+    } catch {
+      // A clash of rules is logged where the rules are read (`wireReaderRules`).
+    }
+  }
 }
 
 export function configuredProject(ctx: TrackersContext, task: string): string | undefined {

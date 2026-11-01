@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import type { TaskStatus } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
-import { LEAVE, moveOptions, movesFrom, movesText, profileMoveLabel, profileMovesText } from './statusMoves.js'
+import { LEAVE, missingMove, moveOptions, movesFrom, movesText, profileMoveLabel, profileMovesText } from './statusMoves.js'
 
 const STATUSES: TaskStatus[] = [
   { name: 'Backlog', category: 'UnStarted' },
@@ -46,6 +46,17 @@ describe('status moves of the page', () => {
   it('keeps a chosen status the list does not hold, so the field never shows a blank', () => {
     expect(values(moveOptions('review', rules, [], 'In Review'))).toEqual(['', 'In Review'])
     expect(values(moveOptions('done', rules, STATUSES, 'Closed'))).toEqual(['', 'Done', 'Closed'])
+  })
+
+  it('marks a chosen status the tracker does not list, only once the statuses are read', () => {
+    expect(moveOptions('done', rules, STATUSES, 'Closed').at(-1)!.label).toBe(t.profiles.moves.missing('Closed'))
+    expect(moveOptions('review', rules, [], 'In Review').at(-1)!.label).toBe('In Review')
+    expect(moveOptions('done', rules, STATUSES, 'Canceled').at(-1)!.label).toBe('Canceled')
+    expect(missingMove('Closed', STATUSES)).toBe(true)
+    expect(missingMove('in review', STATUSES)).toBe(false)
+    expect(missingMove('In Review', [])).toBe(false)
+    expect(missingMove(LEAVE, STATUSES)).toBe(false)
+    expect(missingMove('', STATUSES)).toBe(false)
   })
 
   it("names a profile's value as the source's choice shows it", () => {

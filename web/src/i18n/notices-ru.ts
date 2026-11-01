@@ -54,6 +54,7 @@ export const noticesRu: NoticeTexts = {
   'statusMoves.outside': (p) =>
     `«${p.status}» из ${MOVE_LABELS[p.setting]} вне цепи по её правилам: цепочка отпустит задачу, как только та туда перейдёт. Выберите статус в цепи.`,
   'statusMoves.notDone': (p) => `Правила цепи не считают «${p.status}» из ${MOVE_LABELS.done} завершением: цепочка не узнает, что задача закрыта. Выберите статус Done.`,
+  'statusMoves.unknown': (p) => `В трекере нет статуса «${p.status}» для ${MOVE_LABELS[p.setting]}: перевод не пройдёт, когда до него дойдёт. Выберите статус из списка.`,
   'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
   'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',
