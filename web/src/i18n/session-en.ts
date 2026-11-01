@@ -49,6 +49,7 @@ export const sessionEn = {
   closePanel: 'Close the panel',
   skipped: 'skipped',
   none: 'No session for this task yet.',
+  noneNow: 'No live session of this task is seen now; its sessions are below.',
   onlyIn: (account: string) => `\nRemote Control shows it only in account ${account}`,
   openRemote: 'Open the session through Remote Control',
   openPull: (number: number) => `Open pull request #${number} of the task in a new tab`,

@@ -165,6 +165,14 @@ describe('waitingSessions', () => {
     expect(waitingSessions(sessions, tasks).map((session) => session.task)).toEqual(['DEMO-3', 'ABC-2'])
   })
 
+  it('leaves out a fresh session idling before its prompt, until the boot wait is over', () => {
+    const fresh = { ...view('ABC-1', 'waiting', null), startedAt: '2026-01-01T10:00:00.000Z' }
+    const tasks = [task('ABC-1')]
+    expect(waitingSessions([fresh], tasks, new Set(), new Date('2026-01-01T10:00:30.000Z'))).toEqual([])
+    expect(waitingSessions([fresh], tasks, new Set(), new Date('2026-01-01T10:06:00.000Z'))).toHaveLength(1)
+    expect(waitingSessions([{ ...fresh, asking: true }], tasks, new Set(), new Date('2026-01-01T10:00:30.000Z'))).toHaveLength(1)
+  })
+
   it('leaves out sessions whose task is closed or no longer among the open ones', () => {
     const sessions = [
       view('ABC-1', 'waiting', '2026-01-01T10:00:00.000Z'),
@@ -904,6 +912,16 @@ describe('chainBlocks', () => {
     expect(block).toMatchObject({ start: null, lamp: 'working', session: { lamp: 'working', ask: null }, answering: '2026-01-01T10:00:00.000Z' })
   })
 
+  it('shows a fresh session idling before its prompt as starting, not waiting for a reply', () => {
+    const tasks = [task('ABC-1', 'Active')]
+    const projects = { ABC: { order: ['ABC-1'], waiting: [], backlog: [], error: null } }
+    const current = { task: 'ABC-1', sessionId: 'ABC-1-session', since: 't' }
+    const fresh = { ...view('ABC-1', 'waiting', null), sessionId: 'ABC-1-session', startedAt: '2026-01-01T10:00:00.000Z' }
+    const now = new Date('2026-01-01T10:00:09.000Z')
+    const [block] = chainBlocks(stateOf({ tasks, sessions: [fresh], chain: chain({ active: { ...running('ABC-1'), current }, projects }) }), 'ABC', now)
+    expect(block).toMatchObject({ lamp: 'working', start: { phase: 'boot' }, session: { lamp: 'working' } })
+  })
+
   it('tells of no delivery once the answer reached the session', () => {
     const tasks = [task('ABC-1', 'Active')]
     const projects = { ABC: { order: ['ABC-1'], waiting: [], backlog: [], error: null } }
@@ -1386,7 +1404,15 @@ describe('sessionStart', () => {
     const runs = [run('new', '2026-01-01T10:00:00.000Z')]
     expect(sessionStart(current(), live({ contextTokens: 24_000 }), runs, now)).toBeNull()
     expect(sessionStart(current(), live({ lamp: 'error' }), runs, now)).toBeNull()
-    expect(sessionStart(current(), live({ lamp: 'waiting' }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'waiting', asking: true }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'waiting', startupDialog: 'trust' }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'waiting', apiError: 'overloaded', apiErrorKind: 'transient' }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'waiting', contextTokens: 24_000 }), runs, now)).toBeNull()
+  })
+
+  it('is still a boot while the new session idles before its prompt: its lamp says waiting, but nothing is asked', () => {
+    const runs = [run('new', '2026-01-01T10:00:00.000Z')]
+    expect(sessionStart(current(), live({ lamp: 'waiting' }), runs, now)).toEqual({ phase: 'boot', since: '2026-01-01T10:00:00.000Z' })
   })
 
   it('is nothing for a session that goes on after an answer or a resume, however fresh its process', () => {

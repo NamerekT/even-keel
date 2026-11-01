@@ -52,6 +52,8 @@ export function startStages(before: EvenKeelState, after: EvenKeelState, project
       taskSessions: before.taskSessions,
     },
     { ...after, sessions: before.sessions },
+    // A fresh job idles before its prompt lands, and the CLI reports that idle as waiting.
+    { ...after, sessions: withSession({ ...silent, lamp: 'waiting', feed: [] }) },
     { ...after, sessions: withSession(silent) },
     { ...after, sessions: withSession({ ...silent, contextTokens: 12_000, feed: fresh.feed }) },
   ]

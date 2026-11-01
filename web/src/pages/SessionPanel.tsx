@@ -125,7 +125,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           )}
         </>
       ) : block.session === null ? (
-        block.sessions.length === 0 && <p className="placeholder">{t.session.none}</p>
+        <p className="placeholder">{block.sessions.length === 0 ? t.session.none : t.session.noneNow}</p>
       ) : (
         <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} onChat={openChat} />
       )}
