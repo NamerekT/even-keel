@@ -353,6 +353,7 @@ export const noticesRu: NoticeTexts = {
   'task.inBacklog': (p) => `${p.task} уже в бэклоге`,
   'task.cannotRelabel': (p) => `трекер ${p.task} не умеет менять метки`,
   'task.relabelFailed': (p) => `не удалось изменить метки ${p.task}; проверьте права профиля трекера на изменение задач и меток и повторите попытку`,
+  'task.labelGroup': (p) => `«${p.label}» в Linear — группа меток, на ${p.task} её не поставить; выберите метку внутри группы`,
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
   'task.cannotMoveMilestone': (p) => `трекер ${p.task} не умеет менять веху задачи`,
   'tracker.noProject': (p) => `проект ${p.project} не обслуживает ни один подключённый трекер`,

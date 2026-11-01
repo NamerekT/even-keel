@@ -1,5 +1,5 @@
 import { missingLabel, requiredOn, type ChainRules } from '../chain/rules.js'
-import { fail } from '../notice/notice.js'
+import { englishOf, fail, NoticeError, noticeOf } from '../notice/notice.js'
 import type { TaskControl } from '../server.js'
 import { cardOf } from './card.js'
 import type { LabelChange } from './labels.js'
@@ -25,9 +25,15 @@ export interface TaskControlDeps {
 export function taskControl(deps: TaskControlDeps): TaskControl {
   const { configuredProject, linkFor, rulesOf, readerFor, refreshers, readerTasks } = deps
 
-  const relabeled = async (tracker: Tracker, task: string, change: LabelChange): Promise<string[]> => {
+  // A refusal the tracker named itself (a Linear label group) goes to the page as it is; any other is a permission one.
+  const refused = (link: TrackerLink, task: string, error: unknown): NoticeError => {
+    console.error(`relabel: the labels of ${task} in ${link.name} are not changed; cause: ${englishOf(noticeOf(error))}`)
+    return error instanceof NoticeError ? error : fail('task.relabelFailed', { task }, {}, { cause: error })
+  }
+
+  const relabeled = async (link: TrackerLink, tracker: Tracker, task: string, change: LabelChange): Promise<string[]> => {
     try { return await tracker.relabel!(task, change) } catch (error) {
-      throw fail('task.relabelFailed', { task }, {}, { cause: error })
+      throw refused(link, task, error)
     }
   }
 
@@ -73,7 +79,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const listed = readerTasks.get(reader)?.find((each) => each.id === task)
       const label = listed === undefined ? null : missingLabel(rulesOf(project!, task), listed)
       const moved = await link.run(async (tracker) => {
-        const labels = label === null || tracker.relabel === undefined ? undefined : await relabeled(tracker, task, { add: [label], remove: [] })
+        const labels = label === null || tracker.relabel === undefined ? undefined : await relabeled(link, tracker, task, { add: [label], remove: [] })
         const status = await tracker.ready?.(task)
         if (labels === undefined && (status ?? null) === null) {
           if (label !== null || tracker.ready === undefined) throw fail('task.cannotReady', { task })
@@ -96,7 +102,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       // A Jira workflow may have no backlog status: a ready task left alone there is not "in the backlog".
       const parked = listed === undefined || listed.status.category === 'UnStarted' || missingLabel(rules, listed) !== null
       const moved = await link.run(async (tracker) => {
-        const labels = remove.length === 0 || tracker.relabel === undefined ? undefined : await relabeled(tracker, task, { add: [], remove })
+        const labels = remove.length === 0 || tracker.relabel === undefined ? undefined : await relabeled(link, tracker, task, { add: [], remove })
         const status = await tracker.unready?.(task)
         if (labels === undefined && (status ?? null) === null) {
           if (remove.length > 0 || tracker.unready === undefined || !parked) throw fail('task.cannotUnready', { task })
@@ -112,7 +118,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       if (link === undefined) throw fail('task.noTracker', { task })
       let labels: string[] | undefined
       try { labels = await link.run(async (tracker) => tracker.relabel?.(task, change)) } catch (error) {
-        throw fail('task.relabelFailed', { task }, {}, { cause: error })
+        throw refused(link, task, error)
       }
       if (labels === undefined) throw fail('task.cannotRelabel', { task })
       // Labels can admit a task to the chain: fill its milestone through the same read as `ready`.

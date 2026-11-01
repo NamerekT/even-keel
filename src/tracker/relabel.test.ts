@@ -41,7 +41,7 @@ describe('tracker label writes', () => {
     const fake = replies([
       data({ organization: { urlKey: 'example' } }),
       data({ issues: { nodes: [{ id: 'issue', team: { id: 'team' }, labels: page(labels) }] } }),
-      data({ issueLabels: page([{ ...labels[0], isGroup: false }, { id: 'group', name: 'New', isGroup: true }], 'next') }),
+      data({ issueLabels: page([{ ...labels[0], isGroup: false }, { id: 'group', name: 'Area', isGroup: true }], 'next') }),
       data({ issueLabels: page([{ ...labels[1], isGroup: false }]) }),
       data({ issueLabelCreate: { success: true, issueLabel: { id: 'new', name: 'New' } } }),
       data({ issueUpdate: { success: true, issue: { labels: page([labels[0], { name: 'New' }]) } } }),
@@ -51,6 +51,30 @@ describe('tracker label writes', () => {
     expect(fake.calls[4]!.body.variables.input).toMatchObject({ name: 'New', teamId: 'team' })
     expect(fake.calls.at(-1)!.body.variables).toMatchObject({ id: 'issue', labels: ['keep', 'new'] })
     expect(fake.remaining()).toBe(0)
+  })
+
+  it('Linear refuses a label group by its own notice before any write', async () => {
+    const fake = replies([
+      data({ organization: { urlKey: 'example' } }),
+      data({ issues: { nodes: [{ id: 'issue', team: { id: 'team' }, labels: page(labels) }] } }),
+      data({ issueLabels: page([{ ...labels[0], isGroup: false }, { id: 'group', name: 'Area', isGroup: true }]) }),
+    ])
+    const source = await connectLinear({ token: 'example', projects: {} }, 1000, fake.fetch)
+    await expect(source.relabel!('APP-1', { add: ['New', 'area'], remove: ['OLD'] }))
+      .rejects.toMatchObject({ notice: { code: 'task.labelGroup', params: { task: 'APP-1', label: 'Area' } } })
+    expect(fake.calls).toHaveLength(3)
+  })
+
+  it('Linear takes a label that shares its name with a group of another team', async () => {
+    const fake = replies([
+      data({ organization: { urlKey: 'example' } }),
+      data({ issues: { nodes: [{ id: 'issue', team: { id: 'team' }, labels: page([]) }] } }),
+      data({ issueLabels: page([{ id: 'group', name: 'Area', isGroup: true }, { id: 'area', name: 'Area', isGroup: false }]) }),
+      data({ issueUpdate: { success: true, issue: { labels: page([{ name: 'Area' }]) } } }),
+    ])
+    const source = await connectLinear({ token: 'example', projects: {} }, 1000, fake.fetch)
+    expect(await source.relabel!('APP-1', { add: ['Area'], remove: [] })).toEqual(['Area'])
+    expect(fake.calls.at(-1)!.body.variables.labels).toEqual(['area'])
   })
 
   it('GitLab reuses a project label in another case and creates a missing project label', async () => {

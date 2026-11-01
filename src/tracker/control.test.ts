@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
+import { fail } from '../notice/notice.js'
 import { taskControl } from './control.js'
 import { TrackerLink } from './link.js'
 import { toTask, type TaskStatus } from './model.js'
@@ -46,12 +47,23 @@ describe('task label controls', () => {
     expect(broadcast).toHaveBeenCalledOnce()
   })
 
-  it('returns a notice code on refusal and keeps the current labels', async () => {
+  it('returns a notice code on refusal, keeps the current labels and logs the cause', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { control, listed, set, broadcast } = fixture(async () => { throw new Error('HTTP 403 private detail') })
     await expect(control.relabel('APP-1', { add: ['New'], remove: [] })).rejects.toMatchObject({ notice: { code: 'task.relabelFailed', params: { task: 'APP-1' } } })
     expect(listed()[0]!.labels).toEqual(['Old'])
     expect(set).not.toHaveBeenCalled()
     expect(broadcast).not.toHaveBeenCalled()
+    expect(logged).toHaveBeenCalledWith('relabel: the labels of APP-1 in example are not changed; cause: HTTP 403 private detail')
+    logged.mockRestore()
+  })
+
+  it('passes a refusal the tracker named itself through, and logs it too', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { control } = fixture(async () => { throw fail('task.labelGroup', { task: 'APP-1', label: 'Area' }) })
+    await expect(control.relabel('APP-1', { add: ['Area'], remove: [] })).rejects.toMatchObject({ notice: { code: 'task.labelGroup', params: { task: 'APP-1', label: 'Area' } } })
+    expect(logged).toHaveBeenCalledWith(expect.stringMatching(/^relabel: the labels of APP-1 in example are not changed; cause: "Area" is a label group/))
+    logged.mockRestore()
   })
 
   it('distinguishes an unsupported operation from a task with no tracker', async () => {
@@ -104,6 +116,18 @@ describe('the moves between the backlog and the chain', () => {
   it('refuses "Into the chain" when the tracker can do nothing the task needs', async () => {
     await expect(moves({}).control.ready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.cannotReady' } })
     await expect(moves({ ready: async () => null }, { labels: ['Ready'] }).control.ready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.pastBacklog' } })
+  })
+
+  it('logs a refused label write of "Into the chain" and "To the backlog"', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const relabel = async (): Promise<string[]> => { throw new Error('HTTP 403') }
+    await expect(moves({ relabel }).control.ready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.relabelFailed' } })
+    await expect(moves({ relabel }, { labels: ['Ready'] }).control.unready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.relabelFailed' } })
+    expect(logged.mock.calls.map(([line]) => line)).toEqual([
+      'relabel: the labels of APP-1 in example are not changed; cause: HTTP 403',
+      'relabel: the labels of APP-1 in example are not changed; cause: HTTP 403',
+    ])
+    logged.mockRestore()
   })
 
   it('takes the required labels off and moves the task back to the backlog status', async () => {

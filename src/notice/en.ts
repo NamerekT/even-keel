@@ -387,6 +387,7 @@ export const en = {
   'task.inBacklog': (p: { task: string }) => `${p.task} is in the backlog already`,
   'task.cannotRelabel': (p: { task: string }) => `the tracker of ${p.task} cannot change labels`,
   'task.relabelFailed': (p: { task: string }) => `could not change labels of ${p.task}; check the tracker profile's permission to edit issues and labels, then try again`,
+  'task.labelGroup': (p: { task: string; label: string }) => `"${p.label}" is a label group in Linear and cannot be put on ${p.task}; pick a label inside the group`,
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
   'task.cannotMoveMilestone': (p: { task: string }) => `the tracker of ${p.task} cannot change its milestone`,
   'tracker.noProject': (p: { project: string }) => `no connected tracker serves the project ${p.project}`,

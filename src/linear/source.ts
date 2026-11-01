@@ -1,7 +1,8 @@
 import { sameName } from '../chain/rules.js'
+import { fail } from '../notice/notice.js'
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
-import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { backlogState, linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
@@ -426,11 +427,19 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         after = labels.pageInfo.hasNextPage ? labels.pageInfo.endCursor : null
       }
       const catalog: NamedLabel[] = []
+      const groups = new Map<string, string>()
       do {
         const page: { issueLabels: Connection<NamedLabel & { isGroup: boolean }> } = await graphql(TEAM_LABELS, { team: issue.team.id, after })
-        catalog.push(...page.issueLabels.nodes.filter((label) => !label.isGroup))
+        for (const label of page.issueLabels.nodes) {
+          if (label.isGroup) groups.set(labelKey(label.name), label.name)
+          else catalog.push(label)
+        }
         after = page.issueLabels.pageInfo.hasNextPage ? page.issueLabels.pageInfo.endCursor : null
       } while (after !== null)
+      // Linear refuses a group on an issue, and a new label under a group's name: refused here before anything is written.
+      const usable = new Set([...current, ...catalog].map((label) => labelKey(label.name)))
+      const group = change.add.map(labelKey).find((key) => groups.has(key) && !usable.has(key))
+      if (group !== undefined) throw fail('task.labelGroup', { task: id, label: groups.get(group)! })
       const selected = await resolveLabels(current, change, catalog, async (name) => {
         const result = await graphql<{ issueLabelCreate: { success: boolean; issueLabel: NamedLabel } }>(`mutation($input: IssueLabelCreateInput!) {
           issueLabelCreate(input: $input) { success issueLabel { id name } }

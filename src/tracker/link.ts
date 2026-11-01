@@ -20,6 +20,10 @@ export class TrackerLink {
 
   constructor(private readonly options: TrackerLinkOptions) {}
 
+  get name(): string {
+    return this.options.name
+  }
+
   get health(): TrackerHealth {
     return this.current
   }
