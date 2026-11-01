@@ -91,7 +91,7 @@ export const profilesRu = {
       jira: { tracker: 'Browse projects, Add comments, Transition issues и Edit issues в проектах; у токена со scope — read:jira-work, write:jira-work, read:jira-user' },
       forgejo: {
         ci: 'read:repository (репозитории и их Actions), read:user (проверка входа)',
-        pullRequests: 'write:repository (открыть PR, читать его ревью), read:issue (комментарии в обсуждении PR), read:user',
+        pullRequests: 'write:repository (открыть PR, читать его ревью и права ревьюеров), read:issue (комментарии в обсуждении PR), read:user; read:organization, если аккаунт не админ репозитория',
       },
     } as Record<string, Partial<Record<RightsUse, string>>>,
     pushedByGit: 'Ветку PR-режим пушит git с учётными данными учётки, под которой работает служба, а не этим токеном.',

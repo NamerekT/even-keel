@@ -84,7 +84,7 @@ export const profilesEn: Messages['profiles'] = {
       jira: { tracker: 'Browse projects, Add comments, Transition issues and Edit issues in the projects; a token with scopes: read:jira-work, write:jira-work, read:jira-user' },
       forgejo: {
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
-        pullRequests: "write:repository (opening a pull request, reading its reviews), read:issue (comments in the pull request's conversation), read:user",
+        pullRequests: "write:repository (opening a pull request, reading its reviews and its reviewers' access), read:issue (comments in the pull request's conversation), read:user; read:organization if the account is not an admin of the repository",
       },
     },
     pushedByGit: "PR mode pushes the branch with git, on the credentials of the account the service runs as, not with this token.",
