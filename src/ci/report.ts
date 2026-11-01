@@ -1,3 +1,4 @@
+import { stripAnsi } from '../ansi.js'
 import type { CheckFailure, RedReport } from '../chain/model.js'
 import type { Language } from '../language.js'
 import type { CiJob, CiKind, CiRun, CiSource } from './model.js'
@@ -159,9 +160,9 @@ export const fenced = (text: string): string => `\`\`\`text\n${text}\n\`\`\``
 
 const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/
 
-/** The last lines of a job log without the timestamps GitHub and Forgejo prefix; a fence in it is defused so it cannot close the block. */
+/** The last lines of a job log without the timestamps GitHub and Forgejo prefix and the colour codes; a fence in it is defused so it cannot close the block. */
 export function logTail(log: string, lines = LOG_LINES): string {
-  const all = log.split(/\r?\n/).map((line) => line.replace(STAMP, '').replaceAll('```', "'''"))
+  const all = log.split(/\r?\n/).map((line) => stripAnsi(line.replace(STAMP, '')).replaceAll('```', "'''"))
   while (all.length > 0 && all.at(-1)!.trim() === '') all.pop()
   return all.slice(-lines).join('\n')
 }

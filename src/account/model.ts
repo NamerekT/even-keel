@@ -1,6 +1,7 @@
 import type { ActiveChain } from '../chain/dispatcher.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
+import { stripAnsi } from '../ansi.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
@@ -121,7 +122,6 @@ export interface LoginBlock {
   sessions: LoginBlocker[]
 }
 
-const ANSI = /\u001b\[[0-9;?]*[A-Za-z]|\u001b\][^\u0007]*\u0007/g
 const URL_PATTERN = /https:\/\/[^\s"'<>\u001b]+/g
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/
 /** Codex's code is the line under "Enter this one-time code", OpenCode's follows "Enter code:"; a code counts once its line ends. */
@@ -157,7 +157,7 @@ export function withIdentity(status: AccountStatus, key: string): AccountStatus 
 }
 
 export function cleanOutput(raw: string): string {
-  return raw.replace(ANSI, '').replace(/\r\n?/g, '\n')
+  return stripAnsi(raw).replace(/\r\n?/g, '\n')
 }
 
 export function loginUrls(output: string): string[] {

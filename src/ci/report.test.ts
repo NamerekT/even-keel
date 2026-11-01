@@ -125,4 +125,17 @@ describe('logTail', () => {
   it('does not let the log close the code block', () => {
     expect(logTail('a\n```\nb', 10)).toBe("a\n'''\nb")
   })
+
+  it('drops the colour codes a CI log keeps, stamp and all', () => {
+    const log = [
+      '2026-10-30T03:24:51.8465968Z \u001b[32m✓\u001b[39m src/chain/order.test.ts \u001b[2m(12 tests)\u001b[22m',
+      '2026-10-30T03:24:52.0000000Z \u001b]8;;https://example.com\u0007link\u001b]8;;\u0007',
+    ].join('\n')
+    expect(logTail(log)).toBe('✓ src/chain/order.test.ts (12 tests)\nlink')
+  })
+
+  it('glues a diff-highlighted word back together', () => {
+    const log = 'Expected: "chain: \u001b[7mt\u001b[27mhe usage limit"\nReceived: "chain: \u001b[7mT\u001b[27mhe usage limit"'
+    expect(logTail(log)).toBe('Expected: "chain: the usage limit"\nReceived: "chain: The usage limit"')
+  })
 })
