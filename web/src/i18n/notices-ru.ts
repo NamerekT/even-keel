@@ -147,10 +147,10 @@ export const noticesRu: NoticeTexts = {
   'forward.noConflict': (p) => `в ветке ${p.from} нет конфликта, который мог бы разрешить агент`,
   'forward.agent': (p) => `${p.task} разрешает перенос ${p.from} — релизная ветка ждёт его`,
   'forward.failed': (p) =>
-    `git не смог влить ветку ${p.from} в ${p.into}, хотя конфликтов в файлах нет — исправь то, что названо в сообщении git, и нажми «Перенести сейчас»`,
+    `git не смог влить ветку ${p.from} в ${p.into}, хотя конфликтов в файлах нет — исправьте то, что названо в сообщении git, и нажмите «Перенести сейчас»`,
   'forward.notRelease': (p) => `${p.project} не вливается в другой проект`,
   'forward.foreign': (p) =>
-    `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажи в «Вливается в» проект того же репозитория`,
+    `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажите в «Вливается в» проект того же репозитория`,
 
   'ci.noToken': (p) => `ни у одного профиля нет токена для этого CI: добавьте профиль ${FORGES[p.kind]} в «Настройки → Трекеры и CI»`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
@@ -297,8 +297,8 @@ export const noticesRu: NoticeTexts = {
   'login.running': () => 'вход уже идёт',
   'login.timeout': (p) => `вход не завершился за ${p.minutes} мин`,
   'login.startFailed': () => 'не удалось начать вход',
-  'agent.copyMissing': ({ title }) => `Ожидание проверенной копии ${title}. Скачайте её или выберите «Твою» в «Версии CLI» (Настройки → Провайдеры и модели).`,
-  'agent.copyFailed': ({ title }) => `Не удалось скачать ${title}. «Версия CLI» переключена на «Твою». Попробуйте скачать снова.`,
+  'agent.copyMissing': ({ title }) => `Ожидание проверенной копии ${title}. Скачайте её или выберите «Свою» в «Версии CLI» (Настройки → Провайдеры и модели).`,
+  'agent.copyFailed': ({ title }) => `Не удалось скачать ${title}. «Версия CLI» переключена на «Свою». Попробуйте скачать снова.`,
   'login.codexMissing': () => 'Codex CLI не найден. Установите его:\n\n```sh\nnpm install -g @openai/codex\n```',
   'login.claudeMissing': () => 'Claude Code CLI не найден. Установите его:\n\n```sh\nnpm install -g @anthropic-ai/claude-code\n```',
   'login.opencodeMissing': () => 'OpenCode CLI не найден. Установите его:\n\n```sh\nnpm install -g opencode-ai\n```',
@@ -362,7 +362,7 @@ export const noticesRu: NoticeTexts = {
   'changelog.noAgent': (p) => `агент аккаунта, на котором идёт ${p.project}, не умеет писать черновик`,
   'changelog.failed': (p) => `агент не написал черновик ${p.project}`,
   'changelog.unnoticed': (p) =>
-    `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет; если какая-то из них что-то меняет для пользователей, напиши что именно в её закрывающем комментарии и нажми «Написать заново»`,
+    `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет; если какая-то из них что-то меняет для пользователей, напишите, что именно, в её закрывающем комментарии и нажмите «Написать заново»`,
   'changelog.noDraft':(p) => `у ${p.milestone} ещё нет черновика`,
   'changelog.released': (p) => `раздел ${p.milestone} выпущен как ${p.tag} и больше не правится`,
   'changelog.nothingNew': (p) => `все сделанные задачи ${p.milestone} уже в черновике`,
@@ -460,7 +460,7 @@ export const noticesRu: NoticeTexts = {
   'config.providerName': (p) => `${p.where} должен быть текстом`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
   'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,
-  'config.executionCli': (p) => `execution.${p.provider}: ${p.mode} работает только на проверенной копии CLI, поставь cli.${p.provider}: checked`,
+  'config.executionCli': (p) => `execution.${p.provider}: ${p.mode} работает только на проверенной копии CLI, поставьте cli.${p.provider}: checked`,
   'config.trackerLocked': (p) => `цепочка уже запускала задачи ${p.key}, поэтому трекер и профиль остаются; задачи другого трекера добавляются источником задач`,
   'config.feeds': (p) => `${p.where} должен быть списком источников задач, у каждого — id, трекер и ключ`,
   'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,

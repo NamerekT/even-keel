@@ -6,8 +6,11 @@ import { noticesRu } from './notices-ru.js'
 import { fieldsEn } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
 import { language, localized, pickLanguage, say, sayAtField, setAccountNames, setLanguage, t } from './index.js'
+import { overageRu } from './overage-ru.js'
 import { plural } from './plural.js'
+import { protectionMessages } from './protection.js'
 import { ru } from './ru.js'
+import { cliText } from '../layout/cliText.js'
 
 afterEach(() => setLanguage('en'))
 
@@ -106,6 +109,61 @@ describe('sayAtField', () => {
   it('says what has no text at a field as the server does', () => {
     const other = notice('config.feedPlace', { project: 'ABC', other: 'DEF' })
     expect(sayAtField(other)).toBe(say(other))
+  })
+})
+
+describe('Russian address', () => {
+  // Any parameter of a template: prints as "1", counts as 1, iterates once, and any field or call of it is itself.
+  const stub: unknown = new Proxy(() => {}, {
+    get: (_, key) =>
+      key === Symbol.toPrimitive ? (hint: string) => (hint === 'number' ? 1 : '1')
+      : key === Symbol.iterator ? function* () { yield stub }
+      : key === 'length' ? 1
+      : stub,
+    apply: () => stub,
+  })
+  const pronoun = 'ты|тебя|тебе|тобой|твой|твоя|твоё|твою|твоего|твоей|твоему|твоим|твои|твоих'
+  const imperative =
+    'нажми|выбери|введи|укажи|открой|закрой|проверь|добавь|войди|выйди|верни|сохрани|поставь|смени|включи|выключи|отключи|подключи|' +
+    'исправь|напиши|запусти|перезапусти|удали|измени|скачай|попробуй|подожди|создай|скопируй|вставь|убери|обнови|переключи|перейди|' +
+    'настрой|посмотри|ответь|подтверди|установи|задай|загрузи|перенеси|отмени|пропусти|разреши|используй|сделай|приходи'
+  const informal = new RegExp(`(?<![а-яё])(?:${pronoun}|${imperative})(?![а-яё])`, 'iu')
+  // Jokes and dialogues keep "ты" on purpose: the voice of a character (docs/web.md, "Language").
+  const jokes = ['home.memes.', 'project.idle.', 'basement.']
+
+  // A template counts by its source, which holds the literals of every branch, and by what it gives, which holds the
+  // texts it puts together; a template that cannot take the stub (a lookup by a parameter) counts by its source alone.
+  const result = (template: (...parameters: unknown[]) => unknown): unknown => {
+    try {
+      return template(stub, stub, stub, stub)
+    } catch {
+      return undefined
+    }
+  }
+  const strings = (value: unknown, path: string, depth = 0): [string, string][] => {
+    if (typeof value === 'string') return [[path, value]]
+    if (value === stub || depth > 4) return []
+    if (typeof value === 'function') return [[path, String(value)], ...strings(result(value as () => unknown), path, depth + 1)]
+    if (typeof value === 'object' && value !== null)
+      return Object.entries(value).flatMap(([key, each]) => strings(each, `${path}${path === '' ? '' : '.'}${key}`, depth))
+    return []
+  }
+
+  it('speaks to the user on «вы», outside jokes and dialogues', () => {
+    setLanguage('ru')
+    const texts = [
+      ...strings(ru, ''),
+      ...strings(fieldsRu, 'fields'),
+      ...strings(overageRu, 'overage'),
+      ...strings(protectionMessages(), 'protection'),
+      ...strings(cliText(), 'cli'),
+    ]
+    expect(texts.length).toBeGreaterThan(1000)
+    expect(texts.filter(([path, text]) => informal.test(text) && !jokes.some((joke) => `${path}.`.startsWith(joke)))).toEqual([])
+  })
+
+  it('still finds «ты» in the jokes, so the allow-list is by key and not by luck', () => {
+    expect(strings(ru.home.memes, 'home.memes').some(([, text]) => informal.test(text))).toBe(true)
   })
 })
 
