@@ -1,7 +1,7 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AgentEntry } from './agents.js'
-import { readLines } from './lines.js'
+import { lineSlices } from './lines.js'
 import { projectDirName } from './paths.js'
 import { TranscriptFold, type TranscriptSummary } from './transcript.js'
 
@@ -16,6 +16,8 @@ export class TranscriptTail {
   private file: string | undefined
   private ino: number | undefined
   private offset = 0
+  /** The summary from before a read in progress: a catch-up yields between slices and must not show a half-folded transcript. */
+  private held: TranscriptSummary | undefined
 
   constructor(
     private readonly projectsDir: string,
@@ -27,7 +29,7 @@ export class TranscriptTail {
   }
 
   summary(): TranscriptSummary {
-    return this.fold.summary()
+    return this.held ?? this.fold.summary()
   }
 
   follow(agent: AgentEntry): void {
@@ -37,11 +39,21 @@ export class TranscriptTail {
   async read(): Promise<void> {
     const found = await this.find()
     if (found === undefined) return
-    if (found.ino !== this.ino || found.size < this.offset) this.restart(found)
-    this.file = found.file
-    const { lines, next } = await readLines(found.file, this.offset, found.size)
-    this.offset = next
-    for (const line of lines) this.fold.push(line)
+    if (found.ino === this.ino && found.size === this.offset) {
+      this.file = found.file
+      return
+    }
+    this.held = this.fold.summary()
+    try {
+      if (found.ino !== this.ino || found.size < this.offset) this.restart(found)
+      this.file = found.file
+      for await (const { lines, next } of lineSlices(found.file, this.offset, found.size)) {
+        for (const line of lines) this.fold.push(line)
+        this.offset = next
+      }
+    } finally {
+      this.held = undefined
+    }
   }
 
   private restart(found: Found): void {

@@ -1,6 +1,7 @@
 import { appendFileSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setImmediate } from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentEntry } from './agents.js'
 import { projectDirName } from './paths.js'
@@ -96,5 +97,25 @@ describe('TranscriptTail', () => {
 
     await expect(tail.read()).resolves.toBeUndefined()
     expect(texts(tail)).toEqual(['first'])
+  })
+
+  it('shows the summary from before a long catch-up until the whole of it is folded', async () => {
+    write(ROOT, line('m0', 'before'))
+    const tail = new TranscriptTail(projects, agent(ROOT))
+    await tail.read()
+    const filler = 'x'.repeat(1000)
+    appendFileSync(fileIn(ROOT), Array.from({ length: 2000 }, (_, at) => line(`m${at + 1}`, filler)).join(''))
+
+    let done = false
+    const reading = tail.read().finally(() => (done = true))
+    const seen = new Set<number>()
+    while (!done) {
+      seen.add(tail.summary().feed.length)
+      await setImmediate()
+    }
+    await reading
+
+    expect([...seen]).toEqual([1])
+    expect(tail.summary().feed.length).toBeGreaterThan(1)
   })
 })

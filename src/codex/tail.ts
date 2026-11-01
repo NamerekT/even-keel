@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import type { SessionTail } from '../agent/contract.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { readLines } from '../sessions/lines.js'
+import { lineSlices } from '../sessions/lines.js'
 import type { TranscriptSummary } from '../sessions/transcript.js'
 import { RolloutFold, rolloutFile } from './rollout.js'
 
@@ -10,6 +10,8 @@ export class RolloutTail implements SessionTail {
   private fold = new RolloutFold()
   private file: string | undefined
   private offset = 0
+  /** The summary from before a read in progress, as in `TranscriptTail`. */
+  private held: TranscriptSummary | undefined
 
   constructor(
     private readonly home: string,
@@ -21,7 +23,7 @@ export class RolloutTail implements SessionTail {
   }
 
   summary(): TranscriptSummary {
-    return this.fold.summary()
+    return this.held ?? this.fold.summary()
   }
 
   follow(agent: AgentEntry): void {
@@ -39,12 +41,19 @@ export class RolloutTail implements SessionTail {
       this.file = undefined
       return
     }
-    if (size < this.offset) {
-      this.fold = new RolloutFold()
-      this.offset = 0
+    if (size === this.offset) return
+    this.held = this.fold.summary()
+    try {
+      if (size < this.offset) {
+        this.fold = new RolloutFold()
+        this.offset = 0
+      }
+      for await (const { lines, next } of lineSlices(this.file, this.offset, size)) {
+        for (const line of lines) this.fold.push(line)
+        this.offset = next
+      }
+    } finally {
+      this.held = undefined
     }
-    const { lines, next } = await readLines(this.file, this.offset, size)
-    this.offset = next
-    for (const line of lines) this.fold.push(line)
   }
 }

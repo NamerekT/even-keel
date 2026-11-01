@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises'
 import type { SessionTail } from '../agent/contract.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { readLines } from '../sessions/lines.js'
+import { lineSlices } from '../sessions/lines.js'
 import type { TranscriptSummary } from '../sessions/transcript.js'
 import { eventsFile } from './home.js'
 import { CopilotFold } from './transcript.js'
@@ -12,6 +12,8 @@ export class CopilotTail implements SessionTail {
   private fold = new CopilotFold()
   private offset = 0
   private error: TurnError | undefined
+  /** The summary from before a read in progress, as in `TranscriptTail`. */
+  private held: TranscriptSummary | undefined
 
   constructor(
     private readonly home: string,
@@ -24,7 +26,7 @@ export class CopilotTail implements SessionTail {
   }
 
   summary(): TranscriptSummary {
-    return withTurnError(this.fold.summary(), this.error)
+    return withTurnError(this.held ?? this.fold.summary(), this.error)
   }
 
   follow(agent: AgentEntry): void {
@@ -43,13 +45,19 @@ export class CopilotTail implements SessionTail {
       (info) => info.size,
       () => undefined,
     )
-    if (size === undefined) return
-    if (size < this.offset) {
-      this.fold = new CopilotFold()
-      this.offset = 0
+    if (size === undefined || size === this.offset) return
+    this.held = this.fold.summary()
+    try {
+      if (size < this.offset) {
+        this.fold = new CopilotFold()
+        this.offset = 0
+      }
+      for await (const { lines, next } of lineSlices(file, this.offset, size)) {
+        for (const line of lines) this.fold.push(line)
+        this.offset = next
+      }
+    } finally {
+      this.held = undefined
     }
-    const { lines, next } = await readLines(file, this.offset, size)
-    this.offset = next
-    for (const line of lines) this.fold.push(line)
   }
 }
