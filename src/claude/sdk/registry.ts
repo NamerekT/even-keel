@@ -1,8 +1,9 @@
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Ask } from '../../sessions/ask.js'
 import type { AgentEntry, AgentStatus } from '../../sessions/agents.js'
 import { writeAtomic } from '../../storage/atomic.js'
+import { JsonFolder } from '../../storage/json-folder.js'
 import { SCHEMA_VERSION } from '../../storage/schema.js'
 
 export const SDK_KIND = 'sdk'
@@ -35,21 +36,16 @@ export interface SdkSession {
 export class SdkRegistry {
   private readonly sessionsDir: string
   private readonly executorsDir: string
+  private readonly sessions: JsonFolder<SdkSession>
 
   constructor(dir: string) {
     this.sessionsDir = join(dir, 'sessions')
     this.executorsDir = join(dir, 'executors')
+    this.sessions = new JsonFolder(this.sessionsDir, parseSdkSession)
   }
 
   async list(account: string): Promise<SdkSession[]> {
-    let names: string[]
-    try {
-      names = readdirSync(this.sessionsDir)
-    } catch {
-      return []
-    }
-    return names.filter((name) => name.endsWith('.json')).map((name) => this.read(name.slice(0, -5)))
-      .filter((session): session is SdkSession => session !== undefined && session.account === account)
+    return this.sessions.all().filter((session) => session.account === account).map((session) => ({ ...session }))
   }
 
   async get(sessionId: string): Promise<SdkSession | undefined> {
@@ -68,6 +64,7 @@ export class SdkRegistry {
   save(session: SdkSession): void {
     mkdirSync(this.sessionsDir, { recursive: true })
     writeAtomic(join(this.sessionsDir, `${session.sessionId}.json`), `${JSON.stringify({ version: SCHEMA_VERSION, ...session }, null, 2)}\n`)
+    this.sessions.forget()
   }
 
   /** The executor's log and the file its backlog spills into. */

@@ -13,6 +13,8 @@ it('discovers existing global history independently of account registration', as
     for (const path of [env.CLAUDE_CONFIG_DIR, env.CODEX_HOME, join(root, 'claude', 'work'), join(root, 'codex', 'work-codex')]) {
       mkdirSync(path, { recursive: true })
     }
+    // Folders made outside AccountHomes show from the next synchronous run (BTN-680).
+    await Promise.resolve()
     expect(homes.all().map((home) => home.key).sort()).toEqual(['codex', 'global', 'work', 'work-codex'])
     expect(homes.find('global')).toBeUndefined()
     expect(homes.list().map((home) => home.key)).toEqual(['work', 'work-codex'])
