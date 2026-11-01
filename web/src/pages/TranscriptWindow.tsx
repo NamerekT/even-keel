@@ -184,7 +184,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
     if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
   }, [lines, sent, listed])
 
-  // The feed also shrinks without new lines — a message joins the mail list, the composer grows: keep a pinned feed at its end.
+  // The feed also changes size without new lines — a message joins the mail list, the composer grows, images and late layout
+  // stretch the content after the first scroll: keep a pinned feed at its end.
   useEffect(() => {
     const list = listRef.current
     if (list === null) return
@@ -192,6 +193,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
       if (pinned.current) list.scrollTop = list.scrollHeight
     })
     observer.observe(list)
+    if (list.firstElementChild !== null) observer.observe(list.firstElementChild)
     return () => observer.disconnect()
   }, [listed])
 
