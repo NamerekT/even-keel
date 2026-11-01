@@ -24,6 +24,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 1 | [Temporary model errors](#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit-btn-530) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 1c | [The first limits poll after a restart](#the-first-limits-poll-after-a-restart-btn-595) | everyone on a subscription | a task starts into a used-up limit after a restart, or waits a few minutes for nothing |
+| 1d | [Limits kept across a restart](#limits-kept-across-a-restart-btn-631) | everyone on a subscription | the page shows an old figure as current after a restart, or an outdated mark that does not go |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 2a | [Account names across sign-outs and sign-ins](#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
@@ -276,6 +277,10 @@ Anthropic and OpenAI sometimes reset a window or all limits of an account ahead 
 ### The first limits poll after a restart (BTN-595)
 
 The windows are known only in memory, so after a start of the service the next task waits until its account's first limits poll answers; before this a restart started a Codex task into a used-up week. The wait is covered by tests, not seen live after a restart. If the poll is slow (polls go one account after another, a Claude `/usage` may take a minute), the chain starts a little later; if it fails once, the chain waits until the next poll five minutes later. **Workaround:** none needed, the chain goes on by itself; two failed polls in a row let it go on without limits.
+
+### Limits kept across a restart (BTN-631)
+
+The newest limits a poll or an SDK session told are kept in the state database and are the starting value after a restart; younger than one poll interval they also lift the wait above, older ones are shown muted as outdated with their age until a poll answers. Covered by tests and the fake page (`?account=outdated`), not seen after a real restart of the service. If it is wrong, the page shows an old statusline figure again, or the outdated mark stays after the poll has answered, or a task starts on a saved figure that a window's reset has made stale. **Workaround:** wait for the next poll (five minutes); the page and the chain follow it.
 
 ### Fast mode in statistics
 

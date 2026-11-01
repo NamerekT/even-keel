@@ -24,6 +24,10 @@ export interface LimitsWatcherOptions {
   apiKey: (account: string) => boolean
   /** A signed-out folder is not asked for limits; its account card already asks for sign-in. */
   needsLogin: (account: string) => boolean
+  /** The limits a poll or a session last told of each account before the restart (`account_limits`, BTN-631). */
+  saved?: ReadonlyMap<string, RateLimits>
+  /** Keeps the newest of what polls and sessions told; `undefined` — nothing is known any more. */
+  save?: (account: string, limits: RateLimits | undefined) => void
   onChange: () => void
   onError: (error: unknown) => void
 }
@@ -53,8 +57,16 @@ export class LimitsWatcher {
   private usageOff: UsageHealth | undefined
   private waitsForAccounts = false
   private nextAt: string | null = null
+  /** What `save` was last given per account, as JSON. */
+  private readonly kept = new Map<string, string>()
 
-  constructor(private readonly options: LimitsWatcherOptions) {}
+  constructor(private readonly options: LimitsWatcherOptions) {
+    // A saved session report goes back where it came from, so a poll's own rules (`missing` drops `polled`) stay as before.
+    for (const [key, limits] of options.saved ?? []) {
+      this.of(key)[limits.source === 'sdk' ? 'streamed' : 'polled'] = limits
+      this.kept.set(key, JSON.stringify(limits))
+    }
+  }
 
   limits(account: string): RateLimits | null {
     if (this.options.apiKey(account)) return null
@@ -91,12 +103,23 @@ export class LimitsWatcher {
     return this.usageOff ?? this.accounts.get(account)?.health ?? WAITING
   }
 
-  /** The account is polled and no poll has answered since the start: a spent window still looks like none. */
+  /**
+   * The account is polled and no poll has answered since the start: a spent window still looks like none. What a poll or
+   * a session told before the restart stands in for the first poll while it is younger than a poll's interval (BTN-631),
+   * as it would between two polls.
+   */
   unread(account: string): boolean {
-    if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
-    const home = this.options.homes().find((each) => each.key === account)
-    if (home === undefined || this.options.usage(home) === undefined) return false
-    return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
+    if (!this.unconfirmed(account)) return false
+    const known = this.accounts.get(account)
+    const told = currentLimits(newestLimits(known?.polled, known?.streamed), new Date(), this.options.notBefore(account))
+    return told === null || !this.recent(told)
+  }
+
+  /** The account shows limits older than a poll's interval that no poll has confirmed since the start (BTN-631). */
+  outdated(account: string): boolean {
+    if (!this.unconfirmed(account)) return false
+    const shown = this.limits(account)
+    return shown !== null && !this.recent(shown)
   }
 
   /** When the next /usage round is due; `null` — one is running, none is planned, or it waits for the accounts. */
@@ -220,6 +243,33 @@ export class LimitsWatcher {
     }
   }
 
+  /** A polled account that no poll has answered since the start. */
+  private unconfirmed(account: string): boolean {
+    if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
+    const home = this.options.homes().find((each) => each.key === account)
+    if (home === undefined || this.options.usage(home) === undefined) return false
+    return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
+  }
+
+  private recent(limits: RateLimits): boolean {
+    return Date.now() - Date.parse(limits.updatedAt) <= this.options.usageIntervalMs
+  }
+
+  /** Hands `save` the newest of what polls and sessions told, for each account where it changed. */
+  private keep(): void {
+    const { save } = this.options
+    if (save === undefined) return
+    for (const key of new Set([...this.kept.keys(), ...this.accounts.keys()])) {
+      const known = this.accounts.get(key)
+      const latest = newestLimits(known?.polled, known?.streamed)
+      const text = latest === undefined ? undefined : JSON.stringify(latest)
+      if (text === this.kept.get(key)) continue
+      if (text === undefined) this.kept.delete(key)
+      else this.kept.set(key, text)
+      save(key, latest)
+    }
+  }
+
   private of(key: string): AccountLimits {
     let known = this.accounts.get(key)
     if (known === undefined) {
@@ -230,9 +280,10 @@ export class LimitsWatcher {
   }
 
   private publish(): void {
+    this.keep()
     // The next poll's time matters only to a chain waiting for a first answer (BTN-619).
     const next = this.options.homes().some((home) => this.unread(home.key)) ? this.nextAt : null
-    const shown = JSON.stringify([next, ...[...this.accounts.keys()].map((key) => [key, this.limits(key), this.usage(key)])])
+    const shown = JSON.stringify([next, ...[...this.accounts.keys()].map((key) => [key, this.limits(key), this.usage(key), this.outdated(key)])])
     if (shown === this.shown) return
     this.shown = shown
     this.options.onChange()

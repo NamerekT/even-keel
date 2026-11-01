@@ -191,6 +191,7 @@ export const ru = {
     reset: (title: string, resetIn: string, source: string) => `${title}: сброс через ${resetIn}${source}`,
     resetAt: (resetIn: string, at: string) => `сброс через ${resetIn} — ${at}`,
     updated: (source: string, ago: string) => `${source}, ${ago}`,
+    outdated: (ago: string) => `Прочитаны ${ago}, после перезапуска не проверены`,
   },
   status: {
     levels: { ok: 'всё работает', warn: 'есть предупреждения', error: 'есть сбои', off: 'нет данных' },

@@ -1,18 +1,17 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { readProfiles, saveProfiles } from '../profiles/store.js'
-import { fixture, readsWhole, schemaOf } from './database.fixture.js'
+import { fixture, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 
 it('step 24 gives each tracker profile its status moves, none on the profiles before it', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 22))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(24))
     expect(await databaseVersion(frozen)).toBe(24)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 24)
     const { profiles } = await readProfiles(frozen)
     expect(profiles.map((profile) => profile.moves)).toEqual([{ start: 'In Progress', review: null, done: 'Shipped' }, undefined, undefined])
     await upgraded.exec(fixture(23))

@@ -65,15 +65,15 @@ function BlockLimits({ entry, now, spend, tokens }: { entry: AccountEntry | unde
   if (entry === undefined) return null
   const spans = limitSpans(entry.limits).filter((span) => entry.limits?.[span] != null)
   if (spans.length > 0) {
-    return spans.map((span) => <LimitSegment key={span} window={entry.limits![span]!} now={now} />)
+    return spans.map((span) => <LimitSegment key={span} window={entry.limits![span]!} now={now} outdated={entry.limitsOutdated === true} />)
   }
   const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === null ? null : formatTokens(tokens[entry.key]?.day ?? 0)
   return text === null ? null : <span className="hblock__seg limit"><span className="limit__value">{text}</span></span>
 }
 
-function LimitSegment({ window, now }: { window: LimitWindow; now: Date }) {
+function LimitSegment({ window, now, outdated }: { window: LimitWindow; now: Date; outdated: boolean }) {
   const percent = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
-  const heat = percent >= FULL_PERCENT ? ' limit--full' : percent >= WARM_PERCENT ? ' limit--warm' : ''
+  const heat = outdated ? ' limit--outdated' : percent >= FULL_PERCENT ? ' limit--full' : percent >= WARM_PERCENT ? ' limit--warm' : ''
   return <span className={`hblock__seg limit${heat}`}><Ring percent={percent} /><span className="limit__value">{windowValue(window, percent)}</span>
     <span className="limit__reset">{formatSpan(window.resetsAt, now)}</span></span>
 }

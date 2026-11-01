@@ -169,6 +169,10 @@
   font-weight: 600;
 }
 
+.meter--outdated .account-level__value {
+  color: var(--fg-muted);
+}
+
 .account-level--changed {
   animation: block-glow var(--motion-mark) ease-out;
 }

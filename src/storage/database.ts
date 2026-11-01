@@ -29,7 +29,8 @@ export interface Queryable {
  * the one it ran on — Even Keel's row, else `huly`, the default of then — and drops Even Keel's (BTN-345); step 14 the
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
- * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554). A foreign key between tables is deferred, so that a copy inserts the
+ * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
+ * `account_limits` (BTN-631). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -299,6 +300,13 @@ export const STEPS: readonly string[] = [
   // The statuses Even Keel moves the tasks of a profile's projects into on start, on a pull request and on close (BTN-554).
   `
   alter table tracker_profiles add column moves text not null default '{}';
+  `,
+  // The last limits a poll or a session told of each account, so a restart starts from them (BTN-631).
+  `
+  create table account_limits (
+    account text primary key,
+    limits  text not null
+  );
   `,
 ]
 

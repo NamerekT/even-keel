@@ -36,7 +36,7 @@ export function AccountLevels({ account, levels, now, spend, tokens }: { account
       const name = accountName(entry, account.accounts)
       const label = entry.name === null && name === entry.status?.email ? name.split('@')[0] : name
       const tightest = tightestWindow(entry.limits)
-      const stale = entry.usage.state === 'stale' && entry.limits !== null
+      const stale = (entry.usage.state === 'stale' || entry.limitsOutdated === true) && entry.limits !== null
       return <div key={level.account} className={`account-level account-level--${index}${index === 0 && marked ? ' account-level--changed' : ''}`} style={seriesStyle(entrySlot(account, entry))}>
         <div className="account-level__head">
           <div className="account-level__identity"><span className="account-card__name">{label}</span>
@@ -62,7 +62,7 @@ function LevelWindows({ entry, now, spend, tokens }: { entry: AccountEntry; now:
   return spans.map((span) => {
     const window = entry.limits![span]!
     const percent = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
-    const heat = percent >= FULL_PERCENT ? ' meter--full' : percent >= WARM_PERCENT ? ' meter--warm' : ''
+    const heat = entry.limitsOutdated ? ' meter--outdated' : percent >= FULL_PERCENT ? ' meter--full' : percent >= WARM_PERCENT ? ' meter--warm' : ''
     return <div key={span} className={`account-level__window${heat}`}><span className="account-level__label">{spanNames(span).label}</span>
       <span className="meter__bar"><span className="meter__fill" style={{ width: `${percent}%` }} /></span>
       <span className="account-level__value">{windowValue(window, percent)}</span><span className="account-level__reset">{formatSpan(window.resetsAt, now)}</span>

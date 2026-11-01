@@ -4,6 +4,7 @@ import { type AccountHome } from './account/homes.js'
 import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
+import { loadSavedLimits } from './limits/saved.js'
 import { providerUrl } from './account/network.js'
 import type { SessionStart } from './agent/contract.js'
 import { copies } from './agent/copies.js'
@@ -253,6 +254,7 @@ const context = {
   get runtimes() { return runtimes },
   get sameRepositoryOf() { return sameRepositoryOf },
   get saveAccounts() { return saveAccounts },
+  get savedLimits() { return savedLimits },
   get sayBlankedSecrets() { return sayBlankedSecrets },
   get secrets() { return secrets },
   get secretsSaid() { return secretsSaid },
@@ -321,6 +323,8 @@ let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | nu
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
 const keyOrganizations = await loadKeyOrganizations(db)
+/** What polls and sessions last told of each account's limits before this start (BTN-631). */
+const savedLimits = await loadSavedLimits(db)
 const envFile = loadEnv()
 /** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
 const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
