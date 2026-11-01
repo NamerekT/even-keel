@@ -23,6 +23,7 @@ export function ProjectStandards({
   value,
   onChange,
   className,
+  mark,
   children,
 }: {
   project: string
@@ -31,7 +32,9 @@ export function ProjectStandards({
   value: string
   onChange: (value: string) => void
   className: string
-  /** The marks of a change and the error, under the list. */
+  /** The draft's mark, beside the add buttons. */
+  mark?: ReactNode
+  /** The error, under the list. */
   children: ReactNode
 }) {
   const text = t.settings.standards
@@ -68,6 +71,7 @@ export function ProjectStandards({
         <button type="button" className="button button--small" onClick={() => add({ files: '', except, shots: false })}>
           {text.add}
         </button>
+        {mark}
       </div>
       {children}
     </div>

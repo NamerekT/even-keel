@@ -5,17 +5,21 @@ import { providerName } from './settingsRun.js'
 import './providerChoices.css'
 
 /** A provider's fields stay editable regardless of which provider starts unlabelled tasks. */
-export function ProviderChoices({ label, hint, className, inherit, note, columns, providers, chosen, onPick, cell }: {
+export function ProviderChoices({ label, hint, className, inherit, mark, note, columns, providers, chosen, onPick, cell, cellMark }: {
   label: string
   hint: string
   className: string
   inherit?: Inheritance
+  /** In the head: the draft's mark; `note` under it — the error. */
+  mark?: ReactNode
   note?: ReactNode
   columns: readonly { key: string; label: string; hint: string }[]
   providers: readonly string[]
   chosen: string
   onPick: (provider: string) => void
   cell: (column: string, provider: string) => ReactNode | null
+  /** The draft's mark of a cell, in its column's head. */
+  cellMark?: (column: string, provider: string) => ReactNode
 }) {
   const radios = useRef(new Map<string, HTMLButtonElement>())
   const pick = (provider: string) => {
@@ -39,7 +43,7 @@ export function ProviderChoices({ label, hint, className, inherit, note, columns
 
   return (
     <div className={className}>
-      <FieldHead label={label} hint={hint} inherit={inherit} />
+      <FieldHead label={label} hint={hint} inherit={inherit} mark={mark} />
       {note}
       <div className="provider-choices" role="radiogroup" aria-label={label}>
         {providers.map((provider, at) => (
@@ -73,7 +77,7 @@ export function ProviderChoices({ label, hint, className, inherit, note, columns
                 const control = cell(column.key, provider)
                 return control === null ? null : (
                   <div key={column.key} className="provider-choice__field settings__help-scope">
-                    <FieldHead label={column.label} hint={column.hint} />
+                    <FieldHead label={column.label} hint={column.hint} mark={cellMark?.(column.key, provider)} />
                     {control}
                   </div>
                 )

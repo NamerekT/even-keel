@@ -268,14 +268,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   // A number among others of one setting: its name above it.
   const number = (key: string, label: string, invalid: boolean, disabled = false) => (
     <div className={marks.box(key)}>
-      <FieldHead label={label} htmlFor={fieldId(key)} />
+      <FieldHead label={label} htmlFor={fieldId(key)} mark={marks.note(key)} />
       {numberInput(key, invalid, { disabled })}
-      {marks.note(key)}
     </div>
   )
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
-    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} control={numberInput(key, invalid)}>
-      {marks.note(key)}
+    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)}>
       <FieldNote error={errorOf(key)} />
     </Row>
   )
@@ -285,9 +283,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       label={label}
       hint={hint}
       htmlFor={fieldId(key)}
+      mark={marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       control={<Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />}
     >
-      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
     </Row>
   )
@@ -306,20 +304,17 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         onChange={(event) => edit(key, event.target.value)}
       />
       <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
-      {marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))}
       <FieldNote error={errorOf(key)} />
     </div>
   )
   const pick = (key: string, label: string, options: readonly { value: string; label: string }[]) => (
     <div className={marks.box(key)}>
       <Select id={fieldId(key)} className="settings__text" label={label} value={text(key)} options={options} onChange={(value) => edit(key, value)} />
-      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
     </div>
   )
   const check = (key: string, label: string, hint: string, disabled = false, error = key) => (
-    <SwitchField className={marks.box(key)} label={label} hint={hint} checked={draft.edit[key] as boolean} disabled={disabled} onChange={(on) => edit(key, on)}>
-      {marks.note(key)}
+    <SwitchField className={marks.box(key)} label={label} hint={hint} checked={draft.edit[key] as boolean} disabled={disabled} mark={marks.note(key)} onChange={(on) => edit(key, on)}>
       <FieldNote error={errorOf(error)} />
     </SwitchField>
   )
@@ -401,7 +396,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.settings.provider}
             hint={t.shared.providerHint}
             className={marks.box('provider')}
-            note={<>{marks.note('provider', (value) => providerName(String(value)))}<FieldNote error={errorOf('provider')} /></>}
+            mark={marks.note('provider', (value) => providerName(String(value)))}
+            note={<FieldNote error={errorOf('provider')} />}
             chosen={text('provider')}
             onPick={(provider) => edit('provider', provider)}
             columns={[
@@ -431,13 +427,23 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                     modes.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
                   )
             }}
+            cellMark={(column, provider) => {
+              const key = `${column}.${provider}`
+              if (column === 'models') return marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))
+              if (column === 'accounts') {
+                const options = accountOptions(state.account, provider, text(key))
+                return marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))
+              }
+              if (column !== 'execution') return null
+              return marks.note(key, (value) => t.shared.modes[String(value)] ?? String(value))
+            }}
           />
           {check('cliCheck', t.shared.cliCheck, t.shared.cliCheckHint)}
         </Section>
         <Section title={t.shared.sections.prompts}>
           {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}
           <div className={marks.box('prompt')}>
-            <FieldHead label={t.settings.prompt} hint={t.shared.promptHint} htmlFor={fieldId('prompt')} />
+            <FieldHead label={t.settings.prompt} hint={t.shared.promptHint} htmlFor={fieldId('prompt')} mark={marks.note('prompt', (value) => ((value as string).trim() === '' ? t.shared.none : (value as string)))} />
             <textarea
               id={fieldId('prompt')}
               className="settings__text"
@@ -446,13 +452,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               placeholder={t.shared.promptPlaceholder}
               onChange={(event) => edit('prompt', event.target.value)}
             />
-            {marks.note('prompt', (value) => ((value as string).trim() === '' ? t.shared.none : (value as string)))}
             <FieldNote error={errorOf('prompt')} />
           </div>
           <div className={marks.box('modelPrompts')}>
-            <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
+            <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} mark={marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)} />
             <ModelPrompts value={text('modelPrompts')} accounts={state.account} onChange={(value) => edit('modelPrompts', value)} />
-            {marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)}
             <FieldNote error={errorOf('modelPrompts')} />
           </div>
           {select('promptLanguage', t.shared.promptLanguage, languages)}
@@ -472,9 +476,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           />
           {modesFailure}
           <div className={marks.box('hiddenSkills')}>
-            <FieldHead label={t.shared.hiddenSkills} hint={t.shared.hiddenSkillsHint} />
+            <FieldHead label={t.shared.hiddenSkills} hint={t.shared.hiddenSkillsHint} mark={marks.note('hiddenSkills')} />
             <HiddenSkills state={state} value={text('hiddenSkills')} onChange={(value) => edit('hiddenSkills', value)} />
-            {marks.note('hiddenSkills')}
             <FieldNote error={errorOf('hiddenSkills')} />
           </div>
         </Section>
@@ -495,12 +498,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.shared.checkpointTokens}
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
+            mark={marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
             control={numberInput('checkpointTokens', text('checkpointTokens').trim() !== '' && wholeOf(text('checkpointTokens'), 0) === undefined, {
               placeholder: t.shared.checkpointTokensPlaceholder,
               disabled: handoffsOff,
             })}
           >
-            {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
             <FieldNote error={errorOf('checkpointTokens')} />
           </Row>
           <div className="settings__field">
@@ -519,9 +522,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.shared.autoCompactWindow}
             hint={t.shared.autoCompactWindowHint}
             htmlFor={fieldId('autoCompactWindow')}
+            mark={marks.note('autoCompactWindow', shown)}
             control={numberInput('autoCompactWindow', text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined, { placeholder: t.shared.autoCompactWindowAccount })}
           >
-            {marks.note('autoCompactWindow', shown)}
             <FieldNote error={text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
           </Row>
           {select(
@@ -544,7 +547,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
           <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
             <legend>
-              <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
+              <FieldHead label={t.settings.ci} hint={t.settings.ciHint} mark={marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))} />
             </legend>
             <div className="settings__checks">
               {CI_KINDS.map((kind) => (
@@ -559,7 +562,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                 </label>
               ))}
             </div>
-            {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
             <FieldNote error={errorOf('ci')} />
           </fieldset>
           <Row
@@ -567,10 +569,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.settings.ciWait}
             hint={t.settings.ciWaitHint}
             htmlFor={fieldId('wait')}
+            mark={marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
             control={numberInput('wait', minutesOf(text('wait')) === undefined, { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded })}
-          >
-            {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
-          </Row>
+          />
           {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, unguarded)}
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, unguarded)}
         </div>
@@ -586,7 +587,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         <Section title={t.shared.sections.access}>
           <PageToken state={state} />
           <div className={marks.box('allowedHosts')}>
-            <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} />
+            <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} mark={marks.note('allowedHosts')} />
             <ListTable
               label={t.shared.allowedHosts}
               value={text('allowedHosts')}
@@ -595,7 +596,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               mono
               onChange={(value) => edit('allowedHosts', value)}
             />
-            {marks.note('allowedHosts')}
             <FieldNote error={errorOf('allowedHosts')} />
           </div>
         </Section>
@@ -613,7 +613,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         <Section title={t.shared.sections.other}>
           {numberRow('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
           <div className={marks.box('moves')}>
-            <FieldHead label={t.shared.moves} hint={t.shared.movesHint} />
+            <FieldHead label={t.shared.moves} hint={t.shared.movesHint} mark={marks.note('moves')} />
             <RowsTable
               label={t.shared.moves}
               columns={[
@@ -624,7 +624,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               empty={t.shared.none}
               onChange={(rows) => edit('moves', linesText(rows.map(lineOf)))}
             />
-            {marks.note('moves')}
           </div>
           <FieldNote error={errorOf('stats')} />
         </Section>

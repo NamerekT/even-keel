@@ -18,8 +18,8 @@ html:has(dialog:modal) {
    scrollbar-width set, so the standard properties are for Firefox only. */
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: var(--pane-scrollbar);
+  height: var(--pane-scrollbar);
 }
 
 :root::-webkit-scrollbar {

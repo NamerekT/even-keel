@@ -185,12 +185,7 @@ export function SettingsPanel({
 
   // A key whose '' is "as shared": the field shows the shared value under a chip until an edit makes it the project's own.
   const inheritOf = (key: string, sharedLabel: string, disabled = false): Inheritance => ({ own: text(key) !== '', shared: sharedLabel, disabled, onReset: () => edit(key, '') })
-  const notes = (key: string, show?: (value: Value) => string) => (
-    <>
-      {marks.note(key, show)}
-      <FieldNote error={errorOf(key)} />
-    </>
-  )
+  const notes = (key: string) => <FieldNote error={errorOf(key)} />
   const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }) => (
     <Row
       className={marks.box(key)}
@@ -198,6 +193,7 @@ export function SettingsPanel({
       hint={hint}
       htmlFor={fieldId(key)}
       inherit={inherit === undefined ? undefined : inheritOf(key, inherit.label)}
+      mark={marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
       control={
         <Select
           id={fieldId(key)}
@@ -209,7 +205,7 @@ export function SettingsPanel({
         />
       }
     >
-      {notes(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
+      {notes(key)}
     </Row>
   )
   const inheritedSwitch = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) => (
@@ -220,9 +216,10 @@ export function SettingsPanel({
       checked={switchOf(text(key)) ?? sharedValue}
       disabled={disabled}
       inherit={inheritOf(key, onOff(sharedValue), disabled)}
+      mark={marks.note(key, (value) => (value === '' ? t.settings.asShared(onOff(sharedValue)) : onOff(value === 'true')))}
       onChange={(checked) => edit(key, String(checked))}
     >
-      {notes(key, (value) => (value === '' ? t.settings.asShared(onOff(sharedValue)) : onOff(value === 'true')))}
+      {notes(key)}
     </SwitchField>
   )
   const input = (key: string, label: string, hint: string, placeholder?: string, mono = true) => (
@@ -231,6 +228,7 @@ export function SettingsPanel({
       label={label}
       hint={hint}
       htmlFor={fieldId(key)}
+      mark={marks.note(key)}
       control={
         <input
           id={fieldId(key)}
@@ -248,7 +246,7 @@ export function SettingsPanel({
   )
   const lines = (key: string, label: string, hint: string, placeholder: string, rows: number, mono = true, disabled = false) => (
     <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} />
       <textarea
         id={fieldId(key)}
         className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
@@ -320,7 +318,7 @@ export function SettingsPanel({
       <>
         <Section title={t.settings.sections.repository}>
           <div className={marks.box('repo')}>
-            <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} />
+            <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} mark={marks.note('repo')} />
             <input
               id={fieldId('repo')}
               className="settings__text settings__text--mono"
@@ -338,6 +336,7 @@ export function SettingsPanel({
             label={t.settings.slot}
             hint={t.settings.slotHint}
             htmlFor={fieldId('slot')}
+            mark={marks.note('slot')}
             control={number('slot', text('slot'), wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null, (value) => edit('slot', value))}
           >
             {notes('slot')}
@@ -355,13 +354,14 @@ export function SettingsPanel({
               label={t.settings.carryAgent}
               hint={t.settings.carryAgentHint}
               checked={on('carryAgent')}
+              mark={marks.note('carryAgent')}
               onChange={(checked) => edit('carryAgent', checked)}
             >
               {notes('carryAgent')}
             </SwitchField>
           )}
           <div className={marks.box('color')}>
-            <FieldHead label={t.settings.color} hint={t.settings.colorHint} />
+            <FieldHead label={t.settings.color} hint={t.settings.colorHint} mark={marks.note('color')} />
             <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
               {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
                 <button
@@ -393,8 +393,10 @@ export function SettingsPanel({
               trackerProject={text('trackerProject')}
               known={text('tracker') === saved.tracker && text('trackerProject') === saved.trackerProject}
               locked={locked}
+              trackerMark={marks.note('tracker')}
               trackerNote={notes('tracker')}
               box={marks.box('trackerProject')}
+              mark={marks.note('trackerProject')}
               note={notes('trackerProject')}
               invalid={errorOf('trackerProject') !== null}
               onEdit={(tracker, value) =>
@@ -508,7 +510,8 @@ export function SettingsPanel({
             hint={t.settings.providerHint}
             className={marks.box('provider')}
             inherit={inheritOf('provider', providerName(shared.provider))}
-            note={notes('provider', (value) => value === '' ? t.settings.asShared(providerName(shared.provider)) : providerName(String(value)))}
+            mark={marks.note('provider', (value) => value === '' ? t.settings.asShared(providerName(shared.provider)) : providerName(String(value)))}
+            note={notes('provider')}
             chosen={text('provider') || shared.provider}
             onPick={(provider) => edit('provider', pickedProvider(provider, draft.base.provider as string, shared.provider))}
             columns={[
@@ -537,7 +540,7 @@ export function SettingsPanel({
                       onChange={(value) => edit(key, value)}
                     />
                     <Inherit {...inheritOf(key, sharedLabel)} />
-                    {notes(key, (value) => (value === '' ? t.settings.asShared(sharedLabel) : labelOf(options)(value)))}
+                    {notes(key)}
                   </div>
                 )
               }
@@ -558,9 +561,20 @@ export function SettingsPanel({
                   />
                   <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
                   <Inherit {...inheritOf(key, sharedModel)} />
-                  {notes(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))}
+                  {notes(key)}
                 </div>
               )
+            }}
+            cellMark={(column, provider) => {
+              const key = `${column}.${provider}`
+              if (column === 'models') {
+                const sharedModel = shared.models[provider] ?? t.settings.cliDefault
+                return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))
+              }
+              const sharedAccount = shared.accounts[provider]
+              const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)
+              const options = state === null ? [] : accountOptions(state.account, provider, text(key) || (sharedAccount ?? ''))
+              return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedLabel) : labelOf(options)(value)))
             }}
           />
           {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
@@ -595,8 +609,9 @@ export function SettingsPanel({
             trim={state?.trimTools ?? false}
             value={text('standards')}
             onChange={(value) => edit('standards', value)}
+            mark={marks.note('standards', standardsShown)}
           >
-            {notes('standards', standardsShown)}
+            {notes('standards')}
           </ProjectStandards>
         </Section>
         <Section title={t.settings.gets.title} hint={t.settings.gets.hint(providerName(text('provider') || shared.provider))}>
@@ -609,8 +624,7 @@ export function SettingsPanel({
             standards={standardRows(text('standards')).map((row) => row.doc).filter((doc) => doc !== '')}
           />
         </Section>
-        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => edit('protection', value)} error={errorOf('protection')} />
-        {notes('protection')}
+        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => edit('protection', value)} error={errorOf('protection')} mark={marks.note('protection')} />
         <Section title={t.settings.sections.context}>
           <Row
             className={marks.box(['ownAutoCompact', 'autoCompactWindow'])}
@@ -618,6 +632,7 @@ export function SettingsPanel({
             hint={t.shared.autoCompactWindowHint}
             htmlFor={fieldId('autoCompactWindow')}
             inherit={ownInherit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) }, shared.autoCompactWindow === null ? t.shared.autoCompactWindowAccount : String(shared.autoCompactWindow))}
+            mark={<>{flagNote('ownAutoCompact')}{marks.note('autoCompactWindow', (value) => (value as string).trim() === '' ? t.shared.autoCompactWindowAccount : value as string)}</>}
             control={number(
               'autoCompactWindow',
               on('ownAutoCompact') ? text('autoCompactWindow') : shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow),
@@ -626,8 +641,6 @@ export function SettingsPanel({
               { placeholder: t.shared.autoCompactWindowAccount },
             )}
           >
-            {flagNote('ownAutoCompact')}
-            {marks.note('autoCompactWindow', (value) => (value as string).trim() === '' ? t.shared.autoCompactWindowAccount : value as string)}
             <FieldNote error={on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
           </Row>
           {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
@@ -637,6 +650,7 @@ export function SettingsPanel({
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
             inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder, handoffsOff)}
+            mark={<>{flagNote('ownCheckpoint')}{marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}</>}
             control={number(
               'checkpointTokens',
               on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint,
@@ -645,8 +659,6 @@ export function SettingsPanel({
               { placeholder: t.shared.checkpointTokensPlaceholder, disabled: handoffsOff },
             )}
           >
-            {flagNote('ownCheckpoint')}
-            {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
             <FieldNote error={errorOf('stats.checkpointTokens')} />
           </Row>
           <div className={marks.box('ownShares')}>
@@ -654,19 +666,18 @@ export function SettingsPanel({
               label={t.shared.checkpointShares}
               hint={t.shared.checkpointSharesHint}
               inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
+              mark={flagNote('ownShares')}
             />
             <div className="settings__row">
               {SHARE_KEYS.map((key) => (
                 <div key={key} className={marks.box(key)}>
-                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} />
+                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={marks.note(key)} />
                   {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
                     disabled: handoffsOff,
                   })}
-                  {marks.note(key)}
                 </div>
               ))}
             </div>
-            {flagNote('ownShares')}
             <FieldNote error={errorOf('checkpointShares')} />
           </div>
           {pick(
@@ -693,7 +704,7 @@ export function SettingsPanel({
             {lines('afterGreen', t.settings.afterGreen, t.settings.afterGreenHint, t.settings.afterGreenPlaceholder, 3, true, unguarded)}
             <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
               <legend>
-                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} />
+                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} mark={<>{flagNote('ownKinds')}{marks.note('kinds', kindsText)}</>} />
               </legend>
               <div className="settings__checks">
                 {CI_KINDS.map((kind) => (
@@ -713,8 +724,6 @@ export function SettingsPanel({
                   </label>
                 ))}
               </div>
-              {flagNote('ownKinds')}
-              {marks.note('kinds', kindsText)}
               <FieldNote error={errorOf('ci')} />
             </fieldset>
             <Row
@@ -723,6 +732,7 @@ export function SettingsPanel({
               hint={t.settings.ciWaitHint}
               htmlFor={fieldId('wait')}
               inherit={ownInherit('ownWait', { wait: sharedWait }, sharedWait || t.settings.ciWaitPlaceholder, unguarded)}
+              mark={<>{flagNote('ownWait')}{marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}</>}
               control={number(
                 'wait',
                 on('ownWait') ? text('wait') : sharedWait,
@@ -731,8 +741,6 @@ export function SettingsPanel({
                 { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded },
               )}
             >
-              {flagNote('ownWait')}
-              {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
             </Row>
             {inheritedSwitch('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
             {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
@@ -746,6 +754,7 @@ export function SettingsPanel({
             checked={on('pullRequests')}
             disabled={pullReadiness !== null && !on('pullRequests') && saved.pullRequests !== true}
             onChange={(checked) => edit('pullRequests', checked)}
+            mark={marks.note('pullRequests')}
           >
             {notes('pullRequests')}
           </SwitchField>

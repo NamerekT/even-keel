@@ -32,9 +32,11 @@ interface ProjectTrackerProps {
   locked: boolean
   /** The draft's tracker and tracker project: a profile of another tracker changes both. */
   onEdit: (tracker: string, trackerProject: string) => void
-  /** Under the profile: the draft's marks of the tracker. */
+  /** In the profile's head: the draft's mark of the tracker; under it, its error. */
+  trackerMark: ReactNode
   trackerNote: ReactNode
   box: string
+  mark: ReactNode
   note: ReactNode
   invalid: boolean
 }
@@ -45,7 +47,7 @@ interface ProjectTrackerProps {
  * another tracker puts that tracker into the draft and waits for the save: a profile is linked only to its project's
  * saved tracker.
  */
-export function ProjectTracker({ state, project, tracker, trackerProject, known, locked, onEdit, trackerNote, box, note, invalid }: ProjectTrackerProps) {
+export function ProjectTracker({ state, project, tracker, trackerProject, known, locked, onEdit, trackerMark, trackerNote, box, mark, note, invalid }: ProjectTrackerProps) {
   const { send, sending, failure } = useCommand()
   const [waiting, setWaiting] = useState<string | null>(null)
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
@@ -95,7 +97,9 @@ export function ProjectTracker({ state, project, tracker, trackerProject, known,
           <FieldNote error={failure} />
         </>
       }
+      profileMark={trackerMark}
       projectBox={box}
+      projectMark={mark}
       projectNote={note}
       projectInvalid={invalid}
       onChange={change}

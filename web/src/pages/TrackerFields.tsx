@@ -47,8 +47,11 @@ interface TrackerFieldsProps {
   status?: ReactNode
   /** Under the profile: what its change answered. */
   profileNote?: ReactNode
-  /** The tracker project's field: its box's class, what goes under it, whether it is refused. */
+  /** In the profile's head: the mark of its unsaved change (`Marks.note`). */
+  profileMark?: ReactNode
+  /** The tracker project's field: its box's class, the mark in its head, what goes under it, whether it is refused. */
   projectBox?: string
+  projectMark?: ReactNode
   projectNote?: ReactNode
   projectInvalid?: boolean
 }
@@ -114,7 +117,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
   )
 }
 
-function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, onChange, onAdd }: TrackerFieldsProps & { onAdd: () => void }) {
+function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, profileMark, onChange, onAdd }: TrackerFieldsProps & { onAdd: () => void }) {
   const options = [
     ...profiles.map((each) => ({ value: each.id, label: each.isDefault ? t.profiles.byDefault(each.name) : each.name, icon: <TrackerIcon kind={each.kind} /> })),
     { value: ADD, label: t.wizard.addProfile, icon: <PlusIcon /> },
@@ -128,7 +131,7 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
   if (profiles.length === 0)
     return (
       <div className="settings__field">
-        <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} />
+        <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} mark={profileMark} />
         <button type="button" id={ids('profile')} className="button tracker-fields__add" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
           <PlusIcon />
           {t.wizard.addProfile}
@@ -138,7 +141,7 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
     )
   return (
     <div className="settings__field">
-      <FieldHead label={t.profiles.field} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} />
+      <FieldHead label={t.profiles.field} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} mark={profileMark} />
       <Select id={ids('profile')} className="settings__text tracker-fields__wide" value={fields.profile} options={options} disabled={profileLocked} onChange={pick} />
       {profileNote}
     </div>
@@ -164,7 +167,7 @@ function ProjectFields(props: ProjectFieldsProps) {
   const { ids, shape, title, choice, fields, disabled, list, exact, onChange, keyFixed = false, projectLocked = false } = props
   const kind = fields.tracker
   const label = t.settings.trackerProject(kind, title)
-  const owned = { disabled: projectLocked, box: props.projectBox, invalid: props.projectInvalid, children: props.projectNote }
+  const owned = { disabled: projectLocked, box: props.projectBox, invalid: props.projectInvalid, mark: props.projectMark, children: props.projectNote }
   const options = list.map((each) => ({ value: each.key, label: each.name }))
   const aside = exact === undefined ? undefined : t.wizard.match(exact.key, exact.name)
   if (disabled) return <TextField id={ids('project')} label={t.wizard.trackerField} value={placeOf(fields)} disabled onChange={() => {}} />
@@ -247,14 +250,16 @@ interface TextFieldProps {
   aside?: string
   /** The class of the field's box. */
   box?: string
+  /** In the head: the mark of an unsaved change. */
+  mark?: ReactNode
   onChange: (value: string) => void
   children?: ReactNode
 }
 
-function TextField({ id, label, hint, value, placeholder, upper = false, disabled = false, invalid = false, options = [], aside, box = 'settings__field', onChange, children }: TextFieldProps) {
+function TextField({ id, label, hint, value, placeholder, upper = false, disabled = false, invalid = false, options = [], aside, box = 'settings__field', mark, onChange, children }: TextFieldProps) {
   return (
     <div className={box}>
-      <FieldHead label={label} hint={hint} htmlFor={id} />
+      <FieldHead label={label} hint={hint} htmlFor={id} mark={mark} />
       <span className="tracker-fields__input-row">
         <input
           id={id}

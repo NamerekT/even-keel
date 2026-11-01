@@ -61,10 +61,9 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
             label={label}
             hint={hint}
             htmlFor={id}
+            mark={marks.note(key, (value: Value) => moveLabel(key, String(value), profile))}
             control={<Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} onChange={(value) => onEdit(key, value)} />}
-          >
-            {marks.note(key, (value: Value) => moveLabel(key, String(value), profile))}
-          </Row>
+          />
         )
       })}
     </>

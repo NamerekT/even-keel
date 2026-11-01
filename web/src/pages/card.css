@@ -162,7 +162,8 @@ html:has(.task-card[open]) {
 
 .task-card__body {
   overflow-y: auto;
-  padding: 22px 24px 28px;
+  scrollbar-gutter: stable;
+  padding: 22px calc(24px - var(--pane-scrollbar)) 28px 24px;
   overscroll-behavior: contain;
 }
 

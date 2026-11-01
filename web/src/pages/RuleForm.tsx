@@ -58,13 +58,17 @@ export type RuleChange = [RuleKey, string[] | null | undefined]
 /** A list as the draft keeps it: a line a name, blank for none, for "by the categories" and for a key left unset. */
 export const ruleText = (value: readonly string[] | null | undefined) => (value ?? []).join('\n')
 
-function OriginCell({ origin, level, profileName, ownName, onReset, name }: { origin: RuleOrigin; level: RuleLevel; profileName: string | null; ownName?: string; onReset: () => void; name: string }) {
+/**
+ * Where a row's value comes from; the reset only on a row the level changed. A list is the level's whole, so the rows it
+ * holds as they were inherited are the level's too, but a reset there would put back what is already there.
+ */
+function OriginCell({ origin, level, changed, profileName, ownName, onReset, name }: { origin: RuleOrigin; level: RuleLevel; changed: boolean; profileName: string | null; ownName?: string; onReset: () => void; name: string }) {
   const text = origin === 'profile' ? t.settings.originProfile(profileName ?? '—') : origin === level && ownName !== undefined ? ownName : t.settings.origin[origin]
   return (
     <td className="rule-table__origin">
       <div className="rule-table__origin-line">
         <span className="rule-table__from">{text}</span>
-        {origin === level && (
+        {origin === level && changed && (
           <button type="button" className="rule-table__reset" title={t.settings.ruleReset(name)} aria-label={t.settings.ruleReset(name)} onClick={onReset}>
             <UndoIcon />
           </button>
@@ -103,7 +107,7 @@ function StatusTable({ rules, inherited, origins, level, profileName, ownName, s
   const move = (row: StatusRow, place: StatusPlace) => put(withPlace(rows, row.name, place), withPlace(rows, row.name, place, true))
   return (
     <div className={marks.box(['active', 'terminal'])}>
-      <FieldHead label={t.settings.ruleStatuses} hint={t.settings.ruleStatusesHint} />
+      <FieldHead label={t.settings.ruleStatuses} hint={t.settings.ruleStatusesHint} mark={<>{marks.note('active')}{marks.note('terminal')}</>} />
       {rows.length === 0 ? (
         <p className="settings__hint">{t.settings.ruleNoStatuses}</p>
       ) : (
@@ -121,7 +125,7 @@ function StatusTable({ rules, inherited, origins, level, profileName, ownName, s
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.name} className={row.origin === level ? undefined : 'rule-table__inherited'}>
+              <tr key={row.name} className={row.origin === level && row.place !== row.inherited ? undefined : 'rule-table__inherited'}>
                 <th scope="row" className="rule-table__name">
                   {row.name}
                 </th>
@@ -136,14 +140,12 @@ function StatusTable({ rules, inherited, origins, level, profileName, ownName, s
                     />
                   </td>
                 ))}
-                <OriginCell origin={row.origin} level={level} profileName={profileName} ownName={ownName} name={row.name} onReset={() => move(row, row.inherited)} />
+                <OriginCell origin={row.origin} level={level} changed={row.place !== row.inherited} profileName={profileName} ownName={ownName} name={row.name} onReset={() => move(row, row.inherited)} />
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      {marks.note('active')}
-      {marks.note('terminal')}
       <FieldNote error={errorOf('chain.active')} />
       <FieldNote error={errorOf('chain.terminal')} />
     </div>
@@ -172,7 +174,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
   const anyLabel = rules.requiredLabels.length === 0
   return (
     <div className={marks.box(['requiredLabels', 'excludedLabels'])}>
-      <FieldHead label={t.settings.ruleLabels} hint={t.settings.ruleLabelsHint} />
+      <FieldHead label={t.settings.ruleLabels} hint={t.settings.ruleLabelsHint} mark={<>{marks.note('requiredLabels')}{marks.note('excludedLabels')}</>} />
       <datalist id={`${id}-labels`}>
         {labels
           .filter((name) => !rows.some((row) => sameName(row.name, name)))
@@ -191,7 +193,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
         </thead>
         <tbody>
           {rows.map((row: LabelRow) => (
-            <tr key={`${row.rule}-${row.name}`} className={row.origin === level ? undefined : 'rule-table__inherited'}>
+            <tr key={`${row.rule}-${row.name}`} className={row.origin === level && row.rule !== ruleOf(inherited, row.name) ? undefined : 'rule-table__inherited'}>
               <th scope="row" className="rule-table__name">
                 {row.name}
               </th>
@@ -202,7 +204,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
                   <span className="rule-table__fixed">{t.settings.labelRule[row.rule]}</span>
                 )}
               </td>
-              <OriginCell origin={row.origin} level={level} profileName={profileName} ownName={ownName} name={row.name} onReset={() => set(row.name, ruleOf(inherited, row.name))} />
+              <OriginCell origin={row.origin} level={level} changed={row.rule !== ruleOf(inherited, row.name)} profileName={profileName} ownName={ownName} name={row.name} onReset={() => set(row.name, ruleOf(inherited, row.name))} />
               <td className="rows__action">
                 {row.origin !== 'builtin' && (
                   <button type="button" className="rows__button" title={t.settings.remove(row.name)} aria-label={t.settings.remove(row.name)} onClick={() => set(row.name, null)}>
@@ -257,8 +259,6 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
           <HelpTip text={t.settings.labelTakeHint} />
         </span>
       </div>
-      {marks.note('requiredLabels')}
-      {marks.note('excludedLabels')}
       <FieldNote error={errorOf('chain.requiredLabels')} />
       <FieldNote error={errorOf('chain.excludedLabels')} />
     </div>
@@ -329,6 +329,8 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
             }}
           />
         )}
+        {marks.note('requiredMilestones')}
+        {marks.note('excludedMilestones')}
       </div>
       {mode === 'only' && list('requiredMilestones', 'excludedMilestones')}
       {(mode === 'except' || rules.excludedMilestones.length > 0) && (
@@ -337,8 +339,6 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
           {list('excludedMilestones', 'requiredMilestones')}
         </>
       )}
-      {marks.note('requiredMilestones')}
-      {marks.note('excludedMilestones')}
       <FieldNote error={errorOf('chain.requiredMilestones')} />
       <FieldNote error={errorOf('chain.excludedMilestones')} />
     </div>

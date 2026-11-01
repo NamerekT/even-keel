@@ -4,6 +4,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import type { CheckpointShares, ConfigView } from '../../../src/state.js'
 import { sayAtField, t } from '../i18n/index.js'
 import { CheckIcon, InheritIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
+import { Tipped } from '../ui/Tipped.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
@@ -139,9 +140,11 @@ export function Inherit({ own, shared, onReset, disabled = false }: Inheritance)
   )
 }
 
-/** A setting's name and its help. `htmlFor` ties the name to its control. */
-/** `soon` — a badge for a field that is fixed for now: the version that will let it change. */
-export function FieldHead({ label, hint, htmlFor, soon, inherit }: { label: string; hint?: string; htmlFor?: string; soon?: string; inherit?: Inheritance }) {
+/**
+ * A setting's name and its help. `htmlFor` ties the name to its control; `soon` — a badge for a field that is fixed for
+ * now: the version that will let it change; `mark` — the field's `Marks.note`.
+ */
+export function FieldHead({ label, hint, htmlFor, soon, inherit, mark }: { label: string; hint?: string; htmlFor?: string; soon?: string; inherit?: Inheritance; mark?: ReactNode }) {
   return (
     <span className="settings__head-row">
       {htmlFor === undefined ? (
@@ -154,13 +157,14 @@ export function FieldHead({ label, hint, htmlFor, soon, inherit }: { label: stri
       {hint !== undefined && <HelpTip text={hint} />}
       {soon !== undefined && <span className="settings__soon">{soon}</span>}
       {inherit !== undefined && <Inherit {...inherit} />}
+      {mark}
     </span>
   )
 }
 
 /**
  * A short setting on one line: its name at the left, its control at the right edge, one width for every control;
- * `children` go under both — the marks of a change and the error.
+ * `mark` goes into the name's line, `children` under both — the error.
  */
 export function Row({
   className,
@@ -168,6 +172,7 @@ export function Row({
   hint,
   htmlFor,
   inherit,
+  mark,
   control,
   children,
 }: {
@@ -176,13 +181,14 @@ export function Row({
   hint?: string
   htmlFor?: string
   inherit?: Inheritance
+  mark?: ReactNode
   control: ReactNode
   children?: ReactNode
 }) {
   return (
     <div className={`${className} settings__line`}>
       <div className="settings__line-main">
-        <FieldHead label={label} hint={hint} htmlFor={htmlFor} inherit={inherit} />
+        <FieldHead label={label} hint={hint} htmlFor={htmlFor} inherit={inherit} mark={mark} />
         <div className="settings__control">{control}</div>
       </div>
       {children}
@@ -207,6 +213,7 @@ export function SwitchField({
   checked,
   disabled = false,
   inherit,
+  mark,
   onChange,
   children,
 }: {
@@ -216,12 +223,13 @@ export function SwitchField({
   checked: boolean
   disabled?: boolean
   inherit?: Inheritance
+  mark?: ReactNode
   onChange: (checked: boolean) => void
   children?: ReactNode
 }) {
   const id = useId()
   return (
-    <Row className={className} label={label} hint={hint} htmlFor={id} inherit={inherit} control={<Switch id={id} checked={checked} disabled={disabled} onChange={onChange} />}>
+    <Row className={className} label={label} hint={hint} htmlFor={id} inherit={inherit} mark={mark} control={<Switch id={id} checked={checked} disabled={disabled} onChange={onChange} />}>
       {children}
     </Row>
   )
@@ -293,7 +301,10 @@ export function shown(value: Value): string {
 export interface Marks {
   /** The class of a field's box, with a stripe when a value of `keys` is changed. */
   box(keys: string | readonly string[], name?: string): string
-  /** Under a changed field: what it was, what the file holds now if that changed too, and a button putting it back. */
+  /**
+   * In a changed field's head, after its name: a button putting it back, its tip saying what it was and what the file
+   * holds now if that changed too. Nothing is added under the field, so a change moves nothing on the page.
+   */
   note(key: string, show?: (value: Value) => string): ReactNode
 }
 
@@ -305,20 +316,24 @@ export function marksOf(draft: Draft, saved: Values, same: Same, revert: (keys: 
       if (!changed(key)) return null
       const was = show(draft.base[key]!)
       const now = same(key, saved[key]!, draft.base[key]!) ? null : show(saved[key]!)
-      return (
-        <span className="settings__mark">
-          <span className="settings__was" title={was}>
+      const tip = (
+        <>
+          <span className="settings__was">
             {t.settings.was} <span className="settings__value">{was}</span>
           </span>
-          <button type="button" className="settings__undo" title={t.settings.revertField} aria-label={t.settings.revertField} onClick={() => revert([key])}>
-            <UndoIcon />
-          </button>
           {now !== null && (
-            <span className="settings__now" title={now}>
+            <span className="settings__now">
               {t.settings.inFile} <span className="settings__value">{now}</span>
             </span>
           )}
-        </span>
+        </>
+      )
+      return (
+        <Tipped tip={tip} inline align="start" className="settings__mark">
+          <button type="button" className="settings__undo" aria-label={`${t.settings.revertField}: ${t.settings.was} ${was}`} onClick={() => revert([key])}>
+            <UndoIcon />
+          </button>
+        </Tipped>
       )
     },
   }

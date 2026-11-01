@@ -95,6 +95,7 @@ Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx
 - **List and detail** (a list at the left, the picked item at the right) only when an item's detail is large: a transcript, a long form, a task. When each item has two to six facts, show all items at once as cards in a grid.
 - **Cards in a row are one height** and their buttons stand on one line at the bottom.
 - **Narrow** is 760 px and below (`useNarrow`): one column, the settings groups in a drawer, nothing cut. Wide is 1200 px and up (`useWide`).
+- **Nothing jumps.** An edit, a mark or a scrollbar showing up moves nothing else. A scrolling box (`.panel`, the task card's body, a dialog's body) keeps `scrollbar-gutter: stable` and takes the gutter out of its right padding (`calc(<padding> - var(--pane-scrollbar))`), so its content is one width with or without the bar. A mark that comes with a change goes into a line that is already there (the ↺ of a changed setting in the field's head), never a new line under the field; a control that shows up in a row is no taller than the row.
 
 ## Content
 

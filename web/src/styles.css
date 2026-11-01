@@ -100,6 +100,10 @@
   --motion-spin: 0.8s;
   --motion-sway: 2.4s;
 
+  /* A pane's scrollbar (base.css). A pane whose content changes keeps its gutter (`scrollbar-gutter: stable`) and takes
+     this off its right padding, so the content keeps its width whether the bar shows or not, its edges even. */
+  --pane-scrollbar: 8px;
+
   /* Behind every modal window: the page is dimmed and blurred the same way. */
   --scrim: rgb(0 0 0 / 0.6);
   --scrim-blur: blur(2px);
