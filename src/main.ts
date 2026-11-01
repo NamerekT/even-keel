@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { listenOf } from './config.js'
 import { guardHosts, guardToken } from './guard.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
-import { englishOf, noticeOf, type Notice } from './notice/notice.js'
+import { causeLine, englishOf, noticeWithCause, type Notice } from './notice/notice.js'
 import { createBlockedServer } from './server.js'
 import { prepareSettings } from './settings/import.js'
 import { upgradeStorage } from './storage/migrations.js'
@@ -14,20 +14,23 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './storage/state-files.js'
 // starts nothing and writes nothing, and the page shows why.
 loadEnv()
 let blocked: Notice | undefined
+let blockedCause: string | undefined
 try {
   upgradeStorage({ configFile: configPath(), stateDir: stateDirOf(), log: (line) => console.log(line) })
   const database = await prepareDatabase({ stateDir: stateDirOf(), log: (line) => console.log(line) })
   keepDatabase(database)
   await prepareSettings({ db: database.db, file: configPath(), log: (line) => console.log(line) })
 } catch (error) {
-  blocked = noticeOf(error)
+  blocked = noticeWithCause(error)
+  blockedCause = causeLine(error)
 }
 
 if (blocked === undefined) await import('./service.js')
-else await serveBlocked(blocked)
+else await serveBlocked(blocked, blockedCause)
 
-async function serveBlocked(reason: Notice): Promise<void> {
+async function serveBlocked(reason: Notice, cause: string | undefined): Promise<void> {
   console.error(`${englishOf(reason)}. The service started nothing and wrote nothing; it serves the page only`)
+  if (cause !== undefined) console.error(cause)
   const listen = listenOf(process.env)
   const token = guardToken(process.env, listen.host)
   const hosts = guardHosts(listen.host, await allowedHosts(configPath()))
