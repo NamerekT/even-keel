@@ -136,7 +136,7 @@ describe('Dispatcher on a restart', () => {
     expect(() => blocked.dispatcher.restart('ABC', 'ABC-1')).toThrow('claude: sign-in in progress')
 
     const spent = await running({ limitReset: '2026-09-26T15:00:00.000Z' })
-    expect(() => spent.dispatcher.restart('ABC', 'ABC-1')).toThrow('chain: the usage limit is spent until 2026-09-26T15:00:00.000Z')
+    expect(() => spent.dispatcher.restart('ABC', 'ABC-1')).toThrow('chain: The usage limit is spent until 2026-09-26T15:00:00.000Z')
   })
 
   it('refuses when no session of the task is known', async () => {
