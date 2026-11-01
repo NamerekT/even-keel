@@ -29,6 +29,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 2a | [Account names across sign-outs and sign-ins](#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
 | 3b | [Huly's client installed on demand](#hulys-client-installed-on-demand-btn-666) | npm installs on Huly | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
+| 3c | [Huly on Node.js 25 and newer](#huly-on-nodejs-25-and-newer) | Huly users on a Node newer than 24 | Even Keel ends on the first Huly call |
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
@@ -185,6 +186,12 @@ The five-minute Windows Task Scheduler registration in [the experiment protocol]
 ### macOS
 
 `service/install.sh` installs a launchd agent there, but Even Keel has never run on a Mac: neither the agent nor finding the CLI and its folders.
+
+### Huly on Node.js 25 and newer
+
+Node 25 and newer have the browser's `sessionStorage` and `localStorage`, and the Huly client takes them for a browser: its connect reached for `window`, failed, and a timer it left threw outside any promise, ending the whole process — a tester on Node 26.13 lost Even Keel on the Huly profile's check (2026-11-01). `hideWebStorage` (`src/huly/client.ts`) hides both before the client loads. Checked on Node 24.14 only: with a stand-in `sessionStorage` the profile's check against a real Huly reproduced that crash before the fix and passed after it, and so did `--experimental-webstorage` with a storage file. Not checked: Node 25 or 26 itself — a chain on Huly, Tally's Huly step and the profile's check there.
+
+If it is wrong: Even Keel ends with `Cannot access 'clientConnection' before initialization` in the log on the first Huly call. Install Node.js 24 LTS, then `npm install` and `npm run build` again.
 
 ### The start at sign-in on Windows (BTN-372)
 

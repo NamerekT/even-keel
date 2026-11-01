@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { HULY_CLIENT, HulyClient, type HulyClientDeps } from './client.js'
+import { HULY_CLIENT, HulyClient, hideWebStorage, type HulyClientDeps } from './client.js'
 
 const dirs: string[] = []
 
@@ -114,5 +114,33 @@ describe('HulyClient', () => {
     const own = Object.assign(() => ({}), { resolve: (name: string) => name }) as unknown as NodeJS.Require
     client({ dir: tempDir(), own, install }).install()
     expect(install).not.toHaveBeenCalled()
+  })
+
+  it('hides the Web Storage of Node 25+ before the client loads', () => {
+    const own = Object.assign(() => ({}), { resolve: (name: string) => name }) as unknown as NodeJS.Require
+    Object.defineProperty(globalThis, 'sessionStorage', { get: () => ({}), configurable: true })
+    try {
+      client({ dir: tempDir(), own }).require('@hcengineering/api-client')
+      expect(typeof globalThis.sessionStorage).toBe('undefined')
+    } finally {
+      delete (globalThis as { sessionStorage?: unknown }).sessionStorage
+    }
+  })
+})
+
+describe('hideWebStorage', () => {
+  it('hides both storages without reading them: Node warns on the read of localStorage', () => {
+    const read = vi.fn(() => ({}))
+    const scope = {}
+    for (const name of ['sessionStorage', 'localStorage']) Object.defineProperty(scope, name, { get: read, configurable: true })
+    hideWebStorage(scope)
+    expect(scope).toMatchObject({ sessionStorage: undefined, localStorage: undefined })
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('adds nothing where there is no storage', () => {
+    const scope = {}
+    hideWebStorage(scope)
+    expect('sessionStorage' in scope || 'localStorage' in scope).toBe(false)
   })
 })

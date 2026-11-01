@@ -47,6 +47,7 @@ export class HulyClient {
    * a failed one. `install: false` — a reader in another thread (Tally's worker), which leaves the install to the service.
    */
   require<T = unknown>(name: HulyPackage, { install = true }: { install?: boolean } = {}): T {
+    hideWebStorage()
     const from = this.locate()
     if (from !== null) return from(name) as T
     if (this.failure !== null) throw new NoticeError(this.failure)
@@ -102,6 +103,17 @@ export class HulyClient {
     if (!pinnedIn(dir)) return null
     this.failure = null
     return (this.from = createRequire(join(dir, 'package.json')))
+  }
+}
+
+/**
+ * Node 25+ has the browser's `sessionStorage` and `localStorage`. The Huly client then takes Node for a browser: its
+ * connect reaches for `window`, its load for `indexedDB`, and a failed connect leaves a timer that throws outside any
+ * promise and ends the whole process. The service needs neither storage, so they are hidden before the client loads.
+ */
+export function hideWebStorage(scope: object = globalThis): void {
+  for (const name of ['sessionStorage', 'localStorage']) {
+    if (name in scope) Object.defineProperty(scope, name, { value: undefined, configurable: true, writable: true })
   }
 }
 
