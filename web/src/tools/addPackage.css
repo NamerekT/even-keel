@@ -159,12 +159,6 @@
   margin-bottom: 4px;
 }
 
-.add-package__error {
-  color: var(--error-fg);
-  font-size: var(--text-12);
-  line-height: 1.45;
-}
-
 .add-package__input {
   width: 100%;
   min-width: 0;
