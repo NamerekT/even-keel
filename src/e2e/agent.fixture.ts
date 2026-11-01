@@ -32,6 +32,8 @@ export type TurnEnd =
   | { say: string }
   | { checkpoint: string }
   | { noChanges: string }
+  /** PR mode's mark: the path of the pull request's note in the session's folder. */
+  | { pullRequest: string }
   | { ask: string }
   | { limit: string }
   /** The API refuses before the model's first answer (a bad key): only the error reaches the transcript. */
@@ -227,7 +229,7 @@ export class ScriptedAgent implements Agent {
     const at = () => new Date().toISOString()
     session.entry = { ...session.entry, pid: PID, status: 'busy', state: 'working', resting: false }
     delete session.entry.ask
-    session.summary = { ...session.summary, apiError: null, checkpoint: null, noChanges: null, ask: null, asking: false, lastActivityAt: at() }
+    session.summary = { ...session.summary, apiError: null, checkpoint: null, noChanges: null, pullRequest: null, ask: null, asking: false, lastActivityAt: at() }
     const cwd = session.entry.cwd
     const context: TurnContext = {
       task,
@@ -298,6 +300,9 @@ export class ScriptedAgent implements Agent {
     } else if ('noChanges' in end) {
       session.entry = resting
       session.summary = { ...said(`NO CHANGES: ${end.noChanges}`), noChanges: end.noChanges }
+    } else if ('pullRequest' in end) {
+      session.entry = resting
+      session.summary = { ...said(`PULL REQUEST: ${end.pullRequest}`), pullRequest: end.pullRequest }
     } else {
       session.entry = resting
       session.summary = said(end.say)
@@ -341,6 +346,27 @@ export function checkpoint(note: string, text: string): Turn {
     await mkdir(dirname(join(cwd, note)), { recursive: true })
     await writeFile(join(cwd, note), text)
     return { checkpoint: note }
+  }
+}
+
+/** Where PR mode's prompt has a session describe its pull request. */
+export const PULL_NOTE = '.temp/pull-request.md'
+
+/**
+ * A turn of PR mode: writes `file` (none — the task changes nothing), commits it on the task's branch as `[<task>]
+ * <subject>`, describes the pull request in `PULL_NOTE` and ends with its mark.
+ */
+export function forReview(file: string | null = 'work.txt', text?: string, subject = 'Work'): Turn {
+  return async ({ task, cwd, git }) => {
+    if (file !== null) {
+      await mkdir(dirname(join(cwd, file)), { recursive: true })
+      await writeFile(join(cwd, file), text ?? `${task}\n`)
+      await git('add', file)
+      await git('commit', '-m', `[${task}] ${subject}`)
+    }
+    await mkdir(join(cwd, '.temp'), { recursive: true })
+    await writeFile(join(cwd, PULL_NOTE), `[${task}] Work\n\nWhat the task did.\n`)
+    return { pullRequest: PULL_NOTE }
   }
 }
 

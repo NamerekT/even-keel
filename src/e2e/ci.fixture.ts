@@ -40,7 +40,8 @@ export class Ci {
     return {
       runs: async (limit, branch) => {
         this.polls++
-        await this.look(branch ?? 'main')
+        // Without a branch — PR mode's poll of a pull request's head — every branch pushed so far has its run.
+        for (const each of branch === undefined ? await this.branchesOfRemote() : [branch]) await this.look(each)
         return this.runs.filter((run) => branch === undefined || this.branches.get(run.id) === branch).slice(0, limit).map((run) => ({ ...run }))
       },
       jobs: async (run) => [this.job(this.runs.find((each) => each.id === run.id) ?? run)],
@@ -50,6 +51,11 @@ export class Ci {
 
   private job(run: CiRun): CiJob {
     return { id: run.id, name: 'test', status: run.status, startedAt: run.startedAt, stoppedAt: run.stoppedAt, steps: null }
+  }
+
+  private async branchesOfRemote(): Promise<string[]> {
+    const listed = await runGit(this.remote(), ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+    return listed.code === 0 ? listed.out.split('\n').filter(Boolean) : []
   }
 
   private async look(branch: string): Promise<void> {

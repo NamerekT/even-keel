@@ -8,6 +8,7 @@ import type { Notice } from '../notice/notice.js'
 import type { ServiceContext } from '../service.js'
 import { ScriptedAgent } from './agent.fixture.js'
 import { Ci, FORGE_WEB } from './ci.fixture.js'
+import { Pulls } from './forge.fixture.js'
 import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
 
 export const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
@@ -37,6 +38,8 @@ export class Harness {
   readonly remote = join(this.dir, 'remote.git')
   readonly board = new Board()
   readonly ci = new Ci(() => this.remote)
+  /** The pull requests of the forge, with `forge` set: the real Forgejo adapter reads them in place of its API. */
+  readonly pulls = new Pulls(() => this.remote)
   readonly agent = new ScriptedAgent((cwd) => this.checkoutOf(cwd), () => this.service.listen)
   readonly log: string[] = []
   /** Keys of the project's entry in the config file the service starts on, set before `start`. */
@@ -232,6 +235,9 @@ export class Harness {
     if (this.forge) {
       const { CI_SOURCES } = await import('../ci/adapters.js')
       CI_SOURCES.forgejo = () => this.ci.source()
+      const { FORGES } = await import('../review/wiring.js')
+      const { forgejoPulls } = await import('../review/forgejo.js')
+      FORGES.forgejo = ({ web, owner, repo }, token, timeoutMs) => forgejoPulls({ web, owner, repo, token }, timeoutMs, this.pulls.fetch)
     }
     const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))
     await import('../main.js')

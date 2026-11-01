@@ -1,4 +1,5 @@
 import { ciSource } from '../ci/adapters.js'
+import type { CiKind } from '../ci/model.js'
 import type { CiTarget } from '../ci/remote.js'
 import { readFailure, type FailedRun } from '../ci/report.js'
 import type { ReviewDeps } from '../chain/model.js'
@@ -14,6 +15,13 @@ import { closingOf, noToken, openPull, pullReadiness, pullTarget, unsupportedHos
 import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
+
+/** The pull requests of each forge; the end-to-end tests put their fake in place of one (`src/e2e/forge.fixture.ts`). */
+export const FORGES: Record<CiKind, (target: CiTarget, token: string, timeoutMs: number) => Forge> = {
+  forgejo: ({ web, owner, repo }, token, timeoutMs) => forgejoPulls({ web, owner, repo, token }, timeoutMs),
+  github: ({ owner, repo }, token, timeoutMs) => githubPulls({ owner, repo, token }, timeoutMs),
+  gitlab: ({ web, owner, repo }, token, timeoutMs) => gitlabPulls({ web, owner, repo, token }, timeoutMs),
+}
 
 export interface ReviewWiring {
   gitlabUrls?: () => readonly string[]
@@ -51,11 +59,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
     return token
   }
 
-  function forgeOf(target: CiTarget, token: string): Forge {
-    const { owner, repo, web } = target
-    if (target.kind === 'gitlab') return gitlabPulls({ web, owner, repo, token }, timeoutMs)
-    return target.kind === 'github' ? githubPulls({ owner, repo, token }, timeoutMs) : forgejoPulls({ web, owner, repo, token }, timeoutMs)
-  }
+  const forgeOf = (target: CiTarget, token: string): Forge => FORGES[target.kind](target, token, timeoutMs)
 
   return {
     on: wiring.on,
