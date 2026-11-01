@@ -1,6 +1,7 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import { uniqueStatuses, type StatusCategory, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerVocabulary } from '../tracker/source.js'
+import { tracker } from './ids.js'
 
 const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
 
@@ -76,7 +77,7 @@ export interface HulyAttachmentDoc {
   createdOn?: number
 }
 
-export const ISSUE_CLASS = 'tracker:class:Issue'
+export const ISSUE_CLASS = tracker.class.Issue
 const NO_PARENT = 'tracker:ids:NoParent'
 
 const CATEGORY_PREFIX = 'task:statusCategory:'

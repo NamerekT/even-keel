@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { authOf, type HulyCredentials } from '../../src/huly/credentials.js'
+import { tracker } from '../../src/huly/ids.js'
 import { quietModelNoise } from '../../src/huly/quiet.js'
 
 export interface TaskRecord {
@@ -60,10 +61,6 @@ interface PlatformClient {
   close(): Promise<void>
 }
 
-interface TrackerModule {
-  default: { class: { Issue: string; IssueStatus: string; Component: string; Milestone: string; TimeSpendReport: string } }
-}
-
 export interface TimeReport {
   task: string
   hours: number
@@ -91,7 +88,6 @@ const ISSUE_FIELDS = {
 export const REPORT_DESCRIPTION = 'Tally: активное время агента по ходам транскриптов'
 
 export async function fetchTasks(credentials: HulyCredentials, identifiers: string[], timeoutMs: number): Promise<TaskRecord[]> {
-  const tracker = (require('@hcengineering/tracker') as TrackerModule).default
   const ISSUE = tracker.class.Issue
   const ISSUE_STATUS = tracker.class.IssueStatus
   const client = await connect(credentials, timeoutMs)
@@ -119,7 +115,6 @@ export async function fetchTasks(credentials: HulyCredentials, identifiers: stri
 
 // One Tally report per issue: an issue that already has one keeps it, whatever its value.
 export async function reportTimes(credentials: HulyCredentials, reports: TimeReport[], timeoutMs: number): Promise<Map<string, number>> {
-  const tracker = (require('@hcengineering/tracker') as TrackerModule).default
   const client = await connect(credentials, timeoutMs)
   try {
     const issues = await client.findAll<IssueDoc & { space: string }>(
