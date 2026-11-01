@@ -318,18 +318,22 @@ export interface Marks {
   /**
    * In a changed field's head, after its name: a button putting it back, its tip saying what it was and what the file
    * holds now if that changed too. Nothing is added under the field, so a change moves nothing on the page.
+   * Several `keys` are one field (an `own*` flag and its values): one button puts them all back, the tip tells of the
+   * first one changed.
    */
-  note(key: string, show?: (value: Value) => string): ReactNode
+  note(keys: string | readonly string[], show?: (value: Value, key: string) => string): ReactNode
 }
 
 export function marksOf(draft: Draft, saved: Values, same: Same, revert: (keys: string[]) => void): Marks {
   const changed = (key: string) => !same(key, draft.edit[key]!, draft.base[key]!)
   return {
     box: (keys, name = 'settings__field') => ([keys].flat().some(changed) ? `${name} settings__field--changed` : name),
-    note: (key, show = shown) => {
-      if (!changed(key)) return null
-      const was = show(draft.base[key]!)
-      const now = same(key, saved[key]!, draft.base[key]!) ? null : show(saved[key]!)
+    note: (keys, show = shown) => {
+      const all = [keys].flat()
+      const key = all.find(changed)
+      if (key === undefined) return null
+      const was = show(draft.base[key]!, key)
+      const now = same(key, saved[key]!, draft.base[key]!) ? null : show(saved[key]!, key)
       const tip = (
         <>
           <span className="settings__was">
@@ -344,7 +348,7 @@ export function marksOf(draft: Draft, saved: Values, same: Same, revert: (keys: 
       )
       return (
         <Tipped tip={tip} inline align="start" className="settings__mark">
-          <button type="button" className="settings__undo" aria-label={`${t.settings.revertField}: ${t.settings.was} ${was}`} onClick={() => revert([key])}>
+          <button type="button" className="settings__undo" aria-label={`${t.settings.revertField}: ${t.settings.was} ${was}`} onClick={() => revert(all)}>
             <UndoIcon />
           </button>
         </Tipped>

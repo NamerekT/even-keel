@@ -272,10 +272,14 @@ export function SettingsPanel({
     disabled,
     onReset: () => setDraft(Object.keys(sharedValues).reduce((each, field) => edited(each, field, saved[field]!), edited(draft, flag, false))),
   })
-  const flagNote = (flag: string) => marks.note(flag, (value) => (value === true ? t.settings.ownChip : t.settings.sharedChip))
+  // One undo for a flag and its fields: "was: shared" when the field turned own, else what its value was.
+  const flagNote = (flag: string, fields: readonly string[], show: (value: Value) => string = shown) =>
+    marks.note([flag, ...fields], (value, key) => (key !== flag ? show(value) : value === true ? t.settings.ownChip : t.settings.sharedChip))
   const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
   const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
   const sharedShares = sharesText(shared.stats.checkpointShares)
+  // The shares turned own or shared: one undo in the group's head; while they stay own, each share has its own.
+  const sharesTurned = on('ownShares') !== draft.base.ownShares
   const handoffsOff = !(switchOf(text('contextHandoffs')) ?? shared.contextHandoffs)
   const kinds = on('ownKinds') ? (draft.edit.kinds as readonly CiKind[]) : shared.ci.kinds
   const kindsText = (value: Value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind]))
@@ -634,7 +638,7 @@ export function SettingsPanel({
             hint={t.shared.autoCompactWindowHint}
             htmlFor={fieldId('autoCompactWindow')}
             inherit={ownInherit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) }, shared.autoCompactWindow === null ? t.shared.autoCompactWindowAccount : String(shared.autoCompactWindow))}
-            mark={<>{flagNote('ownAutoCompact')}{marks.note('autoCompactWindow', (value) => (value as string).trim() === '' ? t.shared.autoCompactWindowAccount : value as string)}</>}
+            mark={flagNote('ownAutoCompact', ['autoCompactWindow'], (value) => ((value as string).trim() === '' ? t.shared.autoCompactWindowAccount : (value as string)))}
             control={number(
               'autoCompactWindow',
               on('ownAutoCompact') ? text('autoCompactWindow') : shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow),
@@ -651,7 +655,7 @@ export function SettingsPanel({
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
             inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder, handoffsOff)}
-            mark={<>{flagNote('ownCheckpoint')}{marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}</>}
+            mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
             control={number(
               'checkpointTokens',
               on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint,
@@ -666,12 +670,12 @@ export function SettingsPanel({
               label={t.shared.checkpointShares}
               hint={t.shared.checkpointSharesHint}
               inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
-              mark={flagNote('ownShares')}
+              mark={sharesTurned ? flagNote('ownShares', SHARE_KEYS) : null}
             />
             <div className="settings__row">
               {SHARE_KEYS.map((key) => (
                 <div key={key} className={marks.box(key)}>
-                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={marks.note(key)} />
+                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={sharesTurned ? null : marks.note(key)} />
                   {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
                     disabled: handoffsOff,
                   })}
@@ -704,7 +708,7 @@ export function SettingsPanel({
             {lines('afterGreen', t.settings.afterGreen, t.settings.afterGreenHint, t.settings.afterGreenPlaceholder, 3, true, unguarded)}
             <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
               <legend>
-                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} mark={<>{flagNote('ownKinds')}{marks.note('kinds', kindsText)}</>} />
+                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} mark={flagNote('ownKinds', ['kinds'], kindsText)} />
               </legend>
               <div className="settings__checks">
                 {CI_KINDS.map((kind) => (
@@ -732,7 +736,7 @@ export function SettingsPanel({
               hint={t.settings.ciWaitHint}
               htmlFor={fieldId('wait')}
               inherit={ownInherit('ownWait', { wait: sharedWait }, sharedWait || t.settings.ciWaitPlaceholder, unguarded)}
-              mark={<>{flagNote('ownWait')}{marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}</>}
+              mark={flagNote('ownWait', ['wait'], (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
               control={number(
                 'wait',
                 on('ownWait') ? text('wait') : sharedWait,
