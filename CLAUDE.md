@@ -98,3 +98,5 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 ## Tests
 
 TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. A chain bug found live also gets a scenario in `src/e2e/` when the scripted agent reproduces it (`docs/chain.md`). Process handling, network and layout are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (`docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context.
+
+Live checks run only on the benches of `../even-keel-backstage/stands/README.md` (the maintainer's private repo): read its "Left changed" first, put back every setting a check changes.
