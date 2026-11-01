@@ -16,6 +16,10 @@ export const KEY = 'ABC'
 /** The second project of `Harness.second`: a clone of the same remote. */
 export const SECOND_ID = '22222222-2222-4222-8222-222222222222'
 export const SECOND_KEY = 'DEF'
+/** The release project of `Harness.release`: a clone of the same remote on `RELEASE_BRANCH`, merging into `PROJECT_ID`. */
+export const RELEASE_ID = '33333333-3333-4333-8333-333333333333'
+export const RELEASE_KEY = 'REL'
+export const RELEASE_BRANCH = 'release/v0.1'
 /** The remote's address on the bench's forge; git is pointed at the bare repository by `insteadOf`. */
 const FORGE_URL = `${FORGE_WEB}/john/example.git`
 const ACCOUNT = 'script'
@@ -34,6 +38,8 @@ export class Harness {
   readonly repo = join(this.dir, 'repo')
   /** The checkout of the second project, with `second` set. */
   readonly repo2 = join(this.dir, 'repo2')
+  /** The checkout of the release project, with `release` set. */
+  readonly releaseRepo = join(this.dir, 'release')
   /** The bare repository behind the forge's remote, with `forge` set. */
   readonly remote = join(this.dir, 'remote.git')
   readonly board = new Board()
@@ -53,6 +59,11 @@ export class Harness {
   forge = false
   /** Set before `start`, with `forge`: keys of a second project `SECOND_KEY`, its clone `repo2` of the same remote. */
   second: Record<string, unknown> | null = null
+  /**
+   * Set before `start`, with `forge`: keys of a release project `RELEASE_KEY`, its clone `releaseRepo` of the same remote
+   * on `RELEASE_BRANCH` (pushed from `main` at the start), its `mergeInto` the project `PROJECT_ID`.
+   */
+  release: Record<string, unknown> | null = null
   /** Whether the scripted agent plays Codex too, with the account folder `CODEX_ACCOUNT`; set before `start`. */
   codex = false
   private context: ServiceContext | undefined
@@ -66,10 +77,12 @@ export class Harness {
     return this.context
   }
 
-  async start(): Promise<void> {
+  /** `prepared` runs once the folder, its checkouts and the environment are ready, before the service reads them. */
+  async start(prepared?: () => void): Promise<void> {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'], now: new Date('2026-10-01T09:00:00Z') })
     this.prepare()
     await this.environment()
+    prepared?.()
     await this.boot()
   }
 
@@ -152,7 +165,7 @@ export class Harness {
 
   /** The project checkout a session's folder is in: its worktrees are inside it. */
   private checkoutOf(cwd: string): string {
-    return [this.repo2, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
+    return [this.repo2, this.releaseRepo, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
   }
 
   private prepare(): void {
@@ -169,7 +182,7 @@ export class Harness {
     }
     this.git('add', '.')
     this.git('commit', '-q', '-m', 'Initial commit')
-    const projects = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }]
+    const projects: Record<string, unknown>[] = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }]
     this.board.keys.set(PROJECT_ID, KEY)
     if (this.forge) {
       execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.remote])
@@ -178,16 +191,28 @@ export class Harness {
     }
     if (this.second !== null) {
       if (!this.forge) throw new Error('e2e: a second project needs the forge')
-      // Checked out as committed: a machine's `core.autocrlf` would leave the clone with changes to every file.
-      execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', this.remote, this.repo2])
-      this.configure(this.repo2)
-      this.gitIn(this.repo2, 'remote', 'set-url', 'origin', FORGE_URL)
-      this.gitIn(this.repo2, 'fetch', '-q', 'origin')
+      this.clone(this.repo2, 'main')
       projects.push({ id: SECOND_ID, key: SECOND_KEY, tracker: BOARD_TRACKER, repo: this.repo2, ...this.second })
       this.board.keys.set(SECOND_ID, SECOND_KEY)
     }
+    if (this.release !== null) {
+      if (!this.forge) throw new Error('e2e: a release project needs the forge')
+      this.git('push', '-q', 'origin', `main:refs/heads/${RELEASE_BRANCH}`)
+      this.clone(this.releaseRepo, RELEASE_BRANCH)
+      projects.push({ id: RELEASE_ID, key: RELEASE_KEY, tracker: BOARD_TRACKER, repo: this.releaseRepo, branch: RELEASE_BRANCH, mergeInto: PROJECT_ID, ...this.release })
+      this.board.keys.set(RELEASE_ID, RELEASE_KEY)
+    }
     const config = { version: 19, language: 'en', accounts: { claude: ACCOUNT }, updates: { check: false }, projects, ...this.config }
     writeFileSync(join(this.dir, 'data', 'even-keel.config.json'), JSON.stringify(config, null, 2))
+  }
+
+  /** Another clone of the bare repository on `branch`, its remote at the forge's address as the first checkout's. */
+  private clone(path: string, branch: string): void {
+    // Checked out as committed: a machine's `core.autocrlf` would leave the clone with changes to every file.
+    execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', '-b', branch, this.remote, path])
+    this.configure(path)
+    this.gitIn(path, 'remote', 'set-url', 'origin', FORGE_URL)
+    this.gitIn(path, 'fetch', '-q', 'origin')
   }
 
   /** A checkout's identity and line endings; with the forge, its remote's address leads git to the bare repository. */
