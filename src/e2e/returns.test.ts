@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
+import { checkpoint, commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { BACKLOG, TODO } from './tracker.fixture.js'
 
@@ -110,5 +110,44 @@ describe('a task that leaves the chain and comes back', { timeout: 60_000 }, () 
     expect(second!.prompt).toContain('Stuck on the old format')
     expect(stops()).toContain(first!.sessionId)
     expect(run.service.launches).toEqual(expect.arrayContaining([expect.objectContaining({ task: 'ABC-1', reason: 'relay', cause: 'unskipped', previous: first!.sessionId })]))
+  })
+
+  // BTN-689: a session merged half of its work, the merge closed the task, the user took it back from Done, and the
+  // session ended on a checkpoint. The branch is in main since before the reopen, so the handover closed it at once.
+  it.each([false, true])('keeps open a task reopened after an early merge, hands it over by checkpoint and closes it on the next merge (restart in between: %s)', async (restart) => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    const reopened = new Gate()
+    const rest = new Gate()
+    const early = commitAndMerge('early.txt')
+    const halfMerged: Turn = async (turn) => {
+      await early(turn)
+      await turn.park(reopened)
+      return checkpoint('.temp/handoff.md', 'Not all of it is done.\n')(turn)
+    }
+    run.agent.script('ABC-1', halfMerged, parked(rest, commitAndMerge('rest.txt')))
+    run.agent.script('ABC-2', commitAndMerge('ABC-2.txt'))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 closed by its early merge')
+
+    run.board.tasks.get('ABC-1')!.status = TODO
+    await run.pass(60_000)
+    reopened.open()
+    await run.until(() => launches().length === 2, 'ABC-1 handed over by its checkpoint')
+    if (restart) await run.restart()
+    await run.pass(60_000)
+    const [first, second] = launches()
+    expect(launches().map((call) => call.task)).toEqual(['ABC-1', 'ABC-1'])
+    expect(second!.cwd).toBe(first!.cwd)
+    expect(second!.prompt).toContain('handoff.md')
+    expect(run.board.status('ABC-1')).toBe('Todo')
+    expect(run.board.completions).toBe(1)
+
+    rest.open()
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 closed by its second merge')
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+    expect(launches().map((call) => call.task)).toEqual(['ABC-1', 'ABC-1', 'ABC-2'])
+    expect(run.git('log', '--format=%s', 'main').split('\n')).toEqual(expect.arrayContaining(['[ABC-1] Work', '[ABC-2] Work']))
   })
 })

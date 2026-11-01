@@ -3,7 +3,7 @@ import { cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { branchMerged } from './merged.js'
+import { branchMerged, mergedCommits } from './merged.js'
 import { runGit } from './run.js'
 
 let repo: string
@@ -125,5 +125,51 @@ describe('branchMerged', { timeout: 30_000 }, () => {
     await git('switch', '-q', 'main')
     await git('merge', '-q', '--no-edit', 'abc-70/task')
     expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(false)
+  })
+})
+
+describe('mergedCommits', { timeout: 30_000 }, () => {
+  const head = (ref: string) => git('rev-parse', ref)
+
+  it('names the newest commit of its own each merged branch has in main, and none before a merge', async () => {
+    await git('switch', '-q', '-c', 'abc-7/task')
+    await commit('first')
+    expect(await mergedCommits(runGit, repo, 'ABC-7')).toEqual([])
+    await git('switch', '-q', 'main')
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    const first = await head('abc-7/task')
+    expect(await mergedCommits(runGit, repo, 'ABC-7')).toEqual([first])
+
+    await git('switch', '-q', 'abc-7/task')
+    await commit('second')
+    await git('switch', '-q', 'main')
+    expect(await mergedCommits(runGit, repo, 'ABC-7')).toEqual([])
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    expect(await mergedCommits(runGit, repo, 'ABC-7')).toEqual([await head('abc-7/task')])
+  })
+
+  it('keeps the same commit while the branch only catches up with main after its merge', async () => {
+    await git('switch', '-q', '-c', 'abc-7/task')
+    await commit('work')
+    const work = await head('abc-7/task')
+    await git('switch', '-q', 'main')
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    await commit('other')
+    await git('switch', '-q', 'abc-7/task')
+    await git('merge', '-q', '--ff-only', 'main')
+    await git('switch', '-q', 'main')
+    expect(await mergedCommits(runGit, repo, 'ABC-7')).toEqual([work])
+  })
+
+  it('names one commit for each merged branch of the task', async () => {
+    await git('switch', '-q', '-c', 'abc-7/task')
+    await commit('work')
+    await git('switch', '-q', 'main')
+    await git('switch', '-q', '-c', 'abc-7/other')
+    await commit('more')
+    await git('switch', '-q', 'main')
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    await git('merge', '-q', '--no-edit', 'abc-7/other')
+    expect((await mergedCommits(runGit, repo, 'ABC-7')).sort()).toEqual([await head('abc-7/other'), await head('abc-7/task')].sort())
   })
 })

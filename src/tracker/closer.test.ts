@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { done, setup, todo } from '../chain/dispatcher.fixture.js'
 import { MergeCloser } from './closer.js'
+import { MergeMarks, type MergeMark } from './closes.js'
 import { fakeTask } from './fixture.js'
 import type { TaskStatus, TrackerTask } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
@@ -36,7 +37,7 @@ describe('MergeCloser', () => {
 
     const merged = new Set<string>()
     let refused = true
-    const closer = new MergeCloser({ merged: async (_project, task) => merged.has(task), complete: (task) => {
+    const closer = new MergeCloser({ merged: async (_project, task) => (merged.has(task) ? ['c1'] : []), complete: (task) => {
       if (refused) throw new Error('Due date required')
       return tracker.complete!(task)
     } })
@@ -71,7 +72,7 @@ describe('MergeCloser', () => {
 
     const completed: string[] = []
     const closer = new MergeCloser({
-      merged: async (_project, task) => task === 'ABC-1',
+      merged: async (_project, task) => (task === 'ABC-1' ? ['c1'] : []),
       complete: async (task) => completed.push(task) > 0,
     })
     await closer.sweep('ABC', dispatcher.held('ABC'))
@@ -84,7 +85,7 @@ describe('MergeCloser', () => {
     adapter.statuses.set('ABC-1', done)
     let asked = 0
     const closer = new MergeCloser({
-      merged: async () => true,
+      merged: async () => ['c1'],
       complete: (task) => {
         asked++
         return adapter.complete!(task)
@@ -95,21 +96,47 @@ describe('MergeCloser', () => {
     expect(asked).toBe(1)
   })
 
-  it('closes a reopened task again once its branch is merged again', async () => {
+  it('closes a reopened task again only once main has a commit of its branch it did not have at the close', async () => {
     const adapter = fakeAdapter(['ABC-1'])
-    let merged = true
+    let merged: string[] = ['early']
     const closer = new MergeCloser({ merged: async () => merged, complete: (task) => adapter.complete!(task) })
     expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
     expect(await closer.sweep('ABC', ['ABC-1'], [])).toEqual([])
 
     adapter.statuses.set('ABC-1', todo)
-    merged = false
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual([])
+    merged = []
     expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual([])
     expect(adapter.statuses.get('ABC-1')).toEqual(todo)
 
-    merged = true
+    merged = ['early']
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual([])
+    merged = ['later']
     expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
     expect(adapter.statuses.get('ABC-1')).toEqual(done)
+  })
+
+  it('keeps what it closed through a restart: a reopened task with nothing new merged stays open, a new merge closes it', async () => {
+    const adapter = fakeAdapter(['ABC-1'])
+    const saved: MergeMark[] = []
+    let merged: string[] = ['early']
+    const closerOf = () =>
+      new MergeCloser({
+        merged: async () => merged,
+        complete: (task) => adapter.complete!(task),
+        marks: new MergeMarks([...saved], (mark) => saved.push(mark), () => new Date('2026-11-01T15:35:47.000Z')),
+      })
+    expect(await closerOf().sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
+    expect(saved).toEqual([{ project: 'ABC', task: 'ABC-1', commits: ['early'], closedAt: '2026-11-01T15:35:47.000Z' }])
+
+    adapter.statuses.set('ABC-1', todo)
+    const restarted = closerOf()
+    expect(await restarted.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual([])
+    expect(await restarted.sweep('XYZ', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
+    adapter.statuses.set('ABC-1', todo)
+    merged = ['early', 'other-branch']
+    expect(await closerOf().sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
+    expect(saved.at(-1)).toMatchObject({ project: 'ABC', task: 'ABC-1', commits: ['early', 'other-branch'] })
   })
 
   it('tries again next time when the tracker refused to close the task', async () => {
@@ -117,7 +144,7 @@ describe('MergeCloser', () => {
     const errors: unknown[] = []
     const completed: string[] = []
     const closer = new MergeCloser({
-      merged: async () => true,
+      merged: async () => ['c1'],
       complete: async (task) => {
         if (fail) throw new Error('tracker: refused')
         completed.push(task)
@@ -135,7 +162,7 @@ describe('MergeCloser', () => {
   })
 
   it('forgets refusals of tasks no longer held, separately for each reader', async () => {
-    const closer = new MergeCloser({ merged: async () => true, complete: async () => { throw new Error('Required field') } })
+    const closer = new MergeCloser({ merged: async () => ['c1'], complete: async () => { throw new Error('Required field') } })
     await closer.sweep('ABC', ['ABC-1'])
     await closer.sweep('XYZ', ['XYZ-1'])
     await closer.sweep('ABC', [])
@@ -147,7 +174,7 @@ describe('MergeCloser', () => {
     let fail = true
     const calls: [string, string | undefined][] = []
     const closer = new MergeCloser({
-      merged: async () => true,
+      merged: async () => ['c1'],
       done: () => ({ status: 'Released', level: 'source', fits: true }),
       complete: async (task, status) => {
         calls.push([task, status])
@@ -169,7 +196,7 @@ describe('MergeCloser', () => {
     let done = { status: 'In Review', level: 'profile' as const, fits: false }
     const completed: string[] = []
     const closer = new MergeCloser({
-      merged: async () => true,
+      merged: async () => ['c1'],
       done: () => done,
       complete: async (task) => completed.push(task) > 0,
     })

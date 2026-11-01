@@ -1,38 +1,50 @@
 import type { DoneMove } from '../chain/moves.js'
 import { notice, type Notice } from '../notice/notice.js'
+import { MergeMarks } from './closes.js'
 import { errorText } from './link.js'
 
 export interface MergeCloserOptions {
-  merged: (project: string, task: string) => Promise<boolean>
+  /** The own commits of the task's branches main has (`mergedCommits`); none — not merged. */
+  merged: (project: string, task: string) => Promise<string[]>
   /** `false` — the task was already closed. `status` — the done status to close it into; none — the tracker's first. */
   complete: (task: string, status?: string) => Promise<boolean>
   /** The done status the reader's source closes into (BTN-554); none — automatic. */
   done?: (project: string) => DoneMove | undefined
   onError?: (error: unknown) => void
+  /** What was closed before, shared by the service's trackers and kept through a restart; none — this closer's own. */
+  marks?: MergeMarks
 }
 
 export class MergeCloser {
-  private readonly closed = new Set<string>()
+  private readonly marks: MergeMarks
   private readonly refused = new Map<string, Map<string, Notice>>()
 
-  constructor(private readonly options: MergeCloserOptions) {}
+  constructor(private readonly options: MergeCloserOptions) {
+    this.marks = options.marks ?? new MergeMarks()
+  }
 
   failures(project: string): Notice[] {
     return [...(this.refused.get(project)?.values() ?? [])]
   }
 
-  /** `open` — the tasks the tracker's last read shows open: one closed before and open again was reopened, and is closed again once merged. */
+  /**
+   * `open` — the tasks the tracker's last read shows open: one closed before and open again was reopened. It is closed
+   * again only once main has an own commit of its branch it did not have at the last close (BTN-689): the branch merged
+   * before the reopen is merged at once, and would close it the moment the chain takes it back.
+   */
   async sweep(project: string, tasks: string[], open: string[] = []): Promise<string[]> {
     const refused = this.refused.get(project) ?? new Map<string, Notice>()
     this.refused.set(project, refused)
     const held = new Set(tasks)
     for (const task of refused.keys()) if (!held.has(task)) refused.delete(task)
-    for (const task of open) this.closed.delete(task)
+    const reopened = new Set(open)
     const closed: string[] = []
     for (const task of tasks) {
-      if (this.closed.has(task)) continue
+      const mark = this.marks.of(project, task)
+      if (mark !== undefined && !reopened.has(task)) continue
       try {
-        if (!(await this.options.merged(project, task))) {
+        const commits = await this.options.merged(project, task)
+        if (commits.length === 0 || (mark !== undefined && commits.every((commit) => mark.includes(commit)))) {
           refused.delete(task)
           continue
         }
@@ -51,7 +63,7 @@ export class MergeCloser {
           continue
         }
         refused.delete(task)
-        this.closed.add(task)
+        this.marks.mark(project, task, commits)
         if (moved) closed.push(task)
       } catch (error) {
         this.options.onError?.(error)

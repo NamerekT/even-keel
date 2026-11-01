@@ -30,7 +30,7 @@ export interface Queryable {
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
- * `account_limits` (BTN-631). A foreign key between tables is deferred, so that a copy inserts the
+ * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -306,6 +306,17 @@ export const STEPS: readonly string[] = [
   create table account_limits (
     account text primary key,
     limits  text not null
+  );
+  `,
+  // The tasks the merge closer closed and the own commits of their branches main had then, so that a reopened task is
+  // closed again only for a new merge, also after a restart (BTN-689).
+  `
+  create table merge_closes (
+    project_id text not null,
+    task       text not null,
+    commits    text not null,
+    closed_at  text not null,
+    primary key (project_id, task)
   );
   `,
 ]

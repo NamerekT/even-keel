@@ -89,7 +89,7 @@ describe('startTracker', () => {
   })
 
   it.each([false, true])('publishes a refused merged-task close and clears it after recovery (manual: %s)', async (manual) => {
-    vi.spyOn(merged, 'branchMerged').mockResolvedValue(true)
+    vi.spyOn(merged, 'mergedCommits').mockResolvedValue(['c1'])
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(console, 'log').mockImplementation(() => {})
     let refused = true

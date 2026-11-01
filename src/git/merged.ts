@@ -5,17 +5,29 @@ import { must } from './worktree.js'
 // Own commits are read from the branch reflog: creation, resets and fast-forwards (catching up with main)
 // add none, so a branch that only followed main is not taken for merged. Without a reflog it never is.
 export async function branchMerged(git: Git, repo: string, task: string, main = 'main'): Promise<boolean> {
+  return (await mergedCommits(git, repo, task, main)).length > 0
+}
+
+/**
+ * The newest own commit main has of each merged branch of the task, as `branchMerged` counts them; none — not merged.
+ * A later merge of the branch names a newer one, while catching up with main keeps it (BTN-689).
+ */
+export async function mergedCommits(git: Git, repo: string, task: string, main = 'main'): Promise<string[]> {
   const listed = await must(git, repo, ['for-each-ref', '--format=%(refname)', `refs/heads/${task.toLowerCase()}/`], 'listBranches')
+  const found: string[] = []
   for (const ref of listed.out.split(/\r?\n/).filter(Boolean)) {
     if (!(await inMain(git, repo, ref, main))) continue
     const reflog = await git(repo, ['reflog', 'show', '--format=%H %gs', ref, '--'])
     if (reflog.code !== 0) continue
     for (const line of reflog.out.split(/\r?\n/).filter(Boolean)) {
       const [commit, subject] = [line.slice(0, line.indexOf(' ')), line.slice(line.indexOf(' ') + 1)]
-      if (madeOnBranch(subject) && (await inMain(git, repo, commit, main))) return true
+      if (madeOnBranch(subject) && (await inMain(git, repo, commit, main))) {
+        found.push(commit)
+        break
+      }
     }
   }
-  return false
+  return found
 }
 
 function madeOnBranch(subject: string): boolean {

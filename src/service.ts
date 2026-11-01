@@ -5,6 +5,7 @@ import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { loadSavedLimits } from './limits/saved.js'
+import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
 import { providerUrl } from './account/network.js'
 import type { SessionStart } from './agent/contract.js'
 import { copies } from './agent/copies.js'
@@ -211,6 +212,7 @@ const context = {
   get mailRelay() { return mailRelay },
   get mailbox() { return mailbox },
   get mcpPort() { return mcpPort },
+  get mergeMarks() { return mergeMarks },
   set mcpPort(value: typeof mcpPort) { mcpPort = value },
   get models() { return models },
   get monitor() { return monitor },
@@ -329,6 +331,8 @@ const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undef
 const keyOrganizations = await loadKeyOrganizations(db)
 /** What polls and sessions last told of each account's limits before this start (BTN-631). */
 const savedLimits = await loadSavedLimits(db)
+/** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
+const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
 const envFile = loadEnv()
 /** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
 const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })

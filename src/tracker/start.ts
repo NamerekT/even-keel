@@ -2,9 +2,10 @@ import type { Dispatcher } from '../chain/dispatcher.js'
 import type { DoneMove } from '../chain/moves.js'
 import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
-import { branchMerged } from '../git/merged.js'
+import { mergedCommits } from '../git/merged.js'
 import { runGit } from '../git/run.js'
 import { MergeCloser } from './closer.js'
+import type { MergeMarks } from './closes.js'
 import { worthBroadcast, type TrackerView } from './health.js'
 import { errorText, TrackerLink } from './link.js'
 import { isOpen, type Task } from './model.js'
@@ -33,6 +34,8 @@ export interface TrackerStartDeps {
   dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'preview'>
   /** The done status the reader's source closes into (BTN-554); none — the tracker's first. */
   doneOf?: (project: string) => DoneMove | undefined
+  /** The tasks the merge closer closed, of every tracker and kept in the state database (BTN-689); none — in memory. */
+  marks?: MergeMarks
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
   /** The project's main branch, where a merged task branch lands. */
@@ -93,10 +96,11 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({
-    merged: (project, task) => branchMerged(runGit, repoOf(project), task, mainBranch(project)),
+    merged: (project, task) => mergedCommits(runGit, repoOf(project), task, mainBranch(project)),
     complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
     done: (project) => deps.doneOf?.(project),
     onError: report,
+    ...(deps.marks !== undefined && { marks: deps.marks }),
   })
 
   const parentCloser = new ParentCloser({
