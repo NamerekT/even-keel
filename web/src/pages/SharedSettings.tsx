@@ -4,6 +4,8 @@ import { protectionOf, protectionText } from './protectionDraft.js'
 import { useSearchParams } from 'react-router'
 import { EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CliSourceChoice } from '../layout/CliSource.js'
+import type { CliSource } from '../layout/cliLock.js'
+import { cliText } from '../layout/cliText.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
@@ -411,12 +413,22 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               const name = providerName(provider)
               if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), offersOf(models, text(`accounts.${provider}`)))
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
-              // The CLI's source is switched at once, not with the form: the checked copy asks before its download. An
-              // execution picked that runs only on the copy switches to it and locks it, before the form is saved; one moved
-              // off keeps the lock until the form is saved, or the service refuses the switch.
+              // The CLI's source is a field of the form, saved with Execution, so the service judges the pair as the form
+              // holds it (BTN-682); a missing checked copy is offered for download once the save lands (`useCommand`).
               if (column === 'cli') {
                 if (!state.cliCopies?.[provider]) return null
-                return <CliSourceChoice provider={provider} label={t.shared.cliOf(name)} execution={text(`execution.${provider}`)} />
+                const key = `cli.${provider}`
+                return (
+                  <div className={marks.box(key)}>
+                    <CliSourceChoice
+                      provider={provider}
+                      label={t.shared.cliOf(name)}
+                      execution={text(`execution.${provider}`)}
+                      picked={same(key, draft.edit[key]!, saved[key]!) ? undefined : (text(key) as CliSource)}
+                      onPick={(source) => edit(key, source)}
+                    />
+                  </div>
+                )
               }
               const modes = EXECUTION_MODES[provider]
               return modes === undefined
@@ -434,6 +446,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                 const options = accountOptions(state.account, provider, text(key))
                 return marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))
               }
+              if (column === 'cli') return marks.note(key, (value) => (value === 'system' ? cliText().yoursShort : cliText().checkedShort))
               if (column !== 'execution') return null
               return marks.note(key, (value) => t.shared.modes[String(value)] ?? String(value))
             }}

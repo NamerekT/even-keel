@@ -38,9 +38,8 @@ export const sharedEn = {
   cli: 'CLI version',
   cliOf: (provider: string) => `CLI version of ${provider}`,
   cliLocked: 'Execution is Agent SDK, and the Agent SDK runs only on the checked copy: the version stays Checked until Execution changes.',
-  cliLockedSaved: 'Agent SDK is still the saved Execution: save the new Execution first, then "Yours" can be picked.',
   cliHint:
-    "Yours — the CLI on this machine, on whatever version it updated itself to; nothing is downloaded. Checked — Even Keel downloads the version it was last checked against into its own folder, after asking, and runs sessions on it; until the download ends the chain waits. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. Applies at once, for every project.",
+    "Yours — the CLI on this machine, on whatever version it updated itself to; nothing is downloaded. Checked — Even Keel downloads the version it was last checked against into its own folder, after asking, and runs sessions on it; until the download ends the chain waits. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. Saved with the form, for every project.",
   cliCheck: 'Check new CLI versions on this machine',
   cliCheckHint:
     "When an agent's CLI releases a new version, and weekly on the checked one, Even Keel runs a short live check of it in the folder of the account the projects run on, on a cheap model. The check waits until the folder has no live session, and the folder's chains wait while it runs. The result shows at the top of the page. Spends the account's limits.",

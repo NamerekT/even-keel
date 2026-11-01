@@ -210,6 +210,20 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(config.current.cli.claude).toBe('checked')
   })
 
+  it('takes Execution and the CLI version of one form save as a pair, both ways (BTN-682)', async () => {
+    await seed({ execution: { claude: 'sdk' }, projects: [] })
+    const config = await open()
+
+    const base = config.view().shared
+    config.saveShared({ ...base, execution: { ...base.execution, claude: 'bg' }, cli: { ...base.cli, claude: 'system' } }, base)
+    expect([config.current.execution.claude, config.current.cli.claude]).toEqual(['bg', 'system'])
+
+    const back = config.view().shared
+    expect(() => config.saveShared({ ...back, execution: { ...back.execution, claude: 'sdk' } }, back)).toThrow(/execution.claude: sdk/)
+    config.saveShared({ ...back, execution: { ...back.execution, claude: 'sdk' }, cli: { ...back.cli, claude: 'checked' } }, back)
+    expect([config.current.execution.claude, config.current.cli.claude]).toEqual(['sdk', 'checked'])
+  })
+
   it('writes the chain switches only when they change', async () => {
     const config = await open()
     expect([config.current.unattended, config.current.trimTools]).toEqual([false, true])

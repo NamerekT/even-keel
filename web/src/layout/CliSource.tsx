@@ -6,22 +6,24 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { CliProgress, mb, titleOf } from './CliCopies.js'
-import { cliLockOf } from './cliLock.js'
+import { cliLockOf, type CliSource } from './cliLock.js'
 import { cliText, INSTALL } from './cliText.js'
 import './cliCopies.css'
 import '../tools/addPackage.css'
 
 /**
  * The move to the checked copy (BTN-603): a copy already downloaded is switched to at once, one that is not asks first —
- * the dialog's "Download" writes `checked` and starts the download, "Cancel" leaves the source as it was.
+ * the dialog's "Download" writes `checked` and starts the download, "Cancel" leaves the source as it was. With `onPick`
+ * (a form, BTN-682) the pick only goes into the form: the consent is asked once the form is saved (`useCommand`).
  */
-export function useCheckedSwitch(provider: string) {
+export function useCheckedSwitch(provider: string, onPick?: (source: CliSource) => void) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
   const [asking, setAsking] = useState(false)
   const copy = state?.cliCopies?.[provider]
   const pick = () => {
-    if (copy?.status === 'ready') void send('cli/checked', { agent: provider })
+    if (onPick) onPick('checked')
+    else if (copy?.status === 'ready') void send('cli/checked', { agent: provider })
     else setAsking(true)
   }
   const dialog = asking ? <CliConsentDialog provider={provider} onClose={() => setAsking(false)} /> : null
@@ -61,36 +63,46 @@ function CliConsentDialog({ provider, onClose }: { provider: string; onClose: ()
  * Which CLI a provider's sessions run on (BTN-603): the installed one or Even Keel's checked copy, two radios. Neither
  * is marked while the source is the installed CLI and there is none: the install command stands under them then. The
  * copy's download shows its progress, a missing or failed one its button. `execution` — the mode the form holds: one that
- * runs only on the copy (BTN-610) moves to the copy as a pick of it would, and the installed one stays shut until both
- * the form and the saved config are off it (`cliLockOf`).
+ * runs only on the copy (BTN-610) moves to the copy as a pick of it would, and keeps the installed one shut (`cliLockOf`).
+ * With `onPick` the choice is a form's field (/settings, BTN-682): a pick goes there, `picked` is the form's unsaved
+ * one, and the service gets it with the form, the copy's download asked after the save; without it (the setup wizard)
+ * a pick is sent at once.
  */
-export function CliSourceChoice({ provider, label, execution }: { provider: string; label?: string; execution?: string }) {
+export function CliSourceChoice({ provider, label, execution, picked, onPick }: {
+  provider: string
+  label?: string
+  execution?: string
+  picked?: CliSource
+  onPick?: (source: CliSource) => void
+}) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
-  const checked = useCheckedSwitch(provider)
+  const checked = useCheckedSwitch(provider, onPick)
   const name = useId()
   const copy = state?.cliCopies?.[provider]
-  const lock = cliLockOf(provider, execution, state?.config.shared.execution[provider])
+  const source = picked ?? copy?.source
+  const lock = cliLockOf(provider, execution)
   const locked = lock === 'picked'
   const wasLocked = useRef(locked)
   useEffect(() => {
-    if (locked && !wasLocked.current && copy !== undefined && copy.source !== 'checked') checked.pick()
+    if (locked && !wasLocked.current && copy !== undefined && source !== 'checked') checked.pick()
     wasLocked.current = locked
   }, [locked])
   if (!copy) return null
   const text = cliText()
-  const chosen = copy.source === 'checked' ? 'checked' : copy.system ? 'system' : null
+  const chosen = source === 'checked' ? 'checked' : copy.system ? 'system' : null
   const busy = sending || checked.sending
   const download = <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/download', { agent: provider })}>
     {copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}
   </button>
+  const pickYours = () => (onPick ? onPick('system') : void send('cli/system', { agent: provider }))
   const yours = <label className="settings__check">
-    <input type="radio" name={name} checked={chosen === 'system'} disabled={!copy.system || busy || lock !== null} onChange={() => void send('cli/system', { agent: provider })} />
+    <input type="radio" name={name} checked={chosen === 'system'} disabled={!copy.system || busy || locked} onChange={pickYours} />
     {copy.system ? text.yours(copy.installed ?? null) : text.yoursMissing}
   </label>
   return <div className="cli-source">
     <div className="cli-source__options" role="radiogroup" aria-label={label ?? text.which}>
-      {lock !== null ? <Tipped tip={lock === 'picked' ? t.shared.cliLocked : t.shared.cliLockedSaved} focusable>{yours}</Tipped> : yours}
+      {locked ? <Tipped tip={t.shared.cliLocked} focusable>{yours}</Tipped> : yours}
       <label className="settings__check">
         <input type="radio" name={name} checked={chosen === 'checked'} disabled={busy} onChange={checked.pick} />
         {copy.status === 'ready' ? text.checkedReady(copy.version) : text.checkedOffer(copy.version, mb(copy.approximate))}
@@ -105,10 +117,11 @@ export function CliSourceChoice({ provider, label, execution }: { provider: stri
       <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p>
       {download}
     </div>}
-    {copy.source === 'checked' && copy.status === 'missing' && <div className="cli-source__problem">
+    {copy.source === 'checked' && source === 'checked' && copy.status === 'missing' && <div className="cli-source__problem">
       <span>{text.missing}</span>
       {download}
     </div>}
+    {picked === 'checked' && copy.source !== 'checked' && copy.status === 'missing' && <p className="settings__hint">{text.onSave}</p>}
     {[failure, checked.failure].map((each, index) => each && <p key={index} className="notice notice--error">{sayAtField(each)}</p>)}
     {checked.dialog}
   </div>
