@@ -71,6 +71,52 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(launches()).toHaveLength(1)
   })
 
+  it('hands a task over to a new session after a limit that resets once the session cache is cold', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', ends({ limit: "You've hit your session limit · resets 11:00am (UTC)" }), commitAndMerge())
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.log.some((line) => line.includes('ABC-1') && line.includes('limit')), 'the limit seen')
+    const [first] = launches()
+
+    await run.until(() => launches().length === 2, 'a new session launched', { step: 60_000, limitMs: 3 * 60 * 60_000 })
+    expect(Date.now()).toBeGreaterThanOrEqual(Date.parse('2026-10-01T11:00:00Z'))
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    const second = launches()[1]!
+    expect(resumes()).toEqual([])
+    expect(second.cwd).toBe(first!.cwd)
+    expect(second.sessionId).not.toBe(first!.sessionId)
+    expect(second.prompt).toContain('session limit')
+    expect(stops()).toContain(first!.sessionId)
+    expect(run.service.launches).toEqual(expect.arrayContaining([expect.objectContaining({ task: 'ABC-1', reason: 'relay', cause: 'limit', previous: first!.sessionId })]))
+  })
+
+  it('closes a task merged while the service was down and goes on to the next one', async () => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    const gate = new Gate()
+    run.agent.script('ABC-1', parked(gate, commitAndMerge('ABC-1.txt')))
+    run.agent.script('ABC-2', commitAndMerge('ABC-2.txt'))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const session = launches()[0]!
+
+    await run.restart(async () => {
+      gate.open()
+      await gate.passed
+      await run.agent.settled()
+      expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
+      expect(run.board.status('ABC-1')).not.toBe('Done')
+    })
+
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    await run.until(() => !existsSync(session.cwd) && !run.git('branch', '--list', 'abc-1*').includes('abc-1'), 'the worktree and branch of ABC-1 removed')
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+    expect(launches().map((call) => call.task)).toEqual(['ABC-1', 'ABC-2'])
+    expect(resumes()).toEqual([])
+  })
+
   it('hands a task over to a new session in the same folder on a checkpoint, pointing it at the note', async () => {
     run.board.add('ABC-1')
     run.agent.script('ABC-1', checkpoint('.temp/handoff.md', 'Half of it is done.\n'), commitAndMerge())

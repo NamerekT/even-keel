@@ -5,11 +5,13 @@ import type { AccountHome } from '../account/homes.js'
 import type { Agent, AgentAdapter, SessionHandle, SessionStart } from '../agent/contract.js'
 import { runGit } from '../git/run.js'
 import type { AgentEntry } from '../sessions/agents.js'
+import type { MailEvent } from '../sessions/mail.js'
 import { TranscriptFold, type TranscriptSummary } from '../sessions/transcript.js'
 
 /** What a turn of a scripted session sees: its task, its folder, the prompt it got and the main checkout to merge into. */
 export interface TurnContext {
   task: string
+  sessionId: string
   cwd: string
   prompt: string
   /** The project's main checkout. */
@@ -18,6 +20,8 @@ export interface TurnContext {
   git(...args: string[]): Promise<string>
   /** Works on until the gate opens: the turn stays mid-turn and `settled` does not wait for it. */
   park(gate: Gate): Promise<void>
+  /** Asks the service for the chat's mail on `event`, as the `checkpoint` plugin's mailbox hook does; `null` — none. */
+  mail(event: MailEvent): Promise<string | null>
 }
 
 /** How a turn ends, as a session's transcript would show it. */
@@ -78,8 +82,13 @@ export class ScriptedAgent implements Agent {
   private parked = 0
   /** Holds every listing of the sessions until it opens, as a long first read of the monitor after a restart does. */
   listing: Gate | null = null
+  /** How many stops to come the CLI refuses, the session left as it was: a resume, which stops first, fails with it. */
+  refuse = 0
 
-  constructor(private readonly repo: () => string) {}
+  constructor(
+    private readonly repo: () => string,
+    private readonly address: () => { host: string; port: number },
+  ) {}
 
   /** The turns the task's sessions play, in order, across launches and resumes. */
   script(task: string, ...turns: Turn[]): void {
@@ -99,6 +108,12 @@ export class ScriptedAgent implements Agent {
   /** The sessions of a task, oldest first. */
   sessionsOf(task: string): AgentEntry[] {
     return [...this.sessions_.values()].filter((session) => session.entry.name === task).map((session) => session.entry)
+  }
+
+  /** The listing gives a resting session as `waiting` with no question of its own, as the CLI did in the BTN-245 case. */
+  waits(sessionId: string): void {
+    const session = this.sessions_.get(sessionId)!
+    session.entry = { ...session.entry, pid: PID, status: 'waiting', state: 'blocked' }
   }
 
   /** A session ended or stopped: its process left, so the service sees it finished. */
@@ -132,6 +147,10 @@ export class ScriptedAgent implements Agent {
   async stop(_home: AccountHome, session: SessionHandle): Promise<void> {
     const known = this.sessions_.get(session.sessionId)
     if (known === undefined) return
+    if (this.refuse > 0) {
+      this.refuse--
+      throw new Error('script: the CLI refused the stop')
+    }
     known.turn++
     this.calls.push({ kind: 'stop', task: known.entry.name ?? '', sessionId: session.sessionId, cwd: known.entry.cwd, prompt: '' })
     const { pid: _, resting: __, status: ___, ask: ____, ...rest } = known.entry
@@ -192,6 +211,7 @@ export class ScriptedAgent implements Agent {
     const cwd = session.entry.cwd
     const context: TurnContext = {
       task,
+      sessionId,
       cwd,
       prompt,
       repo: this.repo(),
@@ -207,6 +227,16 @@ export class ScriptedAgent implements Agent {
         } finally {
           this.parked--
         }
+      },
+      mail: async (event) => {
+        const { host, port } = this.address()
+        const response = await fetch(`http://${host}:${port}/api/sessions/${sessionId}/mail`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ event }),
+        })
+        if (!response.ok) throw new Error(`script: mail on ${event}: ${response.status}`)
+        return ((await response.json()) as { message: string | null }).message
       },
     }
     const running = turn(context)

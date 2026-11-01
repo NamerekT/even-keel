@@ -11,6 +11,7 @@ import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
 export const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 export const KEY = 'ABC'
 const ACCOUNT = 'script'
+const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 /** The real `setTimeout`, for waits on real I/O (git, the database) while the service's own timers are fake. */
 const realTimeout = globalThis.setTimeout
 
@@ -22,9 +23,13 @@ export class Harness {
   readonly dir = mkdtempSync(join(tmpdir(), 'even-keel-e2e-'))
   readonly repo = join(this.dir, 'repo')
   readonly board = new Board()
-  readonly agent = new ScriptedAgent(() => this.repo)
+  readonly agent = new ScriptedAgent(() => this.repo, () => this.service.listen)
   readonly log: string[] = []
+  /** Keys of the project's entry in the config file the service starts on, set before `start`. */
+  readonly project: Record<string, unknown> = {}
   private context: ServiceContext | undefined
+  /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
+  private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
   private readonly saved = { ...process.env }
   private readonly console = { log: console.log, warn: console.warn, error: console.error }
 
@@ -41,9 +46,9 @@ export class Harness {
   }
 
   /** Stops the service and starts it anew on the same folder, as a restart of the machine's service would; `between` runs while it is down. */
-  async restart(between?: () => void): Promise<void> {
+  async restart(between?: () => void | Promise<void>): Promise<void> {
     await this.halt()
-    between?.()
+    await between?.()
     await this.boot()
   }
 
@@ -117,7 +122,7 @@ export class Harness {
       language: 'en',
       accounts: { claude: ACCOUNT },
       updates: { check: false },
-      projects: [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo }],
+      projects: [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }],
     }
     writeFileSync(join(this.dir, 'data', 'even-keel.config.json'), JSON.stringify(config, null, 2))
   }
@@ -151,7 +156,9 @@ export class Harness {
     agents[CLAUDE] = this.agent.adapter()
     const { ADAPTERS } = await import('../tracker/adapters.js')
     ;(ADAPTERS as Record<string, unknown>)[BOARD_TRACKER] = this.board.adapter()
+    const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))
     await import('../main.js')
+    this.signals = SIGNALS.flatMap((signal) => process.listeners(signal).filter((listener) => !before.get(signal)!.has(listener)).map((listener) => ({ signal, listener })))
     const service = (await import('../service.js')).service
     this.context = service
     await this.until(() => service.account.view.accounts.some((entry) => entry.key === ACCOUNT && entry.status?.loggedIn === true), 'the account read')
@@ -160,6 +167,8 @@ export class Harness {
   private async halt(): Promise<void> {
     const service = this.service
     this.context = undefined
+    for (const { signal, listener } of this.signals) process.removeListener(signal, listener)
+    this.signals = []
     await this.agent.settled()
     await service.monitor.stop()
     await service.writes.settled()
