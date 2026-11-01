@@ -56,9 +56,38 @@ export class AccountHomes {
   /** The folders under the new roots count from the next `list`: `EVEN_KEEL_ACCOUNTS_DIR` changes on the fly. */
   setRoots(root: string, codexRoot: string, openCodeRoot: string = openCodeAccountsRoot(this.env), copilotRoot: string = copilotAccountsRoot(this.env)): void {
     this.roots = { [CLAUDE]: root, [CODEX]: codexRoot, [OPENCODE]: openCodeRoot, [COPILOT]: copilotRoot }
+    this.forget()
+  }
+
+  /**
+   * What `list` and `times` read, kept until the current synchronous run ends (BTN-680): one state broadcast or limits
+   * publish asks for it per account and per project, and each read is four `readdirSync` on the event loop. A change
+   * made through this class forgets it at once; one made by another process shows from the next run.
+   */
+  private memo: { list?: AccountHome[]; times: Map<string, CredentialTimes> } | undefined
+
+  private remembered(): { list?: AccountHome[]; times: Map<string, CredentialTimes> } {
+    if (this.memo === undefined) {
+      const memo = { times: new Map<string, CredentialTimes>() }
+      this.memo = memo
+      queueMicrotask(() => {
+        if (this.memo === memo) this.memo = undefined
+      })
+    }
+    return this.memo
+  }
+
+  private forget(): void {
+    this.memo = undefined
   }
 
   list(): AccountHome[] {
+    const memo = this.remembered()
+    memo.list ??= this.read()
+    return [...memo.list]
+  }
+
+  private read(): AccountHome[] {
     const claude = this.folders(CLAUDE)
     const codex = this.folders(CODEX).filter((name) => !claude.includes(name))
     const openCode = this.folders(OPENCODE).filter((name) => !claude.includes(name) && !codex.includes(name))
@@ -90,6 +119,7 @@ export class AccountHomes {
     if (!this.availableGlobals().some((each) => each.key === home.key)) throw fail('account.unknown', { key: home.key })
     await this.registration.save(home.key, true)
     this.registration.keys.add(home.key)
+    this.forget()
   }
 
   private registered(home: AccountHome): boolean {
@@ -102,19 +132,25 @@ export class AccountHomes {
   }
 
   times(home: AccountHome): CredentialTimes {
+    const { times } = this.remembered()
+    const known = times.get(home.dir)
+    if (known !== undefined) return known
     let text: string | undefined
     try {
       text = readFileSync(join(home.dir, '.credentials.json'), 'utf8')
     } catch {
       text = undefined
     }
-    return parseCredentialTimes(text)
+    const parsed = parseCredentialTimes(text)
+    times.set(home.dir, parsed)
+    return parsed
   }
 
   /** A folder to sign a new account of the agent in; Codex does not create its folder, so it is made here for both. */
   pending(now: Date, agent: string): AccountHome {
     const home = this.home(agent, `${PENDING_PREFIX}${now.getTime().toString(36)}`)
     mkdirSync(home.dir, { recursive: true })
+    this.forget()
     return home
   }
 
@@ -122,6 +158,7 @@ export class AccountHomes {
     const name = folderName(email, this.taken())
     const home = this.home(pending.agent, name)
     renameSync(pending.dir, home.dir)
+    this.forget()
     return home
   }
 
@@ -135,6 +172,7 @@ export class AccountHomes {
     const value = assertApiKey(key, agent)
     const home = this.home(agent, folderName(name.trim() === '' ? (agent === COPILOT ? 'github' : 'api') : name, this.taken()))
     mkdirSync(home.dir, { recursive: true })
+    this.forget()
     if (agent === COPILOT) {
       writeToken(home.dir, value)
       return home
@@ -223,9 +261,11 @@ export class AccountHomes {
     if (home.global) {
       await this.registration.save(home.key, false)
       this.registration.keys.delete(home.key)
+      this.forget()
       return
     }
     rmSync(home.dir, { recursive: true, force: true, maxRetries: 3 })
+    this.forget()
   }
 
   private home(agent: string, name: string): AccountHome {

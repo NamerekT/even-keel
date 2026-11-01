@@ -133,6 +133,42 @@ describe('AccountHomes.list', () => {
       rmSync(codexRoot, { recursive: true, force: true })
     }
   })
+
+  it('reads the folders once per synchronous run and anew in the next one (BTN-680)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      mkdirSync(join(root, 'john'))
+      const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: join(root, 'no-claude'), CODEX_HOME: join(root, 'no-codex') }, root, join(root, 'no-codex-accounts'))
+      expect(homes.list().map((home) => home.key)).toEqual(['john'])
+      mkdirSync(join(root, 'alice'))
+      expect(homes.list().map((home) => home.key)).toEqual(['john'])
+      await Promise.resolve()
+      expect(homes.list().map((home) => home.key)).toEqual(['alice', 'john'])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('sees its own changes at once within the same run', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      mkdirSync(join(root, 'john'))
+      mkdirSync(join(root, '.codex'))
+      const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: join(root, 'no-claude'), CODEX_HOME: join(root, '.codex') }, root, join(root, 'no-codex-accounts'))
+      expect(homes.list().map((home) => home.key)).toEqual(['john'])
+      homes.addApiKey('work', 'sk-ant-api03-FAKE0000000000000000000000000000-example')
+      expect(homes.list().map((home) => home.key)).toEqual(['john', 'work'])
+      await homes.register(homes.availableGlobals()[0]!)
+      expect(homes.list().map((home) => home.key)).toEqual(['john', 'work', 'codex'])
+      await homes.remove(homes.find('work')!)
+      expect(homes.list().map((home) => home.key)).toEqual(['john', 'codex'])
+      const pending = homes.pending(new Date(0), 'claude')
+      const placed = homes.place(pending, 'alice@example.com')
+      expect(homes.find(placed.key)?.dir).toBe(placed.dir)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('AccountHomes adding a Codex account', () => {

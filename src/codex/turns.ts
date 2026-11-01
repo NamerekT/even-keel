@@ -1,8 +1,9 @@
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { open, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AgentEntry } from '../sessions/agents.js'
 import { writeAtomic } from '../storage/atomic.js'
+import { JsonFolder } from '../storage/json-folder.js'
 import { SCHEMA_VERSION } from '../storage/schema.js'
 import { CODEX } from './name.js'
 import { turnStartedAt } from './process.js'
@@ -31,21 +32,16 @@ const TAIL_BYTES = 64 * 1024
 export class TurnRegistry {
   private readonly sessionsDir: string
   private readonly turnsDir: string
+  private readonly sessions: JsonFolder<CodexSession>
 
   constructor(dir: string) {
     this.sessionsDir = join(dir, 'sessions')
     this.turnsDir = join(dir, 'turns')
+    this.sessions = new JsonFolder(this.sessionsDir, parseSession)
   }
 
   async list(account: string): Promise<CodexSession[]> {
-    let names: string[]
-    try {
-      names = readdirSync(this.sessionsDir)
-    } catch {
-      return []
-    }
-    return names.filter((name) => name.endsWith('.json')).map((name) => this.read(name.slice(0, -5)))
-      .filter((session): session is CodexSession => session !== undefined && session.account === account)
+    return this.sessions.all().filter((session) => session.account === account).map((session) => ({ ...session }))
   }
 
   async get(sessionId: string): Promise<CodexSession | undefined> {
@@ -64,6 +60,7 @@ export class TurnRegistry {
   save(session: CodexSession): void {
     mkdirSync(this.sessionsDir, { recursive: true })
     writeAtomic(join(this.sessionsDir, `${session.sessionId}.json`), `${JSON.stringify({ version: SCHEMA_VERSION, ...session }, null, 2)}\n`)
+    this.sessions.forget()
   }
 
   /** A new file for a turn's output. */
