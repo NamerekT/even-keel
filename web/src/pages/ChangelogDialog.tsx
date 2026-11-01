@@ -13,6 +13,7 @@ import { useLive } from '../live/context.js'
 import { formatUsd, modelVersionLabel } from '../stats/format.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ChangelogIcon } from '../ui/icons.js'
+import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../tools/addPackage.css'
 import './changelog.css'
@@ -136,34 +137,31 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
             ×
           </button>
         </header>
-        <div className="add-package__body">
-          {view !== null && version !== null && (
-            <>
-              <p className="changelog__counts">{t.changelog.counts(version.tasks.length, version.open)}</p>
-              {view.released !== null && <p className="changelog__counts">{t.changelog.released(view.released)}</p>}
-              {version.instruction !== null && <p className="changelog__instruction">{t.changelog.instruction(version.instruction)}</p>}
-              <Section lines={diffSection(version.base, version.text)} label={t.changelog.title(milestone)} />
-              <textarea
-                className="changelog__edit"
-                rows={2}
-                value={instruction}
-                placeholder={t.changelog.editHint}
-                aria-label={t.changelog.edit}
-                disabled={!idle}
-                onChange={(event) => setInstruction(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
-                  event.preventDefault()
-                  if (instruction.trim() !== '') void run('edit')
-                }}
-              />
-            </>
-          )}
-          {busy !== null && busy !== 'write' && (
-            <p className="changelog__writing" role="status">
-              {view === null || busy === 'again' ? t.changelog.writing : t.changelog.working}
-            </p>
-          )}
+        <div className="add-package__body changelog__body">
+          <Loading busy={busy !== null && busy !== 'write'} label={view === null || busy === 'again' ? t.changelog.writing : t.changelog.working} fit="fill">
+            {view !== null && version !== null && (
+              <>
+                <p className="changelog__counts">{t.changelog.counts(version.tasks.length, version.open)}</p>
+                {view.released !== null && <p className="changelog__counts">{t.changelog.released(view.released)}</p>}
+                {version.instruction !== null && <p className="changelog__instruction">{t.changelog.instruction(version.instruction)}</p>}
+                <Section lines={diffSection(version.base, version.text)} label={t.changelog.title(milestone)} />
+                <textarea
+                  className="changelog__edit"
+                  rows={2}
+                  value={instruction}
+                  placeholder={t.changelog.editHint}
+                  aria-label={t.changelog.edit}
+                  disabled={!idle}
+                  onChange={(event) => setInstruction(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+                    event.preventDefault()
+                    if (instruction.trim() !== '') void run('edit')
+                  }}
+                />
+              </>
+            )}
+          </Loading>
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
         <footer className="add-package__foot">
@@ -183,12 +181,12 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
           <span className="add-package__spacer" />
           {missing > 0 && (
             <Tipped tip={t.changelog.addTip} inline>
-              <button type="button" className="button" disabled={!idle} aria-busy={busy === 'add'} onClick={() => void run('add')}>
+              <button type="button" className="button" disabled={!idle} onClick={() => void run('add')}>
                 {t.changelog.add(missing)}
               </button>
             </Tipped>
           )}
-          <button type="button" className="button" disabled={!idle} aria-busy={busy === 'again'} onClick={() => void run('again')}>
+          <button type="button" className="button" disabled={!idle} onClick={() => void run('again')}>
             {t.changelog.again}
           </button>
           <button type="button" className="button" disabled={version === null || !idle} onClick={() => void copy()}>
