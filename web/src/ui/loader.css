@@ -62,7 +62,7 @@
 
 .ui-loader__wave {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--fg-muted);
   stroke-width: 1.4;
   stroke-linecap: round;
   animation: loader-sea calc(var(--motion-sway) / 2) linear infinite;
