@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { authOf, type HulyCredentials } from './credentials.js'
+import { tracker } from './ids.js'
 import { quietModelNoise } from './quiet.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
 import {
@@ -68,15 +69,8 @@ interface ApiClientModule {
   NodeWebSocketFactory: unknown
 }
 
-interface TrackerPlugin {
-  class: { Issue: string; IssueStatus: string; Milestone: string; Project: string }
-  ids: { NoParent: string }
-  taskTypes: { Issue: string }
-}
-
 const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
-const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 const { generateId } = require('@hcengineering/core') as { generateId(): string }
 const { makeRank } = require('@hcengineering/rank') as { makeRank(prev: string | undefined, next: string | undefined): string }
 

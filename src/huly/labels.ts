@@ -1,6 +1,7 @@
 import { changedLabels, labelKey, resolveLabels, type LabelChange } from '../tracker/labels.js'
+import { tracker } from './ids.js'
 
-const ISSUE = 'tracker:class:Issue'
+const ISSUE = tracker.class.Issue
 const TAG = 'tags:class:TagElement'
 const REFERENCE = 'tags:class:TagReference'
 

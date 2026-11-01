@@ -58,6 +58,13 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "playwright": "^1.64.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "react-router": "^8.4.0",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.5",
@@ -71,14 +78,6 @@
     "@hcengineering/rank": "^0.7.423",
     "@hcengineering/text-core": "^0.7.423",
     "@hcengineering/text-markdown": "^0.7.423",
-    "@hcengineering/tracker": "^0.7.423",
-    "pg": "^8.23.1",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-markdown": "^10.1.0",
-    "react-router": "^8.4.0",
-    "rehype-raw": "^7.0.0",
-    "rehype-sanitize": "^6.0.0",
-    "remark-gfm": "^4.0.1"
+    "pg": "^8.23.1"
   }
 }
