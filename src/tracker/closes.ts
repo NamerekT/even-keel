@@ -33,6 +33,17 @@ export class MergeMarks {
     this.marks.set(keyOf(project, task), mark)
     this.save(mark)
   }
+
+  /** Takes commits merged while the chain did not hold the reopened task as old ones (BTN-694); the close time stays. */
+  absorb(project: string, task: string, commits: string[]): void {
+    const before = this.marks.get(keyOf(project, task))
+    if (before === undefined) return
+    const added = commits.filter((commit) => !before.commits.includes(commit))
+    if (added.length === 0) return
+    const mark = { ...before, commits: [...before.commits, ...added] }
+    this.marks.set(keyOf(project, task), mark)
+    this.save(mark)
+  }
 }
 
 const keyOf = (project: string, task: string) => `${project}\n${task}`

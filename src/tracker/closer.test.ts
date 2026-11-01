@@ -116,6 +116,35 @@ describe('MergeCloser', () => {
     expect(adapter.statuses.get('ABC-1')).toEqual(done)
   })
 
+  it('takes a merge of a reopened task made while the chain does not hold it as old: only a merge made while held closes it', async () => {
+    const adapter = fakeAdapter(['ABC-1', 'ABC-2'])
+    const saved: MergeMark[] = []
+    let merged: string[] = ['early']
+    const asked: string[] = []
+    const closer = new MergeCloser({
+      merged: async (_project, task) => {
+        asked.push(task)
+        return task === 'ABC-1' ? merged : ['other']
+      },
+      complete: (task) => adapter.complete!(task),
+      marks: new MergeMarks([], (mark) => saved.push(mark), () => new Date('2026-11-01T15:35:47.000Z')),
+    })
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1', 'ABC-2'])).toEqual(['ABC-1'])
+
+    adapter.statuses.set('ABC-1', todo)
+    merged = ['early', 'between']
+    asked.length = 0
+    expect(await closer.sweep('ABC', [], ['ABC-1', 'ABC-2'])).toEqual([])
+    expect(asked).toEqual(['ABC-1'])
+    expect(saved.at(-1)).toEqual({ project: 'ABC', task: 'ABC-1', commits: ['early', 'between'], closedAt: '2026-11-01T15:35:47.000Z' })
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1', 'ABC-2'])).toEqual([])
+    expect(adapter.statuses.get('ABC-1')).toEqual(todo)
+
+    merged = ['early', 'between', 'held']
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1', 'ABC-2'])).toEqual(['ABC-1'])
+    expect(saved.at(-1)?.commits).toEqual(['early', 'between', 'held'])
+  })
+
   it('keeps what it closed through a restart: a reopened task with nothing new merged stays open, a new merge closes it', async () => {
     const adapter = fakeAdapter(['ABC-1'])
     const saved: MergeMark[] = []
