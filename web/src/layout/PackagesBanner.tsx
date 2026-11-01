@@ -1,11 +1,14 @@
 import { Link, useLocation } from 'react-router'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { blockedProjects, heldFor } from '../tools/packageView.js'
+import { blockedProjects } from '../tools/packageView.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Banner } from './Banner.js'
 
-/** Chains held by their packages: the gateway does not run, or a set has a problem (`src/packages/check.ts`). */
+/**
+ * Chains held by their packages: the gateway does not run, or a set has a problem (`src/packages/check.ts`). A tracker
+ * server the sessions lack is not here: the project's chain pauses on `chain.noTrackerMcp` with its own buttons.
+ */
 export function PackagesBanner() {
   const { state } = useLive()
   const { pathname } = useLocation()
@@ -24,11 +27,7 @@ export function PackagesBanner() {
       <div className="banner__inner">
         <span>
           {gateway === null ? (
-            <ProjectLinks
-              text={heldFor(state.packages, blocked)
-                .map(({ server, projects }) => (server === null ? t.banner.packages(projects.join(', ')) : t.banner.trackerMcp(projects.join(', '), server)))
-                .join(' ')}
-            />
+            <ProjectLinks text={t.banner.packages(blocked.join(', '))} />
           ) : (
             t.banner.gateway(say(gateway))
           )}

@@ -56,7 +56,7 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | Key | Default | |
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
-| `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it |
+| `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it. With `false` and no package bringing that server a session would not see its task: the chain pauses with the reason and buttons to turn the package or the description on, and goes on by itself once one is |
 | `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |

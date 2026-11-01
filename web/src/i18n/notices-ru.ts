@@ -162,6 +162,8 @@ export const noticesRu: NoticeTexts = {
   'review.notReady': (p) =>
     `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи; она пойдёт сама в течение минуты, как только это исправят, или выключите PR-режим`,
   'review.cannotEnable': (p) => `PR-режим ${p.project} не включён`,
+  'chain.noTrackerMcp': (p) =>
+    `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}, так что сессия не увидит свою задачу; включите пакет с ним или описание задачи — цепочка пойдёт сама`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub, GitLab или Forgejo, где открыть pull request`,
   'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
   'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub, GitLab и Forgejo`,

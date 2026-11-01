@@ -336,6 +336,11 @@ export interface DispatcherDeps {
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
   /**
+   * `brief` is off and no package of the project brings its tracker's MCP server (`chain.noTrackerMcp`, BTN-656): a
+   * session would not see its task. The chain pauses on it and goes on by itself once it is gone.
+   */
+  trackerBlock: (project: string) => Notice | undefined
+  /**
    * The service has read its account folders once since its start. Until then every folder looks gone, so the chains
    * do nothing rather than pause on it; the first read checks them again.
    */

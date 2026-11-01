@@ -37,32 +37,29 @@ export function serverPairs(transport: Transport, text: string): Record<string, 
 /** Hold the chain for a moment after an install: not worth the banner, which would come and go. */
 const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
 
-/** The projects the banner names: held by their packages, not only for a moment. */
+/**
+ * The projects the banner names: held by their packages, not only for a moment. One held only because its sessions
+ * would not see the tracker (`noTrackerMcp`) is left out: its chain pauses with the reason in its own block (BTN-656).
+ */
 export function blockedProjects(view: PackagesView, projects: string[]): string[] {
-  return projects.filter((project) => heldLong(view.projects[project]))
+  return projects.filter((project) => {
+    const found = view.projects[project]
+    if (!heldLong(found)) return false
+    const lasting = problemsOf(found!).filter((each) => !PASSING.has(each.kind))
+    return lasting.length === 0 || lasting.some((each) => each.kind !== 'noTrackerMcp')
+  })
 }
 
 /** The project's chain waits on something that does not pass by itself. */
 export function heldLong(found: ProjectPackages | undefined): boolean {
   if (found?.blocked !== true) return false
-  const problems = [...found.problems, ...Object.values(found.cells).flatMap((cell) => (cell.enabled ? cell.problems : []))].filter((each) => each.kind !== 'unsupported')
+  const problems = problemsOf(found)
   return problems.length === 0 || problems.some((each) => !PASSING.has(each.kind))
 }
 
-/**
- * The held projects by reason for the banner: those with `brief` off and no package bringing the tracker's server, by
- * the server (`noTrackerMcp`), and the rest under `null`; groups in the order of their first project.
- */
-export function heldFor(view: PackagesView, blocked: string[]): { server: string | null; projects: string[] }[] {
-  const groups: { server: string | null; projects: string[] }[] = []
-  for (const project of blocked) {
-    const missing = view.projects[project]?.problems.find((each) => each.kind === 'noTrackerMcp')
-    const server = missing?.kind === 'noTrackerMcp' ? missing.server : null
-    const group = groups.find((each) => each.server === server)
-    if (group === undefined) groups.push({ server, projects: [project] })
-    else group.projects.push(project)
-  }
-  return groups
+/** The problems that hold the project's chain: of the set as a whole and of its enabled packages. */
+function problemsOf(found: ProjectPackages): PackageProblem[] {
+  return [...found.problems, ...Object.values(found.cells).flatMap((cell) => (cell.enabled ? cell.problems : []))].filter((each) => each.kind !== 'unsupported')
 }
 
 /** By project: the servers it was offered as they were when dismissed, joined by a comma. */
@@ -109,6 +106,11 @@ export function trackerPackage(view: PackagesView, project: string): TrackerPack
   const own = view.marketplace?.name
   const plugin = view.available.some((each) => each.plugin === server && each.marketplace === own) ? `${server}@${own}` : null
   return { state: 'missing', server, problem: found.problems.some((each) => each.kind === 'noTrackerMcp'), plugin }
+}
+
+/** The catalog's installed package that brings the server, for one press to turn it on for a project; `null` — it is to be added first. */
+export function trackerPackageOf(view: PackagesView, server: string): string | null {
+  return view.packages.find((each) => each.installed && !each.removed && each.servers.includes(server))?.name ?? null
 }
 
 /** The project on /tools, with the add dialog open on the plugin when there is one (`add`). */

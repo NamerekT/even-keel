@@ -164,8 +164,6 @@ export const ru = {
     remoteFixHold: (commit: string, since: string, project: string) =>
       `main общего remote красный на ${commit}; его с ${since} чинит ${project} — следующая задача запустится, когда починка позеленеет.`,
     packages: (projects: string) => `Следующая задача ${projects} ждёт: пакет из набора не готов.`,
-    trackerMcp: (projects: string, server: string) =>
-      `Следующая задача ${projects} ждёт: brief выключен, описание задачи не идёт в промпт, а MCP-сервер трекера ${server} не приносит ни один пакет. Включите пакет с ним или включите brief в настройках проекта.`,
     gateway: (error: string) => `Цепочки ждут: шлюз MCP не работает — ${error}`,
     packagesLink: 'Пакеты →',
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
@@ -623,6 +621,11 @@ export const ru = {
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',
     ...projectNoticesRu,
     pullAddRemote: 'Добавьте remote или выключите PR-режим',
+    trackerPackageOn: (name: string) => `Включить ${name}`,
+    trackerPackageAdd: 'Добавить пакет трекера',
+    trackerPackageTip: 'Тогда сессии сами читают задачу, комментарии и связи.',
+    trackerBriefOn: 'Включить описание задачи',
+    trackerBriefTip: '«Описание задачи в промпте» в настройках проекта: Even Keel вставляет в промпт заголовок и описание задачи.',
     resume: 'Снять с паузы',
     stop: 'Остановить',
     stopTip: (task: string | null) =>

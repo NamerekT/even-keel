@@ -360,6 +360,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       return ctx.limits.unread(account) ? { account, next: ctx.limits.nextPoll() } : undefined
     },
     packagesBlocked: (project) => ctx.packages.blocked(project),
+    trackerBlock: (project) => {
+      const server = ctx.packages.trackerMissing(project)
+      return server === undefined ? undefined : notice('chain.noTrackerMcp', { project: projectLabel(ctx.configStore.current, project), server })
+    },
     accountsRead: () => ctx.account.ready,
     sessionsRead: () => ctx.agentsRead,
     promptLanguage: (task) => ctx.promptLanguage(ctx.projectOf(task)),

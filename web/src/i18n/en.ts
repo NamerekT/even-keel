@@ -160,8 +160,6 @@ export const en: Messages = {
     remoteFixHold: (commit: string, since: string, project: string) =>
       `Main of the remote is red at ${commit}; ${project} has been fixing it since ${since} — the next task starts when its fix is green.`,
     packages: (projects: string) => `The next task of ${projects} waits: a package of its set is not ready.`,
-    trackerMcp: (projects: string, server: string) =>
-      `The next task of ${projects} waits: brief is off, so the task’s text does not go into the prompt, and no package brings the tracker’s MCP server ${server}. Turn on a package with it or turn brief on in the project’s settings.`,
     gateway: (error: string) => `The chains wait: the MCP gateway does not run — ${error}`,
     packagesLink: 'Packages →',
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
@@ -615,6 +613,11 @@ export const en: Messages = {
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
     ...projectNoticesEn,
     pullAddRemote: 'Add a remote or turn PR mode off',
+    trackerPackageOn: (name: string) => `Turn on ${name}`,
+    trackerPackageAdd: 'Add the tracker’s package',
+    trackerPackageTip: 'Sessions then read the task, its comments and relations themselves.',
+    trackerBriefOn: 'Turn the task description on',
+    trackerBriefTip: '“Task description in the prompt” in the project’s settings: Even Keel puts the task’s title and description into the prompt.',
     resume: 'Resume',
     stop: 'Stop',
     stopTip: (task: string | null) =>

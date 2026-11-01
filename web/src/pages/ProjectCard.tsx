@@ -30,6 +30,7 @@ import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
+import { TrackerFixButtons } from './TrackerFixButtons.js'
 
 /** `turn` — which card of its empty kind this one is on the page (`emptyTurns`). */
 export function ProjectCard({ state, project, turn }: { state: EvenKeelState; project: string; turn: number }) {
@@ -125,6 +126,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
       )}
       <NoticeFixButton project={project} notice={error} />
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
+      {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
 
       {canStart && (
         <footer className="card__foot">

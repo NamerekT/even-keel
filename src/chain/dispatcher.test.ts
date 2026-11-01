@@ -604,6 +604,43 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1'])
   })
 
+  it('goes in paused with the reason when brief is off and no package brings the tracker server, and goes on once one does', async () => {
+    const missing = notice('chain.noTrackerMcp', { project: 'ABC', server: 'huly' })
+    const options: SetupOptions = { trackerBlock: missing }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: missing })
+
+    options.trackerBlock = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
+  })
+
+  it('pauses before the next task when the tracker server stops reaching a running chain', async () => {
+    const missing = notice('chain.noTrackerMcp', { project: 'ABC', server: 'huly' })
+    const options: SetupOptions = {}
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    options.trackerBlock = missing
+    dispatcher.setTasks('ABC', [task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: missing, current: null })
+
+    options.trackerBlock = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
   it('waits for the first read of the account folders after a start instead of pausing on an account not read yet', async () => {
     const state: ChainState = { ...emptyChainState(), active: [{ project: 'ABC', current: null, paused: false, error: null }] }
     const options: SetupOptions = { state, accountsRead: false, blocked: 'claude: the active account folder john is gone' }

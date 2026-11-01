@@ -481,6 +481,12 @@ export function createFakeSource(search: string): LiveSource {
     current.state.pullReadiness = { ...current.state.pullReadiness, ABC: cause }
     current.state.chain.active = current.state.chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
   }
+  if ((params.get('chain') === 'tracker' || params.get('chain') === 'trackerAdd') && current.state !== null) {
+    const error = notice('chain.noTrackerMcp', { project: 'ABC', server: 'huly' })
+    current.state.config.projects['ABC'] = { ...current.state.config.projects['ABC']!, brief: false }
+    current.state.packages = fakePackages(current.state.projects, params.get('chain') === 'tracker' ? 'trackerAbc' : 'noTracker')
+    current.state.chain.active = current.state.chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
+  }
   if (params.get('chain') === 'skip' && current.state !== null) {
     current.state.chain.skipped ={ ABC: ['ABC-12'], OPS: ['OPS-2', 'OPS-3'] }
     current.state.taskSessions['ABC-9'] = [

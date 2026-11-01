@@ -60,6 +60,7 @@ import { SETTINGS_HASH } from './settingsStore.js'
 import { ProjectNotices } from './ProjectNotices.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
+import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsChip } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
@@ -392,6 +393,7 @@ function ChainControls({
       )}
       <NoticeFixButton project={project} notice={error} />
       <PullFixButton state={state} project={project} error={error} />
+      <TrackerFixButtons state={state} project={project} error={error} />
     </>
   )
 }

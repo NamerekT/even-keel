@@ -40,7 +40,11 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
-    choices: { DEMO: { 'playwright@claude-plugins-official': 'on', ...(mode === 'tracker' ? { 'huly@even-keel': 'off' as const } : {}) }, OPS: { forgejo: 'off' } },
+    choices: {
+      DEMO: { 'playwright@claude-plugins-official': 'on', ...(mode === 'tracker' ? { 'huly@even-keel': 'off' as const } : {}) },
+      OPS: { forgejo: 'off' },
+      ...(mode === 'trackerAbc' ? { ABC: { 'huly@even-keel': 'off' as const } } : {}),
+    },
     own: { DEMO: { 'huly@even-keel': { TOOLSETS: 'issues' } } },
     keys: { HULY_EMAIL: true, HULY_PASSWORD: true, FORGEJO_TOKEN: mode !== 'blocked', GITHUB_TOKEN: true },
     imports: { DEMO: ['sentry', 'db'] },
