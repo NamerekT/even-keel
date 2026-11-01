@@ -167,6 +167,6 @@ const stamp = () => new Date(Date.now() + 1).toISOString()
 
 const reviewAnswer = ({ id, user, state, body, at }: Review) => ({ id, user: { login: user }, state, body, submitted_at: at })
 
-function json(status: number, body: unknown): Response {
+export function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 }

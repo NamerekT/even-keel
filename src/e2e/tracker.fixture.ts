@@ -17,8 +17,20 @@ export const BOARD_VARIABLE = 'BOARD_TOKEN'
 /** The MCP server a session would read the board through; no package of the bench brings it. */
 export const BOARD_SERVER = 'board'
 
+/** What a board is to the service: the tracker's title, its one variable and its MCP server. */
+export interface BoardKind {
+  title: string
+  variable: string
+  server: string
+}
+
+/** The kind of the project's own board. */
+export const BOARD: BoardKind = { title: 'Board', variable: BOARD_VARIABLE, server: BOARD_SERVER }
+
 /** A tracker in memory: the scenario files tasks on it and reads what the service did to them. */
 export class Board {
+  constructor(private readonly kind: BoardKind = BOARD) {}
+
   readonly tasks = new Map<string, TrackerTask>()
   readonly comments = new Map<string, string[]>()
   /** While set, `complete` throws with this text, as a tracker refusing the transition does. */
@@ -76,17 +88,18 @@ export class Board {
 
   /** The adapter to register in `ADAPTERS`: every profile and project reads this board. */
   adapter(): TrackerAdapter {
+    const { title, variable, server } = this.kind
     return {
-      title: 'Board',
-      variables: [BOARD_VARIABLE],
+      title,
+      variables: [variable],
       hostVariables: [],
       help: '',
-      mcpServer: BOARD_SERVER,
+      mcpServer: server,
       moves: true,
-      profileName: () => 'Board',
-      account: async () => ({ login: 'john', name: 'Board', expiresAt: null }),
+      profileName: () => title,
+      account: async () => ({ login: 'john', name: title, expiresAt: null }),
       projects: async () => [],
-      setup: (env) => (env[BOARD_VARIABLE] === undefined ? undefined : { connect: async () => this.source(), issueUrl: () => null }),
+      setup: (env) => (env[variable] === undefined ? undefined : { connect: async () => this.source(), issueUrl: () => null }),
     }
   }
 

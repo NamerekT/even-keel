@@ -9,7 +9,8 @@ import type { ServiceContext } from '../service.js'
 import { ScriptedAgent } from './agent.fixture.js'
 import { Ci, FORGE_WEB } from './ci.fixture.js'
 import { Pulls } from './forge.fixture.js'
-import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
+import { GitHub, GITHUB_URL } from './github.fixture.js'
+import { Board, BOARD_TRACKER, BOARD_VARIABLE, type BoardKind } from './tracker.fixture.js'
 
 export const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 export const KEY = 'ABC'
@@ -20,6 +21,12 @@ export const SECOND_KEY = 'DEF'
 export const RELEASE_ID = '33333333-3333-4333-8333-333333333333'
 export const RELEASE_KEY = 'REL'
 export const RELEASE_BRANCH = 'release/v0.1'
+/** The task feed of `Harness.feed`: a place on the second board, `lane`, whose tasks join the project's chain. */
+export const FEED_ID = '44444444-4444-4444-8444-444444444444'
+export const FEED_KEY = 'GHI'
+/** The name the second board's tracker goes under in `ADAPTERS` and in a feed's `tracker`. */
+export const LANE_TRACKER = 'lane'
+const LANE: BoardKind = { title: 'Lane', variable: 'LANE_TOKEN', server: 'lane' }
 /** The remote's address on the bench's forge; git is pointed at the bare repository by `insteadOf`. */
 const FORGE_URL = `${FORGE_WEB}/john/example.git`
 /** The Claude account folder every project runs on. */
@@ -31,6 +38,7 @@ export const CODEX_ACCOUNT = 'coder'
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 /** The real `setTimeout`, for waits on real I/O (git, the database) while the service's own timers are fake. */
 const realTimeout = globalThis.setTimeout
+const realFetch = globalThis.fetch
 
 /**
  * The service as `src/main.ts` starts it, in a folder of its own: a git repository for the one project, the board
@@ -45,7 +53,13 @@ export class Harness {
   readonly releaseRepo = join(this.dir, 'release')
   /** The bare repository behind the forge's remote, with `forge` set. */
   readonly remote = join(this.dir, 'remote.git')
+  /** The bare repository behind the project's `github` remote, with `githubRemote` set. */
+  readonly githubBare = join(this.dir, 'github.git')
   readonly board = new Board()
+  /** The second tracker, with `feed` set: the project's task feed `FEED_KEY` reads it. */
+  readonly lane = new Board(LANE)
+  /** github.com's API, with `githubRemote` set: it answers the service's requests in place of the network. */
+  readonly github = new GitHub()
   readonly ci = new Ci(() => this.remote)
   /** The pull requests of the forge, with `forge` set: the real Forgejo adapter reads them in place of its API. */
   readonly pulls = new Pulls(() => this.remote)
@@ -71,6 +85,13 @@ export class Harness {
   codex = false
   /** Whether a second Claude account folder `SPARE_ACCOUNT` is there; set before `start`. */
   spare = false
+  /** Set before `start`: the project has the task feed `FEED_ID` on `lane`, through the lane's default profile. */
+  feed = false
+  /**
+   * Set before `start`: the project's checkout has a `github` remote at `GITHUB_URL` (git is pointed at `githubBare`),
+   * a GitHub profile with a token is made at the first start, and `github` answers every call to api.github.com.
+   */
+  githubRemote = false
   private context: ServiceContext | undefined
   /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
   private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
@@ -103,6 +124,7 @@ export class Harness {
     this.agent.usageGate?.open()
     await this.halt()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
     Object.assign(console, this.console)
     for (const name of Object.keys(process.env)) if (!(name in this.saved)) delete process.env[name]
     Object.assign(process.env, this.saved)
@@ -178,7 +200,7 @@ export class Harness {
     const codex = this.codex ? `codex-accounts/${CODEX_ACCOUNT}` : 'codex-accounts'
     const spare = this.spare ? [`accounts/${SPARE_ACCOUNT}`] : []
     for (const folder of ['data', `accounts/${ACCOUNT}`, ...spare, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
-    if (this.forge) writeFileSync(join(this.dir, '.gitconfig'), '[core]\n\tlongpaths = true\n')
+    if (this.forge || this.githubRemote) writeFileSync(join(this.dir, '.gitconfig'), '[core]\n\tlongpaths = true\n')
     execFileSync('git', ['init', '-q', '-b', 'main', this.repo])
     this.configure(this.repo)
     writeFileSync(join(this.repo, 'README.md'), '# Example\n')
@@ -189,12 +211,20 @@ export class Harness {
     }
     this.git('add', '.')
     this.git('commit', '-q', '-m', 'Initial commit')
-    const projects: Record<string, unknown>[] = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }]
+    const feeds = this.feed ? { feeds: [{ id: FEED_ID, tracker: LANE_TRACKER, key: FEED_KEY }] } : {}
+    const projects: Record<string, unknown>[] = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...feeds, ...this.project }]
     this.board.keys.set(PROJECT_ID, KEY)
+    this.lane.keys.set(FEED_ID, FEED_KEY)
     if (this.forge) {
       execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.remote])
       this.git('remote', 'add', 'origin', FORGE_URL)
       this.git('push', '-q', '-u', 'origin', 'main')
+    }
+    if (this.githubRemote) {
+      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.githubBare])
+      this.git('config', `url.${this.githubBare.replaceAll('\\', '/')}.insteadOf`, GITHUB_URL)
+      this.git('remote', 'add', 'github', GITHUB_URL)
+      this.git('push', '-q', 'github', 'main')
     }
     if (this.second !== null) {
       if (!this.forge) throw new Error('e2e: a second project needs the forge')
@@ -248,7 +278,13 @@ export class Harness {
       [BOARD_VARIABLE]: 'token',
     })
     // The forge's checkouts sync by the built-in fetch, merge and push, not by a `git sync` alias of the machine.
-    if (this.forge) Object.assign(process.env, { FORGEJO_TOKEN: 'token', GIT_CONFIG_GLOBAL: join(this.dir, '.gitconfig') })
+    if (this.forge) Object.assign(process.env, { FORGEJO_TOKEN: 'token' })
+    if (this.forge || this.githubRemote) process.env.GIT_CONFIG_GLOBAL = join(this.dir, '.gitconfig')
+    if (this.feed) process.env[LANE.variable] = 'token'
+    if (this.githubRemote) {
+      process.env.GITHUB_TOKEN = 'token'
+      vi.stubGlobal('fetch', this.github.fetchOver(realFetch))
+    }
     for (const method of ['log', 'warn', 'error'] as const) console[method] = (...args: unknown[]) => void this.log.push(args.map(String).join(' '))
   }
 
@@ -266,6 +302,7 @@ export class Harness {
     if (this.codex) agents[CODEX] = this.agent.adapter()
     const { ADAPTERS } = await import('../tracker/adapters.js')
     ;(ADAPTERS as Record<string, unknown>)[BOARD_TRACKER] = this.board.adapter()
+    if (this.feed) (ADAPTERS as Record<string, unknown>)[LANE_TRACKER] = this.lane.adapter()
     if (this.forge) {
       const { CI_SOURCES } = await import('../ci/adapters.js')
       CI_SOURCES.forgejo = () => this.ci.source()
