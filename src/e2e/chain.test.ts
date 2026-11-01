@@ -71,17 +71,20 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(launches()).toHaveLength(1)
   })
 
-  // Three hours of the service's clock, a minute a step: ~45 s alone, past a minute next to the rest of the suite.
+  // The reset comes an hour after the last reply, past the 55 minutes the cache counts as warm; the clock gets near it
+  // in big steps, which keeps the scenario at ~15 s alone and well inside the timeout next to the rest of the suite.
   it('hands a task over to a new session after a limit that resets once the session cache is cold', { timeout: 120_000 }, async () => {
     run.board.add('ABC-1')
-    run.agent.script('ABC-1', ends({ limit: "You've hit your session limit · resets 11:00am (UTC)" }), commitAndMerge())
+    run.agent.script('ABC-1', ends({ limit: "You've hit your session limit · resets 10:00am (UTC)" }), commitAndMerge())
     await run.start()
     await run.startChain(PROJECT_ID)
     await run.until(() => run.log.some((line) => line.includes('ABC-1') && line.includes('limit')), 'the limit seen')
     const [first] = launches()
 
-    await run.until(() => launches().length === 2, 'a new session launched', { step: 60_000, limitMs: 3 * 60 * 60_000 })
-    expect(Date.now()).toBeGreaterThanOrEqual(Date.parse('2026-10-01T11:00:00Z'))
+    await run.until(() => Date.now() >= Date.parse('2026-10-01T09:50:00Z'), 'the clock near the reset', { step: 10 * 60_000, limitMs: 60 * 60_000 })
+    expect(launches()).toHaveLength(1)
+    await run.until(() => launches().length === 2, 'a new session launched', { step: 60_000, limitMs: 30 * 60_000 })
+    expect(Date.now()).toBeGreaterThanOrEqual(Date.parse('2026-10-01T10:00:00Z'))
     await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
     const second = launches()[1]!
     expect(resumes()).toEqual([])
