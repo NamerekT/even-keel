@@ -5,13 +5,15 @@ import type { EvenKeelState, ProfileKindView, ProfileView, TrackerChoice } from 
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { ProfileDialog } from './ProfileDialog.js'
-import { daysLeft } from './profileForm.js'
 import { EMPTY_LOOKUP, answered, failed, failureShown, retryDelay, type Lookup } from './projectLookup.js'
 import { pickProject, placeOf, shapeOf, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
+import { profileLine, projectLine } from './trackerLines.js'
 import './trackerFields.css'
 
 const LOOKUP_DELAY_MS = 300
@@ -43,8 +45,8 @@ interface TrackerFieldsProps {
   projectLocked?: boolean
   /** The badge by the profile's head while it stays: why it does. */
   soon?: string
-  /** The line under the fields while the tracker's own answer has nothing to say: a check's. */
-  status?: ReactNode
+  /** The strip under the tracker project while the tracker's own answer has nothing wrong to say: a check's. */
+  status?: StripLine | null
   /** Under the profile: what its change answered. */
   profileNote?: ReactNode
   /** In the profile's head: the mark of its unsaved change (`Marks.note`). */
@@ -58,9 +60,9 @@ interface TrackerFieldsProps {
 
 /**
  * A project's tracker: the profile, then on the same row the field its kind names a project by, with the profile's
- * projects as suggestions; one line under them says whom the profile signs in as and what the tracker answered. One
- * block for the wizard, a project's settings and its task feeds. Its rows keep their height whatever the kind, so the
- * fields below do not jump when the profile changes.
+ * projects as suggestions; a strip glued under the profile says whom it signs in as, one under the project what the
+ * tracker answered. One block for the wizard, a project's settings and its task feeds. Its rows keep their height
+ * whatever the kind, so the fields below do not jump when the profile changes.
  */
 export function TrackerFields(props: TrackerFieldsProps) {
   const { ids, state, fields, profiles, kinds, onChange, keyFixed = false, status } = props
@@ -93,23 +95,22 @@ export function TrackerFields(props: TrackerFieldsProps) {
   const absent = (shape === 'key' || shape === 'alias') && lookup.of === named && named !== '' && exact === undefined && lookup.failure === null
   // The list is only suggestions: its failure is an alert only for a typed value nothing else confirms.
   const failure = failureShown(lookup.failure, query, exact !== undefined || props.known === true)
-  const shown = absent ? (
-    <Status>{t.wizard.noSuchProject(title, named)}</Status>
-  ) : failure === 'alert' ? (
-    <Status>{say(lookup.failure!)}</Status>
-  ) : (
-    (status ?? (failure === 'quiet' && <span className="settings__hint">{t.wizard.suggestionsFailed}</span>))
-  )
+  const projectSays = projectLine({
+    absent: absent ? t.wizard.noSuchProject(title, named) : null,
+    alert: failure === 'alert' ? say(lookup.failure!) : null,
+    status: status ?? null,
+    name: (shape === 'key' || shape === 'alias') && exact !== undefined ? exact.name : null,
+    quiet: failure === 'quiet',
+  })
+  const profileSays = profileLineOf(profiles, profile)
+  // With the key fixed the `key` shape has no field of its own: what is wrong with the project goes under the profile.
+  const noProjectField = keyFixed && shape === 'key'
 
   return (
     <>
       <div className="settings__row tracker-fields__row">
-        <ProfilePick {...props} onAdd={() => setAdding(true)} />
-        <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined} list={lookup.list} exact={exact} />
-      </div>
-      <div className="tracker-fields__slot">
-        <ProfileLine {...props} profile={profile} />
-        {shown}
+        <ProfilePick {...props} line={noProjectField && projectSays?.tone === 'error' ? projectSays : profileSays} onAdd={() => setAdding(true)} />
+        <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined} list={lookup.list} line={projectSays} />
       </div>
       {adding &&
         createPortal(<ProfileDialog kinds={[...kinds]} profile={undefined} onClose={() => setAdding(false)} onSaved={(id) => setAdded(id)} />, document.body)}
@@ -117,7 +118,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
   )
 }
 
-function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, profileMark, onChange, onAdd }: TrackerFieldsProps & { onAdd: () => void }) {
+function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, profileMark, keyFixed = false, line, onChange, onAdd }: TrackerFieldsProps & { line: StripLine | null; onAdd: () => void }) {
   const options = [
     ...profiles.map((each) => ({ value: each.id, label: each.isDefault ? t.profiles.byDefault(each.name) : each.name, icon: <TrackerIcon kind={each.kind} /> })),
     { value: ADD, label: t.wizard.addProfile, icon: <PlusIcon /> },
@@ -132,26 +133,31 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
     return (
       <div className="settings__field">
         <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} mark={profileMark} />
-        <button type="button" id={ids('profile')} className="button tracker-fields__add" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
-          <PlusIcon />
-          {t.wizard.addProfile}
-        </button>
+        <FieldStrip line={null}>
+          <button type="button" id={ids('profile')} className="button tracker-fields__add" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
+            <PlusIcon />
+            {t.wizard.addProfile}
+          </button>
+        </FieldStrip>
+        {!keyFixed && <span className="settings__hint">{t.wizard.noProfiles}</span>}
         {profileNote}
       </div>
     )
   return (
     <div className="settings__field">
       <FieldHead label={t.profiles.field} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} mark={profileMark} />
-      <Select id={ids('profile')} className="settings__text tracker-fields__wide" value={fields.profile} options={options} disabled={profileLocked} onChange={pick} />
+      <FieldStrip line={line}>
+        <Select id={ids('profile')} className="settings__text tracker-fields__wide" value={fields.profile} options={options} disabled={profileLocked} onChange={pick} />
+      </FieldStrip>
       {profileNote}
     </div>
   )
 }
 
-/** The line under the fields: whom the profile signs in as, or what to do without one. */
-function ProfileLine({ profiles, profile, keyFixed = false }: TrackerFieldsProps & { profile: ProfileView | undefined }) {
-  if (profiles.length > 0) return profile === undefined ? <span className="settings__hint">{t.wizard.pickProfile}</span> : <ProfileState profile={profile} />
-  return keyFixed ? null : <span className="settings__hint">{t.wizard.noProfiles}</span>
+/** The strip under the profile: whom it signs in as, or to choose one. */
+function profileLineOf(profiles: readonly ProfileView[], profile: ProfileView | undefined): StripLine | null {
+  if (profiles.length === 0) return null
+  return profile === undefined ? { tone: 'plain', text: t.wizard.pickProfile } : profileLine(profile, Date.now())
 }
 
 interface ProjectFieldsProps extends TrackerFieldsProps {
@@ -160,16 +166,16 @@ interface ProjectFieldsProps extends TrackerFieldsProps {
   choice: TrackerChoice | undefined
   disabled: boolean
   list: TrackerProject[]
-  exact: TrackerProject | undefined
+  /** The strip under the tracker project's field. */
+  line: StripLine | null
 }
 
 function ProjectFields(props: ProjectFieldsProps) {
-  const { ids, shape, title, choice, fields, disabled, list, exact, onChange, keyFixed = false, projectLocked = false } = props
+  const { ids, shape, title, choice, fields, disabled, list, line, onChange, keyFixed = false, projectLocked = false } = props
   const kind = fields.tracker
   const label = t.settings.trackerProject(kind, title)
   const owned = { disabled: projectLocked, box: props.projectBox, invalid: props.projectInvalid, mark: props.projectMark, children: props.projectNote }
   const options = list.map((each) => ({ value: each.key, label: each.name }))
-  const aside = exact === undefined ? undefined : t.wizard.match(exact.key, exact.name)
   if (disabled) return <TextField id={ids('project')} label={t.wizard.trackerField} value={placeOf(fields)} disabled onChange={() => {}} />
   if (shape === 'key') {
     if (keyFixed) return null
@@ -182,7 +188,7 @@ function ProjectFields(props: ProjectFieldsProps) {
         placeholder="ABC"
         upper
         options={options}
-        aside={aside}
+        line={line}
         onChange={(value) => onChange((before) => typedIn(before, 'key', value.toUpperCase()))}
         {...owned}
       />
@@ -199,7 +205,7 @@ function ProjectFields(props: ProjectFieldsProps) {
         placeholder={alias && keyFixed ? fields.key : choice?.projectKey?.example}
         upper={alias}
         options={options}
-        aside={alias ? aside : undefined}
+        line={line}
         onChange={(value) => onChange((before) => typedIn(before, 'trackerProject', alias ? value.toUpperCase() : value))}
         {...owned}
       />
@@ -228,6 +234,7 @@ function ProjectFields(props: ProjectFieldsProps) {
         value={fields.trackerProject}
         placeholder={choice?.projectKey?.example}
         options={within.map((each) => ({ value: each.within!, label: each.name }))}
+        line={line}
         onChange={(value) => onChange((before) => typedIn(before, 'trackerProject', value))}
         {...owned}
       />
@@ -246,8 +253,8 @@ interface TextFieldProps {
   invalid?: boolean
   /** The suggestions of the browser's own list. */
   options?: { value: string; label: string }[]
-  /** A line right of the field: what the value was found as. */
-  aside?: string
+  /** The strip under the field: what the value was found as, or what is wrong with it. */
+  line?: StripLine | null
   /** The class of the field's box. */
   box?: string
   /** In the head: the mark of an unsaved change. */
@@ -256,11 +263,11 @@ interface TextFieldProps {
   children?: ReactNode
 }
 
-function TextField({ id, label, hint, value, placeholder, upper = false, disabled = false, invalid = false, options = [], aside, box = 'settings__field', mark, onChange, children }: TextFieldProps) {
+function TextField({ id, label, hint, value, placeholder, upper = false, disabled = false, invalid = false, options = [], line = null, box = 'settings__field', mark, onChange, children }: TextFieldProps) {
   return (
     <div className={box}>
       <FieldHead label={label} hint={hint} htmlFor={id} mark={mark} />
-      <span className="tracker-fields__input-row">
+      <FieldStrip line={line}>
         <input
           id={id}
           className={`settings__text settings__text--mono tracker-fields__wide${upper ? ' tracker-fields__upper' : ''}`}
@@ -273,8 +280,7 @@ function TextField({ id, label, hint, value, placeholder, upper = false, disable
           aria-invalid={invalid || undefined}
           onChange={(event) => onChange(event.target.value)}
         />
-        {aside !== undefined && <span className="tracker-fields__aside">{aside}</span>}
-      </span>
+      </FieldStrip>
       {options.length > 0 && (
         <datalist id={`${id}-list`}>
           {options.map((option) => (
@@ -289,12 +295,8 @@ function TextField({ id, label, hint, value, placeholder, upper = false, disable
 
 /** Whom the profile signs in as, or why it does not. */
 export function ProfileState({ profile }: { profile: ProfileView }) {
-  const { state, error } = profile.check
-  const expired = profile.expiresAt !== null && daysLeft(profile.expiresAt, Date.now()) <= 0
-  if (expired) return <Status>{t.profiles.expires(0)}</Status>
-  if (state === 'ok') return <Status ok>{profile.login === null ? t.profiles.states.ok : t.wizard.signedIn(profile.login)}</Status>
-  if (error !== null && (state === 'refused' || state === 'unreachable')) return <Status>{say(error)}</Status>
-  return <span className="settings__hint">{t.profiles.states[state]}</span>
+  const line = profileLine(profile, Date.now())
+  return line.tone === 'plain' ? <span className="settings__hint">{line.text}</span> : <Status ok={line.tone === 'ok'}>{line.text}</Status>
 }
 
 /** The fields as the tracker reads them once the key is fixed: a blank tracker project or team is the key's. */

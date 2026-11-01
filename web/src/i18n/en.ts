@@ -498,10 +498,10 @@ export const en: Messages = {
     repoPlaceHint: 'The path from its address: owner/name on GitHub, group/project on GitLab; its issues become the tasks.',
     team: 'Team key',
     teamHint: (title: string) => `The team's key in ${title}, as in its issue ids: ENG-12.`,
-    match: (key: string, name: string) => `${key} — ${name}`,
     noSuchProject: (title: string, key: string) => `${title} has no project ${key}`,
     suggestionsFailed: "The tracker's projects did not load: no suggestions for now",
     trackerOk: (open: number) => `The tracker answered: ${counted('open task', 'open tasks')(open)}`,
+    openTasks: (open: number) => counted('open task', 'open tasks')(open),
     openToAll:
       'The repository is public: anyone can open an issue there, and with no label needed it enters the chain. ' +
       'Once the project is added, set "Only tasks with labels" in its settings, e.g. to ready: only collaborators can put a label on an issue.',

@@ -1068,8 +1068,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 -16px -16px;
-  padding: 10px 16px;
+  /* The panel's right padding gives the scrollbar's gutter back: the bar reaches only to the gutter. */
+  margin: 0 calc(var(--pane-scrollbar) - 16px) -16px -16px;
+  padding: 10px calc(16px - var(--pane-scrollbar)) 10px 16px;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }

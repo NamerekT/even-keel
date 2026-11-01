@@ -1,0 +1,81 @@
+/* The field and its strip: the strip as wide as the field, its top behind the field's rounded bottom (isolation keeps it behind). */
+.field-strip {
+  --strip-tuck: var(--radius-control);
+  --strip-height: 22px;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: 100%;
+  isolation: isolate;
+}
+
+/* Kept while empty: a line that comes later moves nothing below. */
+.field-strip__room {
+  position: relative;
+  z-index: -1;
+  height: calc(var(--strip-height) + var(--strip-tuck));
+  margin-top: calc(-1 * var(--strip-tuck));
+  overflow: hidden;
+  /* The text adds nothing to the field's width: the strip takes the field's. */
+  contain: inline-size;
+}
+
+.field-strip__line {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: var(--strip-tuck) 10px 0;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-strip) var(--radius-strip);
+  /* A tone off the inner box too: a field stands on a card or on a box of `--surface-muted` (a task source). */
+  background: color-mix(in srgb, var(--fg) 10%, var(--surface-muted));
+  color: var(--fg);
+  font-size: var(--text-12);
+  line-height: 16px;
+  white-space: nowrap;
+  animation: field-strip-in var(--motion-appear) ease-out;
+}
+
+.field-strip__line--error {
+  border-color: color-mix(in srgb, var(--lamp-error) 45%, var(--border));
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.field-strip:has(.field-strip__line--error) > :first-child {
+  border-color: color-mix(in srgb, var(--lamp-error) 45%, var(--border));
+}
+
+.field-strip__mark {
+  flex: none;
+  color: var(--lamp-done);
+}
+
+.field-strip__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The whole and the short text, laid out unseen to be measured. */
+.field-strip__measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+@keyframes field-strip-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-strip__line {
+    animation: none;
+  }
+}
