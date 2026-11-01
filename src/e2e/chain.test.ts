@@ -71,7 +71,8 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(launches()).toHaveLength(1)
   })
 
-  it('hands a task over to a new session after a limit that resets once the session cache is cold', async () => {
+  // Three hours of the service's clock, a minute a step: ~45 s alone, past a minute next to the rest of the suite.
+  it('hands a task over to a new session after a limit that resets once the session cache is cold', { timeout: 120_000 }, async () => {
     run.board.add('ABC-1')
     run.agent.script('ABC-1', ends({ limit: "You've hit your session limit · resets 11:00am (UTC)" }), commitAndMerge())
     await run.start()

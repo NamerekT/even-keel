@@ -1,4 +1,6 @@
 import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
+import { sameName } from '../chain/rules.js'
+import { changedLabels } from '../tracker/labels.js'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { fakeTask } from '../tracker/fixture.js'
 
@@ -19,13 +21,41 @@ export const BOARD_SERVER = 'board'
 export class Board {
   readonly tasks = new Map<string, TrackerTask>()
   readonly comments = new Map<string, string[]>()
+  /** While set, `complete` throws with this text, as a tracker refusing the transition does. */
+  refuseComplete: string | null = null
+  /** How many times the service asked to close a task, refused or not. */
+  completions = 0
+  /** While set, `relabel` throws with this text. */
+  refuseRelabel: string | null = null
+  /** While set, every read of tasks throws with this text, as a tracker that does not answer does. */
+  failReads: string | null = null
 
   add(id: string, ...blockedBy: string[]): void {
     this.tasks.set(id, { ...fakeTask(id), blockedBy })
   }
 
+  /** Files `id` as a subtask of `parent`, which counts it. */
+  child(id: string, parent: string): void {
+    this.tasks.set(id, { ...fakeTask(id), parent })
+    this.tasks.get(parent)!.subtasks++
+  }
+
   status(id: string): string {
     return this.tasks.get(id)!.status.name
+  }
+
+  /** The user moves the task on the tracker's page. */
+  move(id: string, status: TaskStatus): void {
+    this.tasks.get(id)!.status = status
+  }
+
+  labels(id: string): string[] {
+    return this.tasks.get(id)!.labels
+  }
+
+  /** The user sets the task's labels on the tracker's page. */
+  label(id: string, ...labels: string[]): void {
+    this.tasks.get(id)!.labels = labels
   }
 
   commentsOf(id: string): string[] {
@@ -48,6 +78,7 @@ export class Board {
       hostVariables: [],
       help: '',
       mcpServer: BOARD_SERVER,
+      moves: true,
       profileName: () => 'Board',
       account: async () => ({ login: 'john', name: 'Board', expiresAt: null }),
       projects: async () => [],
@@ -55,17 +86,57 @@ export class Board {
     }
   }
 
+  private read(): void {
+    if (this.failReads !== null) throw new Error(this.failReads)
+  }
+
+  /** Moves a task of `from`'s categories to the first status of `to`'s category; `null` — it is elsewhere. */
+  private shift(id: string, from: TaskStatus['category'][], to: TaskStatus): TaskStatus | null {
+    const task = this.tasks.get(id)
+    if (task === undefined || !from.includes(task.status.category)) return null
+    task.status = to
+    return to
+  }
+
   private source(): TaskSource {
     const copy = (task: TrackerTask) => structuredClone(task)
     return {
-      chainTasks: async (_project, open) => ({ tasks: [...this.tasks.values()].filter((task) => open(task.status)).map(copy), statuses: STATUSES.map((status) => status.name) }),
-      tasks: async (ids) => ids.flatMap((id) => (this.tasks.has(id) ? [copy(this.tasks.get(id)!)] : [])),
+      chainTasks: async (_project, open) => {
+        this.read()
+        return { tasks: [...this.tasks.values()].filter((task) => open(task.status)).map(copy), statuses: STATUSES.map((status) => status.name) }
+      },
+      tasks: async (ids) => {
+        this.read()
+        return ids.flatMap((id) => (this.tasks.has(id) ? [copy(this.tasks.get(id)!)] : []))
+      },
       brief: async (id) => ({ title: this.tasks.get(id)?.title ?? id, description: '' }),
-      complete: async (id) => {
+      complete: async (id, status) => {
+        this.completions++
+        if (this.refuseComplete !== null) throw new Error(this.refuseComplete)
         const task = this.tasks.get(id)
         if (task === undefined || task.status.category === 'Won' || task.status.category === 'Lost') return false
-        task.status = DONE
+        task.status = STATUSES.find((each) => each.category === 'Won' && (status === undefined || sameName(each.name, status)))!
         return true
+      },
+      moveTo: async (id, name) => {
+        const task = this.tasks.get(id)
+        const status = STATUSES.find((each) => sameName(each.name, name))
+        if (task === undefined || status === undefined) return null
+        task.status = status
+        return status
+      },
+      statuses: async () => [...STATUSES],
+      children: async (id) => {
+        this.read()
+        return [...this.tasks.values()].filter((task) => task.parent === id).map(copy)
+      },
+      ready: async (id) => this.shift(id, ['UnStarted'], TODO),
+      unready: async (id) => this.shift(id, ['ToDo', 'Active'], BACKLOG),
+      relabel: async (id, change) => {
+        if (this.refuseRelabel !== null) throw new Error(this.refuseRelabel)
+        const task = this.tasks.get(id)!
+        task.labels = changedLabels(task.labels, change)
+        return [...task.labels]
       },
       comment: async (id, body) => this.reply(id, body),
       commentsAfter: async (id, after) => {
