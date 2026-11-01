@@ -67,12 +67,21 @@ export class MainCarry {
     if (chain === undefined || chain.current?.task !== name) throw fail('chain.notCurrent', { task: name })
     if (chain.current.sessionId === null) throw fail('chain.launching', { task: name })
     if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
-    const found = this.all().find(([, carry]) => carry.task === name)
+    this.letGo(chain, 'is skipped')
+  }
+
+  /**
+   * The chain stops waiting for the carry session at its head, as "Skip" does: the record goes, the hold stays and the
+   * session is not touched. Unattended mode does it by itself after ten quiet minutes (BTN-693).
+   */
+  letGo(chain: ActiveChain, why: string): void {
+    const current = chain.current!
+    const found = this.all().find(([, carry]) => carry.task === current.task)
     if (found !== undefined) delete this.state.ci[found[0]]!.carry
-    rememberSkipped(this.state, chain.project, name, chain.current.sessionId)
+    rememberSkipped(this.state, chain.project, current.task, current.sessionId!)
     this.ended(chain, 'dropped', {})
     chain.current = null
-    this.deps.log(`chain: ${chain.project}: the carry session ${name} is skipped, the carry stays held`)
+    this.deps.log(`chain: ${chain.project}: the carry session ${current.task} ${why}, the carry stays held`)
   }
 
   private all(): [string, CarrySession][] {

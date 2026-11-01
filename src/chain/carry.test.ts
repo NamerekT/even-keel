@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { done, setup, task } from './dispatcher.fixture.js'
 import type { CarrySession } from './model.js'
+import type { HandoffSession } from './relay.js'
 
 /** XYZ is a release project merging into ABC; git could not merge two of its commits. */
 const carryOf = (at = '2026-09-26T12:00:00.000Z'): CarrySession => ({
@@ -10,6 +11,21 @@ const carryOf = (at = '2026-09-26T12:00:00.000Z'): CarrySession => ({
   commit: 'rrrrrrrrrr',
   commits: 2,
   report: 'carry XYZ: a.ts conflicts',
+})
+
+/** The carry session ended its turn on a question at the launch. */
+const quietSession = (sessionId: string): HandoffSession => ({
+  sessionId,
+  agentId: 'agent-carry',
+  account: 'global',
+  cwd: '/repo/.claude/worktrees/xyz-carry',
+  workdir: '/repo/.claude/worktrees/xyz-carry',
+  branch: 'xyz-carry/task',
+  transcript: null,
+  lastReplyAt: '2026-09-26T12:00:00.000Z',
+  recent: [],
+  lastMessage: 'Cannot tell which line wins',
+  checkpoint: null,
 })
 
 describe('Dispatcher and the carry of a release project resolved by a session (BTN-369)', () => {
@@ -95,6 +111,46 @@ describe('Dispatcher and the carry of a release project resolved by a session (B
     expect(stopped).toEqual([])
     expect(finished).toEqual([])
     expect(dispatcher.state.active).toEqual([])
+  })
+
+  it('lets a carry session go after ten quiet minutes in unattended mode, as "Skip" would (BTN-693)', async () => {
+    const { dispatcher, handoffs, clock, stopped, journal, launched, relays } = setup({ unattended: true })
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.carry('XYZ', carryOf())
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/XYZ-CARRY'])
+    const sessionId = dispatcher.state.active[0]!.current!.sessionId!
+    handoffs['XYZ-CARRY'] = { ...quietSession(sessionId), lastReplyAt: '2026-09-26T12:01:00.000Z' }
+
+    clock.now = new Date('2026-09-26T12:10:30Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.XYZ?.carry).toEqual(carryOf())
+
+    clock.now = new Date('2026-09-26T12:11:00Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.XYZ?.carry).toBeUndefined()
+    expect(journal.at(-1)).toMatchObject({ project: 'ABC', task: 'XYZ-CARRY', sessionId, reason: 'dropped' })
+    expect(dispatcher.state.ci.ABC?.skippedSessions).toEqual({ 'XYZ-CARRY': [sessionId] })
+    expect(stopped).toEqual([])
+    expect(relays).toEqual([])
+    // The chain was the carry's alone: it ends with it, and the next task is not launched.
+    expect(dispatcher.state.active).toEqual([])
+    expect(launched).toEqual(['ABC/XYZ-CARRY'])
+  })
+
+  it('waits for an idle carry session outside unattended mode', async () => {
+    const { dispatcher, handoffs, clock } = setup()
+    dispatcher.setTasks('ABC', [])
+    dispatcher.carry('XYZ', carryOf())
+    await dispatcher.idle()
+    handoffs['XYZ-CARRY'] = quietSession(dispatcher.state.active[0]!.current!.sessionId!)
+    clock.now = new Date('2026-09-26T14:00:00Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.XYZ?.carry).toEqual(carryOf())
+    expect(dispatcher.state.active[0]?.current?.task).toBe('XYZ-CARRY')
   })
 
   it('"Skip" on a carry still waiting for the current task takes it back, with nothing to journal', async () => {

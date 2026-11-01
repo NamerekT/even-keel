@@ -623,11 +623,15 @@ export class Dispatcher {
           }
           continue
         }
+        // A fix session is not let go by unattended mode: that would launch tasks on a red main (BTN-693).
         if (isCarryName(task)) {
-          if (!(await this.carries.follow(chain, chain.current))) {
+          if (await this.carries.follow(chain, chain.current)) continue
+          if (!this.handovers.unanswered(chain.current)) {
             await this.handovers.follow(chain, chain.current)
             return
           }
+          this.carries.letGo(chain, 'is let go after ten quiet minutes in unattended mode')
+          this.deps.save(this.state)
           continue
         }
         if (!tasks.some((open) => open.id === task)) {

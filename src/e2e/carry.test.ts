@@ -202,15 +202,18 @@ describe('a release project carried forward end to end', { timeout: 90_000 }, ()
     expect(launches(CARRY)).toHaveLength(1)
   })
 
-  it('in unattended mode gives a conflict to a carry session by itself, none more on the same release commit once it is skipped, and a new one on the next', async () => {
+  it('in unattended mode gives a conflict to a carry session by itself, lets it go after ten quiet minutes, asks none more on the same release commit, and a new one on the next', async () => {
     run.agent.script(CARRY, ends({ say: 'Cannot tell which line wins' }), resolves('# Example (both)\n'))
     await run.start(conflicting)
     await run.post('chain/unattended', { on: true })
 
     await run.until(() => launches(CARRY).length === 1, 'the carry session launched by itself')
     await run.until(() => run.agent.sessionsOf(CARRY)[0]?.resting === true, 'the carry session idle')
-    await run.post('chain/skip', { project: PROJECT_ID, task: CARRY })
-    expect(carry()).toBeUndefined()
+    await run.pass(9 * 60_000, 10_000)
+    expect(carry()).toMatchObject({ task: CARRY })
+    // Ten quiet minutes let the session go as "Skip" would: the record dropped, the hold kept, the session untouched.
+    await run.until(() => carry() === undefined, 'the idle carry session let go', { step: 10_000 })
+    expect(run.service.dispatcher.state.active.find((chain) => chain.project === PROJECT_ID)?.current?.task).not.toBe(CARRY)
     expect(view()).toMatchObject({ held: true, hold: { code: 'forward.conflict' } })
     await run.pass(5 * TICK, 10_000)
     expect(launches(CARRY)).toHaveLength(1)

@@ -315,6 +315,24 @@ describe('Dispatcher and a red main without a fix task', () => {
     })
   })
 
+  it('waits for an idle fix session in unattended mode too: letting it go would launch tasks on a red main (BTN-693)', async () => {
+    const { dispatcher, handoffs, clock, launched, journal, ci } = await afterDone(null, (prepared) => {
+      prepared.fixTask = false
+    }, { unattended: true })
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    const sessionId = dispatcher.state.active[0]!.current!.sessionId!
+    handoffs['ABC-FIX'] = { ...sessionOf(sessionId, '2026-09-26T12:00:00.000Z'), lastMessage: 'Which test is right?' }
+    clock.now = new Date('2026-09-26T13:00:00Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
+    expect(dispatcher.state.ci.ABC?.fix?.task).toBe('ABC-FIX')
+    expect(journal.some((entry) => entry.task === 'ABC-FIX' && entry.reason === 'dropped')).toBe(false)
+    expect(launched.filter((id) => id === 'ABC/ABC-2')).toEqual([])
+  })
+
   it('journals a fix given up on "Skip" as dropped', async () => {
     const { dispatcher, journal, clock, ci } = await withoutTask()
     ci.verdict = red
