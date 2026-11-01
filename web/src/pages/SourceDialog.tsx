@@ -3,6 +3,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { SlidersIcon, TrackerIcon } from '../ui/icons.js'
+import { useHeightGlide } from '../ui/useHeightGlide.js'
 import { GroupTabs, UnsavedDot } from './settingsParts.js'
 import '../tools/addPackage.css'
 import './sourceDialog.css'
@@ -81,6 +82,8 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, c
   const [open, setOpen] = useState<T>(tabs[0]!.id)
   const tab = tabs.find((each) => each.id === open) ?? tabs[0]!
   const dirty = tabs.some((each) => each.dirty)
+  const frame = useRef<HTMLDivElement>(null)
+  useHeightGlide(frame, tab.id)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -97,7 +100,7 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, c
       }}
       {...backdrop}
     >
-      <div className="add-package__frame">
+      <div ref={frame} className="add-package__frame">
         <header className="add-package__head">
           <h2 id={heading} className="add-package__title source-dialog__title">
             <TrackerIcon kind={kind} />
