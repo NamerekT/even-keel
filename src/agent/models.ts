@@ -59,7 +59,7 @@ export class ModelCatalog {
     let list = await this.of(home)
     if (had && lacks(list, model)) list = await this.read(home)
     if (list === null || !lacks(list, model)) return undefined
-    return notice('chain.unknownModel', { task, model, agent: this.deps.title(home), account: this.deps.name(home), known: list.models })
+    return notice('chain.unknownModel', { task, model, agent: this.deps.title(home), account: this.deps.name(home), known: nearest(list.models, model) })
   }
 
   private read(home: AccountHome): Promise<ModelList | null> {
@@ -82,6 +82,26 @@ export class ModelCatalog {
     this.reading.set(home.key, kept)
     return kept
   }
+}
+
+/**
+ * `models` with those of `wanted`'s provider (the part before `/`) first, the longest common name prefix ahead, then the
+ * rest in the listed order (BTN-585): the refusal names only the first few, and a list opening with another provider's
+ * models reads as if the account had none of the asked one.
+ */
+export function nearest(models: string[], wanted: string): string[] {
+  const cut = wanted.indexOf('/')
+  if (cut < 0) return models
+  const provider = wanted.slice(0, cut + 1)
+  const name = wanted.slice(cut + 1)
+  const own = models.filter(model => model.startsWith(provider))
+  const shared = (model: string) => {
+    const other = model.slice(provider.length)
+    let at = 0
+    while (at < name.length && at < other.length && name[at] === other[at]) at++
+    return at
+  }
+  return [...own.sort((a, b) => shared(b) - shared(a)), ...models.filter(model => !model.startsWith(provider))]
 }
 
 function lacks(list: ModelList | null, model: string): boolean {

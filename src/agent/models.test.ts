@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { ModelList } from './contract.js'
-import { ModelCatalog } from './models.js'
+import { ModelCatalog, nearest } from './models.js'
 
 const home = { key: 'opencode', agent: 'opencode', dir: 'D:/accounts/opencode' } as AccountHome
 const FREE: ModelList = { models: ['opencode/deepseek-v4.1-flash-free', 'opencode/big-pickle'], complete: true }
@@ -69,6 +69,17 @@ describe('ModelCatalog', () => {
       code: 'chain.unknownModel',
       params: { task: 'NAM-65', model: 'deepseek-v4.1', agent: 'OpenCode', account: 'opencode (named)', known: FREE.models },
     })
+  })
+
+  it('names the models of the asked provider first, the closest by name ahead', async () => {
+    const listed = ['opencode/beam-free', 'opencode/big-pickle', 'openai/gpt-5.5', 'openai/gpt-6.1-sol', 'deepseek/v4', 'openai/gpt-6-sol']
+    const { models } = catalog([{ models: listed, complete: true }])
+    const refusal = await models.refusal(home, 'GLC-12', 'openai/gpt-6-luna')
+    expect(refusal?.params.known).toEqual(['openai/gpt-6-sol', 'openai/gpt-6.1-sol', 'openai/gpt-5.5', 'opencode/beam-free', 'opencode/big-pickle', 'deepseek/v4'])
+  })
+
+  it('keeps the listed order for a model without a provider', () => {
+    expect(nearest(['b/x', 'a/y', 'z'], 'gpt')).toEqual(['b/x', 'a/y', 'z'])
   })
 
   it('lets a listed model, the default and anything of an incomplete list through', async () => {

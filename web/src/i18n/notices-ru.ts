@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -79,7 +79,7 @@ export const noticesRu: NoticeTexts = {
   'chain.noSession': (p) => `у ${p.task} нет известной сессии`,
   'chain.noAccountFor': (p) => `у ${p.task} ярлык ${p.label}, но аккаунта этого провайдера в пуле нет — задача идёт на ${p.provider}, как проект`,
   'chain.unknownModel': (p) =>
-    `${p.task} должна идти на модели ${p.model}, но у аккаунта ${p.account} (${p.agent}) её нет — есть ${list(p.known.slice(0, 8)) || 'никаких'}. Выберите модель в поле «Модель» настроек сессий и снимите с паузы`,
+    `${p.task} должна идти на модели ${p.model}, но у аккаунта ${p.account} (${p.agent}) её нет — есть ${list(p.known.slice(0, MODELS_NAMED)) || 'никаких'}${p.known.length > MODELS_NAMED ? ` и ещё ${p.known.length - MODELS_NAMED}` : ''}. Выберите модель в поле «Модель» настроек сессий и снимите с паузы`,
   'chain.opencodeCopilot': () => 'OpenCode на Copilot пока не поддерживается. Выберите другую «Модель» или «Аккаунт» в настройках сессий, измените метку модели задачи, если она использует Copilot, и снимите цепочку с паузы.',
   'account.opencodeCopilot': () => 'OpenCode на Copilot пока не поддерживается',
   'chain.modelUnavailable': (p) => `Аккаунту ChatGPT недоступна модель ${p.model} через OpenCode. Выберите другую «Модель» или «Аккаунт» в настройках сессий и измените метку модели задачи, если она есть. Нажмите «Новая сессия» и снимите цепочку с паузы.`,
