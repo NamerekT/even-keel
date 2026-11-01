@@ -119,6 +119,24 @@ describe('syncMain', () => {
     expect(calls.filter((call) => call === 'merge --no-edit origin/main')).toHaveLength(2)
   })
 
+  // The other clone pushed after this push read the remote's refs but before the remote updated its ref (BTN-686).
+  it.each([
+    ' ! [remote rejected] main -> main (incorrect old value provided)\nerror: failed to push some refs',
+    ' ! [remote rejected] main -> main (failed to update ref)\nerror: failed to push some refs',
+    " ! [remote rejected] main -> main (cannot lock ref 'refs/heads/main': is at 1a2b but expected 3c4d)",
+  ])('syncs once more when the remote refused to update its ref: %s', async (out) => {
+    const { git, calls } = fakeGit({ ...builtIn, 'push origin main': [{ code: 1, out }, { code: 0 }] })
+    expect(await syncMain(git, repo, ['origin'])).toBeNull()
+    expect(calls.filter((call) => call === 'fetch origin')).toHaveLength(2)
+  })
+
+  it('does not sync again when a hook of the remote declined the push', async () => {
+    const out = ' ! [remote rejected] main -> main (pre-receive hook declined)\nerror: failed to push some refs'
+    const { git, calls } = fakeGit({ ...builtIn, 'push origin main': [{ code: 1, out }, { code: 0 }] })
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: out }))
+    expect(calls.filter((call) => call === 'push origin main')).toHaveLength(1)
+  })
+
   it('reports the push rejected twice', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'push origin main': rejected })
     expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: rejected.out }))

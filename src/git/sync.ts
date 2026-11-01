@@ -1,8 +1,12 @@
 import { notice, type Notice } from '../notice/notice.js'
 import type { Git } from './types.js'
 
-/** A push refused because the remote got commits after the fetch: another clone of it pushed meanwhile. */
-const REJECTED = /\[rejected\]/
+/**
+ * A push refused because the remote got commits after the fetch: another clone of it pushed meanwhile. Git sees it
+ * as `[rejected]` before sending, or as the remote's refusal to update the ref when the other push landed after this
+ * one read the remote's refs (BTN-686). Other `[remote rejected]` reasons, a declined server hook among them, stay.
+ */
+const REJECTED = /\[rejected\]|\[remote rejected\][^\n]*\((?:incorrect old value|failed to update ref|cannot lock ref|failed to lock|stale info)/
 
 /** What git (curl or ssh under it) says when it never reached the remote; a refusal of the remote is not among it. */
 const UNREACHABLE =

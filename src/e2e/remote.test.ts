@@ -214,4 +214,38 @@ describe('two projects on one remote end to end', { timeout: 90_000 }, () => {
     expect(remoteLog()).toEqual(expect.arrayContaining(['[ABC-1] Work', 'Another clone']))
     expect(run.service.dispatcher.state.leftovers[PROJECT_ID] ?? []).toEqual([])
   })
+
+  it('syncs once more when another clone pushes inside the push, after it read the remote', async () => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    const other = join(run.dir, 'other')
+    const armed = join(run.dir, 'armed')
+    const slash = (path: string) => path.replaceAll('\\', '/')
+    const identity = '-c user.name="John Doe" -c user.email=john@example.com'
+    // A pre-push hook runs once the push has the remote's refs: the remote refuses the old value it was sent.
+    const hook = [
+      '#!/bin/sh',
+      `[ -f "${slash(armed)}" ] || exit 0`,
+      `rm "${slash(armed)}"`,
+      'unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE',
+      `git clone -q "${slash(run.remote)}" "${slash(other)}"`,
+      `git -C "${slash(other)}" ${identity} commit -q --allow-empty -m "Another clone"`,
+      `git -C "${slash(other)}" push -q origin main`,
+      '',
+    ].join('\n')
+    run.agent.script('ABC-1', async (turn) => {
+      const end = await commitAndMerge('one.txt')(turn)
+      await writeFile(join(turn.repo, '.git', 'hooks', 'pre-push'), hook, { mode: 0o755 })
+      await writeFile(armed, '')
+      return end
+    })
+    run.agent.script('ABC-2', commitAndMerge('two.txt'))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched')
+    expect(existsSync(armed)).toBe(false)
+    expect(remoteLog()).toEqual(expect.arrayContaining(['[ABC-1] Work', 'Another clone']))
+    expect(run.service.dispatcher.state.leftovers[PROJECT_ID] ?? []).toEqual([])
+  })
 })
