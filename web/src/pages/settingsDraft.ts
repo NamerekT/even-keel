@@ -54,6 +54,26 @@ export function settled(stored: Draft | undefined, saved: Values, same: Same): D
 
 export const edited =(draft: Draft, key: string, value: Value): Draft => ({ ...draft, edit: { ...draft.edit, [key]: value } })
 
+/**
+ * An edit of a field whose '' is "as shared" and whose control shows the value in force. Set back to the value it started
+ * with in force, it takes its start again: one that inherited inherits again instead of turning own with an equal value.
+ */
+export function inheritedEdit(draft: Draft, key: string, value: Value, shared: Value, same: Same): Draft {
+  const start = draft.base[key]!
+  return edited(draft, key, same(key, value, start === '' ? shared : start) ? start : value)
+}
+
+/**
+ * An edit of fields kept own by `flag`: the first one turns the flag on with the `shared` values as the start, and
+ * edited back to the shared values while the flag started off, the fields inherit again as they started.
+ */
+export function ownEdited(draft: Draft, flag: string, shared: Values, key: string, value: Value, same: Same): Draft {
+  const own = draft.edit[flag] === true ? draft : Object.entries(shared).reduce((each, [field, start]) => edited(each, field, start), edited(draft, flag, true))
+  const next = edited(own, key, value)
+  const back = draft.base[flag] === false && Object.entries(shared).every(([field, start]) => same(field, next.edit[field]!, start))
+  return back ? Object.keys(shared).reduce((each, field) => edited(each, field, draft.base[field]!), edited(next, flag, false)) : next
+}
+
 /** The fields among `keys` whose value differs from what they started from. */
 export const changed = (draft: Draft, keys: readonly string[], same: Same): string[] => keys.filter((key) => !same(key, draft.edit[key]!, draft.base[key]!))
 

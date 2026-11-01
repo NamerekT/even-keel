@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
+import { protectionText, sameProtection } from './protectionDraft.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -15,9 +16,9 @@ import { useCommand } from '../live/useCommand.js'
 import { PROJECT_SLOTS, projectLabel } from '../state.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
-import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
+import { changed, edited, inheritedEdit, ownEdited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import { folderLabel } from '../accountName.js'
-import { accountOptions, namedProviders, pickedProvider, providerKeys, providerName } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerName } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import {
   ErrorStrip,
@@ -83,7 +84,8 @@ const GROUPS = [
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
-const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
+const sameLines = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
+const same = (key: string, a: Value, b: Value) => (key === 'protection' ? sameProtection(a as string, b as string) : sameLines(key, a, b))
 const STATUS_KEYS: readonly RuleKey[] = ['active', 'terminal']
 
 const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
@@ -155,6 +157,7 @@ export function SettingsPanel({
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
   const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
+  const editInherited = (key: string, value: Value, sharedValue: Value) => setDraft(inheritedEdit(draft, key, value, sharedValue, same))
   useModelReset(
     offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: rowAccount(provider), model: text(`models.${provider}`) })),
     models,
@@ -202,7 +205,7 @@ export function SettingsPanel({
           value={inherit === undefined || text(key) !== '' ? text(key) : inherit.value}
           options={options}
           invalid={errorOf(key) !== null}
-          onChange={(value) => edit(key, value)}
+          onChange={(value) => (inherit === undefined ? edit(key, value) : editInherited(key, value, inherit.value))}
         />
       }
       error={errorOf(key)}
@@ -217,7 +220,7 @@ export function SettingsPanel({
       disabled={disabled}
       inherit={inheritOf(key, onOff(sharedValue), disabled)}
       mark={marks.note(key, (value) => (value === '' ? t.settings.asShared(onOff(sharedValue)) : onOff(value === 'true')))}
-      onChange={(checked) => edit(key, String(checked))}
+      onChange={(checked) => editInherited(key, String(checked), String(sharedValue))}
     >
       {notes(key)}
     </SwitchField>
@@ -262,10 +265,7 @@ export function SettingsPanel({
   )
 
   // Fields kept own by a flag: they show the shared values until an edit turns the flag on with the shared values as the start.
-  const ownEdit = (flag: string, sharedValues: Values) => (key: string, value: Value) => {
-    const own = on(flag) ? draft : Object.entries(sharedValues).reduce((each, [field, shared]) => edited(each, field, shared), edited(draft, flag, true))
-    setDraft(edited(own, key, value))
-  }
+  const ownEdit = (flag: string, sharedValues: Values) => (key: string, value: Value) => setDraft(ownEdited(draft, flag, sharedValues, key, value, same))
   const ownInherit = (flag: string, sharedValues: Values, sharedLabel: string, disabled = false): Inheritance => ({
     own: on(flag),
     shared: sharedLabel,
@@ -513,7 +513,7 @@ export function SettingsPanel({
             mark={marks.note('provider', (value) => value === '' ? t.settings.asShared(providerName(shared.provider)) : providerName(String(value)))}
             note={notes('provider')}
             chosen={text('provider') || shared.provider}
-            onPick={(provider) => edit('provider', pickedProvider(provider, draft.base.provider as string, shared.provider))}
+            onPick={(provider) => editInherited('provider', provider, shared.provider)}
             columns={[
               { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
               { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
@@ -538,7 +538,7 @@ export function SettingsPanel({
                         value={text(key) || (sharedAccount ?? '')}
                         options={options}
                         invalid={errorOf(key) !== null}
-                        onChange={(value) => edit(key, value)}
+                        onChange={(value) => editInherited(key, value, sharedAccount ?? '')}
                       />
                     </ErrorStrip>
                     <Inherit {...inheritOf(key, sharedLabel)} />
@@ -626,7 +626,7 @@ export function SettingsPanel({
             standards={standardRows(text('standards')).map((row) => row.doc).filter((doc) => doc !== '')}
           />
         </Section>
-        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => edit('protection', value)} error={errorOf('protection')} mark={marks.note('protection')} />
+        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => editInherited('protection', value, protectionText(shared.protection ?? DEFAULT_PROTECTION))} error={errorOf('protection')} mark={marks.note('protection')} />
         <Section title={t.settings.sections.context}>
           <Row
             className={marks.box(['ownAutoCompact', 'autoCompactWindow'])}
