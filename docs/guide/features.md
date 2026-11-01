@@ -34,7 +34,8 @@ apply when a session starts; running sessions keep their existing settings.
 
 **Deleting tracker records** has a switch per tracker: Huly, GitHub, GitLab, Linear and Jira. Even Keel's MCP gateway
 refuses the calls of that tracker's MCP server that delete a record, so this holds for every agent, Codex included;
-it covers tracker servers that reach the session through the project's packages. The switch above the five turns
+it covers tracker servers that reach the session through the project's packages. Jira's server runs every
+irreversible change through one tool, so its switch refuses them all, archiving a version too. The switch above the five turns
 them all on or off. "Use shared protection" in a project does not lock the switches: changing any of them gives the
 project its own values, and turning it back on returns the project to the shared ones. A switch turned off lets
 the deletes through Even Keel only: a chain session of Claude runs in auto mode, whose own check may still refuse

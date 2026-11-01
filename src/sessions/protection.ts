@@ -15,15 +15,17 @@ export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly:
 
 /**
  * A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), one with
- * `method: "delete"` (GitHub's `label_write`), or a dispatcher (Huly's `invoke_tool`) calling such a tool (BTN-641).
+ * `method: "delete"` (GitHub's `label_write`), one named `destructive` (Jira's `executeDestructive`, whatever operation
+ * it runs), or a dispatcher (Huly's `invoke_tool`) calling such a tool (BTN-641). A tool name in the arguments of
+ * anything else (`get_tool_schema`) is a read, not a call (BTN-659).
  */
 export function deletesRecord(tool: string, args: unknown): boolean {
   const words = tool.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
   const fields = typeof args === 'object' && args !== null ? args as Record<string, unknown> : {}
-  if (words.includes('delete') || (typeof fields.method === 'string' && fields.method.toLowerCase() === 'delete')) return true
-  const dispatcher = words.includes('tool') && ['invoke', 'call', 'execute', 'run'].some(word => words.includes(word))
-  const nested = [fields.toolName, fields.tool_name, ...(dispatcher ? [fields.name, fields.tool] : [])].find(name => typeof name === 'string')
-  return typeof nested === 'string' && deletesRecord(nested, parsed(fields.arguments ?? fields.args ?? fields.params ?? fields.input))
+  if (words.includes('delete') || words.includes('destructive') || (typeof fields.method === 'string' && fields.method.toLowerCase() === 'delete')) return true
+  if (!['invoke', 'call', 'execute', 'run'].some(word => words.includes(word))) return false
+  const nested = [fields.toolName, fields.tool_name, fields.name, fields.tool].find(name => typeof name === 'string')
+  return typeof nested === 'string' && deletesRecord(nested, parsed(fields.arguments ?? fields.args ?? fields.params ?? fields.input ?? fields.inputs))
 }
 
 /** Huly's `invoke_tool` takes its `arguments` as an object or as their JSON text. */
