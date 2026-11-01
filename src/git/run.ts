@@ -5,9 +5,13 @@ const LOCAL_TIMEOUT_MS = 60_000
 const NETWORK_TIMEOUT_MS = 5 * 60_000
 const NETWORK = new Set(['sync', 'push', 'fetch', 'ls-remote'])
 
-/** Git for Windows ignores the system's long path support without its own `core.longpaths` (BTN-559). */
+/**
+ * Git for Windows ignores the system's long path support without its own `core.longpaths` (BTN-559). The service reads
+ * task worktrees while their sessions work in them: without `--no-optional-locks` a `status` takes `index.lock` to
+ * refresh the index, and the session's own `git add` meanwhile fails on it (BTN-697).
+ */
 export function gitArgs(cwd: string, args: string[], platform: NodeJS.Platform = process.platform): string[] {
-  return [...(platform === 'win32' ? ['-c', 'core.longpaths=true'] : []), '-C', cwd, ...args]
+  return ['--no-optional-locks', ...(platform === 'win32' ? ['-c', 'core.longpaths=true'] : []), '-C', cwd, ...args]
 }
 
 export const runGit: Git = (cwd, args) =>
