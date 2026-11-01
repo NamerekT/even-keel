@@ -50,6 +50,17 @@ describe('session protection', () => {
     expect(deletesRecord('create_label', { name: 'delete-me' })).toBe(false)
   })
 
+  it('reads a tool name only in a dispatcher call, not in a read such as get_tool_schema', () => {
+    expect(deletesRecord('get_tool_schema', { toolName: 'delete_comment' })).toBe(false)
+    expect(deletesRecord('describe_tool', { tool_name: 'delete_issue' })).toBe(false)
+    expect(deletesRecord('executeWrite', { name: 'deleteComment', inputs: {} })).toBe(true)
+  })
+
+  it('takes Jira\'s executeDestructive as a delete whatever operation it runs', () => {
+    for (const name of ['manageJiraProjectVersion', 'removeConfluenceContentPermissions', undefined]) expect(deletesRecord('executeDestructive', { name, inputs: {} })).toBe(true)
+    for (const tool of ['executeWrite', 'executeRead']) expect(deletesRecord(tool, { name: 'createJiraIssue', inputs: {} })).toBe(false)
+  })
+
   it('writes Copilot rules as command prefixes, its only wildcard being a trailing :*', () => {
     const rules = protectionRules(DEFAULT_PROTECTION, ['origin'])
     expect(rules.copilot.filter(rule => rule.replace(/:\*\)$/, ')').includes('*'))).toEqual([])
