@@ -296,6 +296,11 @@ export interface DispatcherDeps {
   blocked: (project: string, task?: string) => Notice | undefined
   /** A completed turn refused its model. Reporting it pauses the chain without touching the session. */
   modelRefusal?: (task: string, sessionId: string) => Notice | undefined
+  /**
+   * Why the account `task` would start on refuses its model (`chain.unknownModel`), asked again while the chain is
+   * paused on one so that the pause lifts once the model is fixed (BTN-679). Absent — such a pause waits for Resume.
+   */
+  modelBlock?: (project: string, task: string) => Promise<Notice | undefined>
   busy: (task: string) => boolean
   silentSince?: (task: string) => string | null
   midTurn: (task: string) => boolean

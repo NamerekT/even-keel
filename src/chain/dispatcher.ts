@@ -570,15 +570,33 @@ export class Dispatcher {
 
   /**
    * A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12); so does
-   * one because sessions would not see their task, once a package brings the tracker's server or brief is on (BTN-656).
+   * one because sessions would not see their task, once a package brings the tracker's server or brief is on (BTN-656);
+   * so does one on a model the account lacks, once the first task's model is one it has (BTN-679).
    */
-  private cleared(chain: ActiveChain): boolean {
-    if (!SELF_CLEARING.includes(chain.error?.code ?? '') || this.launchBlock(chain.project, this.firstOf(chain.project, chain)) !== undefined) return false
+  private async cleared(chain: ActiveChain): Promise<boolean> {
+    const error = chain.error
+    const task = this.firstOf(chain.project, chain)
+    const model = error?.code === 'chain.unknownModel'
+    if (!model && !SELF_CLEARING.includes(error?.code ?? '')) return false
+    if (this.launchBlock(chain.project, task) !== undefined) return false
+    if (model && !(await this.modelFits(chain.project, task))) return false
+    // The user may have resumed or stopped the chain while the model list was read.
+    if (!chain.paused || chain.error !== error || !this.state.active.includes(chain)) return false
     chain.paused = false
     chain.error = null
-    this.deps.log(`chain: ${chain.project} goes on: its launch requirement is ready`)
+    this.deps.log(`chain: ${chain.project} goes on: ${model ? `the account of ${task} has its model now` : 'its launch requirement is ready'}`)
     this.deps.save(this.state)
     return true
+  }
+
+  private async modelFits(project: string, task: string | undefined): Promise<boolean> {
+    if (task === undefined || this.deps.modelBlock === undefined) return false
+    try {
+      return (await this.deps.modelBlock(project, task)) === undefined
+    } catch (error) {
+      this.deps.log(`chain: the model of ${task} was not checked: ${String(error)}`)
+      return false
+    }
   }
 
   /**
@@ -636,7 +654,7 @@ export class Dispatcher {
 
   private async step(chain: ActiveChain): Promise<void> {
     for (;;) {
-      if (chain.paused && !this.cleared(chain)) return
+      if (chain.paused && !(await this.cleared(chain))) return
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return

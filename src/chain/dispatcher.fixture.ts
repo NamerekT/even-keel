@@ -36,6 +36,7 @@ export interface SetupOptions {
   parallel?: number
   blocked?: string | Notice | DispatcherDeps['blocked']
   modelRefusal?: DispatcherDeps['modelRefusal']
+  modelBlock?: DispatcherDeps['modelBlock']
   limited?: Record<string, LimitedSession>
   overage?: (task: string) => LimitedSession | undefined
   account?: AccountNow
@@ -136,6 +137,7 @@ export function setup(options: SetupOptions = {}) {
       return typeof blocked === 'string' ? textNotice(blocked) : blocked
     },
     modelRefusal: options.modelRefusal,
+    modelBlock: options.modelBlock,
     busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
     silentSince: (id) => options.silentSince?.[id] ?? null,
     midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),

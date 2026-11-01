@@ -51,7 +51,7 @@ describe('the labels of a task', { timeout: 60_000 }, () => {
     expect(run.log.some((line) => line.includes('ABC-3 carries run labels'))).toBe(true)
   })
 
-  it('pauses before a launch on a model the account lacks and goes on by Resume once the project names one it has', async () => {
+  it('pauses before a launch on a model the account lacks and goes on by itself once the project names one it has', async () => {
     run.agent.modelList = ['sonnet', 'opus']
     run.project.models = { claude: 'sonet' }
     run.board.add('ABC-1')
@@ -65,11 +65,6 @@ describe('the labels of a task', { timeout: 60_000 }, () => {
 
     const form = run.service.configStore.view().projects[PROJECT_ID]!
     run.service.configStore.saveProject(PROJECT_ID, { ...form, models: { claude: 'sonnet' } }, form)
-    await run.pass(60_000)
-    expect(chain()).toMatchObject({ paused: true })
-    expect(launches()).toEqual([])
-
-    await run.post('chain/resume', { project: PROJECT_ID })
     await run.until(() => launches().length === 1, 'ABC-1 launched', { limitMs: 60_000 })
     expect(launches()[0]).toMatchObject({ model: 'sonnet' })
     expect(chain()).toMatchObject({ paused: false, error: null })

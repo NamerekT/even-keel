@@ -90,6 +90,7 @@ type ChainContext = Pick<ServiceContext,
   | 'linkOf'
   | 'liveView'
   | 'mailbox'
+  | 'models'
   | 'monitor'
   | 'noAccountFor'
   | 'occupantsOf'
@@ -303,6 +304,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     },
     liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
     modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
+    modelBlock: async (project, task) => {
+      const choice = ctx.choiceFor(project, task)
+      return ctx.models.refusal(ctx.homeOf(choice.account), task, choice.model)
+    },
     blocked: (project, task) => {
       const reason = ctx.profileBlock(project) ?? ctx.pullBlock(project)
       if (reason !== undefined || task === undefined) return reason
