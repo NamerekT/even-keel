@@ -1,4 +1,4 @@
-import { notice, textNotice } from '../../../src/notice/notice.js'
+import { fail, notice, textNotice } from '../../../src/notice/notice.js'
 import { prepareHeaderLevels, withHeaderLevels } from './fakeHeaderLevels.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { fixName } from '../../../src/chain/fix.js'
@@ -745,6 +745,8 @@ export function createFakeSource(search: string): LiveSource {
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       if (name === 'profiles/statuses') return fakeProfileStatuses(current.state, body, params.get('profileStatuses'), FAKE_VOCABULARY.statuses) as T
+      // `?profileProjects=fail`: the tracker gives no project list, as right after a restart (BTN-621).
+      if (name === 'profiles/projects' && params.get('profileProjects') === 'fail') throw fail('profiles.unreachable', { tracker: 'Huly' })
       const result = fakeProfilesQuery(current.state, name, body)
       if (name === 'profiles/save') {
         current = { ...current, state: fakeSaved(current.state, (result as { id: string }).id, body) }

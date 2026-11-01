@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
+import { noticeOf } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProfileKindView, ProfileView, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import { say, t } from '../i18n/index.js'
@@ -9,6 +9,7 @@ import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { daysLeft } from './profileForm.js'
+import { EMPTY_LOOKUP, answered, failed, failureShown, retryDelay, type Lookup } from './projectLookup.js'
 import { pickProject, placeOf, shapeOf, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import './trackerFields.css'
@@ -34,6 +35,8 @@ interface TrackerFieldsProps {
    * is the key's.
    */
   keyFixed?: boolean
+  /** The tracker project is the one saved: it was checked then, and a list that fails to load does not flag it. */
+  known?: boolean
   /** The profile stays as it is. */
   profileLocked?: boolean
   /** The tracker project stays as it is. */
@@ -66,7 +69,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
   const title = choice?.title ?? kinds.find((kind) => kind.kind === fields.tracker)?.title ?? ''
   const looked = keyFixed ? withKey(shape, fields) : fields
   const query = shape === 'place' || shape === 'alias' ? looked.trackerProject : shape === 'within' ? looked.team : looked.key
-  const lookup = useProjects(profile?.id ?? null, query, shape !== 'within')
+  const lookup = useProjects(profile, query, shape !== 'within')
 
   // A profile just saved from the dialog is chosen once the state has it.
   useEffect(() => {
@@ -85,7 +88,15 @@ export function TrackerFields(props: TrackerFieldsProps) {
 
   const named = shape === 'alias' ? looked.trackerProject.trim() : looked.key.trim()
   const absent = (shape === 'key' || shape === 'alias') && lookup.of === named && named !== '' && exact === undefined && lookup.failure === null
-  const shown = absent ? <Status>{t.wizard.noSuchProject(title, named)}</Status> : lookup.failure !== null ? <Status>{say(lookup.failure)}</Status> : status
+  // The list is only suggestions: its failure is an alert only for a typed value nothing else confirms.
+  const failure = failureShown(lookup.failure, query, exact !== undefined || props.known === true)
+  const shown = absent ? (
+    <Status>{t.wizard.noSuchProject(title, named)}</Status>
+  ) : failure === 'alert' ? (
+    <Status>{say(lookup.failure!)}</Status>
+  ) : (
+    (status ?? (failure === 'quiet' && <span className="settings__hint">{t.wizard.suggestionsFailed}</span>))
+  )
 
   return (
     <>
@@ -299,48 +310,58 @@ function exactOf(shape: TrackerShape, fields: WizardFields, list: TrackerProject
   return list.find((each) => each.key === team && each.within === undefined)
 }
 
-interface Lookup {
-  list: TrackerProject[]
-  /** The text the list answers; `null` — none asked yet. */
-  of: string | null
-  failure: Notice | null
-}
-
 /**
  * The profile's projects that have the text, asked a moment after the last keystroke.
  * With `keepPicked`, a text that is a key of the list already shown is not asked again: a new list in the datalist
  * makes the browser open it again under the focused field, a second or two after the user picked from it.
+ * A failed ask is asked again after a growing pause, and at once when the service restarts, the page reconnects or
+ * the profile's check changes (BTN-621).
  */
-function useProjects(profile: string | null, text: string, keepPicked: boolean): Lookup {
-  const { query } = useLive()
-  const [lookup, setLookup] = useState<Lookup>({ list: [], of: null, failure: null })
+function useProjects(profile: ProfileView | undefined, text: string, keepPicked: boolean): Lookup {
+  const { query, state, link } = useLive()
+  const id = profile?.id ?? null
+  const [lookup, setLookup] = useState<Lookup>(EMPTY_LOOKUP)
+  const [round, setRound] = useState(0)
   // The profile whose answer the list is: the reset below lands after this render's effects read the list.
   const listed = useRef<string | null>(null)
   const wanted = text.trim()
   useEffect(() => {
     listed.current = null
-    setLookup({ list: [], of: null, failure: null })
-  }, [profile])
+    setLookup(EMPTY_LOOKUP)
+  }, [id])
   useEffect(() => {
-    if (profile === null) return
-    if (keepPicked && wanted !== '' && listed.current === profile && lookup.list.some((each) => each.key === wanted)) return
+    if (id === null) return
+    if (keepPicked && lookup.failure === null && wanted !== '' && listed.current === id && lookup.list.some((each) => each.key === wanted)) return
     let live = true
     const timer = setTimeout(() => {
-      query<TrackerProject[]>('profiles/projects', { id: profile, query: wanted }).then(
+      query<TrackerProject[]>('profiles/projects', { id, query: wanted }).then(
         (list) => {
           if (!live) return
-          listed.current = profile
-          setLookup({ list, of: wanted, failure: null })
+          listed.current = id
+          setLookup(answered(list, wanted))
         },
-        (error: unknown) => live && setLookup({ list: [], of: wanted, failure: noticeOf(error) }),
+        (error: unknown) => live && setLookup((before) => failed(before, wanted, noticeOf(error))),
       )
     }, LOOKUP_DELAY_MS)
     return () => {
       live = false
       clearTimeout(timer)
     }
-    // `query` is a new function on each render, the list only says whether to ask; the profile and the text are what the list answers.
-  }, [profile, wanted, keepPicked])
+    // `query` is a new function on each render, the list only says whether to ask; the profile, the text and a retry's round are what asks.
+  }, [id, wanted, keepPicked, round])
+  useEffect(() => {
+    const delay = lookup.failure === null ? null : retryDelay(lookup.failures)
+    if (delay === null) return
+    const timer = setTimeout(() => setRound((before) => before + 1), delay)
+    return () => clearTimeout(timer)
+  }, [lookup])
+  const wake = `${state?.startedAt ?? ''}|${link}|${profile?.check.state ?? ''}`
+  const woke = useRef(wake)
+  useEffect(() => {
+    if (woke.current === wake) return
+    woke.current = wake
+    if (lookup.failure !== null && link === 'live') setRound((before) => before + 1)
+  }, [wake])
   return lookup
 }
 

@@ -26,6 +26,8 @@ interface ProjectTrackerProps {
   /** The tracker and its project as the draft has them. */
   tracker: string
   trackerProject: string
+  /** The tracker and its project are the saved ones. */
+  known: boolean
   /** The chain has run a task of the project: neither the profile nor the tracker project change (BTN-66). */
   locked: boolean
   /** The draft's tracker and tracker project: a profile of another tracker changes both. */
@@ -43,7 +45,7 @@ interface ProjectTrackerProps {
  * another tracker puts that tracker into the draft and waits for the save: a profile is linked only to its project's
  * saved tracker.
  */
-export function ProjectTracker({ state, project, tracker, trackerProject, locked, onEdit, trackerNote, box, note, invalid }: ProjectTrackerProps) {
+export function ProjectTracker({ state, project, tracker, trackerProject, known, locked, onEdit, trackerNote, box, note, invalid }: ProjectTrackerProps) {
   const { send, sending, failure } = useCommand()
   const [waiting, setWaiting] = useState<string | null>(null)
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
@@ -83,6 +85,7 @@ export function ProjectTracker({ state, project, tracker, trackerProject, locked
       kinds={kinds}
       profileHint={locked ? `${t.profiles.fieldHint} ${t.settings.trackerLocked}` : t.profiles.fieldHint}
       keyFixed
+      known={known}
       profileLocked={locked || sending}
       projectLocked={locked}
       soon={locked ? t.settings.trackerSoon : undefined}

@@ -391,6 +391,7 @@ export function SettingsPanel({
               project={project}
               tracker={text('tracker')}
               trackerProject={text('trackerProject')}
+              known={text('tracker') === saved.tracker && text('trackerProject') === saved.trackerProject}
               locked={locked}
               trackerNote={notes('tracker')}
               box={marks.box('trackerProject')}

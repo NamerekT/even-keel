@@ -508,6 +508,7 @@ export const ru = {
     teamHint: (title: string) => `Ключ команды в ${title}, как в ID её задач: ENG-12.`,
     match: (key: string, name: string) => `${key} — ${name}`,
     noSuchProject: (title: string, key: string) => `В ${title} нет проекта ${key}`,
+    suggestionsFailed: 'Проекты трекера не загрузились: подсказок пока нет',
     trackerOk: (open: number) => `Трекер ответил: ${open} ${forms('открытая задача', 'открытые задачи', 'открытых задач')(open)}`,
     openToAll:
       'Репозиторий публичный: задачу в нём может открыть кто угодно, и без нужной метки она войдёт в цепочку. ' +

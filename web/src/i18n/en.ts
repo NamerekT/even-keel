@@ -500,6 +500,7 @@ export const en: Messages = {
     teamHint: (title: string) => `The team's key in ${title}, as in its issue ids: ENG-12.`,
     match: (key: string, name: string) => `${key} — ${name}`,
     noSuchProject: (title: string, key: string) => `${title} has no project ${key}`,
+    suggestionsFailed: "The tracker's projects did not load: no suggestions for now",
     trackerOk: (open: number) => `The tracker answered: ${counted('open task', 'open tasks')(open)}`,
     openToAll:
       'The repository is public: anyone can open an issue there, and with no label needed it enters the chain. ' +
