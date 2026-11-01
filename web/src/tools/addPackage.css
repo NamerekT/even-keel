@@ -307,6 +307,11 @@
   line-height: 1.5;
 }
 
+/* A refusal may list several reasons, one per line (the project still held by the chain, a session, a folder). */
+.add-package__failure {
+  white-space: pre-line;
+}
+
 .add-package__foot {
   display: flex;
   align-items: center;

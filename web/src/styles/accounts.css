@@ -254,12 +254,6 @@
   font-weight: 600;
 }
 
-.accounts__confirm {
-  align-self: center;
-  font-size: var(--text-13);
-}
-
-
 .account__actions {
   display: flex;
   flex-wrap: wrap;

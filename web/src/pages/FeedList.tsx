@@ -82,17 +82,7 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
         menu={<MoreMenu label={t.settings.sourceMore(feed.key)} items={[{ label: t.settings.feedRemove, danger: true, pick: () => setConfirming(true) }]} />}
       />
       {configuring && <FeedDialog state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} onClose={() => setConfiguring(false)} />}
-      {confirming && (
-        <ConfirmDialog
-          title={t.settings.feedRemove}
-          question={t.settings.feedRemoveQuestion(feed.key)}
-          confirm={t.common.remove}
-          cancel={t.common.cancel}
-          busy={sending}
-          onConfirm={() => void send('project/feed/remove', { project, feed: feed.id }).then((done) => done && setConfirming(false))}
-          onClose={() => setConfirming(false)}
-        />
-      )}
+      {confirming && <FeedRemove project={project} feed={feed} title={title} onClose={() => setConfirming(false)} />}
       <TrackerFields
         ids={(field) => fieldId(`feed.${feed.id}.${field}`)}
         state={state}
@@ -108,6 +98,23 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
       />
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
+  )
+}
+
+/** Its own command, so a refusal shows in the window and is gone in its next opening. */
+function FeedRemove({ project, feed, title, onClose }: { project: string; feed: FeedView; title: string; onClose: () => void }) {
+  const { send, sending, failure } = useCommand()
+  return (
+    <ConfirmDialog
+      title={`${feed.key} · ${title}`}
+      question={t.settings.feedRemoveQuestion(feed.key)}
+      confirm={t.common.remove}
+      cancel={t.common.cancel}
+      busy={sending}
+      failure={failure !== null ? say(failure) : undefined}
+      onConfirm={() => void send('project/feed/remove', { project, feed: feed.id }).then((done) => done && onClose())}
+      onClose={onClose}
+    />
   )
 }
 

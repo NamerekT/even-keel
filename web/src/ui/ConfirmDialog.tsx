@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import '../tools/addPackage.css'
 import { useBackdropClose } from './backdrop.js'
 
@@ -10,12 +10,14 @@ interface ConfirmProps {
   /** The button that leaves things as they are; it holds the focus, so an Enter does nothing harmful. */
   cancel: string
   busy: boolean
+  /** Why the service refused, under the question; the dialog stays open so the person can read it and try again. */
+  failure?: ReactNode
   onConfirm: () => void
   onClose: () => void
 }
 
 /** A modal "are you sure?" for a destructive action whose place on the page is too narrow to ask in line. */
-export function ConfirmDialog({ title, question, confirm, cancel, busy, onConfirm, onClose }: ConfirmProps) {
+export function ConfirmDialog({ title, question, confirm, cancel, busy, failure, onConfirm, onClose }: ConfirmProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
@@ -43,6 +45,7 @@ export function ConfirmDialog({ title, question, confirm, cancel, busy, onConfir
         </header>
         <div className="add-package__body">
           <p className="add-package__question">{question}</p>
+          {failure !== undefined && <p className="notice notice--error add-package__failure">{failure}</p>}
         </div>
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
