@@ -2,8 +2,12 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
-import type { Agent, AgentAdapter, ModelList, SessionHandle, SessionStart } from '../agent/contract.js'
+import type { AccountStatus } from '../account/model.js'
+import type { Agent, AgentAdapter, AgentOptions, ModelList, SessionHandle, SessionStart } from '../agent/contract.js'
 import { runGit } from '../git/run.js'
+import type { RateLimits, SessionLimits } from '../limits/model.js'
+import type { UsageAnswer } from '../limits/usage.js'
+import { notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { MailEvent } from '../sessions/mail.js'
 import { hungEntry } from '../sessions/silence.js'
@@ -25,7 +29,12 @@ export interface TurnContext {
   mail(event: MailEvent): Promise<string | null>
   /** Starts a background command that outlives the turn: the turn ends in `shell`, its process alive until a stop. */
   background(): void
+  /** Reports the account's windows mid-turn, as a Claude SDK session's `rate_limit_event` does (`AgentOptions.onLimits`). */
+  limits(reported: SessionLimits): void
 }
+
+/** The windows a `usage` answer gives; its time and source are the call's. */
+export type LimitWindows = Pick<RateLimits, 'fiveHour' | 'sevenDay'> & Partial<Pick<RateLimits, 'month'>>
 
 /** How a turn ends, as a session's transcript would show it. */
 export type TurnEnd =
@@ -36,6 +45,8 @@ export type TurnEnd =
   | { pullRequest: string }
   | { ask: string }
   | { limit: string }
+  /** The API refuses for spent credit (`billing_error`): an account signed in by a key waits for money, not for a reset. */
+  | { credit: string }
   /** The API refuses before the model's first answer (a bad key): only the error reaches the transcript. */
   | { fail: string }
   /** The process dies mid-turn. */
@@ -52,6 +63,8 @@ export interface Call {
   prompt: string
   /** The account's agent and the model the service asked for; `null` — the agent's configured default. */
   provider: string
+  /** The account folder it ran on. */
+  account: string
   model: string | null
 }
 
@@ -96,6 +109,22 @@ export class ScriptedAgent implements Agent {
   refuse = 0
   /** The models every account lists, the list complete; `null` — the agent has no list, as Claude's. */
   modelList: string[] | null = null
+  /**
+   * The account's windows at the bench's time `at`, as `usage` answers them (`source: 'usage'`); `missing` — the
+   * provider tells of no windows at all, as Copilot or OpenCode Zen; `null` — an answer without readable limits. Unset,
+   * the agent has no `usage`, and the chain waits a limit out by the transcript.
+   */
+  windows: ((account: string, at: string) => LimitWindows | 'missing' | null) | null = null
+  /** Holds every `usage` call until it opens, as a slow `/usage` does; the call keeps the time it was asked at. */
+  usageGate: Gate | null = null
+  /** Each `usage` call: the account and the time it was asked at. */
+  readonly polls: { account: string; at: string }[] = []
+  /**
+   * What an account's sign-in shows over the default — a subscription as `<key>@example.com`: `authMethod: 'api_key'`
+   * for a key, `email: null` for a folder with no e-mail.
+   */
+  readonly statuses = new Map<string, Partial<AccountStatus>>()
+  private onLimits: AgentOptions['onLimits']
 
   constructor(
     /** The project checkout of a session's folder. */
@@ -110,7 +139,15 @@ export class ScriptedAgent implements Agent {
 
   /** The adapter to register in `AGENTS`. */
   adapter(): AgentAdapter {
-    return { title: 'Script', checked: '1.0.0', latest: async () => '1.0.0', setup: () => this }
+    return {
+      title: 'Script',
+      checked: '1.0.0',
+      latest: async () => '1.0.0',
+      setup: (options) => {
+        this.onLimits = options.onLimits
+        return this
+      },
+    }
   }
 
   /** Waits for every turn under way but the parked ones. */
@@ -141,6 +178,20 @@ export class ScriptedAgent implements Agent {
     return models === null ? undefined : async () => ({ models: [...models], complete: true })
   }
 
+  /** Set by `windows`: an agent without a source of limits leaves the method out. */
+  get usage(): ((home: AccountHome, at: string) => Promise<UsageAnswer>) | undefined {
+    const windows = this.windows
+    if (windows === null) return undefined
+    return async (home, at) => {
+      this.polls.push({ account: home.key, at })
+      await this.usageGate?.passed
+      const told = windows(home.key, at)
+      if (told === null) return { kind: 'unknown', reason: notice('usage.noSession', {}) }
+      if (told === 'missing') return { kind: 'missing', reason: notice('usage.noLimits', {}) }
+      return { kind: 'limits', limits: { ...told, updatedAt: at, source: 'usage' } }
+    }
+  }
+
   env(): NodeJS.ProcessEnv {
     return {}
   }
@@ -150,7 +201,7 @@ export class ScriptedAgent implements Agent {
     const summary = new TranscriptFold().summary()
     const entry: AgentEntry = { id: sessionId, cwd: start.cwd, kind: 'script', startedAt: Date.now(), sessionId, name: start.name, account: home.key }
     this.sessions_.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, turn: 0, wroteAt: Date.now() })
-    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, model: start.model })
+    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
     this.play(sessionId, start.prompt)
     return sessionId
   }
@@ -158,7 +209,7 @@ export class ScriptedAgent implements Agent {
   async resume(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string> {
     const known = this.sessions_.get(session.sessionId)
     if (known === undefined) throw new Error(`script: no session ${session.sessionId}`)
-    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, model: start.model })
+    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
     this.play(session.sessionId, start.prompt)
     return session.sessionId
   }
@@ -171,7 +222,7 @@ export class ScriptedAgent implements Agent {
       throw new Error('script: the CLI refused the stop')
     }
     known.turn++
-    this.calls.push({ kind: 'stop', task: known.entry.name ?? '', sessionId: session.sessionId, cwd: known.entry.cwd, prompt: '', provider: home.agent, model: null })
+    this.calls.push({ kind: 'stop', task: known.entry.name ?? '', sessionId: session.sessionId, cwd: known.entry.cwd, prompt: '', provider: home.agent, account: home.key, model: null })
     const { pid: _, resting: __, status: ___, ask: ____, ...rest } = known.entry
     known.entry = { ...rest, state: 'stopped' }
   }
@@ -208,8 +259,8 @@ export class ScriptedAgent implements Agent {
     return this.listed(home).map((entry) => entry.sessionId)
   }
 
-  async authStatus() {
-    return { loggedIn: true, authMethod: 'claude.ai', email: 'john@example.com', orgName: null, subscriptionType: 'max' }
+  async authStatus(home: AccountHome): Promise<AccountStatus> {
+    return { loggedIn: true, authMethod: 'claude.ai', email: `${home.key}@example.com`, orgName: null, subscriptionType: 'max', ...this.statuses.get(home.key) }
   }
 
   login(): never {
@@ -261,6 +312,7 @@ export class ScriptedAgent implements Agent {
         return ((await response.json()) as { message: string | null }).message
       },
       background: () => void (background = true),
+      limits: (reported) => this.onLimits?.(session.entry.account!, reported),
     }
     const running = turn(context)
       .catch((error: unknown): TurnEnd => {
@@ -290,6 +342,9 @@ export class ScriptedAgent implements Agent {
     } else if ('limit' in end) {
       session.entry = resting
       session.summary = { ...said(end.limit), apiError: { kind: 'limit', text: end.limit, at } }
+    } else if ('credit' in end) {
+      session.entry = resting
+      session.summary = { ...said(end.credit), apiError: { kind: 'credit', text: end.credit, at } }
     } else if ('fail' in end) {
       session.entry = resting
       const feed = [...session.summary.feed, { at, kind: 'error' as const, text: end.fail }]

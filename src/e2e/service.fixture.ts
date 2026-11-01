@@ -22,7 +22,10 @@ export const RELEASE_KEY = 'REL'
 export const RELEASE_BRANCH = 'release/v0.1'
 /** The remote's address on the bench's forge; git is pointed at the bare repository by `insteadOf`. */
 const FORGE_URL = `${FORGE_WEB}/john/example.git`
-const ACCOUNT = 'script'
+/** The Claude account folder every project runs on. */
+export const ACCOUNT = 'script'
+/** A second Claude account folder, with `Harness.spare` set: the account a scenario switches to. */
+export const SPARE_ACCOUNT = 'spare'
 /** A Codex account folder the scripted agent plays too: a project names it in `accounts` for a run label to pick it. */
 export const CODEX_ACCOUNT = 'coder'
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
@@ -66,6 +69,8 @@ export class Harness {
   release: Record<string, unknown> | null = null
   /** Whether the scripted agent plays Codex too, with the account folder `CODEX_ACCOUNT`; set before `start`. */
   codex = false
+  /** Whether a second Claude account folder `SPARE_ACCOUNT` is there; set before `start`. */
+  spare = false
   private context: ServiceContext | undefined
   /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
   private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
@@ -95,6 +100,7 @@ export class Harness {
 
   async stop(): Promise<void> {
     this.agent.listing?.open()
+    this.agent.usageGate?.open()
     await this.halt()
     vi.useRealTimers()
     Object.assign(console, this.console)
@@ -170,7 +176,8 @@ export class Harness {
 
   private prepare(): void {
     const codex = this.codex ? `codex-accounts/${CODEX_ACCOUNT}` : 'codex-accounts'
-    for (const folder of ['data', `accounts/${ACCOUNT}`, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
+    const spare = this.spare ? [`accounts/${SPARE_ACCOUNT}`] : []
+    for (const folder of ['data', `accounts/${ACCOUNT}`, ...spare, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
     if (this.forge) writeFileSync(join(this.dir, '.gitconfig'), '[core]\n\tlongpaths = true\n')
     execFileSync('git', ['init', '-q', '-b', 'main', this.repo])
     this.configure(this.repo)
@@ -248,6 +255,8 @@ export class Harness {
   /** Imports the service anew: a fresh module graph, the scripted agent and the board registered before it reads them. */
   private async boot(): Promise<void> {
     vi.resetModules()
+    // No provider is behind the bench: the network check before an account's call answers at once, without a request.
+    vi.doMock('../account/network.js', async (original) => ({ ...(await original<typeof import('../account/network.js')>()), answers: async () => true }))
     const { AGENTS } = await import('../agent/adapters.js')
     const agents = AGENTS as Record<string, unknown>
     for (const name of Object.keys(agents)) delete agents[name]
@@ -265,11 +274,16 @@ export class Harness {
       FORGES.forgejo = ({ web, owner, repo }, token, timeoutMs) => forgejoPulls({ web, owner, repo, token }, timeoutMs, this.pulls.fetch)
     }
     const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))
+    const booted = this.log.length
     await import('../main.js')
     this.signals = SIGNALS.flatMap((signal) => process.listeners(signal).filter((listener) => !before.get(signal)!.has(listener)).map((listener) => ({ signal, listener })))
     const service = (await import('../service.js')).service
     this.context = service
-    await this.until(() => service.account.view.accounts.some((entry) => entry.key === ACCOUNT && entry.status?.loggedIn === true), 'the account read')
+    const keys = this.spare ? [ACCOUNT, SPARE_ACCOUNT] : [ACCOUNT]
+    const read = (key: string) => service.account.view.accounts.some((entry) => entry.key === key && entry.status?.loggedIn === true)
+    await this.until(() => keys.every(read), 'the accounts read')
+    // The gateway listens in the background: a halt before it does closes nothing, and the next start finds its port held.
+    await this.until(() => this.log.slice(booted).some((line) => line.startsWith('mcp gateway: ')), 'the MCP gateway up', { step: 100 })
   }
 
   private async halt(): Promise<void> {
