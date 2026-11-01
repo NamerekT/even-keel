@@ -4,6 +4,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vi } from 'vitest'
+import type { Notice } from '../notice/notice.js'
 import type { ServiceContext } from '../service.js'
 import { ScriptedAgent } from './agent.fixture.js'
 import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
@@ -11,6 +12,8 @@ import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
 export const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 export const KEY = 'ABC'
 const ACCOUNT = 'script'
+/** A Codex account folder the scripted agent plays too: a project names it in `accounts` for a run label to pick it. */
+export const CODEX_ACCOUNT = 'coder'
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 /** The real `setTimeout`, for waits on real I/O (git, the database) while the service's own timers are fake. */
 const realTimeout = globalThis.setTimeout
@@ -27,6 +30,8 @@ export class Harness {
   readonly log: string[] = []
   /** Keys of the project's entry in the config file the service starts on, set before `start`. */
   readonly project: Record<string, unknown> = {}
+  /** Whether the scripted agent plays Codex too, with the account folder `CODEX_ACCOUNT`; set before `start`. */
+  codex = false
   private context: ServiceContext | undefined
   /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
   private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
@@ -84,6 +89,18 @@ export class Harness {
 
   /** A command of the page, through the service's own server; throws on an error answer. */
   async post(command: string, body: Record<string, unknown>): Promise<void> {
+    const answer = await this.send(command, body)
+    if (!answer.ok) throw new Error(`e2e: ${command}: ${answer.status} ${await answer.text()}`)
+  }
+
+  /** A command of the page the service is to refuse: the notice it answers with; throws on a success. */
+  async refused(command: string, body: Record<string, unknown>): Promise<Notice> {
+    const answer = await this.send(command, body)
+    if (answer.ok) throw new Error(`e2e: ${command} went through`)
+    return ((await answer.json()) as { notice: Notice }).notice
+  }
+
+  private async send(command: string, body: Record<string, unknown>): Promise<Response> {
     const { host, port } = this.service.listen
     let answer: Response | undefined
     let failure: unknown
@@ -93,7 +110,7 @@ export class Harness {
     )
     await this.until(() => answer !== undefined || failure !== undefined, `the page's ${command} answered`, { step: 100 })
     if (failure !== undefined) throw failure
-    if (!answer!.ok) throw new Error(`e2e: ${command}: ${answer!.status} ${await answer!.text()}`)
+    return answer!
   }
 
   /** Moves the clock by `ms`, letting real I/O run along. */
@@ -107,7 +124,8 @@ export class Harness {
   }
 
   private prepare(): void {
-    for (const folder of ['data', 'accounts/script', 'codex-accounts', 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
+    const codex = this.codex ? `codex-accounts/${CODEX_ACCOUNT}` : 'codex-accounts'
+    for (const folder of ['data', `accounts/${ACCOUNT}`, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
     execFileSync('git', ['init', '-q', '-b', 'main', this.repo])
     this.git('config', 'user.email', 'john@example.com')
     this.git('config', 'user.name', 'John Doe')
@@ -153,7 +171,9 @@ export class Harness {
     const agents = AGENTS as Record<string, unknown>
     for (const name of Object.keys(agents)) delete agents[name]
     const { CLAUDE } = await import('../claude/name.js')
+    const { CODEX } = await import('../codex/name.js')
     agents[CLAUDE] = this.agent.adapter()
+    if (this.codex) agents[CODEX] = this.agent.adapter()
     const { ADAPTERS } = await import('../tracker/adapters.js')
     ;(ADAPTERS as Record<string, unknown>)[BOARD_TRACKER] = this.board.adapter()
     const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))

@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
-import type { Agent, AgentAdapter, SessionHandle, SessionStart } from '../agent/contract.js'
+import type { Agent, AgentAdapter, ModelList, SessionHandle, SessionStart } from '../agent/contract.js'
 import { runGit } from '../git/run.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { MailEvent } from '../sessions/mail.js'
+import { hungEntry } from '../sessions/silence.js'
 import { TranscriptFold, type TranscriptSummary } from '../sessions/transcript.js'
 
 /** What a turn of a scripted session sees: its task, its folder, the prompt it got and the main checkout to merge into. */
@@ -22,6 +23,8 @@ export interface TurnContext {
   park(gate: Gate): Promise<void>
   /** Asks the service for the chat's mail on `event`, as the `checkpoint` plugin's mailbox hook does; `null` — none. */
   mail(event: MailEvent): Promise<string | null>
+  /** Starts a background command that outlives the turn: the turn ends in `shell`, its process alive until a stop. */
+  background(): void
 }
 
 /** How a turn ends, as a session's transcript would show it. */
@@ -45,6 +48,9 @@ export interface Call {
   sessionId: string
   cwd: string
   prompt: string
+  /** The account's agent and the model the service asked for; `null` — the agent's configured default. */
+  provider: string
+  model: string | null
 }
 
 interface Session {
@@ -52,6 +58,8 @@ interface Session {
   summary: TranscriptSummary
   /** Turns of this session still running: a stop lets theirs go unsaid. */
   turn: number
+  /** When the running turn last wrote to its transcript: its start. */
+  wroteAt: number
 }
 
 const PID = 4242
@@ -84,6 +92,8 @@ export class ScriptedAgent implements Agent {
   listing: Gate | null = null
   /** How many stops to come the CLI refuses, the session left as it was: a resume, which stops first, fails with it. */
   refuse = 0
+  /** The models every account lists, the list complete; `null` — the agent has no list, as Claude's. */
+  modelList: string[] | null = null
 
   constructor(
     private readonly repo: () => string,
@@ -122,6 +132,12 @@ export class ScriptedAgent implements Agent {
     return entry === undefined || (entry.pid === undefined && entry.resting !== true)
   }
 
+  /** Set by `modelList`: an agent without a list leaves the method out. */
+  get models(): ((home: AccountHome) => Promise<ModelList>) | undefined {
+    const models = this.modelList
+    return models === null ? undefined : async () => ({ models: [...models], complete: true })
+  }
+
   env(): NodeJS.ProcessEnv {
     return {}
   }
@@ -130,21 +146,21 @@ export class ScriptedAgent implements Agent {
     const sessionId = randomUUID()
     const summary = new TranscriptFold().summary()
     const entry: AgentEntry = { id: sessionId, cwd: start.cwd, kind: 'script', startedAt: Date.now(), sessionId, name: start.name, account: home.key }
-    this.sessions_.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, turn: 0 })
-    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt })
+    this.sessions_.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, turn: 0, wroteAt: Date.now() })
+    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, model: start.model })
     this.play(sessionId, start.prompt)
     return sessionId
   }
 
-  async resume(_home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string> {
+  async resume(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string> {
     const known = this.sessions_.get(session.sessionId)
     if (known === undefined) throw new Error(`script: no session ${session.sessionId}`)
-    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt })
+    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, model: start.model })
     this.play(session.sessionId, start.prompt)
     return session.sessionId
   }
 
-  async stop(_home: AccountHome, session: SessionHandle): Promise<void> {
+  async stop(home: AccountHome, session: SessionHandle): Promise<void> {
     const known = this.sessions_.get(session.sessionId)
     if (known === undefined) return
     if (this.refuse > 0) {
@@ -152,7 +168,7 @@ export class ScriptedAgent implements Agent {
       throw new Error('script: the CLI refused the stop')
     }
     known.turn++
-    this.calls.push({ kind: 'stop', task: known.entry.name ?? '', sessionId: session.sessionId, cwd: known.entry.cwd, prompt: '' })
+    this.calls.push({ kind: 'stop', task: known.entry.name ?? '', sessionId: session.sessionId, cwd: known.entry.cwd, prompt: '', provider: home.agent, model: null })
     const { pid: _, resting: __, status: ___, ask: ____, ...rest } = known.entry
     known.entry = { ...rest, state: 'stopped' }
   }
@@ -163,7 +179,8 @@ export class ScriptedAgent implements Agent {
   }
 
   private listed(home: AccountHome): AgentEntry[] {
-    return [...this.sessions_.values()].filter((session) => session.entry.account === home.key).map((session) => ({ ...session.entry }))
+    // A busy turn carries the time of its last write, as the adapters' transcript reading gives it (`TurnActivity`).
+    return [...this.sessions_.values()].filter((session) => session.entry.account === home.key).map((session) => hungEntry({ ...session.entry }, session.wroteAt, Date.now()))
   }
 
   tail(_home: AccountHome, agent: AgentEntry) {
@@ -204,6 +221,8 @@ export class ScriptedAgent implements Agent {
     const turn = this.scripts.get(task)?.shift()
     if (turn === undefined) throw new Error(`script: ${task} has no turn left`)
     const id = ++session.turn
+    session.wroteAt = Date.now()
+    let background = false
     const at = () => new Date().toISOString()
     session.entry = { ...session.entry, pid: PID, status: 'busy', state: 'working', resting: false }
     delete session.entry.ask
@@ -238,6 +257,7 @@ export class ScriptedAgent implements Agent {
         if (!response.ok) throw new Error(`script: mail on ${event}: ${response.status}`)
         return ((await response.json()) as { message: string | null }).message
       },
+      background: () => void (background = true),
     }
     const running = turn(context)
       .catch((error: unknown): TurnEnd => {
@@ -247,6 +267,7 @@ export class ScriptedAgent implements Agent {
       .then((end) => {
         if (session.turn !== id) return
         this.end(session, end, at())
+        if (background && session.entry.resting === true) session.entry = { ...session.entry, pid: PID, status: 'shell', resting: false }
       })
       .finally(() => this.running.delete(running))
     this.running.add(running)
