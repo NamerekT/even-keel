@@ -27,7 +27,7 @@ and administrator bypasses.
 | `remote.ts` | `parseRemote` (https, ssh and scp forms), `ciTargets`: which remote gets which CI |
 | `forgejo.ts`, `github.ts`, `gitlab.ts` | the CI adapters |
 | `http.ts` | `getJson` and its notices `ci.denied`, `ci.http`, `ci.unreachable` |
-| `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `sessionBase`), `ciSource`, `projectTargets` |
+| `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `sessionBase`), `CI_SOURCES` (the adapter of each kind; the end-to-end tests put their fake in place of Forgejo's), `ciSource`, `projectTargets` |
 | `watcher.ts` | `CiWatch`, one per CI of a project's checkout |
 | `shared.ts` | `SharedSources`: shared API answers per repository and token, with runs scoped by branch and limit |
 | `verdict.ts` | `verdictOf`: what the CIs say about a pushed commit — green, red, pending or unavailable |

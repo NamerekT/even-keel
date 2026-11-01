@@ -1,4 +1,4 @@
-import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
+import type { NewTask, TaskSource, TrackerAdapter } from '../tracker/source.js'
 import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
@@ -29,6 +29,10 @@ export class Board {
   refuseRelabel: string | null = null
   /** While set, every read of tasks throws with this text, as a tracker that does not answer does. */
   failReads: string | null = null
+  /** The key of each project's tasks by its id: a project reads only the tasks of its key; one not here reads all. */
+  readonly keys = new Map<string, string>()
+  /** The tasks the service created (the fix of a red main), by id, with what it asked for. */
+  readonly created = new Map<string, NewTask>()
 
   add(id: string, ...blockedBy: string[]): void {
     this.tasks.set(id, { ...fakeTask(id), blockedBy })
@@ -101,9 +105,11 @@ export class Board {
   private source(): TaskSource {
     const copy = (task: TrackerTask) => structuredClone(task)
     return {
-      chainTasks: async (_project, open) => {
+      chainTasks: async (project, open) => {
         this.read()
-        return { tasks: [...this.tasks.values()].filter((task) => open(task.status)).map(copy), statuses: STATUSES.map((status) => status.name) }
+        const key = this.keys.get(project)
+        const own = (task: TrackerTask) => key === undefined || task.id.startsWith(`${key}-`)
+        return { tasks: [...this.tasks.values()].filter((task) => own(task) && open(task.status)).map(copy), statuses: STATUSES.map((status) => status.name) }
       },
       tasks: async (ids) => {
         this.read()
@@ -139,6 +145,14 @@ export class Board {
         return [...task.labels]
       },
       comment: async (id, body) => this.reply(id, body),
+      create: async (task) => {
+        const key = this.keys.get(task.project) ?? 'TASK'
+        const id = `${key}-${100 + this.created.size + 1}`
+        const milestone = task.milestoneOf === null ? null : (this.tasks.get(task.milestoneOf)?.milestone ?? null)
+        this.tasks.set(id, fakeTask(id, { title: task.title, priority: task.priority, milestone }))
+        this.created.set(id, task)
+        return id
+      },
       commentsAfter: async (id, after) => {
         const number = after.startsWith(`${id}-comment-`) ? Number(after.slice(`${id}-comment-`.length)) : NaN
         if (!Number.isInteger(number) || number > this.commentsOf(id).length) return []

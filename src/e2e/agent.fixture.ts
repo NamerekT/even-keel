@@ -96,7 +96,8 @@ export class ScriptedAgent implements Agent {
   modelList: string[] | null = null
 
   constructor(
-    private readonly repo: () => string,
+    /** The project checkout of a session's folder. */
+    private readonly repo: (cwd: string) => string,
     private readonly address: () => { host: string; port: number },
   ) {}
 
@@ -233,7 +234,7 @@ export class ScriptedAgent implements Agent {
       sessionId,
       cwd,
       prompt,
-      repo: this.repo(),
+      repo: this.repo(cwd),
       git: async (...args) => {
         const result = await runGit(cwd, args)
         if (result.code !== 0) throw new Error(`script: git ${args.join(' ')} in ${cwd}: ${result.out}`)

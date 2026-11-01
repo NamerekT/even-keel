@@ -2,15 +2,21 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { vi } from 'vitest'
 import type { Notice } from '../notice/notice.js'
 import type { ServiceContext } from '../service.js'
 import { ScriptedAgent } from './agent.fixture.js'
+import { Ci, FORGE_WEB } from './ci.fixture.js'
 import { Board, BOARD_TRACKER, BOARD_VARIABLE } from './tracker.fixture.js'
 
 export const PROJECT_ID = '11111111-1111-4111-8111-111111111111'
 export const KEY = 'ABC'
+/** The second project of `Harness.second`: a clone of the same remote. */
+export const SECOND_ID = '22222222-2222-4222-8222-222222222222'
+export const SECOND_KEY = 'DEF'
+/** The remote's address on the bench's forge; git is pointed at the bare repository by `insteadOf`. */
+const FORGE_URL = `${FORGE_WEB}/john/example.git`
 const ACCOUNT = 'script'
 /** A Codex account folder the scripted agent plays too: a project names it in `accounts` for a run label to pick it. */
 export const CODEX_ACCOUNT = 'coder'
@@ -25,11 +31,25 @@ const realTimeout = globalThis.setTimeout
 export class Harness {
   readonly dir = mkdtempSync(join(tmpdir(), 'even-keel-e2e-'))
   readonly repo = join(this.dir, 'repo')
+  /** The checkout of the second project, with `second` set. */
+  readonly repo2 = join(this.dir, 'repo2')
+  /** The bare repository behind the forge's remote, with `forge` set. */
+  readonly remote = join(this.dir, 'remote.git')
   readonly board = new Board()
-  readonly agent = new ScriptedAgent(() => this.repo, () => this.service.listen)
+  readonly ci = new Ci(() => this.remote)
+  readonly agent = new ScriptedAgent((cwd) => this.checkoutOf(cwd), () => this.service.listen)
   readonly log: string[] = []
   /** Keys of the project's entry in the config file the service starts on, set before `start`. */
   readonly project: Record<string, unknown> = {}
+  /** Top-level keys of the config file the service starts on (`parallel`), set before `start`. */
+  readonly config: Record<string, unknown> = {}
+  /**
+   * Set before `start`: the project's checkout is a clone of a bare repository on a forge with a CI workflow, its runs
+   * played by `ci` in place of the Forgejo adapter, and a Forgejo profile with a token is made for it at the first start.
+   */
+  forge = false
+  /** Set before `start`, with `forge`: keys of a second project `SECOND_KEY`, its clone `repo2` of the same remote. */
+  second: Record<string, unknown> | null = null
   /** Whether the scripted agent plays Codex too, with the account folder `CODEX_ACCOUNT`; set before `start`. */
   codex = false
   private context: ServiceContext | undefined
@@ -120,29 +140,60 @@ export class Harness {
   }
 
   git(...args: string[]): string {
-    return execFileSync('git', ['-C', this.repo, ...args], { encoding: 'utf8' }).trim()
+    return this.gitIn(this.repo, ...args)
+  }
+
+  gitIn(repo: string, ...args: string[]): string {
+    return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
+  }
+
+  /** The project checkout a session's folder is in: its worktrees are inside it. */
+  private checkoutOf(cwd: string): string {
+    return [this.repo2, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
   }
 
   private prepare(): void {
     const codex = this.codex ? `codex-accounts/${CODEX_ACCOUNT}` : 'codex-accounts'
     for (const folder of ['data', `accounts/${ACCOUNT}`, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
+    if (this.forge) writeFileSync(join(this.dir, '.gitconfig'), '[core]\n\tlongpaths = true\n')
     execFileSync('git', ['init', '-q', '-b', 'main', this.repo])
-    this.git('config', 'user.email', 'john@example.com')
-    this.git('config', 'user.name', 'John Doe')
-    this.git('config', 'commit.gpgsign', 'false')
-    this.git('config', 'core.autocrlf', 'false')
+    this.configure(this.repo)
     writeFileSync(join(this.repo, 'README.md'), '# Example\n')
     writeFileSync(join(this.repo, '.gitignore'), '.temp/\n')
+    if (this.forge) {
+      mkdirSync(join(this.repo, '.forgejo', 'workflows'), { recursive: true })
+      writeFileSync(join(this.repo, '.forgejo', 'workflows', 'ci.yml'), 'on: push\n')
+    }
     this.git('add', '.')
     this.git('commit', '-q', '-m', 'Initial commit')
-    const config = {
-      version: 19,
-      language: 'en',
-      accounts: { claude: ACCOUNT },
-      updates: { check: false },
-      projects: [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }],
+    const projects = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...this.project }]
+    this.board.keys.set(PROJECT_ID, KEY)
+    if (this.forge) {
+      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.remote])
+      this.git('remote', 'add', 'origin', FORGE_URL)
+      this.git('push', '-q', '-u', 'origin', 'main')
     }
+    if (this.second !== null) {
+      if (!this.forge) throw new Error('e2e: a second project needs the forge')
+      // Checked out as committed: a machine's `core.autocrlf` would leave the clone with changes to every file.
+      execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', this.remote, this.repo2])
+      this.configure(this.repo2)
+      this.gitIn(this.repo2, 'remote', 'set-url', 'origin', FORGE_URL)
+      this.gitIn(this.repo2, 'fetch', '-q', 'origin')
+      projects.push({ id: SECOND_ID, key: SECOND_KEY, tracker: BOARD_TRACKER, repo: this.repo2, ...this.second })
+      this.board.keys.set(SECOND_ID, SECOND_KEY)
+    }
+    const config = { version: 19, language: 'en', accounts: { claude: ACCOUNT }, updates: { check: false }, projects, ...this.config }
     writeFileSync(join(this.dir, 'data', 'even-keel.config.json'), JSON.stringify(config, null, 2))
+  }
+
+  /** A checkout's identity and line endings; with the forge, its remote's address leads git to the bare repository. */
+  private configure(repo: string): void {
+    this.gitIn(repo, 'config', 'user.email', 'john@example.com')
+    this.gitIn(repo, 'config', 'user.name', 'John Doe')
+    this.gitIn(repo, 'config', 'commit.gpgsign', 'false')
+    this.gitIn(repo, 'config', 'core.autocrlf', 'false')
+    if (this.forge) this.gitIn(repo, 'config', `url.${this.remote.replaceAll('\\', '/')}.insteadOf`, FORGE_URL)
   }
 
   private async environment(): Promise<void> {
@@ -161,6 +212,8 @@ export class Harness {
       CODEX_HOME: join(this.dir, 'codex'),
       [BOARD_VARIABLE]: 'token',
     })
+    // The forge's checkouts sync by the built-in fetch, merge and push, not by a `git sync` alias of the machine.
+    if (this.forge) Object.assign(process.env, { FORGEJO_TOKEN: 'token', GIT_CONFIG_GLOBAL: join(this.dir, '.gitconfig') })
     for (const method of ['log', 'warn', 'error'] as const) console[method] = (...args: unknown[]) => void this.log.push(args.map(String).join(' '))
   }
 
@@ -176,6 +229,10 @@ export class Harness {
     if (this.codex) agents[CODEX] = this.agent.adapter()
     const { ADAPTERS } = await import('../tracker/adapters.js')
     ;(ADAPTERS as Record<string, unknown>)[BOARD_TRACKER] = this.board.adapter()
+    if (this.forge) {
+      const { CI_SOURCES } = await import('../ci/adapters.js')
+      CI_SOURCES.forgejo = () => this.ci.source()
+    }
     const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))
     await import('../main.js')
     this.signals = SIGNALS.flatMap((signal) => process.listeners(signal).filter((listener) => !before.get(signal)!.has(listener)).map((listener) => ({ signal, listener })))

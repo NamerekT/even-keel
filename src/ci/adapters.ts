@@ -52,12 +52,15 @@ export function ciToken(
   return profile !== undefined && token ? { token, profile: profile.id } : null
 }
 
+/** The CI adapter of each kind; the end-to-end tests put their fake in place of one (`src/e2e/ci.fixture.ts`). */
+export const CI_SOURCES: Record<CiKind, (target: CiTarget, token: string, timeoutMs: number) => CiSource> = {
+  forgejo: ({ web, owner, repo }, token, timeoutMs) => forgejoSource({ web, owner, repo, token }, timeoutMs),
+  github: ({ owner, repo }, token, timeoutMs) => githubActionsSource({ owner, repo, token }, timeoutMs),
+  gitlab: (target, token, timeoutMs) => gitlabSource({ ...target, token }, timeoutMs),
+}
+
 export function ciSource(target: CiTarget, token: string | null, timeoutMs: number): CiSource | null {
-  if (!token) return null
-  if (target.kind === 'gitlab') return gitlabSource({ ...target, token }, timeoutMs)
-  return target.kind === 'github'
-    ? githubActionsSource({ owner: target.owner, repo: target.repo, token }, timeoutMs)
-    : forgejoSource({ web: target.web, owner: target.owner, repo: target.repo, token }, timeoutMs)
+  return token ? CI_SOURCES[target.kind](target, token, timeoutMs) : null
 }
 
 /** The remotes with configuration for their forge's CI, using current profiles to identify self-managed GitLab. */
