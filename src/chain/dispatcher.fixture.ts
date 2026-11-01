@@ -50,6 +50,8 @@ export interface SetupOptions {
   limitsUnread?: LimitsWait
   /** Projects whose set of packages has a problem that holds the chain. */
   packagesBlocked?: Set<string>
+  /** Brief is off and no package brings the tracker's MCP server. */
+  trackerBlock?: Notice
   /** Whether the service has read its account folders since its start; absent — it has. */
   accountsRead?: boolean
   /** Whether the monitor has read the sessions since the service's start; absent — it has. */
@@ -155,6 +157,7 @@ export function setup(options: SetupOptions = {}) {
     limitReopenedAt: options.limitReopenedAt ?? (() => null),
     limitsUnread: () => options.limitsUnread,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
+    trackerBlock: () => options.trackerBlock,
     accountsRead: () => options.accountsRead ?? true,
     sessionsRead: () => options.sessionsRead ?? true,
     promptLanguage: () => 'ru',

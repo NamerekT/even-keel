@@ -137,14 +137,23 @@
 
 .card__foot .button,
 .card .pull-fix,
-.card .notice-fix {
+.card .notice-fix,
+.card .tracker-fix {
   position: relative;
   z-index: 1;
 }
 
 .card .pull-fix,
-.card .notice-fix {
+.card .notice-fix,
+.card .tracker-fix {
   align-self: flex-end;
+}
+
+.tracker-fix {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8);
 }
 
 /* A chart is a card (`.ui-card`) */

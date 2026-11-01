@@ -179,6 +179,8 @@ export const en = {
   'review.notReady': (p: { project: string }) =>
     `PR mode of ${p.project} has nowhere to open pull requests, so its chain starts no task; it goes on by itself within a minute once that is fixed, or turn PR mode off`,
   'review.cannotEnable': (p: { project: string }) => `PR mode of ${p.project} is not turned on`,
+  'chain.noTrackerMcp': (p: { project: string; server: string }) =>
+    `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package of the project brings the tracker's MCP server ${p.server}, so a session would not see its task; turn on a package with it or turn the description on, and the chain goes on by itself`,
   'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub, GitLab or Forgejo to open a pull request on`,
   'review.noToken': (p: { remote: string; kind: CiKind; web: string }) =>
     `no profile has a token for the remote ${p.remote} (${p.web}); add a ${FORGES[p.kind]} profile for its host`,

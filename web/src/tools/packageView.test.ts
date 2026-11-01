@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { PackagesView, ProjectPackages } from '../../../src/state.js'
-import { blockedProjects, heldFor, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage } from './packageView.js'
+import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
+import { blockedProjects, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -67,21 +67,28 @@ describe('blockedProjects', () => {
     }
     expect(blockedProjects(view({ projects }), ['ABC', 'XYZ'])).toEqual(['XYZ'])
   })
-})
 
-describe('heldFor', () => {
-  it('groups the held projects that lack the tracker server by the server, the others together', () => {
+  it('leaves out a project held only for the tracker server its sessions lack: its own block says why', () => {
+    const probing = { a: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'probing' as const }] } }
     const projects = {
       ABC: project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]),
-      XYZ: project(true),
-      DEMO: project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]),
-      GH: project(true, [{ kind: 'noTrackerMcp', server: 'github' }]),
+      DEMO: { ...project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]), cells: probing },
+      XYZ: { ...project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]), cells: { a: { ...probing.a, problems: [{ kind: 'noKey' as const, variables: ['A_TOKEN'] }] } } },
     }
-    expect(heldFor(view({ projects }), ['ABC', 'XYZ', 'DEMO', 'GH'])).toEqual([
-      { server: 'huly', projects: ['ABC', 'DEMO'] },
-      { server: null, projects: ['XYZ'] },
-      { server: 'github', projects: ['GH'] },
-    ])
+    expect(blockedProjects(view({ projects }), ['ABC', 'DEMO', 'XYZ'])).toEqual(['XYZ'])
+  })
+})
+
+describe('trackerPackageOf', () => {
+  const pkg = (name: string, over: Partial<PackageView>): PackageView => ({
+    name, kind: 'plugin', installed: true, version: '1', latest: null, fetched: null, installing: false, error: null, note: null,
+    default: false, settings: {}, servers: [], extras: false, removed: false, ...over,
+  })
+
+  it('names the installed package that brings the server, not one still to install or removed', () => {
+    const packages = [pkg('a', { servers: ['huly'], installed: false }), pkg('b', { servers: ['huly'], removed: true }), pkg('huly@even-keel', { servers: ['huly'] })]
+    expect(trackerPackageOf(view({ packages }), 'huly')).toBe('huly@even-keel')
+    expect(trackerPackageOf(view({ packages }), 'github')).toBeNull()
   })
 })
 

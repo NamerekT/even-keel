@@ -242,6 +242,12 @@ export class Packages {
     return bringsServer(this.file, project, server)
   }
 
+  /** The tracker's MCP server the project's sessions need and no package brings (`noTrackerMcp`); `undefined` — none missing. */
+  trackerMissing(project: string): string | undefined {
+    const missing = this.check(project).problems.find((problem) => problem.kind === 'noTrackerMcp')
+    return missing?.kind === 'noTrackerMcp' ? missing.server : undefined
+  }
+
   /** The chain waits while the project's set has a problem that holds it. */
   blocked(project: string): boolean {
     return this.gatewayError !== null || this.check(project).blocked

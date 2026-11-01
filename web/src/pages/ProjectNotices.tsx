@@ -11,6 +11,7 @@ import { Band, FoldBand } from '../ui/blocks.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
+import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { UntrustedCommands } from './TrustCommands.js'
 import { forwardTone, projectErrors, warningTasks } from './noticeGroups.js'
 import './projectNotices.css'
@@ -50,6 +51,7 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
             <>
               <NoticeFixButton project={project} notice={error} />
               <PullFixButton state={state} project={project} error={error} />
+              <TrackerFixButtons state={state} project={project} error={error} />
             </>
           }>
             <Said notice={error} />
