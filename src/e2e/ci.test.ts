@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, ends, Gate, lingers, parked, type Turn } from './agent.fixture.js'
 import type { Outcome } from './ci.fixture.js'
-import { Harness, PROJECT_ID } from './service.fixture.js'
+import { ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
 import { STUCK_MS } from '../ci/model.js'
 
 describe('the CI of main end to end', { timeout: 60_000 }, () => {
@@ -274,5 +274,52 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
       expect(run.agent.sessionsOf('ABC-2')[0]!.ask?.id).toBe(session.ask!.id)
       expect(chain()?.current?.sessionId).toBe(session.sessionId)
     })
+
+    it('goes on after the fix on an account with no e-mail, the stopped session resumed (BTN-537)', async () => {
+      run.agent.statuses.set(ACCOUNT, { email: null })
+      const gate = new Gate()
+      await underTask('success', ends({ say: 'A first look' }), parked(gate, ends({ say: 'never' })), goOn)
+      await run.until(() => run.agent.sessionsOf('ABC-2')[0]?.resting === true, 'the first turn of ABC-2 over')
+      await run.pass(15_000)
+      const session = calls('launch', 'ABC-2')[0]!.sessionId
+      await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-2', sessionId: session, ask: null, answers: {}, text: 'Go on' })
+      await run.until(() => calls('resume', 'ABC-2').length === 1, 'ABC-2 working on the chat message')
+
+      run.ci.finish('ABC-1', 'failure')
+      await run.until(() => calls('launch', fix).length === 1, 'the fix session launched')
+      await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done after the fix')
+      expect(calls('resume', 'ABC-2')[1]).toMatchObject({ sessionId: session, prompt: expect.stringContaining('It is fixed, main is now at commit') })
+      expect(calls('launch', 'ABC-2')).toHaveLength(1)
+      expect(chain()?.interrupted).toBeUndefined()
+    })
+  })
+
+  it('watches the CI of a remote added to the checkout while the service runs, within a minute', async () => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.agent.script('ABC-1', commitAndMerge('one.txt'))
+    run.agent.script('ABC-2', commitAndMerge('two.txt'))
+    run.ci.outcome = (subject) => (subject.includes('ABC-1') ? 'running' : 'success')
+    await run.start()
+    // As written, not as `insteadOf` leads git: the forge's address.
+    const url = run.git('config', '--get', 'remote.origin.url')
+    // The first start made the Forgejo profile from the remote; the project comes back without it.
+    await run.restart(() => void run.git('remote', 'remove', 'origin'))
+    await run.pass(2 * 60_000)
+    expect(run.service.ciWatches.shown(PROJECT_ID)).toEqual([])
+
+    run.git('remote', 'add', 'origin', url)
+    const added = Date.now()
+    const before = run.log.length
+    await run.until(() => run.service.ciWatches.shown(PROJECT_ID).length === 1, 'the CI of the new remote watched')
+    expect(Date.now() - added).toBeLessThanOrEqual(60_000)
+    expect(run.log.slice(before)).toContain('ci: ABC watches forgejo on origin')
+
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done' && chain()?.ciWait !== undefined, 'the chain waiting for the verdict on the push of ABC-1')
+    await run.pass(60_000)
+    expect(launched()).toEqual(['ABC-1'])
+    run.ci.finish('ABC-1', 'success')
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done after the green push')
   })
 })
