@@ -9,6 +9,7 @@ import type { StripLine } from '../ui/fieldStripFit.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { EMPTY_LOOKUP, answered, failed, failureShown, retryDelay, type Lookup } from './projectLookup.js'
 import { pickProject, placeOf, shapeOf, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
@@ -251,7 +252,7 @@ interface TextFieldProps {
   upper?: boolean
   disabled?: boolean
   invalid?: boolean
-  /** The suggestions of the browser's own list. */
+  /** The suggestions of the field's list: a tracker project's key and its name. */
   options?: { value: string; label: string }[]
   /** The strip under the field: what the value was found as, or what is wrong with it. */
   line?: StripLine | null
@@ -268,26 +269,18 @@ function TextField({ id, label, hint, value, placeholder, upper = false, disable
     <div className={box}>
       <FieldHead label={label} hint={hint} htmlFor={id} mark={mark} />
       <FieldStrip line={line}>
-        <input
+        <SuggestField
           id={id}
           className={`settings__text settings__text--mono tracker-fields__wide${upper ? ' tracker-fields__upper' : ''}`}
-          spellCheck={false}
-          autoComplete="off"
-          list={options.length > 0 ? `${id}-list` : undefined}
+          mono
           value={value}
+          options={options}
           placeholder={placeholder}
           disabled={disabled}
-          aria-invalid={invalid || undefined}
-          onChange={(event) => onChange(event.target.value)}
+          invalid={invalid}
+          onChange={onChange}
         />
       </FieldStrip>
-      {options.length > 0 && (
-        <datalist id={`${id}-list`}>
-          {options.map((option) => (
-            <option key={`${option.value}\u0000${option.label}`} value={option.value} label={option.label} />
-          ))}
-        </datalist>
-      )}
       {children}
     </div>
   )
@@ -319,8 +312,7 @@ function exactOf(shape: TrackerShape, fields: WizardFields, list: TrackerProject
 
 /**
  * The profile's projects that have the text, asked a moment after the last keystroke.
- * With `keepPicked`, a text that is a key of the list already shown is not asked again: a new list in the datalist
- * makes the browser open it again under the focused field, a second or two after the user picked from it.
+ * With `keepPicked`, a text that is a key of the list already shown is not asked again: a pick needs no new list.
  * A failed ask is asked again after a growing pause, and at once when the service restarts, the page reconnects or
  * the profile's check changes (BTN-621).
  */

@@ -49,7 +49,7 @@ import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerValues } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
-import { ModelOffers } from './ModelOffers.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
@@ -292,19 +292,18 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const model = (key: string, label: string, offers: readonly string[]) => (
     <div className={marks.box(key)}>
       <ErrorStrip error={errorOf(key)} wide>
-        <input
+        <SuggestField
           id={fieldId(key)}
           className="settings__text settings__text--mono"
-          aria-label={label}
-          spellCheck={false}
+          label={label}
+          mono
           value={text(key)}
+          options={offers}
           placeholder={t.settings.cliDefault}
-          aria-invalid={errorOf(key) !== null}
-          list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
-          onChange={(event) => edit(key, event.target.value)}
+          invalid={errorOf(key) !== null}
+          onChange={(value) => edit(key, value)}
         />
       </ErrorStrip>
-      <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
     </div>
   )
   const pick = (key: string, label: string, options: readonly { value: string; label: string }[]) => (

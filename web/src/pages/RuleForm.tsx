@@ -4,6 +4,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { t } from '../i18n/index.js'
 import { PlusIcon, TrashIcon, UndoIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import {
   labelRows,
   milestoneModeOf,
@@ -175,13 +176,6 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
   return (
     <div className={marks.box(['requiredLabels', 'excludedLabels'])}>
       <FieldHead label={t.settings.ruleLabels} hint={t.settings.ruleLabelsHint} mark={<>{marks.note('requiredLabels')}{marks.note('excludedLabels')}</>} />
-      <datalist id={`${id}-labels`}>
-        {labels
-          .filter((name) => !rows.some((row) => sameName(row.name, name)))
-          .map((name) => (
-            <option key={name} value={name} />
-          ))}
-      </datalist>
       <table className="rule-table" aria-label={t.settings.ruleLabels}>
         <thead>
           <tr>
@@ -218,12 +212,11 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
         <tfoot>
           <tr className="rows__new">
             <td>
-              <input
+              <SuggestField
                 className="rows__input"
-                aria-label={t.settings.labelAdd}
-                list={`${id}-labels`}
-                spellCheck={false}
+                label={t.settings.labelAdd}
                 value={adding}
+                options={labels.filter((name) => !rows.some((row) => sameName(row.name, name)))}
                 placeholder={t.settings.labelAdd}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter') return
@@ -231,7 +224,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
                   event.preventDefault()
                   add()
                 }}
-                onChange={(event) => setAdding(event.target.value)}
+                onChange={setAdding}
               />
             </td>
             <td>

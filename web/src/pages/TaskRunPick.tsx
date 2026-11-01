@@ -5,8 +5,8 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { taskProject } from '../state.js'
 import { Select } from '../ui/Select.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import { FixButton } from './FixButtons.js'
-import { ModelOffers } from './ModelOffers.js'
 import { runPickChange, runPickOf, type RunPick } from './runPick.js'
 import { providerName } from './settingsRun.js'
 import { offersOf, useModelCatalog } from './useModels.js'
@@ -44,7 +44,6 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
     { value: '', label: view.several && draft.provider === '' ? t.card.run.severalPick(view.labels.length) : t.card.run.asProject(providerName(projectProvider)) },
     ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
   ]
-  const listId = `task-run-models-${task}`
   const save = () => {
     if (change === null || sending) return
     void send('task/labels', { task, ...change }).then((ok) => ok && onChanged())
@@ -61,21 +60,20 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
         onChange={(provider) => setDraft({ provider, model: provider === draft.provider ? draft.model : '' })}
       />
       {draft.provider !== '' && (
-        <input
+        <SuggestField
           className="task-card__run-model"
-          aria-label={t.card.run.model}
-          spellCheck={false}
+          label={t.card.run.model}
+          mono
           value={draft.model}
+          options={offersOf(models, account)}
           placeholder={t.card.run.modelAsProject(projectModel)}
           disabled={!relabel || sending}
-          list={offersOf(models, account).length === 0 ? undefined : listId}
-          onChange={(event) => setDraft({ ...draft, model: event.target.value })}
+          onChange={(model) => setDraft({ ...draft, model })}
           onKeyDown={(event) => {
             if (event.key === 'Enter') save()
           }}
         />
       )}
-      <ModelOffers id={listId} models={offersOf(models, account)} />
       {relabel && change !== null && (
         <button type="button" className="button button--small task-card__run-save" disabled={sending} onClick={save}>
           {t.card.run.save}

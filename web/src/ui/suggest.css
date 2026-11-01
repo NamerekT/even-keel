@@ -1,0 +1,12 @@
+/* A field with suggestions: its list is Select's (select.css); only what differs is here. */
+.suggest__options--mono .select__label {
+  font-family: var(--mono);
+}
+
+/* What the value is, beside it: a tracker project's name next to its key. */
+.suggest__note {
+  margin-left: var(--space-8);
+  color: var(--fg-muted);
+  font-family: var(--font);
+  font-size: var(--text-13);
+}

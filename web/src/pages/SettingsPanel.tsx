@@ -52,7 +52,7 @@ import { SourceDialog, SourceLine } from './SourceDialog.js'
 import { useSourceMoves } from './SourceMoves.js'
 import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
-import { ModelOffers } from './ModelOffers.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import { TrustWarning } from './TrustCommands.js'
 import { offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
@@ -554,19 +554,18 @@ export function SettingsPanel({
               return (
                 <div className={marks.box(key)}>
                   <ErrorStrip error={errorOf(key)} wide>
-                    <input
+                    <SuggestField
                       id={fieldId(key)}
                       className="settings__text settings__text--mono"
-                      aria-label={t.settings.modelOf(providerName(provider))}
-                      spellCheck={false}
+                      label={t.settings.modelOf(providerName(provider))}
+                      mono
                       value={text(key)}
+                      options={offers}
                       placeholder={sharedModel}
-                      aria-invalid={errorOf(key) !== null}
-                      list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
-                      onChange={(event) => edit(key, event.target.value)}
+                      invalid={errorOf(key) !== null}
+                      onChange={(value) => edit(key, value)}
                     />
                   </ErrorStrip>
-                  <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
                   <Inherit {...inheritOf(key, sharedModel)} />
                 </div>
               )

@@ -1,7 +1,8 @@
-import { Fragment, useId, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
 import { PlusIcon, TrashIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
+import { SuggestField } from '../ui/SuggestField.js'
 import { linesText, rowsOf } from './settingsRows.js'
 
 export interface Column {
@@ -25,13 +26,12 @@ interface CellProps {
   label: string
   /** Values of the first column other rows hold: a pick or a suggestion never repeats them. */
   taken: readonly string[]
-  listId: string
   invalid?: boolean
   onChange: (value: string) => void
   onEnter?: () => void
 }
 
-function Cell({ column, value, label, taken, listId, invalid = false, onChange, onEnter }: CellProps) {
+function Cell({ column, value, label, taken, invalid = false, onChange, onEnter }: CellProps) {
   const className = column.mono ? 'rows__input rows__input--mono' : 'rows__input'
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Enter' || (column.multiline && !event.ctrlKey && !event.metaKey)) return
@@ -52,16 +52,16 @@ function Cell({ column, value, label, taken, listId, invalid = false, onChange, 
   }
   if (column.suggest !== undefined) {
     return (
-      <input
+      <SuggestField
         className={className}
-        aria-label={label}
-        aria-invalid={invalid}
-        list={listId}
-        spellCheck={false}
+        label={label}
+        invalid={invalid}
+        mono={column.mono}
         value={value}
+        options={column.suggest.filter((each) => !taken.includes(each))}
         placeholder={onEnter === undefined ? undefined : column.placeholder}
         onKeyDown={onKeyDown}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
       />
     )
   }
@@ -99,10 +99,8 @@ export function RowsTable({
   rowNote?: (row: readonly string[]) => ReactNode
   onChange: (rows: string[][]) => void
 }) {
-  const id = useId()
   const [adding, setAdding] = useState<string[]>(columns.map(() => ''))
   const keys = rows.map((row) => row[0]!)
-  const listId = (at: number) => `${id}-list-${at}`
   const free = (column: Column) => column.options?.find((option) => !keys.includes(option.value))?.value ?? ''
   const fresh = columns.map((column, at) => (column.options === undefined ? adding[at]! : adding[at] !== '' && !keys.includes(adding[at]!) ? adding[at]! : free(column)))
   const full = columns[0]!.options === undefined || free(columns[0]!) !== ''
@@ -117,18 +115,6 @@ export function RowsTable({
 
   return (
     <div className="rows">
-      {columns.map(
-        (column, at) =>
-          column.suggest !== undefined && (
-            <datalist key={at} id={listId(at)}>
-              {column.suggest
-                .filter((value) => at !== 0 || !keys.includes(value))
-                .map((value) => (
-                  <option key={value} value={value} />
-                ))}
-            </datalist>
-          ),
-      )}
       <table className="rows__table" aria-label={label}>
         <colgroup>
           {columns.map((column, at) => (
@@ -164,7 +150,6 @@ export function RowsTable({
                       value={row[each]!}
                       label={`${column.title}, ${t.settings.row(at + 1)}`}
                       taken={each === 0 ? keys.filter((_, index) => index !== at) : []}
-                      listId={listId(each)}
                       invalid={row[each]!.trim() === '' || (each === 0 && keys.some((key, index) => index !== at && key.trim() === row[0]!.trim()))}
                       onChange={(value) => put(at, each, value)}
                     />
@@ -200,7 +185,6 @@ export function RowsTable({
                     value={fresh[at]!}
                     label={column.placeholder}
                     taken={at === 0 ? keys : []}
-                    listId={listId(at)}
                     onChange={(value) => setAdding(columns.map((_, each) => (each === at ? value : fresh[each]!)))}
                     onEnter={add}
                   />

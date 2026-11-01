@@ -1,3 +1,19 @@
+/** A suggestion: the value it puts into the field, and what it is, shown beside it. */
+export interface Offer {
+  value: string
+  label?: string
+}
+
+/**
+ * What a field with suggestions lists: every option until something is typed (`null`), then those whose value or
+ * label fits it, as a search ranks them. A value given twice is listed once.
+ */
+export function offersOf<T extends Offer>(options: readonly T[], typed: string | null): T[] {
+  const unique = [...new Map(options.map((option) => [option.value, option])).values()]
+  if (typed === null) return unique
+  return filterOf(unique.map((option) => (option.label === undefined ? option.value : `${option.value} ${option.label}`)), typed).map((index) => unique[index]!)
+}
+
 /**
  * The indexes of the labels a search keeps: each holds every word of the query, in any case and order.
  * A label that starts with a word comes first, then one with a word of its own starting so, then the rest:

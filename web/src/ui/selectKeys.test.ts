@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterOf, matchOf, stepOf } from './selectKeys.js'
+import { filterOf, matchOf, offersOf, stepOf } from './selectKeys.js'
 
 describe('filterOf', () => {
   const labels = ['huly · even-keel', 'github · claude-plugins-official', 'Playwright · claude-plugins-official']
@@ -73,5 +73,28 @@ describe('matchOf', () => {
 
   it('gives -1 when no label fits', () => {
     expect(matchOf(labels, 'x', 0)).toBe(-1)
+  })
+})
+
+describe('offersOf', () => {
+  const models = ['sonnet', 'opus', 'haiku', 'opus'].map((value) => ({ value }))
+  const values = (typed: string | null) => offersOf(models, typed).map((offer) => offer.value)
+
+  it('offers every option, once each, until something is typed', () => {
+    expect(values(null)).toEqual(['sonnet', 'opus', 'haiku'])
+  })
+
+  it('offers every option for a cleared field', () => {
+    expect(values('')).toEqual(['sonnet', 'opus', 'haiku'])
+  })
+
+  it('narrows to what fits the typed text', () => {
+    expect(values('OP')).toEqual(['opus'])
+    expect(values('gpt')).toEqual([])
+  })
+
+  it('finds an option by its label too', () => {
+    const projects = [{ value: 'SHOP', label: 'Storefront' }, { value: 'OPS', label: 'Operations' }]
+    expect(offersOf(projects, 'front')).toEqual([projects[0]])
   })
 })
