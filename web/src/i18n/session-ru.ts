@@ -127,7 +127,6 @@ export const sessionRu = {
   limitRelay: (at: string) =>
     `После сброса лимита в ${at} диспетчер запустит новую сессию в той же рабочей папке.`,
   list: 'Сессии по задаче',
-  resets: (count: number, breakdown: string) => ` · сбросов контекста: ${count} (${breakdown})`,
   compacted: (count: number) => ` · компакций: ${count}`,
   resumed: (count: number) => ` · продолжена после лимита${count > 1 ? ` ×${count}` : ''}`,
   answered: (count: number) => ` · получила ответ${count > 1 ? ` ×${count}` : ''}`,

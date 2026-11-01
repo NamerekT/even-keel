@@ -168,15 +168,6 @@
   white-space: nowrap;
 }
 
-.chain .block--far .block__card,
-.chain .block--past .block__card {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .chain .block--far:hover .block__title,
 .chain .block--past:hover .block__title {
   color: var(--fg);

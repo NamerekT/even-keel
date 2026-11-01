@@ -222,7 +222,10 @@ function fakeState(
             { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, answers: 0, account: 'john.doe@example.com' },
             { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, answers: 2, compactions: 1, account: 'jane.roe@example.com' },
           ],
-          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
+          'ABC-4': [
+            { sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'checkpoint', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+            { sessionId: '00000000-0000-4000-8000-000000000104', at: ago(960), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+          ],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
           'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
           'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
@@ -480,6 +483,19 @@ export function createFakeSource(search: string): LiveSource {
       landing: { ...order.landing, 'ABC-16': 'ABC-10', 'ABC-17': null },
       refused: { 'ABC-21': notice('order.later', { task: 'ABC-10', milestone: 'v0.2 — удобство', blocker: 'ABC-21', blockerMilestone: 'v0.3 — служба' }) },
     }
+  }
+  if (params.get('chain') === 'blockers' && current.state !== null) {
+    // Every kind of blocker outside the chain in front of ABC-10: a backlog status, an excluding label, another project's task.
+    const { tasks, chain } = current.state
+    const other = task('DEMO-31', 'Общий формат журнала запусков', 'In Progress', 'Active')
+    current.state.tasks = [
+      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16', 'ABC-22', 'DEMO-31'] } : each)),
+      task('ABC-16', 'Схема базы статистики', 'Backlog', 'UnStarted'),
+      task('ABC-22', 'Выпустить ключ API для стенда', 'Todo', 'ToDo', [], 'v0.2 — удобство', { labels: ['Manual'] }),
+      other,
+    ]
+    const order = chain.projects['ABC']!
+    chain.projects['ABC'] = { ...order, waiting: ['ABC-16', 'ABC-22', 'DEMO-31'], outside: [other], landing: { ...order.landing, 'ABC-16': 'ABC-10' } }
   }
   if (params.get('chain') === 'later' && current.state !== null) {
     const { tasks, chain } = current.state

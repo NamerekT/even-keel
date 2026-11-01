@@ -7,6 +7,7 @@ export const sharedEn = {
   rules: 'Chain rules',
   ruleScopes: 'Whose rules',
   allTrackers: 'All trackers',
+  ownRules: 'own rules',
   sections: {
     run: 'Running',
     tasks: 'Tasks',

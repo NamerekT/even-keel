@@ -41,6 +41,7 @@
 }
 
 .backlog__row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: 'meta' 'name';
@@ -83,17 +84,43 @@
   width: 13px;
 }
 
+/* The key is the row's button: its box covers the whole row and opens the card; the row's other controls stand above it. */
 .backlog__key {
   flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--fg);
   font-family: var(--mono);
   font-size: var(--text-13);
   font-weight: 600;
-  text-decoration: none;
+  cursor: pointer;
 }
 
-a.backlog__key:hover {
+.backlog__key::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.backlog__key:focus-visible {
+  outline: none;
+}
+
+.backlog__row:has(.backlog__key:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.backlog__row:hover .backlog__key {
   color: var(--accent);
+}
+
+.backlog__meta > :not(.backlog__key),
+.backlog__ready {
+  position: relative;
+  z-index: 1;
 }
 
 .backlog__status {
@@ -127,20 +154,9 @@ a.backlog__key:hover {
 
 .backlog__name {
   grid-area: name;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
+  margin: 0;
   font-size: var(--text-14);
   line-height: 1.35;
-  text-align: left;
-  cursor: pointer;
-}
-
-.backlog__name:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .backlog__ready {

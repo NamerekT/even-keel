@@ -180,7 +180,6 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               project={key}
               chain={blocks}
               scale={state.context}
-              trackerUrls={state.trackerUrls}
               focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus}
               ghost={arrival.ghost}
               arrival={arrival.arrival}
@@ -204,7 +203,6 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             <BacklogPanel
               tasks={backlog}
               works={backlogWorks}
-              trackerUrls={state.trackerUrls}
               ready={(task) => readyButton(state, key, { id: task.id, stage: task.status.category, locked: false })}
               links={links}
               onCard={openCard}

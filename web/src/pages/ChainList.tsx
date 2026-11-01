@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
-import type { ContextScale, TrackerUrls } from '../../../src/state.js'
+import type { ContextScale } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
+import { blockMetered, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
-import { ActionMeter, BlockMetrics, CacheRing } from '../ui/BlockMetrics.js'
+import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -38,7 +38,6 @@ interface Props {
   project: string
   chain: ChainBlock[]
   scale: ContextScale
-  trackerUrls: TrackerUrls
   focus: string
   /** A backlog task shown at the place it would take in the chain. */
   ghost: Ghost | null
@@ -64,7 +63,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard }: Props) {
+export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard }: Props) {
   const { ghost, leaving } = useLingering(aimed, chain)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -224,7 +223,6 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     key={block.id}
                     project={project}
                     block={block}
-                    link={block.locked ? issueLink(trackerUrls, block.id) : null}
                     number={numbers.get(block.id)}
                     waits={block.blockedBy.filter((id) => open.has(id))}
                     links={links(block.id)}
@@ -362,7 +360,7 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
   )
 }
 
-/** A row of the unfolded archive: one quiet line, its milestone named only where the milestone changes. */
+/** A row of the unfolded archive: one quiet line, its context resets and its milestone, named only where the milestone changes. */
 function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milestone: string | null; focused: boolean }) {
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
@@ -376,7 +374,10 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
         {block.title}
         {isOwnName(block.id) && <Forge lamp={block.lamp} />}
       </span>
-      {milestone !== null && <span className="archived__milestone">{milestone}</span>}
+      <span className="archived__side">
+        <ResetsBadge sessions={block.sessions} />
+        {milestone !== null && <span className="archived__milestone">{milestone}</span>}
+      </span>
     </li>
   )
 }
@@ -426,7 +427,6 @@ function Divider({ name, count, hidden = false, bump, toggle, action }: DividerP
 interface BlockProps {
   project: string
   block: ChainBlock
-  link: string | null
   number: number | undefined
   waits: string[]
   links: TaskLinks
@@ -452,7 +452,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
+  const { project, block, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -527,13 +527,10 @@ function Block(props: BlockProps) {
         {marks.has('finish') && <CheckIcon />}
         {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />}
         {block.locked ? (
-          link === null ? (
-            <span className="block__key">{block.id}</span>
-          ) : (
-            <a href={link} className="block__key" target="_blank" rel="noreferrer" draggable={false} title={t.chain.lockedTitle}>
-              {block.id}
-            </a>
-          )
+          // A blocker outside the chain has no session to show: a press anywhere on its row opens its card, which links to the tracker.
+          <button type="button" className="block__key" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
+            {block.id}
+          </button>
         ) : (
           <Link
             to={{ hash: block.id }}
@@ -547,15 +544,8 @@ function Block(props: BlockProps) {
       </div>
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
-        {block.title !== null &&
-          (block.locked ? (
-            <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
-              {block.title}
-            </button>
-          ) : (
-            // Plain text: a press anywhere on the row lands on the key's link and opens the session panel, the card (or a fix's CI) is in its head.
-            block.title
-          ))}
+        {/* Plain text: a press anywhere on the row lands on the key — the session panel, whose head opens the card (or a fix's CI), or a locked blocker's card. */}
+        {block.title}
         {fix && <Forge lamp={block.lamp} />}
       </p>
       {acting && (

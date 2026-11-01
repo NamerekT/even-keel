@@ -7,6 +7,7 @@ export const sharedRu = {
   rules: 'Правила цепочки',
   ruleScopes: 'Чьи правила',
   allTrackers: 'Все трекеры',
+  ownRules: 'свои правила',
   sections: {
     run: 'Запуск',
     tasks: 'Задачи',

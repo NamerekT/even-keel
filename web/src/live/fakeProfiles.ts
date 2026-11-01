@@ -92,7 +92,7 @@ function fields(kind: string, values: Record<string, string>): ProfileField[] {
 /**
  * The profiles: Huly by default for the fake projects, a GitHub profile whose token runs out in 5 days and does not reach
  * the Actions of ABC's `github` remote, and a Forgejo profile ABC's and DEMO's `origin` CI takes. `?profiles=` — `none`:
- * no profiles, `refused`: Huly refuses its token, `all`: a Linear profile too, `github`: the GitHub and the Forgejo one only.
+ * no profiles, `refused`: Huly refuses its token, `all`: a Linear profile too, `github`: the GitHub and the Forgejo one only, `many`: ten tracker profiles.
  */
 export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode === 'none') return { profiles: [], kinds: KINDS }
@@ -191,6 +191,18 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ...(mode === 'jira-other' ? { mcpOAuth: { state: 'connected' as const, warning: OTHER_PERSON } } : {}),
   }
   if (mode?.startsWith('jira')) return { profiles: [jira], kinds: KINDS }
+  if (mode === 'many') {
+    // Ten tracker profiles, as on a bench machine: the rules' scope switcher must still fit.
+    const copy = (of: ProfileView, at: number, name: string): ProfileView => ({ ...of, id: `3f0c2b9e-0000-4000-8000-00000000010${at}`, name, isDefault: false, rules: {}, moves: {} })
+    const extra = [
+      copy(huly, 1, 'Huly · staging'),
+      copy(huly, 2, 'Huly · staging guest'),
+      copy(github, 3, 'GitHub · read-only'),
+      copy(gitlab, 4, 'GitLab · self-hosted /gitlab'),
+      { ...copy(linear, 5, 'Linear · second team'), rules: { requiredLabels: ['Agent'] } },
+    ]
+    return { profiles: [huly, github, linear, gitlab, jira, ...extra, forgejo], kinds: KINDS }
+  }
   return { profiles: mode === 'all' ? [huly, github, linear, gitlab, jira, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }
 

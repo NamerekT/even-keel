@@ -114,5 +114,13 @@ button.select {
   white-space: nowrap;
 }
 
+/* An option's note after its label: muted, it does not take the picked option's accent. */
+.select__note {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
 .select__option[aria-disabled='true'] { color: var(--fg-muted); cursor: default; }
 .select__reason { display: block; white-space: normal; font-size: var(--text-12); }

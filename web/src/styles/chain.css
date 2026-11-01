@@ -168,7 +168,11 @@
   color: var(--fg);
 }
 
-.archived--focus,
+.archived--focus {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--fg);
+}
+
 .archived:has(.archived__key:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -210,13 +214,20 @@
   text-decoration: line-through;
 }
 
-.archived > .archived__milestone {
+.archived__side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.archived__side > .archived__milestone {
   font-size: var(--text-12);
 }
 
 @media (max-width: 760px) {
   .archived {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     padding-inline: 15px;
   }
 
@@ -263,14 +274,14 @@
   cursor: grabbing;
 }
 
+/* Neutral, so a relation never reads as the current task's blue frame; its chip says which one it is. */
 .block.block--blocker {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--fg-muted);
 }
 
 .block.block--dependent {
   border-style: dashed;
-  border-color: var(--accent);
+  border-color: var(--fg-muted);
 }
 
 .block--skipped {
@@ -362,7 +373,11 @@ a.button.pull-button__link {
   box-shadow: 0 0 0 1px var(--lamp-working);
 }
 
-.block--focus,
+/* The row open in the panel: an accent fill, never a frame — a blue frame is the chain's current task. */
+.block.block--focus {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
 .block:has(.block__key:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -434,6 +449,16 @@ a.button.pull-button__link {
   text-decoration: none;
 }
 
+/* A locked blocker's key opens its card: a button that looks as the link of the other rows. */
+button.block__key {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
 .block__key::after {
   content: '';
   position: absolute;
@@ -450,23 +475,6 @@ a.button.pull-button__link {
   margin: 0;
   font-size: var(--text-14);
   line-height: 1.35;
-}
-
-.block__card {
-  position: relative;
-  z-index: 1;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.block__card:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .block__divider {

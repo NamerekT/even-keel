@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
-import type { TaskWork, TrackerUrls } from '../../../src/state.js'
+import type { TaskWork } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { issueLink, type ReadyButton, type TaskLinks } from '../state.js'
+import type { ReadyButton, TaskLinks } from '../state.js'
 import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
@@ -52,7 +52,6 @@ interface Props {
   tasks: Task[]
   /** The work left in the tasks' folders, by task. */
   works: Record<string, TaskWork>
-  trackerUrls: TrackerUrls
   /** The task's "Into the chain" button, `null` for none. */
   ready: (task: Task) => ReadyButton | null
   links: (task: string) => TaskLinks
@@ -67,7 +66,7 @@ interface Props {
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, works, trackerUrls, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -123,7 +122,6 @@ export function BacklogPanel({ tasks, works, trackerUrls, ready: buttonOf, links
         onBlur={() => onPoint(null)}
       >
         {rows.map((task) => {
-          const link = issueLink(trackerUrls, task.id)
           const button = buttonOf(task)
           const reason = button?.refused ?? null
           const gone = task.id === leaving || task.id === out?.task.id
@@ -146,13 +144,10 @@ export function BacklogPanel({ tasks, works, trackerUrls, ready: buttonOf, links
                 <span className="backlog__priority" title={`${t.card.priority}: ${t.card.priorities[task.priority]}`}>
                   <PriorityIcon priority={task.priority} />
                 </span>
-                {link === null ? (
-                  <span className="backlog__key">{task.id}</span>
-                ) : (
-                  <a href={link} className="backlog__key" target="_blank" rel="noreferrer">
-                    {task.id}
-                  </a>
-                )}
+                {/* A press anywhere on the row opens the card, which links to the tracker. */}
+                <button type="button" className="backlog__key" title={t.chain.openCard} onClick={() => onCard(task.id)}>
+                  {task.id}
+                </button>
                 {mixed && <span className="backlog__status">{task.status.name}</span>}
                 <span
                   className={task.milestone === null ? 'backlog__milestone backlog__milestone--none' : 'backlog__milestone'}
@@ -164,9 +159,7 @@ export function BacklogPanel({ tasks, works, trackerUrls, ready: buttonOf, links
                 {works[task.id] !== undefined && <WorkChip work={works[task.id]!} />}
                 <Links links={links(task.id)} onCard={onCard} />
               </div>
-              <button type="button" className="backlog__name" title={t.chain.openCard} onClick={() => onCard(task.id)}>
-                {task.title}
-              </button>
+              <p className="backlog__name">{task.title}</p>
             </li>
           )
         })}

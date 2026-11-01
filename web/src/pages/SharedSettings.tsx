@@ -20,7 +20,6 @@ import {
   FieldHead,
   FieldNote,
   fieldId,
-  GroupTabs,
   HelpTip,
   linesOf,
   marksOf,
@@ -39,6 +38,7 @@ import {
   shown,
   SwitchField,
   unplaced,
+  UnsavedDot,
   useFieldErrors,
   wholeOf,
   type RuleKey,
@@ -663,23 +663,28 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}
             {ruled.length > 0 && (
-              <GroupTabs
+              // A list, not tabs: a workspace with a dozen tracker profiles does not fit a strip.
+              <Row
+                className="settings__field"
                 label={t.shared.ruleScopes}
-                groups={[
-                  { id: 'rules', title: t.shared.allTrackers },
-                  ...ruled.map((profile) => ({
-                    id: profileGroup(profile.id),
-                    title: (
-                      <>
-                        <TrackerIcon kind={profile.kind} />
-                        {profile.name}
-                      </>
-                    ),
-                  })),
-                ]}
-                open={ruledOpen === undefined ? 'rules' : tab}
-                dirty={(id) => id === 'rules' && dirty('rules')}
-                onOpen={setOpen}
+                htmlFor="rule-scope"
+                control={
+                  <Select
+                    id="rule-scope"
+                    className="settings__text"
+                    value={ruledOpen === undefined ? 'rules' : tab}
+                    options={[
+                      { value: 'rules', label: t.shared.allTrackers, aside: dirty('rules') ? <UnsavedDot /> : undefined },
+                      ...ruled.map((profile) => ({
+                        value: profileGroup(profile.id),
+                        label: profile.name,
+                        icon: <TrackerIcon kind={profile.kind} />,
+                        aside: Object.keys(profile.rules).length + Object.keys(profile.moves).length > 0 ? <span className="select__note">{t.shared.ownRules}</span> : undefined,
+                      })),
+                    ]}
+                    onChange={setOpen}
+                  />
+                }
               />
             )}
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}

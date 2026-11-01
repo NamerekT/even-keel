@@ -11,6 +11,8 @@ export interface SelectOption {
   unavailable?: string
   /** Before the label, in the list and in the field. */
   icon?: ReactNode
+  /** After the label, in the list and in the field: a note or a mark of the option's state. */
+  aside?: ReactNode
 }
 
 interface SelectProps {
@@ -199,6 +201,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
       >
         {current?.icon !== undefined && <span className="select__icon">{current.icon}</span>}
         <span className="select__value">{current?.label ?? value}</span>
+        {current?.aside}
         <ChevronIcon />
       </button>
       {/* Out of the field: inside a <label> a press on an option would also click the button and open the list again. */}
@@ -239,6 +242,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
                   >
                     {option.icon !== undefined && <span className="select__icon">{option.icon}</span>}
                     <span className="select__label">{option.label}{option.unavailable !== undefined && <span className="select__reason">{option.unavailable}</span>}</span>
+                    {option.aside}
                     {option.value === value && <CheckIcon />}
                   </li>
                 ))}
