@@ -20,6 +20,7 @@ import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
+import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
 import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
@@ -401,6 +402,7 @@ export function wireProfiles(ctx: AccountsContext): Profiles {
     timeoutMs: ctx.TRACKER_CHECK_MS,
     log: (line) => console.log(line),
     onChange: (set) => {
+      installForProfiles(set.profiles)
       ctx.trackers.apply(ctx.readers(), set)
       ctx.ciWatches.tokensChanged()
       void ctx.ciWatches.refresh()

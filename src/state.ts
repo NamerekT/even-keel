@@ -505,6 +505,8 @@ export interface EvenKeelState {
   tally: TallyMode | null
   /** The collector's last run, for `/status` (BTN-66). */
   tallyHealth: TallyHealth
+  /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
+  hulyClient?: Notice | null
   updates: UpdatesView
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]

@@ -52,6 +52,11 @@
     "design-baseline": "tsx scripts/design-baseline.ts"
   },
   "devDependencies": {
+    "@hcengineering/api-client": "0.7.423",
+    "@hcengineering/core": "0.7.423",
+    "@hcengineering/rank": "0.7.423",
+    "@hcengineering/text-core": "0.7.423",
+    "@hcengineering/text-markdown": "0.7.423",
     "@types/node": "^24.19.0",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
@@ -73,11 +78,6 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@electric-sql/pglite-socket": "^0.2.11",
-    "@hcengineering/api-client": "^0.7.423",
-    "@hcengineering/core": "^0.7.423",
-    "@hcengineering/rank": "^0.7.423",
-    "@hcengineering/text-core": "^0.7.423",
-    "@hcengineering/text-markdown": "^0.7.423",
     "pg": "^8.23.1"
   }
 }

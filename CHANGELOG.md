@@ -71,7 +71,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Projects are identified by their id, so two projects of one key are told apart by name everywhere.
 - The service log records when a session hits a usage limit and when the chain continues. Tracker timeouts are logged with the call, its duration and the number of requests. The same tracker error is no longer logged every 5 seconds.
 - Loading shows an animated loader instead of a line of text: the page while it connects, the chat and transcript windows, a project's tasks and "What sessions get". The chat's reply box stays at the bottom while the transcript loads.
-- A smaller install: the npm package no longer pulls in Huly's web interface or the page's React libraries, which the service never loads. Its dependencies went from 117 MB in about 18,000 files to about 51 MB in about 4,300.
+- A smaller install: the npm package no longer pulls in Huly's web interface or the page's React libraries, which the service never loads. Its dependencies went from 117 MB in about 18,000 files to about 34 MB in about 1,100. Huly's client is no longer part of the package: it is installed into the data folder once you add a Huly profile, and `/status` shows the install with **Retry** if it fails.
 
 ### Removed
 

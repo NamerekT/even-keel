@@ -229,6 +229,9 @@ export const en: Messages = {
     tallyHalted: 'stopped until a restart',
     tallyIdle: 'not collecting',
     tallyLog: 'The reason is in the service log.',
+    hulyClient: 'Huly client',
+    hulyInstalling: 'installing',
+    hulyFailed: 'not installed',
   },
   statusPage: {
     title: 'Status',

@@ -25,8 +25,8 @@ export interface Check {
   tracker?: TrackerView
 }
 
-/** Reconnecting to the server, or the place the page fixes it at. */
-export type CheckFix = { kind: 'retry' } | { kind: 'open'; fix: NoticeFix }
+/** Reconnecting to the server, the place the page fixes it at, or the Huly client's install once more. */
+export type CheckFix = { kind: 'retry' } | { kind: 'open'; fix: NoticeFix } | { kind: 'hulyClient' }
 
 export interface SystemInput {
   link: Link
@@ -38,6 +38,8 @@ export interface SystemInput {
   /** The settings tab of the field the config error names (`configFixOf`). */
   configFix?: NoticeFix | null
   tally?: { mode: TallyMode | null; health: TallyHealth } | null
+  /** The Huly client's install while it runs or after it failed (BTN-666). */
+  hulyClient?: Notice | null
 }
 
 const SEVERITY: Level[] = ['error', 'warn', 'ok', 'off']
@@ -52,9 +54,10 @@ export const systemInput = (state: EvenKeelState | null, link: Link): SystemInpu
   configError: state?.configError ?? null,
   configFix: state === null ? null : configFixOf(state),
   tally: state === null ? null : { mode: state.tally, health: state.tallyHealth },
+  hulyClient: state?.hulyClient ?? null,
 })
 
-export function systemChecks({ link, trackers, usage, limitsAt = null, configError, configFix = null, tally = null }: SystemInput, now: Date): Check[] {
+export function systemChecks({ link, trackers, usage, limitsAt = null, configError, configFix = null, tally = null, hulyClient = null }: SystemInput, now: Date): Check[] {
   const server = serverCheck(link)
   if (trackers === null || usage === null) return [server]
   return [
@@ -63,7 +66,15 @@ export function systemChecks({ link, trackers, usage, limitsAt = null, configErr
     usageCheck(usage, limitsAt, now),
     configCheck(configError, configFix),
     ...(tally === null ? [] : [tallyCheck(tally.mode, tally.health, now)]),
+    ...(hulyClient === null ? [] : [hulyClientCheck(hulyClient)]),
   ]
+}
+
+/** Shown only while the install runs or after it failed: a clone and a finished install have nothing to say. */
+function hulyClientCheck(install: Notice): Check {
+  const base = { key: 'hulyClient', name: t.system.hulyClient, details: [say(install)], fix: { kind: 'hulyClient' as const } }
+  if (install.code === 'huly.clientInstalling') return { ...base, level: 'warn', text: t.system.hulyInstalling }
+  return { ...base, level: 'error', text: t.system.hulyFailed }
 }
 
 export function worstLevel(checks: Check[]): Level {

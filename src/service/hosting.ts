@@ -42,6 +42,7 @@ import { setStateValue } from '../storage/service-state.js'
 import { checkServer, serverValues } from '../stats/connect.js'
 import { readToolsView } from '../tools/panel.js'
 import { ADAPTERS } from '../tracker/adapters.js'
+import { hulyClient } from '../huly/client.js'
 import { taskControl } from '../tracker/control.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import type { ServiceContext } from '../service.js'
@@ -216,6 +217,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     trimTools: ctx.dispatcher.state.trimTools,
     tally: ctx.tallyMode(),
     tallyHealth: ctx.tally.health(),
+    hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
@@ -243,6 +245,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
   const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage())
   return createEvenKeelServer({
     cli: ctx.cliCopies,
+    hulyClient,
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,

@@ -1,5 +1,5 @@
-import { createRequire } from 'node:module'
 import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '../tracker/source.js'
+import { hulyClient, type HulyPackage } from './client.js'
 import { authOf, readHulyCredentials } from './credentials.js'
 import { personName } from './model.js'
 import { quietModelNoise } from './quiet.js'
@@ -15,7 +15,7 @@ interface Client {
   close(): Promise<void>
 }
 
-const require = createRequire(import.meta.url)
+const require = (name: HulyPackage): unknown => hulyClient.require(name)
 
 const PROJECT = 'tracker:class:Project'
 const SOCIAL_IDENTITY = 'contact:class:SocialIdentity'

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { HULY_CLIENT } from './huly/client.js'
 import { root } from './locations.js'
 
 // The npm package installs only `dependencies`; the page is built into `dist/web`, so its libraries are build tools.
@@ -13,6 +14,8 @@ const NOT_RUNTIME = /\.test\.(ts|mjs)$|(^|[\\/])fixture\.ts$|\.fixture\.ts$|[\\/
 const DEV_ONLY: Record<string, string> = { vitest: 'src/storage/memory.ts', tsx: 'tally/bin/rule-hook.mjs' }
 // Packages whose install outweighs what the service takes from them.
 const TOO_HEAVY: Record<string, string> = { '@hcengineering/tracker': 'Huly web UI, ~49 MB and ~12,000 files, for 8 string ids' }
+// Installed into the data folder once a Huly profile needs them (`src/huly/client.ts`), never by the npm package.
+const ON_DEMAND = new Set(Object.keys(HULY_CLIENT))
 
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true })
@@ -50,13 +53,19 @@ function loadedPackages(root: string): Map<string, string> {
 }
 
 describe('runtime dependencies', () => {
-  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> }
   const declared = Object.keys(manifest.dependencies)
   const loaded = loadedPackages(root)
 
-  it('declares every package the service loads', () => {
-    const missing = [...loaded].filter(([name]) => !declared.includes(name)).map(([name, path]) => `${name} (${path})`)
+  it('declares every package the service loads, but those it installs on demand', () => {
+    const missing = [...loaded].filter(([name]) => !declared.includes(name) && !ON_DEMAND.has(name)).map(([name, path]) => `${name} (${path})`)
     expect(missing).toEqual([])
+  })
+
+  it('installs the Huly client on demand only, at the versions a clone is tested with', () => {
+    expect(declared.filter((name) => name.startsWith('@hcengineering/'))).toEqual([])
+    expect([...loaded.keys()].filter((name) => name.startsWith('@hcengineering/') && !ON_DEMAND.has(name))).toEqual([])
+    expect(Object.fromEntries(Object.keys(HULY_CLIENT).map((name) => [name, manifest.devDependencies[name]]))).toEqual(HULY_CLIENT)
   })
 
   it('declares nothing the service never loads', () => {

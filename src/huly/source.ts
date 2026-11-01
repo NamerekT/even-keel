@@ -1,6 +1,6 @@
-import { createRequire } from 'node:module'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
+import { hulyClient, type HulyPackage } from './client.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { tracker } from './ids.js'
 import { quietModelNoise } from './quiet.js'
@@ -79,7 +79,7 @@ interface HulyModules {
   markdownToMarkup(markdown: string): unknown
 }
 
-const require = createRequire(import.meta.url)
+const require = (name: HulyPackage): unknown => hulyClient.require(name)
 
 /** Loaded on the first connection, not on import: a service without a Huly profile never loads the client. */
 function hulyModules(): HulyModules {
