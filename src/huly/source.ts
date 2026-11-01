@@ -69,18 +69,25 @@ interface ApiClientModule {
   NodeWebSocketFactory: unknown
 }
 
-const require = createRequire(import.meta.url)
-const api = require('@hcengineering/api-client') as ApiClientModule
-const { generateId } = require('@hcengineering/core') as { generateId(): string }
-const { makeRank } = require('@hcengineering/rank') as { makeRank(prev: string | undefined, next: string | undefined): string }
-
-const { markupToJSON, jsonToMarkup } = require('@hcengineering/text-core') as {
+interface HulyModules {
+  api: ApiClientModule
+  generateId(): string
+  makeRank(prev: string | undefined, next: string | undefined): string
   markupToJSON(markup: string): unknown
   jsonToMarkup(json: unknown): string
-}
-const { markupToMarkdown, markdownToMarkup } = require('@hcengineering/text-markdown') as {
   markupToMarkdown(markup: unknown): string
   markdownToMarkup(markdown: string): unknown
+}
+
+const require = createRequire(import.meta.url)
+
+/** Loaded on the first connection, not on import: a service without a Huly profile never loads the client. */
+function hulyModules(): HulyModules {
+  const { generateId } = require('@hcengineering/core') as Pick<HulyModules, 'generateId'>
+  const { makeRank } = require('@hcengineering/rank') as Pick<HulyModules, 'makeRank'>
+  const { markupToJSON, jsonToMarkup } = require('@hcengineering/text-core') as Pick<HulyModules, 'markupToJSON' | 'jsonToMarkup'>
+  const { markupToMarkdown, markdownToMarkup } = require('@hcengineering/text-markdown') as Pick<HulyModules, 'markupToMarkdown' | 'markdownToMarkup'>
+  return { api: require('@hcengineering/api-client') as ApiClientModule, generateId, makeRank, markupToJSON, jsonToMarkup, markupToMarkdown, markdownToMarkup }
 }
 
 const TAG_REFERENCE = 'tags:class:TagReference'
@@ -122,6 +129,7 @@ export interface HulySource extends TaskSource {
  */
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number, projects: Readonly<Record<string, TrackerPlace>> = {}): Promise<HulySource> {
   const account = authOf(credentials)
+  const { api, generateId, makeRank, markupToJSON, jsonToMarkup, markupToMarkdown, markdownToMarkup } = hulyModules()
   quietModelNoise()
   const client = await api.connect(credentials.url, {
     ...account,
