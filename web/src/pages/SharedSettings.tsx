@@ -15,6 +15,7 @@ import { useToolsViews } from '../tools/useToolsViews.js'
 import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import {
+  ErrorStrip,
   FieldHead,
   FieldNote,
   fieldId,
@@ -273,9 +274,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     </div>
   )
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
-    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)}>
-      <FieldNote error={errorOf(key)} />
-    </Row>
+    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)} error={errorOf(key)} />
   )
   const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
     <Row
@@ -285,32 +284,33 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       htmlFor={fieldId(key)}
       mark={marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       control={<Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />}
-    >
-      <FieldNote error={errorOf(key)} />
-    </Row>
+      error={errorOf(key)}
+    />
   )
   // The model is typed freely; the account is picked from the offered folders.
   const model = (key: string, label: string, offers: readonly string[]) => (
     <div className={marks.box(key)}>
-      <input
-        id={fieldId(key)}
-        className="settings__text settings__text--mono"
-        aria-label={label}
-        spellCheck={false}
-        value={text(key)}
-        placeholder={t.settings.cliDefault}
-        aria-invalid={errorOf(key) !== null}
-        list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
-        onChange={(event) => edit(key, event.target.value)}
-      />
+      <ErrorStrip error={errorOf(key)} wide>
+        <input
+          id={fieldId(key)}
+          className="settings__text settings__text--mono"
+          aria-label={label}
+          spellCheck={false}
+          value={text(key)}
+          placeholder={t.settings.cliDefault}
+          aria-invalid={errorOf(key) !== null}
+          list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
+          onChange={(event) => edit(key, event.target.value)}
+        />
+      </ErrorStrip>
       <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
-      <FieldNote error={errorOf(key)} />
     </div>
   )
   const pick = (key: string, label: string, options: readonly { value: string; label: string }[]) => (
     <div className={marks.box(key)}>
-      <Select id={fieldId(key)} className="settings__text" label={label} value={text(key)} options={options} onChange={(value) => edit(key, value)} />
-      <FieldNote error={errorOf(key)} />
+      <ErrorStrip error={errorOf(key)} wide>
+        <Select id={fieldId(key)} className="settings__text" label={label} value={text(key)} options={options} onChange={(value) => edit(key, value)} />
+      </ErrorStrip>
     </div>
   )
   const check = (key: string, label: string, hint: string, disabled = false, error = key) => (
@@ -444,15 +444,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}
           <div className={marks.box('prompt')}>
             <FieldHead label={t.settings.prompt} hint={t.shared.promptHint} htmlFor={fieldId('prompt')} mark={marks.note('prompt', (value) => ((value as string).trim() === '' ? t.shared.none : (value as string)))} />
-            <textarea
-              id={fieldId('prompt')}
-              className="settings__text"
-              rows={5}
-              value={text('prompt')}
-              placeholder={t.shared.promptPlaceholder}
-              onChange={(event) => edit('prompt', event.target.value)}
-            />
-            <FieldNote error={errorOf('prompt')} />
+            <ErrorStrip error={errorOf('prompt')} wide>
+              <textarea
+                id={fieldId('prompt')}
+                className="settings__text"
+                rows={5}
+                value={text('prompt')}
+                placeholder={t.shared.promptPlaceholder}
+                onChange={(event) => edit('prompt', event.target.value)}
+              />
+            </ErrorStrip>
           </div>
           <div className={marks.box('modelPrompts')}>
             <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} mark={marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)} />
@@ -503,9 +504,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               placeholder: t.shared.checkpointTokensPlaceholder,
               disabled: handoffsOff,
             })}
-          >
-            <FieldNote error={errorOf('checkpointTokens')} />
-          </Row>
+            error={errorOf('checkpointTokens')}
+          />
           <div className="settings__field">
             <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
             <div className="settings__row">
@@ -524,9 +524,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             htmlFor={fieldId('autoCompactWindow')}
             mark={marks.note('autoCompactWindow', shown)}
             control={numberInput('autoCompactWindow', text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined, { placeholder: t.shared.autoCompactWindowAccount })}
-          >
-            <FieldNote error={text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
-          </Row>
+            error={text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
+          />
           {select(
             'cacheTtl',
             t.shared.cacheTtl,

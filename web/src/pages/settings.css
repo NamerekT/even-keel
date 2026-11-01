@@ -375,7 +375,17 @@
   min-width: 0;
 }
 
-.settings__control > .settings__text {
+/* A field with an error strip: the name stands at the field's text, not at the middle of field and strip. */
+.settings__line-main:has(> .settings__control > .field-strip) {
+  align-items: baseline;
+}
+
+.settings__control > .field-strip {
+  width: 100%;
+}
+
+.settings__control > .settings__text,
+.settings__control > .field-strip > .settings__text {
   width: 100%;
   min-width: 0;
   margin-top: 0;

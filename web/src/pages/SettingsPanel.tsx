@@ -20,6 +20,7 @@ import { folderLabel } from '../accountName.js'
 import { accountOptions, namedProviders, pickedProvider, providerKeys, providerName } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import {
+  ErrorStrip,
   FieldHead,
   fieldId,
   FieldNote,
@@ -204,9 +205,8 @@ export function SettingsPanel({
           onChange={(value) => edit(key, value)}
         />
       }
-    >
-      {notes(key)}
-    </Row>
+      error={errorOf(key)}
+    />
   )
   const inheritedSwitch = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) => (
     <SwitchField
@@ -240,24 +240,24 @@ export function SettingsPanel({
           onChange={(event) => edit(key, event.target.value)}
         />
       }
-    >
-      {notes(key)}
-    </Row>
+      error={errorOf(key)}
+    />
   )
   const lines = (key: string, label: string, hint: string, placeholder: string, rows: number, mono = true, disabled = false) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} />
-      <textarea
-        id={fieldId(key)}
-        className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
-        rows={rows}
-        spellCheck={!mono}
-        value={text(key)}
-        placeholder={placeholder}
-        disabled={disabled}
-        onChange={(event) => edit(key, event.target.value)}
-      />
-      {notes(key)}
+      <ErrorStrip error={errorOf(key)} wide>
+        <textarea
+          id={fieldId(key)}
+          className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
+          rows={rows}
+          spellCheck={!mono}
+          value={text(key)}
+          placeholder={placeholder}
+          disabled={disabled}
+          onChange={(event) => edit(key, event.target.value)}
+        />
+      </ErrorStrip>
     </div>
   )
 
@@ -319,15 +319,16 @@ export function SettingsPanel({
         <Section title={t.settings.sections.repository}>
           <div className={marks.box('repo')}>
             <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} mark={marks.note('repo')} />
-            <input
-              id={fieldId('repo')}
-              className="settings__text settings__text--mono"
-              spellCheck={false}
-              value={text('repo')}
-              aria-invalid={errorOf('repo') !== null}
-              onChange={(event) => edit('repo', event.target.value)}
-            />
-            {notes('repo')}
+            <ErrorStrip error={errorOf('repo')} wide>
+              <input
+                id={fieldId('repo')}
+                className="settings__text settings__text--mono"
+                spellCheck={false}
+                value={text('repo')}
+                aria-invalid={errorOf('repo') !== null}
+                onChange={(event) => edit('repo', event.target.value)}
+              />
+            </ErrorStrip>
           </div>
           {input('branch', t.settings.branch, t.settings.branchHint, 'main')}
           {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
@@ -338,9 +339,8 @@ export function SettingsPanel({
             htmlFor={fieldId('slot')}
             mark={marks.note('slot')}
             control={number('slot', text('slot'), wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null, (value) => edit('slot', value))}
-          >
-            {notes('slot')}
-          </Row>
+            error={errorOf('slot')}
+          />
           {pick('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
             { value: '', label: t.settings.mergeIntoNone },
             ...mainProjects.map((key) => ({ value: key, label: projectLabel(state, key) })),
@@ -530,17 +530,18 @@ export function SettingsPanel({
                 ]
                 return (
                   <div className={marks.box(key)}>
-                    <Select
-                      id={fieldId(key)}
-                      className="settings__text"
-                      label={t.settings.accountOf(providerName(provider))}
-                      value={text(key) || (sharedAccount ?? '')}
-                      options={options}
-                      invalid={errorOf(key) !== null}
-                      onChange={(value) => edit(key, value)}
-                    />
+                    <ErrorStrip error={errorOf(key)} wide>
+                      <Select
+                        id={fieldId(key)}
+                        className="settings__text"
+                        label={t.settings.accountOf(providerName(provider))}
+                        value={text(key) || (sharedAccount ?? '')}
+                        options={options}
+                        invalid={errorOf(key) !== null}
+                        onChange={(value) => edit(key, value)}
+                      />
+                    </ErrorStrip>
                     <Inherit {...inheritOf(key, sharedLabel)} />
-                    {notes(key)}
                   </div>
                 )
               }
@@ -548,20 +549,21 @@ export function SettingsPanel({
               const sharedModel = shared.models[provider] ?? t.settings.cliDefault
               return (
                 <div className={marks.box(key)}>
-                  <input
-                    id={fieldId(key)}
-                    className="settings__text settings__text--mono"
-                    aria-label={t.settings.modelOf(providerName(provider))}
-                    spellCheck={false}
-                    value={text(key)}
-                    placeholder={sharedModel}
-                    aria-invalid={errorOf(key) !== null}
-                    list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
-                    onChange={(event) => edit(key, event.target.value)}
-                  />
+                  <ErrorStrip error={errorOf(key)} wide>
+                    <input
+                      id={fieldId(key)}
+                      className="settings__text settings__text--mono"
+                      aria-label={t.settings.modelOf(providerName(provider))}
+                      spellCheck={false}
+                      value={text(key)}
+                      placeholder={sharedModel}
+                      aria-invalid={errorOf(key) !== null}
+                      list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
+                      onChange={(event) => edit(key, event.target.value)}
+                    />
+                  </ErrorStrip>
                   <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
                   <Inherit {...inheritOf(key, sharedModel)} />
-                  {notes(key)}
                 </div>
               )
             }}
@@ -640,9 +642,8 @@ export function SettingsPanel({
               (value) => ownEdit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) })('autoCompactWindow', value),
               { placeholder: t.shared.autoCompactWindowAccount },
             )}
-          >
-            <FieldNote error={on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')} />
-          </Row>
+            error={on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
+          />
           {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
           <Row
             className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
@@ -658,9 +659,8 @@ export function SettingsPanel({
               (value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value),
               { placeholder: t.shared.checkpointTokensPlaceholder, disabled: handoffsOff },
             )}
-          >
-            <FieldNote error={errorOf('stats.checkpointTokens')} />
-          </Row>
+            error={errorOf('stats.checkpointTokens')}
+          />
           <div className={marks.box('ownShares')}>
             <FieldHead
               label={t.shared.checkpointShares}

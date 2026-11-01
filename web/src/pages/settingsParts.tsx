@@ -3,6 +3,7 @@ import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { CheckpointShares, ConfigView } from '../../../src/state.js'
 import { sayAtField, t } from '../i18n/index.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
 import { CheckIcon, InheritIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
@@ -164,7 +165,7 @@ export function FieldHead({ label, hint, htmlFor, soon, inherit, mark }: { label
 
 /**
  * A short setting on one line: its name at the left, its control at the right edge, one width for every control;
- * `mark` goes into the name's line, `children` under both — the error.
+ * `mark` goes into the name's line, `error` into a strip under the control, `children` under both.
  */
 export function Row({
   className,
@@ -174,6 +175,7 @@ export function Row({
   inherit,
   mark,
   control,
+  error,
   children,
 }: {
   className: string
@@ -183,13 +185,15 @@ export function Row({
   inherit?: Inheritance
   mark?: ReactNode
   control: ReactNode
+  /** A field's error; a control with none (a switch) leaves it out. */
+  error?: Notice | null
   children?: ReactNode
 }) {
   return (
     <div className={`${className} settings__line`}>
       <div className="settings__line-main">
         <FieldHead label={label} hint={hint} htmlFor={htmlFor} inherit={inherit} mark={mark} />
-        <div className="settings__control">{control}</div>
+        <div className="settings__control">{error === undefined ? control : <ErrorStrip error={error}>{control}</ErrorStrip>}</div>
       </div>
       {children}
     </div>
@@ -238,11 +242,21 @@ export function SwitchField({
 /** The id of a field's control, for its name to point at. */
 export const fieldId = (key: string) => `setting-${key.replace(/\W/g, '-')}`
 
+/** The error of a setting that is more than one field (a switch, a table, a group): a line under the whole of it. */
 export function FieldNote({ error }: { error: Notice | null }) {
   return error === null ? null : (
     <span className="settings__error" role="alert">
       {sayAtField(error)}
     </span>
+  )
+}
+
+/** A field with its error in a strip under it, folded while there is none. */
+export function ErrorStrip({ error, wide = false, children }: { error: Notice | null; wide?: boolean; children: ReactNode }) {
+  return (
+    <FieldStrip line={error === null ? null : { tone: 'error', text: sayAtField(error) }} fold wide={wide}>
+      {children}
+    </FieldStrip>
   )
 }
 

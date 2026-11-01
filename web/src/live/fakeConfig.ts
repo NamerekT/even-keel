@@ -1,5 +1,5 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
-import { notice } from '../../../src/notice/notice.js'
+import { fail, notice } from '../../../src/notice/notice.js'
 import { DEFAULT_EXCEPT, INTERFACE_FILES } from '../../../src/projects/standards.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
 import { DEFAULT_SHARES } from '../../../src/stats/checkpoint.js'
@@ -174,7 +174,7 @@ export const fakeHandEdit = (config: ConfigView): ConfigView => {
   }
 }
 
-/** What the service would save: the form as it came, lines trimmed. */
+/** What the service would save: the form as it came, lines trimmed; an empty repository path is refused, as the service does. */
 export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
   const { base: _base, ...sent } = body
@@ -185,6 +185,7 @@ export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Re
   }
   if (name !== 'project/settings') return null
   const { project: key, ...form } = sent as unknown as ProjectForm & { project: string }
+  if (form.repo.trim() === '') throw fail('config.repoEmpty', { key })
   const prompt = form.prompt?.trim() ?? ''
   const title = form.name?.trim() ?? ''
   const saved: ProjectForm = {

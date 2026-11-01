@@ -9,15 +9,34 @@
   isolation: isolate;
 }
 
+.field-strip--wide {
+  width: auto;
+}
+
 /* Kept while empty: a line that comes later moves nothing below. */
 .field-strip__room {
   position: relative;
   z-index: -1;
-  height: calc(var(--strip-height) + var(--strip-tuck));
+  display: grid;
+  min-height: calc(var(--strip-height) + var(--strip-tuck));
   margin-top: calc(-1 * var(--strip-tuck));
   overflow: hidden;
   /* The text adds nothing to the field's width: the strip takes the field's. */
   contain: inline-size;
+}
+
+/* Folded, the room grows from nothing to its line's height (a row of `1fr` follows its content). */
+.field-strip--fold > .field-strip__room {
+  min-height: 0;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--motion-appear) ease-out,
+    margin-top var(--motion-appear) ease-out;
+}
+
+.field-strip--fold > .field-strip__room:empty {
+  grid-template-rows: 0fr;
+  margin-top: 0;
 }
 
 .field-strip__line {
@@ -25,8 +44,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  height: 100%;
-  padding: var(--strip-tuck) 10px 0;
+  min-height: 0;
+  /* 3 + 16 + 2 + the bottom border: the strip's 22 px for one line. */
+  padding: calc(var(--strip-tuck) + 3px) 10px 2px;
   border: 1px solid var(--border);
   border-top: 0;
   border-radius: 0 0 var(--radius-strip) var(--radius-strip);
@@ -57,6 +77,11 @@
   border-color: color-mix(in srgb, var(--lamp-error) 45%, var(--border));
   background: var(--error-bg);
   color: var(--error-fg);
+  white-space: normal;
+}
+
+.field-strip__line--error > .field-strip__text {
+  overflow-wrap: anywhere;
 }
 
 .field-strip:has(.field-strip__line--error) > :first-child {
@@ -91,5 +116,9 @@
 @media (prefers-reduced-motion: reduce) {
   .field-strip__line {
     animation: none;
+  }
+
+  .field-strip--fold > .field-strip__room {
+    transition: none;
   }
 }
