@@ -4,7 +4,8 @@ Even Keel is open source under the [MIT license](LICENSE), but it is not open to
 
 What helps most:
 
-- **A bug** — an issue with the bug template: what you did, what happened, the Even Keel version, the OS and the Claude Code or Codex CLI version, the lines of `logs/even-keel.log` around it.
+- **Stuck on setup** — an issue with the setup template: where installing or the first run stopped and what you expected. An unclear step is worth it even if you got past it.
+- **A bug** — an issue with the bug template: what you did, what happened, the Even Keel version, the OS, the agent and its CLI version, the lines of `logs/even-keel.log` around it.
 - **An idea** — an issue saying what you wanted to do and what got in the way, rather than how to build it.
 - **A run into something listed in [docs/unverified.md](docs/unverified.md)** — an issue saying which entry and what happened, whether the assumption held or not. That is the report wanted most: these are the cases no check on the author's machine could reach.
 - **A vulnerability** — privately, never as an issue: [SECURITY.md](SECURITY.md).

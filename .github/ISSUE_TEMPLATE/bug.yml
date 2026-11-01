@@ -5,7 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Broke right after a Claude Code CLI or Codex CLI update? Use the **CLI update broke something** template instead.
+        Stuck installing Even Keel or on its first run? Use the **Stuck on setup** template instead: it asks for much less.
+        Broke right after an update of an agent's CLI (Claude Code, Codex, OpenCode, Copilot)? Use **CLI update broke something**.
         A security hole goes to [SECURITY.md](https://github.com/NamerekT/even-keel/blob/main/SECURITY.md), not here.
 
   - type: textarea
@@ -44,9 +45,11 @@ body:
     attributes:
       label: How it runs
       options:
-        - As a service
-        - npm start
-        - Development (npm run dev)
+        - Installed with npm, as a service (even-keel install)
+        - Installed with npm, in a terminal (even-keel)
+        - A clone, as a service
+        - A clone, npm start
+        - A clone, development (npm run dev)
     validations:
       required: true
 
@@ -54,7 +57,7 @@ body:
     id: version
     attributes:
       label: Even Keel version
-      description: The version in the page header, or `git rev-parse --short HEAD` of your clone.
+      description: The version in the gear menu of the page header, or `git rev-parse --short HEAD` of your clone.
     validations:
       required: true
 
@@ -62,15 +65,27 @@ body:
     id: fork
     attributes:
       label: Fork
-      description: Leave empty if you run a clone of this repository with no changes of your own; otherwise the link to your fork or a word on what you changed.
+      description: Leave empty if you run Even Keel from npm or a clone of this repository with no changes of your own; otherwise the link to your fork or a word on what you changed.
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: The agent the task ran on.
+      options:
+        - Claude Code
+        - Codex
+        - OpenCode
+        - GitHub Copilot
+        - Not about a session
+    validations:
+      required: true
 
   - type: input
     id: cli
     attributes:
-      label: Claude Code CLI version
-      description: "`claude --version`; add `codex --version` if the task ran on Codex."
-    validations:
-      required: true
+      label: Agent CLI version
+      description: "`claude --version`, `codex --version`, `opencode --version` or `copilot --version`; with **CLI version → Checked** on the page, the version shown there."
 
   - type: dropdown
     id: tracker
@@ -79,7 +94,9 @@ body:
       options:
         - Huly
         - GitHub Issues
+        - GitLab
         - Linear
+        - Jira Cloud
         - My own adapter
     validations:
       required: true
@@ -89,6 +106,6 @@ body:
     attributes:
       label: Service log
       description: |
-        The lines around the problem: `logs/even-keel.log` on Windows and macOS, `journalctl --user -u even-keel` on Linux, the terminal for `npm start`.
-        **Remove anything personal first**: task titles and texts, repository paths, host names, account names and emails.
+        The lines around the problem: `logs/even-keel.log` in the data folder (`%LOCALAPPDATA%\even-keel` on Windows, `~/Library/Application Support/even-keel` on macOS) or in your clone; `journalctl --user -u even-keel` for the Linux service; the terminal when it runs in one.
+        **Remove anything personal first**: task titles and texts, repository paths, host names, account names, emails and any token.
       render: text

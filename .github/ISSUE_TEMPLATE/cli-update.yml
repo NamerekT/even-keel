@@ -1,18 +1,30 @@
 name: CLI update broke something
-description: Even Keel worked, then Claude Code (or Codex) updated and a part of it stopped working.
-title: "CLI <version>: "
+description: Even Keel worked, then an agent's CLI (Claude Code, Codex, OpenCode, Copilot) updated and a part of it stopped working.
+title: "<CLI> <version>: "
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Even Keel reads undocumented parts of the Claude Code CLI — `claude agents --json`, `sessions/<pid>.json`, the background daemon, the transcript format, the text of `/usage`, `~/.claude.json` — so a CLI update can break it until it is adapted. The README names the CLI version it was last checked on.
+        Even Keel reads undocumented parts of the agents' CLIs — for Claude Code `claude agents --json`, `sessions/<pid>.json`, the background daemon, the transcript format, the text of `/usage`, `~/.claude.json`; for Codex, OpenCode and Copilot their JSON events and session files — so a CLI update can break it until it is adapted. The README names the versions it was last checked on; **CLI version → Checked** on the page runs sessions on those.
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: CLI
+      options:
+        - Claude Code
+        - Codex
+        - OpenCode
+        - GitHub Copilot
+    validations:
+      required: true
 
   - type: input
     id: cli-now
     attributes:
       label: CLI version now
-      description: "`claude --version` (or `codex --version`)"
+      description: "`claude --version`, `codex --version`, `opencode --version` or `copilot --version`"
     validations:
       required: true
 
@@ -34,7 +46,7 @@ body:
     id: changed
     attributes:
       label: What the CLI does differently
-      description: If you looked — a changed field in `claude agents --json`, a new line in the transcript, a different `/usage` text. Paste the relevant piece, not whole files.
+      description: If you looked — a changed field in `claude agents --json`, a new line in the transcript or the JSON events, a different `/usage` text. Paste the relevant piece, not whole files.
       render: text
 
   - type: dropdown
@@ -53,7 +65,7 @@ body:
     id: version
     attributes:
       label: Even Keel version
-      description: The version in the page header, or `git rev-parse --short HEAD` of your clone.
+      description: The version in the gear menu of the page header, or `git rev-parse --short HEAD` of your clone.
     validations:
       required: true
 
@@ -62,6 +74,6 @@ body:
     attributes:
       label: Service log
       description: |
-        The lines around the problem: `logs/even-keel.log` on Windows and macOS, `journalctl --user -u even-keel` on Linux, the terminal for `npm start`.
-        **Remove anything personal first**: task titles and texts, repository paths, host names, account names and emails.
+        The lines around the problem: `logs/even-keel.log` in the data folder (`%LOCALAPPDATA%\even-keel` on Windows, `~/Library/Application Support/even-keel` on macOS) or in your clone; `journalctl --user -u even-keel` for the Linux service; the terminal when it runs in one.
+        **Remove anything personal first**: task titles and texts, repository paths, host names, account names, emails and any token.
       render: text

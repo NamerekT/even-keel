@@ -1,0 +1,57 @@
+name: Stuck on setup
+description: Installing Even Keel or its first run stopped somewhere, or something there was unclear.
+labels: [setup]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No logs or versions needed: tell where you stopped and what you expected. An unclear step is worth reporting even if you got past it.
+        **Never paste a token, a key or a password**, here or in a screenshot.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you stopped
+      options:
+        - Installing Node.js, git or the agent's CLI
+        - Installing Even Keel (npx, npm or a clone)
+        - The first-start setup on the page (languages, agent, account)
+        - Signing the agent's account in
+        - A tracker profile (token, key or password)
+        - The project wizard
+        - Pressing Start — the chain took no task
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What you did and what you expected
+      placeholder: |
+        Made a GitHub token, pasted it into the tracker profile, pressed Check.
+        Expected it to pass; it said …
+    validations:
+      required: true
+
+  - type: textarea
+    id: saw
+    attributes:
+      label: What you saw
+      description: The message on the page or in the terminal, or a screenshot — drag it in here.
+
+  - type: textarea
+    id: helped
+    attributes:
+      label: What would have helped
+      description: A line in the README, a hint on the page, a different word — if you have an idea.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - WSL
