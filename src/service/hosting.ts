@@ -45,6 +45,7 @@ import { ADAPTERS } from '../tracker/adapters.js'
 import { hulyClient } from '../huly/client.js'
 import { taskControl } from '../tracker/control.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
+import { runsAsService } from '../updates/control.js'
 import type { ServiceContext } from '../service.js'
 
 type HostingContext = Pick<ServiceContext,
@@ -275,7 +276,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.saveShared(form, base)
         console.log('page: the shared settings are written to the config')
       },
-      check: (draft) =>
+      check: async (draft) =>
         checkDraft(
           {
             git: runGit,
@@ -286,14 +287,16 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
             claudeConfigs: () => ctx.claudeConfigs().map(readJson),
             timeoutMs: ctx.TRACKER_CHECK_MS,
             user: userInfo().username,
+            service: await runsAsService(),
           },
           draft,
         ),
-      trust: (project, account) => {
+      trust: async (project, account) => {
         const folder = ctx.configStore.current.projects[project]
         if (folder === undefined) throw fail('config.unknownProject', { key: project })
         const configs = ctx.claudeConfigs(account ?? runSettings(ctx.configStore.current, project).accounts[CLAUDE] ?? ctx.claudeAccount()).map(readJson)
-        return { folder, trusted: configs.some((config) => isTrusted(config, folder)), platform: process.platform, user: userInfo().username }
+        const trusted = configs.some((config) => isTrusted(config, folder))
+        return { folder, trusted, platform: process.platform, user: userInfo().username, service: await runsAsService() }
       },
       add: (draft) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, draft),
       remove: (project) => {

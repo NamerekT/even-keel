@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fail, noticeOf } from '../notice/notice.js'
 import { untrustedStart } from './trust.js'
 
-const place = { task: 'GLS-4', folder: 'D:\\gls', platform: 'win32', user: 'svc' }
+const place = { task: 'GLS-4', folder: 'D:\\gls', platform: 'win32', user: 'svc', service: true }
 const refusal =
   'Workspace not trusted. Run claude in D:\\gls\\.claude\\worktrees\\gls-4 once and accept the trust prompt, then retry.'
 

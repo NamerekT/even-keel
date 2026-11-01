@@ -197,6 +197,22 @@ export function trustCommandAs(folder: string, platform: string, user: string): 
   return `cd ${quoted(folder)} && sudo -u ${quoted(user)} -H claude`
 }
 
+/** Where a trust command is run: the folder, the service machine's platform and user, whether Even Keel is a service. */
+export interface TrustPlace {
+  folder: string
+  platform: string
+  user: string
+  service: boolean
+}
+
+/**
+ * The commands that give the trust (BTN-687): `as` — from another user's terminal, only while Even Keel runs as a
+ * system service; `npm start` and the tray run as the user at the terminal, where `runas` would only ask a password.
+ */
+export function trustCommandsOf(place: TrustPlace): { own: string; as: string | null } {
+  return { own: trustCommand(place.folder, place.platform), as: place.service ? trustCommandAs(place.folder, place.platform, place.user) : null }
+}
+
 const quoted = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
 
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */

@@ -356,6 +356,11 @@ export interface ProjectCheck {
   platform: string
   /** The user the service runs as: the trust is given in a terminal of theirs, or it lands in another profile (BTN-310). */
   user: string
+  /**
+   * Even Keel runs as a system service, whose user may not be the one at the terminal: the page then adds the command
+   * from another user's terminal (BTN-687). `npm start` and the tray run as that user.
+   */
+  service: boolean
 }
 
 /** Claude Code's trust in a project's checkout, for its settings (`project/trust`, BTN-429). */
@@ -364,6 +369,8 @@ export interface ProjectTrust {
   trusted: boolean
   platform: string
   user: string
+  /** As `ProjectCheck.service`. */
+  service: boolean
 }
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */

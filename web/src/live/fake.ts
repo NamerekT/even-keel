@@ -307,6 +307,8 @@ function isHulyState(value: string | null): value is TrackerLinkState {
 
 export function createFakeSource(search: string): LiveSource {
   const params = new URLSearchParams(search)
+  // `?host=terminal` — Even Keel runs from `npm start` or the tray: the trust commands give no `runas` (BTN-687).
+  const asService = params.get('host') !== 'terminal'
   const requested = params.get('link')
   const link: Link = isLink(requested) ? requested : 'live'
   const requestedHuly = params.get('huly')
@@ -436,7 +438,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
   if (params.get('chain') === 'untrusted' && active) {
-    const error = notice('claude.untrusted', { task: 'ABC-5', folder: 'D:/work/abc', platform: 'win32', user: 'evenkeel' })
+    const error = notice('claude.untrusted', { task: 'ABC-5', folder: 'D:/work/abc', platform: 'win32', user: 'evenkeel', service: asService })
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
   if (params.get('chain') === 'slot' && active) {
@@ -779,13 +781,13 @@ export function createFakeSource(search: string): LiveSource {
     checkProject: async (draft) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
-      return fakeCheck(current.state, draft, params.get('wizard'))
+      return { ...fakeCheck(current.state, draft, params.get('wizard')), service: asService }
     },
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
-      if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: current.state.platform, user: 'evenkeel' } as T
+      if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: current.state.platform, user: 'evenkeel', service: asService } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       if (name === 'profiles/statuses') return fakeProfileStatuses(current.state, body, params.get('profileStatuses'), FAKE_VOCABULARY.statuses) as T

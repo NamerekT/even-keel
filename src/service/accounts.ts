@@ -47,6 +47,7 @@ import { TALLY_SCHEMA_VERSION } from '../stats/tally-schema.js'
 import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
 import { runLabelText } from '../tracker/model.js'
 import { stateUrlOf, Updater } from '../updates/updater.js'
+import { runsAsService } from '../updates/control.js'
 import { installed, UpdateWatcher } from '../updates/watcher.js'
 import { firstRun } from '../setup.js'
 import type { ServiceContext } from '../service.js'
@@ -256,7 +257,7 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
       return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, start))
     } catch (error) {
       const folder = project === undefined ? undefined : ctx.configStore.current.projects[project]
-      const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username }
+      const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
       throw (place === null ? null : untrustedStart(error, place)) ?? error
     }
   }

@@ -20,6 +20,7 @@ import {
   trackerPlace,
   trustCommand,
   trustCommandAs,
+  trustCommandsOf,
   typedIn,
   type WizardFields,
 } from './projectWizard.js'
@@ -34,6 +35,7 @@ const passed: ProjectCheck = {
   trusted: true,
   platform: 'win32',
   user: 'svc',
+  service: true,
 }
 
 describe('trustCommand', () => {
@@ -54,6 +56,19 @@ describe('trustCommandAs', () => {
 
   it('with sudo elsewhere, which keeps the folder, and the home of the user', () => {
     expect(trustCommandAs('/home/me/shop', 'linux', 'even-keel')).toBe("cd '/home/me/shop' && sudo -u 'even-keel' -H claude")
+  })
+})
+
+describe('trustCommandsOf', () => {
+  it("gives a service both commands: its user may not be the one at the terminal (BTN-687)", () => {
+    expect(trustCommandsOf({ folder: 'D:\\shop', platform: 'win32', user: 'svc', service: true })).toEqual({
+      own: 'pushd "D:\\shop" && claude',
+      as: 'runas /user:svc "cmd /k cd /d D:\\shop && claude"',
+    })
+  })
+
+  it('gives npm start and the tray only the first: they run as the user at the terminal', () => {
+    expect(trustCommandsOf({ folder: 'D:\\shop', platform: 'win32', user: 'jdoe', service: false })).toEqual({ own: 'pushd "D:\\shop" && claude', as: null })
   })
 })
 

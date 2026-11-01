@@ -5,16 +5,21 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { untrustedOf } from './noticeFix.js'
-import { trustCommand, trustCommandAs } from './projectWizard.js'
+import { trustCommandsOf, type TrustPlace } from './projectWizard.js'
 import './projectAdd.css'
 
-/** The commands that open `claude` in the folder to accept its trust: as the user at hand, then from another user's terminal. */
-export function TrustCommands({ folder, platform, user }: { folder: string; platform: string; user: string }) {
+/** The commands that open `claude` in the folder to accept its trust: as the user at hand, then, for a service, from another user's terminal. */
+export function TrustCommands({ place }: { place: TrustPlace }) {
+  const commands = trustCommandsOf(place)
   return (
     <>
-      <CommandBlock command={trustCommand(folder, platform)} />
-      <p>{t.wizard.trustUser(user)}</p>
-      <CommandBlock command={trustCommandAs(folder, platform, user)} />
+      <CommandBlock command={commands.own} />
+      {commands.as !== null && (
+        <>
+          <p>{t.wizard.trustUser(place.user)}</p>
+          <CommandBlock command={commands.as} />
+        </>
+      )}
     </>
   )
 }
@@ -25,7 +30,8 @@ export function UntrustedCommands({ notice }: { notice: Notice | null }) {
   if (untrusted === null) return null
   return (
     <div className="project-add__trust">
-      <TrustCommands folder={untrusted.folder} platform={untrusted.platform} user={untrusted.user} />
+      {/* A pause written before BTN-687 does not say: both commands, as it showed then. */}
+      <TrustCommands place={{ ...untrusted, service: untrusted.service ?? true }} />
     </div>
   )
 }
@@ -69,7 +75,7 @@ export function TrustWarning({ project, account }: { project: string; account: s
   return (
     <div className="notice notice--warn project-add__trust">
       <p>{t.settings.untrusted}</p>
-      <TrustCommands folder={trust.folder} platform={trust.platform} user={trust.user} />
+      <TrustCommands place={trust} />
     </div>
   )
 }

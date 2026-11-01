@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, windowsControl, windowsServiceOf } from './control.js'
+import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, systemUnitOf, windowsControl, windowsServiceOf } from './control.js'
 
 describe('launcherOf', () => {
   const exe = 'C:\\Users\\jdoe\\AppData\\Local\\even-keel\\service\\EvenKeel.exe'
@@ -39,6 +39,18 @@ describe('systemdUnitOf', () => {
     expect(systemdUnitOf('0::/user.slice/user-1000.slice/session-3.scope\n')).toBeNull()
     expect(systemdUnitOf('0::/system.slice/even-keel.service\n')).toBeNull()
     expect(systemdUnitOf(`0::/user.slice/user-1000.slice/${manager}/app.slice/app-gnome-terminal.scope\n`)).toBeNull()
+  })
+})
+
+describe('systemUnitOf', () => {
+  it('reads the system unit the process runs in (BTN-687)', () => {
+    expect(systemUnitOf('0::/system.slice/even-keel.service\n')).toBe('even-keel.service')
+  })
+
+  it('finds none in a user unit or a terminal', () => {
+    const manager = ['user', '1000.service'].join('@')
+    expect(systemUnitOf(`0::/user.slice/user-1000.slice/${manager}/app.slice/even-keel.service\n`)).toBeNull()
+    expect(systemUnitOf('0::/user.slice/user-1000.slice/session-3.scope\n')).toBeNull()
   })
 })
 

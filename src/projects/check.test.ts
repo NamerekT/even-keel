@@ -68,6 +68,7 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
     timeoutMs: 1000,
     platform: 'win32',
     user: 'svc',
+    service: true,
     ...fields,
   }
 }
@@ -83,6 +84,7 @@ describe('checkDraft', () => {
       trusted: true,
       platform: 'win32',
       user: 'svc',
+      service: true,
     })
   })
 

@@ -156,7 +156,7 @@ export interface SettingsControl {
   /** What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust. */
   check(draft: ProjectDraft): Promise<ProjectCheck>
   /** Claude Code's trust in the project's checkout as the Claude account folder `account` (blank — the project's own) sees it. */
-  trust(project: string, account: string | null): ProjectTrust
+  trust(project: string, account: string | null): Promise<ProjectTrust>
   /** Adds the wizard's project to the config; refuses one the config would not parse. */
   add(draft: ProjectDraft): void
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */

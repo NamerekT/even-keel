@@ -237,7 +237,8 @@ export const en = {
     `the CLI check is running on the account ${p.account}; ${p.task} starts as soon as it ends`,
 
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
-  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string }) =>
+  // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none.
+  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean }) =>
     `Claude Code does not trust ${p.folder} yet, so ${p.task} was not started. Run claude in that folder once as ${p.user}, accept the trust and resume the chain`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,

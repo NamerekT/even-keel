@@ -28,6 +28,8 @@ export interface CheckDeps {
   platform?: NodeJS.Platform
   /** The user the service runs as. */
   user: string
+  /** Even Keel runs as a system service (`ProjectCheck.service`). */
+  service: boolean
 }
 
 const ENTRY_ID = 'wizard-check'
@@ -65,7 +67,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   const root = repo.root
   // Run labels can give any task to Claude, whatever the project's own agent (BTN-429).
   const trusted = root === null || (provider !== CLAUDE && !labels) ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
-  return { repo, entry, yields, tracker, trusted, platform, user: deps.user }
+  return { repo, entry, yields, tracker, trusted, platform, user: deps.user, service: deps.service }
 }
 
 export async function checkRepo(

@@ -58,6 +58,15 @@ export function systemdUnitOf(cgroup: string): string | null {
   return null
 }
 
+/** The system unit of `/proc/self/cgroup` (`system.slice/<unit>.service`): systemd runs it as the user the unit names. */
+export function systemUnitOf(cgroup: string): string | null {
+  for (const line of cgroup.split('\n')) {
+    const unit = line.slice(line.lastIndexOf(':') + 1).match(/^\/system\.slice\/([^/]+\.service)$/)?.[1]
+    if (unit !== undefined) return unit
+  }
+  return null
+}
+
 /** launchd names its job in `XPC_SERVICE_NAME`; a terminal has `0` or an application's name there. */
 export function launchdLabelOf(env: NodeJS.ProcessEnv): string | null {
   const label = env.XPC_SERVICE_NAME
@@ -84,6 +93,33 @@ const BOOTOUT = 'launchctl bootout "$0/$1" 2>/dev/null; n=0; while launchctl pri
 export function launchdControl(label: string, uid: number, plist: string): ServiceControl {
   const domain = `gui/${uid}`
   return { kind: 'launchd', name: label, stop: ['/bin/sh', '-c', BOOTOUT, domain, label], start: ['launchctl', 'bootstrap', domain, plist] }
+}
+
+let asService: Promise<boolean> | undefined
+
+/**
+ * Whether this process runs as a system service (BTN-687): a Windows service, a system unit of systemd, a launchd
+ * daemon, whose user need not be the one at the terminal. `npm start`, the tray host and the user units of
+ * `install.sh` run as that user. Asked once per process.
+ */
+export function runsAsService(): Promise<boolean> {
+  asService ??= (async () => {
+    try {
+      if (process.platform === 'win32') {
+        const { stdout } = await promisify(execFile)('tasklist', ['/svc', '/fo', 'csv', '/nh', '/fi', `PID eq ${process.ppid}`], { windowsHide: true })
+        return launcherOf(stdout, process.env) === null && windowsServiceOf(stdout) !== null
+      }
+      if (process.platform === 'linux') return systemUnitOf(readFileSync('/proc/self/cgroup', 'utf8')) !== null
+      if (process.platform === 'darwin') {
+        const label = launchdLabelOf(process.env)
+        return label !== null && existsSync(join('/Library/LaunchDaemons', `${label}.plist`))
+      }
+    } catch {
+      return false
+    }
+    return false
+  })()
+  return asService
 }
 
 /** The service manager running this process; `null` — none it knows (`npm start` in a terminal). */
