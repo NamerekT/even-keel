@@ -1279,7 +1279,6 @@ export const en: Messages = {
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
     lockedHint:
       'A lock instead of the state lamp marks a blocker outside the chain. Use “Move to Todo” in its number slot or change its status in the tracker. A blocker labelled Manual must be completed by you.',
-    lockedTitle: 'Blocker outside the chain: open the task in the tracker',
     readyRefused: (reason: string) => `Taking it into the chain would stop the chain: ${reason}`,
     tasks,
     noMilestone: 'No milestone',

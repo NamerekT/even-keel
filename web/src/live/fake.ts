@@ -484,6 +484,19 @@ export function createFakeSource(search: string): LiveSource {
       refused: { 'ABC-21': notice('order.later', { task: 'ABC-10', milestone: 'v0.2 — удобство', blocker: 'ABC-21', blockerMilestone: 'v0.3 — служба' }) },
     }
   }
+  if (params.get('chain') === 'blockers' && current.state !== null) {
+    // Every kind of blocker outside the chain in front of ABC-10: a backlog status, an excluding label, another project's task.
+    const { tasks, chain } = current.state
+    const other = task('DEMO-31', 'Общий формат журнала запусков', 'In Progress', 'Active')
+    current.state.tasks = [
+      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16', 'ABC-22', 'DEMO-31'] } : each)),
+      task('ABC-16', 'Схема базы статистики', 'Backlog', 'UnStarted'),
+      task('ABC-22', 'Выпустить ключ API для стенда', 'Todo', 'ToDo', [], 'v0.2 — удобство', { labels: ['Manual'] }),
+      other,
+    ]
+    const order = chain.projects['ABC']!
+    chain.projects['ABC'] = { ...order, waiting: ['ABC-16', 'ABC-22', 'DEMO-31'], outside: [other], landing: { ...order.landing, 'ABC-16': 'ABC-10' } }
+  }
   if (params.get('chain') === 'later' && current.state !== null) {
     const { tasks, chain } = current.state
     current.state.tasks = [
