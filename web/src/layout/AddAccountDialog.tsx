@@ -10,6 +10,7 @@ import { CliDownloadDialog } from './CliCopies.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
 import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
@@ -392,12 +393,16 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, o
           <>
             <label className="add-package__field">
               <span className="add-package__label">{t.addAccount.key[way.id === 'token' ? 'token' : 'key']}</span>
-              <input
-                className="add-package__input add-package__input--mono"
-                {...secretInput()}
-                value={draft.key}
-                onChange={(event) => onDraft({ ...draft, key: event.target.value })}
-              />
+              {/* A refusal of a key account is about the key (its form, the provider's answer), so it goes under the key. */}
+              <FieldStrip line={failure === null ? null : { tone: 'error', text: failure }} fold wide>
+                <input
+                  className="add-package__input add-package__input--mono"
+                  {...secretInput()}
+                  value={draft.key}
+                  aria-invalid={failure !== null}
+                  onChange={(event) => onDraft({ ...draft, key: event.target.value })}
+                />
+              </FieldStrip>
             </label>
             <label className="add-package__field">
               <span className="add-package__label">{t.addAccount.name}</span>
@@ -411,7 +416,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, o
             </label>
           </>
         )}
-        {failure !== null && (
+        {failure !== null && !key && (
           <p className="notice notice--error" role="alert">
             {failure}
           </p>

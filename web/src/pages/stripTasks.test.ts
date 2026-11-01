@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StatsTaskRow } from '../../../src/stats/model.js'
-import { stripTasks } from './stripTasks.js'
+import { keptTasks, stripTasks, type StripMemory } from './stripTasks.js'
 
 function task(id: string, fields: Partial<StatsTaskRow>): StatsTaskRow {
   return {
@@ -58,5 +58,32 @@ describe('stripTasks', () => {
   it('has no median without a finished task', () => {
     expect(stripTasks([task('ABC-1', { done: false })]).median).toBeNull()
     expect(stripTasks([]).median).toBeNull()
+  })
+})
+
+describe('keptTasks', () => {
+  const abc = stripTasks([task('ABC-1', { cost: 5 })])
+  const xyz = stripTasks([task('XYZ-1', { cost: 7, project: 'XYZ' })])
+
+  it('takes an answer only for the query it was asked with', () => {
+    const memory: StripMemory = new Map()
+    expect(keptTasks(memory, 'abc-id', 'q-abc', { key: 'q-abc', tasks: abc })).toBe(abc)
+    // The page moved to another project and the old project's answer is still in the hook.
+    expect(keptTasks(memory, 'xyz-id', 'q-xyz', { key: 'q-abc', tasks: abc })).toBeNull()
+    expect(keptTasks(memory, 'xyz-id', 'q-xyz', { key: 'q-xyz', tasks: xyz })).toBe(xyz)
+  })
+
+  it('shows a project the page comes back to from its last answer', () => {
+    const memory: StripMemory = new Map()
+    keptTasks(memory, 'abc-id', 'q-abc', { key: 'q-abc', tasks: abc })
+    keptTasks(memory, 'xyz-id', 'q-xyz', { key: 'q-xyz', tasks: xyz })
+    expect(keptTasks(memory, 'abc-id', 'q-abc', { key: 'q-xyz', tasks: xyz })).toBe(abc)
+    expect(keptTasks(memory, 'abc-id', 'q-abc', null)).toBe(abc)
+  })
+
+  it('drops a remembered answer of an older query of the same project', () => {
+    const memory: StripMemory = new Map()
+    keptTasks(memory, 'abc-id', 'q-abc-yesterday', { key: 'q-abc-yesterday', tasks: abc })
+    expect(keptTasks(memory, 'abc-id', 'q-abc-today', null)).toBeNull()
   })
 })

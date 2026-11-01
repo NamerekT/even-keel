@@ -42,6 +42,8 @@
   overscroll-behavior: contain;
   overflow-anchor: none;
   mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent);
+  /* An opened tool group scrolls its end out of the fade. */
+  scroll-padding-bottom: 32px;
 }
 
 .transcript__lines {

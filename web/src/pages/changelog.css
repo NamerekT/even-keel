@@ -39,11 +39,22 @@
 .changelog.add-package {
   --diff-added: color-mix(in srgb, var(--lamp-done) 22%, transparent);
   --diff-removed: color-mix(in srgb, var(--lamp-error) 20%, transparent);
+  /* One size whatever it holds — the boat, a short draft, a long one — so the window never jumps: the text box takes
+     the room left and scrolls. */
   width: min(760px, calc(100vw - 32px));
+  height: min(640px, calc(100dvh - 64px));
+}
+
+.changelog .add-package__frame {
+  height: 100%;
+}
+
+.changelog__body {
+  flex: 1;
+  min-height: 0;
 }
 
 .changelog__counts,
-.changelog__writing,
 .changelog__instruction {
   margin: 0;
   color: var(--fg-muted);
@@ -56,8 +67,8 @@
 }
 
 .changelog__text {
-  min-height: 240px;
-  max-height: 52vh;
+  flex: 1;
+  min-height: 120px;
   overflow: auto;
   padding: 12px 0;
   border: 1px solid var(--border);
@@ -112,7 +123,8 @@
   color: var(--fg);
   font: inherit;
   font-size: var(--text-13);
-  resize: vertical;
+  flex: none;
+  resize: none;
 }
 
 .changelog__edit:focus-visible {

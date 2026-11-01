@@ -123,8 +123,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 6px 20px 16px;
+  padding: 6px calc(20px - var(--pane-scrollbar)) 16px 20px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .add-package__body > .notice {
@@ -156,12 +157,6 @@
 /* A legend takes no gap from its fieldset. */
 .add-package__legend {
   margin-bottom: 4px;
-}
-
-.add-package__error {
-  color: var(--error-fg);
-  font-size: var(--text-12);
-  line-height: 1.45;
 }
 
 .add-package__input {

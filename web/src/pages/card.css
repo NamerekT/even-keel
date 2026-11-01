@@ -162,7 +162,8 @@ html:has(.task-card[open]) {
 
 .task-card__body {
   overflow-y: auto;
-  padding: 22px 24px 28px;
+  scrollbar-gutter: stable;
+  padding: 22px calc(24px - var(--pane-scrollbar)) 28px 24px;
   overscroll-behavior: contain;
 }
 
@@ -651,35 +652,8 @@ html:has(.task-card[open]) {
   text-decoration: line-through;
 }
 
-/* Loading */
-
-.task-card__loading {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px 0 24px;
-}
-
-.task-card__bone {
-  height: 12px;
-  border-radius: var(--radius-control);
-  background: linear-gradient(90deg, var(--surface-muted) 30%, color-mix(in srgb, var(--fg) 10%, var(--surface-muted)) 50%, var(--surface-muted) 70%) 0 0 / 300% 100%;
-  animation: shimmer var(--motion-skeleton) linear infinite;
-}
-
-.task-card__bone--title {
-  width: 60%;
-  height: 22px;
-  margin-bottom: 12px;
-}
-
-.task-card__bone--short {
-  width: 40%;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .task-card[open],
-  .task-card__bone {
+  .task-card[open] {
     animation: none;
   }
 }

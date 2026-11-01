@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Fold } from '../ui/Fold.js'
 import { PROTECTION_GROUPS, type Protection } from '../../../src/sessions/protection.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -8,12 +9,12 @@ import { allTrackersOn, protectionDraft, protectionOf, protectionText, switched,
 const AGENTS = { claude: 'Claude Code', codex: 'Codex', copilot: 'Copilot', opencode: 'OpenCode' } as const
 const EXAMPLES: Record<keyof typeof AGENTS, string> = { claude: 'Bash(git reset --hard*)', codex: '["git", "reset", "--hard"]', copilot: 'shell(git reset --hard:*)', opencode: 'git reset --hard*' }
 
-export function ProtectionSettings({ value, shared, onChange, error = null }: { value: string; shared?: Protection; onChange: (value: string) => void; error?: Notice | null }) {
+export function ProtectionSettings({ value, shared, onChange, error = null, mark }: { value: string; shared?: Protection; onChange: (value: string) => void; error?: Notice | null; mark?: ReactNode }) {
   const text = protectionMessages()
   const inherited = value === '' && shared !== undefined
   const draft = protectionDraft(inherited ? protectionText(shared) : value)
   const edit = (fields: Partial<typeof draft>) => onChange(JSON.stringify({ ...draft, ...fields }))
-  return <Section title={text.title} hint={text.hint}>
+  return <Section title={text.title} hint={text.hint} aside={mark ?? undefined}>
     {shared !== undefined && <SwitchField className="settings__field" label={text.inherit} hint={text.inheritHint} checked={inherited} onChange={on => onChange(on ? '' : protectionText(shared))} />}
     {PROTECTION_GROUPS.filter(group => !TRACKER_PROTECTION.includes(group)).map(group => <SwitchField key={group} className="settings__field" label={text.groups[group]} hint={text.groupHints[group]} checked={!draft.disabled.includes(group)} onChange={on => edit({ disabled: switched(draft.disabled, [group], on) })} />)}
     <SwitchField className="settings__field" label={text.allTrackers} hint={text.allTrackersHint} checked={allTrackersOn(draft.disabled)} onChange={on => edit({ disabled: switched(draft.disabled, TRACKER_PROTECTION, on) })} />

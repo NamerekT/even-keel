@@ -9,6 +9,9 @@
   gap: var(--space-8);
   min-height: 160px;
   padding: var(--space-24) var(--space-16);
+  /* Only its own entrance and exit: a container's fade for its children (the session panel's) would restart
+     between the phases and blink the boat. */
+  animation: none;
 }
 
 .ui-loader--fill {

@@ -90,6 +90,8 @@
   width: 24px;
   flex: none;
   height: 24px;
+  /* Taller than the line it sits on: without this a row grows as its reset shows up. */
+  margin-block: -4px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-control);

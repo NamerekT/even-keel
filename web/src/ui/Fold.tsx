@@ -36,14 +36,35 @@ export function FoldBody({ open, id, className = '', preview = false, onClosed, 
     setExpanded(open)
   }, [open])
 
+  // Opened by its toggle: the scroll follows the body as it grows, so what opened under the fold's edge comes into view.
+  useLayoutEffect(() => {
+    if (!open || !expanded || id === undefined) return
+    const trigger = triggerOf(id)
+    if (trigger === null || document.activeElement !== trigger) return
+    const node = ref.current!
+    let frame = 0
+    let done = false
+    const follow = () => {
+      revealBelow(node, trigger)
+      if (!done) frame = requestAnimationFrame(follow)
+    }
+    void Promise.allSettled(node.getAnimations().map((animation) => animation.finished)).then(() => {
+      done = true
+      cancelAnimationFrame(frame)
+      revealBelow(node, trigger)
+    })
+    frame = requestAnimationFrame(follow)
+    return () => {
+      done = true
+      cancelAnimationFrame(frame)
+    }
+  }, [open, expanded, id])
+
   useLayoutEffect(() => {
     if (open || expanded || !mounted) return
     const node = ref.current!
-    const trigger = id === undefined ? null : document.querySelector<HTMLElement>(`[aria-controls="${CSS.escape(id)}"]`)
-    let scrollParent = trigger?.parentElement
-    while (scrollParent && !/(auto|scroll)/.test(getComputedStyle(scrollParent).overflowY)) scrollParent = scrollParent.parentElement
-    const boundary = scrollParent?.getBoundingClientRect().top ?? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0)
-    const above = trigger !== null && trigger.getBoundingClientRect().top < boundary
+    const trigger = id === undefined ? null : triggerOf(id)
+    const above = trigger !== null && trigger.getBoundingClientRect().top < viewOf(trigger).top
     if (node.contains(document.activeElement)) trigger?.focus({ preventScroll: true })
     let cancelled = false
     const finish = () => {
@@ -63,6 +84,32 @@ export function FoldBody({ open, id, className = '', preview = false, onClosed, 
       <div className="ui-fold__clip">{mounted && (typeof children === 'function' ? children() : children)}</div>
     </div>
   )
+}
+
+const triggerOf = (id: string) => document.querySelector<HTMLElement>(`[aria-controls="${CSS.escape(id)}"]`)
+
+/** The box that scrolls a fold, and its visible edges: the closest scrolling parent, else the page under its header. */
+function viewOf(node: HTMLElement): { scroller: Element; top: number; bottom: number } {
+  let parent = node.parentElement
+  while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+  if (parent !== null) {
+    // A faded edge is the box's `scroll-padding`: what is under it does not count as shown.
+    const box = parent.getBoundingClientRect()
+    const style = getComputedStyle(parent)
+    const pad = (value: string) => parseFloat(value) || 0
+    return { scroller: parent, top: box.top + pad(style.scrollPaddingTop), bottom: box.top + parent.clientHeight - pad(style.scrollPaddingBottom) }
+  }
+  const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) || 0
+  return { scroller: document.scrollingElement ?? document.documentElement, top: header, bottom: window.innerHeight }
+}
+
+/** Scrolls down as far as the body's end shows, never so far that its toggle leaves the top. */
+function revealBelow(body: HTMLElement, trigger: HTMLElement) {
+  const view = viewOf(trigger)
+  const below = body.getBoundingClientRect().bottom - view.bottom
+  const room = trigger.getBoundingClientRect().top - view.top
+  const step = Math.min(below, room)
+  if (step > 0.5) view.scroller.scrollTop += step
 }
 
 /** Keep a disappearing notice mounted through the shared exit transition. */

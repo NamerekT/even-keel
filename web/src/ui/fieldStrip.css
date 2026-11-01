@@ -1,0 +1,124 @@
+/* The field and its strip: the strip as wide as the field, its top behind the field's rounded bottom (isolation keeps it behind). */
+.field-strip {
+  --strip-tuck: var(--radius-control);
+  --strip-height: 22px;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: 100%;
+  isolation: isolate;
+}
+
+.field-strip--wide {
+  width: auto;
+}
+
+/* Kept while empty: a line that comes later moves nothing below. */
+.field-strip__room {
+  position: relative;
+  z-index: -1;
+  display: grid;
+  min-height: calc(var(--strip-height) + var(--strip-tuck));
+  margin-top: calc(-1 * var(--strip-tuck));
+  overflow: hidden;
+  /* The text adds nothing to the field's width: the strip takes the field's. */
+  contain: inline-size;
+}
+
+/* Folded, the room grows from nothing to its line's height (a row of `1fr` follows its content). */
+.field-strip--fold > .field-strip__room {
+  min-height: 0;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--motion-appear) ease-out,
+    margin-top var(--motion-appear) ease-out;
+}
+
+.field-strip--fold > .field-strip__room:empty {
+  grid-template-rows: 0fr;
+  margin-top: 0;
+}
+
+.field-strip__line {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 0;
+  /* 3 + 16 + 2 + the bottom border: the strip's 22 px for one line. */
+  padding: calc(var(--strip-tuck) + 3px) 10px 2px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-strip) var(--radius-strip);
+  /* A tone off the inner box too: a field stands on a card or on a box of `--surface-muted` (a task source). */
+  background: color-mix(in srgb, var(--fg) 10%, var(--surface-muted));
+  color: var(--fg);
+  font-size: var(--text-12);
+  line-height: 16px;
+  white-space: nowrap;
+  animation: field-strip-in var(--motion-appear) ease-out;
+  /*
+   * Of the tucked top only the corners outside the field's rounded bottom are drawn: a field greyed out by its opacity
+   * would show the strip through itself.
+   */
+  mask-image:
+    radial-gradient(circle var(--strip-tuck) at var(--strip-tuck) 0, transparent calc(var(--strip-tuck) - 0.5px), black calc(var(--strip-tuck) + 0.5px)),
+    radial-gradient(circle var(--strip-tuck) at 0 0, transparent calc(var(--strip-tuck) - 0.5px), black calc(var(--strip-tuck) + 0.5px)),
+    linear-gradient(black, black);
+  mask-size:
+    var(--strip-tuck) var(--strip-tuck),
+    var(--strip-tuck) var(--strip-tuck),
+    100% calc(100% - var(--strip-tuck));
+  mask-position: left top, right top, left bottom;
+  mask-repeat: no-repeat;
+}
+
+.field-strip__line--error {
+  border-color: color-mix(in srgb, var(--lamp-error) 45%, var(--border));
+  background: var(--error-bg);
+  color: var(--error-fg);
+  white-space: normal;
+}
+
+.field-strip__line--error > .field-strip__text {
+  overflow-wrap: anywhere;
+}
+
+.field-strip:has(.field-strip__line--error) > :first-child {
+  border-color: color-mix(in srgb, var(--lamp-error) 45%, var(--border));
+}
+
+.field-strip__mark {
+  flex: none;
+  color: var(--lamp-done);
+}
+
+.field-strip__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The whole and the short text, laid out unseen to be measured. */
+.field-strip__measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+@keyframes field-strip-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-strip__line {
+    animation: none;
+  }
+
+  .field-strip--fold > .field-strip__room {
+    transition: none;
+  }
+}

@@ -1,6 +1,16 @@
-/* The settings of one task source (BTN-553): wider than a form dialog, for the status table. */
+/* The settings of one task source (BTN-553): wider than a form dialog, for the status table. Its tabs differ in
+   height, so it stands at a fixed distance from the top rather than in the middle: the head and the tabs stay put on
+   a switch, and only the bottom edge glides (useHeightGlide). */
 .source-dialog {
+  --dialog-top: min(10vh, 96px);
   width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--dialog-top) - 32px);
+  margin-top: var(--dialog-top);
+}
+
+.source-dialog .add-package__frame {
+  max-height: calc(100dvh - var(--dialog-top) - 34px);
+  transition: height var(--motion-appear) ease-out;
 }
 
 .source-dialog__title {
@@ -21,7 +31,9 @@
   flex: 1 0 auto;
 }
 
+/* Fills the frame, so the foot rides the bottom edge while it glides. */
 .source-dialog__body {
+  flex: 1;
   padding-top: 8px;
 }
 
@@ -31,10 +43,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-}
-
-.source-line:not(:last-child) {
-  margin-bottom: 8px;
 }
 
 .source-line__what {
@@ -92,10 +100,6 @@
   .source-dialog .add-package__frame {
     height: 100%;
     max-height: 100dvh;
-  }
-
-  .source-dialog__body {
-    flex: 1;
   }
 
   .source-dialog__body .rule-table {

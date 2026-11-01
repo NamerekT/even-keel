@@ -170,11 +170,27 @@ export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: strin
   return state.tasks.filter((task) => task.project === project)
 }
 
-export function waitingSessions(sessions: SessionView[], tasks: Task[], refused: ReadonlySet<string> = new Set()): SessionView[] {
+/**
+ * A fresh session idling before its prompt lands: the CLI's idle reads as waiting, yet nothing is asked and nobody has
+ * to answer. Past the boot wait it is waiting again: a prompt that never landed is the user's to see.
+ */
+export function idleBeforePrompt(view: SessionView, now: Date): boolean {
+  return (
+    view.lamp === 'waiting' &&
+    view.contextTokens === 0 &&
+    view.feed.length === 0 &&
+    !view.asking &&
+    view.startupDialog === null &&
+    view.apiError === null &&
+    now.getTime() - Date.parse(view.startedAt) <= BOOT_WAIT_MS
+  )
+}
+
+export function waitingSessions(sessions: SessionView[], tasks: Task[], refused: ReadonlySet<string> = new Set(), now = new Date()): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions
-    .filter((view) => view.lamp === 'waiting' && view.apiErrorKind !== 'transient' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
+    .filter((view) => view.lamp === 'waiting' && !idleBeforePrompt(view, now) && view.apiErrorKind !== 'transient' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
     .filter((view) => !refused.has(view.task) || needsReply(view))
     .sort((a, b) => since(a) - since(b))
 }
@@ -573,7 +589,8 @@ export function sessionStart(current: CurrentTask, session: SessionView | null, 
   const since = run?.at ?? seen?.startedAt
   if (since === undefined || now.getTime() - Date.parse(since) > BOOT_WAIT_MS) return null
   if (seen === null) return { phase: 'boot', since }
-  return seen.lamp === 'working' && seen.contextTokens === 0 ? { phase: 'answer', since } : null
+  if (seen.contextTokens > 0) return null
+  return seen.lamp === 'working' ? { phase: 'answer', since } : idleBeforePrompt(seen, now) ? { phase: 'boot', since } : null
 }
 
 function answeringSince(current: CurrentTask): Pick<ChainBlock, 'answering'> {
@@ -621,8 +638,14 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     }
     const task = byId.get(id)
     const seen = taskSession(state.sessions, id) ?? null
-    // Delivering an answer stops the session for a few seconds; to the page it is already at work on it.
-    const session = seen !== null && running?.task === id && running.answering ? { ...seen, lamp: 'working' as const, ask: null } : seen
+    // Delivering an answer stops the session for a few seconds; to the page it is already at work on it, as is a fresh
+    // session idling before its prompt.
+    const session =
+      seen !== null && running?.task === id && running.answering
+        ? { ...seen, lamp: 'working' as const, ask: null }
+        : seen !== null && idleBeforePrompt(seen, now)
+          ? { ...seen, lamp: 'working' as const }
+          : seen
     const sessions = state.taskSessions[id] ?? []
     const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
@@ -649,7 +672,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       session,
       sessions,
       limit: id === current ? pending : null,
-      start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
+      start: running?.task === id ? sessionStart(running, seen, sessions, now) : null,
       ...(running?.task === id && answeringSince(running)),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
@@ -672,14 +695,15 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   }
   const liveBlock = (name: string, title: string, at: number, rows: ChainBlock[]): ChainBlock => {
     const id = liveFixId(name, episodes)
-    const session = ownSession(name)
+    const seen = ownSession(name)
+    const session = seen !== null && idleBeforePrompt(seen, now) ? { ...seen, lamp: 'working' as const } : seen
     const sessions = state.taskSessions[id] ?? []
     return {
       ...fixRow(id, title, taskLamp(undefined, session), rows[at]?.milestone ?? null, session, sessions),
       open: true,
       current: name === current,
       limit: name === current ? pending : null,
-      start: running?.task === name ? sessionStart(running, session, sessions, now) : null,
+      start: running?.task === name ? sessionStart(running, seen, sessions, now) : null,
       ...(running?.task === name && answeringSince(running)),
     }
   }

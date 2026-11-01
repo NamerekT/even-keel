@@ -4,6 +4,7 @@ import { COPILOT } from '../../../src/copilot/name.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
 import { secretInput } from '../ui/secret.js'
 import '../tools/addPackage.css'
 
@@ -58,19 +59,18 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
           <p className="add-package__note">{t.account.replaceKeyLead}</p>
           <label className="add-package__field">
             <span className="add-package__label">{t.account.newKey[word]}</span>
-            <input
-              className="add-package__input add-package__input--mono"
-              {...secretInput()}
-              value={key}
-              onChange={(event) => setKey(event.target.value)}
-              autoFocus
-            />
+            {/* A refusal here is about the key (its form, the provider's answer, another organization), so it goes under it. */}
+            <FieldStrip line={failure === null ? null : { tone: 'error', text: say(failure) }} fold wide>
+              <input
+                className="add-package__input add-package__input--mono"
+                {...secretInput()}
+                value={key}
+                aria-invalid={failure !== null}
+                onChange={(event) => setKey(event.target.value)}
+                autoFocus
+              />
+            </FieldStrip>
           </label>
-          {failure !== null && (
-            <p className="notice notice--error" role="alert">
-              {say(failure)}
-            </p>
-          )}
         </div>
         <footer className="add-package__foot">
           <span className="add-package__spacer" />

@@ -297,9 +297,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
                   />
                 }
-              >
-                {keyRefused && <Status>{say(check!.entry!)}</Status>}
-              </Row>
+                error={keyRefused ? check!.entry! : null}
+              />
             )}
             <Row
               className="settings__field"

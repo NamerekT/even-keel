@@ -24,3 +24,19 @@ export function stripTasks(rows: StatsTaskRow[]): StripTasks {
       cost === null ? null : { cost, activeS: median(done.flatMap((row) => (row.activeS === null ? [] : [row.activeS]))), count: done.length },
   }
 }
+
+/** The last strip tasks of each project (by its id), with the query they answered. */
+export type StripMemory = Map<string, { key: string; tasks: StripTasks }>
+
+/**
+ * The strip's tasks for `key`, the project's current query: a fresh answer counts only when it answered that query,
+ * since the page keeps the hook between projects; until it comes, the project's remembered answer of the same query.
+ */
+export function keptTasks(memory: StripMemory, project: string, key: string, fresh: { key: string; tasks: StripTasks } | null): StripTasks | null {
+  if (fresh !== null && fresh.key === key) {
+    memory.set(project, fresh)
+    return fresh.tasks
+  }
+  const kept = memory.get(project)
+  return kept !== undefined && kept.key === key ? kept.tasks : null
+}

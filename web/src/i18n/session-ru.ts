@@ -50,6 +50,7 @@ export const sessionRu = {
   closePanel: 'Закрыть панель',
   skipped: 'пропущена',
   none: 'Сессии по этой задаче ещё не было.',
+  noneNow: 'Живой сессии по задаче сейчас не видно; её сессии — ниже.',
   onlyIn: (account: string) => `\nRemote Control покажет её только в аккаунте ${account}`,
   openRemote: 'Открыть сессию через Remote Control',
   openPull: (number: number) => `Открыть pull request #${number} задачи в новой вкладке`,

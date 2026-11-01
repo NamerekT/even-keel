@@ -79,7 +79,8 @@
   min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px;
+  scrollbar-gutter: stable;
+  padding: 16px calc(16px - var(--pane-scrollbar)) 16px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -89,10 +90,6 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-}
-
-.panel__head .lamp {
-  margin-top: 7px;
 }
 
 .panel__task {
@@ -420,7 +417,8 @@
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px;
+  scrollbar-gutter: stable;
+  padding: 16px calc(16px - var(--pane-scrollbar)) 16px 16px;
 }
 
 .session-window__place {

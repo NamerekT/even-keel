@@ -74,13 +74,14 @@
   --space-24: 24px;
 
   /* A card, a panel or a band; a control or a box inside a card; a mark inside a control (code, a key, a swatch); a pill.
-     Inner and outer: a box set inside a card's 1 px border, a ring drawn 1 px around one. */
+     Inner and outer: a box set inside a card's 1 px border, a ring drawn 1 px around one. Strip: the bottom of a line glued under a field. */
   --radius: 10px;
   --radius-control: 8px;
   --radius-small: 4px;
   --radius-pill: 999px;
   --radius-inner: calc(var(--radius) - 1px);
   --radius-outer: calc(var(--radius) + 1px);
+  --radius-strip: 11px;
   --gutter: 16px;
   --header-row-height: 52px;
   --header-height: var(--header-row-height);
@@ -99,6 +100,10 @@
   --motion-blink: 1.2s;
   --motion-spin: 0.8s;
   --motion-sway: 2.4s;
+
+  /* A pane's scrollbar (base.css). A pane whose content changes keeps its gutter (`scrollbar-gutter: stable`) and takes
+     this off its right padding, so the content keeps its width whether the bar shows or not, its edges even. */
+  --pane-scrollbar: 8px;
 
   /* Behind every modal window: the page is dimmed and blurred the same way. */
   --scrim: rgb(0 0 0 / 0.6);

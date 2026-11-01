@@ -13,6 +13,7 @@ import { localized, say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { Loading } from '../ui/Loader.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
@@ -96,24 +97,14 @@ export function TaskCard({ task, link, tracker, refused, work, live, onOpen, onC
           </button>
         </header>
         <div className="task-card__body">
-          {error !== null && <p className="notice notice--error">{say(error)}</p>}
-          {card === undefined && error === null && <Loading />}
-          {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
-          {card != null && <CardBody card={card} refused={refused} work={work} live={live} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
+          <Loading busy={card === undefined && error === null} label={t.card.loading}>
+            {error !== null && <p className="notice notice--error">{say(error)}</p>}
+            {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
+            {card != null && <CardBody card={card} refused={refused} work={work} live={live} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
+          </Loading>
         </div>
       </div>
     </dialog>
-  )
-}
-
-function Loading() {
-  return (
-    <div className="task-card__loading" aria-busy="true" aria-label={t.card.loading}>
-      <span className="task-card__bone task-card__bone--title" />
-      <span className="task-card__bone" />
-      <span className="task-card__bone" />
-      <span className="task-card__bone task-card__bone--short" />
-    </div>
   )
 }
 

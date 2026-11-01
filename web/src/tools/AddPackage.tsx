@@ -5,6 +5,8 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
 import { agentLabel } from '../accountName.js'
 import { PlugIcon, PlusIcon, ServerIcon, StackIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
@@ -305,7 +307,11 @@ function WhereField({ projects, value, onChange }: { projects: string[]; value: 
 }
 
 /** A label with its help behind a tip, the control, and the error under it when there is one. */
-export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: (id: string) => ReactNode }) {
+/**
+ * A dialog's field under its name; `error`, or else `line` (what a check found), is a strip glued under it. The field
+ * always stands in the strip's box, so one that comes or goes does not remount the field and take its focus.
+ */
+export function Field({ label, hint, error, line = null, children }: { label: string; hint?: string; error?: string; line?: StripLine | null; children: (id: string) => ReactNode }) {
   const id = useId()
   return (
     <div className="add-package__field">
@@ -315,8 +321,9 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
         </label>
         {hint !== undefined && <HelpTip text={hint} align="start" />}
       </span>
-      {children(id)}
-      {error !== undefined && <span className="add-package__error">{error}</span>}
+      <FieldStrip line={error === undefined ? line : { tone: 'error', text: error }} fold wide>
+        {children(id)}
+      </FieldStrip>
     </div>
   )
 }

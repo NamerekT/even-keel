@@ -7,6 +7,7 @@ import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { SectionLabel } from '../ui/blocks.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { stillMotion } from '../ui/landing.js'
 import { secretInput } from '../ui/secret.js'
@@ -192,6 +193,12 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   const body = useRef<HTMLDivElement>(null)
   const granted = grant != null && grant.values === key ? grant.flow : null
   const mcpWarning = fresh ? checked.result.mcpWarning : grant === undefined ? profile?.mcpOAuth?.warning : undefined
+  const fields = trackerFields(kind, alternative)
+  // A passed check is glued under the last sign-in field, the token as a rule (BTN-592 wanted it not missed under the fields).
+  const mcpChecked = kind.mcpOAuth === true && (grant === undefined ? profile?.mcpOAuth !== undefined : grant !== null && grant.values === key)
+  const signedIn: StripLine | null = fresh
+    ? { tone: 'ok', text: `${t.profiles.login(checked.result.login)}${mcpChecked ? ` · ${t.profiles.mcp.checked}` : ''}`, short: checked.result.login }
+    : null
 
   // The "Signed in as" line lands under the fold of a short screen: bring it into view (BTN-592).
   useEffect(() => {
@@ -262,7 +269,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             </div>
           </fieldset>
         )}
-        {trackerFields(kind, alternative).map((field) => {
+        {fields.map((field) => {
           const stored = profile?.fields.find((each) => each.name === field.name)
           const locked = hostLocked && kind.hostVariables.includes(field.name)
           return (
@@ -270,6 +277,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
               key={field.name}
               label={fieldLabel(field.name)}
               hint={locked ? t.profiles.hostLocked : t.profiles.fieldHints[field.name] ? `${t.profiles.fieldHints[field.name]} (${field.name})` : field.name}
+              line={field === fields.at(-1) ? signedIn : null}
             >
               {(id) => (
                 <input
@@ -301,10 +309,9 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
             <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.sharedToken}</p>
           </section>
         )}
-        <Field label={t.profiles.name} hint={t.profiles.nameHint}>
+        <Field label={t.profiles.name} hint={t.profiles.nameHint} line={fields.length === 0 ? signedIn : null}>
           {(id) => <input id={id} className="add-package__input" value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />}
         </Field>
-        {fresh && <p className="profiles__ok">{t.profiles.login(checked.result.login)}{kind.mcpOAuth === true && (grant === undefined ? profile?.mcpOAuth !== undefined : grant !== null && grant.values === key) ? ` · ${t.profiles.mcp.checked}` : ''}</p>}
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
         {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
         {failure !== null && <div className="notice notice--error">{say(failure)}

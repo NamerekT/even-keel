@@ -12,6 +12,14 @@ export const protectionText = (value: Protection = DEFAULT_PROTECTION): string =
 } satisfies ProtectionDraft)
 export const protectionDraft = (text: string): ProtectionDraft => JSON.parse(text) as ProtectionDraft
 const lines = (text: string) => text.split('\n').map(line => line.trim()).filter(Boolean)
+/** Whether two protection texts ('' — inherited) come to the same rules: groups in any order, lines as the service stores them. */
+export function sameProtection(a: string, b: string): boolean {
+  const canon = (text: string) => {
+    const value = text === '' ? undefined : protectionOf(text)
+    return value === undefined ? text : JSON.stringify({ ...value, disabled: [...value.disabled].sort() })
+  }
+  return canon(a) === canon(b)
+}
 export function protectionOf(text: string): Protection | undefined {
   try {
     const draft = protectionDraft(text)

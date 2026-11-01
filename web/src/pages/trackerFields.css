@@ -18,32 +18,9 @@
   min-width: 0;
 }
 
-/* The project's fields stay on the profile's row while their inputs fit; the name found beside one wraps under it. */
+/* The project's fields stay on the profile's row while their inputs fit. */
 .tracker-fields__row > :not(:first-child) {
   flex: 1 1 240px;
-}
-
-.tracker-fields__input-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-}
-
-.tracker-fields__aside {
-  color: var(--fg-muted);
-  font-size: var(--text-13);
-  white-space: nowrap;
-}
-
-/* The profile's state and the tracker's answer share a line, kept while empty: a new answer does not move the fields below. */
-.tracker-fields__slot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
-  min-height: 1lh;
-  margin-top: 4px;
 }
 
 /* The profile list and the fields share one width, whatever the kind asks for. */

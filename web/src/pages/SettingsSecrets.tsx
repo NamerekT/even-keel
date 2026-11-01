@@ -49,6 +49,7 @@ export function PageToken({ state }: { state: EvenKeelState }) {
           onKeyDown={onKey}
         />
       }
+      error={failure}
     >
       {!variable.outer && (value !== '' || (variable.set && !variable.required)) && (
         <div className="settings__line-extra">
@@ -63,11 +64,6 @@ export function PageToken({ state }: { state: EvenKeelState }) {
             </button>
           )}
         </div>
-      )}
-      {failure !== null && (
-        <span className="settings__error" role="alert">
-          {say(failure)}
-        </span>
       )}
     </Row>
   )

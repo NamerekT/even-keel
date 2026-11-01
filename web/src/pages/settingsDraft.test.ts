@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { changed, conflicts, edited, rebase, reverted, sent, settled, type Value } from './settingsDraft.js'
+import { changed, conflicts, edited, inheritedEdit, ownEdited, rebase, reverted, sent, settled, type Value } from './settingsDraft.js'
 
-// Text compares trimmed, as the service stores it.
-const same = (_key: string, a: Value, b: Value) => JSON.stringify(typeof a === 'string' ? a.trim() : a) === JSON.stringify(typeof b === 'string' ? b.trim() : b)
+// Text compares trimmed, as the service stores it; lists regardless of order.
+const canon = (value: Value) => (typeof value === 'string' ? value.trim() : Array.isArray(value) ? [...value].sort() : value)
+const same = (_key: string, a: Value, b: Value) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
 const saved = { repo: 'C:/abc', branch: 'main', brief: true }
 
 describe('a settings draft', () => {
@@ -64,6 +65,51 @@ describe('a settings draft', () => {
     expect(settled(undefined, saved, same)).toBeUndefined()
     const typed = edited(rebase(undefined, saved, same), 'branch', 'dev')
     expect(settled(typed, { ...saved }, same)).toBeUndefined()
+  })
+
+  describe('a field whose empty value is "as shared"', () => {
+    const file = { guard: '', recheck: 'false' }
+
+    it('inherits again when set back to the shared value it started with', () => {
+      const off = inheritedEdit(rebase(undefined, file, same), 'guard', 'false', 'true', same)
+      expect(off.edit.guard).toBe('false')
+      const back = inheritedEdit(off, 'guard', 'true', 'true', same)
+      expect(back.edit.guard).toBe('')
+      expect(changed(back, ['guard'], same)).toEqual([])
+    })
+
+    it('keeps its own value when it started own, even one equal to the shared', () => {
+      const on = inheritedEdit(rebase(undefined, file, same), 'recheck', 'true', 'true', same)
+      expect(on.edit.recheck).toBe('true')
+      expect(inheritedEdit(on, 'recheck', 'false', 'true', same).edit.recheck).toBe('false')
+    })
+
+    it('turns own with any other value, and a pick, as the provider, works the same way', () => {
+      const fresh = rebase(undefined, { provider: '' }, same)
+      expect(inheritedEdit(fresh, 'provider', 'claude', 'codex', same).edit.provider).toBe('claude')
+      expect(inheritedEdit(fresh, 'provider', 'codex', 'codex', same).edit.provider).toBe('')
+    })
+  })
+
+  describe('fields kept own by a flag', () => {
+    const file = { ownWait: false, wait: '', ownKinds: true, kinds: ['forgejo'] }
+
+    it('turn own on the first edit, starting from the shared values', () => {
+      const typed = ownEdited(rebase(undefined, file, same), 'ownWait', { wait: '30' }, 'wait', '3', same)
+      expect(typed.edit).toMatchObject({ ownWait: true, wait: '3' })
+    })
+
+    it('inherit again, as they started, once edited back to the shared values', () => {
+      const typed = ownEdited(rebase(undefined, file, same), 'ownWait', { wait: '30' }, 'wait', '3', same)
+      const back = ownEdited(typed, 'ownWait', { wait: '30' }, 'wait', '30', same)
+      expect(back.edit).toMatchObject({ ownWait: false, wait: '' })
+      expect(changed(back, ['ownWait', 'wait'], same)).toEqual([])
+    })
+
+    it('stay own when they started own', () => {
+      const back = ownEdited(rebase(undefined, file, same), 'ownKinds', { kinds: ['github'] }, 'kinds', ['github'], same)
+      expect(back.edit).toMatchObject({ ownKinds: true, kinds: ['github'] })
+    })
   })
 
   it('sends the base with the edits of the given fields only', () => {

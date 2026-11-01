@@ -242,18 +242,38 @@
   flex: 1 1 14em;
 }
 
-/* The project's task sources (BTN-66, BTN-553): a row per source, then the fields of a new feed. */
-.feeds__row {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.feeds__row:last-child {
-  border-bottom: 0;
+/* The project's task sources (BTN-66, BTN-553): each source a box of its own, so where one ends shows; a new feed's
+   fields open above them in an accent box, as a chosen provider is marked (docs/design.md, "Provider choice"). */
+.feeds__row,
+.feeds__add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
 }
 
 .feeds__add {
-  margin-top: 8px;
+  /* Clear of the panel's sticky tabs when it scrolls into view. */
+  scroll-margin-top: 72px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  animation: appear var(--motion-appear) ease-out;
+}
+
+.feeds__add-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feeds__add {
+    animation: none;
+  }
 }
 
 .feeds__submit {
@@ -350,7 +370,17 @@
   min-width: 0;
 }
 
-.settings__control > .settings__text {
+/* A field with an error strip: the name stands at the field's text, not at the middle of field and strip. */
+.settings__line-main:has(> .settings__control > .field-strip) {
+  align-items: baseline;
+}
+
+.settings__control > .field-strip {
+  width: 100%;
+}
+
+.settings__control > .settings__text,
+.settings__control > .field-strip > .settings__text {
   width: 100%;
   min-width: 0;
   margin-top: 0;
@@ -896,11 +926,6 @@
   }
 }
 
-.settings__row-note .settings__mark {
-  flex: 1;
-  min-width: 0;
-}
-
 /* The panel's head: the groups as tabs, the cross at the right. */
 .settings__head {
   align-items: center;
@@ -992,28 +1017,19 @@
   top: 12px;
 }
 
+/* The ↺ of a changed field, in its head line: what it was is in its tip, so the field grows by nothing. */
 .settings__mark {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 6px;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  font-weight: 400;
+  display: inline-flex;
+  vertical-align: middle;
 }
 
 .settings__was,
 .settings__now {
-  min-width: 0;
-  max-width: calc(100% - 30px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .settings__now {
-  flex-basis: 100%;
-  max-width: 100%;
   color: var(--warn-fg);
 }
 
@@ -1031,7 +1047,7 @@
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -1057,8 +1073,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 -16px -16px;
-  padding: 10px 16px;
+  /* The panel's right padding gives the scrollbar's gutter back: the bar reaches only to the gutter. */
+  margin: 0 calc(var(--pane-scrollbar) - 16px) -16px -16px;
+  padding: 10px calc(16px - var(--pane-scrollbar)) 10px 16px;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
