@@ -180,7 +180,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
     log: (line) => console.log(line),
     onChange: () => {
       ctx.dispatcher.check()
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     },
   })
 }
@@ -207,9 +207,9 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',
         log: (line) => console.log(line),
-        onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.hub.broadcast('state', ctx.getState()) },
+        onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.hub.broadcastSoon('state', ctx.getState) },
         onCliFailure: () => { ctx.configStore.fallBackCli(name) },
-        onCliProgress: () => ctx.hub.broadcast('state', ctx.getState()),
+        onCliProgress: () => ctx.hub.broadcastSoon('state', ctx.getState),
         transport: (home): string | null => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], ctx.account.apiKey(home.key)),
         unattended: () => ctx.configStore.current.unattended,
         language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
@@ -295,7 +295,7 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     saved: ctx.savedLimits,
     save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.db, key, limits)),
     onChange: () => {
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
       ctx.dispatcher.check()
     },
     onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
@@ -308,7 +308,7 @@ export function wireUpdates(ctx: AccountsContext): UpdateWatcher {
     current: ctx.release.version,
     enabled: () => ctx.configStore.current.updates.check && !firstRun(ctx.tallyMode(), Object.keys(ctx.configStore.current.projects).length),
     intervalMs: ctx.UPDATE_POLL_MS,
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.log(line),
   })
 }
@@ -324,7 +324,7 @@ export function wireUpdater(ctx: AccountsContext): Updater {
     startedAt: ctx.startedAt,
     active: () => ctx.dispatcher.state.active,
     stateUrl: () => stateUrlOf(ctx.listen.host, ctx.listen.port),
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.log(line),
   })
 }
@@ -345,7 +345,7 @@ export function wireCliVersions(ctx: AccountsContext): VersionWatcher {
         return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
       }),
     intervalMs: ctx.CLI_VERSION_POLL_MS,
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.log(line),
   })
 }
@@ -361,7 +361,7 @@ export function wireDaemons(ctx: AccountsContext): DaemonRefresh {
       return running === null ? null : { running, wanted: wanted! }
     },
     stopDaemon: async (home) => ctx.agentOf(home).stopDaemon?.(home),
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -377,7 +377,7 @@ export function wireSecrets(ctx: AccountsContext): Secrets {
     host: () => ctx.listen.host,
     expired: () => void ctx.daemons.expire(ctx.homes.global),
     sessionsPending: () => ctx.daemons.pending(ctx.homes.global.key),
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
   })
 }
 
@@ -408,11 +408,11 @@ export function wireProfiles(ctx: AccountsContext): Profiles {
       void ctx.ciWatches.refresh()
       ctx.packages.retryProbes()
       ctx.dispatcher.check()
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     },
     onCheck: () => {
       ctx.dispatcher.check()
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     },
   })
 }
@@ -425,7 +425,7 @@ export function wireVscode(ctx: AccountsContext): VsCodeAccount {
     records: async (home) => (await ctx.agentOf(home).liveRecords?.(home)) ?? [],
     title: (home, sessionId) => ctx.chatTitles.of(join(home.dir, 'projects'), sessionId),
     intervalMs: APP_POLL_MS,
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     onError: (error) => console.error(`vscode: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -443,7 +443,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     active: () => ctx.activeAccount(),
     activate: (key) => {
       ctx.configStore.saveActive(ctx.homes.find(key)?.agent ?? CLAUDE, key)
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
       ctx.dispatcher.check()
     },
     forget: (key) => ctx.saveAccounts(forgetAccount(ctx.ledger, key)),
@@ -498,7 +498,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
         changed = true
       }
       if (changed || ctx.limits.deferred) ctx.limits.refresh()
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
       ctx.dispatcher.check()
     },
     onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
@@ -510,7 +510,7 @@ export function wireOwners(ctx: AccountsContext): TranscriptOwners {
     homes: () => ctx.homes.list(),
     transcripts: (home) => ctx.agentOf(home).transcripts(home),
     rescanMs: ctx.OWNERS_RESCAN_MS,
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -547,7 +547,7 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
       // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
       void ctx.stopLingering()
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
-      if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcast('state', ctx.getState())
+      if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcastSoon('state', ctx.getState)
     },
     onChange: (views) => {
       for (const view of views) {
@@ -560,7 +560,7 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
       // Set with the views, not with the entries: the tick reads them after its entries, and `liveView` needs both.
       ctx.agentsRead = true
       ctx.logStartupDialogs(views)
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
       ctx.dispatcher.check()
       settleMail(ctx.mailRelay)
     },

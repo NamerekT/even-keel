@@ -109,7 +109,7 @@ export function wireStatusMover(ctx: TrackersContext): StatusMover {
       return link === undefined ? null : link.run((tracker) => (tracker.moveTo === undefined ? Promise.resolve(null) : tracker.moveTo(task, status)))
     },
     log: (line) => console.log(line),
-    changed: () => ctx.hub.broadcast('state', ctx.getState()),
+    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
   })
 }
 
@@ -138,7 +138,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
         fillsMilestone: (reader) => ctx.configStore.current.settings[ctx.ownerOfReader(reader)]?.fillMilestone ?? false,
         mainBranch: (reader) => ctx.branchOf(ctx.ownerOfReader(reader)),
         readKey: (reader) => readKeyOf(ctx.readers(), reader),
-        broadcast: () => ctx.hub.broadcast('state', ctx.getState()),
+        broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),
         refreshers: ctx.refreshers,
         recovered: (profile) => ctx.profiles.recheckSoon(profile),
       }),

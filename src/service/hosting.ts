@@ -255,7 +255,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       answer: ({ project, task, sessionId, ask, answers, text, files }) => ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
       dismissMail: (sessionId) => {
         ctx.mailbox.dismiss(sessionId)
-        ctx.hub.broadcast('state', ctx.getState())
+        ctx.hub.broadcastSoon('state', ctx.getState)
       },
     },
     settings: {
@@ -353,7 +353,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       dismissUpdate: (version) => {
         ctx.dismissedUpdate = version
         ctx.writes.add('the dismissed update', setStateValue(ctx.db, 'updates.dismissed', version))
-        ctx.hub.broadcast('state', ctx.getState())
+        ctx.hub.broadcastSoon('state', ctx.getState)
       },
       muteUpdates: () => ctx.configStore.saveUpdates({ notify: false }),
       installUpdate: () => ctx.updater.update(ctx.releasesView().available),
@@ -490,12 +490,12 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
       live: (task) => ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished'),
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
-      broadcast: () => ctx.hub.broadcast('state', ctx.getState()),
+      broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),
     }),
     changelog: async (project, milestone, op) => {
       if (!Object.hasOwn(ctx.configStore.current.projects, project)) throw fail('chain.unknownProject', { project })
       const view = await ctx.changelogs.run(project, milestone, op)
-      if (op.op === 'write') ctx.hub.broadcast('state', ctx.getState())
+      if (op.op === 'write') ctx.hub.broadcastSoon('state', ctx.getState)
       return view
     },
     carry: (project) => ctx.forwards.carry(project),
@@ -568,7 +568,7 @@ export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore>
       ctx.dispatcher.check()
       ctx.updates.configChanged()
       void ctx.applyTally()
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     },
   })
 }

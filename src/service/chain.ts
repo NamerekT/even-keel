@@ -327,7 +327,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     asked: (task) => ctx.liveView(task)?.ask?.id ?? null,
     save: (state) => {
       ctx.writes.add('the chain state', saveChainState(ctx.db, state))
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     },
     journal: (launched) => {
       const entry = ctx.withSource(launched)
@@ -525,7 +525,7 @@ export function wireWorks(ctx: ChainContext): TaskWorks {
       return times.length === 0 ? null : Math.max(...times)
     },
     busy: (task) => ctx.agentStatus(task) === 'busy',
-    onChange: () => ctx.hub.broadcast('state', ctx.getState()),
+    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.warn(line),
   })
 }
@@ -545,7 +545,7 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
     git: runGit,
     sync: ctx.syncProject,
     now: () => new Date(),
-    changed: () => ctx.hub.broadcast('state', ctx.getState()),
+    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (message) => console.log(message),
     carrying: (from) => ctx.dispatcher.carrying(from)?.task ?? null,
     auto: (from) => ctx.configStore.current.settings[from]?.carryAgent === true || ctx.configStore.current.unattended,
@@ -722,7 +722,7 @@ export function wireCiWatches(ctx: ChainContext): import("../ci/watches.js").CiW
     timeoutMs: ctx.CI_TIMEOUT_MS,
     log: (message) => console.log(message),
     onChange: () => {
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
       ctx.dispatcher.check()
     },
     recovered: (project, target) => {

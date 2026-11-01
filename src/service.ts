@@ -465,7 +465,7 @@ const trackers = trackersService.wireTrackers(context)
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
-const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: () => hub.broadcast('state', getState()) })
+const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: () => hub.broadcastSoon('state', getState) })
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -527,13 +527,13 @@ const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 
 const daemons = accountsService.wireDaemons(context)
 
 const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source), (name) => configStore.fallBackCli(name),
-  () => { dispatcher.check(); hub.broadcast('state', getState()); void account.refresh() },
+  () => { dispatcher.check(); hub.broadcastSoon('state', getState); void account.refresh() },
   async () => { await cliVersions.check(); await account.refresh() })
 
 const secrets = accountsService.wireSecrets(context)
 
 const profiles: Profiles = accountsService.wireProfiles(context)
-hulyClient.changed = () => hub.broadcast('state', getState())
+hulyClient.changed = () => hub.broadcastSoon('state', getState)
 installForProfiles(profiles.current().profiles)
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
 const profileBlock = accountsService.wireProfileBlock(context)
@@ -687,7 +687,7 @@ const { mailRelay, answerSession } = createChat({
   steering,
   steer,
   language: promptLanguage,
-  changed: () => hub.broadcast('state', getState()),
+  changed: () => hub.broadcastSoon('state', getState),
   log: (line) => console.log(line),
   now: () => new Date(),
 })
@@ -752,7 +752,7 @@ setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`
 const applyCi = () =>
   void Promise.all([ciWatches.apply(configStore.current.projects), remotes.apply(configStore.current.projects)]).then(() => {
     dispatcher.check()
-    hub.broadcast('state', getState())
+    hub.broadcastSoon('state', getState)
   })
 applyCi()
 setInterval(() => {
@@ -771,7 +771,7 @@ setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {
       if (changed || moved) dispatcher.check()
-      if (changed || moved) hub.broadcast('state', getState())
+      if (changed || moved) hub.broadcastSoon('state', getState)
     }),
   CI_TARGETS_MS,
 ).unref()

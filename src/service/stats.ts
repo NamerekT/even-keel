@@ -60,7 +60,7 @@ export function wireNewTally(ctx: StatsContext): () => TallyService {
         return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
       },
       log: (message) => console.log(message),
-      changed: () => ctx.hub.broadcast('state', ctx.getState()),
+      changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     })
 }
 
@@ -84,7 +84,7 @@ export function applyTally(ctx: StatsContext): Promise<void> {
       ctx.stats.setReader(ctx.tally.reader)
       ctx.tally.start()
       console.log('tally: the stats mode or database changed, the collector starts anew')
-      ctx.hub.broadcast('state', ctx.getState())
+      ctx.hub.broadcastSoon('state', ctx.getState)
     })
     .catch((error: unknown) => console.error(`tally: ${(error as Error).message}`))
   return ctx.tallyRestarts
@@ -103,5 +103,5 @@ export async function envChanged(ctx: StatsContext, changed: string[]): Promise<
   if (targets.listen) await ctx.rebind()
   if (targets.tally) await ctx.applyTally()
   ctx.dispatcher.check()
-  ctx.hub.broadcast('state', ctx.getState())
+  ctx.hub.broadcastSoon('state', ctx.getState)
 }

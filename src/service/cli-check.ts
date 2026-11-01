@@ -70,7 +70,7 @@ export function wireCliChecks(ctx: CliCheckContext, history: CheckHistory): CliC
     accountLabel: (home) => ctx.account.view.accounts.find((entry) => entry.key === home.key)?.name ?? home.key,
     save: async (next) => ctx.writes.add('the CLI check history', setStateValue(ctx.db, 'cliCheck.history', next)),
     now: () => Date.now(),
-    changed: () => ctx.hub.broadcast('state', ctx.getState()),
+    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.log(line),
   })
 }

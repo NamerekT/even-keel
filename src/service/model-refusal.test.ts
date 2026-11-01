@@ -14,7 +14,7 @@ describe('a model refusal observed by the service', () => {
     const invalidate = vi.fn()
     const ctx = {
       sessions: [], agents: [{ sessionId: 'refused-session', account: 'actual-account' }],
-      models: { invalidate }, logStartupDialogs: vi.fn(), hub: { broadcast: vi.fn() }, getState: vi.fn(),
+      models: { invalidate }, logStartupDialogs: vi.fn(), hub: { broadcastSoon: vi.fn() }, getState: vi.fn(),
       dispatcher: { check: vi.fn() },
     } as unknown as Parameters<typeof wireMonitor>[0]
     wireMonitor(ctx)

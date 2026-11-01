@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EventHub, formatEvent } from './events.js'
 
 describe('formatEvent', () => {
@@ -41,6 +41,77 @@ describe('EventHub', () => {
       formatEvent('state', { a: 2 }),
       formatEvent('state', { a: 1 }),
     ])
+  })
+
+  describe('broadcastSoon', () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    it('builds the data at once when nothing was built within the window, then folds a burst into one trailing build of the latest', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+      let n = 0
+      const produce = vi.fn(() => ({ n: ++n }))
+
+      hub.broadcastSoon('state', produce)
+      expect(frames).toEqual([formatEvent('state', { n: 1 })])
+      hub.broadcastSoon('state', produce)
+      hub.broadcastSoon('state', produce)
+      hub.broadcastSoon('state', produce)
+      expect(produce).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(199)
+      expect(produce).toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(1)
+      expect(produce).toHaveBeenCalledTimes(2)
+      expect(frames).toEqual([formatEvent('state', { n: 1 }), formatEvent('state', { n: 2 })])
+
+      vi.advanceTimersByTime(1000)
+      expect(produce).toHaveBeenCalledTimes(2)
+    })
+
+    it('takes the last producer asked for in a burst', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+
+      hub.broadcastSoon('state', () => 'a')
+      hub.broadcastSoon('state', () => 'b')
+      hub.broadcastSoon('state', () => 'c')
+      vi.advanceTimersByTime(200)
+
+      expect(frames).toEqual([formatEvent('state', 'a'), formatEvent('state', 'c')])
+    })
+
+    it('builds at once again after a quiet window', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+
+      hub.broadcastSoon('state', () => 1)
+      vi.advanceTimersByTime(250)
+      hub.broadcastSoon('state', () => 2)
+
+      expect(frames).toEqual([formatEvent('state', 1), formatEvent('state', 2)])
+    })
+
+    it('builds nothing while no page listens, and a page that comes later is not held back by the old data', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const produce = vi.fn(() => ({ a: 1 }))
+      hub.broadcast('state', { a: 1 })
+      hub.broadcastSoon('state', produce)
+      vi.advanceTimersByTime(1000)
+      expect(produce).not.toHaveBeenCalled()
+
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+      hub.broadcastSoon('state', produce)
+      expect(frames).toEqual([formatEvent('state', { a: 1 })])
+    })
   })
 
   it('sends a signal every time, even with the same data', () => {
