@@ -6,7 +6,7 @@ import { readSnapshots, saveSnapshot, type HandoffSnapshot } from '../chain/snap
 import { appendLaunch, chainStateOf, loadChainState, loadQuestions, readLaunches, saveQuestions, writeChainRecord } from '../chain/store.js'
 import { fail } from '../notice/notice.js'
 import type { PostedQuestion } from '../tracker/questions.js'
-import { writeAtomic } from './atomic.js'
+import { renameOver, writeAtomic } from './atomic.js'
 import { insertRows, sqliteRows, type Rows } from './copy.js'
 import { mirrorDefinitions, putSettings } from '../settings/store.js'
 import { inTransaction, openDatabase, SQLITE_FILE, STEPS, type Db, type Queryable } from './database.js'
@@ -84,7 +84,7 @@ async function importInto(dir: string, fill: (tx: Transaction) => Promise<void>,
     } finally {
       await db.close()
     }
-    renameSync(temp, dir)
+    renameOver(temp, dir)
   } catch (error) {
     rmSync(temp, { recursive: true, force: true })
     throw fail('storage.importFailed', { file: dir }, {}, { cause: error })

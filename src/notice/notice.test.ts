@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, withLabels, type Notice, type NoticeTexts } from './notice.js'
+import { asNotice, causeLine, englishOf, fail, notice, noticeOf, noticeWithCause, renderNotice, sameNotice, textNotice, withLabels, type Notice, type NoticeTexts } from './notice.js'
 import { AGENTS } from '../agent/adapters.js'
 import { AGENT_NAMES, en } from './en.js'
 
@@ -66,6 +66,31 @@ describe('notices', () => {
     expect(noticeOf(error)).toEqual({ code: 'chain.noSession', params: { task: 'ABC-1' } })
     expect(noticeOf(new Error('boom'))).toEqual(textNotice('boom'))
     expect(noticeOf('raw')).toEqual(textNotice('raw'))
+  })
+
+  it('shows the plain error under a notice as its detail and as a log line (BTN-674)', () => {
+    const locked = Object.assign(new Error("EPERM: operation not permitted, rename 'a.import' -> 'a'"), { code: 'EPERM', path: 'a.import', dest: 'a' })
+    const error = fail('storage.importFailed', { file: 'a' }, {}, { cause: locked })
+    expect(noticeWithCause(error)).toEqual({ code: 'storage.importFailed', params: { file: 'a' }, detail: locked.message })
+    expect(englishOf(noticeWithCause(error))).toContain('files are as they were: EPERM: operation not permitted')
+    expect(causeLine(error)).toBe(`cause: ${locked.message}`)
+
+    const bare = fail('storage.importFailed', { file: 'a' }, {}, { cause: Object.assign(new Error('locked'), { code: 'EBUSY', path: 'D:/state' }) })
+    expect(causeLine(bare)).toBe('cause: locked (code EBUSY, path D:/state)')
+    expect(causeLine(fail('storage.importFailed', { file: 'a' }, {}, { cause: 'gone' }))).toBe('cause: gone')
+  })
+
+  it('leaves a notice without a plain error under it as it is', () => {
+    const plain = fail('chain.noSession', { task: 'ABC-1' })
+    expect(noticeWithCause(plain)).toEqual(noticeOf(plain))
+    expect(causeLine(plain)).toBeUndefined()
+    const nested = fail('storage.importFailed', { file: 'a' }, {}, { cause: plain })
+    expect(noticeWithCause(nested)).toEqual(noticeOf(nested))
+    expect(causeLine(nested)).toBeUndefined()
+    const detailed = fail('storage.importFailed', { file: 'a' }, { detail: 'own' }, { cause: new Error('under') })
+    expect(noticeWithCause(detailed).detail).toBe('own')
+    expect(causeLine(detailed)).toBe('cause: under')
+    expect(noticeWithCause(new Error('boom'))).toEqual(textNotice('boom'))
   })
 
   it('reads old plain strings and unknown codes as text', () => {

@@ -40,6 +40,37 @@ export function noticeOf(error: unknown): Notice {
   return textNotice(error instanceof Error ? error.message : String(error))
 }
 
+/**
+ * `noticeOf` with the error under it as the detail (BTN-674): `fail(…, {}, { cause })` keeps an fs or database error
+ * there, and the notice alone drops it. A notice that has a detail or a cause of its own is kept as it is.
+ */
+export function noticeWithCause(error: unknown): Notice {
+  const base = noticeOf(error)
+  const under = plainCauseOf(error)
+  if (under === undefined || base.detail !== undefined || base.cause !== undefined) return base
+  return { ...base, detail: under.message }
+}
+
+/** The error under `error` as a log line — its message, code and path — or undefined when there is none. */
+export function causeLine(error: unknown): string | undefined {
+  const under = plainCauseOf(error)
+  if (under === undefined) return undefined
+  const fields = under as { code?: unknown; path?: unknown; dest?: unknown }
+  const extras = (['code', 'path', 'dest'] as const)
+    .filter((name) => {
+      const value = fields[name]
+      return typeof value === 'string' && !under.message.includes(value)
+    })
+    .map((name) => `${name} ${fields[name] as string}`)
+  return `cause: ${under.message}${extras.length > 0 ? ` (${extras.join(', ')})` : ''}`
+}
+
+function plainCauseOf(error: unknown): Error | undefined {
+  const under = error instanceof Error ? error.cause : undefined
+  if (under === undefined || under instanceof NoticeError) return undefined
+  return under instanceof Error ? under : new Error(String(under))
+}
+
 // A stored or received value: an old plain string, a notice, or something broken that is still shown.
 export function asNotice(value: unknown): Notice {
   if (typeof value === 'string') return textNotice(value)

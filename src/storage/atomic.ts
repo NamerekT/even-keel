@@ -20,8 +20,11 @@ export function writeAtomic(file: string, text: string): void {
   }
 }
 
-/** Windows readers (including virus scanners) can briefly deny replacing a file they have open. */
-function renameOver(temp: string, file: string): void {
+/**
+ * A rename retried for up to three seconds on Windows: readers there (virus scanners, the indexer) can briefly deny
+ * replacing a file they have open or moving a folder just closed (BTN-674).
+ */
+export function renameOver(temp: string, file: string): void {
   const deadline = Date.now() + RENAME_RETRY_MS
   let pause = 10
   for (;;) {
