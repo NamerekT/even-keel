@@ -274,6 +274,15 @@ export function parked(gate: Gate, then: Turn): Turn {
   }
 }
 
+/** A turn that goes as `first`, then works on until `gate` opens and ends as `first` did: a check after the merge. */
+export function lingers(first: Turn, gate: Gate): Turn {
+  return async (turn) => {
+    const end = await first(turn)
+    await turn.park(gate)
+    return end
+  }
+}
+
 /** A turn that writes its handoff note into the task's folder and ends with `CHECKPOINT:` naming it. */
 export function checkpoint(note: string, text: string): Turn {
   return async ({ cwd }) => {

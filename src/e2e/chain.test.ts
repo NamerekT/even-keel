@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { checkpoint, commitAndMerge, ends, Gate, parked } from './agent.fixture.js'
+import { checkpoint, commitAndMerge, ends, Gate, lingers, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 describe('the chain end to end', { timeout: 60_000 }, () => {
@@ -16,6 +16,8 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
 
   const launches = () => run.agent.calls.filter((call) => call.kind === 'launch')
   const resumes = () => run.agent.calls.filter((call) => call.kind === 'resume')
+  const stops = () => run.agent.calls.filter((call) => call.kind === 'stop').map((call) => call.sessionId)
+  const lampOf = (sessionId: string) => run.service.sessions.find((view) => view.sessionId === sessionId)?.lamp
 
   it('runs tasks in the order of their blocks, cleaning up after each Done', async () => {
     run.board.add('ABC-1')
@@ -143,6 +145,30 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     listing.open()
     await run.until(() => !existsSync(session.cwd), 'the worktree of ABC-1 removed')
     expect(run.agent.calls.filter((call) => call.kind === 'stop').map((call) => call.sessionId)).toEqual([session.sessionId])
+    expect(run.service.dispatcher.state.leftovers).toEqual({})
+  })
+
+  it('stops the session of a task done right after a restart only once its turn ends, then removes its folder', async () => {
+    run.board.add('ABC-1')
+    const restarted = new Gate()
+    const checked = new Gate()
+    run.agent.script('ABC-1', parked(restarted, lingers(commitAndMerge('ABC-1.txt'), checked)))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const session = launches()[0]!
+
+    await run.restart()
+    restarted.open()
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    await run.pass(60_000)
+    expect(stops()).toEqual([])
+    expect(existsSync(session.cwd)).toBe(true)
+
+    checked.open()
+    await run.until(() => !existsSync(session.cwd), 'the worktree of ABC-1 removed')
+    expect(stops()).toEqual([session.sessionId])
+    await run.until(() => lampOf(session.sessionId) === 'finished', 'the session of ABC-1 finished')
     expect(run.service.dispatcher.state.leftovers).toEqual({})
   })
 
