@@ -873,6 +873,7 @@ export const en: Messages = {
     feedKey: 'Key',
     feedKeyHint: 'Task IDs of a GitHub or GitLab feed are KEY-<number>; Huly, Linear and Jira keep their own. The prefix must be unique among projects and feeds.',
     feedAdd: 'Add a feed',
+    feedNew: 'New feed',
     feedRemoveQuestion: (key: string) => `Remove the feed ${key}? Its closed tasks stay on the page for 7 days.`,
     feedLocked: 'The chain has started tasks of this feed: its profile stays. Remove it and add another to change it.',
     brief: 'Task description in the prompt',

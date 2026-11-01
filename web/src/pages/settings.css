@@ -242,18 +242,38 @@
   flex: 1 1 14em;
 }
 
-/* The project's task sources (BTN-66, BTN-553): a row per source, then the fields of a new feed. */
-.feeds__row {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.feeds__row:last-child {
-  border-bottom: 0;
+/* The project's task sources (BTN-66, BTN-553): each source a box of its own, so where one ends shows; a new feed's
+   fields open above them in an accent box, as a chosen provider is marked (docs/design.md, "Provider choice"). */
+.feeds__row,
+.feeds__add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
 }
 
 .feeds__add {
-  margin-top: 8px;
+  /* Clear of the panel's sticky tabs when it scrolls into view. */
+  scroll-margin-top: 72px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  animation: appear var(--motion-appear) ease-out;
+}
+
+.feeds__add-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feeds__add {
+    animation: none;
+  }
 }
 
 .feeds__submit {

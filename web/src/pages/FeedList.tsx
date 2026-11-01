@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { EvenKeelState, FeedView } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
+import { stillMotion } from '../ui/landing.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { FeedDialog, useFeedDraft } from './FeedDialog.js'
 import { linkedProfile, trackedFields } from './ProjectTracker.js'
@@ -43,12 +44,12 @@ export function FeedList({ state, project, main, mainTitle, tasks, modelLabels }
         )
       }
     >
+      {adding && <FeedAdd state={state} project={project} onClose={() => setAdding(false)} />}
       <div className="feeds__row">{main}</div>
       {feeds.map((feed) => (
         <FeedRow key={feed.id} state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} />
       ))}
       {feeds.length === 0 && !adding && <p className="settings__hint">{t.settings.feedsNone(mainTitle)}</p>}
-      {adding && <FeedAdd state={state} project={project} onClose={() => setAdding(false)} />}
     </Section>
   )
 }
@@ -111,9 +112,20 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
   )
 }
 
-/** A new feed, filled as the wizard fills a project: the profile picks the tracker, its projects are suggested. */
+/**
+ * A new feed, filled as the wizard fills a project: the profile picks the tracker, its projects are suggested. It opens
+ * at the top of the list in a box of its own, scrolled into view with its first field focused, so the press shows.
+ */
 function FeedAdd({ state, project, onClose }: { state: EvenKeelState; project: string; onClose: () => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  const heading = useId()
   const [fields, setFields] = useState<WizardFields>(EMPTY_FIELDS)
+  useEffect(() => {
+    const element = box.current
+    if (element === null) return
+    element.querySelector<HTMLElement>(':is(input, select, button):not([tabindex="-1"], :disabled)')?.focus({ preventScroll: true })
+    element.scrollIntoView({ block: 'nearest', behavior: stillMotion() ? 'auto' : 'smooth' })
+  }, [])
   const { send, sending, failure } = useCommand()
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
   const profiles = state.profiles.profiles.filter((profile) => kinds.some((kind) => kind.kind === profile.kind))
@@ -126,7 +138,10 @@ function FeedAdd({ state, project, onClose }: { state: EvenKeelState; project: s
     if (await send('project/feed/add', sent)) onClose()
   }
   return (
-    <div className="settings__field feeds__add">
+    <div ref={box} className="settings__field feeds__add" role="group" aria-labelledby={heading}>
+      <h4 id={heading} className="feeds__add-title">
+        {t.settings.feedNew}
+      </h4>
       <TrackerFields
         ids={(field) => fieldId(`feedAdd.${field}`)}
         state={state}
@@ -152,7 +167,7 @@ function FeedAdd({ state, project, onClose }: { state: EvenKeelState; project: s
         )}
         <div className="settings__field feeds__submit">
           <span className="account__actions">
-            <button type="button" className="button button--small" disabled={sending || profile === undefined || fields.key.trim() === ''} onClick={() => void add()}>
+            <button type="button" className="button button--small button--primary" disabled={sending || profile === undefined || fields.key.trim() === ''} onClick={() => void add()}>
               {t.settings.feedAdd}
             </button>
             <button type="button" className="button button--small" disabled={sending} onClick={onClose}>
