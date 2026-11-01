@@ -21,7 +21,7 @@
       "id": "00000000-0000-4000-8000-000000000002",
       "key": "XYZ",
       "name": "Other project",
-      "repo": "C:\\repos\\other-project",
+      "repo": "/home/john/repos/other-project",
       "tracker": "huly",
       "branch": "master",
       "slot": true,
@@ -33,7 +33,7 @@
     {
       "id": "00000000-0000-4000-8000-000000000003",
       "key": "GHB",
-      "repo": "C:\\repos\\github-project",
+      "repo": "/Users/john/repos/github-project",
       "tracker": "github",
       "github": "octo-org/github-project",
       "chain": {

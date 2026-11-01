@@ -137,6 +137,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
   const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>): EvenKeelState => ({
     protection: ctx.protectionAudit.view,
     startedAt: ctx.startedAt,
+    platform: process.platform,
     projects: Object.keys(ctx.configStore.current.projects),
     projectKeys: ctx.configStore.current.keys,
     projectLabels: projectLabels(ctx.configStore.current),

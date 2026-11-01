@@ -481,7 +481,6 @@ export const ru = {
     stepRepo: 'Репозиторий',
     path: 'Папка',
     repoHint: 'Путь к основной рабочей копии проекта на этой машине. Подойдёт и папка внутри неё: возьмётся корень репозитория.',
-    repoPlaceholder: 'D:/Projects/example',
     repoFound: (root: string) => `Git-репозиторий ${root}`,
     mainBranch: (branch: string) => `основная ветка: ${branch}`,
     changeBranch: 'изменить',

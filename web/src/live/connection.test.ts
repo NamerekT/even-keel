@@ -39,6 +39,7 @@ class FakeStream implements EventStream {
 function state(startedAt: string): EvenKeelState {
   return {
     startedAt,
+    platform: 'win32',
     projects: [],
     projectKeys: {},
     projectLabels: {},

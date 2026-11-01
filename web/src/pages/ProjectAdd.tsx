@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft } from '../../../src/state.js'
+import { examplePaths } from '../examplePaths.js'
 import { say, t } from '../i18n/index.js'
 import { requestCli } from '../layout/CliCopies.js'
 import { useLive } from '../live/context.js'
@@ -218,7 +219,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 spellCheck={false}
                 autoFocus
                 value={fields.repo}
-                placeholder={t.wizard.repoPlaceholder}
+                placeholder={examplePaths(state.platform).repo}
                 aria-invalid={repoCheck?.repo.notice != null}
                 onChange={(event) => set({ repo: event.target.value })}
               />

@@ -39,7 +39,7 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null }
-  const host = { platform: 'win32', user: 'EvenKeelSvc' }
+  const host = { platform: state.platform, user: 'EvenKeelSvc' }
   if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   if (path.includes('nope')) {
     return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, ...host }

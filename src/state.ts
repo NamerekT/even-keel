@@ -442,6 +442,8 @@ export interface TaskWork {
 export interface EvenKeelState {
   protection?: Record<string, import('./ci/protection-model.js').RemoteProtection[]>
   startedAt: string
+  /** The platform of the service's machine (`process.platform`): the page's example paths follow it (BTN-634). */
+  platform: string
   /** The projects by their ids, as every map of a project here names them: two projects may share a key (BTN-271). */
   projects: string[]
   /** The key of each project; an old link of the page names a project by it. */

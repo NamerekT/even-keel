@@ -473,7 +473,6 @@ export const en: Messages = {
     stepRepo: 'Repository',
     path: 'Folder',
     repoHint: "Path to the project's main checkout on this machine. A folder inside it will do: the top of the repository is taken.",
-    repoPlaceholder: 'D:/Projects/example',
     repoFound: (root: string) => `Git repository ${root}`,
     mainBranch: (branch: string) => `main branch: ${branch}`,
     changeBranch: 'change',

@@ -2,8 +2,8 @@
   "allowedHosts": [],
   "projects": {
     "00000000-0000-4000-8000-000000000001": "C:\\repos\\example-project",
-    "00000000-0000-4000-8000-000000000002": "C:\\repos\\other-project",
-    "00000000-0000-4000-8000-000000000003": "C:\\repos\\github-project"
+    "00000000-0000-4000-8000-000000000002": "/home/john/repos/other-project",
+    "00000000-0000-4000-8000-000000000003": "/Users/john/repos/github-project"
   },
   "keys": {
     "00000000-0000-4000-8000-000000000001": "ABC",
