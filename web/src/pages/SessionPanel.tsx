@@ -24,7 +24,6 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { Lamp } from '../ui/Lamp.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -87,7 +86,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   return (
     <aside className="panel" aria-label={t.session.panel(block.id)}>
       <header className="panel__head">
-        <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />
+        {/* No lamp: the row beside the panel shows it, and the Session fact says the same in words. */}
         <h2 className="panel__task">
           {isOwnName(block.id) ? (
             <>

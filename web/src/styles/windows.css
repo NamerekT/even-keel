@@ -91,10 +91,6 @@
   gap: 10px;
 }
 
-.panel__head .lamp {
-  margin-top: 7px;
-}
-
 .panel__task {
   flex: 1;
   min-width: 0;
