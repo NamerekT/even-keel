@@ -166,3 +166,12 @@ describe('package settings across updates', () => {
     expect(next['target']({ project: 'project', name: 'tools@example', install: install.id, server: 'tools' })!.entry.env).toEqual({ TOOLSETS: 'workitems,milestones', MODE: 'fast' })
   })
 })
+
+describe('packages only the user can make ready', () => {
+  it('names an enabled package until it is installed', async () => {
+    const { packages } = fixture()
+    expect(packages.unready('project')).toEqual(['tools@example'])
+    await packages.install('tools@example')
+    expect(packages.unready('project')).toEqual([])
+  })
+})

@@ -5,7 +5,7 @@ import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
-import { bringsServer, Probes, projectPackages } from './check.js'
+import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
@@ -246,6 +246,12 @@ export class Packages {
   trackerMissing(project: string): string | undefined {
     const missing = this.check(project).problems.find((problem) => problem.kind === 'noTrackerMcp')
     return missing?.kind === 'noTrackerMcp' ? missing.server : undefined
+  }
+
+  /** The enabled packages of the project that only the user can make ready: not installed, failed to install or lacking a key. */
+  unready(project: string): string[] {
+    const cells = Object.entries(this.check(project).cells)
+    return cells.filter(([, cell]) => cell.enabled && cell.problems.some((problem) => NEEDS_USER.has(problem.kind))).map(([name]) => name)
   }
 
   /** The chain waits while the project's set has a problem that holds it. */

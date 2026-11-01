@@ -52,6 +52,8 @@ export interface SetupOptions {
   packagesBlocked?: Set<string>
   /** Brief is off and no package brings the tracker's MCP server. */
   trackerBlock?: Notice
+  /** A package of the set is not installed, failed to install or lacks a key. */
+  packagesPause?: Notice
   /** Whether the service has read its account folders since its start; absent — it has. */
   accountsRead?: boolean
   /** Whether the monitor has read the sessions since the service's start; absent — it has. */
@@ -158,6 +160,7 @@ export function setup(options: SetupOptions = {}) {
     limitsUnread: () => options.limitsUnread,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     trackerBlock: () => options.trackerBlock,
+    packagesPause: () => options.packagesPause,
     accountsRead: () => options.accountsRead ?? true,
     sessionsRead: () => options.sessionsRead ?? true,
     promptLanguage: () => 'ru',

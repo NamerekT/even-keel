@@ -149,6 +149,7 @@ export const ru = {
     accounts: 'Открыть Аккаунты',
     moves: 'Открыть статусы при действиях',
     resume: 'Проверить и продолжить',
+    packages: 'Открыть пакеты проекта',
   },
   banner: {
     config: (error: string) => `Настройки не применены, работают последние исправные: ${error}`,
@@ -163,9 +164,12 @@ export const ru = {
     afterGreenHold: (commit: string, since: string) => `Выполняет команды после зелёного main на ${commit} с ${since} — следующая задача запустится, когда они закончатся.`,
     remoteFixHold: (commit: string, since: string, project: string) =>
       `main общего remote красный на ${commit}; его с ${since} чинит ${project} — следующая задача запустится, когда починка позеленеет.`,
-    packages: (projects: string) => `Следующая задача ${projects} ждёт: пакет из набора не готов.`,
     gateway: (error: string) => `Цепочки ждут: шлюз MCP не работает — ${error}`,
-    packagesLink: 'Пакеты →',
+    closingHold: (task: string) => `${task} готова — следующая задача запустится, когда её сессия закончит ход и папку уберут.`,
+    gatewayHold: 'Следующая задача ждёт шлюз MCP: он не работает, почему — в плашке выше.',
+    packagesHold: (packages: string) => `Следующая задача ждёт пакеты: ${packages} — запустится, когда они ответят.`,
+    packagesSilentHold: (packages: string) =>
+      `Следующая задача ждёт пакеты: ${packages}. Их спросят снова через полминуты, потом всё реже, до раза в час; проверьте их команду и настройки.`,
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
     cliOne: (title: string, installed: string, checked: string) => `${title} ${installed} · проверен ${checked}`,
     cliDaemon: (title: string, account: string, running: string, checked: string) =>
@@ -277,6 +281,8 @@ export const ru = {
     queued: 'в очереди',
     idle: 'не запущена',
     position: (position: number) => `${position}-я`,
+    waiting: 'ждёт',
+    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот' },
   },
   lamp: {
     done: 'готово',

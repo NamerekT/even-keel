@@ -77,6 +77,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 36a | [Secret fields and the browser's password manager](#secret-fields-and-the-browsers-password-manager-btn-633) | everyone typing a key or a password on the page | Chrome or Edge still offers to save it; decline with "Never" |
 | 36b | [Example paths by the service's platform](#example-paths-by-the-services-platform-btn-634) | Linux and macOS services adding a project | the folder field shows a path of another system as its example |
 | 36c | [A chain paused for a tracker its sessions would not see](#a-chain-paused-for-a-tracker-its-sessions-would-not-see-btn-656) | projects with the task description off and no tracker package | the chain stays paused after the fix until Resume |
+| 36d | [A chain paused for packages that are not ready](#a-chain-paused-for-packages-that-are-not-ready-btn-657) | projects with a package lacking its key or its install | the chain stays paused after the fix until Resume |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two GitHub profiles on private repositories | a project's CI reads with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
@@ -236,6 +237,10 @@ The folder field of the project wizard and the moves table of Settings → Stats
 ### A chain paused for a tracker its sessions would not see (BTN-656)
 
 With "Task description in the prompt" off and no package of the project bringing the tracker's MCP server, Start and Resume put the chain in paused with that reason and two buttons beside it, "Turn on <package>" (or "Add the tracker's package") and "Turn the task description on"; once either is done the chain goes on by itself within a minute. A running chain whose package is turned off pauses before its next task. Checked by the dispatcher's tests and on `dev:fake` (`?chain=tracker|trackerAdd`); not seen on the service: a project added with the description off and the Huly plugin off, Start, either button, and the first task starting without a second Start. **If it does not go on:** press Resume once the package or the description is on.
+
+### A chain paused for packages that are not ready (BTN-657)
+
+An enabled package that is not installed, failed to install or lacks a key puts the chain in paused with "Open the project's packages" beside the reason, instead of a running chain waiting under the banner; once the package is ready the chain goes on by itself within a minute. Packages that only start or do not answer, the gateway, a closing task, CI, limits and a slot stay waits, named by the project's chip "waiting · <reason>" and a line on its card and page. Checked by the dispatcher's tests and on `dev:fake` (`?chain=packagesPause|packages|packagesSilent|gateway|closing`); not seen on the service: a package needing a key with the key unset, Start, the pause with its button, the key set on `/tools`, and the first task starting without a second Start. **If it does not go on:** press Resume once the key is set.
 
 ### The wizard's trust check
 

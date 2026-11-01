@@ -17,6 +17,8 @@ interface Catalog {
   marketplace: boolean
   /** The servers have not answered since the service started. */
   probing: boolean
+  /** The forgejo server does not answer its probe. */
+  silent: boolean
   /** The user's own skills: name and the agent whose folder holds it; `wrapped` — those the skills package holds. */
   skills: Record<string, string>
   wrapped: string[]
@@ -31,7 +33,8 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
  * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
  * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
- * prompt and the add dialog offers it, `probing` — no server has answered since the service started; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * prompt and the add dialog offers it, `probing` — no server has answered since the service started, `silent` — the
+ * forgejo server does not answer; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -51,6 +54,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     gateway: mode !== 'gateway',
     marketplace: mode !== 'marketplace',
     probing: mode === 'probing',
+    silent: mode === 'silent',
     skills: { 'code-review': 'claude', 'release-notes': 'claude', 'test-first': 'claude', deploy: 'codex' },
     wrapped: [],
   }
@@ -97,6 +101,7 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
     const missing = each.keys.filter((key) => !catalog.keys[key])
     if (missing.length > 0) problems.push({ kind: 'noKey', variables: missing })
     else if (catalog.probing && each.installed) problems.push({ kind: 'probing' })
+    else if (catalog.silent && each.name === 'forgejo') problems.push({ kind: 'noResponse', servers: each.servers })
     if (each.extras && project === 'OPS') problems.push({ kind: 'unsupported', agent: 'Codex' })
     cells[each.name] = { choice, enabled, settings: { ...each.settings, ...catalog.own[project]?.[each.name] }, problems }
   }

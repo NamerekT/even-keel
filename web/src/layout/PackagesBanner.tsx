@@ -1,38 +1,18 @@
-import { Link, useLocation } from 'react-router'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { blockedProjects } from '../tools/packageView.js'
-import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Banner } from './Banner.js'
 
 /**
- * Chains held by their packages: the gateway does not run, or a set has a problem (`src/packages/check.ts`). A tracker
- * server the sessions lack is not here: the project's chain pauses on `chain.noTrackerMcp` with its own buttons.
+ * The MCP gateway does not run, which holds every chain. A project's own packages are its own block's: a wait there,
+ * or a pause on `chain.packagesNotReady` or `chain.noTrackerMcp` (BTN-656, BTN-657).
  */
 export function PackagesBanner() {
   const { state } = useLive()
-  const { pathname } = useLocation()
-  if (state === null) return <Banner />
-  const { gateway } = state.packages
-  const blocked = blockedProjects(state.packages, state.projects)
-  if (gateway === null && blocked.length === 0) return <Banner />
-  const link = pathname === '/tools' ? null : (
-    <Link to={`/tools?projects=${blocked.join(',')}`} className="banner__link">
-      {t.banner.packagesLink}
-    </Link>
-  )
-
+  if (state === null || state.packages.gateway === null) return <Banner />
   return (
-    <Banner tone={gateway === null ? undefined : 'error'}>
+    <Banner tone="error">
       <div className="banner__inner">
-        <span>
-          {gateway === null ? (
-            <ProjectLinks text={t.banner.packages(blocked.join(', '))} />
-          ) : (
-            t.banner.gateway(say(gateway))
-          )}
-        </span>
-        {link}
+        <span>{t.banner.gateway(say(state.packages.gateway))}</span>
       </div>
     </Banner>
   )

@@ -364,6 +364,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const server = ctx.packages.trackerMissing(project)
       return server === undefined ? undefined : notice('chain.noTrackerMcp', { project: projectLabel(ctx.configStore.current, project), server })
     },
+    packagesPause: (project) => {
+      const packages = ctx.packages.unready(project)
+      return packages.length === 0 ? undefined : notice('chain.packagesNotReady', { project: projectLabel(ctx.configStore.current, project), packages })
+    },
     accountsRead: () => ctx.account.ready,
     sessionsRead: () => ctx.agentsRead,
     promptLanguage: (task) => ctx.promptLanguage(ctx.projectOf(task)),

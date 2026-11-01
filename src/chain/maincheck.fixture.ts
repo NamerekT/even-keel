@@ -1,7 +1,7 @@
 import type { CiRun } from '../ci/model.js'
 import type { CiVerdict } from '../ci/verdict.js'
 import type { NewTask } from '../tracker/source.js'
-import { done, setup, task } from './dispatcher.fixture.js'
+import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { fixName } from './fix.js'
 import type { AfterGreenRun, MainCheckDeps, MainCheckRun, MainFailure, MainPush } from './model.js'
 
@@ -90,10 +90,11 @@ export function fakeMain(wait: number | null = null) {
 }
 
 /** ABC-1 ran and went to Done; main is pushed at `bbbbbbbbbb`. */
-export async function afterDone(wait: number | null = null, prepare: (ci: ReturnType<typeof fakeMain>['ci']) => void = () => {}) {
+/** `options` stay live: a test changes them after the start, as with `setup`. */
+export async function afterDone(wait: number | null = null, prepare: (ci: ReturnType<typeof fakeMain>['ci']) => void = () => {}, options: SetupOptions = {}) {
   const { ci, deps } = fakeMain(wait)
   prepare(ci)
-  const harness = setup({ main: deps })
+  const harness = setup(Object.assign(options, { main: deps }))
   const { dispatcher } = harness
   dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
   dispatcher.start('ABC')

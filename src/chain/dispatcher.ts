@@ -48,7 +48,7 @@ export {
 
 const SLOT_RETRY_MS = 30_000
 /** Launch blocks Start and Resume go in paused on and the chain lifts by itself once they are gone (`cleared`). */
-const SELF_CLEARING: readonly string[] = ['review.notReady', 'agent.copyMissing', 'chain.noTrackerMcp']
+const SELF_CLEARING: readonly string[] = ['review.notReady', 'agent.copyMissing', 'chain.noTrackerMcp', 'chain.packagesNotReady']
 
 export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
@@ -600,9 +600,13 @@ export class Dispatcher {
     if (reason !== undefined) throw new NoticeError(reason)
   }
 
-  /** What keeps a new session of the project from starting: the service's blocks, then a tracker its sessions would not see. */
+  /**
+   * What keeps a new session of the project from starting: the service's blocks, then a tracker its sessions would not
+   * see, then a package only the user can make ready, which a fix session of a red main does not wait for.
+   */
   private launchBlock(project: string, task?: string): Notice | undefined {
-    return this.deps.blocked(project, task) ?? this.deps.trackerBlock(project)
+    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.packagesPause(project)
+    return this.deps.blocked(project, task) ?? this.deps.trackerBlock(project) ?? packages
   }
 
   private changed(): void {

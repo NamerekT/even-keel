@@ -678,6 +678,11 @@ a.button.pull-button__link {
   color: var(--fg);
 }
 
+.chip--waiting {
+  background: color-mix(in srgb, var(--lamp-waiting) 16%, transparent);
+  color: var(--fg);
+}
+
 .chip--paused,
 .chip--question,
 .chip--feedback,

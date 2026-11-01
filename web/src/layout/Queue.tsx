@@ -10,6 +10,7 @@ import { Lamp } from '../ui/Lamp.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { chainWaits } from '../waits.js'
 import { usePopover } from './usePopover.js'
 
 export function QueueMenu({ state }: { state: EvenKeelState }) {
@@ -85,7 +86,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
           <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state, project))}>
             <span className="card__swatch" aria-hidden="true" />
             <ProjectLink state={state} project={project} />
-            <StatusChip status={chainStatus(state.chain, project)} />
+            <StatusChip status={chainStatus(state.chain, project)} wait={chainWaits(state, project)[0]} />
             <TaskLine state={state} project={project} />
           </div>
         ))}

@@ -10,9 +10,11 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
- * status moves of the task's source (`source`) or of its tracker profile (`profile`).
+ * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
+ * column on /tools.
  */
 export type NoticeFix =
+  | { to: 'packages' }
   | { to: 'project'; project?: string; tab: ProjectTab }
   | { to: 'shared'; tab: SharedTab }
   | { to: 'accounts' }
@@ -52,6 +54,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'config.token': PAGE,
   'config.tokenShape': PAGE,
   'claude.untrusted': { to: 'resume' },
+  'chain.packagesNotReady': { to: 'packages' },
 }
 
 type Untrusted = Extract<Notice, { code: 'claude.untrusted' }>['params']

@@ -19,10 +19,7 @@ import {
   hasLiveSession,
   chainControls,
   chainStatus,
-  ciWaitText,
   issueLink,
-  limitWaitText,
-  limitsWaitText,
   openQuestions,
   projectLabel,
   projectPages,
@@ -39,12 +36,14 @@ import {
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
-import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
+import { Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
+import { chainWaits } from '../waits.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
+import { ChainWaits } from './ChainWaits.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
@@ -316,6 +315,7 @@ function ChainControls({
 }) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
+  const waits = chainWaits(state, project)
   const controls = chainControls(status, state.chain.projects[project])
   const error = failure
   const after = queuedAfter(state.chain, project)
@@ -353,7 +353,7 @@ function ChainControls({
   return (
     <>
       <div className="project__controls">
-        <StatusChip status={status} />
+        <StatusChip status={status} wait={waits[0]} />
         {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
         {beside}
         {narrow ? (
@@ -369,22 +369,7 @@ function ChainControls({
         )}
         {children}
       </div>
-      {status.kind === 'running' && status.limitUntil !== null && (
-        <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
-      )}
-      {status.kind === 'running' && status.slotWait !== undefined && (
-        <p className="project__wait">
-          <Said notice={status.slotWait} />
-        </p>
-      )}
-      {status.kind === 'running' && status.ciWait !== undefined && (
-        <p className="project__wait">
-          <ProjectLinks text={ciWaitText(status.ciWait, new Date())} />
-        </p>
-      )}
-      {status.kind === 'running' && status.limitsWait !== undefined && (
-        <p className="project__wait">{limitsWaitText(status.limitsWait, new Date())}</p>
-      )}
+      <ChainWaits project={project} waits={waits} className="project__wait" />
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && (
         <p className="project__error">
