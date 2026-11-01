@@ -85,7 +85,7 @@ export const en = {
   'chain.limitsUnread': (p: { account: string; next?: string }) =>
     `Waiting for the first answer about the limits of the account ${p.account}: without it a spent weekly window looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
-    `chain: the usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}; wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or change the task's provider label`,
+    `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or change the task's provider label.`,
   'session.transient': () => 'waiting to retry',
   'session.transientRetry': (p: { at: string }) => `The model is temporarily unavailable. The dispatcher will retry this same session at ${p.at}. You can continue it now from the chat or start a new session.`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,

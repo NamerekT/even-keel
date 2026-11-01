@@ -22,6 +22,11 @@ describe('limit notice on the page', () => {
     setLanguage(language)
     const until = '2026-10-27T06:54:09.000Z'
     const text = say(notice('chain.limitSpent', { until, account: 'Build account', provider: 'codex' }))
+    if (language === 'en') {
+      expect(text).toMatch(/^The usage limit is spent until /)
+      expect(text).toContain('. Wait for the reset,')
+      expect(text).toMatch(/\.$/)
+    }
     expect(text).toContain('Build account')
     expect(text).toContain('Codex')
     expect(text).toContain(formatMoment(until, new Date()))
