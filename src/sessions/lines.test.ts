@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setImmediate as tick } from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { lineSlices } from './lines.js'
+import { lineSlices, PACE_MS, paced } from './lines.js'
 
 describe('lineSlices', () => {
   let dir: string
@@ -11,7 +11,7 @@ describe('lineSlices', () => {
   const write = (content: string) => writeFileSync(file, content)
   const collect = async (from: number, to: number, chunk: number) => {
     const slices: { lines: string[]; next: number }[] = []
-    for await (const slice of lineSlices(file, from, to, chunk)) slices.push(slice)
+    for await (const slice of lineSlices(file, from, to, { chunk })) slices.push(slice)
     return slices
   }
 
@@ -70,14 +70,46 @@ describe('lineSlices', () => {
     expect(await collect(11, 11, 4)).toEqual([])
   })
 
+  it('cuts a chunk into groups of about the given size, each ending on a line', async () => {
+    const content = 'alpha\nbeta\ngamma\ndelta\n'
+    write(content)
+
+    const slices = []
+    for await (const slice of lineSlices(file, 0, content.length, { chunk: 1024, group: 6 })) slices.push(slice)
+
+    expect(slices.map((slice) => slice.lines)).toEqual([['alpha'], ['beta', 'gamma'], ['delta']])
+    expect(slices.map((slice) => slice.next)).toEqual([6, 17, 23])
+  })
+
   it('lets other work run between slices', async () => {
     write('alpha\nbeta\ngamma\ndelta\n')
     let ran = false
     void tick().then(() => (ran = true))
     const seen: boolean[] = []
 
-    for await (const _ of lineSlices(file, 0, 23, 6)) seen.push(ran)
+    for await (const _ of lineSlices(file, 0, 23, { chunk: 6 })) seen.push(ran)
 
     expect(seen.at(-1)).toBe(true)
+  })
+})
+
+describe('paced', () => {
+  const spin = (ms: number) => {
+    const until = performance.now() + ms
+    while (performance.now() < until);
+  }
+
+  it('lets a reader go on within the budget and holds it to the next turn of the loop past it, with every other reader', async () => {
+    await paced()
+    expect(paced()).toBeUndefined()
+
+    spin(PACE_MS + 5)
+    const first = paced()
+    const second = paced()
+    expect(first).toBeInstanceOf(Promise)
+    expect(second).toBe(first)
+
+    await first
+    expect(paced()).toBeUndefined()
   })
 })
