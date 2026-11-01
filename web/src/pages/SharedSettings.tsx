@@ -9,6 +9,7 @@ import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
 import { offeredProviders } from '../accounts.js'
+import { examplePaths } from '../examplePaths.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
@@ -617,8 +618,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             <RowsTable
               label={t.shared.moves}
               columns={[
-                { title: t.shared.movesFrom, placeholder: 'D:/old/abc', mono: true },
-                { title: t.shared.movesTo, placeholder: 'D:/Projects/abc', mono: true },
+                { title: t.shared.movesFrom, placeholder: examplePaths(state.platform).movedFrom, mono: true },
+                { title: t.shared.movesTo, placeholder: examplePaths(state.platform).movedTo, mono: true },
               ]}
               rows={rowsOf(text('moves')).map(pairOf)}
               empty={t.shared.none}

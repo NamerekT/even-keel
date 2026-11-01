@@ -143,6 +143,7 @@ function fakeState(
   ]
   return {
     startedAt: ago(180),
+    platform: 'win32',
     projects: FAKE_PROJECTS,
     ...fakeProjectMaps(),
     config: fakeConfig(account),
@@ -330,6 +331,7 @@ export function createFakeSource(search: string): LiveSource {
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent
   if (isLanguage(language) && current.state !== null) current.state.language = language
+  if (params.has('platform') && current.state !== null) current.state.platform = params.get('platform')!
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (current.state !== null) current.state.updates = fakeUpdates(params)
@@ -745,7 +747,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
-      if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: 'win32', user: 'evenkeel' } as T
+      if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: current.state.platform, user: 'evenkeel' } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       if (name === 'profiles/statuses') return fakeProfileStatuses(current.state, body, params.get('profileStatuses'), FAKE_VOCABULARY.statuses) as T
