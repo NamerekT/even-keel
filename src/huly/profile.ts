@@ -6,6 +6,7 @@ import { quietModelNoise } from './quiet.js'
 
 interface SocialId {
   _id: string
+  type?: string
   value: string
 }
 
@@ -60,14 +61,20 @@ async function withClient<T>(values: Readonly<Record<string, string>>, timeoutMs
   }
 }
 
-/** Signs in and names the person behind the account; without one in the workspace, the account's primary login. */
+/** A guest cannot read its own person, and its primary social id is often of type `huly`, whose value is a UUID. */
+function fallbackLogin(account: { primarySocialId: string; fullSocialIds?: SocialId[] }): string {
+  const ids = account.fullSocialIds ?? []
+  return ids.find((id) => id.type === 'email')?.value ?? ids.find((id) => id._id === account.primarySocialId)?.value ?? account.primarySocialId
+}
+
+/** Signs in and names the person behind the account; without one in the workspace, the account's e-mail or primary login. */
 export function hulyAccount(values: Readonly<Record<string, string>>, timeoutMs: number): Promise<ProfileAccount> {
   return withClient(values, timeoutMs, async (client) => {
     const account = await client.getAccount()
     const [identity] = await client.findAll<{ attachedTo: string }>(SOCIAL_IDENTITY, { _id: account.primarySocialId }, { projection: { attachedTo: 1 } })
     const [person] =
       identity === undefined ? [] : await client.findAll<{ name: string }>(PERSON, { _id: identity.attachedTo }, { projection: { name: 1 } })
-    const login = person?.name ? personName(person.name) : (account.fullSocialIds?.find((id) => id._id === account.primarySocialId)?.value ?? account.primarySocialId)
+    const login = person?.name ? personName(person.name) : fallbackLogin(account)
     return { login, name: `Huly · ${values.HULY_WORKSPACE}`, expiresAt: null }
   })
 }
