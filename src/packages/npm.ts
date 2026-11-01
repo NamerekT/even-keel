@@ -85,6 +85,11 @@ export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: 
   return pinnedServer(entry, spec, version, prefix)
 }
 
+/** Installs the dependencies of the folder's `package.json`, without its dev ones. */
+export async function installDependencies(prefix: string): Promise<void> {
+  await npm(['install', '--prefix', prefix, '--no-audit', '--no-fund', '--omit=dev', '--prefer-offline'], prefix)
+}
+
 /** Copies the same version another install already has in `from` into `prefix`, instead of npm install. */
 export async function copyPinned(entry: ServerEntry, spec: NpxSpec, version: string, from: string, prefix: string): Promise<InstalledServer> {
   await cp(from, prefix, { recursive: true, verbatimSymlinks: true, errorOnExist: true, force: false })

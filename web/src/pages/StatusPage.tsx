@@ -111,7 +111,7 @@ function CheckTile({ check, retry, className }: { check: Check; retry: () => voi
   )
 }
 
-/** The button that fixes a check: reconnecting, the profile of a connection, or the place of the settings. */
+/** The button that fixes a check: reconnecting, the Huly client's install, the profile of a connection, or the place of the settings. */
 function CheckAction({ check, retry }: { check: Check; retry: () => void }) {
   const { fix } = check
   if (fix === undefined) return null
@@ -122,8 +122,19 @@ function CheckAction({ check, retry }: { check: Check; retry: () => void }) {
       </button>
     )
   }
+  if (fix.kind === 'hulyClient') return <HulyInstallButton busy={check.level === 'warn'} />
   if (check.tracker !== undefined) return <ProfileButton />
   return <FixButton project={null} fix={fix.fix} className="button button--small" />
+}
+
+/** Installs the Huly client once more; off while an install runs. */
+function HulyInstallButton({ busy }: { busy: boolean }) {
+  const { send, sending } = useCommand()
+  return (
+    <button type="button" className="button button--small" disabled={busy || sending} onClick={() => void send('huly/install', {})}>
+      {t.common.retry}
+    </button>
+  )
 }
 
 function ProfileButton({ primary = false }: { primary?: boolean }) {

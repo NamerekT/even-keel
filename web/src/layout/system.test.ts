@@ -128,3 +128,22 @@ describe('the Tally check', () => {
     expect(tally({ mode: 'local', health: { state: 'off', lastRunAt: null } })).toMatchObject({ level: 'error', text: 'не собирается' })
   })
 })
+
+describe('the Huly client check', () => {
+  const client = (input: SystemInput['hulyClient']) => systemChecks({ ...healthy, hulyClient: input }, now).find((check) => check.key === 'hulyClient')
+
+  it('is left out when no install runs or failed', () => {
+    expect(client(null)).toBeUndefined()
+    expect(client(undefined)).toBeUndefined()
+  })
+
+  it('warns while the install runs and fails after a failed one, with a retry either way', () => {
+    expect(client(notice('huly.clientInstalling', {}))).toMatchObject({ level: 'warn', text: 'устанавливается', fix: { kind: 'hulyClient' } })
+    expect(client(notice('huly.clientFailed', {}, { detail: 'npm ERR!' }))).toMatchObject({
+      level: 'error',
+      text: 'не установлен',
+      details: ['npm не смог установить клиент Huly; проекты на Huly ждут, пока установку не повторят: npm ERR!'],
+      fix: { kind: 'hulyClient' },
+    })
+  })
+})

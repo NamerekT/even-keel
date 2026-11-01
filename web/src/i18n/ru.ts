@@ -233,6 +233,9 @@ export const ru = {
     tallyHalted: 'остановлена до перезапуска',
     tallyIdle: 'не собирается',
     tallyLog: 'Причина — в логе службы.',
+    hulyClient: 'Клиент Huly',
+    hulyInstalling: 'устанавливается',
+    hulyFailed: 'не установлен',
   },
   statusPage: {
     title: 'Состояние',

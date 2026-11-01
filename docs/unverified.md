@@ -28,6 +28,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 2a | [Account names across sign-outs and sign-ins](#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
 | 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
+| 3b | [Huly's client installed on demand](#hulys-client-installed-on-demand-btn-666) | npm installs on Huly | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
@@ -212,6 +213,12 @@ Checked live on Windows (2026-10-23) in Windows Sandbox, with a local registry (
 Not checked: `npx even-keel` from npmjs itself (the package was not published yet); `install.sh` run from a package — the systemd unit and the launchd agent with `EVEN_KEEL_DATA`; `.github/workflows/publish.yml` with trusted publishing.
 
 If it is wrong: `npx even-keel` fails or the service does not start. Install from a clone (the README's quick start, the second way), or install the package by hand — `npm install --global even-keel@<version>`, then `even-keel` in a terminal; a failed update is put back by `npm install --global even-keel@<old version>`. The service's log is in `logs/` of the data folder (`even-keel --help` names it).
+
+### Huly's client installed on demand (BTN-666)
+
+An npm install carries no Huly client; the service installs it into `state/huly-client` of the data folder when a Huly profile exists or the first Huly call finds nothing (`docs/trackers.md`, "Huly"). Checked in a terminal: the package without it, the install and the load through it ([verified.md](verified.md#updating)). Not checked: a running service of an npm install with a Huly profile added on the page — the profile's check answering "being installed" and passing on the second press, the "Huly client" tile on `/status` and its Retry after a failed npm, a chain on Huly starting once the install is done, Tally's Huly step waiting for the service's install; an install behind a proxy or without the registry.
+
+If it is wrong: a Huly project's chain waits on a tracker that stays `down`, or the profile cannot be saved. Install the client by hand — `npm install --prefix <data folder>/state/huly-client @hcengineering/api-client@0.7.423 @hcengineering/core@0.7.423 @hcengineering/rank@0.7.423 @hcengineering/text-core@0.7.423 @hcengineering/text-markdown@0.7.423` — and restart the service, or run Even Keel from a clone.
 
 ### Plugins from a git URL marketplace
 

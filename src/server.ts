@@ -217,6 +217,8 @@ export interface TallyControl {
 
 export interface ServerDeps {
   cli?: { download(agent: string): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
+  /** The Huly client installed on demand (BTN-666): "Retry" after a failed install. */
+  hulyClient?: { install(): void }
   hub: EventHub
   publicDir: string
   getState: () => unknown
@@ -323,6 +325,7 @@ const COMMANDS: Record<string, Command> = {
   'cli/system': ({ cli }, body) => cli?.system(textOf(body.agent, 'agent')),
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),
+  'huly/install': ({ hulyClient }) => hulyClient?.install(),
   'account/global': ({ account }, body) => account.useGlobal(textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(

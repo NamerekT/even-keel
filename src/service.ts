@@ -42,6 +42,7 @@ import { KEEP_WARM_TICK_MS, KeepWarm, type WarmTask } from './sessions/keepwarm.
 import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { loadEnv, root, source, stateDirOf } from './locations.js'
+import { hulyClient, installForProfiles } from './huly/client.js'
 import { profileKinds } from './profiles/model.js'
 import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
@@ -528,6 +529,8 @@ const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, s
 const secrets = accountsService.wireSecrets(context)
 
 const profiles: Profiles = accountsService.wireProfiles(context)
+hulyClient.changed = () => hub.broadcast('state', getState())
+installForProfiles(profiles.current().profiles)
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
 const profileBlock = accountsService.wireProfileBlock(context)
 /** Whether pull requests of the project in PR mode have where to go, by the remotes given (EKR-12). */

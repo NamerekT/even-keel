@@ -1,4 +1,4 @@
-import { createRequire } from 'node:module'
+import { hulyClient, type HulyPackage } from '../../src/huly/client.js'
 import { authOf, type HulyCredentials } from '../../src/huly/credentials.js'
 import { tracker } from '../../src/huly/ids.js'
 import { quietModelNoise } from '../../src/huly/quiet.js'
@@ -78,7 +78,8 @@ interface ApiClientModule {
   NodeWebSocketFactory: unknown
 }
 
-const require = createRequire(import.meta.url)
+// The service installs the client; a run in its worker thread only looks for it.
+const require = (name: HulyPackage): unknown => hulyClient.require(name, { install: false })
 const TAG_REFERENCE = 'tags:class:TagReference'
 const WON = 'task:statusCategory:Won'
 const PRIORITIES = ['no-priority', 'urgent', 'high', 'medium', 'low']

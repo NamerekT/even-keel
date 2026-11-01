@@ -334,6 +334,10 @@ export function createFakeSource(search: string): LiveSource {
   if (params.has('platform') && current.state !== null) current.state.platform = params.get('platform')!
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
+  if (params.get('hulyClient') === 'installing' && current.state !== null) current.state.hulyClient = notice('huly.clientInstalling', {})
+  if (params.get('hulyClient') === 'failed' && current.state !== null) {
+    current.state.hulyClient = notice('huly.clientFailed', {}, { detail: 'npm ERR! code ECONNRESET npm ERR! network aborted' })
+  }
   if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
