@@ -1,18 +1,21 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
-import type { PeriodQuery, StatsFilter } from '../../../src/stats/model.js'
+import type { PeriodQuery, StatsFilter, StatsHistory } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { AnswerNotice, loadedData, useStatsAnswer } from '../stats/common.js'
+import { AnswerNotice, loadedData, useStatsAnswer, type Loaded } from '../stats/common.js'
 import { formatDuration, formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
 import { chartData } from '../stats/history.js'
 import { formatDay, formatRange, localDay, resolvePeriod } from '../stats/period.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { stripTasks, type StripTasks } from './stripTasks.js'
+import { keptTasks, stripTasks, type StripMemory, type StripTasks } from './stripTasks.js'
 import '../stats/stats.css'
 
 const DAYS = 30
+/** For the page's whole life, so a project opened again shows its strip at once. */
+const STRIP_MEMORY: StripMemory = new Map()
+let historyMemory: Loaded<StatsHistory> | null = null
 
 export type StripData = ReturnType<typeof useStrip>
 
@@ -23,12 +26,19 @@ export type StripData = ReturnType<typeof useStrip>
 export function useStrip(project: string, slot: number | null) {
   const { statsHistory, statsPeriod } = useLive()
   const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }), [])
-  const loaded = useStatsAnswer(JSON.stringify(filter), () => statsHistory(filter))
+  const historyKey = JSON.stringify(filter)
+  const fetched = useStatsAnswer(historyKey, () => statsHistory(filter))
+  if (fetched !== null) historyMemory = fetched
+  // The history has every project: the last answer stands in until this page's own read comes.
+  const loaded = fetched ?? (historyMemory?.key === historyKey ? historyMemory : null)
   const history = loadedData(loaded)
   const range = resolvePeriod({ preset: '30d' }, localDay(new Date()), null)
   const query: PeriodQuery = { ...filter, ...range, projects: [project] }
-  const period = loadedData(useStatsAnswer(JSON.stringify(query), () => statsPeriod(query)))
-  const tasks = useMemo(() => (period === null ? null : stripTasks(period.tasks)), [period])
+  const key = JSON.stringify(query)
+  const periodLoaded = useStatsAnswer(key, () => statsPeriod(query))
+  const period = loadedData(periodLoaded)
+  const fresh = useMemo(() => (period === null || periodLoaded === null ? null : { key: periodLoaded.key, tasks: stripTasks(period.tasks) }), [periodLoaded])
+  const tasks = keptTasks(STRIP_MEMORY, project, key, fresh)
 
   const summary = useMemo(() => {
     if (history === null) return null
