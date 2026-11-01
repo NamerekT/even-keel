@@ -32,6 +32,7 @@ import { guardRestart } from './restartGuard.js'
 import { requireLimit, waitsForLimits } from './limitNotice.js'
 import { startTask } from './start.js'
 import { OverageStops } from './overage.js'
+import { LaunchPauses } from './pauses.js'
 
 export {
   emptyChainState,
@@ -47,8 +48,6 @@ export {
 } from './model.js'
 
 const SLOT_RETRY_MS = 30_000
-/** Launch blocks Start and Resume go in paused on and the chain lifts by itself once they are gone (`cleared`). */
-const SELF_CLEARING: readonly string[] = ['review.notReady', 'agent.copyMissing', 'chain.noTrackerMcp', 'chain.packagesNotReady']
 
 export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
@@ -62,11 +61,13 @@ export class Dispatcher {
   private readonly cleanups: Cleanups
   private readonly waits: MainWait
   private readonly overage: OverageStops
+  private readonly pauses: LaunchPauses
 
   constructor(
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
   ) {
+    this.pauses = new LaunchPauses(state, deps, (project, chain) => this.firstOf(project, chain))
     this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error, error.code === 'chain.modelUnavailable'))
     this.overage = new OverageStops(state, deps, (chain, error) => this.halt(chain, error))
     this.reviews = new Reviews(state, deps, this.handovers, {
@@ -172,8 +173,8 @@ export class Dispatcher {
    */
   private wake(project: string): void {
     if (!this.deps.projects().includes(project) || this.going(project)) return
-    const reason = this.launchBlock(project, this.firstOf(project))
-    if (reason !== undefined && !SELF_CLEARING.includes(reason.code)) {
+    const reason = this.pauses.block(project, this.firstOf(project))
+    if (reason !== undefined && !this.pauses.selfClearing(reason.code)) {
       this.deps.log(`chain: ${project} does not start again on feedback: ${englishOf(reason)}`)
       return
     }
@@ -206,7 +207,7 @@ export class Dispatcher {
     const { active, queue } = this.state
     if (active.length < this.deps.parallel()) {
       const chain = newChain(project)
-      this.admit(chain)
+      this.pauses.admit(chain)
       active.push(chain)
     } else queue.push(project)
     this.changed()
@@ -216,7 +217,7 @@ export class Dispatcher {
     const chain = this.chainOf(project)
     if (chain === undefined) return
     const retry = chain.paused && chain.error?.code === 'review.notOpened' ? chain.current?.task : undefined
-    this.admit(chain)
+    this.pauses.admit(chain)
     if (retry !== undefined) this.reviews.retry(retry)
     this.changed()
   }
@@ -307,7 +308,7 @@ export class Dispatcher {
     if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
     if (current.sessionId === null) throw fail('chain.launching', { task })
     guardRestart(this.deps, task, current.sessionId, confirmed)
-    this.requireLaunches(project, task)
+    this.pauses.require(project, task)
     requireLimit(this.deps, project, task)
     const session = this.deps.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
@@ -568,65 +569,6 @@ export class Dispatcher {
     if (released.includes(current.task)) this.cleanups.keepReleased(chain.project, released.filter((id) => id !== current.task))
   }
 
-  /**
-   * A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12); so does
-   * one because sessions would not see their task, once a package brings the tracker's server or brief is on (BTN-656);
-   * so does one on a model the account lacks, once the first task's model is one it has (BTN-679).
-   */
-  private async cleared(chain: ActiveChain): Promise<boolean> {
-    const error = chain.error
-    const task = this.firstOf(chain.project, chain)
-    const model = error?.code === 'chain.unknownModel'
-    if (!model && !SELF_CLEARING.includes(error?.code ?? '')) return false
-    if (this.launchBlock(chain.project, task) !== undefined) return false
-    if (model && !(await this.modelFits(chain.project, task))) return false
-    // The user may have resumed or stopped the chain while the model list was read.
-    if (!chain.paused || chain.error !== error || !this.state.active.includes(chain)) return false
-    chain.paused = false
-    chain.error = null
-    this.deps.log(`chain: ${chain.project} goes on: ${model ? `the account of ${task} has its model now` : 'its launch requirement is ready'}`)
-    this.deps.save(this.state)
-    return true
-  }
-
-  private async modelFits(project: string, task: string | undefined): Promise<boolean> {
-    if (task === undefined || this.deps.modelBlock === undefined) return false
-    try {
-      return (await this.deps.modelBlock(project, task)) === undefined
-    } catch (error) {
-      this.deps.log(`chain: the model of ${task} was not checked: ${String(error)}`)
-      return false
-    }
-  }
-
-  /**
-   * Start and Resume refuse while launches are blocked, except by PR mode with nowhere to go: then the chain waits
-   * paused on `review.notReady` (or the other `SELF_CLEARING` codes), which `cleared` lifts by itself (BTN-316).
-   * Unsupported OpenCode Copilot also admits a paused chain, but requires an explicit resume after the model or account
-   * is changed.
-   */
-  private admit(chain: ActiveChain): void {
-    const reason = this.launchBlock(chain.project, this.firstOf(chain.project, chain))
-    if (reason !== undefined && ![...SELF_CLEARING, 'chain.opencodeCopilot'].includes(reason.code)) throw new NoticeError(reason)
-    chain.paused = reason !== undefined
-    chain.error = reason ?? null
-    if (reason !== undefined) this.deps.log(`chain: ${chain.project} paused: ${englishOf(reason)}`)
-  }
-
-  private requireLaunches(project: string, task?: string): void {
-    const reason = this.launchBlock(project, task)
-    if (reason !== undefined) throw new NoticeError(reason)
-  }
-
-  /**
-   * What keeps a new session of the project from starting: the service's blocks, then a tracker its sessions would not
-   * see, then a package only the user can make ready, which a fix session of a red main does not wait for.
-   */
-  private launchBlock(project: string, task?: string): Notice | undefined {
-    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.packagesPause(project)
-    return this.deps.blocked(project, task) ?? this.deps.trackerBlock(project) ?? packages
-  }
-
   private changed(): void {
     this.deps.save(this.state)
     this.kick()
@@ -654,7 +596,7 @@ export class Dispatcher {
 
   private async step(chain: ActiveChain): Promise<void> {
     for (;;) {
-      if (chain.paused && !(await this.cleared(chain))) return
+      if (chain.paused && !(await this.pauses.cleared(chain))) return
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
@@ -768,7 +710,7 @@ export class Dispatcher {
       // A handover keeps the task's place and branch: like a relay after a limit, it does not wait for main.
       if (fix === undefined && returned === undefined && this.waits.heldByMain(chain, task, listed)) return
 
-      const blocked = this.launchBlock(chain.project, task)
+      const blocked = this.pauses.block(chain.project, task)
       if (blocked !== undefined) {
         this.halt(chain, blocked)
         return
