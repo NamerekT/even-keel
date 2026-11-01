@@ -5,6 +5,44 @@ import { active, backlog, canceled, done, setup, task, todo, type SetupOptions }
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import { DEFAULT_RULES } from './rules.js'
 
+describe('Dispatcher and packages that are not ready', () => {
+  const unready = notice('chain.packagesNotReady', { project: 'ABC', packages: ['forgejo'] })
+
+  it('goes in paused with the reason when a package needs the user, and goes on once it is fixed', async () => {
+    const options: SetupOptions = { packagesPause: unready }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: unready })
+
+    options.packagesPause = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
+  })
+
+  it('pauses a running chain before its next task, not mid-task', async () => {
+    const options: SetupOptions = {}
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    options.packagesPause = unready
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-1' } })
+
+    dispatcher.setTasks('ABC', [task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: unready, current: null })
+  })
+})
+
 describe('Dispatcher postponing a task', () => {
   async function running(options: SetupOptions = {}) {
     const context = setup(options)

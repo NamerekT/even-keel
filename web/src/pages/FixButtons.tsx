@@ -10,6 +10,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { profileGroup } from './ProfileRules.js'
 import { taskFeed } from './settingsRows.js'
+import { trackerAddPath } from '../tools/packageView.js'
 
 /** A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is shown at. */
 export function NoticeFixButton({ project, notice }: { project: string | null; notice: Notice | null }) {
@@ -25,8 +26,8 @@ export function FixButton({ project, fix, className = 'button button--small noti
     return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
   }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
-  const target = fix.to === 'project' ? (fix.project ?? project) : fix.to === 'moves' ? project : null
-  if ((fix.to === 'project' || fix.to === 'moves') && target === null) return null
+  const target = fix.to === 'project' ? (fix.project ?? project) : fix.to === 'moves' || fix.to === 'packages' ? project : null
+  if ((fix.to === 'project' || fix.to === 'moves' || fix.to === 'packages') && target === null) return null
   return (
     <button type="button" className={className} onClick={() => go(fix, target)}>
       {fixLabel(fix)}
@@ -35,8 +36,9 @@ export function FixButton({ project, fix, className = 'button button--small noti
 }
 
 /** What the button to a place in the settings or the accounts says. */
-export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' }>): string {
+export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' }>): string {
   if (fix.to === 'moves') return t.fix.moves
+  if (fix.to === 'packages') return t.fix.packages
   return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
 }
 
@@ -63,6 +65,7 @@ export function useFix() {
     }
     if (project === null) return
     const id = state === null ? project : projectOfPath(state, project).project
+    if (fix.to === 'packages') return void navigate(trackerAddPath(id, null))
     if (fix.to === 'moves' && fix.level === 'profile') {
       openTab(SHARED_SCOPE, state === null ? 'rules' : (movesProfile(state, id, fix.task) ?? 'rules'))
       return void navigate('/settings')

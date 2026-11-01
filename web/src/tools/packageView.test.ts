@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { blockedProjects, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage, trackerPackageOf } from './packageView.js'
+import { heldLong, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -52,30 +52,14 @@ describe('serverEntry', () => {
   })
 })
 
-describe('blockedProjects', () => {
-  it('names the held projects in the order of the config', () => {
-    const projects = { XYZ: project(true), ABC: project(true), DEMO: project(false) }
-    expect(blockedProjects(view({ projects }), ['ABC', 'DEMO', 'XYZ'])).toEqual(['ABC', 'XYZ'])
-  })
-
-  it('leaves out a project held only while a package installs or is probed: the banner would blink', () => {
+describe('heldLong', () => {
+  it('is false for a project not held, or held only while a package installs or is probed', () => {
     const cell = (enabled: boolean, problems: ProjectPackages['problems']) => ({ choice: null, enabled, settings: {}, problems })
     const held = (cells: ProjectPackages['cells']): ProjectPackages => ({ cells, problems: [], blocked: true, tracker: null })
-    const projects = {
-      ABC: held({ a: cell(true, [{ kind: 'installing' }]), b: cell(true, [{ kind: 'probing' }]), c: cell(false, [{ kind: 'notInstalled' }]) }),
-      XYZ: held({ a: cell(true, [{ kind: 'probing' }]), b: cell(true, [{ kind: 'noResponse', servers: ['b'] }]) }),
-    }
-    expect(blockedProjects(view({ projects }), ['ABC', 'XYZ'])).toEqual(['XYZ'])
-  })
-
-  it('leaves out a project held only for the tracker server its sessions lack: its own block says why', () => {
-    const probing = { a: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'probing' as const }] } }
-    const projects = {
-      ABC: project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]),
-      DEMO: { ...project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]), cells: probing },
-      XYZ: { ...project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]), cells: { a: { ...probing.a, problems: [{ kind: 'noKey' as const, variables: ['A_TOKEN'] }] } } },
-    }
-    expect(blockedProjects(view({ projects }), ['ABC', 'DEMO', 'XYZ'])).toEqual(['XYZ'])
+    expect(heldLong(project(false))).toBe(false)
+    expect(heldLong(project(true))).toBe(true)
+    expect(heldLong(held({ a: cell(true, [{ kind: 'installing' }]), b: cell(true, [{ kind: 'probing' }]), c: cell(false, [{ kind: 'notInstalled' }]) }))).toBe(false)
+    expect(heldLong(held({ a: cell(true, [{ kind: 'probing' }]), b: cell(true, [{ kind: 'noResponse', servers: ['b'] }]) }))).toBe(true)
   })
 })
 

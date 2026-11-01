@@ -333,8 +333,16 @@ export interface DispatcherDeps {
    * service started: until then a spent limit looks like no limit at all (BTN-595). `undefined` — it has answered.
    */
   limitsUnread: (project: string, task?: string) => LimitsWait | undefined
-  /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
+  /**
+   * The project's set of packages has a problem that holds its sessions (BTN-174): installing, no answer yet, or the
+   * gateway down. The chain waits and the page says so (BTN-657).
+   */
   packagesBlocked: (project: string) => boolean
+  /**
+   * A package of the set needs the user: not installed, failed to install or lacks a key (`chain.packagesNotReady`,
+   * BTN-657). The chain pauses on it, except for a fix session of a red main, and goes on by itself once it is fixed.
+   */
+  packagesPause: (project: string) => Notice | undefined
   /**
    * `brief` is off and no package of the project brings its tracker's MCP server (`chain.noTrackerMcp`, BTN-656): a
    * session would not see its task. The chain pauses on it and goes on by itself once it is gone.

@@ -9,7 +9,7 @@ import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { ImportOffers, Keys, MarketplaceOffer } from './PackagesParts.js'
-import { heldLong, keyLabel, shownPackages } from './packageView.js'
+import { heldLong, problemText, shownPackages } from './packageView.js'
 import './packages.css'
 
 /** The catalog against the chosen projects: what each one's sessions get, its problems, and the buttons to change it. */
@@ -202,22 +202,6 @@ function ProblemChip({ problem }: { problem: PackageProblem }) {
       {problemText(problem)}
     </Tipped>
   )
-}
-
-function problemText(problem: PackageProblem): string {
-  const text = t.packages.problem
-  switch (problem.kind) {
-    case 'noKey':
-      return text.noKey(problem.variables.map((name) => keyLabel(name, t.secrets.purpose)).join(', '))
-    case 'noResponse':
-      return text.noResponse(problem.servers.join(', '))
-    case 'noTrackerMcp':
-      return text.noTrackerMcp(problem.server)
-    case 'unsupported':
-      return problem.skills === true ? text.noHooks(problem.agent) : text.unsupported(problem.agent)
-    default:
-      return text[problem.kind]
-  }
 }
 
 function problemTip(problem: PackageProblem): string {

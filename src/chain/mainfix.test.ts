@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { done, setup, task } from './dispatcher.fixture.js'
+import { notice } from '../notice/notice.js'
+import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { afterDone, failedRun, fakeMain } from './maincheck.fixture.js'
 import type { HandoffSession, LimitedSession } from './relay.js'
 
@@ -71,6 +72,19 @@ describe('Dispatcher and a red main without a fix task', () => {
     expect(dispatcher.state.ci.ABC).toEqual({ green: 'cccccccccc' })
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX', 'ABC/ABC-2'])
     expect(dispatcher.state.released).toEqual({})
+  })
+
+  it('starts the fix even while a package of the set needs the user', async () => {
+    const options: SetupOptions = {}
+    const { dispatcher, fixes, ci } = await afterDone(null, (each) => {
+      each.fixTask = false
+    }, options)
+    options.packagesPause = notice('chain.packagesNotReady', { project: 'ABC', packages: ['forgejo'] })
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(fixes.map((each) => each.name)).toEqual(['ABC-FIX'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-FIX' } })
   })
 
   it('does not touch a fix session that is mid-turn or has not merged', async () => {

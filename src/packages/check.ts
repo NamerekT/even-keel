@@ -11,6 +11,8 @@ const PROBE_TIMEOUT_MS = 30_000
 
 /** Does not hold the chain. */
 const NOTES = new Set<PackageProblem['kind']>(['unsupported'])
+/** Never passes by itself: the chain pauses on it rather than waits (BTN-657). */
+export const NEEDS_USER = new Set<PackageProblem['kind']>(['notInstalled', 'installFailed', 'noKey'])
 
 export interface CheckInput {
   file: PackagesFile

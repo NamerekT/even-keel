@@ -144,6 +144,7 @@ export const en: Messages = {
     accounts: 'Open Accounts',
     moves: 'Open the statuses on actions',
     resume: 'Check again and resume',
+    packages: 'Open the project’s packages',
   },
   banner: {
     config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,
@@ -159,9 +160,12 @@ export const en: Messages = {
       `Running the commands after the green main at ${commit} since ${since} — the next task starts when they end.`,
     remoteFixHold: (commit: string, since: string, project: string) =>
       `Main of the remote is red at ${commit}; ${project} has been fixing it since ${since} — the next task starts when its fix is green.`,
-    packages: (projects: string) => `The next task of ${projects} waits: a package of its set is not ready.`,
     gateway: (error: string) => `The chains wait: the MCP gateway does not run — ${error}`,
-    packagesLink: 'Packages →',
+    closingHold: (task: string) => `${task} is done — the next task starts once its session ends its turn and its folder is cleaned up.`,
+    gatewayHold: 'The next task waits for the MCP gateway, which does not run: the banner above says why.',
+    packagesHold: (packages: string) => `The next task waits for its packages: ${packages} — it starts once they answer.`,
+    packagesSilentHold: (packages: string) =>
+      `The next task waits for its packages: ${packages}. They are asked again in half a minute, then less often up to once an hour; check their command and settings.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
     cliOne: (title: string, installed: string, checked: string) => `${title} ${installed} · checked ${checked}`,
     cliDaemon: (title: string, account: string, running: string, checked: string) =>
@@ -273,6 +277,8 @@ export const en: Messages = {
     queued: 'queued',
     idle: 'not started',
     position: (position: number) => `#${position}`,
+    waiting: 'waiting',
+    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', gateway: 'MCP gateway', packages: 'packages', slot: 'slot' },
   },
   lamp: {
     done: 'done',

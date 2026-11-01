@@ -1,4 +1,5 @@
 import type { PackageProblem, PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 
 export type Transport = 'http' | 'stdio'
 
@@ -34,20 +35,24 @@ export function serverPairs(transport: Transport, text: string): Record<string, 
   return pairs
 }
 
-/** Hold the chain for a moment after an install: not worth the banner, which would come and go. */
-const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
+/** Hold the chain for a moment after an install, and pass by themselves. */
+export const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
 
-/**
- * The projects the banner names: held by their packages, not only for a moment. One held only because its sessions
- * would not see the tracker (`noTrackerMcp`) is left out: its chain pauses with the reason in its own block (BTN-656).
- */
-export function blockedProjects(view: PackagesView, projects: string[]): string[] {
-  return projects.filter((project) => {
-    const found = view.projects[project]
-    if (!heldLong(found)) return false
-    const lasting = problemsOf(found!).filter((each) => !PASSING.has(each.kind))
-    return lasting.length === 0 || lasting.some((each) => each.kind !== 'noTrackerMcp')
-  })
+/** A problem in a few words, as /tools shows it and a project's wait names it. */
+export function problemText(problem: PackageProblem): string {
+  const text = t.packages.problem
+  switch (problem.kind) {
+    case 'noKey':
+      return text.noKey(problem.variables.map((name) => keyLabel(name, t.secrets.purpose)).join(', '))
+    case 'noResponse':
+      return text.noResponse(problem.servers.join(', '))
+    case 'noTrackerMcp':
+      return text.noTrackerMcp(problem.server)
+    case 'unsupported':
+      return problem.skills === true ? text.noHooks(problem.agent) : text.unsupported(problem.agent)
+    default:
+      return text[problem.kind]
+  }
 }
 
 /** The project's chain waits on something that does not pass by itself. */

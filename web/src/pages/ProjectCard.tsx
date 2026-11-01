@@ -8,8 +8,6 @@ import {
   cardTask,
   chainProgress,
   chainStatus,
-  ciWaitText,
-  limitWaitText,
   openQuestions,
   projectPages,
   projectPath,
@@ -23,11 +21,13 @@ import { StackIcon, TrackerIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
-import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
+import { Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
+import { chainWaits } from '../waits.js'
+import { ChainWaits } from './ChainWaits.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
@@ -37,6 +37,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const { send, sending, failure } = useCommand()
 
   const status = chainStatus(state.chain, project)
+  const waits = chainWaits(state, project)
   const order = state.chain.projects[project]
   const { done, total, backlog } = chainProgress(projectTasks(state, project), order)
   const task = cardTask(state, project)
@@ -54,7 +55,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         <Link to={projectPath(project)} className="card__key">
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
-        {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
+        {(status.kind === 'paused' || status.kind === 'queued' || waits.length > 0) && <StatusChip status={status} wait={waits[0]} reason={false} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
         {tracker !== null && (
           <Tipped className="card__tracker" tip={t.project.tracker(tracker.label)} inline focusable>
@@ -108,17 +109,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         </p>
       )}
 
-      {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
-      {status.kind === 'running' && status.slotWait !== undefined && (
-        <p className="card__wait">
-          <Said notice={{ ...status.slotWait, items: [] }} />
-        </p>
-      )}
-      {status.kind === 'running' && status.ciWait !== undefined && (
-        <p className="card__wait">
-          <ProjectLinks text={ciWaitText(status.ciWait, new Date())} />
-        </p>
-      )}
+      <ChainWaits project={project} waits={waits} className="card__wait" compact />
       {error !== null && (
         <p className="card__error">
           <Said notice={error} />

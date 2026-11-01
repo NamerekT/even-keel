@@ -437,6 +437,18 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
+  if (params.get('chain') === 'closing' && active) current.state!.chain.active = [{ ...active, current: null, closing: 'ABC-4' }]
+  const packageWaits: Record<string, string> = { packages: 'probing', packagesSilent: 'silent', gateway: 'gateway' }
+  const packageWait = packageWaits[params.get('chain') ?? '']
+  if (packageWait !== undefined && active) {
+    current.state!.packages = fakePackages(current.state!.projects, packageWait)
+    current.state!.chain.active = [{ ...active, current: null }]
+  }
+  if (params.get('chain') === 'packagesPause' && active) {
+    const error = notice('chain.packagesNotReady', { project: 'ABC', packages: ['forgejo'] })
+    current.state!.packages = fakePackages(current.state!.projects, 'blocked')
+    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
+  }
   const waits = { ci: {}, check: { local: true as const }, afterGreen: { after: true as const }, remoteFix: { by: 'DEMO' } }
   const wait = params.get('chain') ?? ''
   if (Object.hasOwn(waits, wait) && active) {
