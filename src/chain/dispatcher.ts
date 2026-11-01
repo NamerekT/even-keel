@@ -22,6 +22,7 @@ import { MainFix } from './mainfix.js'
 import { MainWait } from './mainwait.js'
 import { Reviews } from './reviews.js'
 import { returned as returnedSession, shelve } from './shelved.js'
+import { wasSkipped } from './skippedown.js'
 import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead } from './order.js'
@@ -693,7 +694,9 @@ export class Dispatcher {
       }
 
       const since = this.deps.now().toISOString()
-      const live = this.deps.liveSession(task)
+      const found = this.deps.liveSession(task)
+      // A fix or carry session the user skipped lives on under the name of the next one, which starts a session of its own.
+      const live = own !== undefined && found !== undefined && wasSkipped(this.state, chain.project, task, found) ? undefined : found
       const returned = own === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
       if (live !== undefined && returned === undefined) {
         delete chain.limitUntil

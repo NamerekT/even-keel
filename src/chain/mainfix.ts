@@ -6,6 +6,7 @@ import { waitsForLimits } from './limitNotice.js'
 import type { MainCheck } from './maincheck.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
 import { mainFixedPrompt, warmSince, type HandoffReason, type HandoffSession } from './relay.js'
+import { forgetSkipped, rememberSkipped } from './skippedown.js'
 
 /** What the fix of a red main needs of the dispatcher that runs it. */
 export interface FixHost {
@@ -72,6 +73,7 @@ export class MainFix {
       const working = this.deps.busy(current.task) && !this.deps.shell(current.task)
       if (working || !(await this.main.merged(project, fix.task))) return false
       await this.host.closeUp(project, fix.task)
+      forgetSkipped(this.state, project, fix.task)
       const head = this.main.fixLanded(project)
       if (chain.interrupted !== undefined && head !== null) chain.interrupted.fixed = head
       this.ended(chain, 'landed', head)
@@ -153,12 +155,16 @@ export class MainFix {
     this.deps.save(this.state)
   }
 
-  /** "Skip" on the fix session: the chain stops waiting for it and main stays as it is; the session is not touched. */
+  /**
+   * "Skip" on the fix session: the chain stops waiting for it and main stays as it is; the session is not touched, nor
+   * taken for the next fix of the project.
+   */
   skip(chain: ActiveChain | undefined, name: string): void {
     if (chain === undefined || chain.current?.task !== name) throw fail('chain.notCurrent', { task: name })
     if (chain.current.sessionId === null) throw fail('chain.launching', { task: name })
     if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
     this.main.dropFix(chain.project)
+    rememberSkipped(this.state, chain.project, name, chain.current.sessionId)
     this.ended(chain, 'dropped', null)
     chain.current = null
     this.deps.log(`chain: ${chain.project}: the fix session ${name} is skipped, main stays as it is`)

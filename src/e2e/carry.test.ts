@@ -202,8 +202,8 @@ describe('a release project carried forward end to end', { timeout: 90_000 }, ()
     expect(launches(CARRY)).toHaveLength(1)
   })
 
-  it('in unattended mode gives a conflict to a carry session by itself, none more on the same release commit once it is skipped, and one on the next', async () => {
-    run.agent.script(CARRY, ends({ say: 'Cannot tell which line wins' }))
+  it('in unattended mode gives a conflict to a carry session by itself, none more on the same release commit once it is skipped, and a new one on the next', async () => {
+    run.agent.script(CARRY, ends({ say: 'Cannot tell which line wins' }), resolves('# Example (both)\n'))
     await run.start(conflicting)
     await run.post('chain/unattended', { on: true })
 
@@ -216,10 +216,20 @@ describe('a release project carried forward end to end', { timeout: 90_000 }, ()
     expect(launches(CARRY)).toHaveLength(1)
 
     // A new fix on the release branch moves its head: the merge is tried again and its conflict asks for a session.
-    // Its launch is BTN-692: the chain takes the skipped session, still alive under the same name, in its place.
+    // The skipped session still lives under the same name; a new one starts in its place, the old one untouched.
+    const [skipped] = run.agent.sessionsOf(CARRY)
     commitIn(run.releaseRepo, 'more.txt', 'more\n', 'Another release fix')
     const head = run.gitIn(run.releaseRepo, 'rev-parse', RELEASE_BRANCH)
     await run.until(() => carry()?.commit === head, 'a carry asked for the new release commit')
     expect(carry()).toMatchObject({ task: CARRY, into: PROJECT_ID, commits: 2 })
+    await run.until(() => launches(CARRY).length === 2, 'a new carry session launched')
+    expect(launches(CARRY)[1]!.prompt).toContain(head)
+    expect(run.agent.calls.filter((call) => call.kind !== 'launch' && call.sessionId === skipped!.sessionId)).toEqual([])
+    expect(run.service.dispatcher.state.ci[PROJECT_ID]?.skippedSessions).toEqual({ [CARRY]: [skipped!.sessionId] })
+    await carried()
+    expect(run.git('show', 'main:more.txt')).toBe('more')
+    // The cleanup of the carry's worktree stops every session in it, the skipped one too, and forgets it.
+    expect(run.agent.isGone(skipped!.sessionId)).toBe(true)
+    expect(run.service.dispatcher.state.ci[PROJECT_ID]?.skippedSessions).toBeUndefined()
   })
 })

@@ -124,6 +124,11 @@ export interface MainGate {
   afterGreen?: string
   /** On a release project's gate: the carry of its branch a session resolves, from "Resolve with the agent" until it lands or is skipped. */
   carry?: CarrySession
+  /**
+   * The fix and carry sessions skipped in this project's chain, by name (BTN-692): alive and untouched, so a new fix or
+   * carry of the same name starts a session of its own instead of taking one of these. Forgotten at the name's cleanup.
+   */
+  skippedSessions?: Record<string, string[]>
 }
 
 /**

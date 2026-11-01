@@ -1,5 +1,6 @@
 import { fail } from '../notice/notice.js'
 import type { ActiveChain, CarrySession, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
+import { forgetSkipped, rememberSkipped } from './skippedown.js'
 
 // A release project's carry that git could not merge (BTN-369) is resolved by a session without a tracker task in the
 // project it merges into: asked for on the release project's page, it goes after the current task of that project's
@@ -42,6 +43,7 @@ export class MainCarry {
       if (this.deps.busy(current.task) && !this.deps.shell(current.task)) return false
       if (!(await this.deps.carried(chain.project, carry.commit).catch(() => false))) return false
       await this.host.closeUp(chain.project, carry.task)
+      forgetSkipped(this.state, chain.project, carry.task)
       delete this.state.ci[from]!.carry
       this.ended(chain, 'carried', { commits: carry.commits })
     }
@@ -51,8 +53,8 @@ export class MainCarry {
   }
 
   /**
-   * "Skip" on the carry session: the chain stops waiting for it and the carry stays held; the session is not touched.
-   * A carry still waiting for its turn is taken back.
+   * "Skip" on the carry session: the chain stops waiting for it and the carry stays held; the session is not touched,
+   * nor taken for the next carry of its name. A carry still waiting for its turn is taken back.
    */
   skip(chain: ActiveChain | undefined, name: string): void {
     const asked = this.all().find(([, carry]) => carry.task === name && carry.into === chain?.project)
@@ -67,6 +69,7 @@ export class MainCarry {
     if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
     const found = this.all().find(([, carry]) => carry.task === name)
     if (found !== undefined) delete this.state.ci[found[0]]!.carry
+    rememberSkipped(this.state, chain.project, name, chain.current.sessionId)
     this.ended(chain, 'dropped', {})
     chain.current = null
     this.deps.log(`chain: ${chain.project}: the carry session ${name} is skipped, the carry stays held`)

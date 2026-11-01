@@ -263,6 +263,35 @@ describe('Dispatcher and a red main without a fix task', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX', 'ABC/ABC-2'])
   })
 
+  it('starts a session of its own for the next fix, leaving the skipped one alive under the same name alone (BTN-692)', async () => {
+    const { dispatcher, launched, fixes, live, stopped, ci } = await withoutTask()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    live['ABC-FIX'] = 'session-2'
+    dispatcher.skip('ABC', 'ABC-FIX')
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC?.skippedSessions).toEqual({ 'ABC-FIX': ['session-2'] })
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX', 'ABC/ABC-2'])
+
+    ci.verdict = { state: 'pending' }
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2', done), task('ABC-3')])
+    await dispatcher.idle()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(fixes).toHaveLength(2)
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-4' })
+    expect(stopped).toEqual([])
+
+    live['ABC-FIX'] = 'session-4'
+    ci.verdict = { state: 'pending' }
+    ci.merged.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC?.skippedSessions).toBeUndefined()
+  })
+
   it('journals the red commit with the launch of the fix and the commit main is at once it lands', async () => {
     const { dispatcher, journal, clock, ci } = await withoutTask()
     ci.verdict = red
