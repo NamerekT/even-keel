@@ -2,6 +2,7 @@ import { shortCommit } from '../ci/verdict.js'
 import { fail, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { isFixName } from './fix.js'
+import { waitsForLimits } from './limitNotice.js'
 import type { MainCheck } from './maincheck.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
 import { mainFixedPrompt, warmSince, type HandoffReason, type HandoffSession } from './relay.js'
@@ -101,7 +102,7 @@ export class MainFix {
       this.host.halt(chain, blocked)
       return false
     }
-    if (this.deps.limitsUnread(project, held.task)) return false
+    if (waitsForLimits(this.deps, chain, held.task, () => this.deps.save(this.state))) return false
     const reset = this.deps.limitReset(project, held.task)
     if (reset !== null) {
       if (chain.limitUntil !== reset) {

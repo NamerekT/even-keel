@@ -9,7 +9,7 @@ import { isOpen, runLabelOf, type StatusCategory, type Task, type TaskPriority }
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
-import type { Notice } from '../../src/notice/notice.js'
+import { notice, type Notice } from '../../src/notice/notice.js'
 import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
 import { accountName } from './accountName.js'
 import { formatMoment } from './format.js'
@@ -74,9 +74,10 @@ export function accountOrder(entries: AccountEntry[], now: Date): AccountEntry[]
 }
 
 type CiWait = NonNullable<ActiveChain['ciWait']>
+type LimitsWait = NonNullable<ActiveChain['limitsWait']>
 
 export type ChainStatus =
-  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice; ciWait?: CiWait }
+  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice; ciWait?: CiWait; limitsWait?: LimitsWait }
   | { kind: 'paused'; error: Notice | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
@@ -409,6 +410,7 @@ export function chainStatus(chain: EvenKeelState['chain'], project: string): Cha
       limitUntil: active.limitUntil ?? null,
       ...(active.slotWait === undefined ? {} : { slotWait: active.slotWait.notice }),
       ...(active.ciWait === undefined ? {} : { ciWait: active.ciWait }),
+      ...(active.limitsWait === undefined ? {} : { limitsWait: active.limitsWait }),
     }
   }
   const index = queue.indexOf(project)
@@ -466,6 +468,11 @@ export function ciWaitText(wait: CiWait, now: Date): string {
   if (wait.by !== undefined) return t.banner.remoteFixHold(wait.commit.slice(0, 7), formatMoment(wait.since, now), wait.by)
   const text = wait.after === true ? t.banner.afterGreenHold : wait.local === true ? t.banner.checkHold : t.banner.ciHold
   return text(wait.commit.slice(0, 7), formatMoment(wait.since, now))
+}
+
+/** The account by its page name (`say` maps the folder key), the next poll in local time (BTN-619). */
+export function limitsWaitText(wait: LimitsWait, now: Date): string {
+  return say(notice('chain.limitsUnread', { account: wait.account, ...(wait.next !== null && { next: formatMoment(wait.next, now) }) }))
 }
 
 /** The task a project shows: the current one, else the next, else the first of the chain when every open one is held. */

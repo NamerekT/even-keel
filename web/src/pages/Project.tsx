@@ -22,6 +22,7 @@ import {
   ciWaitText,
   issueLink,
   limitWaitText,
+  limitsWaitText,
   openQuestions,
   projectLabel,
   projectPages,
@@ -379,6 +380,9 @@ function ChainControls({
         <p className="project__wait">
           <ProjectLinks text={ciWaitText(status.ciWait, new Date())} />
         </p>
+      )}
+      {status.kind === 'running' && status.limitsWait !== undefined && (
+        <p className="project__wait">{limitsWaitText(status.limitsWait, new Date())}</p>
       )}
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && (

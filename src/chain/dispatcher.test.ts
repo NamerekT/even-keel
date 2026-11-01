@@ -3,6 +3,7 @@ import { englishOf, notice, textNotice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, pause, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
+import type { LimitsWait } from './model.js'
 import { DEFAULT_RULES } from './rules.js'
 
 describe('Dispatcher', () => {
@@ -545,20 +546,42 @@ describe('Dispatcher', () => {
   })
 
   it('holds the launch until the account answers its first limits poll since the start', async () => {
-    const options: { limitsUnread?: boolean; limitReset?: string | null } = { limitsUnread: true }
+    const wait = { account: 'work', next: '2026-09-26T12:05:00.000Z' }
+    const options: { limitsUnread?: LimitsWait; limitReset?: string | null } = { limitsUnread: wait }
     const { dispatcher, launched } = setup(options)
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null })
+    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null, limitsWait: wait })
 
-    options.limitsUnread = false
+    options.limitsUnread = { account: 'work', next: '2026-09-26T12:10:00.000Z' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.limitsWait).toEqual(options.limitsUnread)
+
+    options.limitsUnread = undefined
     options.limitReset = '2026-09-26T17:00:00.000Z'
     dispatcher.check()
     await dispatcher.idle()
     expect(launched).toEqual([])
     expect(dispatcher.state.active[0]?.limitUntil).toBe('2026-09-26T17:00:00.000Z')
+    expect(dispatcher.state.active[0]?.limitsWait).toBeUndefined()
+  })
+
+  it('drops the wait for the first limits poll once the task starts', async () => {
+    const options: { limitsUnread?: LimitsWait } = { limitsUnread: { account: 'work', next: null } }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.limitsWait).toEqual({ account: 'work', next: null })
+
+    options.limitsUnread = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]?.limitsWait).toBeUndefined()
   })
 
   it('holds the launch while the project set of packages has a problem and launches it once the problem is gone', async () => {

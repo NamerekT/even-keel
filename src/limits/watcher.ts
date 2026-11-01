@@ -52,6 +52,7 @@ export class LimitsWatcher {
   private usageAgain = false
   private usageOff: UsageHealth | undefined
   private waitsForAccounts = false
+  private nextAt: string | null = null
 
   constructor(private readonly options: LimitsWatcherOptions) {}
 
@@ -98,6 +99,11 @@ export class LimitsWatcher {
     return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
   }
 
+  /** When the next /usage round is due; `null` — one is running, none is planned, or it waits for the accounts. */
+  nextPoll(): string | null {
+    return this.nextAt
+  }
+
   start(): void {
     if (this.timer !== undefined) return
     const tick = () => {
@@ -124,6 +130,7 @@ export class LimitsWatcher {
     }
     clearTimeout(this.usageTimer)
     this.usageRunning = true
+    this.nextAt = null
     let skipped = false
     void this.pollAll()
       .then((offline) => void (skipped = offline))
@@ -133,7 +140,12 @@ export class LimitsWatcher {
         if (this.usageAgain) {
           this.usageAgain = false
           this.refresh()
-        } else this.usageTimer = setTimeout(() => this.refresh(), skipped ? this.options.offlineRetryMs : this.options.usageIntervalMs)
+          return
+        }
+        const delay = skipped ? this.options.offlineRetryMs : this.options.usageIntervalMs
+        this.usageTimer = setTimeout(() => this.refresh(), delay)
+        this.nextAt = new Date(Date.now() + delay).toISOString()
+        this.publish()
       })
   }
 
@@ -218,7 +230,9 @@ export class LimitsWatcher {
   }
 
   private publish(): void {
-    const shown = JSON.stringify([...this.accounts.keys()].map((key) => [key, this.limits(key), this.usage(key)]))
+    // The next poll's time matters only to a chain waiting for a first answer (BTN-619).
+    const next = this.options.homes().some((home) => this.unread(home.key)) ? this.nextAt : null
+    const shown = JSON.stringify([next, ...[...this.accounts.keys()].map((key) => [key, this.limits(key), this.usage(key)])])
     if (shown === this.shown) return
     this.shown = shown
     this.options.onChange()

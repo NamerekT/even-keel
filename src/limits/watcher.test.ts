@@ -123,6 +123,15 @@ describe('LimitsWatcher', () => {
     expect(watcher.unread('global')).toBe(false)
   })
 
+  it('tells when the next poll is due, for a chain that waits for it', async () => {
+    const { watcher, poll } = watcherOf([failing])
+    expect(watcher.nextPoll()).toBeNull()
+    await poll()
+    const due = Date.parse(watcher.nextPoll()!) - Date.now()
+    expect(due).toBeGreaterThan(290_000)
+    expect(due).toBeLessThanOrEqual(300_000)
+  })
+
   it('counts the account read once its polls keep failing, so a chain does not wait for ever', async () => {
     const { watcher, poll } = watcherOf([failing, failing])
     await poll()

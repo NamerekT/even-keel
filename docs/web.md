@@ -134,6 +134,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=untrusted` | the chain is paused on `claude.untrusted`: the trust commands under the error and "Check again and resume" |
 | `?trust=untrusted` | `project/trust` answers that Claude Code does not trust the folder: the warning on the Sessions tab of a project Claude may run |
 | `?chain=limit` | the chain is waiting for the limit reset |
+| `?chain=limitsUnread` | after a restart the next launch waits for the first limits poll of its account (BTN-619): the band names the account and the next poll |
 | `?limit=resume\|relay\|unknown\|credit\|codexCredit\|opencodeCredit\|copilotMonthly\|codex\|codexLong` | ABC-5 is held on a limit: a warm resume or a handoff after a known reset, an unknown reset, an API key out of credit, a Copilot monthly allowance, or a Codex task while the header's active account is Claude (also with a long account name). Pressing New session with a known reset produces the grouped limit refusal |
 | `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |

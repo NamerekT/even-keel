@@ -355,7 +355,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     limitReset: (project, task) => exhaustedReset(ctx.limits.limits(ctx.choiceFor(project, task).account)),
     limitResetAfter: ctx.retryAfterLimit,
     limitReopenedAt: (key, at, resetsAt) => limitReopenedAt(ctx.limits.limits(key), at, resetsAt),
-    limitsUnread: (project, task) => ctx.limits.unread(ctx.choiceFor(project, task).account),
+    limitsUnread: (project, task) => {
+      const { account } = ctx.choiceFor(project, task)
+      return ctx.limits.unread(account) ? { account, next: ctx.limits.nextPoll() } : undefined
+    },
     packagesBlocked: (project) => ctx.packages.blocked(project),
     accountsRead: () => ctx.account.ready,
     sessionsRead: () => ctx.agentsRead,

@@ -43,6 +43,8 @@ export interface ActiveChain {
    * of the same remote (BTN-217), since that fix began.
    */
   ciWait?: { commit: string; since: string; local?: true; after?: true; by?: string }
+  /** The next launch waits for its account's first limits poll since the start (BTN-595); the page shows it (BTN-619). */
+  limitsWait?: LimitsWait
   closing?: string
   /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
   interrupted?: Interrupted
@@ -50,6 +52,12 @@ export interface ActiveChain {
   fixOnly?: true
   /** "Stop after this task" (BTN-230): the chain sees its current task through Done and the cleanup, then stops instead of taking the next one. */
   stopAfter?: true
+}
+
+/** `account` — the folder key; `next` — when the next poll is due, `null` — one is running or waits for the accounts. */
+export interface LimitsWait {
+  account: string
+  next: string | null
 }
 
 export interface Interrupted {
@@ -322,9 +330,9 @@ export interface DispatcherDeps {
   limitReopenedAt: (account: string, at: string, resetsAt: string) => string | null
   /**
    * The account the project's session (or `task`'s) would start on has not answered its first limits poll since the
-   * service started: until then a spent limit looks like no limit at all (BTN-595).
+   * service started: until then a spent limit looks like no limit at all (BTN-595). `undefined` — it has answered.
    */
-  limitsUnread: (project: string, task?: string) => boolean
+  limitsUnread: (project: string, task?: string) => LimitsWait | undefined
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
   /**

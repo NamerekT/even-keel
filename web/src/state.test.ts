@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { notice, textNotice, type Notice } from '../../src/notice/notice.js'
 import { fakeTask } from '../../src/tracker/fixture.js'
-import { setLanguage, t } from './i18n/index.js'
+import { setAccountNames, setLanguage, t } from './i18n/index.js'
+import { formatMoment } from './format.js'
 import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
@@ -26,6 +27,7 @@ import {
   chainProgress,
   chainStatus,
   ciWaitText,
+  limitsWaitText,
   contextFill,
   fixBlockOf,
   issueLink,
@@ -548,6 +550,21 @@ describe('chainStatus', () => {
   it('tells when a running chain waits for the CI of main', () => {
     const ciWait = { commit: '0123456789abcdef', since: '2026-09-27T17:49:00.000Z' }
     expect(chainStatus(chain({ active: { ...active(), ciWait } }), 'ABC')).toEqual({ kind: 'running', limitUntil: null, ciWait })
+  })
+
+  it('tells when a running chain waits for the first limits poll of its account', () => {
+    const limitsWait = { account: 'work', next: '2026-09-27T17:54:00.000Z' }
+    expect(chainStatus(chain({ active: { ...active(), limitsWait } }), 'ABC')).toEqual({ kind: 'running', limitUntil: null, limitsWait })
+  })
+
+  it('names the account a chain waits for as the page does, with the time of the next poll', () => {
+    setAccountNames({ work: 'Work account' })
+    const now = new Date('2026-09-27T17:50:00.000Z')
+    const text = limitsWaitText({ account: 'work', next: '2026-09-27T17:54:00.000Z' }, now)
+    setAccountNames({})
+    expect(text).toContain('аккаунта Work account')
+    expect(text).toContain(`Следующий опрос в ${formatMoment('2026-09-27T17:54:00.000Z', now)}`)
+    expect(limitsWaitText({ account: 'work', next: null }, now)).not.toContain('Следующий опрос')
   })
 
   it('names the project of the same remote that fixes its red main by its id, for ProjectLinks to make a link of', () => {

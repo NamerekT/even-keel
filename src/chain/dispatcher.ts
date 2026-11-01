@@ -29,7 +29,7 @@ import { excludes, isDone, isTerminal } from './rules.js'
 import type { HandoffSession } from './relay.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
-import { requireLimit } from './limitNotice.js'
+import { requireLimit, waitsForLimits } from './limitNotice.js'
 import { startTask } from './start.js'
 import { OverageStops } from './overage.js'
 
@@ -724,6 +724,7 @@ export class Dispatcher {
         delete chain.limitUntil
         delete chain.slotWait
         delete chain.ciWait
+        delete chain.limitsWait
         this.take(chain, { task, sessionId: live, since })
         this.deps.save(this.state)
         // The feedback on the task's pull request goes to the session at once.
@@ -740,7 +741,7 @@ export class Dispatcher {
         return
       }
 
-      if (this.deps.limitsUnread(chain.project, task)) return
+      if (waitsForLimits(this.deps, chain, task, () => this.deps.save(this.state))) return
       const reset = this.deps.limitReset(chain.project, task)
       if (reset !== null) {
         if (chain.limitUntil !== reset) {
@@ -812,6 +813,7 @@ export class Dispatcher {
     delete chain.limitUntil
     delete chain.slotWait
     delete chain.ciWait
+    delete chain.limitsWait
     this.deps.log(`chain: ${chain.project} paused: ${englishOf(error)}`)
     this.deps.save(this.state)
   }

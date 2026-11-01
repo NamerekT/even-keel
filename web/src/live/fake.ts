@@ -417,6 +417,10 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
   }
+  if (params.get('chain') === 'limitsUnread' && active) {
+    const limitsWait = { account: 'global', next: new Date(Date.now() + 4 * 60_000).toISOString() }
+    current.state!.chain.active = [{ ...active, current: null, limitsWait }]
+  }
   if (params.get('chain') === 'paused' && current.state !== null) current.state = setPaused(current.state, 'ABC', true)
   if (params.get('chain') === 'noBranch' && active) {
     const error = notice('git.noBranch', { project: active.project, branch: 'trunk', repo: 'D:/work/abc' })

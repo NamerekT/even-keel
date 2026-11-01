@@ -3,7 +3,7 @@ import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { DispatcherDeps, MainCheckDeps, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
+import type { DispatcherDeps, LimitsWait, MainCheckDeps, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
@@ -47,7 +47,7 @@ export interface SetupOptions {
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
   limitReopenedAt?: (account: string, at: string, resetsAt: string) => string | null
   /** The account has not answered its first limits poll; absent — it has. */
-  limitsUnread?: boolean
+  limitsUnread?: LimitsWait
   /** Projects whose set of packages has a problem that holds the chain. */
   packagesBlocked?: Set<string>
   /** Whether the service has read its account folders since its start; absent — it has. */
@@ -153,7 +153,7 @@ export function setup(options: SetupOptions = {}) {
     limitReset: () => options.limitReset ?? null,
     limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
     limitReopenedAt: options.limitReopenedAt ?? (() => null),
-    limitsUnread: () => options.limitsUnread ?? false,
+    limitsUnread: () => options.limitsUnread,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     accountsRead: () => options.accountsRead ?? true,
     sessionsRead: () => options.sessionsRead ?? true,
