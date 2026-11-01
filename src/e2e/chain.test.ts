@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { AccountHome } from '../account/homes.js'
 import { checkpoint, commitAndMerge, ends, Gate, lingers, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
@@ -170,6 +171,28 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(stops()).toEqual([session.sessionId])
     await run.until(() => lampOf(session.sessionId) === 'finished', 'the session of ABC-1 finished')
     expect(run.service.dispatcher.state.leftovers).toEqual({})
+  })
+
+  it('stops a session the cleanup after Done found mid-turn in the task folder once its turn ends', async () => {
+    run.board.add('ABC-1')
+    const merge = new Gate()
+    const checked = new Gate()
+    run.agent.script('ABC-1', parked(merge, commitAndMerge('ABC-1.txt')))
+    run.agent.script('hand', parked(checked, ends({ say: 'checked' })))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const session = launches()[0]!
+    const hand = await run.agent.launch({ key: 'script' } as AccountHome, { name: 'hand', cwd: session.cwd, prompt: 'Check the build.' })
+
+    merge.open()
+    await run.until(() => stops().includes(session.sessionId), 'the session of ABC-1 stopped')
+    await run.pass(60_000)
+    expect(stops()).toEqual([session.sessionId])
+
+    checked.open()
+    await run.until(() => stops().includes(hand), 'the session left mid-turn stopped')
+    expect(stops()).toEqual([session.sessionId, hand])
   })
 
   it('closes a task that needed no change with the reason as a comment', async () => {

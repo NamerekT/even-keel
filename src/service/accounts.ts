@@ -133,6 +133,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'spendsByKey'
   | 'startedAt'
   | 'stateDir'
+  | 'stopLingering'
   | 'tallyMode'
   | 'trackers'
   | 'vscode'
@@ -541,6 +542,8 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
     onAgents: (list) => {
       const before = JSON.stringify(ctx.account.view.loginBlock)
       ctx.agents = list
+      // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
+      void ctx.stopLingering()
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
       if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcast('state', ctx.getState())
     },

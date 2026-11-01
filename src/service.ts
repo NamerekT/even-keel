@@ -36,6 +36,7 @@ import { createChat } from './sessions/chat.js'
 import { Mailbox } from './sessions/mailbox.js'
 import { settleMail } from './sessions/mailRelay.js'
 import { type AgentEntry } from './sessions/agents.js'
+import { Lingering } from './sessions/lingering.js'
 import { type SetupRun } from './sessions/setup.js'
 import { KEEP_WARM_TICK_MS, KeepWarm, type WarmTask } from './sessions/keepwarm.js'
 import { ChatTitles } from './sessions/title.js'
@@ -197,6 +198,7 @@ const context = {
   get limitsFile() { return limitsFile },
   get linkFor() { return linkFor },
   get linkOf() { return linkOf },
+  get lingering() { return lingering },
   get links() { return links },
   get listen() { return listen },
   set listen(value: typeof listen) { listen = value },
@@ -275,6 +277,7 @@ const context = {
   get stats() { return stats },
   get steering() { return steering },
   get stopIn() { return stopIn },
+  get stopLingering() { return stopLingering },
   get stopTaskSessions() { return stopTaskSessions },
   get syncProject() { return syncProject },
   get tally() { return tally },
@@ -445,6 +448,7 @@ let agents: AgentEntry[] = []
  * not idle: the chain and the forward merges wait, and the account watcher keeps every folder (BTN-646).
  */
 let agentsRead = false
+const lingering = new Lingering()
 const launches: LaunchEntry[] = await readLaunches(db)
 /** The tasks the chain ran and saw closed, in memory as the database keeps them. */
 const archive: ClosedTask[] = await closedTasks(db)
@@ -688,6 +692,8 @@ function slotUse(slot: string, task: string): SlotUse { return chainService.slot
 function vacateSlot(slot: string, task: string): Promise<void> { return chainService.vacateSlot(context, slot, task) }
 
 function stopTaskSessions(repo: string, task: string, count: number): Promise<Notice[]> { return chainService.stopTaskSessions(context, repo, task, count) }
+
+function stopLingering(): Promise<void> { return chainService.stopLingering(context) }
 
 /** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
 function removalFacts(project: string, repo: string): RemovalFacts { return chainService.removalFacts(context, project, repo) }

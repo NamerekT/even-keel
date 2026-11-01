@@ -35,7 +35,7 @@ import { type RemovalFacts } from '../projects/removal.js'
 import { checkoutRemotes, remotePeers, repositoryIds, sameRepository } from '../projects/remotes.js'
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
-import { isLive } from '../sessions/agents.js'
+import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
 import { KEEP_WARM_PROMPT, KeepWarm, warmTasks, type WarmFacts } from '../sessions/keepwarm.js'
 import { isInside } from '../paths.js'
@@ -83,6 +83,7 @@ type ChainContext = Pick<ServiceContext,
   | 'keepWarm'
   | 'launchIn'
   | 'launches'
+  | 'lingering'
   | 'ledger'
   | 'limits'
   | 'linkFor'
@@ -626,19 +627,23 @@ export async function vacateSlot(ctx: ChainContext, slot: string, task: string):
   }
 }
 
+/** Stops the task's sessions that are not mid-turn; the rest are kept in `lingering`, to be stopped once their turn ends (BTN-616). */
 export async function stopTaskSessions(ctx: ChainContext, repo: string, task: string, count: number): Promise<Notice[]> {
   const own = new Set(ctx.launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
-  const idle = ctx.agents.filter(
+  const sessions = ctx.agents.filter(
     (agent) =>
       agent.id !== undefined &&
       isLive(agent) &&
-      (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))) &&
-      agent.status !== 'busy' &&
-      agent.status !== 'waiting',
+      (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))),
   )
   const warnings: Notice[] = []
-  for (const agent of idle) {
+  for (const agent of sessions) {
+    if (midTurn(agent)) {
+      ctx.lingering.keep(task, agent.sessionId)
+      console.log(`cleanup: the session ${agent.sessionId} of ${task} is mid-turn, it will be stopped once its turn ends`)
+      continue
+    }
     try {
       await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
     } catch (error) {
@@ -646,6 +651,23 @@ export async function stopTaskSessions(ctx: ChainContext, repo: string, task: st
     }
   }
   return warnings
+}
+
+/** Stops the sessions a cleanup after Done left mid-turn whose turn has ended since (`stopTaskSessions`). */
+export async function stopLingering(ctx: ChainContext): Promise<void> {
+  for (const { task, agent } of ctx.lingering.due(ctx.agents, midTurn)) {
+    if (agent.id === undefined) continue
+    try {
+      await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
+      console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, its turn after Done ended`)
+    } catch (error) {
+      console.warn(`cleanup: the session ${agent.sessionId} of ${task} was not stopped: ${englishOf(noticeOf(error))}`)
+    }
+  }
+}
+
+function midTurn(agent: AgentEntry): boolean {
+  return agent.status === 'busy' || agent.status === 'waiting'
 }
 
 export function removalFacts(ctx: ChainContext, project: string, repo: string): RemovalFacts {

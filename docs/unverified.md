@@ -54,6 +54,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
 | 17a | [A task returned after a blocker or skip](#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks | an idle session may still be adopted and hold the chain |
 | 17b | [The backlog by label](#the-backlog-by-label-btn-509) | GitLab projects with required labels (GitHub checked) | an issue does not move between the backlog and the chain from the page |
+| 17c | [A session left mid-turn by the cleanup](#a-session-left-mid-turn-by-the-cleanup-btn-616) | chain sessions busy in a done task's folder when its cleanup runs, rarely | the session keeps resting as "waiting" on the page after its task closed |
 | 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | on macOS a session may not outlive a restart |
 | 20a | [API spending cap recovery](#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |
@@ -324,6 +325,10 @@ Only Codex's `Selected model is at capacity. Please try a different model.` was 
 ### A handoff past a failed session (BTN-650)
 
 A handoff from a session that failed before its first answer carries the steps, the last message, the note and the transcript of the session before it, plus a line on each failed one (`docs/chain.md`). Unit tests and an end-to-end scenario with the scripted agent cover one and two failed sessions in a row. Not run live: a real `Invalid API key` or empty-balance session on an API-key account followed by "New session", a limit or an account switch, with the earlier session's transcript in another account's folder. The memory of the session before is lost on a service restart: a handoff after it carries the failed session alone. **Workaround:** point the new session at the earlier transcript in the chat.
+
+### A session left mid-turn by the cleanup (BTN-616)
+
+A session in a done task's folder that the cleanup found `busy`/`waiting` is stopped once its turn ends (`docs/chain.md`, "A session left mid-turn"). An end-to-end scenario with the scripted agent covers a second session in the task's folder. Not run live: a real Codex or Claude session caught that way — the mismatch between the task's view and the listing that leaves one behind cannot be made on purpose — so whether a real stop of such a session lands is assumed from the usual cleanup's stop. A restart before its turn ends forgets it, as before. **Workaround:** stop the session from the page or kill its pid.
 
 ### A resume that starts a copy
 
