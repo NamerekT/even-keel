@@ -28,7 +28,7 @@ This file holds only the rules and traps every session needs. How things are bui
 | `docs/releases.md` | branches `main`, `dev`, `release/*`; trackers `BTN`, `EKR`, GitHub issues; releases and the CLI check |
 | `docs/guide/` | the public user guide behind the README |
 | `docs/unverified.md`, `docs/verified.md` | behaviour never checked live; the log of every live check |
-| `docs/posts/` | drafts of posts, each with the `.sql` of its Tally numbers |
+| `docs/posts/` | posts of Tally numbers with their `.sql`; drafts and author's notes stay out of the repo |
 
 Behaviour written without a way to check it live gets an entry in `docs/unverified.md` and a row in its "What to check first" table. Every live check — of such an entry, a "Проверка" task, a live run inside a task — gets a row in `docs/verified.md`; a checked entry moves there, never just deleted (the heads of both files say how).
 
