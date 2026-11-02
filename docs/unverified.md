@@ -55,8 +55,8 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 1d | [Limits kept across a restart](unverified/claude-limits.md#limits-kept-across-a-restart-btn-631) | everyone on a subscription | the page shows an old figure as current after a restart, or an outdated mark that does not go |
 | 2 | [Staying signed in after a reboot](unverified/accounts.md#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
 | 2a | [Account names across sign-outs and sign-ins](unverified/accounts.md#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
-| 3 | [Installing and updating with npm](unverified/updating.md#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
-| 3b | [Huly's client installed on demand](unverified/updating.md#hulys-client-installed-on-demand-btn-666) | npm installs on Huly | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
+| 3 | [Installing and updating with npm](unverified/updating.md#installing-and-updating-with-npm-btn-265) | npm installs on macOS, updates of one on Linux; the first publish | the service of a package does not start; install from a clone |
+| 3b | [Huly's client installed on demand](unverified/updating.md#hulys-client-installed-on-demand-btn-666) | npm installs on Huly behind a proxy or after a failed install | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
 | 3a | [The start at sign-in on Windows](unverified/platforms.md#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](unverified/platforms.md#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](unverified/codex.md#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
