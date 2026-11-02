@@ -55,8 +55,9 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
   const watches: MainCiWatch[] | null =
-    views?.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) })) ?? null
+    views?.map((each) => ({ view: each, remoteHead: heads[`remote ${each.remote}`] ?? null, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) })) ?? null
   const deps = mainCheckDeps({
+    projects: () => ['ABC'],
     peers: () => ['XYZ'],
     repo: () => 'D:/repos/abc',
     main: () => main,
@@ -113,6 +114,18 @@ describe('mainCheckDeps', () => {
   it('has no projects of one remote with the guard of main off', () => {
     expect(setup(all([]), []).deps.peers('ABC')).toEqual(['XYZ'])
     expect(setup(unguarded([]), []).deps.peers('ABC')).toEqual([])
+  })
+
+  it('gives the remote main the counted CIs agree on, none while they disagree, are not found or the guard is off', () => {
+    const views = [view('forgejo', 'success'), view('github', 'success')]
+    const same = { 'remote origin': 'c5', 'remote github': 'c5' }
+    expect(setup(all(['forgejo', 'github']), views, same).deps.remoteHeads()).toEqual({ ABC: 'c5' })
+    expect(setup(all(['github']), views, { 'remote origin': 'c4', 'remote github': 'c5' }).deps.remoteHeads()).toEqual({ ABC: 'c5' })
+    expect(setup(all(['forgejo', 'github']), views, { 'remote origin': 'c4', 'remote github': 'c5' }).deps.remoteHeads()).toEqual({})
+    expect(setup(all(['forgejo', 'github']), views, { 'remote origin': 'c5' }).deps.remoteHeads()).toEqual({})
+    expect(setup(all([]), views, same).deps.remoteHeads()).toEqual({})
+    expect(setup(all(['github']), null, same).deps.remoteHeads()).toEqual({})
+    expect(setup(unguarded(['github']), views, same).deps.remoteHeads()).toEqual({})
   })
 
   it('turns the wait into milliseconds, null staying as long as it takes', () => {

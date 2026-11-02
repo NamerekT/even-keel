@@ -25,8 +25,9 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: CiTarget } = {}) {
+function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: CiTarget; counted?: boolean } = {}) {
   let main = options.main ?? 'main'
+  let counted = options.counted ?? true
   const branches: (string | undefined)[] = []
   let clock = Date.parse('2026-10-12T12:00:00Z')
   let head = 'sha2'
@@ -65,6 +66,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     git,
     repo: 'D:/repos/app',
     main: () => main,
+    counted: () => counted,
     now: () => new Date(clock),
     log: (message) => logs.push(message),
     onChange: () => changes++,
@@ -77,6 +79,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     refs,
     branches,
     setMain: (branch: string) => (main = branch),
+    setCounted: (on: boolean) => (counted = on),
     logs,
     changes: () => changes,
     advance: (ms: number) => (clock += ms),
@@ -178,6 +181,43 @@ describe('CiWatch', () => {
     await t.watch.tick()
     expect(t.calls.runs).toBe(polled)
     expect(t.watch.view.pushed?.commit).toBe('sha3')
+  })
+
+  it('keeps the remote’s main it last read, none before the first look', async () => {
+    const t = setup()
+    expect(t.watch.remoteHead).toBeNull()
+    await t.watch.tick()
+    expect(t.watch.remoteHead).toBe('sha2')
+    t.push('sha3')
+    await t.watch.tick()
+    expect(t.watch.remoteHead).toBe('sha3')
+  })
+
+  it('polls for a push a CI outside the project’s ci.kinds sees, but never shows it waiting for a run', async () => {
+    const t = setup({ counted: false })
+    await t.watch.tick()
+    t.push('sha3')
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(2)
+    expect(t.watch.view.pushed).toBeNull()
+    t.advance(POLL_MS)
+    t.setRuns([run(3, { status: 'queued', createdAt: '2026-10-12T12:00:05Z', startedAt: null, stoppedAt: null }), run(2), run(1)])
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(3)
+    expect(t.watch.view.current?.run.id).toBe(3)
+  })
+
+  it('drops the shown push once the project stops counting the CI', async () => {
+    const t = setup()
+    await t.watch.tick()
+    t.push('sha3')
+    await t.watch.tick()
+    expect(t.watch.view.pushed?.commit).toBe('sha3')
+    const changes = t.changes()
+    t.setCounted(false)
+    await t.watch.tick()
+    expect(t.watch.view.pushed).toBeNull()
+    expect(t.changes()).toBeGreaterThan(changes)
   })
 
   it('shows an error and retries it slowly', async () => {

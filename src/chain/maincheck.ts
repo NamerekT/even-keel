@@ -35,6 +35,10 @@ export class MainCheck {
   private readonly prepared = new Map<string, string>()
   /** The run of `commands.afterGreen` going on, by project, and the green push due after it. */
   private readonly afterRuns = new Map<string, { commit: string; since: string; next?: MainPush }>()
+  /** The remote's main of each project as last seen; the first look is no push. */
+  private readonly remotes = new Map<string, string>()
+  /** The latest push of main the chain did not make, by project (BTN-707): awaited only for `commands.afterGreen`, it holds no launch. */
+  private readonly outside = new Map<string, MainPush>()
 
   constructor(
     private readonly state: ChainState,
@@ -70,6 +74,7 @@ export class MainCheck {
       return
     }
     if (commit === null) return
+    if (this.outside.get(project)?.commit === commit) this.outside.delete(project)
     const gate = this.gate(project)
     if (gate.check?.commit === commit) {
       if (!gate.check.tasks.includes(task)) gate.check.tasks.push(task)
@@ -199,7 +204,7 @@ export class MainCheck {
   async settle(open: IsOpen): Promise<{ changed: boolean; stops: MainStop[]; fixes: string[] }> {
     const stops: MainStop[] = []
     const fixes: string[] = []
-    let changed = false
+    let changed = this.settleOutside()
     for (const [project, gate] of Object.entries(this.state.ci)) {
       const push = gate.check
       if (push === undefined) continue
@@ -219,6 +224,41 @@ export class MainCheck {
       }
     }
     return { changed, stops, fixes }
+  }
+
+  /**
+   * Notes a move of the remote's main the chain did not make, a `git push` by hand, and judges the latest one awaited
+   * (BTN-707). A green one runs `commands.afterGreen` as a push of the chain would; a red one files no fix and stops nothing.
+   * Runs before the chain's own pushes are judged, so a push of the chain is still in `check` when its move is seen.
+   * Returns whether the state changed.
+   */
+  private settleOutside(): boolean {
+    for (const [project, head] of Object.entries(this.deps.remoteHeads())) {
+      const before = this.remotes.get(project)
+      this.remotes.set(project, head)
+      if (before === undefined || before === head) continue
+      const gate = this.state.ci[project]
+      if (gate !== undefined && (gate.check?.commit === head || gate.local?.commit === head || gate.green === head)) continue
+      this.outside.set(project, { commit: head, at: this.now().toISOString(), tasks: [] })
+      this.log(`ci: ${project}: main of the remote is at ${shortCommit(head)}, pushed outside the chain; waiting for the CI`)
+    }
+    let changed = false
+    for (const [project, push] of this.outside) {
+      const verdict = this.deps.verdict(project, push.commit, push.at)
+      if (verdict.state === 'pending') continue
+      this.outside.delete(project)
+      const commit = shortCommit(push.commit)
+      if (verdict.state === 'green') {
+        changed = true
+        this.passed(project, this.gate(project), push, 'is green, pushed outside the chain')
+      } else if (verdict.state === 'red') {
+        this.log(`ci: ${project}: ${commit} is red, pushed outside the chain; the chain does not fix it`)
+      } else {
+        const why = verdict.state === 'unavailable' ? `: ${verdict.reasons.map(englishOf).join('; ')}` : ''
+        this.log(`ci: ${project}: ${commit} stays unchecked, pushed outside the chain${why}`)
+      }
+    }
+    return changed
   }
 
   /** No CI judged the push: the project's check takes it, if the project has one. */
@@ -274,8 +314,9 @@ export class MainCheck {
     else {
       const { command, code } = run.failure
       this.log(`afterGreen: ${project}: ${command} after ${commit} exited with ${code}`)
-      const leftovers = (this.state.leftovers[project] ??= [])
-      leftovers.push({ task: push.tasks.at(-1) ?? project, at: this.now().toISOString(), notice: notice('afterGreen.failed', { command, code, commit }) })
+      // A leftover is shown as the task's: a push from outside the chain has none, so its failure stays in the log.
+      const task = push.tasks.at(-1)
+      if (task !== undefined) (this.state.leftovers[project] ??= []).push({ task, at: this.now().toISOString(), notice: notice('afterGreen.failed', { command, code, commit }) })
     }
     if (next !== undefined) this.afterGreen(project, this.gate(project), next)
     this.hooks.wake()

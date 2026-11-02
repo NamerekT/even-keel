@@ -1,6 +1,7 @@
 import type { Git } from '../git/types.js'
 import type { TrackerProfile } from '../profiles/model.js'
 import { ciSource, projectTargets } from './adapters.js'
+import type { CiKind } from './model.js'
 import type { CiTarget } from './remote.js'
 import { SharedSources } from './shared.js'
 import { CiWatch } from './watcher.js'
@@ -10,6 +11,8 @@ interface CiWiring {
   git: Git
   token: (project: string, target: CiTarget) => string | null
   branch: (project: string) => string
+  /** Whether the project's `ci.kinds` name the CI of `kind`. */
+  counted: (project: string, kind: CiKind) => boolean
   timeoutMs: number
   log: (message: string) => void
   onChange: () => void
@@ -25,7 +28,18 @@ export function createCiWatches(wiring: CiWiring): CiWatches<CiWatch> {
   const source = (project: string, target: CiTarget) => sources.of(target, wiring.token(project, target))
   return new CiWatches({
     targets: (repo) => projectTargets(git, repo, wiring.profiles()),
-    watch: (project, repo, target) => new CiWatch({ target, source: source(project, target), git, repo, main: () => wiring.branch(project), log, onChange, onRecovered: () => wiring.recovered?.(project, target) }),
+    watch: (project, repo, target) =>
+      new CiWatch({
+        target,
+        source: source(project, target),
+        git,
+        repo,
+        main: () => wiring.branch(project),
+        counted: () => wiring.counted(project, target.kind),
+        log,
+        onChange,
+        onRecovered: () => wiring.recovered?.(project, target),
+      }),
     source,
     log,
   })

@@ -21,6 +21,11 @@ export interface CiWatchDeps {
   repo: string
   /** The project's main branch, read at each look; `main` without it. */
   main?: () => string
+  /**
+   * Whether the project counts this CI (`ci.kinds`), read at each look; counted without it. A push an uncounted CI
+   * takes no run for is polled for but not shown as waiting (BTN-707): its workflow may run only by hand.
+   */
+  counted?: () => boolean
   now?: () => Date
   log: (message: string) => void
   onChange: () => void
@@ -33,6 +38,8 @@ export interface CiWatchDeps {
 export class CiWatch {
   view: CiView
   private head: string | null | undefined
+  /** The push no run has taken yet, shown or not: the CI is polled for it during the push window. */
+  private push: { commit: string; at: string } | null = null
   private branch: string | undefined
   private polledAt = -Infinity
   private jobsOf: string | null = null
@@ -67,6 +74,11 @@ export class CiWatch {
     return error?.code === 'ci.denied' || (error?.code === 'ci.http' && (error.params as { status: number }).status === 404)
   }
 
+  /** The remote's main this watch last read; `null` — not read yet or missing. */
+  get remoteHead(): string | null {
+    return this.head ?? null
+  }
+
   /** The token changed: a new source is asked at the next tick, `null` turns the watch off. */
   setSource(source: CiSource | null): void {
     this.source = source
@@ -90,9 +102,15 @@ export class CiWatch {
         this.polledAt = -Infinity
         this.jobsOf = null
         this.tasksOf = null
+        this.push = null
         this.view = { ...this.view, checkedAt: null, current: null, history: [], medianMs: null, pushed: null }
       }
       const pushed = await this.readHead(now, branch)
+      const shown = this.counted() ? this.push : null
+      if (this.view.pushed !== shown) {
+        this.view.pushed = shown
+        this.deps.onChange()
+      }
       if (!pushed && !this.due(now)) return
       this.polledAt = now.getTime()
       const before = JSON.stringify(this.view)
@@ -121,6 +139,10 @@ export class CiWatch {
     return this.deps.now?.() ?? new Date()
   }
 
+  private counted(): boolean {
+    return this.deps.counted?.() ?? true
+  }
+
   /** Whether the remote's main moved since the last look; the first look is not a push. */
   private async readHead(now: Date, branch: string): Promise<boolean> {
     const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/${branch}`])
@@ -128,7 +150,7 @@ export class CiWatch {
     const first = this.head === undefined
     const moved = !first && head !== null && head !== this.head
     this.head = head
-    if (moved) this.view.pushed = { commit: head, at: now.toISOString() }
+    if (moved) this.push = { commit: head, at: now.toISOString() }
     return moved
   }
 
@@ -137,7 +159,7 @@ export class CiWatch {
     if (this.view.checkedAt === null && this.view.health !== 'error') return true
     if (this.view.health === 'error') return since >= ERROR_RETRY_MS
     const running = this.view.current !== null && !isFinished(this.view.current.run.status)
-    const waiting = this.view.pushed !== null && now.getTime() - Date.parse(this.view.pushed.at) < PUSH_WINDOW_MS
+    const waiting = this.push !== null && now.getTime() - Date.parse(this.push.at) < PUSH_WINDOW_MS
     return (running || waiting) && since >= POLL_MS
   }
 
@@ -148,8 +170,9 @@ export class CiWatch {
       this.view.current = run === null ? null : await this.currentOf(source, run, runs)
       this.view.history = runs
       this.view.medianMs = medianDuration(runs, now)
-      const pushed = this.view.pushed
+      const pushed = this.push
       if (pushed !== null && runs.some((each) => each.commit === pushed.commit || Date.parse(each.createdAt) >= Date.parse(pushed.at))) {
+        this.push = null
         this.view.pushed = null
       }
       if (this.view.health === 'error') {

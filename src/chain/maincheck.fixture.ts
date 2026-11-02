@@ -49,11 +49,14 @@ export function fakeMain(wait: number | null = null) {
     ran: [] as string[],
     /** The other projects of a project's remote and main branch (BTN-217); none when missing. */
     peers: {} as Record<string, string[]>,
+    /** The remote's main the counted CIs of each project see (BTN-707); none when missing. */
+    remote: {} as Record<string, string>,
   }
   const deps: MainCheckDeps = {
     peers: (project) => ci.peers[project] ?? [],
     head: async () => heads.shift() ?? null,
     verdict: () => ci.verdict,
+    remoteHeads: () => ({ ...ci.remote }),
     waitMs: () => ci.wait,
     report: async (_project, push, failure, greens) => {
       ci.reports.push({ push: structuredClone(push), failure, greens })

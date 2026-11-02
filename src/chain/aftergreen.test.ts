@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import { done, setup, task } from './dispatcher.fixture.js'
-import { afterDone, fakeMain } from './maincheck.fixture.js'
+import { afterDone, failedRun, fakeMain } from './maincheck.fixture.js'
 import type { AfterGreenRun } from './model.js'
 
 function held() {
@@ -138,5 +138,111 @@ describe('Dispatcher and the commands after a green main', () => {
     await settled(dispatcher)
     expect(ci.ran).toEqual(['ABC@bbbbbbbbbb', 'ABC@cccccccccc'])
     expect(dispatcher.state.ci.ABC?.afterGreen).toBe('cccccccccc')
+  })
+})
+
+describe('Dispatcher and a push of main from outside the chain (BTN-707)', () => {
+  /** The remote's main is at `aaaaaaaaaa` when the service starts, and the project has `commands.afterGreen`. */
+  async function outside() {
+    const { ci, deps } = fakeMain(null)
+    ci.afterGreen = true
+    ci.remote = { ABC: 'aaaaaaaaaa' }
+    const harness = setup({ main: deps })
+    harness.dispatcher.check()
+    await harness.dispatcher.idle()
+    return { ...harness, ci }
+  }
+
+  it('waits for the verdict of the counted CIs and runs the commands once it is green, once per commit', async () => {
+    const { dispatcher, log, ci } = await outside()
+    ci.remote.ABC = 'ffffffffff'
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.ran).toEqual([])
+    expect(log).toContain('ci: ABC: main of the remote is at fffffff, pushed outside the chain; waiting for the CI')
+
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await settled(dispatcher)
+    expect(ci.ran).toEqual(['ABC@ffffffffff'])
+    expect(dispatcher.state.ci.ABC).toEqual({ green: 'ffffffffff', afterGreen: 'ffffffffff' })
+    expect(log).toContain('ci: ABC: fffffff is green, pushed outside the chain')
+
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.ran).toEqual(['ABC@ffffffffff'])
+  })
+
+  it('takes the remote’s main of the first look for no push', async () => {
+    const { dispatcher, ci } = await outside()
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.ran).toEqual([])
+    expect(dispatcher.state.ci.ABC).toBeUndefined()
+  })
+
+  it('files no fix for a red one and holds no launch while it waits', async () => {
+    const { dispatcher, launched, log, ci } = await outside()
+    ci.remote.ABC = 'ffffffffff'
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]?.ciWait).toBeUndefined()
+
+    ci.verdict = { state: 'red', failed: [{ kind: 'github', run: { ...failedRun, commit: 'ffffffffff' } }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([])
+    expect(ci.ran).toEqual([])
+    expect(dispatcher.state.active[0]?.paused).toBe(false)
+    expect(dispatcher.state.ci.ABC?.fix).toBeUndefined()
+    expect(log).toContain('ci: ABC: fffffff is red, pushed outside the chain; the chain does not fix it')
+  })
+
+  it('judges only the latest of the pushes awaited', async () => {
+    const { dispatcher, ci } = await outside()
+    ci.remote.ABC = 'eeeeeeeeee'
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.remote.ABC = 'ffffffffff'
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await settled(dispatcher)
+    expect(ci.ran).toEqual(['ABC@ffffffffff'])
+  })
+
+  it('does not take the chain’s own push for one from outside', async () => {
+    const { dispatcher, log, ci } = await afterDone(null, (ci) => {
+      ci.afterGreen = true
+      ci.remote = { ABC: 'aaaaaaaaaa' }
+    })
+    ci.remote.ABC = 'bbbbbbbbbb'
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(log.some((line) => line.includes('outside the chain'))).toBe(false)
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await settled(dispatcher)
+    expect(ci.ran).toEqual(['ABC@bbbbbbbbbb'])
+  })
+
+  it('gives the chain a push it made of a commit already awaited from outside', async () => {
+    const { dispatcher, launched, ci } = await outside()
+    ci.remote.ABC = 'bbbbbbbbbb'
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.ci.ABC?.check?.commit).toBe('bbbbbbbbbb')
+
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await settled(dispatcher)
+    expect(ci.ran).toEqual(['ABC@bbbbbbbbbb'])
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 })
