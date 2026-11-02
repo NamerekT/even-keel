@@ -15,6 +15,11 @@ import { closingOf, noToken, openPull, pullReadiness, pullTarget, unsupportedHos
 import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
+/**
+ * Forgejo checks mergeability after a push in the background and answers `mergeable: false` until it ends, as it does
+ * for a conflict (BTN-717): in this long after Even Keel's push its "not mergeable" is taken for "not computed yet".
+ */
+const FORGEJO_RECHECK_MS = 60_000
 
 /** The pull requests of each forge; the end-to-end tests put their fake in place of one (`src/e2e/forge.fixture.ts`). */
 export const FORGES: Record<CiKind, (target: CiTarget, token: string, timeoutMs: number) => Forge> = {
@@ -84,11 +89,13 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const target = await targetOf(project, pull.remote)
       const token = tokenOf(project, target)
       const forge = forgeOf(target, token)
-      const state = await forge.state(pull.number)
+      const told = await forge.state(pull.number)
+      const pushed = Date.parse(pull.pushedAt)
+      const rechecking = target.kind === 'forgejo' && told.mergeable === false && wiring.now().getTime() - pushed < FORGEJO_RECHECK_MS
+      const state = rechecking ? { ...told, mergeable: null } : told
       if (state.state === 'merged') return { state, remarks: [], failed: [] }
       // A pull request closed unmerged: the task's next session gets every remark made on it (BTN-223).
       if (state.state === 'closed') return { state, remarks: othersOnly(await forge.remarks(pull.number, pull.at, () => true)), failed: [] }
-      const pushed = Date.parse(pull.pushedAt)
       const remarks = othersOnly(await forge.remarks(pull.number, pull.pushedAt, (key, at) => Date.parse(at) > pushed && !pull.seen.includes(key)))
       // A CI that does not answer leaves the poll to the remarks and the conflict.
       const source = ciSource(target, token, timeoutMs)
