@@ -1,0 +1,34 @@
+# What has not been verified: Accounts
+
+One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: Accounts](../verified/accounts.md).
+
+## Subscription extra usage (BTN-532)
+
+The parsers and freshness/working-session guards have fixture tests; dark desktop/mobile, light desktop, the drawer, long names and unknown-source rows were inspected with fake accounts ([live log](../verified/accounts.md)). Read-only live probes found zero ChatGPT credits, Copilot extra usage disabled, and no extra-usage line in Claude CLI 2.1.310 `/usage`. No actual paid session or positive credit balance was available. Still to check in BTN-531:
+
+- A paid Claude SDK session entering and leaving `isUsingOverage`, with the chip following the working turn and disappearing while waiting or after stale evidence.
+- A nonzero ChatGPT credit response through the live service, its refresh and an exhausted-window session actually consuming credits; compare the inferred chip with the provider's usage page. Include OpenCode on ChatGPT and shared pools.
+- Copilot with extra usage permitted and a nonzero historical count, plus a token using the personal billing fallback with real net charges. Check that no historical bill is treated as current spending and no included gross charge is shown as paid.
+- Sign-in renewal, an unavailable source and stale data while the page is open. Ensure the source timestamp survives newer window-only readings and that old credit facts do not cross a new sign-in.
+
+Assumed: positive responses use the observed/documented field shapes, and a working ChatGPT session beyond an included window with available credits is spending them. If wrong, the amount may be absent or the chip may infer a charge incorrectly. **Workaround:** check spending and reload settings on the provider's billing page. The display indicator is distinct from the [paid-usage stop policy](#paid-subscription-usage-stops). Zen has no verified balance adapter and shows no balance.
+
+## Paid subscription usage stops
+
+BTN-577 stops a managed chain's current live session after fresh direct or inferred paid-usage evidence, retains a limit hold and handoff, and waits for included allowance or another usable account. Fixture tests cover each provider source, freshness, historical/unknown data, shared ChatGPT pools, stop/wait/reset/account switch, paused chains, warm/cold recovery and service-restart snapshots. The warning on account cards was inspected with fake data ([live log](../verified/accounts.md)); no actual paid stop was run.
+
+Manual task BTN-580, related to source check BTN-531, requires separate explicit consent before any paid request. Check Claude SDK direct `isUsingOverage`, Claude background `/usage`, Codex/OpenCode on ChatGPT with positive credits and an exhausted window, and Copilot/OpenCode on Copilot with exhausted monthly allowance and `overage_permitted`. Confirm one successful own-agent stop even mid-turn, no external session touched, no immediate relaunch, preserved worktree/branch/note, reset/account switch, warm resume/cold handoff and service restart during the wait or handoff. Switching within a shared ChatGPT pool must still wait. Unknown resets stay unknown; stale evidence, historical totals and a positive balance alone must not stop a session. Do not increase usage polling to create the scenario.
+
+Assumed: provider signals arrive in the observed shapes and each agent stops its real managed process. If wrong, spending may continue, a session may stop early, or recovery may lose context or relaunch while exhausted. A successful stop cannot undo charges before detection; SDK events follow requests and polls can lag by five minutes. **Workaround:** disable extra usage or automatic credit reload, or set a provider monthly spending cap where supported; stop/pause the chain and inspect the provider's usage before continuing. Pausing does not prevent detection from stopping a session already working, but holds automatic continuation. API-key policies and unknown Zen balances are unchanged.
+
+## Account names across sign-outs and sign-ins (BTN-528)
+
+A signed-out folder keeps the last e-mail it was signed in as; a folder named after one account but holding another, and a second folder of one account, are marked on `/accounts` (`docs/accounts.md`, "The name of a folder across sign-ins"). Covered by unit tests and the fake page `?account=mixup`; no real folder was signed out or signed in to another account for it. Assumed: `auth status` of a signed-out folder gives no e-mail while the ledger still holds the last one, and the profile e-mail of two folders signed in to one account is the same. If wrong, a signed-out card still reads "Claude Code", or a duplicate goes unmarked. **Check:** `claude auth logout` in a spare account folder and look at its card; sign it in again under the account of another folder (Renew in a browser signed in to that account) and look for the warning. **Workaround:** the folder is in the tip of the account's icon.
+
+## Staying signed in after a reboot (EKR-15)
+
+On 21.10.2026 a reboot signed two of three subscription accounts out: the service started before the network, every account's `claude auth status` timed out at once, and a minute later two `.credentials.json` held neither an access nor a refresh token. The CLI renews with a single-use refresh token, so Even Keel assumes the sign-in was lost to a renewal cut off half-way or run twice at once, and guards against both: it asks no account and no `/usage` until the provider's API answers, runs its short calls of one folder one at a time and does not kill one on a timeout (`docs/accounts.md`). Neither the cause nor the guard has been seen live: a reboot with expired tokens and no network at the start was not repeated. If an account still asks to sign in after a reboot, the cause is elsewhere. **Workaround:** sign the account in again from the accounts drawer.
+
+## A Claude plan change (BTN-393)
+
+A ChatGPT plan change revokes the sign-in's access token at once: on 25.10.2026, right after free → Plus, a Codex folder's token with ten days left got 401 from ChatGPT's usage answer until Codex renewed it, and the card had no bars until then. Whether moving a Claude subscription between Pro and Max does the same to the CLI's OAuth token has never been seen. Even Keel assumes the sign-in keeps working and the card takes the new plan and windows at the next `auth status` and `/usage`. If the token is revoked, the card may keep the old plan or show no bars until the CLI renews the token at its next call, or the account may ask to sign in. **Workaround:** start a session on the account, or sign it in again from the accounts drawer.

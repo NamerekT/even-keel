@@ -30,7 +30,7 @@ This file holds only the rules and traps every session needs. How things are bui
 | `docs/unverified.md`, `docs/verified.md` | behaviour never checked live; the log of every live check |
 | `docs/posts/` | posts of Tally numbers with their `.sql`; drafts and author's notes stay out of the repo |
 
-Behaviour written without a way to check it live gets an entry in `docs/unverified.md` and a row in its "What to check first" table. Every live check — of such an entry, a "Проверка" task, a live run inside a task — gets a row in `docs/verified.md`; a checked entry moves there, never just deleted (the heads of both files say how).
+Behaviour without a way to check it live gets an entry in `docs/unverified/<area>.md` and a row in the index's "What to check first" table. Every live check — of such an entry, a "Проверка" task, a live run inside a task — gets a row in `docs/verified/<area>.md`; a checked entry moves there, never just deleted (the indexes' heads say how).
 
 The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
 

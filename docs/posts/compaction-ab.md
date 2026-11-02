@@ -112,7 +112,7 @@ Register-ScheduledTask -TaskName 'EvenKeel-BreakLabels' -Action $action -Trigger
 For a separate data folder, add `$env:EVEN_KEEL_DATA = 'C:\Data\even-keel';` to the command.
 No task is registered by the script. On other systems, run the same command every five minutes with
 the scheduler's overlap prevention and append stdout/stderr to a retained log. Scheduler registration
-and execution are a separate [live check](../unverified.md#scheduled-break-label-assignment).
+and execution are a separate [live check](../unverified/sessions.md#scheduled-break-label-assignment).
 
 ## First run record
 
