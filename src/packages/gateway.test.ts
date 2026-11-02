@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http'
+import { connect } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { McpGateway, refusal, shellQuoted, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
@@ -11,6 +12,15 @@ lines.on('line', (line) => {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { method: message.method, key: process.env.KEY ?? null } }) + '\\n')
 })
 `
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
 
 describe('shellQuoted', () => {
   it('keeps a plain argument and quotes one with a space or a shell character', () => {
@@ -83,6 +93,26 @@ describe('McpGateway', () => {
   it('wants an initialize to open a bridged session', async () => {
     const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} })
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'tools/list' })).status).toBe(400)
+  })
+
+  it('kills a shared server on close and does not wait for a connection still open (BTN-720)', async () => {
+    const shared = `
+require('node:http').createServer((req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: 0, result: { pid: process.pid } })))
+  .listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1')
+`
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', shared] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH }), log: () => {} })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'huly', 'i1', 'huly')}`
+    const reply = (await (await post(url, { jsonrpc: '2.0', id: 0, method: 'initialize' })).json()) as { result: { pid: number } }
+    const socket = connect(Number(new URL(gateway.origin).port), '127.0.0.1')
+    await new Promise((resolve) => socket.once('connect', resolve))
+    socket.write('POST /half HTTP/1.1\r\nHost: 127.0.0.1\r\n')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const closed = gateway.close().then(() => 'closed')
+    expect(await Promise.race([closed, new Promise((resolve) => setTimeout(() => resolve('hangs'), 2000))])).toBe('closed')
+    socket.destroy()
+    gateway = undefined
+    await vi.waitFor(() => expect(alive(reply.result.pid)).toBe(false), { timeout: 3000 })
   })
 
   it('holds the first request of a shared server until it answers HTTP, not only until its port accepts', async () => {

@@ -32,6 +32,15 @@ type LifecycleContext = Pick<ServiceContext,
   | 'writes'
 >
 
+/**
+ * What a stop signal closes before the exit. The gateway's servers go too: under systemd (`KillMode=process`) and
+ * launchd (`AbandonProcessGroup`) they would outlive node with the tracker credentials of their start (BTN-720).
+ */
+export function shutdown(ctx: Pick<LifecycleContext, 'cliChecks' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
+  ctx.cliChecks.stop()
+  return Promise.allSettled([ctx.packages.close(), ctx.tally.stop(), ctx.writes.settled().then(() => ctx.stateDb.close())])
+}
+
 export function start(ctx: LifecycleContext): void {
   if (ctx.ledger.transports !== undefined) {
     const choices = Object.entries(ctx.ledger.transports).flatMap(([key, transport]) => {
@@ -67,9 +76,8 @@ export function start(ctx: LifecycleContext): void {
   ctx.envFile.watch()
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.once(signal, () => {
-      ctx.cliChecks.stop()
       setTimeout(() => process.exit(0), ctx.SHUTDOWN_MS).unref()
-      void Promise.allSettled([ctx.tally.stop(), ctx.writes.settled().then(() => ctx.stateDb.close())]).finally(() => process.exit(0))
+      void shutdown(ctx).finally(() => process.exit(0))
     })
   }
   ctx.server.listen(ctx.listen.port, ctx.listen.host, () => {

@@ -112,7 +112,11 @@ export class McpGateway {
     for (const each of this.bridges.values()) each.close()
     this.shared.clear()
     this.bridges.clear()
-    await new Promise<void>((resolve) => (this.server === undefined ? resolve() : this.server.close(() => resolve())))
+    const server = this.server
+    if (server === undefined) return
+    const closed = new Promise<void>((resolve) => server.close(() => resolve()))
+    server.closeAllConnections()
+    await closed
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
