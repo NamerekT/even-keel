@@ -27,7 +27,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
-- macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux, also 3c).
+- macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
@@ -57,7 +57,6 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 2a | [Account names across sign-outs and sign-ins](unverified/accounts.md#account-names-across-sign-outs-and-sign-ins-btn-528) | several subscription accounts | a signed-out card reads "Claude Code", or a duplicate goes unmarked |
 | 3 | [Installing and updating with npm](unverified/updating.md#installing-and-updating-with-npm-btn-265) | npm installs on Linux and macOS; the first publish | the service of a package does not start; install from a clone |
 | 3b | [Huly's client installed on demand](unverified/updating.md#hulys-client-installed-on-demand-btn-666) | npm installs on Huly | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
-| 3c | [Huly on Node.js 25 and newer](unverified/platforms.md#huly-on-nodejs-25-and-newer) | Huly users on a Node newer than 24 | Even Keel ends on the first Huly call |
 | 3a | [The start at sign-in on Windows](unverified/platforms.md#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](unverified/platforms.md#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](unverified/codex.md#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
@@ -90,7 +89,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 22 | [Codex on an OpenAI API key](unverified/codex.md#codex-on-an-openai-api-key-btn-177) | Codex API keys | the chain waits forever after a top-up, or a funded key's turn is priced wrong |
 | 23 | [A key refused after it was added](unverified/sessions.md#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 23a | [An API key's organization header](unverified/sessions.md#an-api-keys-organization-header) | replacing an OpenAI API key with one of another organization, and with a restricted key (Anthropic checked; OpenAI's now from `/v1/me`, BTN-649) | a key of another organization replaces the old one, a key of the same one is refused, or a restricted key keeps no organization |
-| 24 | [A command after a green main that restarts Even Keel on Linux and macOS](unverified/ci.md#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on macOS (systemd checked); after any restart under systemd, no `huly-mcp` of the earlier run left (BTN-720) | the service stays stopped; an old run's gateway server lives on with the tracker credentials of its start |
+| 24 | [A command after a green main that restarts Even Keel on Linux and macOS](unverified/ci.md#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on macOS (systemd checked); a restart from `afterGreen` under systemd since BTN-720; the stop waiting for the gateway's servers (BTN-723) | the service stays stopped; an old run's gateway server lives on with the tracker credentials of its start |
 | 25 | [When a CI run counts as stuck](unverified/ci.md#when-a-ci-run-counts-as-stuck) | a runner shared with repositories Even Keel does not watch; a late red run of an unchecked push (BTN-719) | a push is called unchecked while the runner builds such a repository; a red run taken after a restart or past an hour goes unnoticed |
 | 25b | [The log tail of a failed job](unverified/ci.md#the-log-tail-of-a-failed-job-btn-605) | a log the token is refused (every forge's tail checked) | the session gets the run's link alone, as before |
 | 26 | [Chains of several projects on one remote](unverified/ci.md#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project whose remote is not read yet starts a second fix of a shared main |

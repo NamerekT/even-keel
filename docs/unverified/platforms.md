@@ -6,12 +6,6 @@ One area of [What has not been verified](../unverified.md), which says what an e
 
 `service/install.sh` installs a launchd agent there, but Even Keel has never run on a Mac: neither the agent nor finding the CLI and its folders.
 
-## Huly on Node.js 25 and newer
-
-Node 25 and newer have the browser's `sessionStorage` and `localStorage`, and the Huly client takes them for a browser: its connect reached for `window`, failed, and a timer it left threw outside any promise, ending the whole process — a tester on Node 26.13 lost Even Keel on the Huly profile's check (2026-11-01). `hideWebStorage` (`src/huly/client.ts`) hides both before the client loads. Checked on Node 24.14 only: with a stand-in `sessionStorage` the profile's check against a real Huly reproduced that crash before the fix and passed after it, and so did `--experimental-webstorage` with a storage file. Not checked: Node 25 or 26 itself — the profile's check, a chain on Huly and Tally's Huly step there.
-
-If it is wrong: Even Keel ends with `Cannot access 'clientConnection' before initialization` in the log on the first Huly call. Install Node.js 24 LTS, then `npm install` and `npm run build` again.
-
 ## The start at sign-in on Windows (BTN-372)
 
 Checked live on Windows (2026-10-24) with a stand-in for Even Keel (a `dist/src/main.js` answering `/api/state` on another port), the host started from a process in session 0, as a session of the service is: `EvenKeel.exe --start` with no host started one and returned at once; `--stop` stopped node and the host kept it stopped, `--start` brought it back; a killed node came back after 5 s; `--quit` ended the host and node; `--stop` and `--quit` with no host are no error. Node inside the host found its launcher (`serviceControl` gave the `autostart` control with the host's exe and arguments). `installAutostart` wrote the `Run` value and `registeredAutostart` read it back, a second install over a running host ended it, compiled and started again, and `uninstallAutostart` removed the value, the exe and its empty folder.
