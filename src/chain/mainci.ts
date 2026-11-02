@@ -77,7 +77,10 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     verdict(project, commit, since) {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
       const watches = counted(project)
-      return watches === null ? { state: 'pending' } : verdictOf(watches.map((watch) => watch.view), commit, since, deps.now())
+      if (watches === null) return { state: 'pending' }
+      // Every CI the service watches, counted or not: a run of any project on a shared runner keeps it busy.
+      const neighbours = deps.projects().flatMap((other) => deps.watches(other)?.map((watch) => watch.view) ?? [])
+      return verdictOf(watches.map((watch) => watch.view), commit, since, deps.now(), neighbours)
     },
     remoteHeads() {
       const heads: Record<string, string> = {}

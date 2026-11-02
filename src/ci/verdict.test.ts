@@ -82,6 +82,20 @@ describe('verdictOf', () => {
     expect(verdictOf([view([queued, busy])], 'B', PUSHED, LATE)).toEqual({ state: 'pending' })
   })
 
+  it('waits for a queued run while a runner of the same host works on another repository (BTN-719)', () => {
+    const queued = run(2, { status: 'queued', startedAt: null, stoppedAt: null })
+    const other = view([run(9, { commit: 'X', status: 'running', stoppedAt: null })], { url: 'https://ci.example.com/other/repo/actions' })
+    expect(verdictOf([view([queued], { url: 'https://ci.example.com/own/repo/actions' })], 'B', PUSHED, LATE, [other])).toEqual({ state: 'pending' })
+  })
+
+  it('does not take a run of another host or another kind of CI for a busy runner', () => {
+    const queued = view([run(2, { status: 'queued', startedAt: null, stoppedAt: null })], { url: 'https://ci.example.com/own/repo/actions' })
+    const running = run(9, { commit: 'X', status: 'running', stoppedAt: null })
+    const elsewhere = view([running], { url: 'https://forge.example.org/other/repo/actions' })
+    const github = view([running], { kind: 'github', url: 'https://ci.example.com/other/repo/actions' })
+    expect(verdictOf([queued], 'B', PUSHED, LATE, [elsewhere, github]).state).toBe('unavailable')
+  })
+
   it('does not wait for a CI without a token or whose API fails', () => {
     const off = view([], { health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }) })
     expect(verdictOf([off], 'B', PUSHED, SOON)).toEqual({ state: 'unavailable', reasons: [notice('ci.noToken', { kind: 'forgejo' })] })

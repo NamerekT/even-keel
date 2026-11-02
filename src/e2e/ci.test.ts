@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commitAndMerge } from './agent.fixture.js'
+import { commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { STUCK_MS } from '../ci/model.js'
 
@@ -63,6 +63,26 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
     const commit = run.ci.runOf('ABC-1')!.commit.slice(0, 7)
     expect(run.log).toContain(`ci: ABC: ${commit} stays unchecked: Forgejo: no runner took ${commit}`)
     await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+  })
+
+  it('files the fix when a run left unchecked in the queue is taken later and fails (BTN-719)', async () => {
+    run.project.ci = { fixTask: true }
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.agent.script('ABC-1', commitAndMerge('one.txt'))
+    run.agent.script('ABC-2', parked(new Gate(), commitAndMerge('two.txt')))
+    run.ci.outcome = (subject) => (subject.includes('ABC-1') ? 'queued' : 'success')
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched past the stuck run')
+    const commit = run.ci.runOf('ABC-1')!.commit.slice(0, 7)
+    expect(run.log).toContain(`ci: ABC: ${commit} stays unchecked: Forgejo: no runner took ${commit}`)
+    expect(run.board.created.size).toBe(0)
+
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => run.board.created.size === 1, 'the fix of the late red run filed')
+    expect([...run.board.created.values()][0]).toMatchObject({ project: PROJECT_ID, title: `CI on main failed: ${commit}`, priority: 'high' })
   })
 
   it('runs the commands after green once per push, and not again after a restart', async () => {

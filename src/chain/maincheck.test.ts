@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import { done, setup, task } from './dispatcher.fixture.js'
 import { afterDone, failedRun, fakeMain } from './maincheck.fixture.js'
-import { FIX_LISTED_MS } from './maincheck.js'
+import { FIX_LISTED_MS, LATE_MS } from './maincheck.js'
 
 describe('Dispatcher and the CI of main', () => {
   it('waits for the verdict on the push before the next launch, preparing the next task meanwhile', async () => {
@@ -55,6 +55,82 @@ describe('Dispatcher and the CI of main', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.ci.ABC).toEqual({})
     expect(log).toContain('ci: ABC: bbbbbbb stays unchecked: Forgejo: no runner took bbbbbbb')
+  })
+
+  it('still files the fix when a push left unchecked for want of a runner turns red later (BTN-719)', async () => {
+    const { dispatcher, launched, log, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'bbbbbbb' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+
+    ci.verdict = { state: 'pending' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([])
+
+    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([{ title: 'CI on main failed: bbbbbbb', description: 'log', priority: 'high', milestoneOf: 'ABC-1' }])
+    expect(dispatcher.state.ci.ABC?.fix?.commit).toBe('bbbbbbbbbb')
+    expect(log).toContain('ci: ABC: bbbbbbb is red; ABC-9 is created to fix it')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-2')
+    expect(dispatcher.state.active[0]?.paused).toBe(false)
+  })
+
+  it('takes a late green of an unchecked push for green', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'bbbbbbb' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb' })
+  })
+
+  it('stops watching an unchecked push once the chain pushes main again', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'bbbbbbb' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = { state: 'pending' }
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2', done), task('ABC-3')])
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC?.check?.commit).toBe('cccccccccc')
+
+    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.reports.map((report) => report.push.commit)).toEqual(['cccccccccc'])
+  })
+
+  it('gives an unchecked push up after LATE_MS', async () => {
+    const { dispatcher, clock, log, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'bbbbbbb' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    clock.now = new Date(Date.parse('2026-09-26T12:00:00Z') + LATE_MS)
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(log).toContain('ci: ABC: bbbbbbb was not judged within 60 minutes; no longer watched')
+
+    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([])
+  })
+
+  it('does not watch a push the CI could not judge for another reason', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.unreachable', { ci: 'Forgejo' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([])
   })
 
   it('files a fix task for a red push and launches it before the rest', async () => {

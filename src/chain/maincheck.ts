@@ -6,6 +6,9 @@ import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailur
 /** How long the chain waits for the tracker to list the fix task it has just created. */
 export const FIX_LISTED_MS = 5 * 60_000
 
+/** How long a push left unchecked because no runner took it is still watched for a late verdict (BTN-719). */
+export const LATE_MS = 60 * 60_000
+
 export interface MainStop {
   project: string
   notice: Notice
@@ -39,6 +42,11 @@ export class MainCheck {
   private readonly remotes = new Map<string, string>()
   /** The latest push of main the chain did not make, by project (BTN-707): awaited only for `commands.afterGreen`, it holds no launch. */
   private readonly outside = new Map<string, MainPush>()
+  /**
+   * The chain's push that stayed unchecked because no runner took it in time, by project (BTN-719): the launch went on,
+   * but a run taken later still judges it, a red one as any red main. The next push of the chain or `LATE_MS` ends the watch.
+   */
+  private readonly late = new Map<string, MainPush>()
 
   constructor(
     private readonly state: ChainState,
@@ -81,6 +89,7 @@ export class MainCheck {
       return
     }
     if (gate.green === commit) return
+    this.late.delete(project)
     const checked = tree !== null && (await this.deps.tree(project, commit).catch(() => null)) === tree
     const earlier = [...(gate.local?.tasks ?? []), ...(gate.check?.tasks ?? [])]
     delete gate.local
@@ -223,7 +232,35 @@ export class MainCheck {
         this.withoutCi(project, gate, push, verdict.state === 'unavailable' ? verdict.reasons : [])
       }
     }
+    changed = (await this.settleLate(open, stops, fixes)) || changed
     return { changed, stops, fixes }
+  }
+
+  /** A late verdict on a push left unchecked for want of a runner: green as any green, red files the fix as any red main. */
+  private async settleLate(open: IsOpen, stops: MainStop[], fixes: string[]): Promise<boolean> {
+    let changed = false
+    for (const [project, push] of [...this.late]) {
+      const verdict = this.deps.verdict(project, push.commit, push.at)
+      const gate = this.gate(project)
+      if (verdict.state === 'green') {
+        this.late.delete(project)
+        changed = true
+        this.passed(project, gate, push, 'is green after all')
+      } else if (verdict.state === 'red') {
+        this.late.delete(project)
+        changed = true
+        const before = gate.fix
+        const stop = await this.red(project, gate, push, { ci: verdict.failed }, open)
+        if (stop !== null) stops.push({ project, notice: stop })
+        else if (gate.fix !== before && gate.fix?.report !== undefined) fixes.push(project)
+      } else if (verdict.state === 'none') {
+        this.late.delete(project)
+      } else if (this.now().getTime() - Date.parse(push.at) >= LATE_MS) {
+        this.late.delete(project)
+        this.log(`ci: ${project}: ${shortCommit(push.commit)} was not judged within ${LATE_MS / 60_000} minutes; no longer watched`)
+      }
+    }
+    return changed
   }
 
   /**
@@ -269,6 +306,10 @@ export class MainCheck {
     if (commands.length === 0) {
       if (this.fixed(gate, push)) delete gate.fix
       if (reasons.length > 0) this.log(`ci: ${project}: ${commit} stays unchecked: ${why}`)
+      if (reasons.some((reason) => reason.code === 'ci.notTaken')) {
+        this.late.set(project, push)
+        this.log(`ci: ${project}: ${commit} is still watched: a run taken later judges it`)
+      }
       return
     }
     if (reasons.length > 0) this.log(`ci: ${project}: the CI cannot judge ${commit} (${why}); the project's check takes it`)
