@@ -1,7 +1,8 @@
 name: Tests
 
-# The same check as .forgejo/workflows/test.yml, for pull requests on GitHub. Forgejo ignores this folder
-# while it has its own, and the service rebuild stays there: a GitHub runner cannot reach the workstation.
+# The check of pushes and pull requests; the chain takes the verdict on main from here (`ci.kinds`, docs/ci.md).
+# Forgejo ignores this folder while it has its own, run by hand only. A GitHub runner cannot reach the workstation,
+# so the service rebuilds through `commands.afterGreen` after this run is green (docs/service.md).
 on:
   push:
     branches:

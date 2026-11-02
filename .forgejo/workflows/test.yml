@@ -1,19 +1,9 @@
 name: Tests
 
-# Only the long-lived branches (docs/releases.md) and pull requests. A task
-# branch merged into one would otherwise run the same tree twice; a branch that
-# needs a check before the merge gets one by opening a PR or by workflow_dispatch.
+# Run by hand only. The check of pushes and pull requests is GitHub's (.github/workflows/test.yml, docs/ci.md): its
+# runners take the jobs side by side, the instance's runner takes one at a time. The file stays so that Forgejo does
+# not fall back to .github/workflows and run GitHub's workflows on push.
 on:
-  push:
-    branches:
-      - main
-      - dev
-      - 'release/**'
-  pull_request:
-    branches:
-      - main
-      - dev
-      - 'release/**'
   workflow_dispatch:
 
 jobs:
@@ -24,57 +14,14 @@ jobs:
 
     steps:
       - uses: https://github.com/actions/checkout@v4
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
 
-      - id: changes
-        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
-
-      - if: steps.changes.outputs.code == 'true'
-        run: npm ci
-
-      - if: steps.changes.outputs.code == 'true'
-        run: npm run typecheck
-
-      - if: steps.changes.outputs.code == 'true'
-        run: npm test
-
-  # The end-to-end scenarios (src/e2e/, docs/chain.md) as a job of their own. The instance's runner takes one job at a
-  # time (docs/ci.md, "This repository's workflows"), so the jobs queue rather than run side by side and there are no
-  # shards here, unlike on GitHub.
   e2e:
     runs-on: node24
 
     steps:
       - uses: https://github.com/actions/checkout@v4
-
-      - id: changes
-        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
-
-      - if: steps.changes.outputs.code == 'true'
-        run: npm ci
-
-      - if: steps.changes.outputs.code == 'true'
-        run: npm run test:e2e
-
-  # Builds and restarts the service on the workstation that runs it (service/rebuild.ps1), once both jobs above are
-  # green; the script builds only when the service's checkout is on the pushed commit, so a push of a branch
-  # the service does not run from changes nothing. Off unless the repository sets the DEPLOY_SSH_* variables and the DEPLOY_SSH_KEY secret;
-  # a workstation that is off or a failed build does not turn main red.
-  rebuild:
-    needs: [test, e2e]
-    if: github.event_name == 'push'
-    runs-on: node24
-
-    steps:
-      - name: Rebuild the service
-        if: vars.DEPLOY_SSH_HOST != ''
-        continue-on-error: true
-        env:
-          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
-          TARGET: ${{ vars.DEPLOY_SSH_USER }}@${{ vars.DEPLOY_SSH_HOST }}
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/rebuild
-          chmod 600 ~/.ssh/rebuild
-          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/rebuild -o BatchMode=yes -o ConnectTimeout=15 "$TARGET" "$GITHUB_SHA"
+      - run: npm ci
+      - run: npm run test:e2e
