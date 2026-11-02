@@ -80,11 +80,18 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       const minutes = deps.settings(project).waitMinutes
       return minutes === null ? null : minutes * 60_000
     },
-    async report(project, push, failure, green) {
-      const range = green === null ? [`-${COMMITS_WITHOUT_GREEN}`, push.commit] : [`-${COMMITS_SINCE_GREEN}`, `${green}..${push.commit}`]
-      const log = await deps.git(deps.repo(project), ['log', '--format=%h %s', ...range])
+    async report(project, push, failure, candidates) {
+      const repo = deps.repo(project)
+      // A peer's green commit may be past the red one or not fetched here yet: only those behind it bound the list.
+      const greens: string[] = []
+      for (const green of candidates) {
+        if (green === push.commit) continue
+        if ((await deps.git(repo, ['merge-base', '--is-ancestor', green, push.commit])).code === 0) greens.push(green)
+      }
+      const range = greens.length === 0 ? [`-${COMMITS_WITHOUT_GREEN}`, push.commit] : [`-${COMMITS_SINCE_GREEN}`, push.commit, ...greens.map((green) => `^${green}`)]
+      const log = await deps.git(repo, ['log', '--format=%h %s', ...range])
       const commits = log.code === 0 ? log.out.split(/\r?\n/).filter((line) => line.trim() !== '') : []
-      const facts = { commit: push.commit, commits, green, tasks: push.tasks }
+      const facts = { commit: push.commit, commits, greens, tasks: push.tasks }
       if ('check' in failure) return redReport({ ...facts, runs: [], check: failure.check }, deps.language(), deps.promptLanguage(project))
       const watches = counted(project) ?? []
       const runs = await Promise.all(

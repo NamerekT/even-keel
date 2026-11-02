@@ -27,7 +27,7 @@ export function fakeMain(wait: number | null = null) {
     created: [] as Omit<NewTask, 'project'>[],
     comments: [] as { task: string; body: string }[],
     prepared: [] as string[],
-    reports: [] as { push: MainPush; failure: MainFailure; green: string | null }[],
+    reports: [] as { push: MainPush; failure: MainFailure; greens: string[] }[],
     canCreate: true,
     next: 9,
     /** Branch trees by task; a task missing here has no branch. */
@@ -55,8 +55,8 @@ export function fakeMain(wait: number | null = null) {
     head: async () => heads.shift() ?? null,
     verdict: () => ci.verdict,
     waitMs: () => ci.wait,
-    report: async (_project, push, failure, green) => {
-      ci.reports.push({ push: structuredClone(push), failure, green })
+    report: async (_project, push, failure, greens) => {
+      ci.reports.push({ push: structuredClone(push), failure, greens })
       return { title: `CI on main failed: ${push.commit.slice(0, 7)}`, description: 'log', comment: 'more log', prompt: 'fix main: log' }
     },
     create: async (_project, created) => {

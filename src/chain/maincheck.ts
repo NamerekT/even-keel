@@ -314,7 +314,7 @@ export class MainCheck {
     const byTask = this.deps.fixTask(project)
     let report: RedReport
     try {
-      report = await this.deps.report(project, push, failure, gate.green ?? null)
+      report = await this.deps.report(project, push, failure, this.greens(project))
     } catch (error) {
       const code = byTask ? (ci ? 'ci.fixNotCreated' : 'check.fixNotCreated') : ci ? 'ci.fixNotStarted' : 'check.fixNotStarted'
       return notice(code, { commit }, { cause: noticeOf(error) })
@@ -343,6 +343,12 @@ export class MainCheck {
     gate.fix = { task, at: this.now().toISOString(), commit: push.commit }
     this.log(`ci: ${project}: ${commit} is ${what}; ${task} is created to fix it`)
     return null
+  }
+
+  /** The last green commit of the project and of each project of its remote and main branch: one main, so one history. */
+  private greens(project: string): string[] {
+    const all = [project, ...this.deps.peers(project)].map((each) => this.state.ci[each]?.green)
+    return [...new Set(all.filter((green) => green !== undefined))]
   }
 
   private gate(project: string): MainGate {

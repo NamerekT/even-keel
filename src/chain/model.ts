@@ -410,7 +410,8 @@ export interface MainCheckDeps {
   verdict: (project: string, commit: string, since: string) => CiVerdict
   /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */
   waitMs: (project: string) => number | null
-  report: (project: string, push: MainPush, failure: MainFailure, green: string | null) => Promise<RedReport>
+  /** `greens` — the last green commits of the project and of its peers (BTN-702): a commit behind any of them is no suspect. */
+  report: (project: string, push: MainPush, failure: MainFailure, greens: string[]) => Promise<RedReport>
   /** Creates a task in the project's tracker ready for the chain; `null` — the tracker cannot create tasks. */
   create: (project: string, task: Omit<NewTask, 'project'>) => Promise<string | null>
   comment: (task: string, body: string) => Promise<void>

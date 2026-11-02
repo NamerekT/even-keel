@@ -35,7 +35,7 @@ const facts: RedFacts = {
     { kind: 'forgejo', run: { ...run, id: 8, number: 3, url: 'https://example.com/forgejo/runs/3' }, jobs: [job('test', 'failure', null)], log: null },
   ],
   commits: ['abcdef1 [BTN-2] Second', '1234567 [BTN-1] First'],
-  green: '1111111aaaa',
+  greens: ['1111111aaaa'],
   tasks: ['BTN-1', 'BTN-2'],
 }
 
@@ -59,7 +59,7 @@ describe('redReport', () => {
   })
 
   it('says the commits are only the latest when no green commit is known', () => {
-    expect(redReport({ ...facts, green: null }, 'en').description).toContain('The last green commit is unknown')
+    expect(redReport({ ...facts, greens: [] }, 'en').description).toContain('The last green commit is unknown')
   })
 
   it('says where the log is when no CI gave one', () => {

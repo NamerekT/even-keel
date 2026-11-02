@@ -74,7 +74,7 @@ describe('Dispatcher and the project check of main', () => {
       ci.runs = { bbbbbbbbbb: { state: 'red', failure }, cccccccccc: { state: 'red', failure } }
     })
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(ci.reports).toEqual([{ push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { check: failure }, green: null }])
+    expect(ci.reports).toEqual([{ push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { check: failure }, greens: [] }])
     expect(ci.created).toHaveLength(1)
     expect(dispatcher.state.ci.ABC?.fix?.task).toBe('ABC-9')
 

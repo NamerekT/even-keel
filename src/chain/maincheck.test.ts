@@ -64,7 +64,7 @@ describe('Dispatcher and the CI of main', () => {
     await dispatcher.idle()
     expect(ci.created).toHaveLength(1)
     expect(ci.reports).toEqual([
-      { push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { ci: [{ kind: 'forgejo', run: failedRun }] }, green: null },
+      { push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { ci: [{ kind: 'forgejo', run: failedRun }] }, greens: [] },
     ])
     expect(dispatcher.state.ci.ABC?.fix).toEqual({ task: 'ABC-9', at: '2026-09-26T12:00:00.000Z', commit: 'bbbbbbbbbb' })
     expect(launched).toEqual(['ABC/ABC-1'])

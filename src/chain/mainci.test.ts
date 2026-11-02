@@ -50,6 +50,7 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       const branch = heads[`${cwd} branch`] ?? 'main'
       return branch === '' ? { code: 1, out: '' } : { code: 0, out: `${branch}\n` }
     }
+    if (args[0] === 'merge-base') return { code: heads[`${cwd} ${args[2]} not before ${args[3]}`] === undefined ? 0 : 1, out: '' }
     if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
@@ -123,8 +124,8 @@ describe('mainCheckDeps', () => {
   it('reports the failed runs with the commits since the last green one', async () => {
     const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')])
     const push = { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-1', 'ABC-2'] }
-    const report = await deps.report('ABC', push, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, 'c0')
-    expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-50', 'c0..c2'])
+    const report = await deps.report('ABC', push, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, ['c0'])
+    expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-50', 'c2', '^c0'])
     expect(report.title).toBe('CI on main failed: c2')
     expect(report.description).toContain('c1abc [ABC-1] First')
     expect(report.description).toContain('```text\nFAIL\n```')
@@ -132,13 +133,33 @@ describe('mainCheckDeps', () => {
 
   it('takes the latest commits of main when no green one is known', async () => {
     const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')])
-    await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: [] }, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, null)
+    await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: [] }, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, [])
     expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-20', 'c2'])
+  })
+
+  // Projects of one remote (BTN-702): a commit green in any of them is not a suspect.
+  it('starts the commits after every green commit behind the red one, the other projects’ too', async () => {
+    const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')], { 'D:/repos/abc c3 not before c2': 'yes' })
+    const push = { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-2'] }
+    await deps.report('ABC', push, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, ['c0', 'c1', 'c3', 'c2'])
+    expect(gitCalls.filter((args) => args[0] === 'merge-base')).toEqual([
+      ['merge-base', '--is-ancestor', 'c0', 'c2'],
+      ['merge-base', '--is-ancestor', 'c1', 'c2'],
+      ['merge-base', '--is-ancestor', 'c3', 'c2'],
+    ])
+    expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-50', 'c2', '^c0', '^c1'])
+  })
+
+  it('takes the latest commits of main when no green commit is behind the red one', async () => {
+    const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')], { 'D:/repos/abc c3 not before c2': 'yes' })
+    const report = await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: [] }, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, ['c3'])
+    expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-20', 'c2'])
+    expect(report.description).toContain('The last green commit is unknown')
   })
 
   it('reports a failed project check by its command and output', async () => {
     const { deps } = setup(all([]), [])
-    const report = await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-2'] }, { check: { command: 'npm test', code: 1, output: 'FAIL' } }, 'c0')
+    const report = await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-2'] }, { check: { command: 'npm test', code: 1, output: 'FAIL' } }, ['c0'])
     expect(report.title).toBe('Check of main failed: c2')
     expect(report.description).toContain('`npm test` exited with code 1.')
     expect(report.prompt).toContain('`npm test` завершилась с кодом 1.')

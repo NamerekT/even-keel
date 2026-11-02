@@ -15,10 +15,10 @@ export interface FailedRun {
 export interface RedFacts {
   commit: string
   runs: FailedRun[]
-  /** `git log --format='%h %s'` from the last green commit to the red one. */
+  /** `git log --format='%h %s'` of the red commit back to the last green ones. */
   commits: string[]
-  /** `null` — no green commit is known, and `commits` are the latest ones of main. */
-  green: string | null
+  /** The green commits behind the red one, of the project and of its remote's other projects; none — `commits` are the latest ones of main. */
+  greens: string[]
   tasks: string[]
   /** The project's own check found main red (BTN-104); `runs` are then empty. */
   check?: CheckFailure
@@ -140,7 +140,7 @@ function checkOf(check: CheckFailure, texts: ReportTexts): string[] {
 
 function commitsOf(facts: RedFacts, texts: ReportTexts): string[] {
   return [
-    ...(facts.green === null ? [texts.noCommits] : []),
+    ...(facts.greens.length === 0 ? [texts.noCommits] : []),
     fenced(facts.commits.join('\n')),
     `## ${texts.tasks}`,
     facts.tasks.length === 0 ? texts.noTasks : facts.tasks.join(', '),

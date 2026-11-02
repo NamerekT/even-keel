@@ -97,6 +97,16 @@ describe('Dispatcher and projects of one remote', () => {
     expect(dispatcher.state.active.find((chain) => chain.project === 'XYZ')?.ciWait).toBeUndefined()
   })
 
+  it('lists the commits of a red main from the last green one of any project of the remote (BTN-702)', async () => {
+    const { dispatcher, ci } = await twoClones(false)
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = red
+    await xyzPushed(dispatcher)
+    expect(ci.reports.map((report) => [report.push.commit, report.greens])).toEqual([['cccccccccc', ['bbbbbbbbbb']]])
+  })
+
   it('does not hold a project of another remote', async () => {
     const { dispatcher, launched, ci } = await twoClones(false)
     ci.peers = {}
