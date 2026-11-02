@@ -66,9 +66,12 @@ checked; the denied calls reached neither recording stub ([verified.md](../verif
 On Linux (2026-10-31, a real model in a chain session of the service) the push patterns were refused by OpenCode
 itself, `cd . && …` included, but `git -C . push --force` went through (BTN-642), and a Huly comment was deleted
 through the server's `invoke_tool` meta-tool, which neither the native rules nor the gateway looked inside (BTN-641,
-any agent) ([verified.md](../verified/opencode.md)). Since BTN-641 the gateway looks into the nested call; that is
-checked by unit tests only ([Tracker deletes refused by the gateway](packages.md#tracker-deletes-refused-by-the-gateway-btn-541)).
+any agent) ([verified.md](../verified/opencode.md)). Since BTN-641 the gateway looks into the nested call
+([Tracker deletes refused by the gateway](packages.md#tracker-deletes-refused-by-the-gateway-btn-541)).
 Since BTN-642 the push groups also deny `git -* push …` on Claude and OpenCode and the literal `git -C . push …` and
-`git --no-pager push …` on Codex and Copilot; checked by unit tests only — the first live check is the same
-`git -C . push --force` against a disposable remote, on OpenCode and on each other agent. The `rm -rf` groups on Linux, macOS, other agents/subagents and the remaining equivalent spellings stay unchecked.
+`git --no-pager push …` on Codex and Copilot. On Linux again (2026-11-02, a real model in a chain session of the
+service, [verified](../verified/opencode.md)) OpenCode refused `git -C . push --force` and `git --no-pager push -f`
+to a disposable remote, `rm -rf ~/…`, `rm -fr ../…` and `rm -rf /tmp/…` on throwaway folders, and the gateway
+refused the same `invoke_tool` delete; `rm -r -f ~/…` ran, as the guide says split flags are outside the rules.
+Not run: the push spellings of BTN-642 on the other agents, the `rm -rf` groups on macOS, other agents/subagents.
 **Workaround:** retain server-side branch protection and use disposable targets when checking native rules.
