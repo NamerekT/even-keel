@@ -8,6 +8,19 @@ If you run into one of these, please open an issue with what you saw: it is the 
 
 Every entry, ordered by how many people it reaches and how badly it hurts them if the assumption is wrong: the lower the number, the sooner it should be checked and the more a run into it costs. Each row links to the entry.
 
+The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
+
+- macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux, also 3c).
+- Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
+- First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
+- Forges and pull requests: 16, 16b, 16c, 25, 25b, 26, 52 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
+- Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
+- The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
+- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
+- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
+- A restart of the service watched through `/api/state` and two pages: 1c, 1d, 5, 37h3.
+- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86. Not checked by choice: 63.
+
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
 | 1b | [Paid subscription usage stops](#paid-subscription-usage-stops) | managed chain sessions with credits or permitted extra usage | detection may lag, stop may fail, or recovery may relaunch into paid usage |
