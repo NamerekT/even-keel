@@ -17,6 +17,28 @@ export const HULY_CLIENT = {
   '@hcengineering/text-markdown': '0.7.423',
 } as const
 
+/**
+ * Tiptap 2 has no fix for GHSA-cp6q-959q-f8rh, and `@hcengineering/text` still asks for `^2` (BTN-698). On Tiptap 3 its
+ * HTML conversion throws in Node, but Even Keel reads and writes markup only as markdown, which never reaches Tiptap.
+ */
+const TIPTAP = '3.32.2'
+const TIPTAP_PACKAGES = [
+  'core', 'html', 'pm', 'starter-kit', 'suggestion', 'extension-blockquote', 'extension-bold', 'extension-bullet-list',
+  'extension-code', 'extension-code-block', 'extension-document', 'extension-dropcursor', 'extension-gapcursor',
+  'extension-hard-break', 'extension-heading', 'extension-highlight', 'extension-history', 'extension-horizontal-rule',
+  'extension-italic', 'extension-link', 'extension-list-item', 'extension-mention', 'extension-ordered-list',
+  'extension-paragraph', 'extension-strike', 'extension-subscript', 'extension-superscript', 'extension-table',
+  'extension-table-cell', 'extension-table-header', 'extension-table-row', 'extension-task-item', 'extension-task-list',
+  'extension-text', 'extension-text-align', 'extension-text-style', 'extension-typography', 'extension-underline',
+]
+
+/** npm `overrides` of the client's install, the same as in Even Keel's `package.json`. */
+export const HULY_CLIENT_OVERRIDES = {
+  '@hcengineering/text': Object.fromEntries(TIPTAP_PACKAGES.map((name) => [`@tiptap/${name}`, TIPTAP])) as Record<string, string>,
+}
+
+const PINNED: Record<string, string> = { ...HULY_CLIENT, ...HULY_CLIENT_OVERRIDES['@hcengineering/text'] }
+
 export type HulyPackage = keyof typeof HULY_CLIENT
 
 export interface HulyClientDeps {
@@ -65,7 +87,7 @@ export class HulyClient {
     this.running = (async () => {
       try {
         mkdirSync(dir, { recursive: true })
-        writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ private: true, dependencies: HULY_CLIENT }, null, 2)}\n`)
+        writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ private: true, dependencies: HULY_CLIENT, overrides: HULY_CLIENT_OVERRIDES }, null, 2)}\n`)
         await this.deps.install(dir)
         if (this.find() === null) throw new Error('npm finished, but the packages are not at their versions')
         log('huly: the Huly client is installed')
@@ -127,7 +149,7 @@ function resolvesAll(from: NodeJS.Require): boolean {
 }
 
 function pinnedIn(dir: string): boolean {
-  return Object.entries(HULY_CLIENT).every(([name, version]) => {
+  return Object.entries(PINNED).every(([name, version]) => {
     try {
       const manifest = JSON.parse(readFileSync(join(dir, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')) as { version?: unknown }
       return manifest.version === version

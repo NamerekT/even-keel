@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { HULY_CLIENT } from './huly/client.js'
+import { HULY_CLIENT, HULY_CLIENT_OVERRIDES } from './huly/client.js'
 import { root } from './locations.js'
 
 // The npm package installs only `dependencies`; the page is built into `dist/web`, so its libraries are build tools.
@@ -53,7 +53,11 @@ function loadedPackages(root: string): Map<string, string> {
 }
 
 describe('runtime dependencies', () => {
-  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> }
+  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+    dependencies: Record<string, string>
+    devDependencies: Record<string, string>
+    overrides: unknown
+  }
   const declared = Object.keys(manifest.dependencies)
   const loaded = loadedPackages(root)
 
@@ -66,6 +70,15 @@ describe('runtime dependencies', () => {
     expect(declared.filter((name) => name.startsWith('@hcengineering/'))).toEqual([])
     expect([...loaded.keys()].filter((name) => name.startsWith('@hcengineering/') && !ON_DEMAND.has(name))).toEqual([])
     expect(Object.fromEntries(Object.keys(HULY_CLIENT).map((name) => [name, manifest.devDependencies[name]]))).toEqual(HULY_CLIENT)
+    expect(manifest.overrides).toEqual(HULY_CLIENT_OVERRIDES)
+  })
+
+  it('overrides every Tiptap package the Huly client takes, so none stays at a vulnerable version', () => {
+    const text = JSON.parse(readFileSync(join(root, 'node_modules', '@hcengineering', 'text', 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+    const patched = HULY_CLIENT_OVERRIDES['@hcengineering/text']
+    expect(Object.keys(text.dependencies).filter((name) => name.startsWith('@tiptap/') && !(name in patched))).toEqual([])
+    const core = JSON.parse(readFileSync(join(root, 'node_modules', '@tiptap', 'core', 'package.json'), 'utf8')) as { version: string }
+    expect(core.version).toBe(patched['@tiptap/core'])
   })
 
   it('declares nothing the service never loads', () => {
