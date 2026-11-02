@@ -1,6 +1,6 @@
 import { CLAUDE } from '../claude/name.js'
 
-/** How Claude sessions run: through the Agent SDK or `claude --bg` (BTN-239, `docs/sessions.md`). */
+/** How Claude sessions run: through the Agent SDK or `claude --bg` (BTN-239, `docs/sessions/sdk.md`). */
 export type Transport = 'sdk' | 'bg'
 
 export const TRANSPORTS: readonly Transport[] = ['sdk', 'bg']

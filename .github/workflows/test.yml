@@ -44,7 +44,7 @@ jobs:
       - if: steps.changes.outputs.code == 'true'
         run: npm test
 
-  # The end-to-end scenarios (src/e2e/, docs/chain.md) beside the unit tests, split over runners by file: Vitest runs
+  # The end-to-end scenarios (src/e2e/, docs/chain/e2e.md) beside the unit tests, split over runners by file: Vitest runs
   # files in parallel, not the scenarios inside one, so the longest file is the floor of a shard.
   e2e:
     name: e2e (${{ matrix.shard }}/3)

@@ -31,7 +31,7 @@ const SDK_TRANSPORT: Transport = 'sdk'
 /** What the page offers in the model field: `--model` takes these aliases and any full model id, which is typed in. */
 const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'] as const
 
-/** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
+/** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions/agents.md`). */
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,

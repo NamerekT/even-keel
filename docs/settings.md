@@ -26,7 +26,7 @@ writes a rule key only where its value differs from what the project inherits �
 the project. A task of a feed (BTN-553) takes these four rules and the milestone rules from the **feed** instead of the
 project: feed → feed's profile → Even Keel (the milestone rules skip the profile), the project's own rules never
 reaching it, since its statuses and labels are another tracker's. The feed keeps only the keys it sets (`feeds[].chain`), saved from the feed's window in the Tracker
-tab by `project/feed/rules`. The page edits the rules by status and by label, one form on every level (`docs/web.md`).
+tab by `project/feed/rules`. The page edits the rules by status and by label, one form on every level (`docs/web/project-settings.md`).
 
 Some settings are maps whose entries override one by one: `models`, `accounts` and `execution` by provider. A project's
 `models.codex` replaces only the shared `models.codex`; the shared `models.claude` still applies to it.
@@ -47,28 +47,28 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `chain.active`, `chain.terminal` | G, profile, P | each key P over the profile's over G; `null` — back to the status categories | page, hand (not the profile's) | `null` |
 | `chain.requiredLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole | page, hand (not the profile's) | `[]` |
 | `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; `MANUAL_LABELS` are excluded on top of any list (BTN-187) | page, hand (not the profile's) | `[]` |
-| `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain.md`) | page, hand | `[]` |
+| `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain/projects.md`) | page, hand | `[]` |
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
 | `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`). `claude: sdk` needs `cli.claude: checked` (BTN-610, `needsCheckedCli`): the pair with `system` is `config.executionCli`, on the page, in `config-import` and at a write; DB step 21 and config v22 move a stored pair to `checked` |
-| `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`, unless its execution needs the copy — `ConfigStore.fallBackCli`) | `system` for every provider (BTN-603; before it `checked`, which DB step 20 and config v21 write for installs that left it out): the CLI installed by the user; `checked` asks download consent, chain waits for the copy (`docs/sessions.md`). Picking `execution.claude: sdk` on the page switches `cli.claude` to `checked` at once (or asks for the download) and locks Yours until the execution changes; the value stays `checked` after |
+| `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`, unless its execution needs the copy — `ConfigStore.fallBackCli`) | `system` for every provider (BTN-603; before it `checked`, which DB step 20 and config v21 write for installs that left it out): the CLI installed by the user; `checked` asks download consent, chain waits for the copy (`docs/sessions/cli-versions.md`). Picking `execution.claude: sdk` on the page switches `cli.claude` to `checked` at once (or asks for the download) and locks Yours until the execution changes; the value stays `checked` after |
 | `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<pattern>` | G | — | page, hand | `{}` — ordered prompts matching `provider \| model` (`*` means any string, case ignored); a bare provider includes its CLI default. Schema v17 and database step 16 migrate legacy model keys to `* \| <model>` |
 | `language` | G | — | page, hand | `null` (the browser's) |
 | `promptLanguage` | G, P | P over G | page, hand | `language`, else `en` |
 | `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
-| `protection` | G, P | fields merge; each project's native-rule or disabled-group list replaces the shared field | page, hand | all eleven built-in groups on (six command groups, one per tracker); no extra native rules. New launches only (`docs/sessions.md`, "Protection") |
+| `protection` | G, P | fields merge; each project's native-rule or disabled-group list replaces the shared field | page, hand | all eleven built-in groups on (six command groups, one per tracker); no extra native rules. New launches only (`docs/sessions/protection.md`, "Protection") |
 | `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's) | page, hand | `null` (the CLI's) |
 | `autoCompactWindow` | G, P | P over G; positive whole tokens; a project's `null` is its own value (the account's window). Claude chain sessions only; new launches take live edits, running sessions retain their launch settings | page, hand | `null` (the account's window) |
-| `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer (including a temporary model error awaiting retry) that its cache is kept warm (BTN-437, `docs/chain.md`); 0 — off | page, hand | 0: checked live (BTN-446), still off for a fresh install |
+| `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer (including a temporary model error awaiting retry) that its cache is kept warm (BTN-437, `docs/chain/exceptions.md`); 0 — off | page, hand | 0: checked live (BTN-446), still off for a fresh install |
 | `cliCheck` | G | — the service runs the live CLI check on a new version of an agent's CLI and weekly on the checked one, in the account folder the projects run on (BTN-569, `docs/releases.md`, "The automatic run in the service") | page, hand | false: it spends the account's limits |
 | `allowedHosts` | G | — | page, hand | `[]` |
-| `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |
+| `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions/models.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
-| `contextHandoffs` | G, P | P over G; `false` — the `checkpoint` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions.md`) | page, hand | `true` |
+| `contextHandoffs` | G, P | P over G; `false` — the `checkpoint` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions/checkpoint.md`) | page, hand | `true` |
 | `stats.checkpointTokens` | G, P, T | T over P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand, task label | `null` (calibrated per project) |
-| `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `first`, `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, BTN-506, `docs/sessions.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
+| `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `first`, `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, BTN-506, `docs/sessions/checkpoint.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
 | `tally` | G | — (`off`, `local`, `server`) | page (the setup's stats step and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
 | `updates.check`, `updates.notify` | G | — | page (the check also in the first run's setup, BTN-310), hand, service (`muteUpdates`) | true, true; the check is held during the first run (`docs/web.md`) |
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
@@ -77,21 +77,21 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |
 | `branch` | P | — | page, hand | `main` |
 | `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
-| `standards` | P | — | page, hand | `[]` — the project's standards, `{ doc, files, except, shots }` each: a document inside the repository, at least one mask, a document once, else `config.standards` (BTN-359, `docs/sessions.md`, "Project standards") |
+| `standards` | P | — | page, hand | `[]` — the project's standards, `{ doc, files, except, shots }` each: a document inside the repository, at least one mask, a document once, else `config.standards` (BTN-359, `docs/sessions/protection.md`, "Project standards") |
 | `prompt` | G, P | adds up, not over (BTN-338): a new session gets G, then P (`withPrompts`); a project's empty one leaves G in place. `ProjectSettings.prompt` is only the project's own row, G is `EvenKeelConfig.prompt` | page, hand | `null` on both |
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
-| `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain.md`, "Carrying a release project forward") |
-| `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain.md`, "The carry session") |
-| `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
+| `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain/projects.md`, "Carrying a release project forward") |
+| `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain/projects.md`, "The carry session") |
+| `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain/pr-mode.md`) |
 | `intakeLabel` | P | — | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no GitHub issues are taken in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") |
-| `statusMoves` | profile, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead. `start`/`review` a status name or `null` (leave it), `done` a done status name; a name out of the chain or not done by the rules is refused on the page's save | page (the profile in "Whose rules" of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic (BTN-554, `docs/chain.md`, "Status moves") |
+| `statusMoves` | profile, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead. `start`/`review` a status name or `null` (leave it), `done` a done status name; a name out of the chain or not done by the rules is refused on the page's save | page (the profile in "Whose rules" of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic (BTN-554, `docs/chain/entry.md`, "Status moves") |
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub, GitLab and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
 `repo`, the tracker's project (`github`, `huly`, `linear` by `TrackerAdapter.projectKey`): the table `projects`; the
-extra task feeds (`feeds`, BTN-66, `docs/chain.md`, "Task feeds"): a JSON column of `projects`, each feed's profile in
+extra task feeds (`feeds`, BTN-66, `docs/chain/entry.md`, "Task feeds"): a JSON column of `projects`, each feed's profile in
 `feed_profiles`. `version` is the
 schema version of a file of the format.
 
@@ -153,7 +153,7 @@ entries stay as the reason for the levels.
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project, so
-there a command runs only by escalation or with `bypass`, `docs/sessions.md`), `cli` (an account folder has one daemon, on one
+there a command runs only by escalation or with `bypass`, `docs/sessions/protection.md`), `cli` (an account folder has one daemon, on one
 version, whatever project its sessions are for), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
 `updates.*` — Even Keel only; `commands.*`, `slot` — project only. `prompt` was project only until BTN-338 gave it an Even
 Keel level too: one instruction for every project and agent, which no agent's own global rules file (`~/.claude/CLAUDE.md`,

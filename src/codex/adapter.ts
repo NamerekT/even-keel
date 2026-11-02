@@ -23,7 +23,7 @@ const HISTORY_FEED = 5_000
 
 /**
  * Codex CLI through `codex exec --json`: a turn is a detached process, a session lives between turns in Even Keel's
- * registry and its rollout (`docs/sessions.md`). The account is the folder `CODEX_HOME` points at.
+ * registry and its rollout (`docs/sessions/codex.md`). The account is the folder `CODEX_HOME` points at.
  */
 export const codex: AgentAdapter = {
   title: 'Codex',

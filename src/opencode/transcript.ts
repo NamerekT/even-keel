@@ -22,7 +22,7 @@ import type { TurnError } from './cli.js'
  * An OpenCode session's transcript: the rows of tables `message` and `part` of `opencode.db` (OpenCode 1.18.25), each
  * with its JSON `data`. A message is the user's prompt or one step of the model's answer; its parts are the texts, the
  * tool calls (`state.status` `pending`, `running`, `completed`, `error`) and the step marks. A killed turn leaves its
- * tool part `running` and its message without `time.completed` for good (`docs/sessions.md`).
+ * tool part `running` and its message without `time.completed` for good (`docs/sessions/opencode.md`).
  */
 export interface MessageRow {
   id: string

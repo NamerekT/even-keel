@@ -23,7 +23,7 @@ import {
  * per event `{ type, data, id, timestamp, parentId }`, a resume appending to the same file. A user request
  * (`user.message`) takes several model turns (`assistant.turn_start`/`turn_end`), each with its `session.usage_record`
  * and `assistant.message`, whose `toolRequests` run as `tool.execution_start`/`complete`. An event of a subagent
- * carries `agentId`: only its tokens count (`docs/sessions.md`).
+ * carries `agentId`: only its tokens count (`docs/sessions/copilot.md`).
  */
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
