@@ -158,9 +158,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       const archived = archivedShown(ctx.archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))
       return [...listed, ...archived].map((task) => ({ ...task, project }))
     }),
-    // A finished session's feed is read from its record; the one the chain waits on keeps it: delivering an answer stops it for a while.
+    // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
+    // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
     sessions: ctx.sessions.map((view) =>
-      view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [] } : view,
+      view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
     ),
     limits: ctx.limits.limits(ctx.activeAccount()),
     usage: ctx.limits.usage(ctx.activeAccount()),

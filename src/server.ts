@@ -788,8 +788,9 @@ function streamEvents(deps: ServerDeps, request: IncomingMessage, response: Serv
     'cache-control': 'no-store',
     connection: 'keep-alive',
   })
-  response.write(formatEvent('state', deps.getState()))
-  const unsubscribe = deps.hub.subscribe(
+  const unsubscribe = deps.hub.join(
+    'state',
+    deps.getState(),
     (frame) => response.write(frame),
     () => response.end(),
   )

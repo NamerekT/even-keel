@@ -262,6 +262,20 @@ describe('LiveConnection', () => {
     expect(live.snapshot()).toEqual({ state: state('commanded'), link: 'live' })
   })
 
+  it('lays a patch over the last state the stream sent, not over a command answer', async () => {
+    last().emit('state', state('before'))
+    await live.command('start', { project: 'ABC' })
+    last().emit('statePatch', { parts: { unattended: true } })
+    expect(live.snapshot()).toEqual({ state: { ...state('before'), unattended: true }, link: 'live' })
+  })
+
+  it('ignores a patch before the stream sent a whole state', async () => {
+    fetched.resolve(state('fetched'))
+    await vi.waitFor(() => expect(live.snapshot().state).toEqual(state('fetched')))
+    last().emit('statePatch', { parts: { unattended: true } })
+    expect(live.snapshot().state).toEqual(state('fetched'))
+  })
+
   it('passes a failed command on to the caller and keeps the state', async () => {
     last().emit('state', state('before'))
     answer = () => Promise.reject(new Error('ABC is not a configured project'))
