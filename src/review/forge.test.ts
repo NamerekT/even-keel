@@ -219,7 +219,7 @@ describe('forgejoPulls', () => {
       'forgejo: acme/app#5: the comment 22 of stranger is skipped: its author has no write access to acme/app',
       'forgejo: acme/app#5: the comment 23 of a deleted account is skipped: its author has no write access to acme/app',
       'forgejo: acme/app#5: the review 7 of reader is skipped: its author has no write access to acme/app',
-      'forgejo: acme/app#5: the comment 25 of refused is skipped: its author is not the owner, a collaborator or a member of the organization of acme/app',
+      "forgejo: acme/app#5: the comment 25 of refused is skipped: Forgejo tells its author's access only to an admin of acme/app; give the profile's account admin rights on the repository",
     ].sort())
     lines.length = 0
     await pulls.remarks(5, SINCE, all)
@@ -227,25 +227,28 @@ describe('forgejoPulls', () => {
     expect(asked.filter((each) => each.url.endsWith('/api/v1/user'))).toHaveLength(1)
   })
 
-  it('falls back to the owner, the collaborators and the organization when the token may not read access', async () => {
+  // Forgejo 16.0.3 answers 204 on `/collaborators/{user}` for a `read` collaborator as for a `write` one, and an
+  // organization's member may have `read` only: neither tells write access, so neither is asked (BTN-703).
+  it('trusts only the owner and the token’s account when the token may not read access', async () => {
     const { asked, fetchImpl } = fakeFetch(prefix, {
       [USER]: { login: 'even-keel-bot' },
       'GET /pulls/5/reviews?page=1&limit=50': [],
-      [TALK]: ['ACME', 'helper', 'teammate', 'stranger'].map((login, index) => ({ id: 30 + index, user: { login }, body: 'Do it', created_at: `2026-10-18T11:0${index}:00Z` })),
-      'GET /collaborators/helper': '',
+      [TALK]: ['ACME', 'reader', 'teammate', 'Even-Keel-Bot'].map((login, index) => ({ id: 30 + index, user: { login }, body: 'Do it', created_at: `2026-10-18T11:0${index}:00Z` })),
+      'GET /collaborators/reader': '',
       'GET https://git.example.com/api/v1/orgs/acme/members/teammate': '',
     })
-    // Forgejo 16 answers 422 for a user it does not know on this path.
-    const refusing = (async (input: string | URL, init?: RequestInit) => {
-      if (String(input).endsWith('/permission')) return new Response('{"message":"forbidden"}', { status: 403 })
-      if (String(input).endsWith('/collaborators/stranger')) return new Response('{"message":"user does not exist"}', { status: 422 })
-      return fetchImpl(input, init)
-    }) as typeof fetch
+    const refusing = (async (input: string | URL, init?: RequestInit) =>
+      String(input).endsWith('/permission') ? new Response('{"message":"Only admins can query all permissions"}', { status: 403 }) : fetchImpl(input, init)) as typeof fetch
     const lines: string[] = []
     const pulls = forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, refusing, (line) => lines.push(line))
-    expect((await pulls.remarks(5, SINCE, all)).map((remark) => remark.author)).toEqual(['ACME', 'helper', 'teammate'])
-    expect(asked.some((each) => each.url.endsWith('/collaborators/ACME'))).toBe(false)
-    expect(lines).toEqual(['forgejo: acme/app#5: the comment 33 of stranger is skipped: its author is not the owner, a collaborator or a member of the organization of acme/app'])
+    expect((await pulls.remarks(5, SINCE, all)).map((remark) => remark.author)).toEqual(['ACME', 'Even-Keel-Bot'])
+    expect(asked.some((each) => /\/collaborators\/[^/]+$/.test(each.url) || each.url.includes('/orgs/'))).toBe(false)
+    expect([...lines].sort()).toEqual(
+      ['reader', 'teammate'].map(
+        (login, index) =>
+          `forgejo: acme/app#5: the comment ${31 + index} of ${login} is skipped: Forgejo tells its author's access only to an admin of acme/app; give the profile's account admin rights on the repository`,
+      ),
+    )
   })
 
   it('asks for the access of the authors the wanted filter takes only', async () => {

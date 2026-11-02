@@ -1,4 +1,4 @@
-import { getJson, getText, sendJson } from '../ci/http.js'
+import { getJson, sendJson } from '../ci/http.js'
 import { Skipped } from '../github/trust.js'
 import { noticeOf } from '../notice/notice.js'
 import { byTime, said, type Forge, type PullRef, type PullState, type Remark } from './model.js'
@@ -52,8 +52,8 @@ const OPEN_LIMIT = 50
 /** The access levels of `/collaborators/{user}/permission` whose remarks reach a session: those who may push. */
 const TRUSTED_ACCESS: ReadonlySet<string> = new Set(['write', 'admin', 'owner'])
 
-/** What a check of an author's access found: `outsider` — told by the fallback for a token that may not read access. */
-type Access = 'trusted' | 'reader' | 'outsider'
+/** What a check of an author's access found: `unknown` — Forgejo would not tell it to the token's account. */
+type Access = 'trusted' | 'reader' | 'unknown'
 
 /** A forge is made anew for each call: the service log's record of skipped remarks outlives it. */
 const skippedInLog = new Skipped((line) => console.log(line))
@@ -81,19 +81,10 @@ export function forgejoPulls(settings: ForgejoPullSettings, timeoutMs: number, f
       },
     ))
 
-  // A 204 answers yes.
-  const yes = (url: string) =>
-    getText(TITLE, url, auth, timeoutMs, fetchImpl).then(
-      () => true,
-      (error: unknown) => {
-        if (denied(error)) return false
-        throw error
-      },
-    )
-
-  // Anyone signed in can comment on a pull request of a public repository; the token may push, as it opens them.
-  // Forgejo tells another user's access only to an admin of the repository (a bot's token is often not): a refusal
-  // falls back to the repository's owner, its collaborators and the members of its organization, as on GitHub.
+  // Anyone signed in can comment on a pull request of a public repository, and a `read` collaborator can request
+  // changes; the token may push, as it opens them. Forgejo tells another user's access only to an admin of the
+  // repository (a bot's token is often not), and nothing else it answers such a token tells `read` from `write`
+  // (BTN-703): on a refusal only the repository's owner by name is trusted.
   async function accessOf(login: string): Promise<Access> {
     try {
       const answer = await get<{ permission: string }>(`/collaborators/${encodeURIComponent(login)}/permission`)
@@ -102,10 +93,7 @@ export function forgejoPulls(settings: ForgejoPullSettings, timeoutMs: number, f
       if (!denied(error)) throw error
       if (noticeOf(error).code !== 'ci.denied') return 'reader'
     }
-    if (login.toLowerCase() === settings.owner.toLowerCase()) return 'trusted'
-    const user = encodeURIComponent(login)
-    if (await yes(`${base}/collaborators/${user}`)) return 'trusted'
-    return (await yes(`${settings.web}/api/v1/orgs/${encodeURIComponent(settings.owner)}/members/${user}`)) ? 'trusted' : 'outsider'
+    return login.toLowerCase() === settings.owner.toLowerCase() ? 'trusted' : 'unknown'
   }
 
   async function trustedBy(number: number): Promise<(key: string, what: string, user: { login: string } | null) => Promise<boolean>> {
@@ -117,7 +105,10 @@ export function forgejoPulls(settings: ForgejoPullSettings, timeoutMs: number, f
       if (login !== null && !access.has(login)) access.set(login, accessOf(user!.login))
       const found = login === null ? 'reader' : await access.get(login)!
       if (found === 'trusted') return true
-      const why = found === 'outsider' ? `its author is not the owner, a collaborator or a member of the organization of ${slug}` : `its author has no write access to ${slug}`
+      const why =
+        found === 'unknown'
+          ? `Forgejo tells its author's access only to an admin of ${slug}; give the profile's account admin rights on the repository`
+          : `its author has no write access to ${slug}`
       skipped.note(`${slug}#${number}:${key}`, `forgejo: ${slug}#${number}: the ${what} of ${user?.login ?? 'a deleted account'} is skipped: ${why}`)
       return false
     }
