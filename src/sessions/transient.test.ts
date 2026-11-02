@@ -38,6 +38,15 @@ describe('temporary model errors', () => {
     expect(foldEvents(JSON.stringify({ type: 'session.error', timestamp: at, data: { errorType: 'overloaded_error', message: 'Try again' } })).apiError?.kind).toBe('transient')
   })
 
+  it('recognizes Codex code-only server_overloaded', () => {
+    expect(codex('Try again', 'server_overloaded').apiError?.kind).toBe('transient')
+    const fold = new RolloutFold()
+    fold.push(JSON.stringify({ type: 'event_msg', timestamp: at, payload: { type: 'error', message: 'Try again', codex_error_info: 'server_overloaded' } }))
+    expect(fold.summary().apiError?.kind).toBe('transient')
+    expect(foldEvents(JSON.stringify({ type: 'session.error', timestamp: at, data: { errorType: 'error', errorCode: 'server_overloaded', message: 'Try again' } })).apiError?.kind).toBe('transient')
+    expect(codex('Try again', 'other').apiError?.kind).toBe('error')
+  })
+
   it('keeps permanent failures and limits distinct, and clears a recovered refusal', () => {
     for (const message of ['Invalid API key', 'Model not supported', 'socket hang up', 'HTTP 503 Invalid request']) {
       expect(claude(message).apiError?.kind).toBe('error')
