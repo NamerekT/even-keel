@@ -21,7 +21,7 @@ import { withTurnError } from './errors.js'
 
 const HISTORY_FEED = 5_000
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '1.0.98'
+const CHECKED = '1.0.105'
 
 /**
  * GitHub Copilot CLI through `copilot -p … --output-format json`: a turn is a detached process, as Codex's is; a session

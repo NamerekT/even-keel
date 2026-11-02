@@ -19,7 +19,7 @@ import { filterChatGptModels } from './models.js'
 
 const HISTORY_FEED = 5_000
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '1.18.25'
+const CHECKED = '1.19.5'
 
 /**
  * OpenCode through `opencode run --format json`: a turn is a detached process, as Codex's is; a session lives between

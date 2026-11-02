@@ -96,6 +96,8 @@ Passed on 2026-10-24: OpenCode 1.18.25 and Copilot CLI 1.0.98 on Windows x64, ea
 
 Passed with the package-hook checks on 2026-10-25: Claude Code 2.1.310, codex-cli 0.164.0, OpenCode 1.18.25 and Copilot CLI 1.0.98 on Windows x64, in isolated account folders. Each sent checkpoint-package hook requests for the checked session to the stub. Codex listed all 11 hooks as trusted and its session's rollout yielded both 5h and 7d windows. These runs used `--no-usage`; Codex's rollout check still ran. Regression tests also cover a monthly window followed by a windowless `premium` event, absent limits and unparsed limits shapes.
 
+Passed on 2026-11-02: Claude Code 2.1.316 (SDK 0.3.316, with `/usage`), codex-cli 0.166.0, OpenCode 1.19.5 and Copilot CLI 1.0.105 on Windows x64, and `npm run cli-fetch` for all five. Codex ran on the free plan: the Plus folder's limit was spent, and the check then waits 180 s for a question and fails with "no question" instead of naming the refusal. `cli-compare` showed no change the parsers read: Claude's new `tools-used` line is a type nothing reads, Copilot's `hook.start`/`hook.end` were only missing from the 1.0.98 capture (the transcript already reads `hook.end` for mail); Codex's missing `effort` was the folder's config (no effort set), not the CLI. The captures of Codex, OpenCode and Copilot are kept; Claude's was dropped: run in the author's own account folder, it held that folder's global instructions and auto-memory index.
+
 ## Tally across clones
 
 - A task's cost is by its ID, whatever folder its sessions ran in.
