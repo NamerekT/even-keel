@@ -114,6 +114,11 @@ describe('checkDraft', () => {
     expect(check.trusted).toBeNull()
   })
 
+  it('says git that does not start as missing, not the folder as no repository (BTN-731)', async () => {
+    const check = await checkDraft(deps({}, { 'D:\\new\\src rev-parse --show-toplevel': { code: -1, out: 'spawn git ENOENT', missing: true } }), draft)
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'git.missing' }) })
+  })
+
   it('leaves a blank folder unchecked, without a notice', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: ' ' })
     expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: null })

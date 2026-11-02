@@ -57,7 +57,7 @@ import type { TaskCard } from './tracker/card.js'
 import type { TaskStatus } from './tracker/model.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
-import { RULE_KEYS } from './config.js'
+import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
 import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
 export type { ProfilesControl } from './profiles/routes.js'
 
@@ -219,6 +219,8 @@ export interface ServerDeps {
   cli?: { download(agent: string): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
   /** The Huly client installed on demand (BTN-666): "Retry" after a failed install. */
   hulyClient?: { install(): void }
+  /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
+  git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
   hub: EventHub
   publicDir: string
   getState: () => unknown
@@ -326,6 +328,9 @@ const COMMANDS: Record<string, Command> = {
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
+  'git/check': ({ git }) => git?.check(),
+  'git/identity': ({ git }, body) => git?.identity(textOf(body.name, 'name'), textOf(body.email, 'email')),
+  'git/init': ({ git }, body) => git?.init(textOf(body.repo, 'repo').trim(), textOf(body.branch, 'branch').trim() || DEFAULT_BRANCH),
   'account/global': ({ account }, body) => account.useGlobal(textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(

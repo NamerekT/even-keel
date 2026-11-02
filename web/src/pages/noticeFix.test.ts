@@ -18,6 +18,11 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('forward.foreign', { from: 'ABC', into: 'ABD' }))).toEqual({ to: 'project', tab: 'repo' })
   })
 
+  it('resumes a chain stopped on git gone from the machine, and sends git without a name to the setup’s Git step (BTN-731)', () => {
+    expect(noticeFixOf(notice('git.missing', {}))).toEqual({ to: 'resume' })
+    expect(noticeFixOf(notice('git.noIdentity', {}))).toEqual({ to: 'git' })
+  })
+
   it('sends a model the account does not have to the sessions tab of the project', () => {
     expect(noticeFixOf(notice('chain.modelUnavailable', { model: 'openai/denied' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('chain.opencodeCopilot', {}))).toEqual({ to: 'project', tab: 'sessions' })

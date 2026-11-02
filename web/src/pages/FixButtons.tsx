@@ -11,6 +11,7 @@ import { linkedProfile } from './ProjectTracker.js'
 import { profileGroup } from './ProfileRules.js'
 import { taskFeed } from './settingsRows.js'
 import { trackerAddPath } from '../tools/packageView.js'
+import { stepPath } from './setupSteps.js'
 
 /** A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is shown at. */
 export function NoticeFixButton({ project, notice }: { project: string | null; notice: Notice | null }) {
@@ -36,7 +37,8 @@ export function FixButton({ project, fix, className = 'button button--small noti
 }
 
 /** What the button to a place in the settings or the accounts says. */
-export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' }>): string {
+export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' | 'git' }>): string {
+  if (fix.to === 'git') return t.fix.git
   if (fix.to === 'moves') return t.fix.moves
   if (fix.to === 'packages') return t.fix.packages
   return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
@@ -58,6 +60,7 @@ export function useFix() {
   const { state } = useLive()
   return (fix: Exclude<NoticeFix, { to: 'resume' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
+    if (fix.to === 'git') return void navigate(stepPath('git'))
     if (fix.to === 'tracker') return
     if (fix.to === 'shared') {
       openTab(SHARED_SCOPE, fix.tab)

@@ -1,13 +1,14 @@
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
+import type { GitSetupView } from '../../../src/state.js'
 
 /** The first run's setup (BTN-310): one page, the step in its address so that the browser's Back goes a step back. */
 export const SETUP = '/setup'
 
 /**
- * The steps in order. The stats go last of the settings: choosing them ends the first run (`firstRun`), and the
- * project wizard comes after them.
+ * The steps in order. Git goes before the agent: nothing works without it (BTN-731). The stats go last of the settings:
+ * choosing them ends the first run (`firstRun`), and the project wizard comes after them.
  */
-export const SETUP_STEPS = ['language', 'agent', 'tracker', 'updates', 'stats'] as const
+export const SETUP_STEPS = ['language', 'git', 'agent', 'tracker', 'updates', 'stats'] as const
 export type SetupStep = (typeof SETUP_STEPS)[number]
 
 /** The step of the address; one it does not know is the first. */
@@ -52,6 +53,21 @@ export function cliRunnable(provider: string, copy: CliCopyView | undefined, mis
 interface AccountPool {
   missing: readonly string[]
   accounts: readonly { key: string; agent: string }[]
+}
+
+/** "Next" on the Git step: git starts from the service and has a name and an e-mail to commit with. */
+export function gitReady(git: GitSetupView | undefined): boolean {
+  return git !== undefined && git.version !== null && git.name !== null && git.email !== null
+}
+
+/**
+ * The command that installs git on the service's machine, shown and never run: Even Keel installs no global CLI, and
+ * a Linux one needs `sudo`.
+ */
+export function gitInstall(platform: string): string[] {
+  if (platform === 'win32') return ['winget install --id Git.Git -e']
+  if (platform === 'darwin') return ['xcode-select --install']
+  return ['sudo apt install git', 'sudo dnf install git']
 }
 
 /** The step before and after; `null` — none, the first step or the last. */

@@ -36,6 +36,11 @@ describe('requireBranch', () => {
     const { git } = fakeGit({ 'rev-parse --verify --quiet refs/heads/master': { code: 1 } })
     await expect(requireBranch(git, repo, 'ABC', 'master')).rejects.toMatchObject({ notice: notice('git.noBranch', { project: 'ABC', branch: 'master', repo }) })
   })
+
+  it('says git gone from the machine as missing, not as a branch the repository lacks (BTN-731)', async () => {
+    const { git } = fakeGit({ 'rev-parse --verify --quiet refs/heads/master': { code: -1, missing: true } })
+    await expect(requireBranch(git, repo, 'ABC', 'master')).rejects.toMatchObject({ notice: notice('git.missing', {}) })
+  })
 })
 
 describe('requireCheckedOut', () => {

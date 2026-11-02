@@ -11,6 +11,7 @@ import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
+import { NoticeFixButton } from './FixButtons.js'
 import {
   draftOfFields,
   EMPTY_FIELDS,
@@ -45,6 +46,29 @@ import './settings.css'
 import './projectAdd.css'
 
 const CHECK_DELAY_MS = 600
+
+/**
+ * "Make it a repository" under a folder without one, "Make the first commit" under a repository without commits
+ * (BTN-731): the service makes the draft's branch born, and the folder is checked again.
+ */
+function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch: string; exists: boolean; onMade: () => void }) {
+  const { send, sending, failure } = useCommand()
+  const make = async () => {
+    if (await send('git/init', { repo, branch })) onMade()
+  }
+  return (
+    <div className="project-add__init">
+      <button type="button" className="button button--small" disabled={sending} onClick={() => void make()}>
+        {exists ? t.wizard.firstCommit : t.wizard.makeRepo}
+      </button>
+      {failure !== null && (
+        <p className="notice notice--error">
+          {say(failure)} <NoticeFixButton project={null} notice={failure} />
+        </p>
+      )}
+    </div>
+  )
+}
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: WizardFields | null = null
@@ -247,6 +271,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     </>
                   )}
                 </Status>
+              )}
+              {draft !== undefined && (repoCheck?.repo.notice?.code === 'wizard.notRepo' || repoCheck?.repo.notice?.code === 'wizard.noCommits') && (
+                <MakeRepository repo={draft.repo} branch={draft.branch} exists={repoCheck.repo.notice.code === 'wizard.noCommits'} onMade={() => setRound((count) => count + 1)} />
               )}
             </div>
             {branchShown && (

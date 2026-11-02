@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import type { GitStep } from '../notice/en.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
+import { requireStarted } from './setup.js'
 import { syncMain } from './sync.js'
 import type { FinishOutcome, Git, GitResult, TaskPlace } from './types.js'
 
@@ -56,7 +57,9 @@ export async function ensureIgnored(git: Git, repo: string): Promise<void> {
 
 /** The project's main branch must be there before any task branches off it. */
 export async function requireBranch(git: Git, repo: string, project: string, branch: string): Promise<void> {
-  if (!(await hasBranch(git, repo, branch))) throw fail('git.noBranch', { project, branch, repo })
+  // The first git call of a task's launch: git gone from the machine is said here, not as a missing branch (BTN-731).
+  const found = requireStarted(await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]))
+  if (found.code !== 0) throw fail('git.noBranch', { project, branch, repo })
 }
 
 /** The merge, `git sync` and the search for the merged task all work on the project's branch: the main checkout must stand on it. */
@@ -228,7 +231,7 @@ export async function hasBranch(git: Git, repo: string, branch: string): Promise
 }
 
 export async function must(git: Git, repo: string, args: string[], step: GitStep, subject = ''): Promise<GitResult> {
-  const result = await git(repo, args)
+  const result = requireStarted(await git(repo, args))
   if (result.code !== 0) throw fail('git.failed', { step, subject, repo }, { detail: result.out })
   return { ...result, out: result.out.trim() }
 }

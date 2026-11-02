@@ -28,7 +28,7 @@ export function AgentStep({ state, save, sending }: { state: EvenKeelState; save
   const known = PROVIDERS.includes(provider as Provider)
   return (
     <>
-      <Section title={t.setup.titles.agent} mark={<Dot check={known ? 'passed' : 'empty'} first />} className="project-add__step">
+      <Section title={t.setup.titles.agent} mark={<PartDot check={known ? 'passed' : 'empty'} first />} className="project-add__step">
         <p className="setup__lead">{t.setup.agentLead}</p>
         <ul className="setup-agents">
           {PROVIDERS.map((each) => (
@@ -42,7 +42,7 @@ export function AgentStep({ state, save, sending }: { state: EvenKeelState; save
 }
 
 /** A part's dot as the project wizard draws it: a check once done, a ring on the first part still to do. */
-function Dot({ check, first = false }: { check: StepCheck; first?: boolean }) {
+export function PartDot({ check, first = false }: { check: StepCheck; first?: boolean }) {
   const mark = check !== 'empty' ? check : first ? 'current' : 'future'
   return <StepDot mark={mark} label={t.wizard.marks[mark]} />
 }
@@ -101,13 +101,13 @@ function ChosenAgent({ state, provider, save }: { state: EvenKeelState; provider
   return (
     <>
       {copy && (
-        <Section title={text.versionOf(name)} mark={<Dot check={cli} first />} className="project-add__step">
+        <Section title={text.versionOf(name)} mark={<PartDot check={cli} first />} className="project-add__step">
           <CliSourceChoice provider={provider} label={text.which} />
         </Section>
       )}
       <Section
         title={text.accountOf(name)}
-        mark={<Dot check={account} first={cli === 'passed'} />}
+        mark={<PartDot check={account} first={cli === 'passed'} />}
         aside={usable ? <button type="button" className="button" disabled={state.account.login !== null} onClick={() => openAdd(provider)}>+ {t.account.addHere}</button> : undefined}
         className="project-add__step"
       >

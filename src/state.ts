@@ -446,6 +446,15 @@ export interface TaskWork {
   ahead: number
 }
 
+/** Git on the service's machine as the first run's Git step checks it (BTN-731). */
+export interface GitSetupView {
+  /** The version `git --version` gives; `null` — git does not start from the service. */
+  version: string | null
+  /** The name and e-mail commits are made as, which sessions commit and merge with; `null` — unset. */
+  name: string | null
+  email: string | null
+}
+
 export interface EvenKeelState {
   protection?: Record<string, import('./ci/protection-model.js').RemoteProtection[]>
   startedAt: string
@@ -518,6 +527,8 @@ export interface EvenKeelState {
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
   cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>
+  /** Git on the service's machine; absent until its first read. */
+  git?: GitSetupView
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */
   cliChecks: CliCheckView[]
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */

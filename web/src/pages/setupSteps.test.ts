@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
-import { accountShortName, agentReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import { accountShortName, agentReady, gitInstall, gitReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+
+describe('gitReady', () => {
+  it('goes on once git is installed and has a name and an e-mail to commit with (BTN-731)', () => {
+    expect(gitReady({ version: '2.47.1', name: 'John Doe', email: 'john@example.com' })).toBe(true)
+    expect(gitReady({ version: '2.47.1', name: null, email: 'john@example.com' })).toBe(false)
+    expect(gitReady({ version: '2.47.1', name: 'John Doe', email: null })).toBe(false)
+    expect(gitReady({ version: null, name: null, email: null })).toBe(false)
+  })
+
+  it('holds the step until the service has read git', () => {
+    expect(gitReady(undefined)).toBe(false)
+  })
+})
+
+describe('gitInstall', () => {
+  it('gives the install command of the service machine, never one Even Keel runs itself', () => {
+    expect(gitInstall('win32')).toEqual(['winget install --id Git.Git -e'])
+    expect(gitInstall('darwin')).toEqual(['xcode-select --install'])
+    expect(gitInstall('linux')).toEqual(['sudo apt install git', 'sudo dnf install git'])
+  })
+})
 
 describe('setupStep', () => {
   it('reads the step of the address, the first one where it names none it knows', () => {
@@ -13,11 +34,12 @@ describe('setupStep', () => {
 
 describe('stepBeside', () => {
   it('goes through the steps with the stats last', () => {
-    expect(stepBeside('language', 1)).toBe('agent')
+    expect(stepBeside('language', 1)).toBe('git')
+    expect(stepBeside('git', 1)).toBe('agent')
     expect(stepBeside('updates', 1)).toBe('stats')
     expect(stepBeside('stats', 1)).toBeNull()
     expect(stepBeside('language', -1)).toBeNull()
-    expect(stepBeside('agent', -1)).toBe('language')
+    expect(stepBeside('agent', -1)).toBe('git')
   })
 
   it('makes the address of a step', () => {

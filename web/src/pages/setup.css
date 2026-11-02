@@ -331,6 +331,26 @@
   }
 }
 
+/* The Git step's install commands (BTN-731): one under another, one "Check again" beside them all. */
+.setup-git__commands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* The Git step's name and e-mail (BTN-731): what git has at the left, "Save" at the right. */
+.setup-git__save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.setup-git__save > button {
+  margin-left: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .setup .add-choice,
   .setup-agent {

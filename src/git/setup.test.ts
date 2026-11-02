@@ -1,0 +1,160 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { GitSetup, initRepository, readGitSetup, saveIdentity } from './setup.js'
+import type { GitResult } from './types.js'
+
+const home = 'C:\\Users\\john'
+const MISSING: GitResult = { code: -1, out: 'spawn git ENOENT', missing: true }
+
+function fakeGit(answers: Record<string, GitResult> = {}) {
+  const calls: string[] = []
+  const git = async (cwd: string, args: string[]): Promise<GitResult> => {
+    const command = `${cwd} ${args.join(' ')}`
+    calls.push(command)
+    return answers[command] ?? answers[args.join(' ')] ?? { code: 0, out: '' }
+  }
+  return { git, calls }
+}
+
+const folders: string[] = []
+afterEach(() => {
+  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
+})
+
+function folder(): string {
+  const made = mkdtempSync(join(tmpdir(), 'ek-git-setup-'))
+  folders.push(made)
+  return made
+}
+
+describe('readGitSetup', () => {
+  it('reads the version and the name and e-mail commits are made as', async () => {
+    const { git } = fakeGit({
+      '--version': { code: 0, out: 'git version 2.47.1.windows.2' },
+      'config --get user.name': { code: 0, out: 'John Doe\n' },
+      'config --get user.email': { code: 0, out: 'john@example.com' },
+    })
+    expect(await readGitSetup(git, home)).toEqual({ version: '2.47.1', name: 'John Doe', email: 'john@example.com' })
+  })
+
+  it('says an unset name or e-mail as null', async () => {
+    const { git } = fakeGit({ '--version': { code: 0, out: 'git version 2.39.5 (Apple Git-154)' }, 'config --get user.name': { code: 1, out: '' }, 'config --get user.email': { code: 0, out: '  ' } })
+    expect(await readGitSetup(git, home)).toEqual({ version: '2.39.5', name: null, email: null })
+  })
+
+  it('says git that does not start as no version, and asks nothing more', async () => {
+    const { git, calls } = fakeGit({ '--version': MISSING })
+    expect(await readGitSetup(git, home)).toEqual({ version: null, name: null, email: null })
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('saveIdentity', () => {
+  it('writes both into the global config, trimmed', async () => {
+    const { git, calls } = fakeGit()
+    await saveIdentity(git, home, ' John Doe ', 'john@example.com ')
+    expect(calls).toEqual([`${home} config --global user.name John Doe`, `${home} config --global user.email john@example.com`])
+  })
+
+  it('refuses a blank name or e-mail and writes nothing', async () => {
+    const { git, calls } = fakeGit()
+    await expect(saveIdentity(git, home, 'John Doe', ' ')).rejects.toMatchObject({ notice: { code: 'git.identityBlank' } })
+    expect(calls).toEqual([])
+  })
+
+  it('says git that is gone as missing', async () => {
+    const { git } = fakeGit({ [`${home} config --global user.name John Doe`]: MISSING })
+    await expect(saveIdentity(git, home, 'John Doe', 'john@example.com')).rejects.toMatchObject({ notice: { code: 'git.missing' } })
+  })
+
+  it('names the failure with git’s own words', async () => {
+    const { git } = fakeGit({ [`${home} config --global user.email john@example.com`]: { code: 255, out: 'error: could not lock config file' } })
+    await expect(saveIdentity(git, home, 'John Doe', 'john@example.com')).rejects.toMatchObject({ notice: { code: 'git.identityFailed', detail: 'error: could not lock config file' } })
+  })
+})
+
+describe('initRepository', () => {
+  const identity = { 'config --get user.name': { code: 0, out: 'John Doe' }, 'config --get user.email': { code: 0, out: 'john@example.com' } }
+
+  it('makes a folder without a repository one, on the given branch, with an empty first commit', async () => {
+    const path = folder()
+    const { git, calls } = fakeGit({ ...identity, 'rev-parse --show-toplevel': { code: 128, out: 'fatal: not a git repository' } })
+    await initRepository(git, path, 'trunk')
+    expect(calls.map((call) => call.slice(path.length + 1)).filter((call) => !call.startsWith('config --get'))).toEqual([
+      'check-ref-format --branch trunk',
+      'rev-parse --show-toplevel',
+      'init -b trunk',
+      'commit --allow-empty -m Initial commit',
+    ])
+  })
+
+  it('gives the unborn branch of a fresh repository the given name before its first commit', async () => {
+    const path = folder()
+    const { git, calls } = fakeGit({ ...identity, 'rev-parse --show-toplevel': { code: 0, out: path }, 'rev-parse --verify --quiet HEAD': { code: 1, out: '' } })
+    await initRepository(git, path, 'trunk')
+    expect(calls).toContain(`${path} symbolic-ref HEAD refs/heads/trunk`)
+    expect(calls).toContain(`${path} commit --allow-empty -m Initial commit`)
+    expect(calls.some((call) => call.includes(' init '))).toBe(false)
+  })
+
+  it('leaves a repository that has commits alone', async () => {
+    const path = folder()
+    const { git, calls } = fakeGit({ ...identity, 'rev-parse --show-toplevel': { code: 0, out: path }, 'rev-parse --verify --quiet HEAD': { code: 0, out: 'abc' } })
+    await initRepository(git, path, 'trunk')
+    expect(calls.some((call) => call.includes('commit') || call.includes('symbolic-ref'))).toBe(false)
+  })
+
+  it('refuses a folder that is not there, a file, and a bad branch name', async () => {
+    const path = folder()
+    const file = join(path, 'notes.txt')
+    writeFileSync(file, '')
+    const { git, calls } = fakeGit({ 'check-ref-format --branch bad name': { code: 1, out: 'fatal' } })
+    await expect(initRepository(git, join(path, 'nowhere'), 'trunk')).rejects.toMatchObject({ notice: { code: 'wizard.noFolder' } })
+    await expect(initRepository(git, file, 'trunk')).rejects.toMatchObject({ notice: { code: 'wizard.noFolder' } })
+    await expect(initRepository(git, path, 'bad name')).rejects.toMatchObject({ notice: { code: 'wizard.branchName', params: { value: 'bad name' } } })
+    expect(calls.some((call) => call.includes(' init '))).toBe(false)
+  })
+
+  it('refuses before anything is made while git has no name or e-mail for the commit', async () => {
+    const path = folder()
+    const { git, calls } = fakeGit({ 'config --get user.name': { code: 0, out: 'John Doe' }, 'config --get user.email': { code: 1, out: '' } })
+    await expect(initRepository(git, path, 'trunk')).rejects.toMatchObject({ notice: { code: 'git.noIdentity' } })
+    expect(calls.some((call) => call.includes(' init ') || call.includes('commit'))).toBe(false)
+  })
+
+  it('says git that is gone as missing', async () => {
+    const path = folder()
+    const { git } = fakeGit({ 'check-ref-format --branch trunk': MISSING })
+    await expect(initRepository(git, path, 'trunk')).rejects.toMatchObject({ notice: { code: 'git.missing' } })
+  })
+
+  it('names a failed init or commit with git’s own words', async () => {
+    const path = folder()
+    const { git } = fakeGit({ ...identity, 'rev-parse --show-toplevel': { code: 128, out: 'fatal' }, 'init -b trunk': { code: 128, out: 'fatal: cannot mkdir' } })
+    await expect(initRepository(git, path, 'trunk')).rejects.toMatchObject({ notice: { code: 'git.initFailed', params: { path }, detail: 'fatal: cannot mkdir' } })
+  })
+})
+
+describe('GitSetup', () => {
+  it('has no view before its first read, then the read one; a saved identity is read again', async () => {
+    let name = ''
+    const git = async (_cwd: string, args: string[]): Promise<GitResult> => {
+      const command = args.join(' ')
+      if (command === '--version') return { code: 0, out: 'git version 2.47.1' }
+      if (command === 'config --global user.name John Doe') name = 'John Doe'
+      if (command === 'config --get user.name') return name === '' ? { code: 1, out: '' } : { code: 0, out: name }
+      return { code: 0, out: command === 'config --get user.email' ? 'john@example.com' : '' }
+    }
+    let changes = 0
+    const setup = new GitSetup(git, home)
+    setup.changed = () => changes++
+    expect(setup.view()).toBeUndefined()
+    await setup.check()
+    expect(setup.view()).toEqual({ version: '2.47.1', name: null, email: 'john@example.com' })
+    await setup.identity('John Doe', 'john@example.com')
+    expect(setup.view()?.name).toBe('John Doe')
+    expect(changes).toBe(2)
+  })
+})

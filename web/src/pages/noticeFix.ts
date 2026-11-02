@@ -11,10 +11,11 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
- * column on /tools.
+ * column on /tools; `git` — the setup's Git step, where git's name and e-mail are written.
  */
 export type NoticeFix =
   | { to: 'packages' }
+  | { to: 'git' }
   | { to: 'project'; project?: string; tab: ProjectTab }
   | { to: 'shared'; tab: SharedTab }
   | { to: 'accounts' }
@@ -54,6 +55,8 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'config.token': PAGE,
   'config.tokenShape': PAGE,
   'claude.untrusted': { to: 'resume' },
+  'git.missing': { to: 'resume' },
+  'git.noIdentity': { to: 'git' },
   'chain.packagesNotReady': { to: 'packages' },
 }
 

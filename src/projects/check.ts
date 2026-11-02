@@ -81,6 +81,7 @@ export async function checkRepo(
   const path = draft.repo.trim()
   if (path === '') return { root: null, current: null, suggested: null, notice: null }
   const top = await git(path, ['rev-parse', '--show-toplevel'])
+  if (top.missing === true) return { root: null, current: null, suggested: null, notice: notice('git.missing', {}) }
   if (top.code !== 0) return { root: null, current: null, suggested: null, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
   const root = pathsOf(platform).normalize(top.out.trim())
   const head = await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'])

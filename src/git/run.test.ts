@@ -1,5 +1,18 @@
-import { describe, expect, it } from 'vitest'
-import { gitArgs } from './run.js'
+import { tmpdir } from 'node:os'
+import { afterEach, describe, expect, it } from 'vitest'
+import { gitArgs, runGit } from './run.js'
+
+describe('runGit', () => {
+  const path = process.env.PATH
+  afterEach(() => {
+    process.env.PATH = path
+  })
+
+  it('says git that does not start as missing, not as a failed command (BTN-731)', async () => {
+    process.env.PATH = ''
+    expect(await runGit(tmpdir(), ['--version'])).toMatchObject({ code: -1, missing: true })
+  })
+})
 
 describe('gitArgs', () => {
   it('turns on long paths on Windows, where git stops at MAX_PATH without it', () => {

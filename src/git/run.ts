@@ -24,6 +24,8 @@ export const runGit: Git = (cwd, args) =>
       (error, stdout, stderr) => {
         const out = [stdout, stderr].map((text) => text.trim()).filter(Boolean).join('\n')
         if (error === null) resolve({ code: 0, out: stdout.trim() })
+        // No `cwd` is passed, so ENOENT is the git binary itself.
+        else if (error.code === 'ENOENT') resolve({ code: -1, out: error.message, missing: true })
         else resolve({ code: typeof error.code === 'number' ? error.code : -1, out: out || error.message })
       },
     )

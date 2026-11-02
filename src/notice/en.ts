@@ -143,6 +143,11 @@ export const en = {
   'cleanup.slotKept': (p: { path: string; branch: string }) => `the slot ${p.path} was kept on ${p.branch}`,
   'cleanup.sessionNotStopped': (p: { session: string }) => `its session ${p.session} was not stopped`,
 
+  'git.missing': () => 'git does not start on the machine of Even Keel, and every task needs it: install git, then try again',
+  'git.noIdentity': () => 'git has no name and e-mail to commit with: fill them in on the Git step of the setup',
+  'git.identityBlank': () => 'git needs both a name and an e-mail to commit with',
+  'git.identityFailed': () => 'git could not write the name and e-mail into its global config',
+  'git.initFailed': (p: { path: string }) => `git could not make ${p.path} a repository`,
   'git.ignoreUnknown': (p: { repo: string; dir: string }) => `git: cannot tell whether ${p.repo} ignores ${p.dir}`,
   'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p: { project: string; branch: string; repo: string }) =>
@@ -593,7 +598,8 @@ export const en = {
   'wizard.keyTaken': (p: { key: string; project: string }) =>
     `the key ${p.key} is already the project ${p.project} on another repository, and the task ids of both would be the same: pick another one`,
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
-  'wizard.noCommits': () => 'the repository has no commits yet: make the first one',
+  'wizard.noCommits': () => 'the repository has no commits yet, so its branch is not born: make the first commit',
+  'wizard.noFolder': (p: { path: string }) => `${p.path} is not a folder`,
   'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,

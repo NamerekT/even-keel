@@ -29,7 +29,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 - macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
-- First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
+- First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
@@ -59,6 +59,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 3 | [Installing and updating with npm](unverified/updating.md#installing-and-updating-with-npm-btn-265) | npm installs on macOS, updates of one on Linux; the first publish | the service of a package does not start; install from a clone |
 | 3b | [Huly's client installed on demand](unverified/updating.md#hulys-client-installed-on-demand-btn-666) | npm installs on Huly behind a proxy or after a failed install | a Huly chain waits on a tracker that stays down, or the profile cannot be saved |
 | 3a | [The start at sign-in on Windows](unverified/platforms.md#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
+| 3c | [The setup's Git step on a machine without git](unverified/page.md#the-setups-git-step-on-a-machine-without-git-btn-731) | a first run on a machine with no git, or no name and e-mail in git | the step shows git as installed, or the name is written for another user than the service's; install git and set `user.name`/`user.email` by hand |
 | 4 | [macOS](unverified/platforms.md#macos) | macOS | the service or the CLI lookup may not work at all |
 | 7 | [Plugin hooks that block](unverified/codex.md#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
 | 7a | [The schema hint on a deferred MCP call](unverified/codex.md#the-schema-hint-on-a-deferred-mcp-call-btn-625) | Claude chain sessions calling a tracker tool before loading its schema; Copilot with the checkpoint package | the task is left without its estimate as before; Copilot loses the package's hooks |

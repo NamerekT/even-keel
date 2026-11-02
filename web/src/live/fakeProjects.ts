@@ -32,7 +32,7 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 }
 
 /**
- * The wizard's check by the fake's rules: a path with `nope` is not a repository, one with `master` is on that branch,
+ * The wizard's check by the fake's rules: a path with `nope` is not a repository, one with `fresh` has no commits, one with `master` is on that branch,
  * a branch outside main/master/develop is missing; `?wizard=untrusted|off|failed` — the folder is not trusted,
  * the tracker has no variables, the tracker does not answer.
  */
@@ -44,6 +44,7 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   if (path.includes('nope')) {
     return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   }
+  if (path.includes('fresh')) return { repo: { ...none, notice: notice('wizard.noCommits', {}) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
   const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null

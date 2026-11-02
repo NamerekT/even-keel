@@ -17,6 +17,7 @@ import { archivedShown } from '../chain/archive.js'
 import { ConfigStore } from '../config-store.js'
 import { idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
+import { gitSetup } from '../git/setup.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
@@ -224,6 +225,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
+    git: gitSetup.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,
       task,
@@ -248,6 +250,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
   return createEvenKeelServer({
     cli: ctx.cliCopies,
     hulyClient,
+    git: gitSetup,
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,

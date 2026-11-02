@@ -11,7 +11,8 @@ import { Row } from './settingsParts.js'
 import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
-import { accountShortName, agentReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { GitStep } from './SetupGit.js'
+import { accountShortName, agentReady, gitReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -52,9 +53,11 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
   const skippable = OPTIONAL_STEPS.includes(step) && ahead === null && !(step === 'stats' && state.projects.length > 0)
   const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
-  const held = step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? '')
-  // The agent step is parts of its own, each in its card with a dot, as in the project wizard (BTN-603).
-  const parts = step === 'agent'
+  const held =
+    (step === 'git' && !gitReady(state.git)) ||
+    (step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? ''))
+  // The Git and agent steps are parts of their own, each in its card with a dot, as in the project wizard (BTN-603).
+  const parts = step === 'agent' || step === 'git'
   const body = <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward()} />
   const foot = (
     <>
@@ -100,6 +103,11 @@ function summaryOf(step: SetupStep, state: EvenKeelState): string | null {
   if (step === 'language') {
     const page = shared.language ?? language
     return page === shared.promptLanguage ? t.shared.languages[page] : `${t.shared.languages[page]} · ${t.shared.languages[shared.promptLanguage]}`
+  }
+  if (step === 'git') {
+    const git = state.git
+    if (git === undefined || git.version === null) return null
+    return git.name === null ? `Git ${git.version}` : `Git ${git.version} · ${git.name}`
   }
   if (step === 'agent') {
     const ready = readinessOf(state.account, shared.provider, shared.accounts[shared.provider] ?? '')
@@ -152,6 +160,7 @@ function StepBody({ step, state, save, sending, onDone, onPicked }: BodyProps) {
       </div>
     )
   }
+  if (step === 'git') return <GitStep state={state} />
   if (step === 'agent') return <AgentStep state={state} save={save} sending={sending} />
   if (step === 'tracker') return <TrackerStep state={state} />
   if (step === 'updates') {
