@@ -1,0 +1,146 @@
+name: macOS
+
+# Even Keel on a Mac before a live run on a rented one (BTN-730, BTN-312): the unit tests, the end-to-end scenarios
+# and a smoke of the launchd agent `service/install.sh` installs. Every job has `continue-on-error` until the runs are
+# green for good: the chain's verdict on dev counts every run of a commit (`src/ci/verdict.ts`), so a red Mac would
+# file a fix of main and stop sessions mid-turn; with it the run stays green and a failure shows in its job (docs/ci.md).
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - 'release/**'
+  # Registered by GitHub only once this file is in main (docs/releases.md): until a release the runs come from pushes.
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: Open a tmate shell on the service job's runner at its end
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run typecheck
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test
+
+  e2e:
+    name: e2e (${{ matrix.shard }}/3)
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+
+  # install.sh as the runner's own user, the agent seen by launchctl, the page's API answering on EVEN_KEEL_PORT of
+  # the checkout's .env, then uninstall.sh and the agent gone. If launchd does not start the agent on a runner, the
+  # job says so; it is not worked around.
+  service:
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: ${{ inputs.debug && 90 || 20 }}
+    env:
+      EVEN_KEEL_PORT: 4799
+      LABEL: local.even-keel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.changes.outputs.code == 'true'
+        run: echo "EVEN_KEEL_PORT=$EVEN_KEEL_PORT" > .env
+
+      - if: steps.changes.outputs.code == 'true'
+        run: sh service/install.sh
+
+      - if: steps.changes.outputs.code == 'true'
+        name: The agent is loaded
+        run: launchctl list | grep "$LABEL"
+
+      - if: steps.changes.outputs.code == 'true'
+        name: The service answers /api/state
+        run: |
+          for try in $(seq 1 60); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:$EVEN_KEEL_PORT/api/state"; then
+              echo "Answered after $try tries"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "No answer on port $EVEN_KEEL_PORT in 120 s" >&2
+          exit 1
+
+      - if: failure() && steps.changes.outputs.code == 'true'
+        name: What launchd and the log say
+        run: |
+          launchctl print "gui/$(id -u)/$LABEL" || true
+          tail -n 200 logs/even-keel.log || true
+
+      - if: steps.changes.outputs.code == 'true'
+        run: sh service/uninstall.sh
+
+      - if: steps.changes.outputs.code == 'true'
+        name: The agent is gone
+        run: |
+          if launchctl list | grep "$LABEL"; then
+            echo "The agent is still loaded" >&2
+            exit 1
+          fi
+          test ! -f "$HOME/Library/LaunchAgents/$LABEL.plist"
+
+      - if: always() && inputs.debug
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
