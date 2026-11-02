@@ -75,6 +75,10 @@ export class Dispatcher {
       hold: (chain, error) => this.halt(chain, error, true),
       letGo: (chain) => this.letGo(chain),
       release: (project, task) => this.remember(project, task),
+      settle: (project, task) => {
+        const chain = this.chainOf(project)
+        if (chain !== undefined && this.settle(chain, task, 'its pull request is merged')) this.letGo(chain)
+      },
       refilter: (project) => this.refilter(project),
       working: (task) => this.cleanups.working(task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
@@ -371,6 +375,18 @@ export class Dispatcher {
     chain.error = null
   }
 
+  /**
+   * A pause on the task's refused pull request ends once the task is merged or done (BTN-715): the chain goes on as on
+   * any Done. Pauses for other reasons stay.
+   */
+  private settle(chain: ActiveChain, task: string, why: string): boolean {
+    if (chain.current?.task !== task || !chain.paused || chain.error?.code !== 'review.notOpened') return false
+    this.unhold(chain)
+    this.deps.log(`chain: ${chain.project} goes on: ${task}, paused on its unopened pull request, is over: ${why}`)
+    this.deps.save(this.state)
+    return true
+  }
+
   dismiss(project: string, task: string): void {
     const leftovers = this.state.leftovers[project]
     if (leftovers === undefined || !leftovers.some((each) => each.task === task)) return
@@ -597,7 +613,8 @@ export class Dispatcher {
 
   private async step(chain: ActiveChain): Promise<void> {
     for (;;) {
-      if (chain.paused && !(await this.pauses.cleared(chain))) return
+      const done = chain.current !== null && this.lists.done.get(chain.project)?.has(chain.current.task) === true
+      if (chain.paused && !(done && this.settle(chain, chain.current!.task, 'done in the tracker')) && !(await this.pauses.cleared(chain))) return
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return

@@ -15,6 +15,8 @@ export interface ReviewHost {
   letGo(chain: ActiveChain): void
   /** Remembers a task the chain no longer leads, for the cleanup once it is done. */
   release(project: string, task: string): void
+  /** Lets the task go if its chain is paused on it by `review.notOpened`: its merged pull request leaves nothing to wait for. */
+  settle(project: string, task: string): void
   /** The project's tasks go through the chain's filter again: a task with a pull request leaves the chain or comes back. */
   refilter(project: string): void
   /** Whether the task's session works on, which holds its cleanup. */
@@ -272,6 +274,7 @@ export class Reviews {
         delete pull.feedback
         this.deps.log(`review: ${pull.task}: ${pull.url} is merged`)
         await this.complete(project, pull.task)
+        this.host.settle(project, pull.task)
         this.host.release(project, pull.task)
       } else if (outcome.kind === 'closed') {
         pull.closed = 'unmerged'

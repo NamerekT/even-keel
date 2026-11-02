@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { forReview } from './agent.fixture.js'
+import { OWNER } from './forge.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 /** The address of the bench's remote, as `service.fixture.ts` sets it up. */
@@ -109,5 +110,27 @@ describe('PR mode end to end: opening and closing', { timeout: 60_000 }, () => {
     expect(run.pulls.creates).toBe(2)
     expect(calls('launch', 'ABC-1')).toHaveLength(1)
     expect(calls('resume', 'ABC-1')).toEqual([])
+  })
+
+  it('lets the task go as on Done once its pull request is merged while the chain waits on a refused push (BTN-715)', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', forReview('one.txt'), forReview('one.txt', 'fixed\n', 'Fix review'))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.service.dispatcher.state.reviews[PROJECT_ID]?.some((pull) => pull.task === 'ABC-1') === true, 'the pull request of ABC-1 opened')
+    const pull = run.pulls.of('ABC-1')!.number
+
+    // The branch moves on the forge meanwhile, as when its conflict is resolved there: the session's push is refused.
+    const tree = run.gitIn(run.remote, 'rev-parse', 'abc-1/task^{tree}')
+    const identity = ['-c', 'user.name=John Doe', '-c', 'user.email=john@example.com']
+    const commit = run.gitIn(run.remote, ...identity, 'commit-tree', tree, '-p', 'abc-1/task', '-m', 'Merge branch main into abc-1/task')
+    run.gitIn(run.remote, 'update-ref', 'refs/heads/abc-1/task', commit)
+    run.pulls.comment(pull, OWNER, 'Please fix it')
+    await run.until(() => chain()?.error?.code === 'review.notOpened', 'the chain paused on the refused push')
+    expect(chain()).toMatchObject({ paused: true, current: { task: 'ABC-1' } })
+
+    await run.pulls.merge(pull)
+    await run.until(() => run.board.status('ABC-1') === 'Done' && chain() === undefined && cleanedUp('ABC-1'), 'ABC-1 let go, done and cleaned up')
+    expect(run.log.some((line) => line.includes('ABC-1') && line.includes('its pull request is merged'))).toBe(true)
   })
 })

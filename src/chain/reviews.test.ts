@@ -186,6 +186,33 @@ describe('Dispatcher in PR mode', () => {
     expect(launched).toEqual([])
   })
 
+  it('lets the task paused on review.notOpened go as on Done once the tracker has it done, its session untouched (BTN-715)', async () => {
+    const { pulls, tries } = refusing()
+    const { dispatcher, relays, stopped, launched, log } = await running({ reviews: pulls.deps })
+
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+
+    expect(tries.count).toBe(1)
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-2' } })
+    expect(log.some((line) => line.includes('ABC-1, paused on its unopened pull request, is over: done in the tracker'))).toBe(true)
+    expect(relays).toEqual([])
+    expect(stopped).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('keeps a pause for another reason when the current task is done', async () => {
+    const context = setup({ state: runningState(), live: { 'ABC-1': 'old-session' } })
+    const chain = context.dispatcher.state.active[0]!
+    chain.paused = true
+    chain.error = { code: 'chain.interrupted', params: { task: 'ABC-1' } }
+    context.dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await context.dispatcher.idle()
+
+    expect(context.dispatcher.state.active[0]).toMatchObject({ paused: true, current: { task: 'ABC-1' }, error: { code: 'chain.interrupted' } })
+    expect(context.launched).toEqual([])
+  })
+
   it('waits for a new mark after Skip and Unskip replace the session, or Stop and Start adopt it', async () => {
     const { pulls, tries } = refusing()
     const { dispatcher, handoffs, live, relays } = await running({ reviews: pulls.deps })
