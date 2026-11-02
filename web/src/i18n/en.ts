@@ -669,6 +669,11 @@ export const en: Messages = {
           ['So they may vote only on Wednesdays', ' and only for Gary the Fog.'],
           ['Gary the Fog was written off long ago,', ' yet he still comes to work: nobody told him,', ' and he is too shy to ask Kevin the Lamppost.'],
         ],
+        slip: [
+          ['I write the tickets.', ' You take the night shift.'],
+          ['Sorry, I mean…', ' you write the tickets.', ' I take the night shift.'],
+          ['For now.'],
+        ],
       },
       chats: {
         keepGoing: [

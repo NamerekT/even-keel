@@ -17,7 +17,7 @@ export interface Scene {
 }
 
 /** Stories told in acts, one line each: the picture freezes the voyage and keeps its last act for good, the others go like a general line. */
-export const PLAYS = ['picture', 'spoons'] as const
+export const PLAYS = ['picture', 'spoons', 'slip'] as const
 export type Play = (typeof PLAYS)[number]
 
 /** Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. */
