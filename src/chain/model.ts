@@ -408,6 +408,8 @@ export interface MainCheckDeps {
   head: (project: string) => Promise<string | null>
   /** What the project's counted CIs say of a commit pushed at `since`. */
   verdict: (project: string, commit: string, since: string) => CiVerdict
+  /** The remote's main by project, where the project's counted CIs have read it and agree on it (BTN-707). */
+  remoteHeads: () => Record<string, string>
   /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */
   waitMs: (project: string) => number | null
   /** `greens` — the last green commits of the project and of its peers (BTN-702): a commit behind any of them is no suspect. */

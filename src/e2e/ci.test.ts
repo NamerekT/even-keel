@@ -91,6 +91,36 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
     expect(runs()).toBe(2)
   })
 
+  it('runs the commands after green for a push of main by hand, once, and files no fix for a red one (BTN-707)', async () => {
+    const script = join(run.dir, 'after.js')
+    const marks = join(run.dir, 'after.log')
+    await writeFile(script, `require('fs').appendFileSync(${JSON.stringify(marks)}, 'run\\n')\n`)
+    run.project.commands = { afterGreen: [`node "${script.replaceAll('\\', '/')}"`] }
+    const runs = () => (existsSync(marks) ? readFileSync(marks, 'utf8').split('\n').filter(Boolean).length : 0)
+    run.ci.outcome = (subject) => (subject.includes('broken') ? 'failure' : 'success')
+    await run.start()
+    await run.until(() => run.service.ciWatches.shown(PROJECT_ID)[0]?.remoteHead !== null, 'the CI watch reading the remote')
+
+    const byHand = async (file: string, subject: string) => {
+      await writeFile(join(run.repo, file), `${subject}\n`)
+      run.git('add', file)
+      run.git('commit', '-m', subject)
+      run.git('push', '--quiet', 'origin', 'main')
+      return run.git('rev-parse', 'HEAD').slice(0, 7)
+    }
+    const green = await byHand('hand.txt', 'Edit by hand')
+    await run.until(() => runs() === 1, 'the commands after the green push by hand')
+    expect(run.log).toContain(`ci: ABC: ${green} is green, pushed outside the chain`)
+    await run.pass(60_000)
+    expect(runs()).toBe(1)
+
+    const red = await byHand('broken.txt', 'Edit by hand, broken')
+    await run.until(() => run.log.some((line) => line.includes(`${red} is red, pushed outside the chain`)), 'the red push by hand judged')
+    await run.pass(30_000)
+    expect(runs()).toBe(1)
+    expect(run.board.created.size).toBe(0)
+  })
+
   it('watches the CI of a remote added to the checkout while the service runs, within a minute', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')

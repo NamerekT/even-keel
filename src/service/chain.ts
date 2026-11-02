@@ -478,6 +478,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       },
     },
     main: mainCheckDeps({
+      projects: () => Object.keys(ctx.configStore.current.projects),
       peers: (project) => remotePeers(ctx.remotes.view, ctx.branchOf, project),
       repo: (project) => ctx.configStore.current.projects[project]!,
       main: ctx.branchOf,
@@ -719,6 +720,7 @@ export function wireCiWatches(ctx: ChainContext): import("../ci/watches.js").CiW
     git: runGit,
     token: (project, target) => ctx.ciTokenOf(project, target)?.token ?? null,
     branch: ctx.branchOf,
+    counted: (project, kind) => (ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI).kinds.includes(kind),
     timeoutMs: ctx.CI_TIMEOUT_MS,
     log: (message) => console.log(message),
     onChange: () => {

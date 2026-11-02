@@ -14,10 +14,13 @@ const COMMITS_WITHOUT_GREEN = 20
 
 export interface MainCiWatch {
   view: CiView
+  /** The remote's main as the watch last read it; `null` — not yet. */
+  readonly remoteHead: string | null
   failed(run: RedRun['run']): Promise<FailedRun>
 }
 
 export interface MainCiDeps {
+  projects: () => string[]
   /** The other projects whose checkout has a remote in common with this one's and the same main branch. */
   peers: (project: string) => string[]
   repo: (project: string) => string
@@ -75,6 +78,15 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
       const watches = counted(project)
       return watches === null ? { state: 'pending' } : verdictOf(watches.map((watch) => watch.view), commit, since, deps.now())
+    },
+    remoteHeads() {
+      const heads: Record<string, string> = {}
+      for (const project of deps.projects()) {
+        const seen = new Set((counted(project) ?? []).map((watch) => watch.remoteHead))
+        const [head] = seen
+        if (seen.size === 1 && head !== null && head !== undefined) heads[project] = head
+      }
+      return heads
     },
     waitMs(project) {
       const minutes = deps.settings(project).waitMinutes
