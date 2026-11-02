@@ -1,4 +1,5 @@
 import type { Notice } from '../../../src/notice/notice.js'
+import type { Patch } from '../../../src/patch.js'
 import type { Feed } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../../src/state.js'
 import type { AccountSpend, AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
@@ -8,6 +9,7 @@ import type { StatsSteps } from '../../../src/stats/steps.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import type { TaskCard } from '../../../src/tracker/card.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
+import { applyPatch } from './patch.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -83,6 +85,8 @@ const SILENCE_MS = 45_000
 
 export class LiveConnection implements LiveSource {
   private current: LiveSnapshot = { state: null, link: 'connecting' }
+  /** The state as the stream last sent it: the base its patches apply to. */
+  private base: EvenKeelState | null = null
   private readonly listeners = new Set<() => void>()
   private readonly transcriptListeners = new Map<string, Set<() => void>>()
   private stream: EventStream | null = null
@@ -239,6 +243,7 @@ export class LiveConnection implements LiveSource {
     this.stream?.close()
     const stream = this.deps.openEvents()
     this.stream = stream
+    this.base = null
     this.watchSilence()
 
     stream.addEventListener('state', (event) => {
@@ -246,7 +251,15 @@ export class LiveConnection implements LiveSource {
       this.streamed = true
       this.retryMs = FIRST_RETRY_MS
       this.watchSilence()
-      this.update({ state: JSON.parse(event.data as string) as EvenKeelState, link: 'live' })
+      this.base = JSON.parse(event.data as string) as EvenKeelState
+      this.update({ state: this.base, link: 'live' })
+    })
+    // After the whole state the service sends only what changed (BTN-695), against what it sent, not a command's answer.
+    stream.addEventListener('statePatch', (event) => {
+      if (stream !== this.stream || this.base === null) return
+      this.watchSilence()
+      this.base = applyPatch(this.base, JSON.parse(event.data as string) as Patch)
+      this.update({ state: this.base, link: 'live' })
     })
     // The service started nothing and only says why; it sends no pings, so its silence is no sign of a lost link.
     stream.addEventListener('blocked', (event) => {

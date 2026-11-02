@@ -30,6 +30,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 3c | [Huly on Node.js 25 and newer](#huly-on-nodejs-25-and-newer) | Huly users on a Node newer than 24 | Even Keel ends on the first Huly call |
 | 3a | [The start at sign-in on Windows](#the-start-at-sign-in-on-windows-btn-372) | every Windows install | no icon, no start after a sign-in, or an update that leaves Even Keel stopped |
 | 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
+| 5 | [The state sent in patches](#the-state-sent-in-patches-btn-695) | everyone with the page open | the page shows an old figure or a session out of place until it is reloaded |
 | 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
 | 7a | [The schema hint on a deferred MCP call](#the-schema-hint-on-a-deferred-mcp-call-btn-625) | Claude chain sessions calling a tracker tool before loading its schema; Copilot with the checkpoint package | the task is left without its estimate as before; Copilot loses the package's hooks |
 | 8 | [Claude daemon replacement from the service](#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
@@ -252,6 +253,10 @@ With "Task description in the prompt" off and no package of the project bringing
 ### A chain paused for packages that are not ready (BTN-657)
 
 An enabled package that is not installed, failed to install or lacks a key puts the chain in paused with "Open the project's packages" beside the reason, instead of a running chain waiting under the banner; once the package is ready the chain goes on by itself within a minute. Packages that only start or do not answer, the gateway, a closing task, CI, limits and a slot stay waits, named by the project's chip "waiting · <reason>" and a line on its card and page. Checked by the dispatcher's tests and on `dev:fake` (`?chain=packagesPause|packages|packagesSilent|gateway|closing`). An end-to-end scenario covers the service: a remote MCP package whose header needs an unset key, Start, the pause with its reason, the key set through `packages/key`, the gateway's probe passing with it and the first task starting within a minute without Resume. Not run live: a plugin or `npx` package not installed or failed to install, the button on the page, and the key set from `/tools`. **If it does not go on:** press Resume once the key is set.
+
+### The state sent in patches (BTN-695)
+
+After the whole state the page gets only what changed, `sessions` by session ([web.md](web.md)). Checked by the hub's and the page's tests and by replaying six snapshots of `/api/state` taken 4 s apart from the live service (2026-11-02) through the hub and back through `applyPatch`: the page's state came out equal to the last snapshot, the first frame 1.6 MB, the patches 4–67 KB. Not run live: the service rebuilt and restarted with it, a page open for hours, two pages at once and a page reconnecting after the service's restart. **If the page looks stale:** reload it — a new stream starts from the whole state.
 
 ### The wizard's trust check
 
