@@ -1,9 +1,12 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { HULY_CLIENT, HulyClient, hideWebStorage, type HulyClientDeps } from './client.js'
+import { HULY_CLIENT, HULY_CLIENT_OVERRIDES, HulyClient, hideWebStorage, type HulyClientDeps } from './client.js'
+
+const PATCHED = HULY_CLIENT_OVERRIDES['@hcengineering/text']
 
 const dirs: string[] = []
 
@@ -19,7 +22,7 @@ afterEach(() => {
 
 /** Writes each pinned package into the folder as npm would, at `version` or its pinned one. */
 function fakeInstall(dir: string, version?: string): void {
-  for (const [name, pinned] of Object.entries(HULY_CLIENT)) {
+  for (const [name, pinned] of Object.entries({ ...HULY_CLIENT, ...PATCHED })) {
     const home = join(dir, 'node_modules', ...name.split('/'))
     mkdirSync(home, { recursive: true })
     writeFileSync(join(home, 'package.json'), JSON.stringify({ name, version: version ?? pinned, main: 'index.js' }))
@@ -70,7 +73,9 @@ describe('HulyClient', () => {
     const huly = client({ dir, install, changed })
     expect(codeOf(() => huly.require('@hcengineering/core'))).toBe('huly.clientInstalling')
     expect(huly.view()?.code).toBe('huly.clientInstalling')
-    expect(JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).dependencies).toEqual(HULY_CLIENT)
+    const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+    expect(manifest.dependencies).toEqual(HULY_CLIENT)
+    expect(manifest.overrides).toEqual(HULY_CLIENT_OVERRIDES)
     expect(codeOf(() => huly.require('@hcengineering/core'))).toBe('huly.clientInstalling')
     expect(install).toHaveBeenCalledTimes(1)
     finish()
@@ -87,6 +92,18 @@ describe('HulyClient', () => {
     const huly = client({ dir, install })
     expect(codeOf(() => huly.require('@hcengineering/core'))).toBe('huly.clientInstalling')
     await huly.installed()
+    expect(huly.require('@hcengineering/core')).toEqual({ from: dir })
+  })
+
+  it('reinstalls a folder whose Tiptap predates the patched one, as an install before BTN-698 left it', async () => {
+    const dir = tempDir()
+    fakeInstall(dir)
+    writeFileSync(join(dir, 'node_modules', '@tiptap', 'core', 'package.json'), JSON.stringify({ name: '@tiptap/core', version: '2.27.3' }))
+    const install = vi.fn(async (prefix: string) => fakeInstall(prefix))
+    const huly = client({ dir, install })
+    expect(codeOf(() => huly.require('@hcengineering/core'))).toBe('huly.clientInstalling')
+    await huly.installed()
+    expect(install).toHaveBeenCalledTimes(1)
     expect(huly.require('@hcengineering/core')).toEqual({ from: dir })
   })
 
@@ -125,6 +142,22 @@ describe('HulyClient', () => {
     } finally {
       delete (globalThis as { sessionStorage?: unknown }).sessionStorage
     }
+  })
+})
+
+describe('the real Huly client on the patched Tiptap', () => {
+  it('loads and keeps the markdown Even Keel reads and writes: Tiptap 3 breaks only its HTML path, which Even Keel never takes', () => {
+    const huly = client({ dir: tempDir(), own: createRequire(import.meta.url) })
+    expect(huly.require<object>('@hcengineering/api-client')).toHaveProperty('connect')
+    const core = huly.require<{ markupToJSON: (markup: string) => unknown; jsonToMarkup: (json: unknown) => string }>('@hcengineering/text-core')
+    const md = huly.require<{
+      markdownToMarkup: (text: string, options: object) => unknown
+      markupToMarkdown: (json: unknown, options: object) => string
+    }>('@hcengineering/text-markdown')
+    const urls = { refUrl: 'https://example.com/browse', imageUrl: 'https://example.com/files' }
+    const text = '## Где смотреть\n\n- `package.json`, **bold** [link](https://example.com)\n\n```ts\nlet x = 1\n```'
+    const markup = core.jsonToMarkup(md.markdownToMarkup(text, urls))
+    expect(md.markupToMarkdown(core.markupToJSON(markup), urls)).toBe(text)
   })
 })
 
