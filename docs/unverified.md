@@ -13,7 +13,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux, also 3c).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
-- Forges and pull requests: 16b, 16c, 16e, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
+- Forges and pull requests: 16b, 16c, 16e, 16f, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
@@ -64,6 +64,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 16c | [A resolved GitLab conflict while mergeability is checked](#a-resolved-gitlab-conflict-while-mergeability-is-checked-btn-441-btn-561) | PR mode on GitLab, most on GitLab.com, after any push to the merge request | the session gets a conflict that is gone and spends a turn on it |
 | 16d | [Whose remarks count on Forgejo](#whose-remarks-count-on-forgejo-btn-653) | PR mode on Forgejo with a token that is no repository admin (an admin's checked) | a reviewer's remarks are skipped, or a `read` collaborator's reach the session |
 | 16e | [A refused push lifted by the merge](#a-refused-push-lifted-by-the-merge-btn-715) | PR mode where a conflict is resolved on the forge while the session answers its feedback | the chain stays paused on a merged task and holds its `parallel` slot until Resume |
+| 16f | [A Forgejo conflict right after a push](#a-forgejo-conflict-right-after-a-push-btn-717) | PR mode on Forgejo, after each push of a session's change | the session gets a conflict that is gone and spends a turn on it |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode; `--bg` sessions and other agents (Claude through the Agent SDK checked) | the answered task waits instead of going on |
 | 17a | [A task returned after a blocker or skip](#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks on `--bg` sessions or other agents (Claude through the Agent SDK checked) | an idle session may still be adopted and hold the chain |
 | 17c | [A session left mid-turn by the cleanup](#a-session-left-mid-turn-by-the-cleanup-btn-616) | chain sessions busy in a done task's folder when its cleanup runs, rarely | the session keeps resting as "waiting" on the page after its task closed |
@@ -445,6 +446,10 @@ Seen live on GitHub on 2026-11-02 (BTN-453): a conflict resolved on GitHub while
 ### A resolved GitLab conflict while mergeability is checked (BTN-441, BTN-561)
 
 Covered by adapter tests: `unchecked`, `checking`, `preparing` and `cannot_be_merged_recheck` give unknown mergeability even with `has_conflicts: true`, for both `detailed_merge_status` and the older `merge_status`, and so does a `conflict` status beside `has_conflicts: false`; a later checked result is read normally. The review event tests cover unknown mergeability producing no conflict feedback. Seen before the fix on GitLab CE 19.5 (BTN-415): after a session pushed a conflict resolution, the old conflict flag caused another session on that same commit. Rechecked live on 2026-10-29 ([verified log](verified.md#ci)): that form never showed up, but another did. After each push GitLab answers `has_conflicts: false` with a stale `detailed_merge_status: conflict` and `merge_status: cannot_be_merged_recheck`; on GitLab CE it lasts a second or two, on GitLab.com over two minutes, and there the session got a conflict that was gone twice, after a resolution and after a plain commit. BTN-561 reads both as unknown; after it, on GitLab.com, a real conflict reached the session once and two later pushes brought no conflict back ([verified log](verified.md#ci)). Not caught live: a poll landing inside the stale window — that run's window lasted two seconds (`conflict` with `merge_status: can_be_merged`), not minutes, so only the tests show what such a poll gets. **Workaround:** inspect the merge request's current conflict status before making further changes.
+
+### A Forgejo conflict right after a push (BTN-717)
+
+Seen live on Forgejo 16.0.3 on 2026-11-02 (BTN-453): a poll two seconds after Even Keel pushed a session's change got `mergeable: false` on a head that merged cleanly, the session was resumed with a conflict that was not there and spent a turn on it, and a minute later the API answered `mergeable: true` for the same head. Forgejo checks mergeability in the background after a push and answers `false` until it ends, as for a conflict. Covered by a test of `check` (`src/review/wiring.test.ts`): within 60 s of Even Keel's push a Forgejo `false` is unknown, after that it is a conflict. Not checked live after the fix: that no `conflict:` reaches the session's head after its push, and that a real conflict still does. If Forgejo's check takes longer than a minute, a session may still get a conflict that is gone; a push to the branch by someone else gets no such wait. **Workaround:** open the pull request on Forgejo and look whether it conflicts before acting on the feedback.
 
 ### A session waiting on you behind a monitor
 

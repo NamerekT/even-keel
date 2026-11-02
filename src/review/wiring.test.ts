@@ -39,6 +39,32 @@ it('keeps task-branch CI failures as PR feedback while the project main is dev',
   expect(asked.some((path) => path.includes('branch=') || path.includes('ref='))).toBe(false)
 })
 
+it('takes a Forgejo "not mergeable" for unknown in the first minute after the push, and for a conflict after it (BTN-717)', async () => {
+  const pushedAt = '2026-11-02T10:01:21Z'
+  let now = '2026-11-02T10:01:23Z'
+  const routes: Record<string, unknown> = {
+    '/pulls/8': { number: 8, html_url: '', state: 'open', mergeable: false, head: { sha: 'ce7ce32', ref: 'abc-7/task' } },
+    '/pulls/8/reviews?page=1&limit=50': [],
+    [`/issues/8/comments?since=${encodeURIComponent(pushedAt)}`]: [],
+  }
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    const path = String(input).replace('https://git.example.com/api/v1/repos/acme/app', '')
+    return new Response(JSON.stringify(routes[path] ?? {}), { status: path in routes ? 200 : 404 })
+  })
+  const deps = reviewDeps({
+    git: async () => ({ code: 0, out: 'remote.origin.url https://git.example.com/acme/app.git' }),
+    repo: () => 'D:/repos/app', main: () => 'main', on: () => true,
+    token: () => 'fake-token', complete: async () => {}, now: () => new Date(now), timeoutMs: 1_000,
+  })
+  const pull = {
+    task: 'ABC-7', remote: 'origin', number: 8, branch: 'abc-7/task',
+    url: 'https://git.example.com/acme/app/pulls/8', at: pushedAt, pushedAt, markAt: null, seen: [],
+  }
+  expect((await deps.check('p1', pull)).state).toEqual({ state: 'open', mergeable: null, head: 'ce7ce32' })
+  now = '2026-11-02T10:02:21Z'
+  expect((await deps.check('p1', pull)).state).toEqual({ state: 'open', mergeable: false, head: 'ce7ce32' })
+})
+
 it("gives a failed run of the PR head the log tail of its failed job, once, and the link alone when the log fails", async () => {
   const at = '2026-10-25T10:00:00Z'
   const asked: string[] = []
