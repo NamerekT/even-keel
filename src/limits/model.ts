@@ -17,6 +17,11 @@ export interface RateLimits {
    * `null` when it has one with no data.
    */
   month?: LimitWindow | null
+  /**
+   * Windows `/usage` has no line for, so the plan has none (BTN-729): a verified Ultra has no five hours, a Team seat no
+   * all-models week. Their value is `null`; without this mark a `null` is a window with no data, or not started.
+   */
+  absent?: SessionSpan[]
   updatedAt: string
   /**
    * `sdk` — a `rate_limit_event` of a Claude session run through the SDK (`limitsOfRateLimitInfo`); `api` — asked of the
@@ -32,7 +37,9 @@ export interface RateLimits {
 }
 
 /** The windows a session reported: one it did not name stays as it was known. */
-export type SessionLimits = Partial<Pick<RateLimits, 'fiveHour' | 'sevenDay'>> & { overage?: Omit<Overage, 'updatedAt'> }
+export type SessionLimits = Partial<Pick<RateLimits, SessionSpan>> & { overage?: Omit<Overage, 'updatedAt'> }
+
+export type SessionSpan = 'fiveHour' | 'sevenDay'
 
 const SESSION_WINDOWS = { five_hour: 'fiveHour', seven_day: 'sevenDay' } as const
 
@@ -63,9 +70,11 @@ export function limitsOfRateLimitInfo(raw: unknown): SessionLimits | undefined {
 }
 
 export function withSessionLimits(known: RateLimits | undefined, reported: SessionLimits, at: string): RateLimits {
+  const absent = known?.absent?.filter((span) => reported[span] == null) ?? []
   return {
     fiveHour: reported.fiveHour ?? known?.fiveHour ?? null,
     sevenDay: reported.sevenDay ?? known?.sevenDay ?? null,
+    ...(absent.length > 0 && { absent }),
     updatedAt: at,
     source: 'sdk',
     ...(reported.overage !== undefined ? { overage: { ...reported.overage, updatedAt: at } } : known?.overage !== undefined ? { overage: known.overage } : {}),
@@ -82,11 +91,11 @@ export type LimitSpan = 'fiveHour' | 'sevenDay' | 'month'
 /**
  * The windows the account's plan has, in the order they are shown: five hours and a week unless the plan is monthly. The
  * provider's own answer (`api`) lists every window the plan has, so one it left out while giving another is not there
- * (ChatGPT Pro has no five hours), rather than a window with no data.
+ * (ChatGPT Pro has no five hours), rather than a window with no data; so is one `/usage` marked `absent`.
  */
 export function limitSpans(limits: RateLimits | null | undefined): LimitSpan[] {
   if (limits?.month === undefined) {
-    const spans = ['fiveHour', 'sevenDay'] as const
+    const spans = (['fiveHour', 'sevenDay'] as const).filter((span) => limits?.absent?.includes(span) !== true)
     const given = spans.filter((span) => limits?.[span] != null)
     return limits?.source === 'api' && given.length > 0 ? given : [...spans]
   }
@@ -189,6 +198,8 @@ export function limitResetAfter(limits: RateLimits | null, at: string): string |
     if (limits.month?.left !== undefined && limits.month.left > 0) return limits.updatedAt
     return limits.month?.resetsAt ?? null
   }
+  // A plan without five hours (a verified Ultra) waits for the week the same way.
+  if (limits.absent?.includes('fiveHour') === true) return limits.sevenDay?.resetsAt ?? null
   const window = limits.fiveHour
   if (window === null) return limits.source === 'usage' ? limits.updatedAt : null
   const start = Date.parse(window.resetsAt) - FIVE_HOURS_MS

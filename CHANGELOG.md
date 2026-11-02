@@ -79,6 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Claude Ultra accounts without a five-hour limit, and Team seats without an all-models week: their limits were not read from `/usage` (0.1.x).
 - A Claude chain session that calls a tracker's MCP tool before loading its schema, so that an estimate or a date goes as a string and is refused, is now told to load the schema and repeat the call, instead of leaving the field out.
 - Two processes no longer open the state database or the local statistics database at the same time.
 - A Huly project that no longer exists no longer breaks reading the other projects of the same profile.

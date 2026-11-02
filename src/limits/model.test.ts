@@ -127,6 +127,11 @@ describe('limitSpans', () => {
     expect(limitSpans({ fiveHour: null, sevenDay: window, updatedAt: RECEIVED_AT, source: 'api' })).toEqual(['sevenDay'])
     expect(limitSpans({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'api' })).toEqual(['fiveHour', 'sevenDay'])
   })
+
+  it('leaves out a window /usage found absent, as a verified Ultra has no five hours and a Team seat no all-models week', () => {
+    expect(limitSpans({ fiveHour: null, sevenDay: window, absent: ['fiveHour'], updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['sevenDay'])
+    expect(limitSpans({ fiveHour: window, sevenDay: null, absent: ['sevenDay'], updatedAt: RECEIVED_AT, source: 'sdk' })).toEqual(['fiveHour'])
+  })
 })
 
 describe('newestLimits', () => {
@@ -277,6 +282,12 @@ describe('limitResetAfter', () => {
   it('does not take a statusline snapshot without the five-hour window for a reset', () => {
     expect(limitResetAfter(limits(null, '2026-10-16T00:22:00.400Z', 'statusline'), HIT)).toBeNull()
   })
+
+  it('waits for the week on a plan without the five-hour window that is not quite at 100%', () => {
+    const ultra = { ...limits(null, '2026-10-16T05:01:14.834Z'), absent: ['fiveHour' as const] }
+    expect(limitResetAfter(ultra, HIT)).toBe('2026-10-22T15:00:00.000Z')
+    expect(limitResetAfter({ ...ultra, sevenDay: null }, HIT)).toBeNull()
+  })
 })
 
 describe('limitsOfRateLimitInfo', () => {
@@ -340,5 +351,14 @@ describe('withSessionLimits', () => {
   it('leaves a window it knows nothing of empty', () => {
     const sevenDay = { usedPercentage: 31, resetsAt: '2026-01-05T09:30:00.000Z' }
     expect(withSessionLimits(undefined, { sevenDay }, RECEIVED_AT)).toEqual({ fiveHour: null, sevenDay, updatedAt: RECEIVED_AT, source: 'sdk' })
+  })
+
+  it('keeps a window /usage found absent absent until a session reports it', () => {
+    const ultra = { ...polled, fiveHour: null, absent: ['fiveHour' as const] }
+    const sevenDay = { usedPercentage: 31, resetsAt: '2026-01-05T09:30:00.000Z' }
+    expect(withSessionLimits(ultra, { sevenDay }, RECEIVED_AT)).toEqual({ fiveHour: null, sevenDay, absent: ['fiveHour'], updatedAt: RECEIVED_AT, source: 'sdk' })
+
+    const fiveHour = { usedPercentage: 5, resetsAt: '2026-01-01T15:00:00.000Z' }
+    expect(withSessionLimits(ultra, { fiveHour }, RECEIVED_AT)).toEqual({ fiveHour, sevenDay: polled.sevenDay, updatedAt: RECEIVED_AT, source: 'sdk' })
   })
 })
