@@ -93,7 +93,6 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 36b | [Example paths by the service's platform](#example-paths-by-the-services-platform-btn-634) | Linux and macOS services adding a project | the folder field shows a path of another system as its example |
 | 36c | [A chain paused for a tracker its sessions would not see](#a-chain-paused-for-a-tracker-its-sessions-would-not-see-btn-656) | projects with the task description off and no tracker package | the chain stays paused after the fix until Resume |
 | 36d | [A chain paused for packages that are not ready](#a-chain-paused-for-packages-that-are-not-ready-btn-657) | projects with a package lacking its key or its install | the chain stays paused after the fix until Resume |
-| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two profiles' pull requests on a private repository (CI per profile checked) | a project acts with another profile's token |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
 | 37f4 | [A Jira MCP grant revoked in Atlassian](#a-jira-mcp-grant-revoked-in-atlassian-btn-589) | Jira profiles connected through OAuth whose app is revoked | the row stays "connected" while the probe slows down, or a working grant asks to connect again |
@@ -669,10 +668,6 @@ A grant revoked in id.atlassian.com → Connected apps was seen in BTN-489: the 
 ### Profiles after a restart of the service (BTN-678)
 
 The first profile check comes 15 s after the start, when every call of the service timed out for about a minute (seen 2026-11-01), and its "not answering" used to stay until the next round, 15 minutes later. Now a check without an answer is tried again in 1, 2 and 4 minutes, and once the profile's tracker link turns live or a CI on its token answers again (`docs/trackers.md`, "Profiles"). Checked by tests on fake trackers and one real restart (2026-11-02, [verified.md](verified.md#trackers)): with no timeouts that time, every live profile was green 17–20 s after the start; a tracker that was really down was tried again 71 s and 132 s after its first check. Not seen: a profile whose first check times out and turns green on a retry. If it is wrong, the rows stay red until the round; press **Check** on the profile.
-
-### Two profiles of one tracker (BTN-200)
-
-Two projects on two Huly profiles (two workspaces) were run in Windows Sandbox (2026-10-25): each its own connection, and each project's gateway server listing its own workspace's projects. Two GitHub profiles of one account ran on 2026-10-31 ([verified log](verified.md#trackers)): each project's tracker, CI and pull requests took its own profile, and the narrower token's refusal stopped a pull request the other had opened. Its repositories were public, though, so a run read with the wrong token would have shown too. On 2026-11-02 a private repository's runs were read on either profile, and then, with the second profile's token narrowed to another repository, that profile's project got a 404 and its CI was hidden while the default profile read it: each project's CI takes its own profile's token. Still open: a GitHub profile's tracker and pull requests on a private repository. If a project acts with another profile's token, **workaround:** keep one profile per tracker.
 
 ### Task feeds from another tracker (BTN-66)
 
