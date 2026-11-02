@@ -37,12 +37,36 @@ jobs:
       - if: steps.changes.outputs.code == 'true'
         run: npm test
 
-      # Builds and restarts the service on the workstation that runs it (service/rebuild.ps1), once a push is
-      # green; the script builds only when the service's checkout is on the pushed commit, so a push of a branch
-      # the service does not run from changes nothing. Off unless the repository sets the DEPLOY_SSH_* variables and the DEPLOY_SSH_KEY secret;
-      # a workstation that is off or a failed build does not turn main red.
+  # The end-to-end scenarios (src/e2e/, docs/chain.md) as a job of their own. The instance's runner takes one job at a
+  # time (docs/ci.md, "This repository's workflows"), so the jobs queue rather than run side by side and there are no
+  # shards here, unlike on GitHub.
+  e2e:
+    runs-on: node24
+
+    steps:
+      - uses: https://github.com/actions/checkout@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run test:e2e
+
+  # Builds and restarts the service on the workstation that runs it (service/rebuild.ps1), once both jobs above are
+  # green; the script builds only when the service's checkout is on the pushed commit, so a push of a branch
+  # the service does not run from changes nothing. Off unless the repository sets the DEPLOY_SSH_* variables and the DEPLOY_SSH_KEY secret;
+  # a workstation that is off or a failed build does not turn main red.
+  rebuild:
+    needs: [test, e2e]
+    if: github.event_name == 'push'
+    runs-on: node24
+
+    steps:
       - name: Rebuild the service
-        if: github.event_name == 'push' && vars.DEPLOY_SSH_HOST != ''
+        if: vars.DEPLOY_SSH_HOST != ''
         continue-on-error: true
         env:
           KEY: ${{ secrets.DEPLOY_SSH_KEY }}
