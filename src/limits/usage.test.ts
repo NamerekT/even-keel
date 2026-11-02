@@ -49,9 +49,27 @@ describe('parseUsage', () => {
     expect(parsed.kind === 'limits' && parsed.limits.sevenDay).toEqual({ usedPercentage: 19, resetsAt: '2026-10-03T12:59:00.000Z' })
   })
 
+  it('reads a plan without the five-hour window, a verified Ultra, from its two weekly lines', () => {
+    const text = lines(WEEK, 'Current week (Fable): 40% used · resets Oct 3, 2:59pm (Europe/Berlin)')
+
+    expect(parseUsage(answer(text), AT)).toEqual({
+      kind: 'limits',
+      limits: { fiveHour: null, sevenDay: { usedPercentage: 19, resetsAt: '2026-10-03T12:59:00.000Z' }, absent: ['fiveHour'], updatedAt: AT, source: 'usage' },
+    })
+  })
+
+  it('reads a seat without the all-models week, a Team one, from its session and model week', () => {
+    const text = lines(SESSION, 'Current week (Fable): 80% used · resets Oct 3, 2:59pm (Europe/Berlin)')
+
+    expect(parseUsage(answer(text), AT)).toEqual({
+      kind: 'limits',
+      limits: { fiveHour: { usedPercentage: 33, resetsAt: '2026-09-27T17:49:00.000Z' }, sevenDay: null, absent: ['sevenDay'], updatedAt: AT, source: 'usage' },
+    })
+  })
+
   it.each([
-    ['the weekly line is missing', lines(SESSION, 'Current week (Sonnet only): 80% used · resets Oct 3, 2:59pm (Europe/Berlin)'), /week/],
-    ['the session line is missing', WEEK, /session/],
+    ['the weekly line is in another format', lines(SESSION, 'Current week (all models): 19 % used · resets Oct 3, 2:59pm (Europe/Berlin)'), /week/],
+    ['the session line is in another format without a weekly line', 'Current session: 33 % used', /session/],
     ['a used window has no reset time', lines('Current session: 33% used', WEEK), /session/],
     ['the reset time is in another format', lines('Current session: 33% used · resets 19:49 (Europe/Berlin)', WEEK), /session/],
     ['the percentage is in another format', lines('Current session: 33 % used · resets 7:49pm (Europe/Berlin)', WEEK), /session/],

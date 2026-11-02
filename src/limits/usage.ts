@@ -16,8 +16,10 @@ export interface UsageHealth {
 
 const SUBSCRIPTION_LINE = /^You are currently using your subscription\b/m
 const LIMIT_LINE = /^Current (session|week)\b/m
+const SESSION_START = /^Current session\b/m
+const WEEK_START = /^Current week \(all models\)/m
 const SESSION_LINE = /^Current session:\s*(\d+(?:\.\d+)?)% used\b(.*)$/m
-const WEEK_LINE = /^Current week \(all models\):\s*(\d+(?:\.\d+)?)% used\b(.*)$/m
+const WEEK_LINE =/^Current week \(all models\):\s*(\d+(?:\.\d+)?)% used\b(.*)$/m
 
 export function parseUsage(stdout: string, at: string): UsageAnswer {
   let body: unknown
@@ -34,11 +36,17 @@ export function parseUsage(stdout: string, at: string): UsageAnswer {
   if (typeof result !== 'string') return { kind: 'unknown', reason: notice('usage.noResult', {}) }
 
   if (SUBSCRIPTION_LINE.test(result) && !LIMIT_LINE.test(result)) return { kind: 'missing', reason: notice('usage.noLimits', {}) }
-  const fiveHour = windowOf(SESSION_LINE.exec(result), at)
+  const hasSession = SESSION_START.test(result)
+  const hasWeek = WEEK_START.test(result)
+  // A plan may lack a window (BTN-729): a verified Ultra has no session line, a Team seat no all-models week. A line
+  // that is there but does not parse is a new format, not an absent window.
+  if (!hasSession && !hasWeek) return { kind: 'unknown', reason: notice('usage.noSession', {}) }
+  const fiveHour = hasSession ? windowOf(SESSION_LINE.exec(result), at) : null
   if (fiveHour === undefined) return { kind: 'unknown', reason: notice('usage.noSession', {}) }
-  const sevenDay = windowOf(WEEK_LINE.exec(result), at)
+  const sevenDay = hasWeek ? windowOf(WEEK_LINE.exec(result), at) : null
   if (sevenDay === undefined) return { kind: 'unknown', reason: notice('usage.noWeek', {}) }
-  return { kind: 'limits', limits: { fiveHour, sevenDay, updatedAt: at, source: 'usage' } }
+  const absent = [...(hasSession ? [] : ['fiveHour' as const]), ...(hasWeek ? [] : ['sevenDay' as const])]
+  return { kind: 'limits', limits: { fiveHour, sevenDay, ...(absent.length > 0 && { absent }), updatedAt: at, source: 'usage' } }
 }
 
 function windowOf(match: RegExpExecArray | null, at: string): LimitWindow | null | undefined {
