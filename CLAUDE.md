@@ -32,7 +32,7 @@ This file holds only the rules and traps every session needs. How things are bui
 
 Behaviour written without a way to check it live gets an entry in `docs/unverified.md` and a row in its "What to check first" table. Every live check — of such an entry, a "Проверка" task, a live run inside a task — gets a row in `docs/verified.md`; a checked entry moves there, never just deleted (the heads of both files say how).
 
-The public documentation is `README.md`, `docs/guide/` (`features.md`, `setup.md`, `reference.md`) and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
+The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
 
 **Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. The hook and a test hold this file to 13,000 bytes; only the user may raise the ceiling. Documentation in the repository is in English; Huly tasks stay in Russian.
 
@@ -41,7 +41,7 @@ The public documentation is `README.md`, `docs/guide/` (`features.md`, `setup.md
 - Node.js 24 + TypeScript, tests — vitest. The interface is React + Vite in `web/`, built into `dist/web`; the client takes state types from `src/state.ts` — only types there, no `node:*`.
 - The tracker is reached only through the `src/tracker/` layer, the agent only through `src/agent/` (`Agent`, `AGENTS`): the chain, the rules and the page know the neutral model, not Huly or Claude.
 - Claude sessions are the `claude --bg` CLI or, per account folder, the same CLI through the Agent SDK, with a configuration folder per account (`CLAUDE_CONFIG_DIR`).
-- Stats are Tally (`tally/`); the collector and its database run inside the service.
+- Stats are Tally (`tally/`), run inside the service.
 - The settings and projects are in the state database; a hand edit is `npm run storage -- config-export`/`config-import`. The service applies them and `.env` live, and a new setting must apply live too; a restart is only for a new version and a few start-only variables (`docs/service.md`). The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`.
 - A project's main branch is its `branch` key (`main` by default): never write a literal `main` into git calls or session prompts.
 
@@ -97,6 +97,6 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 
 ## Tests
 
-TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. A chain bug found live also gets a scenario in `src/e2e/` when the scripted agent reproduces it (`docs/chain.md`). Process handling, network and layout are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (`docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context.
+TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. A chain bug found live also gets a scenario in `src/e2e/` when the scripted agent reproduces it. Before a merge: `npm run typecheck`, `npm test` and the e2e files of the area touched (`docs/chain.md`); the rest of e2e runs on CI. Process handling, network and layout are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (`docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context.
 
 Live checks run only on the benches of `stands/README.md` in `even-keel-backstage`, the maintainer's private repo next to the main checkout: read its "Left changed" first, put back every setting a check changes.

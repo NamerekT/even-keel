@@ -180,7 +180,8 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 `main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>` ([docs/releases.md](docs/releases.md)). Pull requests are not accepted for now: bugs and ideas go to issues ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```sh
-npm test            # vitest
+npm test            # vitest, without the end-to-end scenarios
+npm run test:e2e    # the end-to-end scenarios of src/e2e/
 npm run typecheck
 npm run dev         # the server, restarting on changes
 npm run dev:web     # the page with hot reload, proxying /api to a running server

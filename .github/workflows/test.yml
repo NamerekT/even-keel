@@ -42,3 +42,31 @@ jobs:
 
       - if: steps.changes.outputs.code == 'true'
         run: npm test
+
+  # The end-to-end scenarios (src/e2e/, docs/chain.md) beside the unit tests, split over runners by file: Vitest runs
+  # files in parallel, not the scenarios inside one, so the longest file is the floor of a shard.
+  e2e:
+    name: e2e (${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
