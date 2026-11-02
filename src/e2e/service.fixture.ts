@@ -369,13 +369,27 @@ async function realWork(limitMs = 10_000): Promise<void> {
   }
 }
 
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
+/**
+ * Ports below every OS's ephemeral range (Linux from 32768, Windows and macOS from 49152), a slice per vitest worker.
+ * A port the OS handed out and the probe closed went to an outgoing socket or another worker before the service
+ * listened on it, and the service's listen failed with EADDRINUSE (Tests #544).
+ */
+const PORT_SLICE = 512
+const PORT_BASE = 20_000 + ((Number(process.env.VITEST_POOL_ID ?? 1) - 1) % 24) * PORT_SLICE
+let portCursor = Math.floor(Math.random() * PORT_SLICE)
+
+async function freePort(): Promise<number> {
+  for (let tries = 0; tries < PORT_SLICE; tries++) {
+    const port = PORT_BASE + (portCursor++ % PORT_SLICE)
+    if (await listens(port)) return port
+  }
+  throw new Error(`no free port in ${PORT_BASE}..${PORT_BASE + PORT_SLICE - 1}`)
+}
+
+function listens(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
     const server = createServer()
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      server.close(() => (typeof address === 'object' && address !== null ? resolve(address.port) : reject(new Error('no port'))))
-    })
+    server.once('error', () => resolve(false))
+    server.listen(port, '127.0.0.1', () => server.close(() => resolve(true)))
   })
 }
