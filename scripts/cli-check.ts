@@ -8,7 +8,8 @@
  * The version is the adapter's `checked` by default; its copy goes into `<state>/cli-check/cli/<agent>/<version>/`.
  * The account folder must have no live session. `/usage` is asked once (more often than once per 5 minutes it answers
  * 429): `--no-usage` leaves it out; OpenCode and Copilot skip it. Codex's limits shape is always checked in this
- * session's rollout, without a usage API request. The transcripts are saved as anonymized samples in `test/fixtures/cli`.
+ * session's rollout, without a usage API request. The transcripts are saved as anonymized samples in `test/fixtures/cli`,
+ * unless they hold a line of the account folder's own instructions or memory (BTN-724).
  */
 import { join } from 'node:path'
 import { hostname, homedir, userInfo } from 'node:os'
@@ -17,6 +18,7 @@ import { AGENTS } from '../src/agent/adapters.js'
 import { sessionBase } from '../src/agent/env.js'
 import { CHECK_MODELS, runCliCheck } from '../src/cli-check/run.js'
 import { root, stateDirOf } from '../src/locations.js'
+import { accountLeaks, accountTexts } from './cli-sample-account.js'
 import { captureSnapshot } from './cli-sample-capture.js'
 import { anonymizeSample, saveSample } from './cli-samples.js'
 
@@ -60,9 +62,13 @@ async function run(options: Options): Promise<void> {
     say: (line) => console.log(line),
     capture: captureSnapshot,
   })
+  const sample = { provider: options.agent, ...report }
+  // Checked before anonymization: a line with a path in it would no longer match after.
+  const leaks = accountLeaks(sample, accountTexts(home.dir))
+  if (leaks.length > 0) throw new Error(`cli-check: the capture holds the account folder's own instructions or memory, not saved: ${leaks.join(', ')}`)
   const privateValues = [homedir(), userInfo().username, hostname(), home.dir, cwd,
     ...Object.entries(process.env).filter(([key]) => /token|secret|password|api_?key/i.test(key)).map(([, value]) => value ?? '')]
-  const file = saveSample(join(root, 'test/fixtures/cli'), anonymizeSample({ provider: options.agent, ...report }, privateValues))
+  const file = saveSample(join(root, 'test/fixtures/cli'), anonymizeSample(sample, privateValues))
   console.log(`ok    anonymized transcript sample — ${file}`)
 }
 

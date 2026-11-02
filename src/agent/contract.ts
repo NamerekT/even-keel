@@ -91,6 +91,11 @@ export interface SessionStart {
   mcp?: SessionMcp[]
   /** Optional. The project's plugin packages, for an agent that reads Claude Code plugins. */
   plugins?: SessionPlugin[]
+  /**
+   * Optional. The agent's own memory stays out of the session, neither read nor written: the CLI check, whose transcript
+   * is saved as a sample (BTN-724). Codex reads it; Claude's is off by the check's environment and `--settings`.
+   */
+  noMemory?: boolean
 }
 
 /** `Agent.models`' answer. */

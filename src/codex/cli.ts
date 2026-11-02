@@ -51,7 +51,7 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv, pinned?: string): str
  * Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`.
  * A project with a `CLAUDE.md` and no `AGENTS.md` still gives the session its rules (BTN-340, checked on 0.164.0).
  */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
+export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
@@ -59,6 +59,8 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
     `--${bypassSandbox === true ? BYPASS_MODE : SESSION_MODE}`,
     '-c',
     'project_doc_fallback_filenames=["CLAUDE.md"]',
+    // The keys as `config/read` of 0.166.0 shows them (BTN-724).
+    ...(start.noMemory === true ? ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false'] : []),
     ...(model === null ? [] : ['-m', model]),
     ...mcpArgs(mcp),
     ...plugins,

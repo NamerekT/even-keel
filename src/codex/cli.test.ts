@@ -144,6 +144,11 @@ describe('turnArgs', () => {
     expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'resume', 'thread-1', 'BTN-1'])
   })
 
+  it('keeps the memory out, neither read nor written, when the start asks so', () => {
+    const off = ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false']
+    expect(turnArgs({ model: null, noMemory: true }, 'go on', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...off, 'resume', 'thread-1', 'go on'])
+  })
+
   it('puts the model, the gateway servers and every other flag before resume', () => {
     const mcp = [{ name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly' }]
     expect(turnArgs({ model: 'gpt-5.6-luna', mcp }, 'go on', 'thread-1')).toEqual([

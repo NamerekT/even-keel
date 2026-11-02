@@ -53,3 +53,7 @@ Checked live with Codex 0.164.0 on Windows on 2026-10-25: a shell write of the n
 ## Plugins in a Codex folder on Linux and macOS
 
 The install and the check that a plugin is already in a folder (`<CODEX_HOME>/plugins/cache/<marketplace>/<plugin>`) were run only on Windows. If the path differs, every first turn of a service run installs the plugin again, which costs a few seconds and changes nothing else.
+
+## Codex memory off in the CLI check (BTN-724)
+
+A Codex session of `npm run cli-check` runs with `-c features.memories=false -c memories.use_memories=false -c memories.generate_memories=false` (`SessionStart.noMemory`), so that its saved capture holds no summary of the account folder's memories. Only `config/read` of codex-cli 0.166.0 was seen to take the keys; no session has run with them. If they do not keep the summary out, the check still saves nothing: it refuses a capture holding a line of the folder's `memories/` and names the file. Run the next Codex `cli-check` in a folder that has memories: it should pass and save its capture.

@@ -33,7 +33,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
-- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
+- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3 (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86. Not checked by choice: 63.
@@ -148,3 +148,4 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 84 | [The instruction size ceiling in a Claude session](unverified/sessions.md#the-instruction-size-ceiling-in-a-claude-session-btn-468) | Claude sessions editing instruction files | a CLI response change could omit the size warning; the repository test still holds Even Keel's files |
 | 85 | [Copilot's machine token and model availability (BTN-516)](unverified/copilot.md#copilots-machine-token-and-model-availability-btn-516) | Copilot's own OAuth in the plaintext fallback, Linux/macOS and model hints | an unreadable source has no allowance; the model list remains unavailable |
 | 86 | [A fresh session idling before its prompt](unverified/ci.md#a-fresh-session-idling-before-its-prompt) | everyone starting a chain | the start card still gives way to "waiting for a reply" for a few seconds |
+| 87 | [Codex memory off in the CLI check](unverified/codex.md#codex-memory-off-in-the-cli-check-btn-724) | the maintainer raising a Codex pin | a Codex capture is refused until the memory flags are fixed |

@@ -7,7 +7,7 @@
  * The account folder must have no live session: a Claude daemon on the checked version takes the folder over, and the
  * check stops it at the end, so the next chain launch starts one on the pinned version again.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { AccountHome } from '../account/homes.js'
@@ -65,6 +65,12 @@ const PROMPTS: Record<string, string> = {
  * every model named by `--model` (`gpt-5-mini`, `claude-haiku-4.5`) and ran only on its `auto`.
  */
 export const CHECK_MODELS: Record<string, string | null> = { [CLAUDE]: 'haiku', [CODEX]: 'gpt-5.6-luna', [OPENCODE]: 'opencode/big-pickle', [COPILOT]: null }
+/**
+ * The account folder's global instructions and Claude's auto-memory stay out of the session, so that its transcript, saved
+ * as a sample, holds none of them (BTN-724): in the environment and in `--settings`, which the daemon's frozen environment
+ * does not override. Codex's memory is off by `SessionStart.noMemory`; its global `AGENTS.md` has no switch.
+ */
+const NO_PRIVATE_CONTEXT = { CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1', CLAUDE_CODE_DISABLE_CLAUDE_MDS: '1' }
 /** The agents whose limits come from the CLI itself; OpenCode's and Copilot's are asked of ChatGPT or GitHub, not of the version checked. */
 const CLI_USAGE = [CLAUDE, CODEX]
 
@@ -165,6 +171,14 @@ function readSettings(dir: string, name = 'settings.json'): Record<string, unkno
   return existsSync(found) ? JSON.parse(readFileSync(found, 'utf8')) : undefined
 }
 
+/** The account folder's own skills, all off: their list with descriptions goes into the session's context (BTN-724). */
+function accountSkillsOff(dir: string): Record<string, string> {
+  const skills = join(dir, 'skills')
+  if (!existsSync(skills)) return {}
+  const names = readdirSync(skills).filter((name) => !name.startsWith('.') && existsSync(join(skills, name, 'SKILL.md')))
+  return Object.fromEntries(names.map((name) => [name, 'off']))
+}
+
 /** Resolves with what the check saw; rejects with a `CliCheckFailure` naming the first failed step. */
 export async function runCliCheck<S>(options: CliCheckOptions<S>): Promise<CliCheckReport<S>> {
   const steps = new Steps(options.say)
@@ -185,7 +199,7 @@ async function checkVersion<S>(options: CliCheckOptions<S>, steps: Steps): Promi
   let hookUrl: string | undefined
   const failures: string[] = []
   const agent: Agent = adapter.setup({
-    env: () => ({ ...options.env(), ...(hookUrl === undefined ? {} : { EVEN_KEEL_URL: hookUrl }) }),
+    env: () => ({ ...options.env(), ...NO_PRIVATE_CONTEXT, ...(hookUrl === undefined ? {} : { EVEN_KEEL_URL: hookUrl }) }),
     timeoutMs: CALL_TIMEOUT_MS,
     workDir: work,
     checkedCli: () => true,
@@ -244,8 +258,14 @@ async function checkVersion<S>(options: CliCheckOptions<S>, steps: Steps): Promi
         return (set.plugins ?? []).map((plugin) => checkCodexHookList(answer, pluginId(plugin))).join('; ')
       }, (answer) => answer)
     }
-    const settings = JSON.stringify({ env: { EVEN_KEEL_URL: hooks.url }, enabledPlugins: packages.otherPlugins(NAME, NAME, [readSettings(home.dir), readSettings(cwd), readSettings(cwd, 'settings.local.json')]) })
-    report = await check(agent, options, steps, { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, ...set, settings }, hooks.requests, (next) => (handle = next))
+    const settings = JSON.stringify({
+      env: { EVEN_KEEL_URL: hooks.url, ...NO_PRIVATE_CONTEXT },
+      autoMemoryEnabled: false,
+      skillOverrides: accountSkillsOff(home.dir),
+      enabledPlugins: packages.otherPlugins(NAME, NAME, [readSettings(home.dir), readSettings(cwd), readSettings(cwd, 'settings.local.json')]),
+    })
+    const start = { name: NAME, cwd, prompt: PROMPTS[options.agent]!, model: options.model, ...set, settings, noMemory: true }
+    report = await check(agent, options, steps, start, hooks.requests, (next) => (handle = next))
   } finally {
     if (handle !== undefined) await agent.stop(home, handle).catch(() => {})
     if (agent.stopDaemon !== undefined && agent.daemonVersion !== undefined) {
