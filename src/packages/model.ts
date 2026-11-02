@@ -102,13 +102,16 @@ export function settingsOf(file: PackagesFile, project: string, name: string): R
   return { ...(record === undefined ? {} : packageSettings(record)), ...file.projects[project]?.settings[name] }
 }
 
-/** What a session of the task runs on: its pins, else the current install of every package the project has. */
+/**
+ * What a session of the task runs on: every package the project has on now (BTN-706), each on the install the task is
+ * pinned to while that install is there, else on the current one. A pin holds versions, not the set.
+ */
 export function installsFor(file: PackagesFile, project: string, task: string): Record<string, string> {
-  const pinned = file.pins[project]?.[task]
-  if (pinned !== undefined) return pinned
+  const pinned = file.pins[project]?.[task] ?? {}
   const installs: Record<string, string> = {}
   for (const name of enabledPackages(file, project)) {
-    const install = current(file.packages[name]!)
+    const record = file.packages[name]!
+    const install = record.installs.find((each) => each.id === pinned[name]) ?? current(record)
     if (install !== undefined) installs[name] = install.id
   }
   return installs

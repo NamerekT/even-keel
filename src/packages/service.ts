@@ -9,7 +9,7 @@ import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
-import { current, defaultsOf, enabledPackages, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, installsFor, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
@@ -260,14 +260,17 @@ export class Packages {
   }
 
   /**
-   * What a session of the task gets on the agent; the first one pins the task to the installs it starts on. Claude Code
-   * goes without the user's wrapped skills: it reads them from its account folder.
+   * What a session of the task gets on the agent. The pin follows the set it starts with (BTN-706): a package the project
+   * turned on since joins on its current install, one turned off leaves, and an install no pin holds any more goes.
+   * Claude Code goes without the user's wrapped skills: it reads them from its account folder.
    */
   startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project }
     const found = sessionPackages(this.file, project, task, places)
-    if (this.file.pins[project]?.[task] === undefined && Object.keys(found.installs).length > 0) {
-      ;(this.file.pins[project] ??= {})[task] = found.installs
+    if (!sameInstalls(this.file.pins[project]?.[task] ?? {}, found.installs)) {
+      if (Object.keys(found.installs).length > 0) (this.file.pins[project] ??= {})[task] = found.installs
+      else this.unpin(project, task)
+      this.prune()
       this.save()
     }
     for (const [name, id] of Object.entries(found.installs)) {
@@ -280,9 +283,7 @@ export class Packages {
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */
   otherPlugins(project: string, task: string, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
-    const pinned = this.file.pins[project]?.[task]
-    const names = pinned === undefined ? enabledPackages(this.file, project) : Object.keys(pinned)
-    const set = names.flatMap((name) => {
+    const set = Object.keys(installsFor(this.file, project, task)).flatMap((name) => {
       const plugin = this.file.packages[name]?.plugin
       return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
     })
@@ -296,12 +297,17 @@ export class Packages {
 
   /** The task is done: its pins go, and with them the installs nothing holds any more. */
   release(project: string, task: string): void {
-    const tasks = this.file.pins[project]
-    if (tasks?.[task] === undefined) return
-    delete tasks[task]
-    if (Object.keys(tasks).length === 0) delete this.file.pins[project]
+    if (this.file.pins[project]?.[task] === undefined) return
+    this.unpin(project, task)
     this.prune()
     this.save()
+  }
+
+  private unpin(project: string, task: string): void {
+    const tasks = this.file.pins[project]
+    if (tasks === undefined) return
+    delete tasks[task]
+    if (Object.keys(tasks).length === 0) delete this.file.pins[project]
   }
 
   async install(name: string): Promise<void> {
@@ -633,4 +639,9 @@ function sameServers(installed: Record<string, InstalledServer>, planned: Record
     const known = installed[name]!
     return npm === null ? known.npm === null && JSON.stringify(known.entry) === JSON.stringify(entry) : known.npm?.version === npm
   })
+}
+
+function sameInstalls(a: Record<string, string>, b: Record<string, string>): boolean {
+  const names = Object.keys(a)
+  return names.length === Object.keys(b).length && names.every((name) => a[name] === b[name])
 }

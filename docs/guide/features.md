@@ -271,7 +271,7 @@ Chain sessions start without claude.ai skills and plugins, and with niche bundle
 
 ## Packages
 
-Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
+Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. A package you turn on or off for the project reaches the next session of every task, a postponed one too. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
 Package settings on `/tools` can be changed for every project or for one project. Settings you leave at their inherited value follow the package's defaults after an update; your changes stay. Reset a value to inherit it again. A running task keeps the defaults of its pinned version.
 

@@ -167,6 +167,49 @@ describe('package settings across updates', () => {
   })
 })
 
+describe('a task pins versions, not the set (BTN-706)', () => {
+  const install = (id: string, servers: string[]) => ({
+    id, version: '1.0.0', at: '2026-11-02T07:00:00.000Z', extras: true,
+    servers: Object.fromEntries(servers.map((name) => [name, { entry: { command: 'node' }, npm: null }])),
+  })
+
+  function pinned() {
+    const { file, cache, reload } = fixture()
+    savePackages(file, {
+      packages: {
+        'tools@example': { kind: 'plugin', plugin: { name: 'tools', marketplace: 'example' }, default: true, settings: {}, installs: [install('old', ['tools']), install('new', ['tools'])] },
+        'extra@example': { kind: 'plugin', plugin: { name: 'extra', marketplace: 'example' }, default: false, settings: {}, installs: [install('e1', ['extra'])] },
+      },
+      projects: {},
+      pins: { project: { 'ABC-1': { 'tools@example': 'old' } } },
+    })
+    mkdirSync(join(cache, 'tools@example', 'old'), { recursive: true })
+    return { packages: reload(), file, cache }
+  }
+  const enabled = [{ enabledPlugins: { 'tools@example': true, 'extra@example': true } }]
+
+  it('gives a later package to the task on its current install and adds it to the pin, the pinned one staying old', () => {
+    const { packages, file } = pinned()
+    packages.choose('project', 'extra@example', 'on')
+    const start = packages.startOf('project', 'ABC-1', 'claude')
+    expect(start.plugins.map((each) => [each.package, each.marketplace])).toEqual([['tools@example', 'ek-old'], ['extra@example', 'ek-e1']])
+    expect(loadPackages(file)!.pins.project).toEqual({ 'ABC-1': { 'tools@example': 'old', 'extra@example': 'e1' } })
+    expect(packages.otherPlugins('project', 'ABC-1', enabled)).toEqual({})
+  })
+
+  it('drops a package the project turned off from the pin, and its old install with it', () => {
+    const { packages, file, cache } = pinned()
+    packages.choose('project', 'tools@example', 'off')
+    packages.choose('project', 'extra@example', 'on')
+    expect(packages.startOf('project', 'ABC-1', 'claude').plugins.map((each) => each.package)).toEqual(['extra@example'])
+    const stored = loadPackages(file)!
+    expect(stored.pins.project).toEqual({ 'ABC-1': { 'extra@example': 'e1' } })
+    expect(stored.packages['tools@example']!.installs.map((each) => each.id)).toEqual(['new'])
+    expect(existsSync(join(cache, 'tools@example', 'old'))).toBe(false)
+    expect(packages.otherPlugins('project', 'ABC-1', enabled)).toEqual({ 'tools@example': false })
+  })
+})
+
 describe('packages only the user can make ready', () => {
   it('names an enabled package until it is installed', async () => {
     const { packages } = fixture()

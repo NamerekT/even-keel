@@ -60,16 +60,32 @@ describe('sessionPackages', () => {
 
   it('keeps a task on the installs it is pinned to', () => {
     const file = catalog()
-    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a' } }
+    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a', strata: 's1' } }
     const got = sessionPackages(file, 'ABC', 'ABC-1', places)
-    expect(got.installs).toEqual({ 'huly@even-keel': 'a' })
-    expect(got.mcp.map((each) => each.url)).toEqual([`http://127.0.0.1:4748${routeOf(places.projectId, 'huly@even-keel', 'a', 'huly')}`])
+    expect(got.installs).toEqual({ 'huly@even-keel': 'a', strata: 's1' })
+    expect(got.mcp.map((each) => each.url)).toEqual([
+      `http://127.0.0.1:4748${routeOf(places.projectId, 'huly@even-keel', 'a', 'huly')}`,
+      `http://127.0.0.1:4748${routeOf(places.projectId, 'strata', 's1', 'strata')}`,
+    ])
   })
 
-  it('skips a pin whose install is gone', () => {
+  it('gives a task a package the project turned on after the pin, on its current install', () => {
     const file = catalog()
-    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'zzz' } }
-    expect(sessionPackages(file, 'ABC', 'ABC-1', places).mcp).toEqual([])
+    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a' } }
+    expect(sessionPackages(file, 'ABC', 'ABC-1', places).installs).toEqual({ 'huly@even-keel': 'a', strata: 's1' })
+  })
+
+  it('leaves out a pinned package the project turned off', () => {
+    const file = catalog()
+    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a', strata: 's1' } }
+    file.projects.ABC!.off.push('strata')
+    expect(sessionPackages(file, 'ABC', 'ABC-1', places).installs).toEqual({ 'huly@even-keel': 'a' })
+  })
+
+  it('takes the current install for a pin whose install is gone', () => {
+    const file = catalog()
+    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'zzz', strata: 's1' } }
+    expect(sessionPackages(file, 'ABC', 'ABC-1', places).installs).toEqual({ 'huly@even-keel': 'b', strata: 's1' })
   })
 })
 
