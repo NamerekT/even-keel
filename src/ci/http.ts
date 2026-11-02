@@ -13,9 +13,12 @@ export async function getJsonPage<T>(ci: string, url: string, authorization: str
   return { rows: await response.json() as T[], nextPage: response.headers.get('x-next-page') }
 }
 
-/** Redirects are followed: GitHub answers a job log with one to a signed address. */
-export async function getText(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch): Promise<string> {
-  return (await request(ci, url, { authorization, accept: 'text/plain' }, timeoutMs, fetchImpl)).text()
+/**
+ * Redirects are followed: GitHub answers a job log with one to a signed address. GitHub answers `text/plain` with 415,
+ * so its adapter passes its own `accept` (BTN-708).
+ */
+export async function getText(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch, accept = 'text/plain'): Promise<string> {
+  return (await request(ci, url, { authorization, accept }, timeoutMs, fetchImpl)).text()
 }
 
 /** A write: opening a pull request (BTN-205). A refused token is `review.denied` — it needs to write pull requests, not only to read. */

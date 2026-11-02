@@ -119,4 +119,15 @@ describe('githubActionsSource', () => {
     expect(await source.log!({ id: 11 } as never)).toBe('2026-10-11T20:17:08.1Z npm test\n2026-10-11T20:17:09.1Z FAIL')
     expect(asked).toEqual([{ url: 'https://api.github.com/repos/octo-org/app/actions/jobs/11/logs', auth: 'Bearer fake-token' }])
   })
+
+  it('asks for a job log with an accept GitHub takes: text/plain is answered 415 (BTN-708)', async () => {
+    let accept: string | null = null
+    const fetchImpl = (async (_input: string | URL, init?: RequestInit) => {
+      accept = new Headers(init?.headers).get('accept')
+      return accept === 'text/plain' ? new Response('', { status: 415 }) : new Response('FAIL', { status: 200 })
+    }) as typeof fetch
+    const source = githubActionsSource({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    expect(await source.log!({ id: 11 } as never)).toBe('FAIL')
+    expect(accept).toBe('application/vnd.github+json')
+  })
 })

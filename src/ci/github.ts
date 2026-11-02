@@ -87,7 +87,7 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
     },
 
     log(job) {
-      return getText(TITLE, `${base}/actions/jobs/${job.id}/logs`, `Bearer ${settings.token}`, timeoutMs, fetchImpl)
+      return getText(TITLE, `${base}/actions/jobs/${job.id}/logs`, `Bearer ${settings.token}`, timeoutMs, fetchImpl, 'application/vnd.github+json')
     },
   }
 }
