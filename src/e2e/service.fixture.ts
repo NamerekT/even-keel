@@ -63,6 +63,8 @@ export class Harness {
   readonly ci = new Ci(() => this.remote)
   /** The pull requests of the forge, with `forge` set: the real Forgejo adapter reads them in place of its API. */
   readonly pulls = new Pulls(() => this.remote)
+  /** The pull requests of github.com, with `githubRemote` set: the real GitHub adapter reads them in place of its API. */
+  readonly githubPulls = new Pulls(() => this.githubBare, 'github')
   readonly agent = new ScriptedAgent((cwd) => this.checkoutOf(cwd), () => this.service.listen)
   readonly log: string[] = []
   /** Keys of the project's entry in the config file the service starts on, set before `start`. */
@@ -89,7 +91,8 @@ export class Harness {
   feed = false
   /**
    * Set before `start`: the project's checkout has a `github` remote at `GITHUB_URL` (git is pointed at `githubBare`),
-   * a GitHub profile with a token is made at the first start, and `github` answers every call to api.github.com.
+   * a GitHub profile with a token is made at the first start, and `github` answers every call to api.github.com but
+   * those of the pull requests, which `githubPulls` answers.
    */
   githubRemote = false
   private context: ServiceContext | undefined
@@ -309,6 +312,11 @@ export class Harness {
       const { FORGES } = await import('../review/wiring.js')
       const { forgejoPulls } = await import('../review/forgejo.js')
       FORGES.forgejo = ({ web, owner, repo }, token, timeoutMs) => forgejoPulls({ web, owner, repo, token }, timeoutMs, this.pulls.fetch)
+    }
+    if (this.githubRemote) {
+      const { FORGES } = await import('../review/wiring.js')
+      const { githubPulls } = await import('../review/github.js')
+      FORGES.github = ({ owner, repo }, token, timeoutMs) => githubPulls({ owner, repo, token }, timeoutMs, this.githubPulls.fetch)
     }
     const before = new Map(SIGNALS.map((signal) => [signal, new Set(process.listeners(signal))]))
     const booted = this.log.length

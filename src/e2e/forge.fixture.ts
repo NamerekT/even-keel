@@ -4,6 +4,9 @@ import { FORGE_WEB } from './ci.fixture.js'
 /** What another account may do in the repository: push (`write`) or only read and comment. */
 export type Access = 'write' | 'read'
 
+/** The API the pull requests answer as: the bench's Forgejo, or github.com for the project's `github` remote. */
+export type PullsApi = 'forgejo' | 'github'
+
 /** The account of the bench's token: the repository's owner, the one Even Keel and its sessions write as. */
 export const OWNER = 'john'
 const REPO = 'example'
@@ -41,13 +44,16 @@ interface Comment {
 type Route = (match: RegExpExecArray, url: URL, body: unknown) => Promise<Response> | Response
 
 /**
- * The pull requests of the bench's Forgejo, served as its API answers them to the real adapter (`forgejoPulls`): the
- * branches and their heads are those of the bare repository, a merge is a real merge there. Reviews and comments carry
- * their author, and `access` says what each account other than `OWNER` may do in the repository.
+ * The pull requests of a forge, served as its API answers them to the real adapter — `forgejoPulls` for the bench's
+ * Forgejo, `githubPulls` for github.com: the branches and their heads are those of the bare repository, a merge is a
+ * real merge there. Reviews and comments carry their author, and `access` says what each account other than `OWNER`
+ * may do in the repository; on GitHub it is the author's `author_association`, `write` a collaborator's.
  */
 export class Pulls {
   readonly pulls: Pull[] = []
   readonly access = new Map<string, Access>()
+  /** GitHub's app accounts (`type: 'Bot'`), such as a CI's that comments on every push. */
+  readonly bots = new Set<string>()
   /** The status opening a pull request answers with instead, as for a token without the right to; `null` — it opens. */
   refuse: number | null = null
   /** How many times the service asked to open a pull request. */
@@ -56,7 +62,10 @@ export class Pulls {
   private readonly comments: Comment[] = []
   private ids = 0
 
-  constructor(private readonly remote: () => string) {}
+  constructor(
+    private readonly remote: () => string,
+    private readonly api: PullsApi = 'forgejo',
+  ) {}
 
   /** The pull request of the task's branch, the newest first. */
   of(task: string): Pull | undefined {
@@ -88,12 +97,12 @@ export class Pulls {
     Object.assign(pull, { state: 'closed', merged: true })
   }
 
-  /** The adapter's `fetch`: answers the paths of the Forgejo API it asks, anything else with 404. */
+  /** The adapter's `fetch`: answers the paths of the forge's API it asks, anything else with 404. */
   readonly fetch: typeof fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     const method = init?.method ?? 'GET'
     const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined
-    for (const [route, answer] of this.routes(method)) {
+    for (const [route, answer] of this.api === 'github' ? this.githubRoutes(method) : this.routes(method)) {
       const match = route.exec(url.pathname)
       if (match !== null) return answer(match, url, body)
     }
@@ -105,13 +114,46 @@ export class Pulls {
     if (method === 'POST') return [[new RegExp(`^${repo}/pulls$`), (_, __, body) => this.create(body as Record<string, string>)]]
     return [
       [/^\/api\/v1\/user$/, () => json(200, { login: OWNER })],
-      [new RegExp(`^${repo}/pulls$`), async () => json(200, await Promise.all(this.pulls.filter((pull) => pull.state === 'open').map((pull) => this.answer(pull))))],
+      [new RegExp(`^${repo}/pulls$`), async () => json(200, await this.answers(() => true))],
       [new RegExp(`^${repo}/pulls/(\\d+)$`), async ([, number]) => json(200, await this.answer(this.pull(Number(number))))],
-      [new RegExp(`^${repo}/pulls/(\\d+)/reviews$`), ([, number]) => json(200, this.reviews.filter((review) => review.pull === Number(number)).map(reviewAnswer))],
+      [new RegExp(`^${repo}/pulls/(\\d+)/reviews$`), ([, number]) => json(200, this.reviewsOf(Number(number)))],
       [new RegExp(`^${repo}/pulls/\\d+/reviews/(\\d+)/comments$`), ([, id]) => json(200, this.reviews.find((review) => review.id === Number(id))?.comments ?? [])],
       [new RegExp(`^${repo}/issues/(\\d+)/comments$`), ([, number], url) => json(200, this.talk(Number(number), url.searchParams.get('since')))],
       [new RegExp(`^${repo}/collaborators/([^/]+)/permission$`), ([, user]) => this.permission(decodeURIComponent(user!))],
     ]
+  }
+
+  /** The paths of api.github.com that `githubPulls` asks. */
+  private githubRoutes(method: string): [RegExp, Route][] {
+    const repo = `/repos/${OWNER}/${REPO}`
+    if (method === 'POST') return [[new RegExp(`^${repo}/pulls$`), (_, __, body) => this.create(body as Record<string, string>)]]
+    return [
+      [new RegExp(`^${repo}/pulls$`), async (_, url) => json(200, await this.answers((pull) => `${OWNER}:${pull.branch}` === url.searchParams.get('head')))],
+      [new RegExp(`^${repo}/pulls/(\\d+)$`), async ([, number]) => json(200, await this.answer(this.pull(Number(number))))],
+      [new RegExp(`^${repo}/pulls/(\\d+)/reviews$`), ([, number]) => json(200, this.reviewsOf(Number(number)))],
+      [
+        new RegExp(`^${repo}/pulls/\\d+/reviews/(\\d+)/comments$`),
+        ([, id]) => json(200, (this.reviews.find((review) => review.id === Number(id))?.comments ?? []).map(({ path, position, body }) => ({ path, line: position, body }))),
+      ],
+      [new RegExp(`^${repo}/issues/(\\d+)/comments$`), ([, number], url) => json(200, this.talk(Number(number), url.searchParams.get('since')))],
+    ]
+  }
+
+  private answers(wanted: (pull: Pull) => boolean): Promise<object[]> {
+    return Promise.all(this.pulls.filter((pull) => pull.state === 'open' && wanted(pull)).map((pull) => this.answer(pull)))
+  }
+
+  private reviewsOf(number: number): object[] {
+    return this.reviews
+      .filter((review) => review.pull === number)
+      .map(({ id, user, state, body, at }) => ({ id, ...this.author(user), state: this.api === 'github' ? GITHUB_STATES[state] : state, body, submitted_at: at }))
+  }
+
+  /** A remark's author as the API gives it: GitHub also tells an app account by `type` and the author's tie to the repository. */
+  private author(user: string): object {
+    if (this.api === 'forgejo') return { user: { login: user } }
+    const association = user.toLowerCase() === OWNER ? 'OWNER' : this.access.get(user) === 'write' ? 'COLLABORATOR' : 'NONE'
+    return { user: { login: user, type: this.bots.has(user) ? 'Bot' : 'User' }, author_association: association }
   }
 
   private async create(body: Record<string, string>): Promise<Response> {
@@ -131,7 +173,7 @@ export class Pulls {
   private talk(number: number, since: string | null): object[] {
     return this.comments
       .filter((comment) => comment.pull === number && (since === null || Date.parse(comment.at) >= Date.parse(since)))
-      .map(({ id, user, body, at }) => ({ id, user: { login: user }, body, created_at: at }))
+      .map(({ id, user, body, at }) => ({ id, ...this.author(user), body, created_at: at }))
   }
 
   /** The pull request as the API gives it: its head and mergeability read from the bare repository now. */
@@ -141,7 +183,7 @@ export class Pulls {
     const mergeable = pull.state === 'open' && head.code === 0 ? (await runGit(this.remote(), ['merge-tree', '--write-tree', pull.base, pull.branch])).code === 0 : false
     return {
       number: pull.number,
-      html_url: `${FORGE_WEB}/${OWNER}/${REPO}/pulls/${pull.number}`,
+      html_url: this.api === 'github' ? `https://github.com/${OWNER}/${REPO}/pull/${pull.number}` : `${FORGE_WEB}/${OWNER}/${REPO}/pulls/${pull.number}`,
       state: pull.state,
       merged: pull.merged,
       mergeable,
@@ -165,7 +207,7 @@ export class Pulls {
 /** A remark comes a moment after what the scenario waited for: in the same millisecond as a push it would not count. */
 const stamp = () => new Date(Date.now() + 1).toISOString()
 
-const reviewAnswer = ({ id, user, state, body, at }: Review) => ({ id, user: { login: user }, state, body, submitted_at: at })
+const GITHUB_STATES: Record<Review['state'], string> = { REQUEST_CHANGES: 'CHANGES_REQUESTED', COMMENT: 'COMMENTED', APPROVED: 'APPROVED' }
 
 export function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })

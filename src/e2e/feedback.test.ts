@@ -148,3 +148,46 @@ describe('PR mode end to end: feedback', { timeout: 60_000 }, () => {
     expect(calls('resume', 'ABC-1')[0]!.prompt).toContain('Rename it, please')
   })
 })
+
+describe('PR mode end to end: feedback on GitHub', { timeout: 60_000 }, () => {
+  let run: Harness
+
+  beforeEach(() => {
+    run = new Harness()
+    run.githubRemote = true
+    run.project.pullRequests = true
+    run.githubPulls.access.set('jane', 'write')
+    run.githubPulls.bots.add('github-actions[bot]')
+  })
+
+  afterEach(async () => {
+    await run.stop()
+  })
+
+  const resumes = () => run.agent.calls.filter((call) => call.kind === 'resume' && call.task === 'ABC-1')
+
+  it('leaves a bot’s comment out with no log line, an outsider’s out with one, and brings a collaborator’s', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', forReview('one.txt'), ends({ say: 'Renamed' }))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    const record = () => run.service.dispatcher.state.reviews[PROJECT_ID]?.find((pull) => pull.task === 'ABC-1')
+    await run.until(() => run.githubPulls.of('ABC-1') !== undefined && record() !== undefined, 'the pull request of ABC-1 opened on GitHub')
+    const pull = run.githubPulls.of('ABC-1')!.number
+    expect(record()!.url).toBe(`https://github.com/${OWNER}/example/pull/${pull}`)
+
+    run.githubPulls.comment(pull, 'github-actions[bot]', 'Coverage went down by 0.1%')
+    run.githubPulls.comment(pull, 'rick', 'An outsider asks for a rewrite')
+    run.githubPulls.comment(pull, 'jane', 'Rename it, please')
+    await run.until(() => resumes().length === 1, 'the remark delivered')
+    const prompt = resumes()[0]!.prompt
+    expect(prompt).toContain('Rename it, please')
+    expect(prompt).not.toContain('Coverage went down')
+    expect(prompt).not.toContain('An outsider asks for a rewrite')
+
+    await run.pass(180_000)
+    expect(resumes()).toHaveLength(1)
+    expect(run.log.filter((line) => line.includes('github-actions[bot]'))).toEqual([])
+    expect(run.log.filter((line) => line.includes('of rick is skipped: its author is not a collaborator of john/example'))).toHaveLength(1)
+  })
+})
