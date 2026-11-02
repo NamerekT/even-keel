@@ -1,7 +1,7 @@
 # Compaction versus handoff: protocol fixed before the first assignment
 
 Protocol date: 2026-10-29. This follows the [week-to-week comparison](compaction-week.md).
-No result is reported here. These rules were committed as `a4a280c2` before the first live assignment;
+No result is reported here. These rules were committed as `962fda25` before the first live assignment;
 the UTC start time and assignment log are recorded below. The rules have not changed after that run.
 
 ## Assignment and population
@@ -117,7 +117,7 @@ and execution are a separate [live check](../unverified/sessions.md#scheduled-br
 ## First run record
 
 First live run: **2026-10-29 07:54:08.847 UTC**, `npm run break-labels -- BTN`, using protocol/code
-commit `a4a280c2` and the running installation's data folder. It assigned 78 open tasks and finished
+commit `962fda25` and the running installation's data folder. It assigned 78 open tasks and finished
 at 07:54:21.861 UTC. The repeat started at 07:54:57.442 UTC: 78 existing assignments, zero writes,
 zero parity mismatches. This is assignment verification, not an interim outcome comparison.
 

@@ -6,7 +6,8 @@ import { loadSamples, replaySample, sampleSummary } from './cli-samples.js'
 const samples = loadSamples(join(import.meta.dirname, '../test/fixtures/cli'))
 describe('recorded CLI formats', () => {
   it('has real question and answer captures for every provider', () => {
-    for (const provider of ['claude', 'codex', 'opencode', 'copilot']) {
+    // Claude has none until a capture without the account folder's instructions and memory (BTN-724).
+    for (const provider of ['codex', 'opencode', 'copilot']) {
       const own = samples.filter((sample) => sample.provider === provider)
       expect(own.length, provider).toBeGreaterThan(0)
       for (const sample of own) {
