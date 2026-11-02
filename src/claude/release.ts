@@ -2,7 +2,7 @@ import { chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { downloadFile, fetchJson } from '../agent/download.js'
 
-/** Anthropic publishes every build here, with a `manifest.json` of sizes and sha256 per platform (`docs/sessions.md`). */
+/** Anthropic publishes every build here, with a `manifest.json` of sizes and sha256 per platform (`docs/sessions/cli-versions.md`). */
 const RELEASES = 'https://downloads.claude.ai/claude-code-releases'
 const ARCHES = ['x64', 'arm64']
 const BINARY = /^claude(\.exe)?$/

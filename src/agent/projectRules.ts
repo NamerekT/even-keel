@@ -4,7 +4,7 @@ import { COPILOT } from '../copilot/name.js'
 import { OPENCODE } from '../opencode/name.js'
 
 // What of a repository's own rules reaches a session of each agent (BTN-340), checked live on Claude Code 2.1.309,
-// codex-cli 0.164.0, OpenCode 1.18.25 and Copilot CLI 1.0.103 (`docs/sessions.md`). No node imports: the page reads it.
+// codex-cli 0.164.0, OpenCode 1.18.25 and Copilot CLI 1.0.103 (`docs/sessions/protection.md`). No node imports: the page reads it.
 
 export type InstructionFile = 'CLAUDE.md' | 'AGENTS.md'
 

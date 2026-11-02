@@ -8,11 +8,11 @@ The global rules from `~/.claude/CLAUDE.md` apply in full. Below is only what is
 
 ## Documentation
 
-This file holds only the rules and traps every session needs. How things are built is in `docs/`; read the document of your area before working in it:
+This file holds only the rules and traps every session needs. How things are built is in `docs/`; read your area's document first and, where it is a folder's index, the whole file of your subtopic:
 
 | Document | Area |
 | --- | --- |
-| `docs/chain.md` | the chain: order, worktrees and slots, cleanup after Done, invariant 1's exceptions in detail, what the dispatcher owns, unattended mode, state files |
+| `docs/chain.md` | the chain: order, worktrees and slots, cleanup after Done, invariant 1's exceptions, what the dispatcher owns, unattended mode, state files |
 | `docs/storage.md` | the state database `state/even-keel/` (PGlite): owner, tables, schema steps, imports, backup, readers outside the service |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, polling |
@@ -86,8 +86,8 @@ Even Keel prepares a task's worktree itself (`.claude/worktrees/<key>-<number>` 
 
 ## Invariants
 
-1. **The dispatcher does not touch a session that has stopped** — neither stops it nor writes to it. A question, an error: nothing happens; the user answers from the page's chat, a tracker comment or Remote Control. The exceptions are a closed list, each agent's stop, never deletion (`docs/chain.md`, "The exceptions to invariant 1 in detail"): a limit or overload (detected paid subscription usage may stop mid-turn, even on a paused chain), "New session", a `CHECKPOINT:` mark, a task in Done, a slot switch, the user's explicit answer, a red main (also mid-turn), PR feedback, a task back from an inactive status, a task returned after a blocker or skip. Writes without a stop: a chat message into a working session's mailbox, an answer to a permission dialog the hook holds. A touch with neither: the keep-warm fork. A new way to touch a session is a new exception there and a word here. Not waiting for a session any more (skip, postpone, unattended idle) is not a touch.
-2. **The tracker is the source of truth for statuses.** The dispatcher keeps only its own state — order, pause, skips, released tasks, its questions, pull requests, carries, CI verdicts; the full list is in `docs/chain.md`, "What the dispatcher owns".
+1. **The dispatcher does not touch a session that has stopped** — neither stops it nor writes to it. A question, an error: nothing happens; the user answers from the page's chat, a tracker comment or Remote Control. The exceptions are a closed list, each agent's stop, never deletion (`docs/chain/exceptions.md`): a limit or overload (detected paid subscription usage may stop mid-turn, even on a paused chain), "New session", a `CHECKPOINT:` mark, a task in Done, a slot switch, the user's explicit answer, a red main (also mid-turn), PR feedback, a task back from an inactive status, a task returned after a blocker or skip. Writes without a stop: a chat message into a working session's mailbox, an answer to a permission dialog the hook holds. A touch with neither: the keep-warm fork. A new way to touch a session is a new exception there and a word here. Not waiting for a session any more (skip, postpone, unattended idle) is not a touch.
+2. **The tracker is the source of truth for statuses.** The dispatcher keeps only its own state — order, pause, skips, released tasks, its questions, pull requests, carries, CI verdicts; the full list is in `docs/chain/state.md`.
 3. **There are no secrets in the repository.** Addresses and credentials come from the environment or a local store outside git; the repository has only `.env.example` with fakes.
 4. **The dispatcher does not accept or store the Windows password.** The user enters the service account themselves.
 
@@ -97,6 +97,6 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 
 ## Tests
 
-TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. A chain bug found live also gets a scenario in `src/e2e/` when the scripted agent reproduces it. Before a merge: `npm run typecheck`, `npm test` and the e2e files of the area touched (`docs/chain.md`); the rest of e2e runs on CI. Process handling, network and layout are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (`docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context.
+TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. A chain bug found live also gets a scenario in `src/e2e/` when the scripted agent reproduces it. Before a merge: `npm run typecheck`, `npm test` and the e2e files of the area touched (`docs/chain/e2e.md`); the rest of e2e runs on CI. Process handling, network and layout are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (`docs/web/screenshots.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context.
 
 Live checks run only on the benches of `stands/README.md` in `even-keel-backstage`, the maintainer's private repo next to the main checkout: read its "Left changed" first, put back every setting a check changes.

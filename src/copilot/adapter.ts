@@ -26,7 +26,7 @@ const CHECKED = '1.0.98'
 /**
  * GitHub Copilot CLI through `copilot -p … --output-format json`: a turn is a detached process, as Codex's is; a session
  * lives between turns in Even Keel's registry and the account folder's `session-state/<id>/events.jsonl`
- * (`docs/sessions.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. Only a
+ * (`docs/sessions/copilot.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. Only a
  * token's monthly allowance or a confirmed `gh-cli` fallback can be read. Sessions run on Even Keel's own copy of the checked
  * version, the platform's npm package, as Codex's do (BTN-347).
  */

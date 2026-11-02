@@ -149,7 +149,7 @@ export class RolloutFold {
 
   /**
    * The rollout says nothing of the cache: it is taken as written at the last model call and living the 30 minutes
-   * every model we run keeps it (`docs/sessions.md`, "Every agent's cache").
+   * every model we run keeps it (`docs/sessions/cache.md`, "Every agent's cache").
    */
   private cacheWindow(): CacheWindow | null {
     const at = this.lastCallAt === null ? NaN : Date.parse(this.lastCallAt)

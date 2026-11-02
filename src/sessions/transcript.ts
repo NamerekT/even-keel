@@ -73,7 +73,7 @@ export interface TokenTotals {
   cacheWrite: number
 }
 
-/** A prompt cache's lifetime: Claude's five minutes or hour, Copilot's half hour (`docs/sessions.md`, "Every agent's cache"). */
+/** A prompt cache's lifetime: Claude's five minutes or hour, Copilot's half hour (`docs/sessions/cache.md`, "Every agent's cache"). */
 export type CacheTtl = '5m' | '30m' | '1h'
 
 export interface CacheWindow {
@@ -98,7 +98,7 @@ export interface Feed {
 
 export interface TranscriptSummary {
   contextTokens: number
-  /** The model's context window as the transcript gives it (Codex); `null` — it does not, the agent is asked (`docs/sessions.md`). */
+  /** The model's context window as the transcript gives it (Codex); `null` — it does not, the agent is asked (`docs/sessions/models.md`). */
   contextWindow: number | null
   /** How many times the session's context was compacted: Claude's `compact_boundary`, Codex's `compacted` line. */
   compactions: number

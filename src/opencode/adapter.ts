@@ -23,7 +23,7 @@ const CHECKED = '1.18.25'
 
 /**
  * OpenCode through `opencode run --format json`: a turn is a detached process, as Codex's is; a session lives between
- * turns in Even Keel's registry and the account's `opencode.db` (`docs/sessions.md`). The account is a folder of the
+ * turns in Even Keel's registry and the account's `opencode.db` (`docs/sessions/opencode.md`). The account is a folder of the
  * four XDG folders. Its limits are its sign-in's, asked of ChatGPT or GitHub (`openCodeUsage`). Sessions run on Even
  * Keel's own copy of the checked version, the platform's npm package, as Codex's do (BTN-347).
  */

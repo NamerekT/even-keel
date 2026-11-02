@@ -95,7 +95,7 @@ export interface SdkRemoteControl {
 export interface SdkQuery extends AsyncIterable<SdkMessage> {
   initializationResult(): Promise<SdkInitialized>
   close(): void
-  /** Not in `sdk.d.ts` (0.3.306), only in `sdk.mjs`: it may go without notice (`docs/sessions.md`). */
+  /** Not in `sdk.d.ts` (0.3.306), only in `sdk.mjs`: it may go without notice (`docs/sessions/sdk.md`). */
   enableRemoteControl?(
     enabled: boolean,
     name?: string,

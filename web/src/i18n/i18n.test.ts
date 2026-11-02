@@ -128,7 +128,7 @@ describe('Russian address', () => {
     'исправь|напиши|запусти|перезапусти|удали|измени|скачай|попробуй|подожди|создай|скопируй|вставь|убери|обнови|переключи|перейди|' +
     'настрой|посмотри|ответь|подтверди|установи|задай|загрузи|перенеси|отмени|пропусти|разреши|используй|сделай|приходи'
   const informal = new RegExp(`(?<![а-яё])(?:${pronoun}|${imperative})(?![а-яё])`, 'iu')
-  // Jokes and dialogues keep "ты" on purpose: the voice of a character (docs/web.md, "Language").
+  // Jokes and dialogues keep "ты" on purpose: the voice of a character (docs/web/language.md, "Language").
   const jokes = ['home.memes.', 'project.idle.', 'basement.']
 
   // A template counts by its source, which holds the literals of every branch, and by what it gives, which holds the

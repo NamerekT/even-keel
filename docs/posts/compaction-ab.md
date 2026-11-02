@@ -27,7 +27,7 @@ compare-and-set, so do not run overlapping copies or edit break labels during as
   with Claude's `COMPACTION_GAP` of 32000 and the product's space before compaction for writing the note.
   The global `stats.checkpointTokens` override was cleared to null on 2026-10-28. The compaction label
   supplies 999999; the handoff label uses ordinary calibration and window limits.
-- Holding a task after its third handoff is unchanged. See [checkpoint thresholds](../sessions.md#checkpoint-threshold-btn-86).
+- Holding a task after its third handoff is unchanged. See [checkpoint thresholds](../sessions/checkpoint.md#checkpoint-threshold-btn-86).
 - Product and CLI changes are not frozen. Record them; use the version strata below rather than
   comparing an earlier week with a later week.
 

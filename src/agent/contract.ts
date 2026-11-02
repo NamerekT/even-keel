@@ -264,7 +264,7 @@ export interface Agent {
   /**
    * Optional. How long after a session's last reply the chain takes its prompt cache for warm and resumes it rather
    * than hands it over, by the cache its transcript last wrote and whether the account is signed in by a key
-   * (`docs/sessions.md`, "Every agent's cache"). Without it `WARM_CACHE_MS`, an hour's cache.
+   * (`docs/sessions/cache.md`, "Every agent's cache"). Without it `WARM_CACHE_MS`, an hour's cache.
    */
   warmMs?(cache: CacheWindow | null, apiKey: boolean): number
   /** Optional. Remote Control: whether the account starts sessions with it, and the bridge of a live session. */

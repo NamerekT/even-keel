@@ -6,7 +6,7 @@
  *
  * The route (`?chain=ask&card=empty`, `/stats`, `#settings`) goes to an in-process `dev:fake` server on a free
  * port, or to `--url`. Each selector is waited for and shot alone into `.temp/shot/<name>/`; with no selector,
- * the viewport. Options and steps are in `docs/web.md` ("Screenshots").
+ * the viewport. Options and steps are in `docs/web/screenshots.md` ("Screenshots").
  */
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
