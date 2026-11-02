@@ -23,3 +23,14 @@ Polled every 5 minutes like `/usage`, through the adapters' `usage`; the page sh
 - **Copilot with a token** (`askCopilotToken` in `src/limits/copilot.ts`): `copilot_internal/user` with `Bearer` first; if it refuses, `GET /user` gives the login and `/users/<login>/settings/billing/premium_request/usage` the month's `grossQuantity` of the `Copilot` product. That count has no allowance: the window is `used` with 0 %, never full, and only gives the reset on the 1st. A 403/404 there is "no data" with `usage.planRead` (the token lacks the "Plan" read permission). The machine's sign-in is "no data" with `usage.copilotMachine`: the GitHub CLI token cannot be attributed to the Copilot CLI account, so Even Keel does not send it to the usage API. Neither token is put in the session environment or Even Keel state.
 - A month that counts what is `left` lets a limit go on at once while something is left (`limitResetAfter`), since GitHub's quota and a rate limit share one error kind; otherwise a limit or spent credit waits for the month's reset.
 - A refusal whose text names the monthly quota (Copilot's `quota_exceeded`, "You have exceeded your monthly quota", `isMonthQuota`) spends the month at once (`LimitsWatcher.spendMonth`, BTN-647): until a newer poll the account shows 0 left and the hold takes the month's reset, rather than "reset unknown" off a poll taken minutes before the refusal. A Copilot token never gets the page's "out of credit" text: without a reset it is the plain "reset unknown".
+
+### Answers of plans we have no account for (BTN-609)
+
+The author has Claude Pro and ChatGPT Plus; no plans are bought for checks. The limit answers of the other plans (Claude Max, Ultra, Team; ChatGPT Pro; paid Copilot; OpenCode Go) come from public GitHub issues and the MIT code of tools that show subscription limits: their users paste the raw answer with the plan named, and a new shape shows up there within days of a provider's change. Searches that found them on 2026-11-02:
+
+- `gh search issues '"weekly_scoped"'`, `'"model_scoped"'`, `'"five_hour" null'`, `'"api/oauth/usage"'` — Claude;
+- `'"wham/usage"'`, `'"x-codex-primary-used-percent"'` — ChatGPT and Codex;
+- `'"quota_snapshots" premium_interactions'`, `'"premium_request/usage"'` — Copilot;
+- `'FreeUsageLimitError'`, `'"OpenCode Go" limit'` — OpenCode.
+
+A sample made from such an answer is written by us in the shape of the source, never copied as it is, with made-up values in place of ids, emails and dates, and with fields the source cut out left out rather than invented. It goes into `test/fixtures/limits/` with its plan, date and source link in that folder's `README.md`. The behaviour it backs stays in `docs/unverified/` until it is seen live. The sources found so far are listed in the closing comment of BTN-609.
