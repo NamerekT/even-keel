@@ -86,7 +86,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 36a | [Secret fields and the browser's password manager](#secret-fields-and-the-browsers-password-manager-btn-633) | Firefox and Opera users typing a key or a password on the page | the browser still offers to save it; decline with "Never" |
-| 36b | [Example paths by the service's platform](#example-paths-by-the-services-platform-btn-634) | macOS services adding a project; the Stats moves table of a Linux one (its wizard checked) | the folder field shows a path of another system as its example |
+| 36b | [Example paths by the service's platform](#example-paths-by-the-services-platform-btn-634) | macOS services adding a project or moving folders in Stats (Linux checked) | the folder field shows a path of another system as its example |
 | 36c | [A chain paused for a tracker its sessions would not see](#a-chain-paused-for-a-tracker-its-sessions-would-not-see-btn-656) | projects with the task description off and no tracker package | the chain stays paused after the fix until Resume |
 | 36d | [A chain paused for packages that are not ready](#a-chain-paused-for-packages-that-are-not-ready-btn-657) | projects with a package lacking its key or its install | the chain stays paused after the fix until Resume |
 | 37f2 | [MCP through OAuth on a tracker profile](#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
@@ -252,7 +252,7 @@ A key, token or password field is a text field dotted by `-webkit-text-security`
 
 ### Example paths by the service's platform (BTN-634)
 
-The folder field of the project wizard and the moves table of Settings → Stats take their example paths from the platform of the service's machine (`EvenKeelState.platform`, `process.platform`): `D:/Projects/example` on Windows, `/home/john/projects/example` on Linux, `/Users/john/Projects/example` on macOS. Checked on `dev:fake` with `?platform=win32|linux|darwin`, on the Windows service only through the fake. A Linux service's wizard showed `/home/john/projects/example` (2026-11-02, [verified](verified.md#the-page)). Not seen: its Stats moves table, and the page of a service on macOS. **If it is wrong:** the placeholder shows a path of another system; type the folder in your own system's form, it is only an example.
+The folder field of the project wizard and the moves table of Settings → Stats take their example paths from the platform of the service's machine (`EvenKeelState.platform`, `process.platform`): `D:/Projects/example` on Windows, `/home/john/projects/example` on Linux, `/Users/john/Projects/example` on macOS. Checked on `dev:fake` with `?platform=win32|linux|darwin`, on the Windows service only through the fake. A Linux service's wizard showed `/home/john/projects/example` and its Stats moves table `/home/john/old/abc` → `/home/john/projects/abc` (2026-11-02, [verified](verified.md#the-page)). Not seen: the page of a service on macOS. **If it is wrong:** the placeholder shows a path of another system; type the folder in your own system's form, it is only an example.
 
 ### A chain paused for a tracker its sessions would not see (BTN-656)
 
