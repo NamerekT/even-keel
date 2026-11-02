@@ -38,6 +38,8 @@ export const CODEX_ACCOUNT = 'coder'
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 /** The real `setTimeout`, for waits on real I/O (git, the database) while the service's own timers are fake. */
 const realTimeout = globalThis.setTimeout
+/** How long no git and no file read may run before a step of the clock counts its real work done. */
+const QUIET_MS = 2
 const realFetch = globalThis.fetch
 
 /**
@@ -354,9 +356,16 @@ export class Harness {
 async function realWork(limitMs = 10_000): Promise<void> {
   const busy = () => process.getActiveResourcesInfo().some((kind) => kind === 'ProcessWrap' || kind.startsWith('FSReq'))
   const started = performance.now()
-  for (let quiet = 0; quiet < 2 && performance.now() - started < limitMs; ) {
-    await new Promise((resolve) => realTimeout(resolve, 5))
-    quiet = busy() ? 0 : quiet + 1
+  let quietSince = started
+  for (let now = started; now - started < limitMs; now = performance.now()) {
+    if (busy()) {
+      quietSince = now
+      await new Promise((resolve) => realTimeout(resolve, 1))
+      continue
+    }
+    if (now - quietSince >= QUIET_MS) return
+    // Not a timer: one of a few ms lasts ~15 ms on Windows, and that floor made a quiet minute of 60 steps 2 s (BTN-700).
+    await new Promise((resolve) => setImmediate(resolve))
   }
 }
 
