@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import type { Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { completionNotices } from '../completion.js'
 import { useCommand } from '../live/useCommand.js'
 import {
@@ -110,11 +111,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
       )}
 
       <ChainWaits project={project} waits={waits} className="card__wait" compact />
-      {error !== null && (
-        <p className="card__error">
-          <Said notice={error} />
-        </p>
-      )}
+      {error !== null && <CardError notice={error} />}
       <NoticeFixButton project={project} notice={error} />
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
       {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
@@ -144,7 +141,32 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
  * stretched link for its tip, so it is a link to the project itself: a press on it opens the project as anywhere on the card.
  */
 function TaskTitle({ title, to }: { title: string; to: string }) {
-  const text = useRef<HTMLAnchorElement>(null)
+  const [text, cut] = useCut<HTMLAnchorElement>(title)
+  return (
+    <Tipped className={cut ? 'card__task-title card__task-title--cut' : 'card__task-title'} tip={title} align="start" inline off={!cut}>
+      <Link ref={text} to={to} className="card__task-clamp" tabIndex={-1}>
+        {title}
+      </Link>
+    </Tipped>
+  )
+}
+
+/** The error in four lines, so a long cause such as git's output does not stretch the card; one cut short gives the whole of it in a tip. */
+function CardError({ notice }: { notice: Notice }) {
+  const whole = say(notice)
+  const [text, cut] = useCut<HTMLSpanElement>(whole)
+  return (
+    <Tipped className={cut ? 'card__error card__error--cut' : 'card__error'} tip={whole} align="start" focusable={cut} off={!cut}>
+      <span ref={text} className="card__error-clamp">
+        <Said notice={notice} />
+      </span>
+    </Tipped>
+  )
+}
+
+/** Whether the clamped element's text runs past its lines, measured again on a resize. */
+function useCut<T extends HTMLElement>(content: string) {
+  const text = useRef<T>(null)
   const [cut, setCut] = useState(false)
   useLayoutEffect(() => {
     const element = text.current
@@ -154,14 +176,8 @@ function TaskTitle({ title, to }: { title: string; to: string }) {
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [title])
-  return (
-    <Tipped className={cut ? 'card__task-title card__task-title--cut' : 'card__task-title'} tip={title} align="start" inline off={!cut}>
-      <Link ref={text} to={to} className="card__task-clamp" tabIndex={-1}>
-        {title}
-      </Link>
-    </Tipped>
-  )
+  }, [content])
+  return [text, cut] as const
 }
 
 /** What the card says with no task to show; `null` — it shows a task or the chain is not read yet. */

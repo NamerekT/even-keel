@@ -118,6 +118,21 @@
   font-size: var(--text-13);
 }
 
+/* Four lines at most, so one long cause does not stretch the card's row; the whole message is in the tip. */
+.card__error-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow-wrap: anywhere;
+}
+
+.card__error--cut {
+  position: relative;
+  z-index: 1;
+}
+
 .card__wait {
   margin: 0;
   padding: 6px 10px;

@@ -509,6 +509,21 @@ export function createFakeSource(search: string): LiveSource {
     chain.projects['ABC'] = { ...chain.projects['ABC']!, order: [], waiting: [], error }
     chain.active = chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
   }
+  if (params.get('chain') === 'pushRejected' && current.state !== null) {
+    const detail = [
+      'To github.com:example/abc.git',
+      ' ! [rejected]        abc-5/feature -> abc-5/feature (fetch first)',
+      "error: failed to push some refs to 'github.com:example/abc.git'",
+      'hint: Updates were rejected because the remote contains work that you do not',
+      'hint: have locally. This is usually caused by another repository pushing to',
+      'hint: the same ref. If you want to integrate the remote changes, use',
+      "hint: 'git pull' before pushing again.",
+      "hint: See the 'Note about fast-forwards' in 'git push --help' for details.",
+    ].join('\n')
+    const cause = notice('review.pushFailed', { branch: 'abc-5/feature', remote: 'origin' }, { detail })
+    const error = notice('review.notOpened', { task: 'ABC-5' }, { cause })
+    current.state.chain.active = current.state.chain.active.map((each) => (each.project === 'ABC' ? { ...each, paused: true, error } : each))
+  }
   if ((params.get('chain') === 'pulls' || params.get('chain') === 'pullsRemote') && current.state !== null) {
     const cause = params.get('chain') === 'pulls' ? FAKE_PULL_READINESS['DEMO']! : notice('review.noRemote', { project: 'ABC' })
     const error = notice('review.notReady', { project: 'ABC' }, { cause })
