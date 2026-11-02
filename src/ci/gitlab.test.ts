@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { noticeOf } from '../notice/notice.js'
 import { gitlabSource } from './gitlab.js'
+import { logTail } from './report.js'
 
 const PIPELINE = {
   id: 47, iid: 12, name: null, sha: 'abc123', ref: 'dev', status: 'success',
@@ -59,6 +60,41 @@ describe('gitlabSource', () => {
     const { asked, source } = fake({ '/jobs/11/trace': new Response('$ npm test\nFAIL', { status: 200 }) })
     expect(await source.log!({ id: 11 } as never)).toBe('$ npm test\nFAIL')
     expect(asked).toEqual([{ url: `${BASE}/jobs/11/trace`, auth: 'Bearer fake-token' }])
+  })
+
+  it("gives the report a tail without GitLab's stream prefixes and section markers", async () => {
+    const trace = [
+      '2026-11-02T02:33:42.673456Z 00O \u001b[0KRunning with gitlab-runner 18.5.0 (abcdef12)\u001b[0;m',
+      '2026-11-02T02:33:42.673456Z 00O section_start:1793586822:prepare_executor\r\u001b[0K\u001b[0K\u001b[36;1mPreparing the "shell" executor\u001b[0;m\u001b[0;m',
+      '2026-11-02T02:33:42.700000Z 00O \u001b[0KUsing Shell (bash) executor...\u001b[0;m',
+      '2026-11-02T02:33:42.700000Z 00O section_end:1793586822:prepare_executor\r\u001b[0K',
+      '2026-11-02T02:33:42.700000Z 00O ',
+      '2026-11-02T02:33:59.000000Z 0aO section_start:1793586839:step_script[collapsed=true]\r\u001b[0K',
+      '2026-11-02T02:33:59.112233Z 01O \u001b[32;1m$ test ! -f ci-red.txt\u001b[0;m',
+      '2026-11-02T02:33:59.112233Z 01O+ ci-red.txt is present, failing',
+      '2026-11-02T02:33:59.200000Z 00O section_end:1793586839:step_script\r\u001b[0K',
+      '2026-11-02T02:33:59.200000Z 00E \u001b[31;1mERROR: Job failed: exit status 1',
+      '2026-11-02T02:33:59.200000Z 00O \u001b[0;m',
+      '',
+    ].join('\n')
+    const { source } = fake({ '/jobs/11/trace': new Response(trace, { status: 200 }) })
+    expect(logTail(await source.log!({ id: 11 } as never))).toBe(
+      [
+        'Running with gitlab-runner 18.5.0 (abcdef12)',
+        'Preparing the "shell" executor',
+        'Using Shell (bash) executor...',
+        '',
+        '$ test ! -f ci-red.txt',
+        'ci-red.txt is present, failing',
+        'ERROR: Job failed: exit status 1',
+      ].join('\n'),
+    )
+  })
+
+  it('keeps a trace without timestamps as it is, section markers aside', async () => {
+    const trace = 'section_start:1:step_script\r\u001b[0K\n00O is output here\nsection_end:1:step_script\r\u001b[0K\nFAIL'
+    const { source } = fake({ '/jobs/11/trace': new Response(trace, { status: 200 }) })
+    expect(logTail(await source.log!({ id: 11 } as never))).toBe('00O is output here\nFAIL')
   })
 
   it.each([401, 403, 404])('uses the shared CI errors for HTTP %s so a refused CI can be hidden', async (status) => {

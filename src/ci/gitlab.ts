@@ -1,3 +1,4 @@
+import { stripAnsi } from '../ansi.js'
 import { getJson, getJsonPage, getText } from './http.js'
 import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
@@ -37,6 +38,20 @@ const STATUSES: Readonly<Record<string, RunStatus>> = {
 const statusOf = (status: string): RunStatus => STATUSES[status] ?? 'queued'
 const TITLE = 'GitLab CI'
 
+/** The timestamp with the runner's stream id, stream (`O`ut or `E`rr) and continuation flag: `2026-11-02T02:33:42.673456Z 01O+ `. */
+const STREAM = /^\d{4}-\d\d-\d\dT[\d:.]+Z [0-9a-f]{2}[OE]\+? ?/
+/** A collapsible section's marker up to the carriage return before its header: `section_start:<ts>:<name>[options]\r`. */
+const SECTION = /section_(?:start|end):\d+:\S+\r?/g
+
+/** A job trace as the shared log tail reads it: without the stream prefixes and the section markers; a line that held only a marker is dropped. */
+export function plainTrace(trace: string): string {
+  return trace.split('\n').flatMap((line) => {
+    const bare = line.replace(STREAM, '')
+    const unmarked = bare.replace(SECTION, '')
+    return unmarked !== bare && stripAnsi(unmarked).trim() === '' ? [] : [unmarked]
+  }).join('\n')
+}
+
 export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): CiSource {
   const base = `${settings.web}/api/v4/projects/${encodeURIComponent(`${settings.owner}/${settings.repo}`)}`
   const auth = `Bearer ${settings.token}`
@@ -71,8 +86,8 @@ export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchI
         id: job.id, name: job.name, status: statusOf(job.status), startedAt: job.started_at, stoppedAt: job.finished_at, steps: null,
       }))
     },
-    log(job) {
-      return getText(TITLE, `${base}/jobs/${job.id}/trace`, auth, timeoutMs, fetchImpl)
+    async log(job) {
+      return plainTrace(await getText(TITLE, `${base}/jobs/${job.id}/trace`, auth, timeoutMs, fetchImpl))
     },
   }
 }
