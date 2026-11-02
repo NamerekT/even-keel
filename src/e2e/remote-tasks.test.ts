@@ -95,6 +95,8 @@ describe('the tasks of two projects on one remote end to end', { timeout: 90_000
     const slash = (path: string) => path.replaceAll('\\', '/')
     const identity = '-c user.name="John Doe" -c user.email=john@example.com'
     // Armed by the session after its merge, the hook fires on the cleanup's merge of the remote: another clone pushes.
+    // That merge runs the hook only when it brings something: an "Already up to date" one does not.
+    const early = join(run.dir, 'early')
     const hook = [
       '#!/bin/sh',
       `[ -f "${slash(armed)}" ] || exit 0`,
@@ -109,6 +111,9 @@ describe('the tasks of two projects on one remote end to end', { timeout: 90_000
       const end = await commitAndMerge('one.txt')(turn)
       await writeFile(join(turn.repo, '.git', 'hooks', 'post-merge'), hook, { mode: 0o755 })
       await writeFile(armed, '')
+      run.gitIn(run.dir, 'clone', '-q', run.remote, early)
+      run.gitIn(early, '-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-q', '--allow-empty', '-m', 'Earlier clone')
+      run.gitIn(early, 'push', '-q', 'origin', 'main')
       return end
     })
     run.agent.script('ABC-2', commitAndMerge('two.txt'))
@@ -118,7 +123,7 @@ describe('the tasks of two projects on one remote end to end', { timeout: 90_000
     await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched')
     expect(existsSync(armed)).toBe(false)
     // The first push was rejected: the remote had the other clone's commit the fetch did not see.
-    expect(remoteLog()).toEqual(expect.arrayContaining(['[ABC-1] Work', 'Another clone']))
+    expect(remoteLog()).toEqual(expect.arrayContaining(['[ABC-1] Work', 'Earlier clone', 'Another clone']))
     expect(run.service.dispatcher.state.leftovers[PROJECT_ID] ?? []).toEqual([])
   })
 
