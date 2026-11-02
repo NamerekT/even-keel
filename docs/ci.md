@@ -116,7 +116,7 @@ GitLab uses `GET /api/v4/projects/<encoded full path>/pipelines` with `ref=<bran
 
 A finished run's jobs are not fetched again. The tasks of a run are the ids in `git log <previous run's commit>..<run's commit>` subjects, at most `TASK_COMMITS` commits, read once per run.
 
-`STUCK_MS` (2 min) is when a queued run or a push without a run is called stuck. A CI the project's `ci.kinds` do not name (BTN-707; `CiWatchDeps.counted`) is polled for a push all the same, so a run started by hand shows up, but the push is never shown as waiting for a run or stuck: its workflow may run only by `workflow_dispatch`, as this repository's Forgejo one does. It was chosen without live runs (no token yet); revisit it against the real queue time of the Forgejo runner.
+`STUCK_MS` (2 min) is when a queued run or a push without a run is called stuck. A CI the project's `ci.kinds` do not name (BTN-707; `CiWatchDeps.counted`) is polled for a push all the same, so a run started by hand shows up, but the push is never shown as waiting for a run or stuck: its workflow may run only by `workflow_dispatch`, as this repository's Forgejo one does. The figure was chosen without live runs and is too short for the self-hosted Forgejo's one shared runner: measured on 2026-11-02, a run waited up to 404 s (p95 174 s) while the runner built another repository, and a queued run counts as stuck unless a run of the same repository is running (`runnerBusy`), so live chains called such pushes unchecked (BTN-719, `docs/verified.md`). GitHub Actions and GitLab.com runs start within a second.
 
 ## Forgejo traps
 

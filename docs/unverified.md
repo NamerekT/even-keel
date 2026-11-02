@@ -13,7 +13,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux, also 3c).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
-- Forges and pull requests: 16b, 16c, 16e, 25, 25b, 26, 52 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
+- Forges and pull requests: 16b, 16c, 16e, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
@@ -76,7 +76,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 23a | [An API key's organization header](#an-api-keys-organization-header) | replacing an OpenAI API key with one of another organization, and with a restricted key (Anthropic checked; OpenAI's now from `/v1/me`, BTN-649) | a key of another organization replaces the old one, a key of the same one is refused, or a restricted key keeps no organization |
 | 24 | [A command after a green main that restarts Even Keel on Linux and macOS](#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart in `commands.afterGreen` on Linux, macOS | the service stays stopped |
-| 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
+| 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | a runner shared by several repositories (seen live, BTN-719) | a push is called unchecked while the runner builds another repository, and a red main after it goes unnoticed |
 | 25b | [The log tail of a failed job](#the-log-tail-of-a-failed-job-btn-605) | a log the token is refused (every forge's tail checked) | the session gets the run's link alone, as before |
 | 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project whose remote is not read yet starts a second fix of a shared main |
 | 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
@@ -104,7 +104,6 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 45a | [Project standards on each agent](#project-standards-on-each-agent-btn-359) | projects with standards on Codex, OpenCode; Copilot's edit refusal after BTN-640 | a guarded file is edited before its document; the merge still waits for its check |
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
-| 52 | [GitHub attachments of a private repository](#github-attachments-of-a-private-repository) | private GitHub repositories with a fine-grained token, an issue of over 100 comments (the rest checked) | an image in a tracker answer stays a link, with a log line |
 | 52a | [A parent with over a page of sub-issues on GitHub](#a-parent-with-over-a-page-of-sub-issues-on-github-btn-606) | GitHub parents with very many sub-issues (Linear, other repositories and canceled subtasks checked) | the parent closes too early or stays open; close or reopen it by hand |
 | 53 | [A removed key and the global folder's daemon](#a-removed-key-and-the-global-folders-daemon) | anyone removing a key | the removed key stays with the folder's sessions until its daemon exits |
 | 55 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode on macOS, or a whole task on an API key (Linux checked) | sessions do not start, or a whole task runs on a wrong assumption |
@@ -675,10 +674,6 @@ A Huly feed from a second workspace ran on 2026-11-01 ([verified log](verified.m
 
 A removed key also stops the global folder's daemon (`claude daemon stop --any` with the global `CLAUDE_CONFIG_DIR`, from the service); that stop was never run from the service — if it fails, the log has the error and the removed key stays with sessions of that folder until its daemon exits (`docs/accounts.md`). **Workaround:** stop the daemon by hand once no session of the folder is live.
 
-### GitHub attachments of a private repository
-
-A fine-grained token never gets a private repository's upload, so GitHub's `file` falls back to the signed `private-user-images` link from the comment's `body_html` (BTN-652, `docs/trackers.md`). That fallback ran live through the adapter in a terminal with the service profile's fine-grained token (2026-10-31, [verified log](verified.md#trackers)): the image came back whole and a missing upload gave its log line. On 2026-11-01 the service ran it whole: its file route gave a comment's image of a private repository and a session read the picture of the owner's answer to its question. Not run: an issue with over 100 comments (the next REST page is covered by tests only). If the picture stays a link the session cannot open, the log names the upload and why. **Workaround:** a classic token with `repo` in the GitHub profile, or attach the picture to the page's chat instead.
-
 ### A parent with over a page of sub-issues on GitHub (BTN-606)
 
 GitHub and Linear read the subtasks of a parent through `children`, and Even Keel closes the parent once they are all closed and one is done (`docs/trackers.md`). Checked live ([verified log](verified.md#trackers)): on GitHub a parent closed after its two sub-issues of the same repository (2026-10-31) and after its only sub-issue of another repository (2026-11-02); on Linear a parent closed after its two subtasks (2026-11-01), a team's own parent auto-close next to Even Keel's closed the parent once with no error, and a parent whose subtasks were all canceled stayed open (2026-11-02). Covered by adapter tests only: a GitHub parent with more sub-issues than one page of the `subIssues` query. If the next page is misread, the parent closes while a sub-issue on it is still open, or stays open after all are done. **Workaround:** close or reopen the parent by hand.
@@ -687,7 +682,7 @@ GitHub and Linear read the subtasks of a parent through `children`, and Even Kee
 
 ### When a CI run counts as stuck
 
-A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_MS`). An end-to-end scenario covers the chain's side (`src/e2e/ci.test.ts`): a queued run holds the next launch until `STUCK_MS` has passed, then the push stays unchecked with a line in the log and the next task starts. The figure itself was chosen without live runs and may be too short for a slow runner queue (`docs/ci.md`).
+A queued run, or a push without a run, is called stuck after 2 minutes (`STUCK_MS`). An end-to-end scenario covers the chain's side (`src/e2e/ci.test.ts`): a queued run holds the next launch until `STUCK_MS` has passed, then the push stays unchecked with a line in the log and the next task starts. The figure was chosen without live runs, and it is too short for a runner shared by several repositories: on 2026-11-02 the service log and the self-hosted Forgejo's run history ([verified log](verified.md#ci)) showed live chains calling a push unchecked after 2 minutes while the one runner built another repository, the run taken later (161–347 s), and one such run failing unnoticed — BTN-719. A busy runner is told only from runs of the same repository. GitHub Actions and GitLab.com runs started within a second. Until BTN-719 a red main behind a busy shared runner goes unnoticed and the next task starts on it. **Workaround:** give the forge's runner more capacity than one job at a time, or watch the CI panel after a push that stays unchecked.
 
 ### A command after a green main that restarts Even Keel on Linux and macOS
 
