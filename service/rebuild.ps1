@@ -1,7 +1,7 @@
 #Requires -Version 7
 # Builds the checkout this script lives in and restarts the Even Keel service or its autostart, once a pushed commit of main is green.
-# Called by the CI's last step over SSH: the key's authorized_keys entry forces this script, and the commit comes
-# in SSH_ORIGINAL_COMMAND. By hand: pwsh service/rebuild.ps1 -Commit <sha>.
+# Called by the service's commands.afterGreen or by a CI over SSH, where the key's authorized_keys entry forces this
+# script and the commit comes in SSH_ORIGINAL_COMMAND (docs/service.md). By hand: pwsh service/rebuild.ps1 -Commit <sha>.
 param(
     [string]$Commit = $env:SSH_ORIGINAL_COMMAND,
     [string]$Name = 'EvenKeel',
