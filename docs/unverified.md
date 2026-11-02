@@ -13,7 +13,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux, also 3c).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 9, 28, 36, 36a — BTN-546.
-- Forges and pull requests: 16b, 16c, 16e, 16f, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
+- Forges and pull requests: 16b, 16c, 16e, 16f, 16g, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
@@ -63,7 +63,8 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 16b | [A session's own comment on its pull request](#a-sessions-own-comment-on-its-pull-request-btn-442) | Forgejo sessions that comment on their pull request through an MCP server of their own set (the API's side checked) | the session gets its own comment back as a remark once |
 | 16c | [A resolved GitLab conflict while mergeability is checked](#a-resolved-gitlab-conflict-while-mergeability-is-checked-btn-441-btn-561) | PR mode on GitLab, most on GitLab.com, after any push to the merge request | the session gets a conflict that is gone and spends a turn on it |
 | 16d | [Whose remarks count on Forgejo](#whose-remarks-count-on-forgejo-btn-653) | PR mode on Forgejo with a token that is no repository admin (an admin's checked) | a reviewer's remarks are skipped, or a `read` collaborator's reach the session |
-| 16e | [A refused push lifted by the merge](#a-refused-push-lifted-by-the-merge-btn-715) | PR mode where a conflict is resolved on the forge while the session answers its feedback | the chain stays paused on a merged task and holds its `parallel` slot until Resume |
+| 16e | [A refused push lifted by the merge](#a-refused-push-lifted-by-the-merge-btn-715) | PR mode where the forge refuses a push and the pull request is merged meanwhile | the chain stays paused on a merged task and holds its `parallel` slot until Resume |
+| 16g | [A branch moved on the forge](#a-branch-moved-on-the-forge-btn-716) | PR mode where a conflict is resolved on the forge while the session answers its feedback | the chain pauses on `review.notOpened` as before, or the session is told of a branch it cannot pull |
 | 16f | [A Forgejo conflict right after a push](#a-forgejo-conflict-right-after-a-push-btn-717) | PR mode on Forgejo, after each push of a session's change | the session gets a conflict that is gone and spends a turn on it |
 | 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode; `--bg` sessions and other agents (Claude through the Agent SDK checked) | the answered task waits instead of going on |
 | 17a | [A task returned after a blocker or skip](#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks on `--bg` sessions or other agents (Claude through the Agent SDK checked) | an idle session may still be adopted and hold the chain |
@@ -442,6 +443,12 @@ Covered by adapter tests: on a Forgejo pull request a review or a conversation c
 ### A refused push lifted by the merge (BTN-715)
 
 Seen live on GitHub on 2026-11-02 (BTN-453): a conflict resolved on GitHub while the session answered its feedback moved the branch, Even Keel's push of the session's mark was refused (`fetch first`), the chain paused with `review.notOpened`, and the pull request merged a minute later left it paused on a task in Done, holding its `parallel` slot. Covered by dispatcher tests and the end-to-end bench (`src/e2e/review.test.ts`): a merged pull request, or the task done in the tracker, lifts that pause and lets the task go as on any Done, its session untouched; a pause for another reason stays. Not checked live after the fix. If the merge is not noticed while the chain is paused, the chain stays as before. **Workaround:** press Resume, or Skip the task.
+
+The push refused in that run (`fetch first`) no longer pauses at all (BTN-716, the next entry); the bench now refuses the push by a `pre-receive` hook instead.
+
+### A branch moved on the forge (BTN-716)
+
+Seen live on GitHub on 2026-11-02 (BTN-453): a conflict resolved on GitHub while the session answered its feedback added a merge commit to the pull request's branch, and Even Keel's push of the session's mark was refused `[rejected] … (fetch first)` and paused the chain as an access problem. Now such a push (`fetch first` or `non-fast-forward`) is `review.pushBehind`: the session is told by `--resume` to merge the branch with `git pull --no-rebase <remote> <branch>`, resolve the conflicts, commit and mark again, and the chain does not pause. Covered by unit tests and the end-to-end bench (`src/e2e/review.test.ts`), where the scripted session pulls from a bare remote. Not checked live: a real forge's refusal text and a real session following the prompt with the forge's own merge commit. If git words the refusal otherwise, the chain pauses with `review.notOpened` as before. **Workaround:** answer the task's session in the chat to pull its branch from the forge and mark again.
 
 ### A resolved GitLab conflict while mergeability is checked (BTN-441, BTN-561)
 

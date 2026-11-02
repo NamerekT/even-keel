@@ -175,6 +175,8 @@ export const noticesRu: NoticeTexts = {
   'review.dirty': (p) => `в ${p.path} есть незакоммиченные изменения`,
   'review.nothingAhead': (p) => `у ${p.branch} нет коммитов сверх ${p.base}`,
   'review.pushFailed': (p) => `не удалось запушить ${p.branch} в ${p.remote}`,
+  'review.pushBehind': (p) =>
+    `в ${p.branch} на ${p.remote} есть коммиты, которых нет у сессии (например, конфликт разрешён на форже): сессия сливает их к себе и снова отмечает pull request`,
   'ci.notTaken': (p) => `${p.ci}: ни один раннер не взял ${p.commit}`,
   'ci.fixFailed': (p) => `CI красный на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'ci.cannotCreate': (p) => `CI красный на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,

@@ -99,10 +99,17 @@ export function closingBody(body: string, issue: string, repo: string, gitlab?: 
 }
 
 /**
+ * A push git refused because the branch on the remote has commits the local one lacks — a conflict resolved on the
+ * forge, say (BTN-716). git prints these reasons untranslated.
+ */
+const BEHIND = /\[rejected\].*\((?:fetch first|non-fast-forward)\)/
+
+/**
  * Pushes the branch the session's folder is on and opens its pull request, or finds the one already open: a session
  * that fixed what the review asked marks again, and its branch goes to the same pull request. `null` — the branch has
  * nothing beyond the base and its worktree is clean: the task changed nothing in the repository, nothing is pushed
- * (BTN-222). `closes` — the task's issue the forge closes on the merge (`closingOf`), for `closingBody`.
+ * (BTN-222). `closes` — the task's issue the forge closes on the merge (`closingOf`), for `closingBody`. A push refused
+ * as behind the remote's branch is `review.pushBehind`, never forced: the forge's commits would be lost.
  */
 export async function openPull(
   git: Git,
@@ -127,7 +134,7 @@ export async function openPull(
   if (described === null) throw fail('review.noNote', { path: notePath })
 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
-  if (pushed.code !== 0) throw fail('review.pushFailed', { branch, remote }, { detail: pushed.out })
+  if (pushed.code !== 0) throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })
   const pushedAt = now().toISOString()
   const body = closes === undefined ? described.body : closingBody(described.body, closes.issue, closes.repo, closes.gitlab)
   const pull = (await forge.find(branch)) ?? (await forge.create({ branch, base, title: described.title, body }))

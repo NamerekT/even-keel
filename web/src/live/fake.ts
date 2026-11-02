@@ -511,14 +511,14 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('chain') === 'pushRejected' && current.state !== null) {
     const detail = [
+      'remote: error: GH013: Repository rule violations found for refs/heads/abc-5/feature.',
+      'remote: Review all repository rules at https://github.com/example/abc/rules?ref=refs%2Fheads%2Fabc-5%2Ffeature',
+      'remote:',
+      'remote: - Cannot update this protected ref.',
+      'remote:',
       'To github.com:example/abc.git',
-      ' ! [rejected]        abc-5/feature -> abc-5/feature (fetch first)',
+      ' ! [remote rejected] abc-5/feature -> abc-5/feature (push declined due to repository rule violations)',
       "error: failed to push some refs to 'github.com:example/abc.git'",
-      'hint: Updates were rejected because the remote contains work that you do not',
-      'hint: have locally. This is usually caused by another repository pushing to',
-      'hint: the same ref. If you want to integrate the remote changes, use',
-      "hint: 'git pull' before pushing again.",
-      "hint: See the 'Note about fast-forwards' in 'git push --help' for details.",
     ].join('\n')
     const cause = notice('review.pushFailed', { branch: 'abc-5/feature', remote: 'origin' }, { detail })
     const error = notice('review.notOpened', { task: 'ABC-5' }, { cause })

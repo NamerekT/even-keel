@@ -332,6 +332,24 @@ describe('Dispatcher in PR mode', () => {
     expect(relays).toHaveLength(1)
   })
 
+  it('tells the session to merge its branch from the forge when the push is refused as behind it, and does not pause (BTN-716)', async () => {
+    const pulls = forge()
+    pulls.deps.open = async () => {
+      throw fail('review.pushBehind', { branch: 'abc-1/task', remote: 'origin' }, { detail: '! [rejected] abc-1/task -> abc-1/task (fetch first)' })
+    }
+    const { dispatcher, relays, log, launched } = await running({ reviews: pulls.deps })
+
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
+    expect(relays[0]?.prompt).toBe(PROMPTS.ru.review.pushBehind('abc-1/task', 'origin'))
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-1' } })
+    expect(launched).toEqual([])
+    expect(log.some((line) => line.startsWith('review: ABC-1: no pull request opened, abc-1/task on origin has commits') && line.endsWith('; the session is told'))).toBe(true)
+
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toHaveLength(1)
+  })
+
   it('opens the mark a session left while its chain was stopped once the chain starts again', async () => {
     const pulls = forge()
     const context = setup({ live: { 'ABC-1': 'old-session' }, reviews: pulls.deps })

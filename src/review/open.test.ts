@@ -11,14 +11,15 @@ import { closingBody, closingOf, describedBy, openPull, pullReadiness, pullTarge
 describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
 
-  /** `status` — what `git status` lists; `note` — whether the session wrote the pull request's note. */
-  async function opening(ahead: GitResult, status = '', note = true, closes?: { issue: string; repo: string }) {
+  /** `status` — what `git status` lists; `note` — whether the session wrote the pull request's note; `push` — what the push answers. */
+  async function opening(ahead: GitResult, status = '', note = true, closes?: { issue: string; repo: string }, push: GitResult = { code: 0, out: '' }) {
     const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
     if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n\nQuotes kept.\n')
     const asked: string[] = []
     const git = async (_cwd: string, args: string[]): Promise<GitResult> => {
       asked.push(args.join(' '))
       if (args[0] === 'symbolic-ref') return { code: 0, out: 'abc-7/task\n' }
+      if (args[0] === 'push') return push
       if (args[0] === 'rev-list') return ahead
       if (args[0] === 'status') return { code: 0, out: status }
       return { code: 0, out: '' }
@@ -75,6 +76,23 @@ describe('openPull', () => {
     const closing = await opening({ code: 0, out: '1\n' }, '', true, { issue: 'john/abc#7', repo: 'john/abc' })
     await closing.result
     expect(closing.bodies).toEqual(['Quotes kept.\n\nCloses john/abc#7'])
+  })
+
+  it('tells a push refused as behind the branch on the remote from any other refusal, and opens nothing (BTN-716)', async () => {
+    const rejected = (reason: string) => ({
+      code: 1,
+      out: `To https://github.com/john/abc.git\n ! [rejected]        abc-7/task -> abc-7/task (${reason})\nerror: failed to push some refs to 'https://github.com/john/abc.git'\n`,
+    })
+    for (const reason of ['fetch first', 'non-fast-forward']) {
+      const { result, created } = await opening({ code: 0, out: '1\n' }, '', true, undefined, rejected(reason))
+      await expect(result).rejects.toMatchObject({ notice: { code: 'review.pushBehind', params: { branch: 'abc-7/task', remote: 'origin' } } })
+      expect(created).toEqual([])
+    }
+    const denied = { code: 128, out: "remote: Permission to john/abc.git denied to doe.\nfatal: unable to access 'https://github.com/john/abc.git/': The requested URL returned error: 403\n" }
+    for (const push of [denied, { code: 1, out: ' ! [remote rejected] abc-7/task -> abc-7/task (pre-receive hook declined)\n' }]) {
+      const { result } = await opening({ code: 0, out: '1\n' }, '', true, undefined, push)
+      await expect(result).rejects.toMatchObject({ notice: { code: 'review.pushFailed', params: { branch: 'abc-7/task', remote: 'origin' } } })
+    }
   })
 })
 

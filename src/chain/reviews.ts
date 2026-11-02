@@ -168,11 +168,10 @@ export class Reviews {
     } catch (error) {
       this.refused.set(task, session.lastReplyAt)
       const why = noticeOf(error)
-      if (why.code === 'review.nothingAhead') {
-        // The work is not committed (BTN-222). The session is told as a chat answer is, by `--resume` whatever its
-        // cache: the reply belongs to its own turn.
+      const text = this.toldOf(task, why)
+      if (text !== null) {
+        // The session is told as a chat answer is, by `--resume` whatever its cache: the reply belongs to its own turn.
         this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
-        const text = PROMPTS[this.deps.promptLanguage(task)].review.nothingAhead(this.deps.mainBranch(task))
         await this.handovers.deliver(chain, current, session, text, null, 'review')
       } else this.host.hold(chain, notice('review.notOpened', { task }, { cause: why }))
       return
@@ -192,6 +191,17 @@ export class Reviews {
     this.deps.save(this.state)
     this.host.refilter(project)
     void this.deps.moveStatus?.(project, task, 'review').catch((error) => this.deps.log(`review: ${task} was not moved on its pull request: ${String(error)}`))
+  }
+
+  /**
+   * What the session is told of a mark that opened nothing, when only it can fix it: work left uncommitted (BTN-222), or
+   * a branch on the forge with commits the session's lacks (BTN-716). `null` — the chain pauses instead.
+   */
+  private toldOf(task: string, why: Notice): string | null {
+    const prompts = PROMPTS[this.deps.promptLanguage(task)].review
+    if (why.code === 'review.nothingAhead') return prompts.nothingAhead(this.deps.mainBranch(task))
+    if (why.code === 'review.pushBehind') return prompts.pushBehind(why.params.branch, why.params.remote)
+    return null
   }
 
   /**

@@ -19,6 +19,8 @@ export interface ReviewTexts {
   after: string
   /** The mark came on a branch with no commits beyond main: nothing was pushed or opened (BTN-222). */
   nothingAhead: (main: string) => string
+  /** The push of the mark was refused: the branch on the forge has commits the session's lacks (BTN-716). */
+  pushBehind: (branch: string, remote: string) => string
   /** The task's previous pull request was closed unmerged; its remarks follow (BTN-223). */
   closed: (url: string) => string
   /** How many earlier remarks of the closed pull request are left out. */
@@ -126,6 +128,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно, но не коммить): Even Keel запушит ветку в тот же pull request.',
       nothingAhead: (main) =>
         fill`Pull request не открыт: в ветке нет коммитов сверх ${main}, а в worktree есть незакоммиченные изменения. Закоммить работу и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Если эти изменения не нужны — убери их, и по той же строке Even Keel закроет задачу без pull request.`,
+      pushBehind: (branch, remote) =>
+        fill`Ветка не запушена: в ${branch} на ${remote} есть коммиты, которых нет у тебя (например, конфликт разрешили на форже). Слей их к себе: \`git pull --no-rebase ${remote} ${branch}\`, разреши конфликты, если будут, закоммить и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Сам не пушь и никогда не пушь с \`--force\`: коммиты на форже пропадут.`,
       closed: (url) => fill`Прошлый pull request этой задачи, ${url}, закрыт без слияния. Замечания на нём:`,
       earlier: (count) => fill`- (более ранних замечаний не показано: ${String(count)} — они в самом pull request)`,
       noRemarks: '- (замечаний нет)',
@@ -236,6 +240,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed, without committing it): Even Keel pushes the branch to the same pull request.',
       nothingAhead: (main) =>
         fill`The pull request was not opened: the branch has no commits beyond ${main}, and the worktree has uncommitted changes. Commit the work and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. If those changes are not needed, remove them, and on the same line Even Keel closes the task without a pull request.`,
+      pushBehind: (branch, remote) =>
+        fill`The branch was not pushed: ${branch} on ${remote} has commits you do not (say, a conflict was resolved on the forge). Merge them in: \`git pull --no-rebase ${remote} ${branch}\`, resolve the conflicts if any, commit and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. Do not push yourself, and never with \`--force\`: the commits on the forge would be lost.`,
       closed: (url) => fill`The previous pull request of this task, ${url}, was closed without a merge. The remarks on it:`,
       earlier: (count) => fill`- (earlier remarks not shown: ${String(count)} — they are in the pull request itself)`,
       noRemarks: '- (none)',

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { forReview } from './agent.fixture.js'
@@ -120,17 +120,43 @@ describe('PR mode end to end: opening and closing', { timeout: 60_000 }, () => {
     await run.until(() => run.service.dispatcher.state.reviews[PROJECT_ID]?.some((pull) => pull.task === 'ABC-1') === true, 'the pull request of ABC-1 opened')
     const pull = run.pulls.of('ABC-1')!.number
 
-    // The branch moves on the forge meanwhile, as when its conflict is resolved there: the session's push is refused.
-    const tree = run.gitIn(run.remote, 'rev-parse', 'abc-1/task^{tree}')
-    const identity = ['-c', 'user.name=John Doe', '-c', 'user.email=john@example.com']
-    const commit = run.gitIn(run.remote, ...identity, 'commit-tree', tree, '-p', 'abc-1/task', '-m', 'Merge branch main into abc-1/task')
-    run.gitIn(run.remote, 'update-ref', 'refs/heads/abc-1/task', commit)
+    // The forge refuses the session's next push.
+    const hook = join(run.remote, 'hooks', 'pre-receive')
+    writeFileSync(hook, '#!/bin/sh\necho "push refused by the bench"\nexit 1\n', { mode: 0o755 })
     run.pulls.comment(pull, OWNER, 'Please fix it')
     await run.until(() => chain()?.error?.code === 'review.notOpened', 'the chain paused on the refused push')
-    expect(chain()).toMatchObject({ paused: true, current: { task: 'ABC-1' } })
+    expect(chain()).toMatchObject({ paused: true, current: { task: 'ABC-1' }, error: { cause: { code: 'review.pushFailed' } } })
 
+    rmSync(hook)
     await run.pulls.merge(pull)
     await run.until(() => run.board.status('ABC-1') === 'Done' && chain() === undefined && cleanedUp('ABC-1'), 'ABC-1 let go, done and cleaned up')
     expect(run.log.some((line) => line.includes('ABC-1') && line.includes('its pull request is merged'))).toBe(true)
+  })
+
+  it('tells the session to merge its branch moved on the forge when the push is refused as behind, and its next mark goes to the same pull request (BTN-716)', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', forReview('one.txt'), forReview('one.txt', 'fixed\n', 'Fix review'), async (turn) => {
+      await turn.git('pull', '--no-rebase', '--no-edit', 'origin', 'abc-1/task')
+      return forReview(null)(turn)
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.pulls.of('ABC-1') !== undefined, 'the pull request of ABC-1 opened')
+    const pull = run.pulls.of('ABC-1')!.number
+
+    // The branch moves on the forge meanwhile, as when its conflict is resolved there.
+    const tree = run.gitIn(run.remote, 'rev-parse', 'abc-1/task^{tree}')
+    const identity = ['-c', 'user.name=John Doe', '-c', 'user.email=john@example.com']
+    const forged = run.gitIn(run.remote, ...identity, 'commit-tree', tree, '-p', 'abc-1/task', '-m', 'Merge branch main into abc-1/task')
+    run.gitIn(run.remote, 'update-ref', 'refs/heads/abc-1/task', forged)
+    run.pulls.comment(pull, OWNER, 'Please fix it')
+
+    await run.until(() => calls('resume', 'ABC-1').length === 2, 'the session told of the branch on the forge')
+    expect(calls('resume', 'ABC-1')[1]?.prompt).toContain('git pull --no-rebase origin abc-1/task')
+    await run.until(() => run.gitIn(run.remote, 'log', '--format=%s', 'abc-1/task').includes('[ABC-1] Fix review'), 'the merged branch pushed')
+    expect(run.gitIn(run.remote, 'merge-base', forged, 'abc-1/task')).toBe(forged)
+    expect(chain()?.paused ?? false).toBe(false)
+    expect(run.pulls.creates).toBe(1)
+    expect(run.service.dispatcher.state.reviews[PROJECT_ID]).toMatchObject([{ task: 'ABC-1', number: pull }])
   })
 })

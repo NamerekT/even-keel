@@ -196,6 +196,8 @@ export const en = {
   'review.dirty': (p: { path: string }) => `${p.path} has uncommitted changes`,
   'review.nothingAhead': (p: { branch: string; base: string }) => `${p.branch} has no commits beyond ${p.base}`,
   'review.pushFailed': (p: { branch: string; remote: string }) => `could not push ${p.branch} to ${p.remote}`,
+  'review.pushBehind': (p: { branch: string; remote: string }) =>
+    `${p.branch} on ${p.remote} has commits the session's branch lacks (a conflict resolved on the forge, say): the session is to merge them and mark the pull request again`,
   'ci.notTaken': (p: { ci: string; commit: string }) => `${p.ci}: no runner took ${p.commit}`,
   'ci.fixFailed': (p: { task: string; commit: string }) => `CI is red on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
   'ci.cannotCreate': (p: { commit: string }) => `CI is red on main at ${p.commit}, and the tracker cannot create a task to fix it`,
