@@ -1,7 +1,9 @@
+import type { ChildProcess } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { createServer, type Server } from 'node:http'
 import { connect } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { McpGateway, refusal, shellQuoted, type GatewayTarget } from './gateway.js'
+import { McpGateway, refusal, shellQuoted, stopProcess, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
 
 const ECHO = `
@@ -33,6 +35,58 @@ describe('shellQuoted', () => {
   it('escapes quotes and the backslashes before them and at the end', () => {
     expect(shellQuoted('say "hi"')).toBe('"say \\"hi\\""')
     expect(shellQuoted('C:\\dir with space\\')).toBe('"C:\\dir with space\\\\"')
+  })
+})
+
+describe('stopProcess', () => {
+  const fake = () => {
+    const child = Object.assign(new EventEmitter(), { exitCode: null as number | null, signalCode: null as string | null, pid: 1, kill: vi.fn(() => true) })
+    const exit = (signal: string) => {
+      child.signalCode = signal
+      child.emit('exit', null, signal)
+    }
+    return { child, exit, process: child as unknown as ChildProcess }
+  }
+
+  afterEach(() => void vi.useRealTimers())
+
+  it('sends SIGTERM and resolves only once the process exits', async () => {
+    const { child, exit, process } = fake()
+    let done = false
+    const stopped = stopProcess(process, 5000).then(() => (done = true))
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(done).toBe(false)
+    exit('SIGTERM')
+    await stopped
+    expect(child.kill).toHaveBeenCalledTimes(1)
+  })
+
+  it('kills a process that ignores SIGTERM once the grace runs out', async () => {
+    vi.useFakeTimers()
+    const { child, exit, process } = fake()
+    const stopped = stopProcess(process, 5000)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(child.kill).not.toHaveBeenCalledWith('SIGKILL')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(child.kill).toHaveBeenLastCalledWith('SIGKILL')
+    exit('SIGKILL')
+    await stopped
+  })
+
+  it('does not hang on a process that outlives SIGKILL', async () => {
+    vi.useFakeTimers()
+    const { process } = fake()
+    const stopped = stopProcess(process, 5000).then(() => 'stopped')
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await stopped).toBe('stopped')
+  })
+
+  it('resolves at once for a process already gone', async () => {
+    const { child, process } = fake()
+    child.exitCode = 0
+    await stopProcess(process, 5000)
+    expect(child.kill).not.toHaveBeenCalled()
   })
 })
 
@@ -112,7 +166,21 @@ require('node:http').createServer((req, res) => res.writeHead(200, { 'content-ty
     expect(await Promise.race([closed, new Promise((resolve) => setTimeout(() => resolve('hangs'), 2000))])).toBe('closed')
     socket.destroy()
     gateway = undefined
-    await vi.waitFor(() => expect(alive(reply.result.pid)).toBe(false), { timeout: 3000 })
+    // The close waits for the exit: systemd must not find the server alive once node is gone (BTN-723).
+    expect(alive(reply.result.pid)).toBe(false)
+  })
+
+  it('waits on close for a bridged server to exit', async () => {
+    const pid = `
+require('node:readline').createInterface({ input: process.stdin }).on('line', (line) => {
+  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: JSON.parse(line).id, result: { pid: process.pid } }) + '\\n')
+})
+`
+    const url = await start({ entry: { command: 'node', args: ['-e', pid] }, npm: null, env: {} })
+    const reply = (await (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).json()) as { result: { pid: number } }
+    await gateway!.close()
+    gateway = undefined
+    expect(alive(reply.result.pid)).toBe(false)
   })
 
   it('holds the first request of a shared server until it answers HTTP, not only until its port accepts', async () => {

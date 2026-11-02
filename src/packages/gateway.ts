@@ -13,6 +13,9 @@ const READY_TIMEOUT_MS = 60_000
 const READY_POLL_MS = 200
 const READY_TRY_MS = 1_000
 const REQUEST_TIMEOUT_MS = 10 * 60_000
+/** Well inside the 15 s a stop signal gives the whole shutdown. */
+const STOP_GRACE_MS = 5_000
+const KILL_WAIT_MS = 1_000
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
 const FORWARD = ['accept', 'content-type', 'mcp-session-id', 'mcp-protocol-version', 'last-event-id']
 const BACK = ['content-type', 'mcp-session-id']
@@ -107,16 +110,17 @@ export class McpGateway {
     this.port = typeof address === 'object' && address !== null ? address.port : port
   }
 
+  /** Resolves once every server process has exited, not only been signalled (BTN-723). */
   async close(): Promise<void> {
-    for (const each of this.shared.values()) each.child.kill()
-    for (const each of this.bridges.values()) each.close()
+    const stopped = [...[...this.shared.values()].map((each) => stopProcess(each.child)), ...[...this.bridges.values()].map((each) => each.close())]
     this.shared.clear()
     this.bridges.clear()
     const server = this.server
-    if (server === undefined) return
-    const closed = new Promise<void>((resolve) => server.close(() => resolve()))
-    server.closeAllConnections()
-    await closed
+    if (server !== undefined) {
+      stopped.push(new Promise<void>((resolve) => server.close(() => resolve())))
+      server.closeAllConnections()
+    }
+    await Promise.all(stopped)
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -212,7 +216,7 @@ export class McpGateway {
     const id = req.headers['mcp-session-id']
     const known = typeof id === 'string' ? this.bridges.get(id) : undefined
     if (req.method === 'DELETE') {
-      known?.close()
+      void known?.close()
       return void res.writeHead(known === undefined ? 404 : 200).end()
     }
     if (req.method === 'GET') {
@@ -239,6 +243,27 @@ export class McpGateway {
     if (replies.length === 0) return void res.writeHead(202).end()
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(Array.isArray(body) ? replies : replies[0]))
   }
+}
+
+/**
+ * Stops a server process and resolves once it has exited: SIGTERM, SIGKILL after the grace, and no longer than a
+ * second after that. Under systemd (`KillMode=process`) a child still alive when node exits outlives the unit (BTN-723).
+ */
+export function stopProcess(child: ChildProcess, graceMs = STOP_GRACE_MS): Promise<void> {
+  if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
+  return new Promise((resolve) => {
+    let timer: NodeJS.Timeout | undefined
+    const done = () => {
+      clearTimeout(timer)
+      resolve()
+    }
+    child.once('exit', done)
+    child.kill('SIGTERM')
+    timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      timer = setTimeout(done, KILL_WAIT_MS)
+    }, graceMs)
+  })
 }
 
 class SharedServer {
@@ -282,7 +307,7 @@ class Bridge {
   private readonly waiting = new Map<string, (reply: unknown) => void>()
   private readonly streams = new Set<ServerResponse>()
   private timer: NodeJS.Timeout | undefined
-  private closed = false
+  private exited: Promise<void> | undefined
 
   constructor(
     private readonly child: ChildProcess,
@@ -296,7 +321,7 @@ class Bridge {
   }
 
   async send(messages: Record<string, unknown>[]): Promise<unknown[]> {
-    if (this.closed) throw new Error('the server exited')
+    if (this.exited !== undefined) throw new Error('the server exited')
     this.touch()
     const replies = messages
       .filter((each) => typeof each?.method === 'string' && each.id !== undefined && each.id !== null)
@@ -323,15 +348,15 @@ class Bridge {
     res.on('close', () => this.streams.delete(res))
   }
 
-  close(): void {
-    if (this.closed) return
-    this.closed = true
+  close(): Promise<void> {
+    if (this.exited !== undefined) return this.exited
+    this.exited = stopProcess(this.child)
     clearTimeout(this.timer)
-    this.child.kill()
     for (const reply of this.waiting.values()) reply(undefined)
     this.waiting.clear()
     for (const each of this.streams) each.end()
     this.gone()
+    return this.exited
   }
 
   private read(text: string): void {
