@@ -152,10 +152,7 @@ The settings live in Even Keel's database and are edited on the page: a project'
 
 ## What comes next
 
-Planned for the next release, v0.2:
-
-- **Codex in full.** Chain sessions that keep the Codex sandbox under the Windows service once Codex fixes it there.
-- **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of Node.js and npm. Windows first, Linux if it works out; macOS keeps the npm package.
+The single executable once planned for v0.2 was dropped for the npm package: `npx even-keel` already installs Even Keel, sets up the service and updates it with one command on every system, so a downloaded file per platform would add a build to maintain and nothing for you.
 
 Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend.
 
