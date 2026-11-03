@@ -228,6 +228,15 @@ describe('checkDraft', () => {
     expect(adapter.asked).toEqual(['NEW=org/new', 'NEW'])
   })
 
+  it('checks the rest without the tracker when the page holds its answer (BTN-737)', async () => {
+    const adapter = fakeAdapter()
+    const check = await checkDraft(deps({ adapters: { fake: adapter } }), draft, { tracker: false })
+    expect(adapter.asked).toEqual([])
+    expect(check.tracker).toBeNull()
+    expect(check.entry).toBeNull()
+    expect(check.repo.root).toBe('D:\\new')
+  })
+
   it("suggests the tracker's project by the first remote the adapter takes", async () => {
     const adapter = fakeAdapter()
     adapter.projectOfRemote = (remote) => (remote.host === 'github.com' ? `${remote.owner}/${remote.repo}` : undefined)

@@ -26,7 +26,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     tools: (project) => activity.track(source.tools(project)),
     card: (task) => activity.track(source.card(task)),
     vocabulary: (projectId) => source.vocabulary(projectId),
-    checkProject: (draft) => activity.track(source.checkProject(draft)),
+    checkProject: (draft, askTracker) => activity.track(source.checkProject(draft, askTracker)),
     query: (name, body) => activity.track(source.query(name, body)),
     statsHistory: (filter) => source.statsHistory(filter),
     statsPeriod: (query) => source.statsPeriod(query),

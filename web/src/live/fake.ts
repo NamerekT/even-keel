@@ -796,10 +796,11 @@ export function createFakeSource(search: string): LiveSource {
       if (mode === 'fail') throw new Error('huly: not connected')
       return mode === 'none' || !FAKE_PROJECTS.includes(projectId) ? null : FAKE_VOCABULARY
     },
-    checkProject: async (draft) => {
+    checkProject: async (draft, askTracker = true) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
-      return { ...fakeCheck(current.state, draft, params.get('wizard')), service: asService }
+      const check = fakeCheck(current.state, draft, params.get('wizard'))
+      return { ...check, tracker: askTracker ? check.tracker : null, service: asService }
     },
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()

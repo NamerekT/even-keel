@@ -109,11 +109,14 @@ describe('Even Keel HTTP server', () => {
     expect(check.status).toBe(200)
     expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' })
 
+    // The page holds the tracker's answer: the tracker is not asked (BTN-737).
+    expect((await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify({ ...draft, askTracker: false }) })).status).toBe(200)
     expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
     // A page open since before the milestones and the agent fields sends neither.
     expect(calls).toEqual([
-      ['check', { ...draft, milestones: [], provider: null }],
+      ['check', { ...draft, milestones: [], provider: null }, { tracker: true }],
+      ['check', { ...draft, milestones: [], provider: null }, { tracker: false }],
       ['add', { ...draft, milestones: [], provider: null }],
       ['removeProject', 'ABC'],
     ])

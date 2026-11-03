@@ -37,9 +37,10 @@ const ENTRY_ID = 'wizard-check'
 /**
  * What the wizard's draft would come to: the repository and its branch, the config with the draft added, the tracker's
  * answer for the project and Claude Code's trust in the folder, for a project Claude may run on. Each step that needs an earlier one is left `null`
- * until that one passes.
+ * until that one passes. `tracker: false` — the page holds the tracker's answer for the draft's tracker project (BTN-737):
+ * the rest is checked and the tracker is not asked, `tracker` comes back `null`.
  */
-export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<ProjectCheck> {
+export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: { tracker: boolean } = { tracker: true }): Promise<ProjectCheck> {
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
   const adapter = deps.adapters[draft.tracker]
@@ -60,7 +61,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
     entry = keyNotice(noticeOf(error))
   }
   const tracker =
-    entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
+    options.tracker && entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
       : null
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)

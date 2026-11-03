@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Notice } from '../../../src/notice/notice.js'
-import type { ProjectCheck } from '../../../src/state.js'
+import type { ProjectCheck, ProjectDraft } from '../../../src/state.js'
 import {
   draftOfFields,
   entryField,
@@ -17,11 +17,13 @@ import {
   suggestOfRepo,
   switchProfile,
   taskExample,
+  trackerBasis,
   trackerPlace,
   trustCommand,
   trustCommandAs,
   trustCommandsOf,
   typedIn,
+  type TrackerShape,
   type WizardFields,
 } from './projectWizard.js'
 
@@ -242,6 +244,45 @@ describe('stepChecks', () => {
   it('fails the folders on a pool that is not a whole number above zero', () => {
     expect(stepChecks({ ...typed, place: 'slots', slots: '0' }, 'key', passed, passed, 'passed').place).toBe('failed')
     expect(stepChecks({ ...typed, place: 'slots', slots: '3' }, 'key', passed, passed, 'passed').place).toBe('passed')
+  })
+
+  it("keeps the tracker's held answer while another field is checked again (BTN-737)", () => {
+    expect(stepChecks(typed, 'place', null, passed, 'passed', passed.tracker)).toMatchObject({ tracker: 'passed', project: 'empty' })
+    expect(stepChecks(typed, 'place', { ...passed, tracker: null }, passed, 'passed', null).tracker).toBe('empty')
+  })
+})
+
+describe('trackerBasis', () => {
+  const base = draftOfFields(fields({ repo: 'D:/Projects/shop', key: 'ABC', name: 'Shop', profile: 'p1', trackerProject: 'octo/shop' }))!
+  const same = (shape: TrackerShape, change: Partial<ProjectDraft>) => trackerBasis({ ...base, ...change }, shape) === trackerBasis(base, shape)
+
+  it('holds while the name, the folder, the branch, the folders of tasks or the agent change', () => {
+    for (const shape of ['key', 'place', 'alias', 'within'] as const) {
+      expect(same(shape, { name: 'Other' })).toBe(true)
+      expect(same(shape, { repo: 'D:/Projects/other', branch: 'dev', slot: 2, provider: 'codex' })).toBe(true)
+    }
+  })
+
+  it('holds while a free prefix changes, and moves with the key where the key is the tracker project', () => {
+    expect(same('place', { key: 'XYZ' })).toBe(true)
+    expect(same('alias', { key: 'XYZ' })).toBe(true)
+    expect(same('key', { key: 'XYZ' })).toBe(false)
+  })
+
+  it("moves with the tracker, the profile, the tracker's project and the milestones", () => {
+    for (const shape of ['key', 'place', 'alias', 'within'] as const) {
+      expect(same(shape, { tracker: 'github' })).toBe(false)
+      expect(same(shape, { profile: 'p2' })).toBe(false)
+      expect(same(shape, { milestones: ['v2'] })).toBe(false)
+    }
+    expect(same('place', { trackerProject: 'octo/other' })).toBe(false)
+  })
+
+  it("reads a Linear team where the adapter does: the key while the value names none, the value's own otherwise", () => {
+    const team = { ...base, key: 'ENG', trackerProject: 'Web' }
+    const basis = (draft: ProjectDraft) => trackerBasis(draft, 'within')
+    expect(basis({ ...team, key: 'APP', trackerProject: 'ENG/Web' })).toBe(basis(team))
+    expect(basis({ ...team, key: 'APP' })).not.toBe(basis(team))
   })
 })
 

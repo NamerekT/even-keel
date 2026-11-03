@@ -280,7 +280,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.saveShared(form, base)
         console.log('page: the shared settings are written to the config')
       },
-      check: async (draft) =>
+      check: async (draft, options) =>
         checkDraft(
           {
             git: runGit,
@@ -294,6 +294,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
             service: await runsAsService(),
           },
           draft,
+          options,
         ),
       trust: async (project, account) => {
         const folder = ctx.configStore.current.projects[project]

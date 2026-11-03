@@ -24,6 +24,7 @@ import {
   stepChecks,
   suggestOfRepo,
   switchProfile,
+  trackerBasis,
   typedIn,
   WIZARD_STEPS,
   type Missing,
@@ -78,6 +79,12 @@ interface Checked {
   result: ProjectCheck
 }
 
+/** The tracker's last answer and the `trackerBasis` it was asked for. */
+interface HeldTracker {
+  basis: string
+  answer: NonNullable<ProjectCheck['tracker']>
+}
+
 /**
  * Adding a project: the agent, the repository, the tracker's profile and project, the key and the name where the
  * tracker leaves them free, and the tasks' folders, each a card whose dot says what the service's check of it answered
@@ -90,6 +97,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const [fields, setFields] = useState<WizardFields>(() => kept ?? firstFields(state))
   const [checked, setChecked] = useState<Checked | null>(null)
+  const [heldTracker, setHeldTracker] = useState<HeldTracker | null>(null)
   const [checkFailure, setCheckFailure] = useState<Notice | null>(null)
   const [checking, setChecking] = useState(false)
   const [round, setRound] = useState(0)
@@ -102,7 +110,11 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const draft = draftOfFields(fields, profile?.isDefault === true)
   const draftText = JSON.stringify(draft ?? null)
   const fresh = checked !== null && JSON.stringify(checked.draft) === draftText
-  const check = fresh ? checked.result : null
+  // The tracker's answer depends on its own fields only (`trackerBasis`, BTN-737): it holds while the key or the name is
+  // typed, and the service is not sent to the tracker for it again.
+  const basis = draft === undefined ? null : trackerBasis(draft, shape)
+  const tracker = heldTracker !== null && heldTracker.basis === basis ? heldTracker.answer : null
+  const check = fresh ? { ...checked.result, tracker } : null
   // The folder's lines depend on the folder and the branch only: they hold while another field is checked again.
   const repoCheck =
     checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch
@@ -117,14 +129,17 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   }, [fields])
 
   useEffect(() => {
-    if (draft === undefined || draft.repo === '') return
+    if (draft === undefined || draft.repo === '' || basis === null) return
+    const askTracker = tracker === null
     let live = true
     const timer = setTimeout(() => {
       setChecking(true)
-      checkProject(draft).then(
+      checkProject(draft, askTracker).then(
         (result) => {
           if (!live) return
           setChecked({ draft, result })
+          // Not asked when a step before it fails: nothing to hold then.
+          if (askTracker) setHeldTracker(result.tracker === null ? null : { basis, answer: result.tracker })
           setCheckFailure(null)
         },
         (error: unknown) => live && setCheckFailure(noticeOf(error)),
@@ -137,7 +152,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     // The draft's text stands for the draft: a new object of the same fields asks nothing again.
   }, [draftText, round])
 
-  // Back from the terminal where the trust was given: ask again, once per return and not on a timer (the check reaches the tracker too).
+  // Back from the terminal where the trust was given: ask again, once per return and not on a timer (the check reaches the tracker too, unless its answer is held).
   const untrusted = repoCheck?.trusted === false
   useEffect(() => {
     if (!untrusted) return
@@ -193,7 +208,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
   const branchShown = branchOpen || noBranch || (root !== null && current === null)
-  const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent))
+  const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent), tracker)
   const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
   const dot = (step: WizardStepId) => {
     const mark = marks[WIZARD_STEPS.indexOf(step)]!
@@ -303,7 +318,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
           </Section>
           <Section title={t.wizard.stepTracker} mark={dot('tracker')} className="project-add__step">
-            <TrackerStep state={state} fields={fields} shape={shape} check={check} onChange={setFields} />
+            <TrackerStep state={state} fields={fields} shape={shape} check={check} tracker={tracker} onChange={setFields} />
           </Section>
           <Section title={t.wizard.stepProject} mark={dot('project')} className="project-add__step">
             {keyTyped(shape) && (
@@ -412,7 +427,16 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
               )}
               {draft !== undefined && draft.repo !== '' && (
-                <button type="button" className="wizard__skip" disabled={checking} onClick={() => setRound((count) => count + 1)}>
+                <button
+                  type="button"
+                  className="wizard__skip"
+                  disabled={checking}
+                  onClick={() => {
+                    // Asked by hand: the tracker too.
+                    setHeldTracker(null)
+                    setRound((count) => count + 1)
+                  }}
+                >
                   {t.wizard.checkAgain}
                 </button>
               )}

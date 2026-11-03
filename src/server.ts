@@ -153,8 +153,11 @@ export interface SettingsControl {
   save(project: string, form: ProjectForm, base: ProjectForm): void | Promise<void>
   /** Writes into the config file the shared settings that differ from `base`. */
   saveShared(form: SharedForm, base: SharedForm): void
-  /** What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust. */
-  check(draft: ProjectDraft): Promise<ProjectCheck>
+  /**
+   * What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust;
+   * `tracker: false` — the page holds the tracker's answer, the tracker is not asked (BTN-737).
+   */
+  check(draft: ProjectDraft, options: { tracker: boolean }): Promise<ProjectCheck>
   /** Claude Code's trust in the project's checkout as the Claude account folder `account` (blank — the project's own) sees it. */
   trust(project: string, account: string | null): Promise<ProjectTrust>
   /** Adds the wizard's project to the config; refuses one the config would not parse. */
@@ -683,7 +686,8 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   if (request.method === 'POST' && path === '/api/project/check') {
     let check: ProjectCheck
     try {
-      check = await deps.settings.check(draftOf(await readJsonBody(request, MAX_BODY_BYTES)))
+      const body = await readJsonBody(request, MAX_BODY_BYTES)
+      check = await deps.settings.check(draftOf(body), { tracker: body.askTracker !== false })
     } catch (error) {
       sendFailure(response, error)
       return

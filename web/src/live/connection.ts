@@ -48,8 +48,8 @@ export interface LiveSource {
   card(task: string): Promise<TaskCard | null>
   /** The statuses and labels the project's tracker names, by the project's id; `null` — it names none. */
   vocabulary(projectId: string): Promise<TrackerVocabulary | null>
-  /** What the project wizard's draft would come to; changes nothing. */
-  checkProject(draft: ProjectDraft): Promise<ProjectCheck>
+  /** What the project wizard's draft would come to; changes nothing. `askTracker: false` — the tracker is not asked, its answer is `null`. */
+  checkProject(draft: ProjectDraft, askTracker?: boolean): Promise<ProjectCheck>
   /** A request that answers with its own result instead of the state (`profiles/check` and the like); changes no state. */
   query<T>(name: string, body: Record<string, unknown>): Promise<T>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -73,7 +73,7 @@ export interface LiveDeps {
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
   fetchVocabulary: (projectId: string) => Promise<TrackerVocabulary | null>
-  checkProject: (draft: ProjectDraft) => Promise<ProjectCheck>
+  checkProject: (draft: ProjectDraft, askTracker: boolean) => Promise<ProjectCheck>
   sendQuery: (name: string, body: Record<string, unknown>) => Promise<unknown>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
@@ -176,8 +176,8 @@ export class LiveConnection implements LiveSource {
     return this.deps.fetchVocabulary(projectId)
   }
 
-  checkProject(draft: ProjectDraft): Promise<ProjectCheck> {
-    return this.deps.checkProject(draft)
+  checkProject(draft: ProjectDraft, askTracker = true): Promise<ProjectCheck> {
+    return this.deps.checkProject(draft, askTracker)
   }
 
   async query<T>(name: string, body: Record<string, unknown>): Promise<T> {

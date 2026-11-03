@@ -70,8 +70,8 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     settings: {
       save: record('settings'),
       saveShared: record('shared'),
-      check: async (draft) => {
-        calls.push(['check', draft])
+      check: async (draft, options) => {
+        calls.push(['check', draft, options])
         return { repo: { root: draft.repo, current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' }
       },
       trust: (project, account) => {

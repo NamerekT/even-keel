@@ -67,7 +67,7 @@ async function sendQuery(name: string, body: object): Promise<unknown> {
   return answer
 }
 
-const checkProject = (draft: ProjectDraft) => sendQuery('project/check', draft) as Promise<ProjectCheck>
+const checkProject = (draft: ProjectDraft, askTracker: boolean) => sendQuery('project/check', { ...draft, askTracker }) as Promise<ProjectCheck>
 
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
