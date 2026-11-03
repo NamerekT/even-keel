@@ -19,6 +19,7 @@ The unit tests of `src/chain/` go through `setup()` of `dispatcher.fixture.ts`, 
   | Area | Files |
   | --- | --- |
   | the order, handovers, cleanup after Done, restarts | `chain`, `restarts`, `returns`, `turns`, `cleanup` |
+  | the service's start, `src/service.ts` wiring | `huly-client`, `restarts` |
   | questions, chat mail, pauses | `questions`, `mail`, `pauses` |
   | labels, statuses, the tracker adapters | `labels`, `statuses`, `feeds`, `intake` |
   | the CI, a red `main`, a shared remote, the sync | `ci`, `ci-fix`, `ci-sessions`, `remote`, `remote-tasks` |
@@ -28,6 +29,7 @@ The unit tests of `src/chain/` go through `setup()` of `dispatcher.fixture.ts`, 
 
   - `chain.test.ts`: the order by `blocks` with cleanup after each Done; a question answered from the chat and resumed; a limit waited out and resumed after its reset; a limit whose reset comes after the session cache went cold, handed to a new session (`relay`, cause `limit`); a checkpoint handed to a new session in the same folder with the note; a handover past a session that failed before its first answer; a session the cleanup after Done found mid-turn stopped once its turn ends; a task closed by `NO CHANGES:` with its comment.
   - `restarts.test.ts`: a merge while the service is down, closed, cleaned up and followed by the next task once it is back; a restart mid-session that leaves the session alone and keeps the chain; a task done before the first read of the sessions after a restart — its session stopped, its folder removed; one done right after a restart — stopped only once its turn ends.
+  - `huly-client.test.ts`: a start with Huly variables in the environment and no Huly client (`src/huly/client.js` mocked so the clone's own `node_modules` resolves nothing and the install is recorded, not run) — the service comes up with a Huly profile and asks for the install, and again after a restart without the variables (EKR-52: the install's synchronous `changed` reached `getState` before its declaration and ended the process).
   - `returns.test.ts`: a task back from its blocker (with and without a restart in between) and from Skip → Unskip, by `relay` on the same branch; a task back from Backlog after a question in a comment, also with the old session listed `waiting` with no question (BTN-245); a task closed by an early merge and taken back from Done, handed over by its checkpoint and left open until the next session merges again, also with a restart after the handover (BTN-689).
   - `questions.test.ts`: a question posted on the board answered by a tracker comment (`Board.reply`), resumed in the same session; a question kept open through a restart and answered from the chat after it.
   - `mail.test.ts`: chat mail taken by the turn through the mailbox hook's route (`TurnContext.mail`), once; mail left at the end of a turn sent by a resume; mail around the merge (`returned`/`closed` before it, refused after it); a refused delivery (`ScriptedAgent.refuse`) that leaves the chain unpaused and a retry that reaches the same session; mail delivered by a resume after `chain/stopAfter`.
