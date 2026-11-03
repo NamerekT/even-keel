@@ -43,6 +43,8 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **CI.** The next task waits for the CI's verdict on `main`, and a red `main` is fixed first. No CI — your own check commands.
 - **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo, or a merge request on GitLab; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
+- **Protection.** Groups of deny rules for destructive actions, on by default, and a switch per tracker that refuses its MCP server's deletes for every agent.
+- **Standards.** A document of the repository reaches a session the first time it touches the files it guards (`**/*.tsx`), and can hold the merge until screenshots and the document's check are done.
 - **Accounts, one per project and provider.** OpenCode signs in with ChatGPT, GitHub Copilot, an API key or runs its free models; the Copilot CLI with your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
 - **A session audit skill** reads the statistics and proposes what to change in your rules.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
@@ -91,7 +93,7 @@ Open `http://localhost:4747`. The first start walks a short setup — the langua
 
 Want to look first? `npm run dev:fake` in a clone shows the page on fake data, with no tracker and no sessions.
 
-To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel` or `linear@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel` or `jira@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
 
 To test the next version before its release: with npm, `npx even-keel@next` installs its latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
 
