@@ -3,6 +3,7 @@ import { language } from '../i18n/index.js'
 export const cliText = () => language === 'ru' ? {
   title: 'Проверенная копия CLI',
   missing: 'Копия ещё не скачана. Цепь будет ждать её готовности.',
+  missingNamed: (title: string) => `${title}: копия ещё не скачана. Цепь будет ждать её готовности.`,
   download: (mb: number) => `Скачать (≈${mb} МБ)`,
   system: 'Использовать установленную',
   again: 'Проверить снова',
@@ -36,6 +37,7 @@ export const cliText = () => language === 'ru' ? {
 } : {
   title: 'Checked CLI copy',
   missing: 'The copy has not been downloaded. The chain will wait until it is ready.',
+  missingNamed: (title: string) => `${title}: the copy has not been downloaded. The chain will wait until it is ready.`,
   download: (mb: number) => `Download (≈${mb} MB)`,
   system: 'Use installed CLI',
   again: 'Check again',

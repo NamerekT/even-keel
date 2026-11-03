@@ -32,7 +32,7 @@ export function CliProgress({ provider, copy }: { provider: string; copy: CliCop
 }
 
 /** The same actions serve a card, an account dialog and a chain waiting for consent. */
-export function CliActions({ provider, onDownload, onSystem, onChecked, primary = false }: { provider: string; onDownload?: () => void; onSystem?: () => void; onChecked?: () => void; primary?: boolean }) {
+export function CliActions({ provider, onDownload, onSystem, onChecked, primary = false, bar = false }: { provider: string; onDownload?: () => void; onSystem?: () => void; onChecked?: () => void; primary?: boolean; bar?: boolean }) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
   const copy = state?.cliCopies?.[provider]
@@ -41,11 +41,12 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
   const waiting = copy.source === 'checked' && copy.status !== 'ready'
   const missingSystem = copy.source === 'system' && !copy.system
   if (!waiting && !missingSystem && copy.status !== 'failed') return null
-  return <div className="cli-copy">
+  const line = bar && copy.status === 'missing' && waiting && !missingSystem
+  return <div className={line ? 'banner__inner' : 'cli-copy'}>
     {copy.status === 'downloading' ? <CliProgress provider={provider} copy={copy} /> : <>
-      {copy.status === 'failed' ? <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p> : waiting && !primary && <p>{text.missing}</p>}
+      {line ? <span>{text.missingNamed(titleOf(provider))}</span> : copy.status === 'failed' ? <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p> : waiting && !primary && <p>{text.missing}</p>}
       {missingSystem && <><p>{text.installingCli}</p><CommandBlock command={INSTALL[provider] ?? ''} /></>}
-      <div className="cli-copy__actions">
+      <div className={line ? 'banner__actions' : 'cli-copy__actions'}>
         {copy.source === 'checked' || copy.status === 'failed' ?
           <button type="button" className={`button button--small${primary ? ' button--primary' : ''}`} disabled={sending} onClick={async () => {
             if (await send('cli/download', { agent: provider })) onDownload?.()
@@ -100,10 +101,7 @@ export function CliCopiesBanner() {
   const failed = copies.filter(([, copy]) => copy.status === 'failed')
   const shown = copies.filter(([provider, copy]) => copy.status === 'downloading' || (copy.status !== 'failed' && ((used.has(provider) && copy.source === 'checked' && copy.status === 'missing') || state?.chain.active.some((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === provider))))
   return <>
-    <Banner tone="info" role="status">{shown.length > 0 ? <div className="banner__inner cli-copy__banner">{shown.map(([provider, copy]) => <div key={provider}>
-      {copy.status !== 'downloading' && <strong>{titleOf(provider)}</strong>}
-      <CliActions provider={provider} />
-    </div>)}</div> : null}</Banner>
+    <Banner tone="info" role="status">{shown.length > 0 ? <div className="banner__inner cli-copy__banner">{shown.map(([provider]) => <CliActions key={provider} provider={provider} bar />)}</div> : null}</Banner>
     <Banner tone="error">{failed.length > 0 ? <div className="cli-copy__failed">{failed.map(([provider]) => <CliRetry key={provider} provider={provider} />)}</div> : null}</Banner>
   </>
 }
