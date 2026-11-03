@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - A very long line in an OpenCode account log no longer stalls Even Keel for seconds while it reads the log for errors.
+- The keyboard focus ring of a notification's link is drawn whole, a few pixels above its buttons, instead of a clipped line under them.
 
 ## [0.2.0] - 2026-11-03
 
