@@ -2,6 +2,9 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 
 const SERVICE = 'Claude Code-credentials'
+/** The `-a` the CLI writes its sign-in item with (CLI 2.1.317). */
+const ACCOUNT = 'claude-code-user'
+const NOT_FOUND = 44
 const TTL_MS = 60_000
 const TIMEOUT_MS = 3_000
 const HEX = /^(?:[0-9a-f]{2})+$/i
@@ -21,10 +24,10 @@ export interface SecurityAnswer {
   timedOut?: boolean
 }
 
-export type SecurityRun = (args: string[]) => SecurityAnswer
+export type SecurityRun = (args: string[], input?: string) => SecurityAnswer
 
-function runSecurity(args: string[]): SecurityAnswer {
-  const result = spawnSync('security', args, { encoding: 'utf8', timeout: TIMEOUT_MS, windowsHide: true })
+function runSecurity(args: string[], input?: string): SecurityAnswer {
+  const result = spawnSync('security', args, { encoding: 'utf8', input, timeout: TIMEOUT_MS, windowsHide: true })
   const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || result.signal !== null
   return { status: result.status, stdout: result.stdout ?? '', timedOut }
 }
@@ -56,6 +59,39 @@ export class KeychainCredentials {
     const text = answer.status === 0 ? decode(answer.stdout.trim()) : undefined
     this.answers.set(service, { text, at: now })
     return text
+  }
+
+  /**
+   * Carries a folder's sign-in item to the name of the folder's new path (BTN-745): the `.pending-*` folder of "Add
+   * account" is renamed after the sign-in, and its item would stay behind matching no folder. An item already under the
+   * new name wins and the old one is only deleted; a failed write keeps the old one. The secret goes to `security -i` on
+   * stdin as hex, as the CLI writes it, never in the arguments.
+   */
+  move(from: string, to: string): void {
+    this.forget()
+    const old = this.ask(['find-generic-password', '-a', ACCOUNT, '-s', from, '-w'])
+    if (old?.status !== 0) return
+    const text = decode(old.stdout.trim())
+    if (text === undefined) return
+    const present = this.ask(['find-generic-password', '-a', ACCOUNT, '-s', to])
+    if (present === undefined) return
+    if (present.status === NOT_FOUND) {
+      const hex = Buffer.from(text, 'utf8').toString('hex')
+      const written = this.ask(['-i'], `add-generic-password -U -a "${ACCOUNT}" -s "${to}" -X "${hex}"\n`)
+      if (written?.status !== 0) {
+        this.warn(`Keychain: could not write "${to}"; the sign-in stays under "${from}"`)
+        return
+      }
+    } else if (present.status !== 0) return
+    if (this.ask(['delete-generic-password', '-a', ACCOUNT, '-s', from])?.status !== 0) this.warn(`Keychain: could not delete "${from}"`)
+  }
+
+  /** One `security` call; `undefined` when it timed out, likely on an access dialog. */
+  private ask(args: string[], input?: string): SecurityAnswer | undefined {
+    const answer = this.security(args, input)
+    if (!answer.timedOut) return answer
+    this.warn(`Keychain: "security ${args[0]}" took over ${TIMEOUT_MS} ms, likely an access dialog`)
+    return undefined
   }
 
   forget(): void {

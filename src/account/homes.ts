@@ -169,6 +169,7 @@ export class AccountHomes {
     const name = folderName(email, this.taken())
     const home = this.home(pending.agent, name)
     renameSync(pending.dir, home.dir)
+    if (pending.agent === CLAUDE) this.keychain?.move(keychainService(pending.dir), keychainService(home.dir))
     this.forget()
     return home
   }
