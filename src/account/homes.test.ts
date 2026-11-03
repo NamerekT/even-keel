@@ -399,3 +399,30 @@ describe('AccountHomes.times', () => {
       expect(asked).toEqual([])
     }))
 })
+
+describe('AccountHomes.place with the macOS Keychain', () => {
+  function withMove(run: (root: string, moves: [string, string][], homes: AccountHomes) => void): void {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const moves: [string, string][] = []
+    const keychain = new KeychainCredentials(() => ({ status: 44, stdout: '' }))
+    keychain.move = (from, to) => void moves.push([from, to])
+    try {
+      run(root, moves, new AccountHomes(env, root, join(root, 'codex'), undefined, undefined, undefined, keychain))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  it('moves the sign-in item of the .pending folder to the name of the folder it became (BTN-745)', () =>
+    withMove((_root, moves, homes) => {
+      const pending = homes.pending(new Date(0), 'claude')
+      const home = homes.place(pending, 'john@example.com')
+      expect(moves).toEqual([[keychainService(pending.dir), keychainService(home.dir)]])
+    }))
+
+  it('leaves the Keychain alone for a folder of another agent', () =>
+    withMove((_root, moves, homes) => {
+      homes.place(homes.pending(new Date(0), 'codex'), 'john@example.com')
+      expect(moves).toEqual([])
+    }))
+})

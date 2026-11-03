@@ -67,3 +67,78 @@ describe('KeychainCredentials', () => {
     expect(warn).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('KeychainCredentials.move', () => {
+  const OLD = 'Claude Code-credentials-11111111'
+  const NEW = 'Claude Code-credentials-22222222'
+
+  /** A fake `security` over a map of items: find, delete and `-i` with one `add-generic-password` line. */
+  function keychainOf(items: Map<string, string>, fails: { add?: boolean; timeout?: boolean } = {}) {
+    const calls: { args: string[]; input?: string }[] = []
+    const security: SecurityRun = (args, input) => {
+      calls.push({ args, input })
+      if (fails.timeout) return { status: null, stdout: '', timedOut: true }
+      if (args[0] === '-i') {
+        const line = /^add-generic-password -U -a "claude-code-user" -s "([^"]+)" -X "([0-9a-f]+)"\n$/.exec(input ?? '')
+        if (line === null || fails.add) return { status: 1, stdout: '' }
+        items.set(line[1]!, Buffer.from(line[2]!, 'hex').toString('utf8'))
+        return { status: 0, stdout: '' }
+      }
+      const service = args[args.indexOf('-s') + 1]!
+      if (!items.has(service)) return { status: 44, stdout: '' }
+      if (args[0] === 'delete-generic-password') {
+        items.delete(service)
+        return { status: 0, stdout: '' }
+      }
+      return { status: 0, stdout: args.includes('-w') ? items.get(service)! : '' }
+    }
+    return { calls, keychain: new KeychainCredentials(security, vi.fn()) }
+  }
+
+  it('writes the old item under the new name as the CLI does, then deletes the old one', () => {
+    const items = new Map([[OLD, TEXT]])
+    const { calls, keychain } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[NEW, TEXT]])
+    const write = calls.find((call) => call.args[0] === '-i')!
+    expect(write.input).toBe(`add-generic-password -U -a "claude-code-user" -s "${NEW}" -X "${Buffer.from(TEXT).toString('hex')}"\n`)
+    expect(calls.flatMap((call) => call.args).join(' ')).not.toContain('claudeAiOauth')
+  })
+
+  it('only deletes the old item when the new name already holds one', () => {
+    const items = new Map([[OLD, TEXT], [NEW, 'newer']])
+    const { calls, keychain } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[NEW, 'newer']])
+    expect(calls.some((call) => call.args[0] === '-i')).toBe(false)
+  })
+
+  it('does nothing without an old item', () => {
+    const items = new Map([[NEW, TEXT]])
+    const { calls, keychain } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[NEW, TEXT]])
+    expect(calls.every((call) => call.args[0] === 'find-generic-password')).toBe(true)
+  })
+
+  it('keeps the old item when the write fails', () => {
+    const items = new Map([[OLD, TEXT]])
+    const { keychain } = keychainOf(items, { add: true })
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[OLD, TEXT]])
+  })
+
+  it('stops at a read that timed out', () => {
+    const { calls, keychain } = keychainOf(new Map([[OLD, TEXT]]), { timeout: true })
+    keychain.move(OLD, NEW)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('forgets a kept answer, so the new name is read afresh', () => {
+    const items = new Map([[OLD, TEXT]])
+    const { keychain } = keychainOf(items)
+    expect(keychain.read(NEW, 0)).toBeUndefined()
+    keychain.move(OLD, NEW)
+    expect(keychain.read(NEW, 1)).toBe(TEXT)
+  })
+})

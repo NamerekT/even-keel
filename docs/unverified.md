@@ -27,7 +27,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
-- macOS and Linux: 3, 4, 4a, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux).
+- macOS and Linux: 3, 4, 4a, 4b, 12, 13, 14, 15, 20, 24, 36b, 55, 59, 69 — BTN-312 (macOS), BTN-275 (Linux).
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
@@ -62,6 +62,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 3c | [The setup's Git step on a machine without git](unverified/page.md#the-setups-git-step-on-a-machine-without-git-btn-731) | a first run on a machine with no git, or no name and e-mail in git | the step shows git as installed, or the name is written for another user than the service's; install git and set `user.name`/`user.email` by hand |
 | 4 | [macOS](unverified/platforms.md#macos) | macOS | the service or the CLI lookup may not work at all |
 | 4a | [Sign-in times from the macOS Keychain](unverified/accounts.md#sign-in-times-from-the-macos-keychain-btn-742) | Claude accounts signed in on a Mac's desktop | a Keychain dialog appears, or no warning comes before the sign-in expires |
+| 4b | [The Keychain item of a renamed folder](unverified/accounts.md#the-keychain-item-of-a-renamed-folder-btn-745) | Claude accounts added on a Mac's desktop | a leftover item keeps a copy of the sign-in, or a new account looks signed out until Renew |
 | 7 | [Plugin hooks that block](unverified/codex.md#plugin-hooks-that-block-btn-180) | Codex with the Huly plugin | a bad description reaches Huly |
 | 7a | [The schema hint on a deferred MCP call](unverified/codex.md#the-schema-hint-on-a-deferred-mcp-call-btn-625) | Claude chain sessions calling a tracker tool before loading its schema; Copilot with the checkpoint package | the task is left without its estimate as before; Copilot loses the package's hooks |
 | 8 | [Claude daemon replacement from the service](unverified/sessions.md#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
