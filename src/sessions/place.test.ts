@@ -1,3 +1,4 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -51,6 +52,27 @@ describe('locateWorktree', () => {
       [join(tree, '.temp')]: { top: tree, common, branch: 'abc-7/task' },
     })
     expect(await locateWorktree(session(tree, clone), git)).toMatchObject({ workdir: tree, branch: 'abc-7/task' })
+  })
+
+  it('spells the worktree as the session was launched when git answers with the real path behind a link', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-place-'))
+    try {
+      const real = join(root, 'real')
+      const link = join(root, 'link')
+      const realTree = join(real, '.claude', 'worktrees', 'abc-7')
+      mkdirSync(join(realTree, 'src'), { recursive: true })
+      symlinkSync(real, link, 'junction')
+      const linkTree = join(link, '.claude', 'worktrees', 'abc-7')
+      const realCommon = join(real, '.git')
+      const git = fakeGit({
+        [linkTree]: { top: realTree, common: realCommon, branch: 'abc-7/task' },
+        [join(linkTree, 'src')]: { top: realTree, common: realCommon, branch: 'abc-7/task' },
+        [realTree]: { top: realTree, common: realCommon, branch: 'abc-7/task' },
+      })
+      expect(await locateWorktree(session(linkTree, join(linkTree, 'src')), git)).toMatchObject({ workdir: linkTree, branch: 'abc-7/task' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('keeps the session as it is outside git', async () => {

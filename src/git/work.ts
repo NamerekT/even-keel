@@ -1,5 +1,5 @@
 import { englishOf, noticeOf } from '../notice/notice.js'
-import { samePath } from '../paths.js'
+import { samePath, spelledUnder } from '../paths.js'
 import type { TaskWork } from '../state.js'
 import { changesOf } from './changes.js'
 import type { Git } from './types.js'
@@ -19,7 +19,7 @@ export async function worksOf(git: Git, repo: string, main: string, tasks: strin
     if (task === undefined) continue
     const changes = await changesOf(git, tree.path, main).catch(() => null)
     if (changes === null || (changes.files === 0 && changes.ahead === 0)) continue
-    works[task] = { path: tree.path, branch: tree.branch, ...changes }
+    works[task] = { path: spelledUnder(tree.path, repo), branch: tree.branch, ...changes }
   }
   return works
 }

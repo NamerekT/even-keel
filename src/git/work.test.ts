@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -68,6 +68,23 @@ describe('worksOf', { timeout: 30_000 }, () => {
     await git(repo, 'switch', '-q', '-c', 'abc-1/task')
     writeFileSync(join(repo, 'a.ts'), 'a')
     expect(await worksOf(runGit, repo, 'trunk', ['ABC-1'])).toEqual({})
+  })
+
+  it('knows the main checkout and spells a worktree as the project does when the project is opened through a link', async () => {
+    const link = `${repo}-link`
+    symlinkSync(repo, link, 'junction')
+    try {
+      await git(link, 'switch', '-q', '-c', 'abc-1/task')
+      writeFileSync(join(link, 'a.ts'), 'a')
+      const tree = join(link, '.claude', 'worktrees', 'abc-2')
+      await git(link, 'worktree', 'add', '-q', '-b', 'abc-2/task', tree, 'trunk')
+      writeFileSync(join(tree, 'b.ts'), 'b')
+      expect(await worksOf(runGit, link, 'trunk', ['ABC-1', 'ABC-2'])).toEqual({
+        'ABC-2': { path: tree, branch: 'abc-2/task', files: 1, ahead: 0 },
+      })
+    } finally {
+      rmSync(link, { force: true })
+    }
   })
 
   it('does not take ABC-1 for ABC-12', async () => {

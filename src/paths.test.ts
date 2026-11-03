@@ -1,5 +1,45 @@
-import { describe, expect, it } from 'vitest'
-import { findBinary, isInside, pathKey, samePath } from './paths.js'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { findBinary, isInside, pathKey, samePath, spelledUnder } from './paths.js'
+
+describe('a folder behind a link', () => {
+  let root: string
+  let real: string
+  let link: string
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-paths-'))
+    real = join(root, 'real')
+    link = join(root, 'link')
+    mkdirSync(join(real, 'repo', '.claude', 'worktrees', 'abc-1'), { recursive: true })
+    symlinkSync(real, link, 'junction')
+  })
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
+
+  it('is the same path as its target, the parts not created yet too', () => {
+    expect(samePath(join(link, 'repo'), join(real, 'repo'))).toBe(true)
+    expect(samePath(join(link, 'repo', '.claude', 'worktrees', 'abc-2'), join(real, 'repo', '.claude', 'worktrees', 'abc-2'))).toBe(true)
+    expect(samePath(join(link, 'repo'), join(real, 'repo', '.claude'))).toBe(false)
+  })
+
+  it('holds what its target holds', () => {
+    expect(isInside(join(real, 'repo', '.claude', 'worktrees', 'abc-1'), join(link, 'repo'))).toBe(true)
+    expect(isInside(join(link, 'repo', 'src'), join(real, 'repo'))).toBe(true)
+  })
+
+  it('spells a real path inside it under the link', () => {
+    expect(spelledUnder(join(real, 'repo', '.claude', 'worktrees', 'abc-1'), join(link, 'repo'))).toBe(join(link, 'repo', '.claude', 'worktrees', 'abc-1'))
+    expect(spelledUnder(join(real, 'repo'), join(link, 'repo'))).toBe(join(link, 'repo'))
+    expect(spelledUnder(join(real, 'repo', 'abc-9'), join(link, 'repo'))).toBe(join(link, 'repo', 'abc-9'))
+  })
+
+  it('leaves a path outside it as it is', () => {
+    expect(spelledUnder(join(root, 'elsewhere'), join(link, 'repo'))).toBe(join(root, 'elsewhere'))
+  })
+})
 
 describe('samePath', () => {
   it('ignores case and slash direction on Windows', () => {

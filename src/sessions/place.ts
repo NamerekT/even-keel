@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import type { HandoffSession } from '../chain/relay.js'
-import { isInside, samePath } from '../paths.js'
+import { isInside, samePath, spelledUnder } from '../paths.js'
 
 const run = promisify(execFile)
 const GIT_TIMEOUT_MS = 10_000
@@ -24,7 +24,7 @@ export async function locateWorktree(session: HandoffSession, git: Git = runGit)
   }
   if (root === null) return session
   const branch = await git(root, 'branch', '--show-current')
-  return { ...session, workdir: resolve(root), branch: branch === '' ? null : branch }
+  return { ...session, workdir: resolve(spelledUnder(root, session.cwd)), branch: branch === '' ? null : branch }
 }
 
 function commonDir(git: Git, cwd: string): Promise<string | null> {

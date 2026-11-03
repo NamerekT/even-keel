@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { pathKey, samePath } from '../paths.js'
+import { pathKey, sameSpelling } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 
 type Json = Record<string, unknown>
@@ -197,7 +197,7 @@ function link(target: string, path: string): boolean {
   if (!isDirectory(target)) return false
   const stat = lstatOf(path)
   if (stat?.isSymbolicLink()) {
-    if (samePath(linkTarget(path), target)) return false
+    if (sameSpelling(linkTarget(path), target)) return false
     unlinkSync(path)
   } else if (stat !== undefined) {
     if (!stat.isDirectory() || readdirSync(path).length > 0) return false
@@ -258,13 +258,13 @@ function lstatOf(path: string): Stats | undefined {
 }
 
 function linksTo(path: string, target: string): boolean {
-  return lstatOf(path)?.isSymbolicLink() === true && samePath(linkTarget(path), target)
+  return lstatOf(path)?.isSymbolicLink() === true && sameSpelling(linkTarget(path), target)
 }
 
 /** A live link to a folder other than the given ones: a skill the user pointed somewhere on purpose. */
 function linksElsewhere(path: string, targets: string[]): boolean {
   if (lstatOf(path)?.isSymbolicLink() !== true || !existsSync(path)) return false
-  return !targets.some((target) => samePath(linkTarget(path), target))
+  return !targets.some((target) => sameSpelling(linkTarget(path), target))
 }
 
 /** A junction's target comes back as `\\?\C:\…\` on Windows. */

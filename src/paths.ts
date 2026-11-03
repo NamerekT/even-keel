@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { posix, win32 } from 'node:path'
 
 const SPAWN_EXTENSIONS = ['.com', '.exe']
@@ -7,14 +7,59 @@ export function pathsOf(platform: NodeJS.Platform): typeof posix {
   return platform === 'win32' ? win32 : posix
 }
 
-// Windows and macOS file systems ignore case by default, Linux does not.
+/**
+ * A key that is one for every spelling of a folder. Git answers with real paths, links resolved (macOS `/var` is
+ * `/private/var`), so on this machine's own platform the key is the real path too; a part not created yet is kept as
+ * it is under its nearest real parent. Windows and macOS file systems ignore case by default, Linux does not.
+ */
 export function pathKey(path: string, platform: NodeJS.Platform = process.platform): string {
-  const resolved = pathsOf(platform).resolve(path)
-  return platform === 'win32' || platform === 'darwin' ? resolved.toLowerCase() : resolved
+  return foldCase(realOf(path, platform), platform)
+}
+
+function foldCase(path: string, platform: NodeJS.Platform): string {
+  return platform === 'win32' || platform === 'darwin' ? path.toLowerCase() : path
+}
+
+function realOf(path: string, platform: NodeJS.Platform): string {
+  const paths = pathsOf(platform)
+  const resolved = paths.resolve(path)
+  if (platform !== process.platform) return resolved
+  const missing: string[] = []
+  for (let current = resolved; ; ) {
+    try {
+      return paths.join(realpathSync.native(current), ...missing)
+    } catch {
+      const parent = paths.dirname(current)
+      if (parent === current) return resolved
+      missing.unshift(paths.basename(current))
+      current = parent
+    }
+  }
+}
+
+/**
+ * `path` spelled under `folder` when it lies inside it, links or not: a path git gave back, put the way the project
+ * names its folder. A path outside the folder is kept as it is.
+ */
+export function spelledUnder(path: string, folder: string, platform: NodeJS.Platform = process.platform): string {
+  const paths = pathsOf(platform)
+  const inner = realOf(path, platform)
+  const outer = realOf(folder, platform)
+  const innerKey = foldCase(inner, platform)
+  const outerKey = foldCase(outer, platform)
+  if (innerKey === outerKey) return paths.resolve(folder)
+  if (!innerKey.startsWith(`${outerKey}${paths.sep}`)) return path
+  return paths.join(paths.resolve(folder), inner.slice(outer.length + 1))
 }
 
 export function samePath(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   return pathKey(a, platform) === pathKey(b, platform)
+}
+
+/** The same path as written, links not followed: where a link points, not where it leads. */
+export function sameSpelling(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
+  const paths = pathsOf(platform)
+  return foldCase(paths.resolve(a), platform) === foldCase(paths.resolve(b), platform)
 }
 
 export function isInside(path: string, folder: string, platform: NodeJS.Platform = process.platform): boolean {
