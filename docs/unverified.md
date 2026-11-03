@@ -27,7 +27,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
-- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — BTN-275 (Linux); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
+- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591.
