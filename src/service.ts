@@ -179,7 +179,8 @@ const context = {
   get envOf() { return envOf },
   get feedOf() { return feedOf },
   get forwards() { return forwards },
-  get getState() { return getState },
+  // Not a getter: a handler wired before `getState` is declared may pass it on during the start (EKR-52).
+  getState: () => getState(),
   get goOnWith() { return goOnWith },
   get hasAccount() { return hasAccount },
   get homeOf() { return homeOf },
@@ -411,6 +412,11 @@ const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(as
 const profileStatuses = new KeptReads((id) => profileStatusesOf(ADAPTERS, profiles.current(), id))
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695).
 const hub = new EventHub({ state: { sessions: 'sessionId' } })
+/**
+ * Sends the page the new state soon. `getState` is read only when the state is built: handlers wired above its
+ * declaration may fire while this module still starts — the Huly client's install does at once (EKR-52).
+ */
+const stateChanged = (): void => hub.broadcastSoon('state', () => getState())
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
   (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
@@ -467,7 +473,7 @@ const trackers = trackersService.wireTrackers(context)
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
-const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: () => hub.broadcastSoon('state', getState) })
+const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: stateChanged })
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -529,14 +535,14 @@ const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 
 const daemons = accountsService.wireDaemons(context)
 
 const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source), (name) => configStore.fallBackCli(name),
-  () => { dispatcher.check(); hub.broadcastSoon('state', getState); void account.refresh() },
+  () => { dispatcher.check(); stateChanged(); void account.refresh() },
   async () => { await cliVersions.check(); await account.refresh() })
 
 const secrets = accountsService.wireSecrets(context)
 
 const profiles: Profiles = accountsService.wireProfiles(context)
-hulyClient.changed = () => hub.broadcastSoon('state', getState)
-gitSetup.changed = () => hub.broadcastSoon('state', getState)
+hulyClient.changed = stateChanged
+gitSetup.changed = stateChanged
 void gitSetup.check().catch((error: unknown) => console.error(`git: could not read its version and identity: ${englishOf(noticeOf(error))}`))
 installForProfiles(profiles.current().profiles)
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
@@ -691,7 +697,7 @@ const { mailRelay, answerSession } = createChat({
   steering,
   steer,
   language: promptLanguage,
-  changed: () => hub.broadcastSoon('state', getState),
+  changed: stateChanged,
   log: (line) => console.log(line),
   now: () => new Date(),
 })
@@ -756,7 +762,7 @@ setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`
 const applyCi = () =>
   void Promise.all([ciWatches.apply(configStore.current.projects), remotes.apply(configStore.current.projects)]).then(() => {
     dispatcher.check()
-    hub.broadcastSoon('state', getState)
+    stateChanged()
   })
 applyCi()
 setInterval(() => {
@@ -775,7 +781,7 @@ setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {
       if (changed || moved) dispatcher.check()
-      if (changed || moved) hub.broadcastSoon('state', getState)
+      if (changed || moved) stateChanged()
     }),
   CI_TARGETS_MS,
 ).unref()
