@@ -15,6 +15,11 @@ Each card changes only with what it depends on (BTN-737). The folder's lines hol
 a folder inside a repository is stored as the repository root. Config validation still checks the key and tracker
 fields; adding does not repeat the tracker's network check.
 
+The folder field (BTN-744): `checkRepo` expands a leading `~` (`~/…`, on Windows also `~\…`) to the service user's home
+(`expandHome`, `src/projects/folder.ts`; `~user` and `$HOME` stay as typed), refuses a relative path (`wizard.relativePath`)
+and a folder that does not exist (`wizard.noFolder`, no git output, no button) before it asks git. The config gets git's
+absolute root.
+
 Git in the wizard (BTN-731). A folder that is not a repository (`wizard.notRepo`) gets "Make it a repository" under its
 refusal, a repository with no commits (`wizard.noCommits`) "Make the first commit"; both send `git/init` with the folder
 and the branch field (blank — `DEFAULT_BRANCH`), then check the draft again. `initRepository` (`src/git/setup.ts`)

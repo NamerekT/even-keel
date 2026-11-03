@@ -26,7 +26,8 @@ describe('project addition', () => {
     if (args[0] === 'for-each-ref') return { code: 0, out: 'trunk\ndev' }
     return { code: 1, out: '' }
   }
-  const deps = () => ({ configStore, profiles: { link }, git })
+  const folders = { home: join(root, 'home'), isFolder: () => true }
+  const deps = () => ({ configStore, profiles: { link }, git, folders })
 
   beforeEach(async () => {
     const db = await memoryDatabase()
@@ -43,7 +44,7 @@ describe('project addition', () => {
 
   it.each(['missing', 'plain'])('refuses a %s folder with the check notice and leaves the config and profile links alone', async (folder) => {
     const invalid = { ...draft, repo: join(root, folder) }
-    const checked = await checkDraft({ git, raw: () => configStore.raw(), adapters: ADAPTERS, env: {}, claudeConfigs: () => [], timeoutMs: 100, user: 'svc' }, invalid)
+    const checked = await checkDraft({ git, raw: () => configStore.raw(), adapters: ADAPTERS, env: {}, claudeConfigs: () => [], timeoutMs: 100, user: 'svc', folders }, invalid)
     expect(checked.repo.notice?.code).toBe('wizard.notRepo')
     const before = await read()
     await expect(Promise.resolve().then(() => addProject(deps(), invalid))).rejects.toMatchObject({ notice: checked.repo.notice })

@@ -67,6 +67,7 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
     claudeConfigs: () => [{ projects: { 'd:/new': { hasTrustDialogAccepted: true } } }],
     timeoutMs: 1000,
     platform: 'win32',
+    folders: { home: 'D:\\home', isFolder: (folder) => folder !== 'D:\\nowhere' },
     user: 'svc',
     service: true,
     ...fields,
@@ -112,6 +113,27 @@ describe('checkDraft', () => {
     const check = await checkDraft(deps(), { ...draft, repo: 'E:\\plain' })
     expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'wizard.notRepo', params: { path: 'E:\\plain' } }) })
     expect(check.trusted).toBeNull()
+  })
+
+  it('expands a leading ~ to the home folder before asking git (BTN-744)', async () => {
+    const git = { 'D:\\new\\src rev-parse --show-toplevel': { code: 0, out: 'D:/new' } }
+    const asked: string[] = []
+    const base = deps({}, git)
+    const spy = { ...base, git: async (cwd: string, args: string[]) => (asked.push(cwd), base.git(cwd, args)) }
+    const check = await checkDraft({ ...spy, folders: { home: 'D:\\new', isFolder: () => true } }, { ...draft, repo: '~\\src' })
+    expect(check.repo.notice).toBeNull()
+    expect(asked[0]).toBe('D:\\new\\src')
+  })
+
+  it('gives a missing folder one wizard.noFolder, without git output and the repository button (BTN-744)', async () => {
+    const check = await checkDraft(deps(), { ...draft, repo: 'D:\\nowhere' })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'wizard.noFolder', params: { path: 'D:\\nowhere' } }) })
+    expect(check.repo.notice?.detail).toBeUndefined()
+  })
+
+  it('refuses a relative folder with a full-path message (BTN-744)', async () => {
+    const check = await checkDraft(deps(), { ...draft, repo: 'src\\app' })
+    expect(check.repo.notice).toMatchObject({ code: 'wizard.relativePath', params: { path: 'src\\app' } })
   })
 
   it('says git that does not start as missing, not the folder as no repository (BTN-731)', async () => {

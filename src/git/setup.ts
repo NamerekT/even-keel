@@ -1,6 +1,7 @@
 import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { fail } from '../notice/notice.js'
+import { expandHome } from '../projects/folder.js'
 import type { GitSetupView } from '../state.js'
 import { runGit } from './run.js'
 import type { Git, GitResult } from './types.js'
@@ -94,7 +95,7 @@ export class GitSetup {
   }
 
   async init(path: string, branch: string): Promise<void> {
-    await initRepository(this.git, path, branch)
+    await initRepository(this.git, expandHome(path, this.home), branch)
   }
 }
 

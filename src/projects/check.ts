@@ -8,6 +8,7 @@ import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
+import { expandHome, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
@@ -26,6 +27,8 @@ export interface CheckDeps {
   claudeConfigs: () => unknown[]
   timeoutMs: number
   platform?: NodeJS.Platform
+  /** The machine's answer about the typed folder; the real one by default. */
+  folders?: Folders
   /** The user the service runs as. */
   user: string
   /** Even Keel runs as a system service (`ProjectCheck.service`). */
@@ -44,7 +47,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
   const adapter = deps.adapters[draft.tracker]
-  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env)
+  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env, deps.folders)
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
@@ -78,9 +81,14 @@ export async function checkRepo(
   platform: NodeJS.Platform = process.platform,
   adapter?: TrackerAdapter,
   env: Readonly<Record<string, string | undefined>> = {},
+  folders: Folders = REAL_FOLDERS,
 ): Promise<ProjectCheck['repo']> {
-  const path = draft.repo.trim()
-  if (path === '') return { root: null, current: null, suggested: null, notice: null }
+  const typed = draft.repo.trim()
+  if (typed === '') return { root: null, current: null, suggested: null, notice: null }
+  const path = expandHome(typed, folders.home, platform)
+  const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ root: null, current: null, suggested: null, notice: notice(code, { path: typed }) })
+  if (!isFullPath(path, platform)) return refuse('wizard.relativePath')
+  if (!folders.isFolder(path)) return refuse('wizard.noFolder')
   const top = await git(path, ['rev-parse', '--show-toplevel'])
   if (top.missing === true) return { root: null, current: null, suggested: null, notice: notice('git.missing', {}) }
   if (top.code !== 0) return { root: null, current: null, suggested: null, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
