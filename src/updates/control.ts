@@ -90,9 +90,18 @@ export function systemdControl(unit: string): ServiceControl {
 /** As `install.sh` does it: `bootstrap` fails while the old job is still going away. */
 const BOOTOUT = 'launchctl bootout "$0/$1" 2>/dev/null; n=0; while launchctl print "$0/$1" >/dev/null 2>&1 && [ "$n" -lt 40 ]; do sleep 0.5; n=$((n+1)); done'
 
+/**
+ * The `gui/<uid>` domain exists only while the user is signed in to the desktop: over SSH alone `bootstrap` fails with
+ * "125: Domain does not support specified action" (BTN-735). The same check and words as `install.sh`.
+ */
+const BOOTSTRAP =
+  'if ! launchctl print "$0" >/dev/null 2>&1; then ' +
+  'echo "launchd has no desktop session ($0) for $(id -un): sign in to the desktop of this user, at the screen or through Screen Sharing, and run this again. The agent runs until the user signs out." >&2; exit 1; fi; ' +
+  'launchctl bootstrap "$0" "$1"'
+
 export function launchdControl(label: string, uid: number, plist: string): ServiceControl {
   const domain = `gui/${uid}`
-  return { kind: 'launchd', name: label, stop: ['/bin/sh', '-c', BOOTOUT, domain, label], start: ['launchctl', 'bootstrap', domain, plist] }
+  return { kind: 'launchd', name: label, stop: ['/bin/sh', '-c', BOOTOUT, domain, label], start: ['/bin/sh', '-c', BOOTSTRAP, domain, plist] }
 }
 
 let asService: Promise<boolean> | undefined

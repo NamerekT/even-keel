@@ -14,6 +14,13 @@ node=$(command -v node) || {
   echo "install: node is not on PATH" >&2
   exit 1
 }
+# The agent goes into the desktop session's domain, which exists only while the user is signed in there:
+# over SSH alone bootstrap fails with "125: Domain does not support specified action". Checked before the build.
+domain="gui/$(id -u)"
+if [ "$(uname -s)" = Darwin ] && ! launchctl print "$domain" >/dev/null 2>&1; then
+  echo "launchd has no desktop session ($domain) for $(id -un): sign in to the desktop of this user, at the screen or through Screen Sharing, and run this again. The agent runs until the user signs out." >&2
+  exit 1
+fi
 
 cd "$root"
 if [ -f "$root/src/main.ts" ]; then
@@ -120,7 +127,6 @@ $plist_data
 </dict>
 </plist>
 EOF
-  domain="gui/$(id -u)"
   launchctl bootout "$domain/$label" 2>/dev/null || true
   tries=0
   while launchctl print "$domain/$label" >/dev/null 2>&1 && [ "$tries" -lt 20 ]; do

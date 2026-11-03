@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, systemUnitOf, windowsControl, windowsServiceOf } from './control.js'
 
@@ -98,6 +102,35 @@ describe('the commands', () => {
     const control = launchdControl('local.even-keel', 501, '/Users/jdoe/Library/LaunchAgents/local.even-keel.plist')
     expect(control.stop.slice(0, 2)).toEqual(['/bin/sh', '-c'])
     expect(control.stop.slice(3)).toEqual(['gui/501', 'local.even-keel'])
-    expect(control.start).toEqual(['launchctl', 'bootstrap', 'gui/501', '/Users/jdoe/Library/LaunchAgents/local.even-keel.plist'])
+    expect(control.start.slice(0, 2)).toEqual(['/bin/sh', '-c'])
+    expect(control.start.slice(3)).toEqual(['gui/501', '/Users/jdoe/Library/LaunchAgents/local.even-keel.plist'])
+  })
+})
+
+describe.skipIf(process.platform === 'win32')('launchdControl start', () => {
+  /** Runs the start command with a fake `launchctl` that answers `print` with `printStatus` and logs every call. */
+  function start(printStatus: number) {
+    const dir = mkdtempSync(join(tmpdir(), 'launchctl-'))
+    const calls = join(dir, 'calls')
+    writeFileSync(join(dir, 'launchctl'), `#!/bin/sh\necho "$*" >>"${calls}"\n[ "$1" = print ] && exit ${printStatus}\nexit 0\n`)
+    chmodSync(join(dir, 'launchctl'), 0o755)
+    const [program, ...args] = launchdControl('local.even-keel', 501, '/Users/jdoe/Library/LaunchAgents/local.even-keel.plist').start
+    const result = spawnSync(program!, args, { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } })
+    const log = existsSync(calls) ? readFileSync(calls, 'utf8') : ''
+    rmSync(dir, { recursive: true, force: true })
+    return { status: result.status, stderr: result.stderr, calls: log.trim().split('\n') }
+  }
+
+  it('boots the agent into the desktop session of the user', () => {
+    const { status, calls } = start(0)
+    expect(status).toBe(0)
+    expect(calls).toEqual(['print gui/501', 'bootstrap gui/501 /Users/jdoe/Library/LaunchAgents/local.even-keel.plist'])
+  })
+
+  it('says to sign in to the desktop when nobody is signed in there, instead of a bare "Bootstrap failed: 125"', () => {
+    const { status, stderr, calls } = start(125)
+    expect(status).not.toBe(0)
+    expect(stderr).toContain('sign in to the desktop')
+    expect(calls).toEqual(['print gui/501'])
   })
 })
