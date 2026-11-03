@@ -19,41 +19,53 @@ export const trackerProfiles = (state: EvenKeelState) => {
 export function TrackerStep({ state }: { state: EvenKeelState }) {
   const [open, setOpen] = useState<{ kind: string; profile?: ProfileView } | null>(null)
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
+  const added = trackerProfiles(state)
   return (
     <>
       <p className="setup__lead">{t.setup.trackerLead}</p>
       <ul className="setup-trackers">
         {kinds.map((kind) => {
-          const profiles = state.profiles.profiles.filter((profile) => profile.kind === kind.kind)
+          const has = added.some((profile) => profile.kind === kind.kind)
           return (
             <li key={kind.kind} className="setup-tracker">
               <span className="setup-tracker__head">
                 <TrackerIcon kind={kind.kind} />
                 {kind.title}
               </span>
-              {profiles.length > 0 && (
-                <ul className="setup-tracker__profiles">
-                  {profiles.map((profile) => (
-                    <li key={profile.id}>
-                      <span className="setup-tracker__name">{profileShortName(profile.name, kind.title)}</span>
-                      <ProfileState profile={profile} />
-                      {(profile.check.state === 'refused' || profile.check.state === 'unreachable') && (
-                        <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setOpen({ kind: kind.kind, profile })}>
-                          {t.profiles.edit}
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
               <button type="button" className="button button--small setup-tracker__add" aria-haspopup="dialog" onClick={() => setOpen({ kind: kind.kind })}>
                 <PlusIcon />
-                {profiles.length === 0 ? t.setup.connect : t.setup.addAnother}
+                {has ? t.setup.addAnother : t.setup.connect}
               </button>
             </li>
           )
         })}
       </ul>
+      {added.length > 0 && (
+        <table className="setup-accounts setup-profiles">
+          <tbody>
+            {added.map((profile) => {
+              const title = kinds.find((kind) => kind.kind === profile.kind)?.title ?? profile.kind
+              return (
+                <tr key={profile.id}>
+                  <td className="setup-accounts__name setup-profiles__name">{profileShortName(profile.name, title)}</td>
+                  <td className="setup-profiles__kind">
+                    <TrackerIcon kind={profile.kind} />
+                    {title}
+                  </td>
+                  <td className="setup-accounts__state">
+                    <ProfileState profile={profile} />
+                    {(profile.check.state === 'refused' || profile.check.state === 'unreachable') && (
+                      <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setOpen({ kind: profile.kind, profile })}>
+                        {t.profiles.edit}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
       {open !== null && createPortal(<ProfileDialog kinds={kinds} profile={open.profile} fixed={open.kind} onClose={() => setOpen(null)} />, document.body)}
     </>
   )

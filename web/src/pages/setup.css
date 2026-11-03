@@ -283,37 +283,37 @@
   font-weight: 600;
 }
 
-.setup-tracker__profiles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-14);
+/* The added profiles: a table under the cards on a contrasting ground, no pick (a project picks its profile). */
+.setup-profiles {
+  margin-top: var(--space-12);
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
 }
 
-.setup-tracker__profiles li {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.setup-tracker__name {
-  overflow: hidden;
+.setup-profiles__name {
+  color: var(--fg);
   font-weight: 600;
-  text-overflow: ellipsis;
+}
+
+.setup-profiles__kind {
+  color: var(--fg-muted);
   white-space: nowrap;
 }
 
-.setup-tracker__profiles .tracker-fields__status {
-  font-size: var(--text-13);
+.setup-profiles__name {
+  white-space: nowrap;
 }
 
-.setup-tracker__profiles .button {
-  align-self: flex-start;
-  margin-top: var(--space-4);
+.setup-profiles__kind .icon {
+  width: 14px;
+  height: 14px;
+  margin-right: var(--space-6);
+  vertical-align: -2px;
+}
+
+.setup-profiles .tracker-fields__status {
+  font-size: var(--text-13);
 }
 
 .setup-tracker__add {
