@@ -59,7 +59,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 - **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and email set (`git config --global user.name "John Doe"`, `git config --global user.email john@example.com`). Nothing works without it: every task runs in its own git worktree, and sessions commit and merge under that name.
 - **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page. **OpenCode** (preview) only for projects or tasks on it: `npm install -g opencode-ai`, signed in from the accounts page; checked with its free `opencode/big-pickle`. **GitHub Copilot CLI** (preview) only for projects or tasks on it: `winget install GitHub.Copilot` (or `npm install -g @github/copilot`), signed in with `copilot login` or a token on the accounts page.
 - **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, a Linear workspace or a Jira Cloud site.
-- **Windows, Linux or macOS.** Windows is where it runs every day; Linux was checked end to end; macOS is expected to work but has not been checked. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
+- **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
 
@@ -67,7 +67,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 - **Your subscription, the providers' terms.** Sessions run on the accounts you sign in with and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions/models.md](docs/sessions/models.md#run-profiles-btn-173-srcsessionslaunchts)). Claude sessions are governed by Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and [Usage Policy](https://www.anthropic.com/legal/aup) (the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team, Enterprise and API keys). Anthropic asks products built on the Agent SDK to [use API key authentication](https://code.claude.com/docs/en/legal-and-compliance), so a subscription runs on the CLI's own background sessions unless you switch its card to the SDK yourself. Codex sessions are governed by OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/) when you sign in with ChatGPT (the [Services Agreement](https://openai.com/policies/services-agreement/) for Business, Enterprise, Edu and API keys), with the [Service Terms](https://openai.com/policies/service-terms/) on top. OpenAI's terms do not allow getting round its usage limits, so Even Keel refuses a second Codex account on the free plan. OpenCode sessions are governed by the terms of the provider you sign it in with; a Claude subscription is allowed only in Claude Code, so OpenCode reaches Claude only on an API key. Copilot sessions are governed by GitHub's [Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and the [GitHub Copilot terms](https://github.com/customer-terms/github-copilot-product-specific-terms), which allow one free account per person. Even Keel does not share, pool or resell access: use accounts that are yours.
 - **Sessions run without asking you on each tool call**: Claude sessions with `--permission-mode auto`, Codex sessions with `--approve-for-me`, or with no sandbox at all when `execution.codex` is `bypass`. Set up the permissions and hooks you want in your Claude Code and Codex settings before you start a chain.
 - **Your sign-in stays with the CLIs.** Even Keel reads only the expiry dates from Claude's `.credentials.json`, and only the e-mail and the plan from Codex's `auth.json`; tokens are never copied or sent anywhere. It also removes the lock files the CLI leaves behind in the account folders. An API key you add is sent only to its own provider, to check it.
-- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, long chains on Codex, OpenCode and Copilot under the service, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them. What has been checked live — where, when, on which versions and with what result — is logged in [What has been verified](docs/verified.md).
+- **Some behaviour has never been checked live** — an early reset of Claude limits, long chains on Codex, OpenCode and Copilot under the service, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them. What has been checked live — where, when, on which versions and with what result — is logged in [What has been verified](docs/verified.md).
 
 ## Quick start
 
@@ -93,7 +93,7 @@ Want to look first? `npm run dev:fake` in a clone shows the page on fake data, w
 
 To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel` or `linear@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
 
-To test the next version before its release, switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
+To test the next version before its release: with npm, `npx even-keel@next` installs its latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
 
 ```sh
 git switch dev
@@ -129,7 +129,7 @@ even-keel install          # installed with npm
 service/install.sh         # a clone
 ```
 
-On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep it running after you log out, `loginctl enable-linger $USER`. On macOS it is a launchd agent, logging to `logs/even-keel.log`. More: [setup](docs/guide/setup.md#as-a-service).
+On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep it running after you log out, `loginctl enable-linger $USER`. On macOS it is a launchd agent, logging to `logs/even-keel.log`; it runs while you are signed in to the desktop. More: [setup](docs/guide/setup.md#as-a-service).
 
 ## Updating
 
