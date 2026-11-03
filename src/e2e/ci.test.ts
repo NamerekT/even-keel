@@ -7,6 +7,9 @@ import { commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { STUCK_MS } from '../ci/model.js'
 
+// The scripted agent hands the shell an empty environment: on macOS /bin/sh then finds no `node` on its default PATH.
+const nodeCommand = (script: string) => [process.execPath, script].map((path) => `"${path.replaceAll('\\', '/')}"`).join(' ')
+
 describe('the CI of main end to end', { timeout: 60_000 }, () => {
   let run: Harness
 
@@ -89,7 +92,7 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
     const script = join(run.dir, 'after.js')
     const marks = join(run.dir, 'after.log')
     await writeFile(script, `require('fs').appendFileSync(${JSON.stringify(marks)}, 'run\\n')\n`)
-    run.project.commands = { afterGreen: [`node "${script.replaceAll('\\', '/')}"`] }
+    run.project.commands = { afterGreen: [nodeCommand(script)] }
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')
     run.agent.script('ABC-1', commitAndMerge('one.txt'))
@@ -115,7 +118,7 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
     const script = join(run.dir, 'after.js')
     const marks = join(run.dir, 'after.log')
     await writeFile(script, `require('fs').appendFileSync(${JSON.stringify(marks)}, 'run\\n')\n`)
-    run.project.commands = { afterGreen: [`node "${script.replaceAll('\\', '/')}"`] }
+    run.project.commands = { afterGreen: [nodeCommand(script)] }
     const runs = () => (existsSync(marks) ? readFileSync(marks, 'utf8').split('\n').filter(Boolean).length : 0)
     run.ci.outcome = (subject) => (subject.includes('broken') ? 'failure' : 'success')
     await run.start()
