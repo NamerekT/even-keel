@@ -231,6 +231,12 @@ export interface Agent {
   /** Optional. The account's usage limits; without it the account shows none and the chain waits a limit out by the transcript. */
   usage?(home: AccountHome, at: string): Promise<UsageAnswer>
   /**
+   * Optional. `usage` cannot read the account's limits, as its folder tells without the network (OpenCode's free models
+   * have a limit of their own that nothing reads): a chain does not wait for its first poll and meets the limit as a
+   * session's refusal. Without it every polled account is waited for.
+   */
+  limitsHidden?(home: AccountHome): boolean
+  /**
    * Optional. `usage` answers for an account signed in by a key too (Copilot's token reads its monthly allowance), and a
    * credit stop of such an account waits for its reset; without it a key account is not polled and shows its spend.
    */

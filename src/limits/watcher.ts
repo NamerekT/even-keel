@@ -11,6 +11,8 @@ export interface LimitsWatcherOptions {
   ownerOf: (configDir: string | null) => string | undefined
   /** How the account's usage is asked for (`Agent.usage`); `undefined` — its agent cannot tell, and it is not polled. */
   usage: (home: AccountHome) => ((at: string) => Promise<UsageAnswer>) | undefined
+  /** A poll cannot read the account's limits, told without the network (`Agent.limitsHidden`): a chain does not wait for it. */
+  limitsHidden?: (home: AccountHome) => boolean
   usageIntervalMs: number
   /** Whether the account's provider answers: a call made before it may renew the sign-in into the void (EKR-15). */
   online: (home: AccountHome) => Promise<boolean>
@@ -247,7 +249,7 @@ export class LimitsWatcher {
   private unconfirmed(account: string): boolean {
     if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
     const home = this.options.homes().find((each) => each.key === account)
-    if (home === undefined || this.options.usage(home) === undefined) return false
+    if (home === undefined || this.options.usage(home) === undefined || this.options.limitsHidden?.(home) === true) return false
     return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
   }
 

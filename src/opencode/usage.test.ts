@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CHATGPT_USAGE_URL } from '../limits/chatgpt.js'
 import { COPILOT_USER_URL } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
-import { openCodeUsage } from './usage.js'
+import { openCodeLimitsHidden, openCodeUsage } from './usage.js'
 
 const AT = '2026-10-23T10:00:00.000Z'
 const LATER = Date.parse(AT) + 3_600_000
@@ -41,5 +41,15 @@ describe('openCodeUsage', () => {
     expect(await openCodeUsage(undefined, AT, 1000, fetchImpl)).toEqual(none)
     expect(await openCodeUsage(JSON.stringify({ anthropic: { type: 'api', key: 'sk-ant-x' } }), AT, 1000, fetchImpl)).toEqual(none)
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+})
+
+describe('openCodeLimitsHidden', () => {
+  it('tells without the network that the limits of the free models and a key cannot be read, of a ChatGPT or Copilot sign-in can', () => {
+    expect(openCodeLimitsHidden(undefined)).toBe(true)
+    expect(openCodeLimitsHidden('not json')).toBe(true)
+    expect(openCodeLimitsHidden(JSON.stringify({ anthropic: { type: 'api', key: 'sk-ant-x' } }))).toBe(true)
+    expect(openCodeLimitsHidden(JSON.stringify({ openai: { type: 'oauth', access: 'acc-token' } }))).toBe(false)
+    expect(openCodeLimitsHidden(JSON.stringify({ 'github-copilot': { type: 'oauth', refresh: 'gho_x' } }))).toBe(false)
   })
 })

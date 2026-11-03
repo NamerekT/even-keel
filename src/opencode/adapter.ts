@@ -14,7 +14,7 @@ import { OPENCODE } from './name.js'
 import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
-import { openCodeUsage } from './usage.js'
+import { openCodeLimitsHidden, openCodeUsage } from './usage.js'
 import { filterChatGptModels } from './models.js'
 
 const HISTORY_FEED = 5_000
@@ -89,6 +89,7 @@ export const opencode: AgentAdapter = {
       transcripts: async (home) => (await sessionList(home.dir)).map((session) => session.id),
       image: (home, sessionId, tool, index) => sessionImage(home.dir, sessionId, tool, index),
       usage: (home, at) => openCodeUsage(readAuth(home.dir), at, timeoutMs),
+      limitsHidden: (home) => openCodeLimitsHidden(readAuth(home.dir)),
       authStatus: (home) => cli.authStatus(home),
       login: (home, method) => cli.login(home, method),
       logout: (home) => cli.logout(home),

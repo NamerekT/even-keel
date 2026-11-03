@@ -57,8 +57,8 @@ export const addAccount = {
       },
       free: {
         title: 'Free models',
-        gets: 'OpenCode Zen models: no sign-in, no limits',
-        tip: "OpenCode Zen's free models need no sign-in: the folder is added at once. They have no limits, but fewer models to pick from.",
+        gets: 'OpenCode Zen models: no sign-in',
+        tip: "OpenCode Zen's free models need no sign-in: the folder is added at once. There are fewer models to pick from, and OpenCode has a free usage limit of its own: Even Keel cannot see it ahead and learns of it only when a session hits it.",
         next: 'No sign-in: the folder is added at once.',
         rule: '',
         action: 'Add with free models',

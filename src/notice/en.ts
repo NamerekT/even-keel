@@ -87,7 +87,7 @@ export const en = {
     `${p.task} has written nothing since ${p.since}. New session can interrupt the turn with confirmation from ${p.restartAt}; it becomes available without confirmation at ${p.hungAt} if silence continues.`,
   'chain.notCurrent': (p: { task: string }) => `chain: ${p.task} is not the current task of a chain`,
   'chain.limitsUnread': (p: { account: string; next?: string }) =>
-    `Waiting for the first answer about the limits of the account ${p.account}: without it a spent weekly window looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
+    `Waiting for the first answer about the limits of the account ${p.account}: without it a spent limit looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
     `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or change the task's provider label.`,
   'session.transient': () => 'waiting to retry',

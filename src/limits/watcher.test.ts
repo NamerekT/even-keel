@@ -12,7 +12,10 @@ const LIMITS: UsageAnswer = {
 function watcherOf(
   answers: (() => UsageAnswer)[],
   online: () => boolean = () => true,
-  accounts: { ready: () => boolean; apiKey: () => boolean; needsLogin?: () => boolean } = { ready: () => true, apiKey: () => false },
+  accounts: { ready: () => boolean; apiKey: () => boolean; needsLogin?: () => boolean; limitsHidden?: () => boolean } = {
+    ready: () => true,
+    apiKey: () => false,
+  },
 ) {
   const errors: string[] = []
   const asked: string[] = []
@@ -33,6 +36,7 @@ function watcherOf(
     ready: accounts.ready,
     apiKey: accounts.apiKey,
     needsLogin: accounts.needsLogin ?? (() => false),
+    ...(accounts.limitsHidden === undefined ? {} : { limitsHidden: accounts.limitsHidden }),
     onChange: () => {},
     onError: (error) => errors.push(String(error)),
   })
@@ -143,6 +147,16 @@ describe('LimitsWatcher', () => {
     expect(watcherOf([], () => true, { ready: () => true, apiKey: () => true }).watcher.unread('global')).toBe(false)
     expect(watcherOf([], () => true, { ready: () => true, apiKey: () => false, needsLogin: () => true }).watcher.unread('global')).toBe(false)
     expect(watcherOf([]).watcher.unread('other')).toBe(false)
+  })
+
+  it('does not count unread from the start an account with nothing to read, and still tells the page why', async () => {
+    const none: UsageAnswer = { kind: 'missing', reason: { code: 'usage.openCodeNone', params: {} } }
+    const { watcher, asked, poll } = watcherOf([() => none], () => true, { ready: () => true, apiKey: () => false, limitsHidden: () => true })
+    expect(watcher.unread('global')).toBe(false)
+    expect(watcher.outdated('global')).toBe(false)
+    await poll()
+    expect(asked).toEqual(['global'])
+    expect(watcher.usage('global')).toMatchObject({ state: 'stale', reason: none.reason })
   })
 
   it('does not ask /usage before the accounts are read, so an API account is not asked at the start', async () => {

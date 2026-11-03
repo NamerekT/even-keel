@@ -282,6 +282,7 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
       const { usage } = ctx.agentOf(home)
       return usage === undefined ? undefined : (at) => usage(home, at)
     },
+    limitsHidden: (home) => ctx.agentOf(home).limitsHidden?.(home) === true,
     usageIntervalMs: ctx.USAGE_POLL_MS,
     online: ctx.online,
     offlineRetryMs: ctx.OFFLINE_RETRY_MS,
