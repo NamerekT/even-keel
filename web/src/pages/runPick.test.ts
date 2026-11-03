@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runPickChange, runPickOf } from './runPick.js'
+import { runLabelsOn, runPickChange, runPickOf } from './runPick.js'
 
 describe('runPickOf', () => {
   it('reads no run label as the project', () => {
@@ -54,5 +54,14 @@ describe('runPickChange', () => {
       const change = runPickChange(['UI'], pick)!
       expect(runPickOf(['UI', ...change.add]).pick).toEqual(pick)
     }
+  })
+})
+
+describe('runLabelsOn', () => {
+  const config = { shared: { modelLabels: true }, projects: { A: { modelLabels: false }, B: { modelLabels: null } } }
+  it('the project switch wins over the shared one', () => {
+    expect(runLabelsOn(config, 'A')).toBe(false)
+    expect(runLabelsOn(config, 'B')).toBe(true)
+    expect(runLabelsOn(undefined, 'A')).toBe(false)
   })
 })

@@ -10,6 +10,8 @@ import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
+import { useLive } from '../live/context.js'
+import { runLabelsOn } from './runPick.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
@@ -454,6 +456,7 @@ interface BlockProps {
 function Block(props: BlockProps) {
   const { project, block, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
     props
+  const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
   if (block.question) classes.push('block--question')
@@ -559,7 +562,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.runLabels.map((label) => (
-          <RunLabelTag key={label} label={label} />
+          <RunLabelTag key={label} label={label} off={!runLabelsOn(state?.config, project)} />
         ))}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (

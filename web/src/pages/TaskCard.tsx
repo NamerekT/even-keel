@@ -17,6 +17,8 @@ import { Loading } from '../ui/Loader.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
+import { taskProject } from '../state.js'
+import { runLabelsOn } from './runPick.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { TaskRunPick } from './TaskRunPick.js'
 import { workLines } from '../ui/WorkChip.js'
@@ -119,6 +121,9 @@ interface BodyProps {
 
 function CardBody({ card, refused, work, live, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
+  const { state } = useLive()
+  const labelsOn = runLabelsOn(state?.config, taskProject(state, card.id))
+  const roleText = (role: NonNullable<Card['labels'][number]['role']>) => (role === 'model' && !labelsOn ? t.card.roles.modelOff : t.card.roles[role])
   const markdown = useMarkdown(onOpen, card.attachments)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
@@ -244,12 +249,12 @@ function CardBody({ card, refused, work, live, onOpen, onChanged }: BodyProps) {
               <Prop name={t.card.labels} wide>
                 <ul className="task-card__chips">
                   {card.labels.map((label) => label.role === 'model' ? (
-                    <RunLabelTag key={label.name} label={label.name} as="li" />
+                    <RunLabelTag key={label.name} label={label.name} as="li" off={!labelsOn} />
                   ) : (
                     <li
                       key={label.name}
                       className={label.role === null ? 'tag' : `chip task-card__chip--${label.role}`}
-                      title={label.role === null ? undefined : t.card.roles[label.role]}
+                      title={label.role === null ? undefined : roleText(label.role)}
                     >
                       {label.name}
                     </li>
@@ -259,7 +264,7 @@ function CardBody({ card, refused, work, live, onOpen, onChanged }: BodyProps) {
                   <ul className="task-card__roles">
                     {quiet.map((label) => (
                       <li key={label.name}>
-                        <strong>{label.name}</strong> — {t.card.roles[label.role!]}
+                        <strong>{label.name}</strong> — {roleText(label.role!)}
                       </li>
                     ))}
                   </ul>

@@ -101,7 +101,7 @@ schema version of a file of the format.
 | --- | --- | --- | --- |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
-| the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on |
+| the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on; with it off the card dims the label and a save of the pick first asks to turn `modelLabels` on for the project (BTN-741) |
 | `Manual`/`Вручную` | tracker label | T | `MANUAL_LABELS`, built in: the chain skips the task whatever `chain.excludedLabels` holds |
 | other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |

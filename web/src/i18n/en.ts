@@ -1381,6 +1381,7 @@ export const en: Messages = {
     due: (date: string) => `due ${date}`,
     roles: {
       model: 'The session of the task runs on this model',
+      modelOff: 'Run labels are off for this project: this label has no effect now',
       question: 'Without an answer in the description the session will most likely get stuck',
       excluded: 'This label keeps the task out of the chain',
       required: 'The chain takes only tasks with this label',
@@ -1416,6 +1417,10 @@ export const en: Messages = {
       several: 'With several run labels the chain runs the task as the project says. Saving replaces them with the pick.',
       save: 'Save',
       off: 'Run labels are off for this project: the label is saved but the session runs as the project says.',
+      offTip: 'Run labels are off for this project: the label has no effect now.',
+      confirmTitle: (project: string) => `Run labels · ${project}`,
+      confirmQuestion: (project: string) => `Run labels are off for project ${project}. Turn them on so the task runs on the chosen model?`,
+      confirmOn: 'Turn on and save',
       live: 'A session is on the task: the new model takes effect from its next session.',
       readOnly: 'This tracker cannot change labels here: change the run label in the tracker.',
     },

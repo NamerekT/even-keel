@@ -38,3 +38,11 @@ export function runPickChange(labels: string[], pick: RunPick): LabelChange | nu
   const same = !current.several && current.pick.provider === pick.provider && (pick.provider === '' || current.pick.model === model)
   return same ? null : { add, remove }
 }
+
+/** Whether a project's run labels are on: its own switch, else the shared one (BTN-741). */
+export function runLabelsOn(
+  config: { shared: { modelLabels: boolean }; projects: Record<string, { modelLabels: boolean | null } | undefined> } | undefined,
+  project: string,
+): boolean {
+  return config?.projects[project]?.modelLabels ?? config?.shared.modelLabels ?? false
+}

@@ -12,12 +12,14 @@ interface ConfirmProps {
   busy: boolean
   /** Why the service refused, under the question; the dialog stays open so the person can read it and try again. */
   failure?: ReactNode
+  /** A harmless action: the confirm button is the primary one, not red. */
+  safe?: boolean
   onConfirm: () => void
   onClose: () => void
 }
 
 /** A modal "are you sure?" for a destructive action whose place on the page is too narrow to ask in line. */
-export function ConfirmDialog({ title, question, confirm, cancel, busy, failure, onConfirm, onClose }: ConfirmProps) {
+export function ConfirmDialog({ title, question, confirm, cancel, busy, failure, safe = false, onConfirm, onClose }: ConfirmProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
@@ -52,7 +54,7 @@ export function ConfirmDialog({ title, question, confirm, cancel, busy, failure,
           <button type="button" className="button" disabled={busy} onClick={onClose}>
             {cancel}
           </button>
-          <button type="button" className="button button--danger" disabled={busy} onClick={onConfirm}>
+          <button type="button" className={safe ? 'button button--primary' : 'button button--danger'} disabled={busy} onClick={onConfirm}>
             {confirm}
           </button>
         </footer>

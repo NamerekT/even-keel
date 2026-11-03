@@ -3,11 +3,12 @@ import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { taskProject } from '../state.js'
+import { projectLabel, taskProject } from '../state.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { FixButton } from './FixButtons.js'
-import { runPickChange, runPickOf, type RunPick } from './runPick.js'
+import { runLabelsOn, runPickChange, runPickOf, type RunPick } from './runPick.js'
 import { providerName } from './settingsRun.js'
 import { offersOf, useModelCatalog } from './useModels.js'
 
@@ -37,16 +38,30 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
   const account = draft.provider === '' ? '' : (form?.accounts[draft.provider] || shared?.accounts[draft.provider]) ?? ''
   const models = useModelCatalog([account])
   const projectModel = draft.provider === '' ? '' : (form?.models[draft.provider] || shared?.models[draft.provider]) || t.settings.cliDefault
-  const labelsOn = form?.modelLabels ?? shared?.modelLabels ?? false
+  const labelsOn = runLabelsOn(state?.config, project)
+  const [asking, setAsking] = useState(false)
   const change = runPickChange(labels, draft)
   const providers = offeredProviders(state?.account ?? null, [view.pick.provider, draft.provider])
   const options = [
     { value: '', label: view.several && draft.provider === '' ? t.card.run.severalPick(view.labels.length) : t.card.run.asProject(providerName(projectProvider)) },
     ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
   ]
+  const write = () => send('task/labels', { task, ...change }).then((ok) => ok && onChanged())
   const save = () => {
     if (change === null || sending) return
-    void send('task/labels', { task, ...change }).then((ok) => ok && onChanged())
+    if (!labelsOn) setAsking(true)
+    else void write()
+  }
+  const turnOnAndSave = async () => {
+    if (change === null || form === undefined) return
+    if (await send('project/settings', { project, ...form, modelLabels: true, base: form })) {
+      setAsking(false)
+      await write()
+    }
+  }
+  const cancel = () => {
+    setAsking(false)
+    setDraft(view.pick)
   }
 
   return (
@@ -88,7 +103,20 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
       )}
       {!relabel && <p className="task-card__run-note">{t.card.run.readOnly}</p>}
       {relabel && live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
-      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      {asking && (
+        <ConfirmDialog
+          title={t.card.run.confirmTitle(projectLabel(state, project))}
+          question={t.card.run.confirmQuestion(projectLabel(state, project))}
+          confirm={t.card.run.confirmOn}
+          cancel={t.common.cancel}
+          busy={sending}
+          safe
+          failure={failure === null ? undefined : say(failure)}
+          onConfirm={() => void turnOnAndSave()}
+          onClose={cancel}
+        />
+      )}
+      {failure !== null && !asking && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )
 }

@@ -22,3 +22,7 @@
   padding-block: var(--space-4);
   margin-block: calc(-1 * var(--space-4));
 }
+
+.run-label--off {
+  opacity: 0.55;
+}
