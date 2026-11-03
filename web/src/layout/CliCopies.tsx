@@ -50,7 +50,7 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
           <button type="button" className={`button button--small${primary ? ' button--primary' : ''}`} disabled={sending} onClick={async () => {
             if (await send('cli/download', { agent: provider })) onDownload?.()
           }}>{copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}</button> :
-          <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.checked}</button>}
+          <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.switch}</button>}
         {waiting && copy.system && !needsCheckedCli(provider, state?.config.shared.execution[provider]) && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/system', { agent: provider })) onSystem?.() }}>{text.system}</button>}
         {missingSystem && <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/check')}>{text.again}</button>}
       </div>
