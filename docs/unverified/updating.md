@@ -24,7 +24,7 @@ Checked live on a Linux server (2026-11-02, [verified](../verified/updating.md))
 
 Checked live on a rented Mac (BTN-312, 2026-11-03, [verified](../verified/updating.md)): a package packed from `dev` and installed globally ran under its launchd agent with the data folder in `~/Library/Application Support/even-keel`; `publish.yml` published `0.2.0-rc.1` and `0.2.0-rc.2` under `next` through trusted publishing; `npx even-keel@next` installed the first from npmjs and started the agent, and `even-keel update` went from it to the second.
 
-Not checked: the update button of an npm install on macOS and Linux, and `even-keel update` under systemd; a publish under `latest`.
+Not checked: the update button of an npm install on macOS and Linux — the page offers only releases, never a release candidate, so the first chance is a release after `0.2.0-rc.2` — and `even-keel update` under systemd; a publish under `latest`.
 
 If it is wrong: `npx even-keel` fails or the service does not start. Install from a clone (the README's quick start, the second way), or install the package by hand — `npm install --global even-keel@<version>`, then `even-keel` in a terminal; a failed update is put back by `npm install --global even-keel@<old version>`. The service's log is in `logs/` of the data folder (`even-keel --help` names it) on Windows and macOS, in `journalctl --user -u even-keel` on Linux.
 
