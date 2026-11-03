@@ -21,8 +21,10 @@
   min-width: 0;
 }
 
+/* Its scroll box would let a tall tab squeeze it: only the body gives up height. */
 .source-dialog__tabs {
   display: flex;
+  flex: none;
   padding: 0 20px 8px;
   overflow-x: auto;
 }
