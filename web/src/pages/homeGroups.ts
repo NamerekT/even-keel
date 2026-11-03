@@ -104,25 +104,23 @@ export function zoned(projects: string[], zone: (key: string) => Zone): Record<Z
   return zones
 }
 
-/** A block as the page draws it: full cards by section, the working ones first, and the block's quiet projects in one strip. */
+/**
+ * A block as the page draws it: a full card per project by section, the working ones first and the quiet ones last. A
+ * quiet project keeps its card: folded into a strip it did not read as a project, a newcomer's only one included.
+ */
 export interface BlockLayout {
   title: string | null
   count: number
   sections: { title: string | null; cards: string[] }[]
-  quiet: string[]
 }
 
 export function laidOut(block: HomeBlock, zone: (key: string) => Zone): BlockLayout {
-  const sections: BlockLayout['sections'] = []
-  const quiet: string[] = []
-  for (const section of block.sections) {
+  const sections = block.sections.map((section) => {
     const zones = zoned(section.projects, zone)
-    const cards = [...zones.working, ...zones.cards]
-    if (cards.length > 0) sections.push({ title: section.title, cards })
-    quiet.push(...zones.quiet)
-  }
+    return { title: section.title, cards: [...zones.working, ...zones.cards, ...zones.quiet] }
+  })
   const count = block.sections.reduce((sum, section) => sum + section.projects.length, 0)
-  return { title: block.title, count, sections, quiet }
+  return { title: block.title, count, sections }
 }
 
 export function zoneOf(state: EvenKeelState, project: string): Zone {

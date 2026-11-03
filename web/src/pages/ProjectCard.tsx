@@ -215,7 +215,7 @@ interface Progress {
 }
 
 /** The joke of an empty card; `null` — its tasks are held, which is no joke. */
-export function quipOf(progress: Progress, turn: number): { setup: string; punchline: string | null } | null {
+function quipOf(progress: Progress, turn: number): { setup: string; punchline: string | null } | null {
   const kind = emptyCard(progress)
   if (kind === 'held') return null
   const { setup, punchlines } = t.project.emptyCard[kind]

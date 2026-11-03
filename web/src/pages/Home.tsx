@@ -11,7 +11,6 @@ import { Typed, Typists } from '../ui/Typed.js'
 import { type BlockLayout, GROUPINGS, type Grouping, homeBlocks, laidOut, zoneOf } from './homeGroups.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
-import { QuietRow } from './QuietRow.js'
 import { firstRun } from '../../../src/setup.js'
 import { SETUP, stepPath } from './setupSteps.js'
 import { useGrouping } from './useGrouping.js'
@@ -35,8 +34,8 @@ export function Home({ state }: { state: EvenKeelState }) {
   const blocks = homeBlocks(grouping, state.projects, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
   // Panels only when there is a group to set apart; a lone untitled block is the plain grid.
   const framed = blocks.some((block) => block.title !== null)
-  // The punchlines go by the cards' order on the page, the quiet strips included.
-  const order = blocks.flatMap((block) => [...block.sections.flatMap(({ cards }) => cards), ...block.quiet])
+  // The punchlines go by the cards' order on the page.
+  const order = blocks.flatMap((block) => block.sections.flatMap(({ cards }) => cards))
   const turns = emptyTurns(order.map((key) => emptyKind(state, key)))
   const turnOf = new Map(order.map((key, index) => [key, turns[index]!]))
 
@@ -116,13 +115,6 @@ function BlockBody({ block, state, turnOf }: { block: BlockLayout; state: EvenKe
           </div>
         </div>
       ))}
-      {block.quiet.length > 0 && (
-        <div className="quiet-strip">
-          {block.quiet.map((key) => (
-            <QuietRow key={key} state={state} project={key} turn={turnOf.get(key)!} />
-          ))}
-        </div>
-      )}
     </>
   )
 }
