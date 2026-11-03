@@ -180,7 +180,7 @@ After an update the window and the gear menu also offer **Revert to <previous ve
 
 **By hand:**
 
-- **installed with npm** — `even-keel update` stops the service, installs the latest release (`even-keel update 0.2.0` — that version) into the same global folder and starts the service again; unlike the button it does not wait for the chains, and a failed install leaves the version you had. Run from a terminal: stop Even Keel, `npm install --global even-keel@latest`, start it again;
+- **installed with npm** — `even-keel update` stops the service, installs the latest release (`even-keel update 0.2.0` — that version) into the same global folder and starts the service again; a release candidate from `npx even-keel@next` moves to the newer of the latest release and the latest candidate, and when nothing is newer the command says so and leaves the service running; unlike the button it does not wait for the chains, and a failed install leaves the version you had. Run from a terminal: stop Even Keel, `npm install --global even-keel@latest`, start it again;
 - **a clone run from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`;
 - **a clone as a service** — `git pull`, then run its install again (`node dist/src/cli.js install` on Windows, `service/install.sh` elsewhere, `service\install.ps1` for the Windows service): it installs the dependencies, builds the page and restarts the service.
 

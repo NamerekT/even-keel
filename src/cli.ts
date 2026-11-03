@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
-import { commandOf, serviceScriptOf } from './cli-args.js'
+import { commandOf, serviceScriptOf, updateTargetOf } from './cli-args.js'
 import { home, root, source } from './locations.js'
 import { samePath } from './paths.js'
 import { autostartControl, launchdControl, systemdControl, windowsControl, type ServiceControl } from './updates/control.js'
@@ -17,10 +17,11 @@ const usage = `usage: even-keel [command]
   (none)      run Even Keel in this terminal; from npx: install it globally and install the service
   install     install the service: on Windows a start at sign-in with an icon in the tray, no administrator
   uninstall   remove the service; the package and the data folder stay
-  update [v]  stop the service, install version v (default: latest) with npm, start it again
+  update [v]  stop the service, install version v with npm, start it again; with no v the newest of the
+              dist-tag latest and, for a release candidate, next; nothing when none is newer
 data folder: ${home}`
 
-const { name, version } = installed(root)
+const { name, version: installedVersion } = installed(root)
 const command = commandOf(process.argv.slice(2))
 
 function run(command: string[], what: string): void {
@@ -41,13 +42,13 @@ function fail(message: string): never {
 
 /** npx keeps the package in a cache it may clear: the service runs from a global install of the same version. */
 function installGlobally(): void {
-  console.log(`even-keel: installing ${name}@${version} globally, the service needs a folder npx does not clear`)
+  console.log(`even-keel: installing ${name}@${installedVersion} globally, the service needs a folder npx does not clear`)
   // A host of an earlier install runs node from the global folder npm replaces.
   if (process.platform === 'win32') {
     const before = registeredAutostart()
     if (before !== null) quitHost(before.exe)
   }
-  run(npm('install', '--global', `${name}@${version}`, '--no-audit', '--no-fund'), 'npm install --global')
+  run(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
   const [program, ...args] = npm('root', '--global')
   const modules = spawnSync(program!, args, { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' }).stdout.trim()
   run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install')
@@ -126,11 +127,31 @@ function installedService(): ServiceControl | null {
   return null
 }
 
+/** The dist-tags of the package in the registry, `npm view <name> dist-tags --json`. */
+function distTags(): Record<string, unknown> {
+  const [program, ...args] = npm('view', name, 'dist-tags', '--json')
+  const result = spawnSync(program!, args, { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
+  if (result.error !== undefined) fail(`npm view: ${result.error.message}`)
+  if (result.status !== 0) fail(`npm view failed with code ${result.status}: ${result.stderr.trim()}`)
+  try {
+    const tags: unknown = JSON.parse(result.stdout)
+    if (tags !== null && typeof tags === 'object' && !Array.isArray(tags)) return tags as Record<string, unknown>
+  } catch {
+    // Reported below with the output.
+  }
+  fail(`npm view gave no dist-tags: ${result.stdout.trim()}`)
+}
+
 /** The page's button waits for the chains first; this does not, it is for a service that is down or a page out of reach. */
-function update(target: string): void {
+function update(version: string | null): void {
   if (source === 'git') fail('this is a git checkout: update it with git pull, or with the button on the page')
   const prefix = globalPrefixOf(root, process.platform)
-  if (prefix === null) fail(`${root} is not a global npm install: npm install --global ${name}@${target}`)
+  if (prefix === null) fail(`${root} is not a global npm install: npm install --global ${name}@${version ?? 'latest'}`)
+  const target = version ?? updateTargetOf(installedVersion, distTags())
+  if (target === null) {
+    console.log(`even-keel: ${installedVersion} is already the latest version`)
+    return
+  }
   const control = installedService()
   if (control !== null) run(control.stop, 'stopping the service')
   // A failed install leaves the version that was there: the service starts again either way.
