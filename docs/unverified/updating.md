@@ -8,7 +8,9 @@ Checked live on Linux (BTN-272, 2026-10-22): a real Even Keel under its systemd 
 
 Checked live on Windows (BTN-287, 2026-10-22): the same targets in Windows Sandbox, the service `EvenKeel` installed by `install.ps1` under a local user that is not an administrator, the button pressed through the page's API. The update process the service started outlived `Stop-Service` every time, the service's own account stopped and started it (the right `install.ps1` grants), and `npm ci` ran with the service stopped without EPERM. A failed build and a service that never answered (120 s) were rolled back, an update that went through offered "Revert" and the revert went through, an update to a release with a new dependency installed it, and `rebuild.ps1` on a commit with one more dependency ran `npm install` with the service stopped and brought it back. "Update" pressed while a chain launched a Codex task (a 90 s `beforeStart`) waited 84 s in "waiting for" the project until the session had its id, and only then stopped the service; the session's first turn ended while the service was down, and the new service read it and closed the task.
 
-Not checked: a launchd agent — the stop is `launchctl bootout`, which may also end processes of the agent's group despite `AbandonProcessGroup`, and then the update stops halfway with the service down; a revert release (`### Reverted` in its notes) shown on the page, since GitHub has none yet.
+Checked live under a launchd agent on a rented Mac (BTN-312, 2026-11-03, [verified](../verified/updating.md)): the same targets, and the update process outlived `launchctl bootout` every time.
+
+Not checked: a revert release (`### Reverted` in its notes) shown on the page, since GitHub has none yet.
 
 If it is wrong: the page stays on "updating…" and the service does not come back. Start it by hand (`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.even-keel.plist`), see `logs/update.log`, and if the checkout is on the new tag but the build failed, finish by hand: `npm ci`, `npm run build`, start.
 
@@ -20,7 +22,9 @@ Checked live on Windows (2026-10-23) in Windows Sandbox, with a local registry (
 
 Checked live on a Linux server (2026-11-02, [verified](../verified/updating.md)) with a package packed from `dev` and installed globally under Node 26.13: `even-keel install` wrote a systemd user unit that runs `dist/src/main.js` of the global package with `EVEN_KEEL_DATA` at `~/.local/share/even-keel`; the service started with its state there and its log in the journal, and a chain on Huly ran a task to Done.
 
-Not checked: `npx even-keel` from npmjs itself (the package was not published yet); `install.sh` run from a package under launchd; the update button and `even-keel update` under systemd; `.github/workflows/publish.yml` with trusted publishing.
+Checked live on a rented Mac (BTN-312, 2026-11-03, [verified](../verified/updating.md)): a package packed from `dev` and installed globally ran under its launchd agent with the data folder in `~/Library/Application Support/even-keel`; `publish.yml` published `0.2.0-rc.1` and `0.2.0-rc.2` under `next` through trusted publishing; `npx even-keel@next` installed the first from npmjs and started the agent, and `even-keel update` went from it to the second.
+
+Not checked: the update button of an npm install on macOS and Linux, and `even-keel update` under systemd; a publish under `latest`.
 
 If it is wrong: `npx even-keel` fails or the service does not start. Install from a clone (the README's quick start, the second way), or install the package by hand — `npm install --global even-keel@<version>`, then `even-keel` in a terminal; a failed update is put back by `npm install --global even-keel@<old version>`. The service's log is in `logs/` of the data folder (`even-keel --help` names it) on Windows and macOS, in `journalctl --user -u even-keel` on Linux.
 

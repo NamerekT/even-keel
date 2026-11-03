@@ -10,7 +10,7 @@ The button runs `claude plugin marketplace add <checkout>` from the service in t
 
 ## Packages on Linux and macOS
 
-Installing a package and the gateway's server processes were run on Windows and, for `huly@even-keel`, on Linux (2026-10-31, [verified.md](../verified/packages.md)); macOS was not run, nor other packages on Linux. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
+Installing a package and the gateway's server processes were run on Windows and, for `huly@even-keel`, on Linux (2026-10-31, [verified.md](../verified/packages.md)), and for the GitHub package on macOS (BTN-312, 2026-11-03); other packages on Linux and macOS were not run. If `npm` or a server does not start there, the cell shows "install failed" or "no response" and the chain waits.
 
 ## Tracker deletes refused by the gateway (BTN-541)
 
