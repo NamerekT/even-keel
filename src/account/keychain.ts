@@ -2,8 +2,6 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 
 const SERVICE = 'Claude Code-credentials'
-/** The `-a` the CLI writes its sign-in item with (CLI 2.1.317). */
-const ACCOUNT = 'claude-code-user'
 const NOT_FOUND = 44
 const TTL_MS = 60_000
 const TIMEOUT_MS = 3_000
@@ -63,27 +61,49 @@ export class KeychainCredentials {
 
   /**
    * Carries a folder's sign-in item to the name of the folder's new path (BTN-745): the `.pending-*` folder of "Add
-   * account" is renamed after the sign-in, and its item would stay behind matching no folder. An item already under the
-   * new name wins and the old one is only deleted; a failed write keeps the old one. The secret goes to `security -i` on
-   * stdin as hex, as the CLI writes it, never in the arguments.
+   * account" is renamed after the sign-in, and its item would stay behind matching no folder. The old item is found by
+   * its name alone and keeps its own account (`acct`): the CLI writes the macOS user name there (BTN-748). An item
+   * already under the new name, whatever its account, wins and the old one is only deleted; a failed write keeps the old
+   * one. The secret goes to `security -i` on stdin as hex, as the CLI writes it, never in the arguments.
    */
   move(from: string, to: string): void {
     this.forget()
-    const old = this.ask(['find-generic-password', '-a', ACCOUNT, '-s', from, '-w'])
-    if (old?.status !== 0) return
-    const text = decode(old.stdout.trim())
-    if (text === undefined) return
-    const present = this.ask(['find-generic-password', '-a', ACCOUNT, '-s', to])
+    const found = this.ask(['find-generic-password', '-s', from])
+    if (found === undefined) return
+    if (found.status !== 0) {
+      this.warn(found.status === NOT_FOUND
+        ? `Keychain: no item "${from}" to carry to "${to}"; the sign-in may be in .credentials.json`
+        : `Keychain: could not look up "${from}" (security exit ${found.status}); nothing carried to "${to}"`)
+      return
+    }
+    const account = accountOf(found.stdout)
+    if (account !== null && !QUOTABLE.test(account)) {
+      this.warn(`Keychain: the account of "${from}" cannot be passed to security -i; the sign-in stays there`)
+      return
+    }
+    const by = account === null ? [] : ['-a', account]
+    const old = this.ask(['find-generic-password', ...by, '-s', from, '-w'])
+    if (old === undefined) return
+    const text = old.status === 0 ? decode(old.stdout.trim()) : undefined
+    if (text === undefined) {
+      this.warn(`Keychain: could not read "${from}"; nothing carried to "${to}"`)
+      return
+    }
+    const present = this.ask(['find-generic-password', '-s', to])
     if (present === undefined) return
     if (present.status === NOT_FOUND) {
       const hex = Buffer.from(text, 'utf8').toString('hex')
-      const written = this.ask(['-i'], `add-generic-password -U -a "${ACCOUNT}" -s "${to}" -X "${hex}"\n`)
+      const as = account === null ? '' : ` -a "${account}"`
+      const written = this.ask(['-i'], `add-generic-password -U${as} -s "${to}" -X "${hex}"\n`)
       if (written?.status !== 0) {
         this.warn(`Keychain: could not write "${to}"; the sign-in stays under "${from}"`)
         return
       }
-    } else if (present.status !== 0) return
-    if (this.ask(['delete-generic-password', '-a', ACCOUNT, '-s', from])?.status !== 0) this.warn(`Keychain: could not delete "${from}"`)
+    } else if (present.status !== 0) {
+      this.warn(`Keychain: could not look up "${to}" (security exit ${present.status}); the sign-in stays under "${from}"`)
+      return
+    }
+    if (this.ask(['delete-generic-password', ...by, '-s', from])?.status !== 0) this.warn(`Keychain: could not delete "${from}"`)
   }
 
   /** One `security` call; `undefined` when it timed out, likely on an access dialog. */
@@ -98,6 +118,19 @@ export class KeychainCredentials {
     this.answers.clear()
   }
 }
+
+/**
+ * The `acct` attribute from the dump of `find-generic-password` without `-w`: `"acct"<blob>="m1"`, or `0x<hex>` and an
+ * escaped copy when a byte is outside printable ASCII; `null` for `<NULL>` or no such line.
+ */
+function accountOf(dump: string): string | null {
+  const line = /^\s*"acct"<blob>=(?:"(.*)"|0x([0-9a-f]*))/im.exec(dump)
+  if (line === null) return null
+  return line[1] ?? Buffer.from(line[2]!, 'hex').toString('utf8')
+}
+
+/** `security -i` splits its line on quotes: an account with a quote, a backslash or a control character is not passed. */
+const QUOTABLE = /^[^"\\\x00-\x1f\x7f]*$/
 
 /** `security -w` prints a secret that is not plain text as hex. */
 function decode(text: string): string | undefined {

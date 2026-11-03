@@ -72,70 +72,124 @@ describe('KeychainCredentials.move', () => {
   const OLD = 'Claude Code-credentials-11111111'
   const NEW = 'Claude Code-credentials-22222222'
 
-  /** A fake `security` over a map of items: find, delete and `-i` with one `add-generic-password` line. */
-  function keychainOf(items: Map<string, string>, fails: { add?: boolean; timeout?: boolean } = {}) {
+  interface Item {
+    account: string | null
+    text: string
+  }
+
+  const item = (text: string, account: string | null = 'm1'): Item => ({ account, text })
+
+  /** The attribute dump of `find-generic-password` without `-w`; an account with a byte outside ASCII comes as hex. */
+  function attributes(service: string, account: string | null): string {
+    const acct = account === null ? '<NULL>' : /^[\x20-\x7e]*$/.test(account) ? `"${account}"` : `0x${Buffer.from(account).toString('hex').toUpperCase()}  "…"`
+    return [
+      'keychain: "/Users/m1/Library/Keychains/login.keychain-db"',
+      'version: 512',
+      'class: "genp"',
+      'attributes:',
+      `    0x00000007 <blob>="${service}"`,
+      '    0x00000008 <blob>=<NULL>',
+      `    "acct"<blob>=${acct}`,
+      '    "cdat"<timedate>=0x32303236313130333132303030305A00  "20261103120000Z\\000"',
+      `    "svce"<blob>="${service}"`,
+      '',
+    ].join('\n')
+  }
+
+  /** A fake `security` over a map of items: find and delete by `-s` and an optional `-a`, `-i` with one add line. */
+  function keychainOf(items: Map<string, Item>, fails: { add?: boolean; timeout?: boolean } = {}) {
     const calls: { args: string[]; input?: string }[] = []
+    const warn = vi.fn()
     const security: SecurityRun = (args, input) => {
       calls.push({ args, input })
       if (fails.timeout) return { status: null, stdout: '', timedOut: true }
       if (args[0] === '-i') {
-        const line = /^add-generic-password -U -a "claude-code-user" -s "([^"]+)" -X "([0-9a-f]+)"\n$/.exec(input ?? '')
+        const line = /^add-generic-password -U(?: -a "([^"]*)")? -s "([^"]+)" -X "([0-9a-f]+)"\n$/.exec(input ?? '')
         if (line === null || fails.add) return { status: 1, stdout: '' }
-        items.set(line[1]!, Buffer.from(line[2]!, 'hex').toString('utf8'))
+        items.set(line[2]!, item(Buffer.from(line[3]!, 'hex').toString('utf8'), line[1] ?? null))
         return { status: 0, stdout: '' }
       }
       const service = args[args.indexOf('-s') + 1]!
-      if (!items.has(service)) return { status: 44, stdout: '' }
+      const found = items.get(service)
+      const account = args.includes('-a') ? args[args.indexOf('-a') + 1] : undefined
+      if (found === undefined || (account !== undefined && account !== found.account)) return { status: 44, stdout: '' }
       if (args[0] === 'delete-generic-password') {
         items.delete(service)
         return { status: 0, stdout: '' }
       }
-      return { status: 0, stdout: args.includes('-w') ? items.get(service)! : '' }
+      return { status: 0, stdout: args.includes('-w') ? found.text : attributes(service, found.account) }
     }
-    return { calls, keychain: new KeychainCredentials(security, vi.fn()) }
+    return { calls, warn, keychain: new KeychainCredentials(security, warn) }
   }
 
-  it('writes the old item under the new name as the CLI does, then deletes the old one', () => {
-    const items = new Map([[OLD, TEXT]])
-    const { calls, keychain } = keychainOf(items)
+  it('carries an item written under the macOS user name with that account, then deletes the old one (BTN-748)', () => {
+    const items = new Map([[OLD, item(TEXT, 'm1')]])
+    const { calls, keychain, warn } = keychainOf(items)
     keychain.move(OLD, NEW)
-    expect([...items]).toEqual([[NEW, TEXT]])
+    expect([...items]).toEqual([[NEW, item(TEXT, 'm1')]])
     const write = calls.find((call) => call.args[0] === '-i')!
-    expect(write.input).toBe(`add-generic-password -U -a "claude-code-user" -s "${NEW}" -X "${Buffer.from(TEXT).toString('hex')}"\n`)
+    expect(write.input).toBe(`add-generic-password -U -a "m1" -s "${NEW}" -X "${Buffer.from(TEXT).toString('hex')}"\n`)
     expect(calls.flatMap((call) => call.args).join(' ')).not.toContain('claudeAiOauth')
+    expect(warn).not.toHaveBeenCalled()
   })
 
-  it('only deletes the old item when the new name already holds one', () => {
-    const items = new Map([[OLD, TEXT], [NEW, 'newer']])
+  it('decodes an account the dump gives as hex', () => {
+    const items = new Map([[OLD, item(TEXT, 'josé')]])
+    const { keychain } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[NEW, item(TEXT, 'josé')]])
+  })
+
+  it('carries an item without an account with no -a at all', () => {
+    const items = new Map([[OLD, item(TEXT, null)]])
     const { calls, keychain } = keychainOf(items)
     keychain.move(OLD, NEW)
-    expect([...items]).toEqual([[NEW, 'newer']])
+    expect([...items]).toEqual([[NEW, item(TEXT, null)]])
+    expect(calls.some((call) => call.args.includes('-a'))).toBe(false)
+  })
+
+  it('leaves an item whose account cannot be quoted for security -i, and says so', () => {
+    const items = new Map([[OLD, item(TEXT, 'a"b')]])
+    const { calls, keychain, warn } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[OLD, item(TEXT, 'a"b')]])
+    expect(calls.some((call) => call.args[0] === '-i')).toBe(false)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(OLD))
+  })
+
+  it('only deletes the old item when the new name already holds one, whatever its account', () => {
+    const items = new Map([[OLD, item(TEXT, 'm1')], [NEW, item('newer', 'claude-code-user')]])
+    const { calls, keychain } = keychainOf(items)
+    keychain.move(OLD, NEW)
+    expect([...items]).toEqual([[NEW, item('newer', 'claude-code-user')]])
     expect(calls.some((call) => call.args[0] === '-i')).toBe(false)
   })
 
-  it('does nothing without an old item', () => {
-    const items = new Map([[NEW, TEXT]])
-    const { calls, keychain } = keychainOf(items)
+  it('warns, not silently returns, without an old item', () => {
+    const items = new Map([[NEW, item(TEXT)]])
+    const { calls, keychain, warn } = keychainOf(items)
     keychain.move(OLD, NEW)
-    expect([...items]).toEqual([[NEW, TEXT]])
+    expect([...items]).toEqual([[NEW, item(TEXT)]])
     expect(calls.every((call) => call.args[0] === 'find-generic-password')).toBe(true)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(OLD))
   })
 
   it('keeps the old item when the write fails', () => {
-    const items = new Map([[OLD, TEXT]])
-    const { keychain } = keychainOf(items, { add: true })
+    const items = new Map([[OLD, item(TEXT)]])
+    const { keychain, warn } = keychainOf(items, { add: true })
     keychain.move(OLD, NEW)
-    expect([...items]).toEqual([[OLD, TEXT]])
+    expect([...items]).toEqual([[OLD, item(TEXT)]])
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(NEW))
   })
 
   it('stops at a read that timed out', () => {
-    const { calls, keychain } = keychainOf(new Map([[OLD, TEXT]]), { timeout: true })
+    const { calls, keychain } = keychainOf(new Map([[OLD, item(TEXT)]]), { timeout: true })
     keychain.move(OLD, NEW)
     expect(calls).toHaveLength(1)
   })
 
   it('forgets a kept answer, so the new name is read afresh', () => {
-    const items = new Map([[OLD, TEXT]])
+    const items = new Map([[OLD, item(TEXT)]])
     const { keychain } = keychainOf(items)
     expect(keychain.read(NEW, 0)).toBeUndefined()
     keychain.move(OLD, NEW)
