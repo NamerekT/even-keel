@@ -600,6 +600,7 @@ export const en = {
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'the repository has no commits yet, so its branch is not born: make the first commit',
   'wizard.noFolder': (p: { path: string }) => `${p.path} is not a folder`,
+  'wizard.relativePath': (p: { path: string }) => `${p.path} is not a full path: give the folder from its root, or from ~`,
   'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,

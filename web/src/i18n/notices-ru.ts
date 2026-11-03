@@ -536,6 +536,7 @@ export const noticesRu: NoticeTexts = {
   'wizard.noBranch': (p) => `в репозитории нет ветки ${p.branch}, есть ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов, и его ветка не родилась: сделайте первый коммит',
   'wizard.noFolder': (p) => `${p.path} — не папка`,
+  'wizard.relativePath': (p) => `${p.path} — не полный путь: укажите папку от корня диска или от ~`,
   'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
   'wizard.branchName': (p) => `«${p.value}» — не имя ветки`,
   'wizard.trackerPlace': (p) => `назовите проект в трекере так: ${p.example}`,
