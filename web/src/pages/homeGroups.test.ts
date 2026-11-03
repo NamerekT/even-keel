@@ -91,7 +91,7 @@ describe('laidOut', () => {
   const zones = { A: 'quiet', B: 'working', C: 'cards', D: 'quiet', E: 'quiet', F: 'cards' } as const
   const zone = (key: string) => zones[key as keyof typeof zones]
 
-  it('keeps the cards in their sections and gathers the quiet projects of the block at its bottom', () => {
+  it('keeps every project a card in its section, the working ones first and the quiet ones last', () => {
     const block = {
       title: 'john/app',
       sections: [
@@ -103,14 +103,13 @@ describe('laidOut', () => {
       title: 'john/app',
       count: 5,
       sections: [
-        { title: 'Huly', cards: ['B', 'C'] },
-        { title: 'GitHub', cards: ['F'] },
+        { title: 'Huly', cards: ['B', 'C', 'A'] },
+        { title: 'GitHub', cards: ['F', 'D'] },
       ],
-      quiet: ['A', 'D'],
     })
   })
 
-  it('drops a section left without cards', () => {
+  it('keeps a section whose projects are all quiet', () => {
     const block = {
       title: 'john/app',
       sections: [
@@ -118,7 +117,7 @@ describe('laidOut', () => {
         { title: 'GitHub', projects: ['D', 'E'] },
       ],
     }
-    expect(laidOut(block, zone).sections).toEqual([{ title: 'Huly', cards: ['C'] }])
+    expect(laidOut(block, zone).sections).toEqual([{ title: 'Huly', cards: ['C'] }, { title: 'GitHub', cards: ['D', 'E'] }])
   })
 })
 
