@@ -240,6 +240,12 @@ export class Dispatcher {
   stopAfter(project: string, on: boolean): void {
     const chain = this.chainOf(project)
     if (chain === undefined || (chain.stopAfter === true) === on) return
+    if (on && chain.closing === undefined && !(chain.current !== null && this.deps.midTurn(chain.current.task))) {
+      // Nothing to wait out: stop now instead of flashing "stops after the turn" until the next step.
+      this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
+      this.stop(project)
+      return
+    }
     if (on) chain.stopAfter = true
     else delete chain.stopAfter
     this.changed()

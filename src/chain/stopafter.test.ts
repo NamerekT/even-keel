@@ -35,6 +35,17 @@ describe('Dispatcher stopping after the session turn', () => {
     expect(launched).toEqual(['ABC/ABC-1'])
   })
 
+  it('stops synchronously, with no intermediate stopAfter in the state, when no turn is running', async () => {
+    const waiting = new Set<string>(['ABC-1'])
+    const { dispatcher } = setup({ waiting })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.stopAfter('ABC', true)
+    expect(dispatcher.state.active).toEqual([])
+  })
+
   it('does not follow the task to Done while the turn goes on', async () => {
     const busy = new Set<string>(['ABC-1'])
     const { dispatcher, finished } = setup({ busy })
