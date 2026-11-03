@@ -81,4 +81,7 @@
 
 .banner-slot { overflow-anchor: none; }
 .banner-slot .banner { border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
-.banner__details { flex-basis: 100%; }
+/* Under the banner's line, not in it: a folded list there would still take a row and its gap. Its space rides
+   inside the fold. */
+.banner__details { max-width: var(--column); margin: 0 auto; }
+.banner__details .banner__list { padding-top: var(--space-8); }

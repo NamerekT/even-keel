@@ -43,17 +43,17 @@ export function CliVersionBanner() {
             {t.common.hide}
           </button>
         </span>
-        <FoldBody id={id} open={open} className="banner__details">
-          <ul className="banner__list">
-            {shown.map((each) => (
-              <li key={keyOf(each)}>
-                {say(each.notice)}
-                {each.account === null && state?.cliCopies?.[each.agent]?.source === 'system' && <CheckedSwitch provider={each.agent} />}
-              </li>
-            ))}
-          </ul>
-        </FoldBody>
       </div>
+      <FoldBody id={id} open={open} className="banner__details">
+        <ul className="banner__list">
+          {shown.map((each) => (
+            <li key={keyOf(each)}>
+              {say(each.notice)}
+              {each.account === null && state?.cliCopies?.[each.agent]?.source === 'system' && <CheckedSwitch provider={each.agent} />}
+            </li>
+          ))}
+        </ul>
+      </FoldBody>
     </Banner>
   )
 }
