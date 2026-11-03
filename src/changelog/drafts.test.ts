@@ -58,27 +58,35 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     return { deps, state, drafts, prompt }
   }
 
-  it('writes the first draft from the done tasks and gives it again on the next open', async () => {
-    const { deps, drafts, prompt } = setup()
+  it('opens without a version and without a turn: the task counts and the section in the file', async () => {
+    const { deps, drafts } = setup({ file: `${HEAD}## [Unreleased]\n\n- Mine\n` })
     const view = await drafts.run('ABC', 'v0.1', { op: 'open' })
-    expect(view).toMatchObject({ project: 'ABC', milestone: 'v0.1', file: 'CHANGELOG.md', released: null })
+    expect(view).toMatchObject({ project: 'ABC', milestone: 'v0.1', file: 'CHANGELOG.md', version: null, start: { done: 1, open: 1, section: '## [Unreleased]\n\n- Mine' } })
+    expect(deps.write).not.toHaveBeenCalled()
+  })
+
+  it('writes the first draft from the done tasks only when asked and gives it again on the next open and draft', async () => {
+    const { deps, drafts, prompt } = setup()
+    const view = await drafts.run('ABC', 'v0.1', { op: 'draft' })
+    expect(view).toMatchObject({ project: 'ABC', milestone: 'v0.1', file: 'CHANGELOG.md', released: null, start: null })
     expect(view.version).toMatchObject({ number: 1, kind: 'draft', text: '## [Unreleased]\n\n- Change #1', base: null, tasks: ['ABC-1'], open: 1, written: null })
     expect(prompt(0)).toContain('Write the changelog section')
-    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).version.number).toBe(1)
+    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).version?.number).toBe(1)
+    expect((await drafts.run('ABC', 'v0.1', { op: 'draft' })).version?.number).toBe(1)
     expect(deps.write).toHaveBeenCalledTimes(1)
   })
 
   it('updates the section already in the file and shows the changes against it', async () => {
     const { drafts, prompt } = setup({ file: `${HEAD}## [Unreleased]\n\n- Mine\n` })
-    const view = await drafts.run('ABC', 'v0.1', { op: 'open' })
-    expect(view.version.base).toBe('## [Unreleased]\n\n- Mine')
+    const view = await drafts.run('ABC', 'v0.1', { op: 'draft' })
+    expect(view.version?.base).toBe('## [Unreleased]\n\n- Mine')
     expect(prompt(0)).toContain('Bring the changelog section')
     expect(prompt(0)).toContain('## The section now\n\n## [Unreleased]\n\n- Mine')
   })
 
   it('edits the newest version without the tracker, against it', async () => {
     const { deps, drafts, prompt } = setup()
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     const view = await drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'Shorter' })
     expect(view.version).toMatchObject({ number: 2, kind: 'edit', base: '## [Unreleased]\n\n- Change #1', instruction: 'Shorter', tasks: ['ABC-1'] })
     expect(prompt(1)).toContain('## What the user asks\n\nShorter')
@@ -87,9 +95,9 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
 
   it("keeps each turn's spend with its version and gives the milestone's sum, the written version's too", async () => {
     const { drafts } = setup()
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     const view = await drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'Shorter' })
-    expect(view.version.spend).toEqual(SPEND)
+    expect(view.version?.spend).toEqual(SPEND)
     const sum = { turns: 2, cost: 0.5, unpriced: 0, tokens: { input: 2_000, output: 1_000, cacheRead: 40_000, cacheWrite: 8_000 } }
     expect(view.spent).toEqual(sum)
     expect((await drafts.run('ABC', 'v0.1', { op: 'write' })).spent).toEqual(sum)
@@ -97,9 +105,9 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
 
   it('writes the newest version into the file by a commit, once', async () => {
     const { deps, state, drafts } = setup({ file: `${HEAD}## [0.0.1]\n\n- Old\n` })
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     const view = await drafts.run('ABC', 'v0.1', { op: 'write' })
-    expect(view.version.written).toEqual({ at: '2026-10-18T10:00:00.000Z', commit: 'abc123' })
+    expect(view.version?.written).toEqual({ at: '2026-10-18T10:00:00.000Z', commit: 'abc123' })
     expect(state.file).toBe(`${HEAD}## [Unreleased]\n\n- Change #1\n\n## [0.0.1]\n\n- Old\n`)
     expect(vi.mocked(deps.commit).mock.calls[0]?.[2]).toBe('Changelog of v0.1')
     await drafts.run('ABC', 'v0.1', { op: 'write' })
@@ -112,7 +120,7 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
 
   it('adds only the new done tasks to the written section, from the file with the user\'s edits', async () => {
     const { state, drafts, prompt } = setup()
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     await drafts.run('ABC', 'v0.1', { op: 'write' })
     state.file = state.file!.replace('- Change #1', '- Change #1, by hand')
     state.tasks = [task('ABC-1'), task('ABC-2')]
@@ -125,7 +133,7 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
 
   it('puts the new tasks of a released milestone into the next patch and refuses to edit the frozen section', async () => {
     const { state, drafts, prompt } = setup()
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     await drafts.run('ABC', 'v0.1', { op: 'write' })
     state.file = state.file!.replace('## [Unreleased]', '## [0.1.0] - 2026-10-21')
     state.tags = ['v0.1.0']
@@ -133,14 +141,14 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     state.tasks = [task('ABC-1'), task('ABC-3')]
     const view = await drafts.run('ABC', 'v0.1', { op: 'add' })
     expect(view.released).toBe('v0.1.0')
-    expect(view.version.base).toBeNull()
+    expect(view.version?.base).toBeNull()
     expect(prompt(1)).toContain('starting with its heading `## [0.1.1]`')
     expect(prompt(1)).toContain('## Already released — leave out what this section describes\n\n## [0.1.0] - 2026-10-21')
   })
 
   it('writes again from all done tasks, the section in the file as the base', async () => {
     const { drafts, prompt } = setup({ file: `${HEAD}## [Unreleased]\n\n- Mine\n` })
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     const view = await drafts.run('ABC', 'v0.1', { op: 'again' })
     expect(view.version).toMatchObject({ number: 2, kind: 'again', base: '## [Unreleased]\n\n- Mine' })
     expect(prompt(1)).toContain('Write the changelog section')
@@ -149,14 +157,14 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
 
   it('joins an operation that runs instead of starting a second one', async () => {
     const { deps, drafts } = setup()
-    const [a, b] = await Promise.all([drafts.run('ABC', 'v0.1', { op: 'open' }), drafts.run('ABC', 'v0.1', { op: 'again' })])
+    const [a, b] = await Promise.all([drafts.run('ABC', 'v0.1', { op: 'draft' }), drafts.run('ABC', 'v0.1', { op: 'again' })])
     expect(a).toBe(b)
     expect(deps.write).toHaveBeenCalledTimes(1)
   })
 
   it('refuses a milestone with no done task and an edit without a draft, without calling the agent', async () => {
     const { deps, drafts } = setup({ tasks: [task('ABC-2', 'ToDo')] })
-    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toMatchObject({ notice: { code: 'changelog.empty', params: { milestone: 'v0.1' } } })
+    await expect(drafts.run('ABC', 'v0.1', { op: 'draft' })).rejects.toMatchObject({ notice: { code: 'changelog.empty', params: { milestone: 'v0.1' } } })
     await expect(drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'x' })).rejects.toMatchObject({ notice: { code: 'changelog.noDraft' } })
     expect(deps.write).not.toHaveBeenCalled()
   })
@@ -164,15 +172,15 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
   it('tells a section without entries apart from a failed turn and keeps neither', async () => {
     const { deps, drafts } = setup({ tasks: [task('ABC-1'), task('ABC-3')] })
     vi.mocked(deps.write).mockResolvedValueOnce({ text: '## [0.1.0]\n\n### Added\n', spend: SPEND })
-    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toMatchObject({ notice: { code: 'changelog.unnoticed', params: { milestone: 'v0.1', tasks: ['ABC-1', 'ABC-3'] } } })
+    await expect(drafts.run('ABC', 'v0.1', { op: 'draft' })).rejects.toMatchObject({ notice: { code: 'changelog.unnoticed', params: { milestone: 'v0.1', tasks: ['ABC-1', 'ABC-3'] } } })
     vi.mocked(deps.write).mockResolvedValueOnce({ text: '  \n', spend: SPEND })
-    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toMatchObject({ notice: { code: 'changelog.failed', params: { project: 'ABC' } } })
-    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).version.number).toBe(1)
+    await expect(drafts.run('ABC', 'v0.1', { op: 'draft' })).rejects.toMatchObject({ notice: { code: 'changelog.failed', params: { project: 'ABC' } } })
+    expect((await drafts.run('ABC', 'v0.1', { op: 'draft' })).version?.number).toBe(1)
   })
 
   it('keeps an edit that leaves the section without entries: the user asked for it', async () => {
     const { deps, drafts } = setup()
-    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
     vi.mocked(deps.write).mockResolvedValueOnce({ text: '## [Unreleased]', spend: SPEND })
     expect((await drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'Drop everything' })).version).toMatchObject({ number: 2, text: '## [Unreleased]' })
   })
@@ -180,7 +188,7 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
   it('keeps no failed turn: the next call tries again', async () => {
     const { deps, drafts } = setup()
     vi.mocked(deps.write).mockRejectedValueOnce(new Error('agent down'))
-    await expect(drafts.run('ABC', 'v0.1', { op: 'open' })).rejects.toThrow('agent down')
-    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).version.number).toBe(1)
+    await expect(drafts.run('ABC', 'v0.1', { op: 'draft' })).rejects.toThrow('agent down')
+    expect((await drafts.run('ABC', 'v0.1', { op: 'draft' })).version?.number).toBe(1)
   })
 })

@@ -42,7 +42,7 @@
   /* One size whatever it holds — the boat, a short draft, a long one — so the window never jumps: the text box takes
      the room left and scrolls. */
   width: min(760px, calc(100vw - 32px));
-  height: min(640px, calc(100dvh - 64px));
+  height: min(880px, calc(100dvh - 64px));
 }
 
 .changelog .add-package__frame {
@@ -132,7 +132,86 @@
   outline-offset: -1px;
 }
 
+/* The version's state at the left, the preview / Markdown switch at the right; one height with or without the switch. */
+.changelog__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 30px;
+}
+
 .changelog__at {
+  flex: 1;
+  min-width: 0;
   color: var(--fg-muted);
   font-size: var(--text-12);
+}
+
+.changelog__status .segmented {
+  flex: none;
+}
+
+.changelog__preview {
+  padding: var(--space-12) var(--space-16);
+  font: inherit;
+  font-size: var(--text-14);
+}
+
+.changelog__none {
+  display: grid;
+  place-items: center;
+  padding: var(--space-24);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--text-13);
+  text-align: center;
+}
+
+/* Buttons never wrap or shrink: when the foot is short of room, the spend gives way and ends in an ellipsis. */
+.changelog__foot > :not(.add-package__spacer) {
+  flex: none;
+}
+
+.changelog__foot .button {
+  white-space: nowrap;
+}
+
+/* Greyed with its reason next to it, yet reachable from the keyboard. */
+.changelog__foot .button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.changelog__foot > .changelog__spend {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changelog__foot > .changelog__reason {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+/* A phone has no room for four buttons in a row: they wrap whole to the right, the spend and the reason get a row above. */
+@media (max-width: 760px) {
+  .changelog__foot {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .changelog__foot > .changelog__spend,
+  .changelog__foot > .changelog__reason {
+    flex: 1 0 100%;
+  }
+
+  .changelog__foot > .add-package__spacer {
+    display: none;
+  }
 }

@@ -34,11 +34,14 @@ export function fakeWrittenChangelogs(): EvenKeelState['changelogs'] {
 
 const versions = new Map<string, ChangelogVersion[]>()
 
-function historyOf(project: string, milestone: string): ChangelogVersion[] {
+/** Params under which the written milestone starts without a version too, so the window before the first draft shows. */
+const NO_VERSION = new Set(['fresh', 'file', 'empty'])
+
+function historyOf(project: string, milestone: string, param: string | null): ChangelogVersion[] {
   const key = `${project}\n${milestone}`
   let history = versions.get(key)
   if (history === undefined) {
-    const written = project === 'ABC' && milestone === WRITTEN_MILESTONE
+    const written = project === 'ABC' && milestone === WRITTEN_MILESTONE && !NO_VERSION.has(param ?? '')
     history = written ? [version(project, milestone, 1, 'draft', IN_FILE, null, null, WRITTEN_TASKS, { at: ago(3 * 60), commit: '4f1c2a9e7b' })] : []
     versions.set(key, history)
   }
@@ -95,19 +98,28 @@ function edited(text: string): string {
 }
 
 /**
- * `changelog/open|again|add|edit|write` → the milestone's newest version, kept in memory per project and milestone.
- * `?changelog=failed|unnoticed|empty|slow|dirty` — the agent fails, finds nothing a user would notice, the milestone has
- * no done task, writing never ends, the file is dirty.
+ * `changelog/open|draft|again|add|edit|write` → the milestone's newest version, kept in memory per project and
+ * milestone; `open` without one → what the first draft would start from. `?changelog=failed|unnoticed|empty|slow|dirty|file|fresh`
+ * — the agent fails, finds nothing a user would notice, the milestone has no done task, writing never ends, the file is
+ * dirty, the file already has the milestone's section, no milestone starts written (also under `empty` and `file`).
  */
 export async function fakeChangelog(state: EvenKeelState, name: string, body: Record<string, unknown>, param: string | null): Promise<ChangelogView | null> {
   if (!name.startsWith('changelog/')) return null
   const op = name.slice('changelog/'.length)
   const project = String(body.project)
   const milestone = String(body.milestone)
-  const history = historyOf(project, milestone)
+  const history = historyOf(project, milestone, param)
   const latest = history.at(-1) ?? null
-  const view = (each: ChangelogVersion): ChangelogView => ({ project, milestone, file: FILE, released: null, version: each, spent: spentOf(history) })
-  if (op === 'open' && latest !== null) return view(latest)
+  const section = param === 'file' ? IN_FILE : null
+  const base = { project, milestone, file: FILE, released: null, spent: spentOf(history) }
+  const view = (each: ChangelogVersion): ChangelogView => ({ ...base, version: each, start: null })
+  if ((op === 'open' || op === 'draft') && latest !== null) return view(latest)
+  if (op === 'open') {
+    const tasks = projectTasks(state, project).filter((task) => task.milestone?.label === milestone)
+    const done = param === 'empty' ? 0 : unaccounted(tasks, project, milestone, []).length
+    const open = tasks.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost').length
+    return { ...base, version: null, start: { done, open, section } }
+  }
   if (op === 'write') {
     if (latest === null) throw fail('changelog.noDraft', { milestone })
     if (param === 'dirty') throw fail('changelog.dirty', { file: FILE })
@@ -123,9 +135,9 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
     history.push(version(project, milestone, history.length + 1, kind, text, base, instruction, tasks))
     return view(history.at(-1)!)
   }
-  if (op === 'open' || op === 'again') {
+  if (op === 'draft' || op === 'again') {
     if (param === 'empty' || done.length === 0) throw fail('changelog.empty', { milestone })
-    return next(op === 'open' ? 'draft' : 'again', DRAFT, op === 'open' ? null : (history.findLast((each) => each.written !== null)?.text ?? null), null, done)
+    return next(op, DRAFT, op === 'draft' ? section : (history.findLast((each) => each.written !== null)?.text ?? section), null, done)
   }
   if (latest === null) throw fail('changelog.noDraft', { milestone })
   if (op === 'edit') return next('edit', edited(latest.text), latest.text, String(body.instruction ?? ''), latest.tasks)
