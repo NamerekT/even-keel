@@ -1,9 +1,8 @@
 name: macOS
 
 # Even Keel on a Mac before a live run on a rented one (BTN-730, BTN-312): the unit tests, the end-to-end scenarios
-# and a smoke of the launchd agent `service/install.sh` installs. Every job has `continue-on-error` until the runs are
-# green for good: the chain's verdict on dev counts every run of a commit (`src/ci/verdict.ts`), so a red Mac would
-# file a fix of main and stop sessions mid-turn; with it the run stays green and a failure shows in its job (docs/ci.md).
+# and a smoke of the launchd agent `service/install.sh` installs. The chain's verdict on dev counts every run of a
+# commit (`src/ci/verdict.ts`): a red job here makes the push red, like `test.yml` (docs/ci.md).
 on:
   push:
     branches:
@@ -24,7 +23,6 @@ permissions:
 jobs:
   test:
     runs-on: macos-latest
-    continue-on-error: true
     timeout-minutes: 20
 
     steps:
@@ -51,7 +49,6 @@ jobs:
   e2e:
     name: e2e (${{ matrix.shard }}/3)
     runs-on: macos-latest
-    continue-on-error: true
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -81,7 +78,6 @@ jobs:
   # job says so; it is not worked around.
   service:
     runs-on: macos-latest
-    continue-on-error: true
     timeout-minutes: ${{ inputs.debug && 90 || 20 }}
     env:
       EVEN_KEEL_PORT: 4799
