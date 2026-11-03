@@ -148,6 +148,21 @@
   font-size: var(--text-13);
 }
 
+/* Centre the label by letter height, not by the font's line box (Segoe UI sits low).
+   `cap` is the font's own cap height, so the padding keeps the old button height in any font;
+   without `text-box` (Firefox) the plain padding above stays. */
+@supports (text-box: trim-both cap alphabetic) {
+  .button {
+    --trim-pad: 6px;
+    text-box: trim-both cap alphabetic;
+    padding-block: calc((1.5em - 1cap) / 2 + var(--trim-pad));
+  }
+
+  .button--small {
+    --trim-pad: 2px;
+  }
+}
+
 /* An icon before a button's text ("+ Add profile"). */
 .button > .icon:first-child {
   margin-right: var(--space-4);

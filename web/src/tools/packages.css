@@ -15,6 +15,13 @@
   line-height: 18px;
 }
 
+@supports (text-box: trim-both cap alphabetic) {
+  .packages .button {
+    text-box: trim-both cap alphabetic;
+    padding-block: calc((18px - 1cap) / 2 + 2px);
+  }
+}
+
 .packages__head {
   display: flex;
   flex-wrap: wrap;
