@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AccountHomes, assertApiKey, keyProvider } from './homes.js'
+import { KeychainCredentials, keychainService } from './keychain.js'
 
 const env = {
   PATH: '/bin',
@@ -339,5 +340,62 @@ describe('AccountHomes.replaceApiKey (BTN-418)', () => {
       )
       expect(() => homes.replaceApiKey({ ...home, global: true }, next)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'account.keyNotHeld' }) }))
       expect(homes.apiKeyOf(home)).toBe(old)
+    }))
+})
+
+describe('AccountHomes.times', () => {
+  const oauth = (expiresAt: number, refreshTokenExpiresAt: number) => JSON.stringify({ claudeAiOauth: { expiresAt, refreshTokenExpiresAt } })
+
+  function withKeychain(items: Record<string, string>, run: (root: string, asked: string[], homes: (base?: NodeJS.ProcessEnv) => AccountHomes) => void): void {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const asked: string[] = []
+    const keychain = new KeychainCredentials((args) => {
+      const service = args[args.indexOf('-s') + 1]!
+      asked.push(service)
+      return service in items ? { status: 0, stdout: items[service]! } : { status: 44, stdout: '' }
+    })
+    try {
+      run(root, asked, (base = env) => new AccountHomes(base, root, undefined, undefined, undefined, undefined, keychain))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  it("reads a Claude folder's times from its Keychain item when it has no .credentials.json", () =>
+    withKeychain({}, (root, asked, homes) => {
+      const items = homes()
+      const signed = join(root, 'john-example-com')
+      const other = join(root, 'jane-example-com')
+      mkdirSync(signed)
+      mkdirSync(other)
+      items.times({ key: 'jane-example-com', dir: other, global: false, agent: 'claude' })
+      expect(asked).toEqual([keychainService(other)])
+      const keychain = new KeychainCredentials((args) => ({ status: args.includes(keychainService(signed)) ? 0 : 44, stdout: oauth(5, 9) }))
+      const read = new AccountHomes(env, root, undefined, undefined, undefined, undefined, keychain)
+      expect(read.times({ key: 'john-example-com', dir: signed, global: false, agent: 'claude' })).toEqual({ accessExpiresAt: 5, loginExpiresAt: 9, erased: false })
+      expect(read.times({ key: 'jane-example-com', dir: other, global: false, agent: 'claude' })).toEqual({ accessExpiresAt: null, loginExpiresAt: null, erased: false })
+    }))
+
+  it('prefers .credentials.json and never asks the Keychain then', () =>
+    withKeychain({}, (root, asked, homes) => {
+      const dir = join(root, 'john-example-com')
+      mkdirSync(dir)
+      writeFileSync(join(dir, '.credentials.json'), oauth(1, 2))
+      expect(homes().times({ key: 'john-example-com', dir, global: false, agent: 'claude' })).toEqual({ accessExpiresAt: 1, loginExpiresAt: 2, erased: false })
+      expect(asked).toEqual([])
+    }))
+
+  it('asks for the bare item for the global folder without CLAUDE_CONFIG_DIR, and for the hashed one with it', () =>
+    withKeychain({ [keychainService(undefined)]: oauth(3, 4) }, (root, asked, homes) => {
+      const global = { key: 'global', dir: join(root, 'global'), global: true, agent: 'claude' }
+      expect(homes().times(global)).toEqual({ accessExpiresAt: 3, loginExpiresAt: 4, erased: false })
+      homes({ ...env, CLAUDE_CONFIG_DIR: join(root, 'global') }).times(global)
+      expect(asked).toEqual([keychainService(undefined), keychainService(join(root, 'global'))])
+    }))
+
+  it('never asks the Keychain for a folder of another agent', () =>
+    withKeychain({}, (root, asked, homes) => {
+      homes().times({ key: 'codex', dir: join(root, 'codex'), global: false, agent: 'codex' })
+      expect(asked).toEqual([])
     }))
 })

@@ -9,6 +9,7 @@ import { fail } from '../notice/notice.js'
 import { keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
+import { KeychainCredentials, keychainService } from './keychain.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
 
@@ -47,6 +48,8 @@ export class AccountHomes {
     openCodeRoot = openCodeAccountsRoot(env),
     copilotRoot = copilotAccountsRoot(env),
     private readonly registration = { keys: new Set<string>(), save: async (_key: string, _added: boolean): Promise<void> => {} },
+    /** Where a Claude sign-in is when the folder has no `.credentials.json`: the Keychain on macOS, nowhere elsewhere. */
+    private readonly keychain: KeychainCredentials | null = process.platform === 'darwin' ? new KeychainCredentials() : null,
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
     this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
@@ -79,6 +82,7 @@ export class AccountHomes {
 
   private forget(): void {
     this.memo = undefined
+    this.keychain?.forget()
   }
 
   list(): AccountHome[] {
@@ -139,11 +143,18 @@ export class AccountHomes {
     try {
       text = readFileSync(join(home.dir, '.credentials.json'), 'utf8')
     } catch {
-      text = undefined
+      text = this.keychainText(home)
     }
     const parsed = parseCredentialTimes(text)
     times.set(home.dir, parsed)
     return parsed
+  }
+
+  /** The CLI names the item after the `CLAUDE_CONFIG_DIR` it ran with, the one `claudeEnv` gives the folder. */
+  private keychainText(home: AccountHome): string | undefined {
+    if (this.keychain === null || home.agent !== CLAUDE) return undefined
+    const configDir = home.global ? this.env.CLAUDE_CONFIG_DIR : home.dir
+    return this.keychain.read(keychainService(configDir))
   }
 
   /** A folder to sign a new account of the agent in; Codex does not create its folder, so it is made here for both. */
