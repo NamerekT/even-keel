@@ -1,5 +1,5 @@
 import { fail } from '../notice/notice.js'
-import type { ChangelogKind, ChangelogOp, ChangelogSpend, ChangelogVersion, ChangelogView } from '../state.js'
+import type { ChangelogKind, ChangelogOp, ChangelogSpend, ChangelogStart, ChangelogVersion, ChangelogView } from '../state.js'
 import type { Db } from '../storage/database.js'
 import type { MilestoneTask } from '../tracker/source.js'
 import { changelogPrompt, materialOf, type ChangelogMode } from './draft.js'
@@ -65,16 +65,26 @@ export class ChangelogDrafts {
     const latest = await latestVersion(db, project, milestone)
     const [file, tags] = await Promise.all([this.deps.file(project), this.deps.tags(project)])
     const plan = changelogPlan(file.text, milestone, tags)
-    const view = async (version: ChangelogVersion): Promise<ChangelogView> => ({
+    const view = async (version: ChangelogVersion | null, start: ChangelogStart | null = null): Promise<ChangelogView> => ({
       project,
       milestone,
       file: file.path,
       released: plan.tag,
       version,
+      start,
       spent: await spentOn(db, project, milestone),
     })
-    if (op.op === 'open' && latest !== null) return view(latest)
-    if (op.op === 'open' || op.op === 'again') return view(await this.fresh(project, milestone, plan, file.path, tags, op.op === 'open' ? 'draft' : 'again'))
+    // Opening never pays a turn: without a version it shows what the first draft would start from.
+    if ((op.op === 'open' || op.op === 'draft') && latest !== null) return view(latest)
+    if (op.op === 'open') {
+      const material = materialOf(milestone, await this.deps.tasks(project, milestone))
+      return view(null, {
+        done: material.done.length,
+        open: material.open,
+        section: plan.section?.text ?? null,
+      })
+    }
+    if (op.op === 'draft' || op.op === 'again') return view(await this.fresh(project, milestone, plan, file.path, tags, op.op === 'draft' ? 'draft' : 'again'))
     if (latest === null) throw fail('changelog.noDraft', { milestone })
     // A written version whose section has since been released is frozen: only new tasks go on, into the next patch's section.
     const frozen = latest.written !== null && plan.section === null && plan.tag !== null

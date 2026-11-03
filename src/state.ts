@@ -620,9 +620,9 @@ export interface ChangelogSpent {
 }
 
 /** What the page asks of the milestone's changelog draft (`src/changelog/drafts.ts`). */
-export type ChangelogOp = { op: 'open' } | { op: 'again' } | { op: 'add' } | { op: 'edit'; instruction: string } | { op: 'write' }
+export type ChangelogOp = { op: 'open' } | { op: 'draft' } | { op: 'again' } | { op: 'add' } | { op: 'edit'; instruction: string } | { op: 'write' }
 
-/** A milestone's changelog draft as the page shows it: its newest version. */
+/** A milestone's changelog draft as the page shows it: its newest version, or what a first draft would start from. */
 export interface ChangelogView {
   /** The project key. */
   project: string
@@ -631,8 +631,19 @@ export interface ChangelogView {
   file: string
   /** The milestone's newest tag; `null` — not released. */
   released: string | null
-  version: ChangelogVersion
+  /** `null` — no draft yet: opening writes none, the user asks for it (`draft`). */
+  version: ChangelogVersion | null
+  /** Only without a version: the milestone's done and open tasks and the milestone's section the file has now. */
+  start: ChangelogStart | null
   spent: ChangelogSpent
+}
+
+/** What a milestone's first draft would start from. */
+export interface ChangelogStart {
+  done: number
+  open: number
+  /** The section in the file, Markdown; `null` — the file has none. */
+  section: string | null
 }
 
 export interface FallbackLaunch {
