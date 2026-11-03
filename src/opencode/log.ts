@@ -76,7 +76,8 @@ export function streamError(line: string, session: string, since: number): TurnE
 
 function parseLine(line: string): { session: string; error: TurnError } | undefined {
   const fields = new Map<string, string>()
-  for (const match of line.matchAll(/([\w.]+)=("(?:\\.|[^"\\])*"|[^\s]+)/g)) {
+  // A key only after whitespace: from every position of a long word the engine would retry `[\w.]+`, quadratic in its length.
+  for (const match of line.matchAll(/(?:^|\s)([\w.]+)=("(?:\\.|[^"\\])*"|[^\s]+)/g)) {
     try {
       fields.set(match[1]!, match[2]!.startsWith('"') ? JSON.parse(match[2]!) as string : match[2]!)
     } catch { return undefined }

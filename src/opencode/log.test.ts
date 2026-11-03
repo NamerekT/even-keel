@@ -34,6 +34,12 @@ describe('streamError', () => {
     const found = streamError('time=2026-10-27T08:28:34Z level=ERROR session.id=ses_demo message="stream error" error.error="connection \\"closed\\""', 'ses_demo', at - 1)
     expect(found?.error).toMatchObject({ data: { message: 'connection "closed"' } })
   })
+
+  it('reads a long line without fields in linear time', () => {
+    const started = performance.now()
+    expect(streamError('x'.repeat(100_000), 'ses_demo', 0)).toBeUndefined()
+    expect(performance.now() - started).toBeLessThan(1_000)
+  })
 })
 
 describe('OpenCodeLog', () => {

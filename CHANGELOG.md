@@ -4,6 +4,12 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A very long line in an OpenCode account log no longer stalls Even Keel for seconds while it reads the log for errors.
+
 ## [0.2.0] - 2026-11-03
 
 0.2 brings two more agents (OpenCode and GitHub Copilot) and two more trackers (GitLab and Jira), an install with `npx even-keel` that updates from the page, a first-start setup wizard, and Protection and Standards to limit what sessions may do.
