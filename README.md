@@ -152,7 +152,7 @@ The settings live in Even Keel's database and are edited on the page: a project'
 
 ## What comes next
 
-The single executable once planned for v0.2 was dropped for the npm package: `npx even-keel` already installs Even Keel, sets up the service and updates it with one command on every system, so a downloaded file per platform would add a build to maintain and nothing for you.
+The single executable once planned for v0.2 gave way to the npm package: an executable per platform meant its own build and release pipeline and a whole second install to check live on every system, while `npx even-keel` already installs Even Keel, sets up the service and updates it with one command.
 
 Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend.
 
