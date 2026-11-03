@@ -58,10 +58,11 @@
 .account-row__error { color: var(--error-fg); font-size: var(--text-12); }
 .account-row__outdated { color: var(--fg-muted); font-size: var(--text-12); }
 .account-meter { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; font-size: var(--text-12); font-variant-numeric: tabular-nums; }
-.account-meter__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-4); }
+.account-meter__top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-8); }
 .account-meter__top > span:last-child:not(.account-meter__what) { color: var(--fg-muted); white-space: nowrap; }
 .account-meter__what { display: flex; align-items: baseline; gap: var(--space-6); min-width: 0; white-space: nowrap; }
-.account-meter__name { color: var(--fg-muted); font-size: var(--text-12); overflow: hidden; text-overflow: ellipsis; }
+.account-meter__what strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.account-meter__name { flex: none; color: var(--fg-muted); font-size: var(--text-12); }
 .account-meter__short, .account-blocks:not(.account-blocks--page) .account-meter__long { display: none; }
 .account-blocks:not(.account-blocks--page) .account-meter__short { display: inline; }
 .account-meter__top strong { font-weight: 600; }

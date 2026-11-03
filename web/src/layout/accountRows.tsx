@@ -158,7 +158,9 @@ function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSp
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">
         <span className="account-meter__long">{spanNames(span).label}</span><span className="account-meter__short">{t.limits.short[span]}</span>
-      </span><strong>{window === null ? t.limits.noData : windowValue(window, percent)}</strong></span>
+      </span><strong>{window === null ? t.limits.noData : <>
+        <span className="account-meter__long">{windowValue(window, percent)}</span><span className="account-meter__short">{windowValue(window, percent, true)}</span>
+      </>}</strong></span>
       {window !== null && <span>{reset}</span>}
     </span>
     <span className="account-meter__bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
