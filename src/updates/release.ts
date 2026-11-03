@@ -59,6 +59,11 @@ function versionOf(text: string): Version | null {
   return { core: [Number(match[1]), Number(match[2]), Number(match[3])], pre: match[4]?.split('.') ?? [] }
 }
 
+/** A version with a prerelease part, `0.2.0-rc.1`; `false` for a release or what is not a version. */
+export function isPrerelease(text: string): boolean {
+  return (versionOf(text)?.pre.length ?? 0) > 0
+}
+
 /** Semver order of two versions, a tag's leading `v` allowed; `null` when either is not a version. */
 export function compareVersions(a: string, b: string): number | null {
   const left = versionOf(a)
