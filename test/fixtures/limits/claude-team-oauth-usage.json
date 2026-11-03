@@ -1,0 +1,7 @@
+{
+  "seven_day": null,
+  "limits": [
+    { "kind": "session", "group": "session", "percent": 41, "scope": null },
+    { "kind": "weekly_scoped", "group": "weekly", "percent": 0, "scope": { "model": { "display_name": "Fable" } } }
+  ]
+}

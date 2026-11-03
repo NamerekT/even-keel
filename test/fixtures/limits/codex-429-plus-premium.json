@@ -1,0 +1,25 @@
+{
+  "status": 429,
+  "headers": {
+    "X-Codex-Active-Limit": "premium",
+    "X-Codex-Plan-Type": "plus",
+    "X-Codex-Primary-Used-Percent": "100",
+    "X-Codex-Primary-Reset-At": "1894014854",
+    "X-Codex-Primary-Window-Minutes": "300",
+    "X-Codex-Secondary-Used-Percent": "53",
+    "X-Codex-Secondary-Reset-At": "1894487400",
+    "X-Codex-Secondary-Window-Minutes": "10080",
+    "X-Codex-Credits-Balance": "0"
+  },
+  "body": {
+    "error": {
+      "type": "usage_limit_reached",
+      "message": "The usage limit has been reached",
+      "plan_type": "plus",
+      "resets_at": 1894014854,
+      "eligible_promo": null,
+      "limit_window_minutes": 300,
+      "resets_in_seconds": 4454
+    }
+  }
+}

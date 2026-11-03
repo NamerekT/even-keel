@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { askChatGpt, chatGptAccountIn, chatGptAccountOf, chatGptLimits, chatGptSignInIn, CHATGPT_USAGE_URL } from './chatgpt.js'
 import { notice } from '../notice/notice.js'
@@ -60,6 +61,18 @@ describe('chatGptLimits', () => {
   it('has nothing to read without a rate limit', () => {
     expect(chatGptLimits({ plan_type: 'plus', rate_limit: null }, AT)).toBeUndefined()
     expect(chatGptLimits('nope', AT)).toBeUndefined()
+  })
+
+  it('reads the Pro plan’s only window, the weekly one in primary_window, with no five-hour window', () => {
+    const pro: unknown = JSON.parse(readFileSync('test/fixtures/limits/chatgpt-pro-wham-usage.json', 'utf8'))
+    const limits = chatGptLimits(pro, '2030-01-07T10:00:00.000Z')
+    expect(limits).toMatchObject({
+      fiveHour: null,
+      sevenDay: { usedPercentage: 31, resetsAt: '2030-01-13T08:00:00.000Z' },
+      open: true,
+      overage: { available: true, unlimited: false, balance: 120.5 },
+    })
+    expect(limits).not.toHaveProperty('month')
   })
 })
 

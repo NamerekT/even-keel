@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { limitsOfRollout, RolloutFold, rolloutSessionId } from './rollout.js'
 
@@ -230,6 +231,14 @@ describe('RolloutFold', () => {
     expect(summary.feed.at(-1)?.kind).toBe('error')
     const plain = event({ type: 'task_complete', last_agent_message: null, error: { message: 'plain text' } })
     expect(fold([plain]).summary().apiError?.text).toBe('plain text')
+  })
+
+  it('reads the 429 body of a reached usage limit, written as the turn error, as a limit', () => {
+    const answer = JSON.parse(readFileSync('test/fixtures/limits/codex-429-plus-premium.json', 'utf8')) as { body: unknown }
+    const premium = event({ type: 'token_count', info: null, rate_limits: { limit_id: 'premium', primary: null, secondary: null } })
+    const failed = event({ type: 'task_complete', last_agent_message: null, error: { message: JSON.stringify(answer.body), codex_error_info: 'usage_limit_exceeded' } })
+    const summary = fold([meta(), started(), user('TSK-1'), premium, failed]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'limit', text: 'The usage limit has been reached' })
   })
 
   it('clears the API error once the session answers again', () => {
