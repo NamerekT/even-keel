@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GitResult } from '../git/types.js'
 import { englishOf } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
@@ -75,6 +75,26 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
 }
 
 describe('checkDraft', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('expands Windows variables from the service environment, not the tracker profile', async () => {
+    vi.stubEnv('EKR_TEST_FOLDER', 'D:\\new')
+    const base = deps({ env: { EKR_TEST_FOLDER: 'D:\\wrong' } })
+    const git = vi.fn(base.git)
+    const check = await checkDraft({ ...base, git }, { ...draft, repo: '%ekr_test_folder%\\src' })
+    expect(check.repo.notice).toBeNull()
+    expect(git).toHaveBeenCalledWith('D:\\new\\src', ['rev-parse', '--show-toplevel'])
+  })
+
+  it('reports an unknown leading Windows variable as a missing folder without asking git', async () => {
+    vi.stubEnv('EKR_TEST_MISSING', undefined)
+    const base = deps()
+    const git = vi.fn(base.git)
+    const check = await checkDraft({ ...base, git }, { ...draft, repo: '%EKR_TEST_MISSING%\\src' })
+    expect(check.repo.notice).toMatchObject({ code: 'wizard.noFolder' })
+    expect(git).not.toHaveBeenCalled()
+  })
+
   it('takes the top of the repository, suggests its branch, asks the tracker and the trust', async () => {
     const check = await checkDraft(deps(), draft)
     expect(check).toEqual({

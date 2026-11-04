@@ -32,6 +32,13 @@ The projects and the settings live in Even Keel's database and are edited on the
 
 When you add the project, Even Keel checks the repository again before saving it. A folder inside a repository is saved as the repository's root folder.
 
+The folder accepts `~` for the home folder of the user Even Keel runs as. On Windows it also accepts environment
+variables such as `%USERPROFILE%\Projects\example`, with any letter case. They come from Even Keel's own environment:
+a service running as another user uses that user's values. Unknown or empty variables stay as typed; values are
+expanded once. `$NAME` and PowerShell's `$env:NAME` are not expanded, and on Linux/macOS percent signs stay literal.
+Checking, creating a repository and adding the project use the same expansion; the saved folder is absolute, so
+later environment changes do not move an existing project.
+
 The wizard shows a validation error under the field that needs correcting and marks its step in red. Empty required fields are named at the bottom of the form.
 
 Each project needs:

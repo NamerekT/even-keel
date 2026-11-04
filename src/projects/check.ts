@@ -8,7 +8,7 @@ import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
-import { expandHome, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
+import { expandFolder, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
@@ -85,9 +85,9 @@ export async function checkRepo(
 ): Promise<ProjectCheck['repo']> {
   const typed = draft.repo.trim()
   if (typed === '') return { root: null, current: null, suggested: null, notice: null }
-  const path = expandHome(typed, folders.home, platform)
+  const path = expandFolder(typed, folders.home, platform)
   const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ root: null, current: null, suggested: null, notice: notice(code, { path: typed }) })
-  if (!isFullPath(path, platform)) return refuse('wizard.relativePath')
+  if (!isFullPath(path, platform)) return refuse(platform === 'win32' && /%[^%]+%/.test(path) ? 'wizard.noFolder' : 'wizard.relativePath')
   if (!folders.isFolder(path)) return refuse('wizard.noFolder')
   const top = await git(path, ['rev-parse', '--show-toplevel'])
   if (top.missing === true) return { root: null, current: null, suggested: null, notice: notice('git.missing', {}) }
