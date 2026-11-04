@@ -55,7 +55,7 @@ function fixture() {
     baseEnv: () => ({}), poolOf: () => ({}), port: 0, log: (line: string) => void lines.push(line), onChange: () => {},
   }
   const lines: string[] = []
-  return { packages: new Packages(deps), file, cache: deps.cache, plugin, lines, reload: () => new Packages(deps) }
+  return { packages: new Packages(deps), deps, file, cache: deps.cache, plugin, lines, reload: () => new Packages(deps) }
 }
 
 describe('pinned servers across plugin updates', () => {
@@ -216,5 +216,21 @@ describe('packages only the user can make ready', () => {
     expect(packages.unready('project')).toEqual(['tools@example'])
     await packages.install('tools@example')
     expect(packages.unready('project')).toEqual([])
+  })
+})
+
+describe('adding the manual Claude marketplace', () => {
+  it('explains a missing Claude executable without exposing spawn ENOENT', async () => {
+    const { deps } = fixture()
+    deps.addMarketplace = async () => { throw Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }
+    await expect(new Packages(deps).addMarketplace()).rejects.toMatchObject({ notice: { code: 'packages.marketplaceCliMissing' } })
+  })
+
+  it('keeps other command errors and allows a retry after failure', async () => {
+    const { deps } = fixture()
+    deps.addMarketplace = vi.fn().mockRejectedValueOnce(new Error('permission denied')).mockResolvedValueOnce(undefined)
+    const packages = new Packages(deps)
+    await expect(packages.addMarketplace()).rejects.toMatchObject({ notice: { code: 'packages.marketplaceAdd', detail: 'permission denied' } })
+    await expect(packages.addMarketplace()).resolves.toBeUndefined()
   })
 })

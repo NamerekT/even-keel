@@ -375,6 +375,8 @@ export const en: Messages = {
     notLoaded: 'The list is not loaded yet.',
     add: 'Add account',
     addHere: 'Add',
+    marketplace: 'Even Keel marketplace',
+    marketplaceTip: 'Lets Claude Code sessions you start by hand use Even Keel’s plugins. Chain sessions get them as packages without this step. Register the marketplace in your default Claude Code config, then install the plugin in your project:',
     groupEmpty: 'No accounts yet',
     chats: { busy: 'working', shell: 'running a command', waiting: 'waiting for a reply', idle: 'open' },
     reload: (app: string) => `${app} picks it up after Developer: Reload Window`,
@@ -1170,10 +1172,6 @@ export const en: Messages = {
     importTip: 'Chain sessions no longer read the repository’s .mcp.json: its servers reach them only as packages. They join the catalog on for this project only.',
     importAdd: 'Add to the project',
     importDismiss: 'Dismiss',
-    marketplace: (name: string) => `Sessions you start by hand do not see Even Keel’s plugins: Claude Code does not know the marketplace ${name}.`,
-    marketplaceTip:
-      'Chain sessions get Even Keel’s plugins without it, as packages. The button runs this command in your default Claude Code config; then install a plugin in a repository as usual (claude plugin install huly@even-keel).',
-    marketplaceAdd: 'Add to Claude Code',
     marketplaceAsk: 'Even Keel’s marketplace',
     marketplaceQuestion: (name: string) =>
       `Add Even Keel’s marketplace ${name} to Claude Code? Sessions you start by hand need it; chain sessions get its plugins without it.`,

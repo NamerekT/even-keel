@@ -217,6 +217,7 @@ export class Packages {
     try {
       await this.deps.addMarketplace(this.deps.ownDir)
     } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw fail('packages.marketplaceCliMissing', {}, {}, { cause: error })
       throw fail('packages.marketplaceAdd', { marketplace: name }, { detail: (error as Error).message }, { cause: error })
     }
     this.deps.log(`packages: the marketplace ${name} added to Claude Code from ${this.deps.ownDir}`)

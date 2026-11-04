@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import type { PackagesView } from '../../../src/state.js'
 import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
@@ -12,6 +13,7 @@ import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
+import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
@@ -29,6 +31,7 @@ export interface RowsProps {
   tokens: Tokens
   page?: boolean
   fresh?: string[]
+  marketplace?: PackagesView['marketplace']
 }
 
 /** One actionable band, outside the provider rows, for every exception that needs attention. */
@@ -68,7 +71,7 @@ function measureOf(rows: AccountEntry[]): Measure {
 
 /** A card per agent and inside it a block per connection, its stripe in the colour of who bills it (BTN-576). */
 export function AccountGroups({ entries, ...props }: RowsProps & { entries?: AccountEntry[] }) {
-  const { view, now, page = false } = props
+  const { view, now, page = false, marketplace } = props
   const openAdd = useOpenAdd()
   const groups = accountGroups({ ...view, accounts: entries ?? view.accounts }, now)
   return <div className={page ? 'account-blocks account-blocks--page' : 'account-blocks'}>
@@ -76,8 +79,11 @@ export function AccountGroups({ entries, ...props }: RowsProps & { entries?: Acc
       <span className="account-provider__icon"><AgentIcon agent={agent} /></span>
       {agentLabel(agent)}
       <span className="account-provider__count">{t.account.accountCount(rows.length)}</span>
-    </>} actions={page && view.login === null && (PROVIDERS as readonly string[]).includes(agent) ? <button type="button" className="button button--small"
-      onClick={() => openAdd(agent as Provider)}>+ {t.account.addHere}</button> : undefined}>
+    </>} actions={page ? <>
+      {agent === 'claude' && marketplace != null && <AccountMarketplace marketplace={marketplace} send={props.send} sending={props.sending} />}
+      {view.login === null && (PROVIDERS as readonly string[]).includes(agent) && <button type="button" className="button button--small"
+        onClick={() => openAdd(agent as Provider)}>+ {t.account.addHere}</button>}
+    </> : undefined}>
       {accessGroups(rows).map(({ access, entries: members }) => <AccessBlock key={access} agent={agent} access={access} rows={members} {...props} />)}
     </Card>)}
   </div>

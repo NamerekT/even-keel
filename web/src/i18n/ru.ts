@@ -379,6 +379,8 @@ export const ru = {
     notLoaded: 'Список ещё не получен.',
     add: 'Добавить аккаунт',
     addHere: 'Добавить',
+    marketplace: 'Маркетплейс Even Keel',
+    marketplaceTip: 'Ручные сессии Claude Code смогут использовать плагины Even Keel. Сессии цепочки получают их пакетами без этого шага. Добавьте маркетплейс в конфигурацию Claude Code по умолчанию, затем установите плагин в своём проекте:',
     groupEmpty: 'Аккаунтов пока нет',
     chats: { busy: 'работает', shell: 'выполняет команду', waiting: 'ждёт ответа', idle: 'открыт' },
     reload: (app: string) => `${app} подхватит его после Developer: Reload Window`,
@@ -862,10 +864,6 @@ export const ru = {
     importTip: 'Сессии цепочки больше не читают .mcp.json репозитория: его серверы доходят до них только пакетами. В каталог они встанут включёнными только для этого проекта.',
     importAdd: 'Добавить в проект',
     importDismiss: 'Скрыть',
-    marketplace: (name: string) => `Сессии, запущенные вручную, не видят плагинов Even Keel: Claude Code не знает маркетплейс ${name}.`,
-    marketplaceTip:
-      'Сессии цепочки получают плагины Even Keel и без него — пакетами. Кнопка выполняет эту команду в конфигурации Claude Code по умолчанию; дальше плагин ставится в репозитории как обычно (claude plugin install huly@even-keel).',
-    marketplaceAdd: 'Добавить в Claude Code',
     marketplaceAsk: 'Маркетплейс Even Keel',
     marketplaceQuestion: (name: string) =>
       `Добавить маркетплейс Even Keel (${name}) в Claude Code? Он нужен сессиям, запущенным вручную; сессии цепочки получают его плагины и без него.`,

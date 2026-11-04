@@ -18,6 +18,6 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
     <PageHead title={t.account.title} actions={account.accounts.length > 0 ? add : undefined} />
     {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     <AccountProblems {...props} />
-    {account.accounts.length === 0 ? <EmptyState action={add}>{t.account.groupEmpty}</EmptyState> : <AccountGroups {...props} page />}
+    {account.accounts.length === 0 ? <EmptyState action={add}>{t.account.groupEmpty}</EmptyState> : <AccountGroups {...props} marketplace={state.packages.marketplace} page />}
   </div>
 }

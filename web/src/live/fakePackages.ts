@@ -15,6 +15,7 @@ interface Catalog {
   gateway: boolean
   /** Claude Code knows Even Keel's marketplace. */
   marketplace: boolean
+  missingClaude: boolean
   /** The servers have not answered since the service started. */
   probing: boolean
   /** The forgejo server does not answer its probe. */
@@ -52,7 +53,8 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     keys: { HULY_EMAIL: true, HULY_PASSWORD: true, FORGEJO_TOKEN: mode !== 'blocked', GITHUB_TOKEN: true },
     imports: { DEMO: ['sentry', 'db'] },
     gateway: mode !== 'gateway',
-    marketplace: mode !== 'marketplace',
+    marketplace: mode !== 'marketplace' && mode !== 'marketplace-missing-cli',
+    missingClaude: mode === 'marketplace-missing-cli',
     probing: mode === 'probing',
     silent: mode === 'silent',
     skills: { 'code-review': 'claude', 'release-notes': 'claude', 'test-first': 'claude', deploy: 'codex' },
@@ -125,8 +127,10 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
       target.version = target.latest
       target.latest = null
     }
-  } else if (name === 'packages/marketplace') catalog.marketplace = true
-  else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
+  } else if (name === 'packages/marketplace') {
+    if (catalog.missingClaude) throw fail('packages.marketplaceCliMissing', {})
+    catalog.marketplace = true
+  } else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
   else if (name === 'packages/plugin') {
     const plugin = `${String(body.plugin)}@${String(body.marketplace)}`
     catalog.packages.push({ ...base, name: plugin, kind: 'plugin', version: '0.1.0', default: project === undefined, settings: {}, servers: [String(body.plugin)], extras: true, keys: [] })

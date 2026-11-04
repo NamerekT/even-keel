@@ -453,6 +453,7 @@ export const en = {
   'huly.clientFailed': () => 'huly: npm could not install the Huly client; Huly projects wait until it is retried',
   'packages.marketplaceUpdate': (p: { marketplace: string }) => `packages: claude plugin marketplace update ${p.marketplace} failed`,
   'packages.marketplaceAdd': (p: { marketplace: string }) => `packages: claude plugin marketplace add could not add ${p.marketplace}`,
+  'packages.marketplaceCliMissing': () => 'Claude Code was not found. Install Claude Code and make its executable available to Even Keel, then try adding the marketplace again on Accounts.',
   'packages.noOwnMarketplace': (p: { dir: string }) => `packages: ${p.dir} has no .claude-plugin/marketplace.json`,
   'packages.upToDate': (p: { name: string }) => `packages: ${p.name} is already the latest version`,
   'packages.updated': (p: { name: string; version: string }) => `packages: ${p.name} is updated to ${p.version}; running tasks stay on the version they started with`,

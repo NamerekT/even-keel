@@ -297,10 +297,6 @@
 }
 
 /* The command takes a line of its own; the buttons follow under it. */
-.packages__command {
-  flex: 1 1 100%;
-}
-
 .packages__block {
   display: flex;
   flex-direction: column;

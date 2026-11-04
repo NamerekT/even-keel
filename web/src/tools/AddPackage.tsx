@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { PackagesView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { useLive } from '../live/context.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
@@ -46,7 +47,9 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const [kind, setKind] = useState<Kind | null>(initial === undefined ? null : 'plugin')
-  const [asking, setAsking] = useState(initial !== undefined && view.marketplace?.known === false)
+  const { state } = useLive()
+  const [asking, setAsking] = useState(initial !== undefined && view.marketplace?.known === false &&
+    state?.account.accounts.some((entry) => entry.agent === 'claude') === true)
   const title = useId()
 
   useEffect(() => {
