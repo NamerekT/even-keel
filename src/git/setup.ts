@@ -2,7 +2,7 @@ import { lstatSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { fail } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
-import { expandHome } from '../projects/folder.js'
+import { expandFolder } from '../projects/folder.js'
 import type { GitSetupView, WindowsStart } from '../state.js'
 import { windowsStart } from '../updates/control.js'
 import { runGit } from './run.js'
@@ -147,7 +147,7 @@ export class GitSetup {
   }
 
   async init(path: string, branch: string): Promise<void> {
-    await initRepository(this.git, expandHome(path, this.home), branch)
+    await initRepository(this.git, expandFolder(path, this.home), branch)
   }
 }
 

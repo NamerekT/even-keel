@@ -31,6 +31,19 @@ export function expandHome(typed: string, home: string, platform: NodeJS.Platfor
   return rest[1] === undefined || rest[1] === '' ? home : flavour.join(home, rest[1])
 }
 
+/** Expand the wizard's home shorthand and, on Windows, service environment variables in one pass. */
+export function expandFolder(
+  typed: string,
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const expanded = expandHome(typed, home, platform)
+  if (platform !== 'win32') return expanded
+  const values = new Map(Object.entries(env).map(([name, value]) => [name.toUpperCase(), value]))
+  return expanded.replace(/%([^%]+)%/g, (token: string, name: string) => values.get(name.toUpperCase()) || token)
+}
+
 /** Whether the path is full for the platform the service runs on. */
 export function isFullPath(folder: string, platform: NodeJS.Platform = process.platform): boolean {
   return (platform === 'win32' ? path.win32 : path.posix).isAbsolute(folder)

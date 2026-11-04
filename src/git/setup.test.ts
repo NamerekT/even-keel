@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GitSetup, gitInstallCommand, initRepository, onPath, readGitSetup, saveIdentity } from './setup.js'
 import type { GitResult } from './types.js'
 
@@ -21,6 +21,7 @@ function fakeGit(answers: Record<string, GitResult> = {}) {
 
 const folders: string[] = []
 afterEach(() => {
+  vi.unstubAllEnvs()
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
 })
 
@@ -194,6 +195,18 @@ describe('initRepository', () => {
 })
 
 describe('GitSetup', () => {
+  it.skipIf(process.platform !== 'win32')('expands service variables before creating a repository', async () => {
+    const path = folder()
+    vi.stubEnv('EKR_TEST_FOLDER', path)
+    const { git, calls } = fakeGit({
+      'config --get user.name': { code: 0, out: 'John Doe' },
+      'config --get user.email': { code: 0, out: 'john@example.com' },
+      'rev-parse --show-toplevel': { code: 128, out: 'fatal: not a git repository' },
+    })
+    await new GitSetup(git, home).init('%ekr_test_folder%', 'trunk')
+    expect(calls).toContain(`${path} init -b trunk`)
+  })
+
   it('has no view before its first read, then the read one; a saved identity is read again', async () => {
     let name = ''
     const git = async (_cwd: string, args: string[]): Promise<GitResult> => {

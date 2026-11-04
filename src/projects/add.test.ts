@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConfigStore } from '../config-store.js'
 import type { Git } from '../git/types.js'
 import { importConfig } from '../settings/import.js'
@@ -16,6 +16,8 @@ const root = join(process.cwd(), '.temp', 'add-repo')
 const draft: ProjectDraft = { repo: join(root, 'src'), branch: 'trunk', key: 'NEW', name: '', tracker: 'github', trackerProject: 'example/new', profile: 'profile', slot: 0, milestones: [], provider: null }
 
 describe('project addition', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   let configStore: ConfigStore
   let read: () => Promise<unknown>
   const link = vi.fn()
@@ -58,6 +60,14 @@ describe('project addition', () => {
     expect(Object.values(configStore.current.projects)).toEqual([root])
     expect(await read()).toMatchObject({ projects: [{ repo: root }] })
     expect(link).toHaveBeenCalledWith(Object.keys(configStore.current.projects)[0], 'profile')
+  })
+
+  it.skipIf(process.platform !== 'win32')('expands service variables when saving and persists the absolute root', async () => {
+    vi.stubEnv('EKR_TEST_FOLDER', root)
+    const asked = vi.fn(git)
+    await addProject({ ...deps(), git: asked }, { ...draft, repo: '%ekr_test_folder%\\src' })
+    expect(asked).toHaveBeenCalledWith(join(root, 'src'), ['rev-parse', '--show-toplevel'])
+    expect(await read()).toMatchObject({ projects: [{ repo: root }] })
   })
 
   it('refuses a repository already added through another subfolder', async () => {

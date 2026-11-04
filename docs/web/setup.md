@@ -20,6 +20,12 @@ The folder field (BTN-744): `checkRepo` expands a leading `~` (`~/…`, on Windo
 and a folder that does not exist (`wizard.noFolder`, no git output, no button) before it asks git. The config gets git's
 absolute root.
 
+On Windows `expandFolder` also expands `%NAME%` from the service process's environment, case-insensitively, for
+checking, adding and the repository-creation button. Tracker-profile variables do not override these values.
+Expansion is a single pass after `~`; unknown or empty variables stay literal, and an unresolved leading variable
+gets `wizard.noFolder` rather than the relative-path notice. Linux/macOS treat percent signs literally; `$NAME` and
+`$env:NAME` are never expanded. Saved absolute roots are independent of later environment changes.
+
 Git in the wizard (BTN-731). A folder that is not a repository (`wizard.notRepo`) gets "Make it a repository" under its
 refusal, a repository with no commits (`wizard.noCommits`) "Make the first commit"; both send `git/init` with the folder
 and the branch field (blank — `DEFAULT_BRANCH`), then check the draft again. `initRepository` (`src/git/setup.ts`)
