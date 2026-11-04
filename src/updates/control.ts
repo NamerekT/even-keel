@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { join, win32 } from 'node:path'
 import { promisify } from 'node:util'
+import type { WindowsStart } from '../state.js'
 
 /** How the update process stops and starts the service: one command each, run without a shell. */
 export interface ServiceControl {
@@ -45,6 +46,24 @@ export function windowsServiceOf(csv: string): string | null {
   const fields = csv.trim().split(/\r?\n/)[0]?.match(/"([^"]*)"/g)
   const name = fields?.[2]?.slice(1, -1).split(',')[0]?.trim()
   return name === undefined || name === '' || name === 'N/A' ? null : name
+}
+
+/** What started this process, from `tasklist /svc /fo csv /nh` of the parent: a parent that is neither is a terminal. */
+export function windowsStartOf(csv: string, env: NodeJS.ProcessEnv): WindowsStart {
+  if (launcherOf(csv, env) !== null) return { by: 'tray' }
+  const name = windowsServiceOf(csv)
+  return name === null ? { by: 'console' } : { by: 'service', name }
+}
+
+/** `null` — not Windows, or the parent could not be read. */
+export async function windowsStart(): Promise<WindowsStart | null> {
+  if (process.platform !== 'win32') return null
+  try {
+    const { stdout } = await promisify(execFile)('tasklist', ['/svc', '/fo', 'csv', '/nh', '/fi', `PID eq ${process.ppid}`], { windowsHide: true })
+    return windowsStartOf(stdout, process.env)
+  } catch {
+    return null
+  }
 }
 
 /** The user unit of `/proc/self/cgroup`; a system unit or a terminal's scope is none: `install.sh` installs a user unit. */

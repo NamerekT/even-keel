@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { EvenKeelState, GitSetupView } from '../../../src/state.js'
+import type { EvenKeelState, GitSetupView, WindowsStart } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { CommandBlock } from '../ui/blocks.js'
@@ -20,6 +20,11 @@ export function GitStep({ state }: { state: EvenKeelState }) {
   const text = t.setup.git
   const installed = git !== undefined && git.version !== null
   const command = git?.install
+  const download = (label: string) => (
+    <a href={gitDownload(state.platform)} target="_blank" rel="noreferrer">
+      {label}
+    </a>
+  )
   return (
     <>
       <Section title={t.setup.titles.git} mark={<PartDot check={git === undefined ? 'empty' : installed ? 'passed' : 'failed'} first />} className="project-add__step">
@@ -29,17 +34,16 @@ export function GitStep({ state }: { state: EvenKeelState }) {
         {git !== undefined && !installed && (
           <>
             <Status>{text.absent}</Status>
-            {state.platform === 'win32' && <p className="setup-account__note">{text.windowsRestart}</p>}
-            <div className="cli-source__install">
-              <div className="setup-git__commands">
-                {command !== undefined && <CommandBlock command={command} />}
-                <a href={gitDownload(state.platform)} target="_blank" rel="noreferrer">
-                  {command !== undefined ? text.download : text.downloadOnly}
-                </a>
+            {git.restart !== undefined && <p className="setup-account__note">{restartHint(git.restart)}</p>}
+            <div className="setup-git__commands">
+              {/* "Check again" stands beside the first line, the command or the link alone, not beside both. */}
+              <div className="cli-source__install">
+                {command !== undefined ? <CommandBlock command={command} /> : <span>{download(text.downloadOnly)}</span>}
+                <button type="button" className="button button--small" disabled={sending} onClick={() => void send('git/check')}>
+                  {text.again}
+                </button>
               </div>
-              <button type="button" className="button button--small" disabled={sending} onClick={() => void send('git/check')}>
-                {text.again}
-              </button>
+              {command !== undefined && download(text.download)}
             </div>
           </>
         )}
@@ -48,6 +52,16 @@ export function GitStep({ state }: { state: EvenKeelState }) {
       {installed && <Identity key={`${git.name}\n${git.email}`} git={git} />}
     </>
   )
+}
+
+/**
+ * What makes Even Keel on Windows see a git installed since it started (EKR-57): the tray and a service read `PATH`
+ * anew on a restart and check git at the start, a terminal keeps its own `PATH`.
+ */
+function restartHint(start: WindowsStart): string {
+  const text = t.setup.git
+  if (start.by === 'tray') return text.restartTray
+  return start.by === 'service' ? text.restartService(start.name) : text.restartConsole
 }
 
 /** Two fields filled with what git has, and "Save" once both are filled and one of them changed. */
