@@ -77,7 +77,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 npx even-keel
 ```
 
-This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows that is a start at your sign-in with an icon in the tray — no administrator, any terminal. To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
+This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows that is a start at your sign-in with an icon in the tray — no administrator. In Windows PowerShell or PowerShell 7 type `npx.cmd even-keel` (and `even-keel.cmd …`), or run it from cmd: PowerShell's default policy blocks npm's `.ps1` wrappers ([setup](docs/guide/setup.md#as-a-service)). To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
 
 From a clone, which keeps its data in its own folder:
 
@@ -115,7 +115,7 @@ npm start
 
 The service starts by itself and restarts Even Keel if it fails. Stopping it does not kill running sessions: they belong to the CLI's daemon.
 
-**Windows.** As your own user, from any terminal:
+**Windows.** As your own user, from cmd (in PowerShell: `even-keel.cmd install`):
 
 ```powershell
 even-keel install          # installed with npm
