@@ -13,10 +13,12 @@ const subscribe = (listener: () => void) => {
 const notify = () => listeners.forEach((listener) => listener())
 
 /** The draft of a settings form, against the file as it is now. */
-export function useDraft(scope: string, saved: Values | undefined, same: Same): [Draft | undefined, (next: Draft) => void] {
+export type SetDraft = (next: Draft | ((before: Draft) => Draft)) => void
+
+export function useDraft(scope: string, saved: Values | undefined, same: Same): [Draft | undefined, SetDraft] {
   const stored = useSyncExternalStore(subscribe, () => drafts.get(scope))
-  const set = (next: Draft) => {
-    drafts.set(scope, next)
+  const set: SetDraft = (next) => {
+    drafts.set(scope, typeof next === 'function' ? next(drafts.get(scope) ?? rebase(undefined, saved!, same)) : next)
     notify()
   }
   const next = saved === undefined ? undefined : settled(stored, saved, same)

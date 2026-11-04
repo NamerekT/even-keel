@@ -6,7 +6,8 @@ import { useCommand } from '../live/useCommand.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { feedRulesOf, knownStatuses, ownRulesOf, ruleOrigins } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
-import { changed, edited, reverted, type Value } from './settingsDraft.js'
+import { changed, edited, reverted, sent, type Value } from './settingsDraft.js'
+import { TableDraft } from './settingsTableDraft.js'
 import { marksOf, RULE_KEYS, rulesOf, rulesText, sameBy, Section, type RuleKey } from './settingsParts.js'
 import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
@@ -86,6 +87,7 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
     },
     {
       id: 'milestones',
+      fields: MILESTONE_KEYS,
       title: t.settings.milestones,
       dirty: changed(draft, MILESTONE_KEYS, same).length > 0,
       render: () => (
@@ -107,6 +109,7 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
     ...(moves.tab === null ? [] : [moves.tab]),
   ]
   return (
+    <TableDraft value={{ draft, setDraft }}>
     <SourceDialog
       kind={feed.tracker}
       sourceKey={feed.key}
@@ -114,12 +117,13 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
       tabs={tabs}
       canSave={!sending && !moves.sending}
       failure={failure ?? moves.failure}
-      onSave={async () => (await send('project/feed/rules', { project, feed: feed.id, rules: ownRulesOf(chain, inherited) })) && moves.save()}
+      onSave={async () => (await send('project/feed/rules', { project, feed: feed.id, rules: ownRulesOf(rulesOf(sent(draft, RULE_KEYS).form as Record<RuleKey, Value>), inherited) })) && moves.save()}
       onRevert={() => {
         revert(RULE_KEYS)
         moves.revert()
       }}
       onClose={onClose}
     />
+    </TableDraft>
   )
 }

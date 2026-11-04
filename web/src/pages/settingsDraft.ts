@@ -6,6 +6,23 @@ export type Values = Readonly<Record<string, Value>>
 export interface Draft {
   base: Values
   edit: Values
+  adding?: Readonly<Record<string, PendingRow>>
+}
+
+export interface PendingRow {
+  cells: readonly string[]
+  checked?: boolean
+  /** The whole field with the new row appended, in the field's draft format. */
+  value: string
+  valid: boolean
+}
+
+export function pendingRow(draft: Draft, key: string, row: PendingRow | null): Draft {
+  const adding = { ...draft.adding }
+  if (row === null) delete adding[key]
+  else adding[key] = row
+  const { adding: _before, ...rest } = draft
+  return Object.keys(adding).length === 0 ? rest : { ...rest, adding }
 }
 
 /** Whether two values of a field come to the same thing, as the service would store them. */
@@ -20,10 +37,18 @@ export function rebase(draft: Draft | undefined, saved: Values, same: Same): Dra
   if (draft === undefined) return { base: saved, edit: saved }
   const base: Record<string, Value> = {}
   const edit: Record<string, Value> = {}
+  let next = draft
   for (const [key, now] of Object.entries(saved)) {
     const started = draft.base[key]
     const typed = draft.edit[key]
-    if (started === undefined || typed === undefined) {
+    const pending = draft.adding?.[key]
+    if (pending !== undefined && !(pending.valid && same(key, pending.value, now))) {
+      base[key] = started ?? now
+      edit[key] = typed ?? now
+    } else if (pending !== undefined) {
+      base[key] = edit[key] = now
+      next = pendingRow(next, key, null)
+    } else if (started === undefined || typed === undefined) {
       base[key] = edit[key] = now
     } else if (same(key, started, now)) {
       base[key] = started
@@ -35,7 +60,7 @@ export function rebase(draft: Draft | undefined, saved: Values, same: Same): Dra
       edit[key] = typed
     }
   }
-  return { base, edit }
+  return { ...next, base, edit }
 }
 
 /**
@@ -48,11 +73,11 @@ export function settled(stored: Draft | undefined, saved: Values, same: Same): D
   const next = rebase(stored, saved, same)
   const keys = new Set([...Object.keys(stored.base), ...Object.keys(next.base)])
   const holds = (key: string, a: Value | undefined, b: Value | undefined) => a !== undefined && b !== undefined && same(key, a, b)
-  const kept = [...keys].every((key) => holds(key, stored.base[key], next.base[key]) && holds(key, stored.edit[key], next.edit[key]))
+  const kept = JSON.stringify(stored.adding) === JSON.stringify(next.adding) && [...keys].every((key) => holds(key, stored.base[key], next.base[key]) && holds(key, stored.edit[key], next.edit[key]))
   return kept ? undefined : next
 }
 
-export const edited =(draft: Draft, key: string, value: Value): Draft => ({ ...draft, edit: { ...draft.edit, [key]: value } })
+export const edited =(draft: Draft, key: string, value: Value): Draft => ({ ...pendingRow(draft, key, null), edit: { ...draft.edit, [key]: value } })
 
 /**
  * An edit of a field whose '' is "as shared" and whose control shows the value in force. Set back to the value it started
@@ -75,7 +100,7 @@ export function ownEdited(draft: Draft, flag: string, shared: Values, key: strin
 }
 
 /** The fields among `keys` whose value differs from what they started from. */
-export const changed = (draft: Draft, keys: readonly string[], same: Same): string[] => keys.filter((key) => !same(key, draft.edit[key]!, draft.base[key]!))
+export const changed = (draft: Draft, keys: readonly string[], same: Same): string[] => keys.filter((key) => draft.adding?.[key] !== undefined || !same(key, draft.edit[key]!, draft.base[key]!))
 
 /** The changed fields among `keys` that the file changed too since the draft started. */
 export const conflicts = (draft: Draft, saved: Values, keys: readonly string[], same: Same): string[] =>
@@ -84,10 +109,11 @@ export const conflicts = (draft: Draft, saved: Values, keys: readonly string[], 
 /** The draft with the fields of `keys` back to what the file holds now. */
 export function reverted(draft: Draft, saved: Values, keys: readonly string[]): Draft {
   const back = Object.fromEntries(keys.map((key) => [key, saved[key]!]))
-  return { base: { ...draft.base, ...back }, edit: { ...draft.edit, ...back } }
+  const cleared = keys.reduce((each, key) => pendingRow(each, key, null), draft)
+  return { ...cleared, base: { ...draft.base, ...back }, edit: { ...draft.edit, ...back } }
 }
 
 /** What a save of the fields of `keys` sends: the base with only their edits, and the base to judge it against. */
 export function sent(draft: Draft, keys: readonly string[]): { form: Values; base: Values } {
-  return { form: { ...draft.base, ...Object.fromEntries(keys.map((key) => [key, draft.edit[key]!])) }, base: draft.base }
+  return { form: { ...draft.base, ...Object.fromEntries(keys.map((key) => [key, draft.adding?.[key]?.value ?? draft.edit[key]!])) }, base: draft.base }
 }

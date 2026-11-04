@@ -21,9 +21,10 @@ import {
   type StatusPlace,
   type StatusRow,
 } from './ruleRows.js'
-import { FieldHead, FieldNote, HelpTip, Inherit, Section, type Marks, type RuleKey } from './settingsParts.js'
+import { FieldHead, FieldNote, HelpTip, Inherit, linesOf, Section, type Marks, type RuleKey } from './settingsParts.js'
 import { withoutListed } from './settingsRows.js'
 import { ListTable } from './settingsTable.js'
+import { useTableDraft } from './settingsTableDraft.js'
 import './ruleForm.css'
 
 const PLACES: readonly StatusPlace[] = ['in', 'out', 'closed']
@@ -280,21 +281,28 @@ type MilestoneKey = 'requiredMilestones' | 'excludedMilestones'
  */
 export function MilestoneFields({ level, rules, inherited, origins, milestones, text, onEdit, errorOf, marks }: MilestoneFieldsProps) {
   const id = useId()
+  const tableDraft = useTableDraft()
+  const pending = tableDraft?.draft.adding
+  const effective = {
+    requiredMilestones: pending?.requiredMilestones === undefined ? rules.requiredMilestones : linesOf(pending.requiredMilestones.value),
+    excludedMilestones: pending?.excludedMilestones === undefined ? rules.excludedMilestones : linesOf(pending.excludedMilestones.value),
+  }
   // "Only" with no milestone yet is "all" in the lists: the pick stays until one is added.
   const [picked, setPicked] = useState<MilestoneMode | null>(null)
-  const stored = milestoneModeOf(rules)
+  const stored = milestoneModeOf(effective)
   const mode = picked !== null && (stored === 'all' || stored === picked) ? picked : stored
-  const own = level === 'project' && (origins.requiredMilestones === 'project' || origins.excludedMilestones === 'project')
+  const own = level === 'project' && (origins.requiredMilestones === 'project' || origins.excludedMilestones === 'project' || pending?.requiredMilestones !== undefined || pending?.excludedMilestones !== undefined)
   const put = (next: Pick<ChainRules, MilestoneKey>) => {
-    const keys = (['requiredMilestones', 'excludedMilestones'] as const).filter((key) => JSON.stringify(next[key]) !== JSON.stringify(rules[key]))
+    const keys = (['requiredMilestones', 'excludedMilestones'] as const).filter((key) => pending?.[key] !== undefined || JSON.stringify(next[key]) !== JSON.stringify(rules[key]))
     if (keys.length > 0) onEdit(keys.map((key) => [key, ruleText(next[key])]))
   }
   const pick = (next: MilestoneMode) => {
     setPicked(next)
-    put(withMilestoneMode(rules, next))
+    put(withMilestoneMode(effective, next))
   }
   const list = (key: MilestoneKey, other: MilestoneKey) => (
     <ListTable
+      field={key}
       label={t.settings.rule[key]}
       value={text(key)}
       add={t.settings.ruleAdd[key]}

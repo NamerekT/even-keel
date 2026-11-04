@@ -37,6 +37,7 @@ export function ModelPrompts({ value, accounts, onChange }: { value: string; acc
   return (
     <div className="model-prompts">
       <RowsTable
+        field="modelPrompts"
         label={t.shared.modelPrompts}
         columns={[
           { title: t.shared.promptModel, placeholder: '* | *sonnet*', suggest: suggestions, mono: true, width: 'var(--model-prompt-width, 40%)' },

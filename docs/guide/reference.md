@@ -54,6 +54,8 @@ The settings are kept in the state database; the keys below are those of their f
 
 To edit them as a file, `npm run storage -- config-export <new file>` writes them out and `npm run storage -- config-import <file>` puts a file in their place, whole: a key the file lacks goes back to its default, a project it lacks is removed. The file is checked before anything is written, and a running Even Keel applies it within seconds; a form open on the page keeps your edits of fields the import did not change and marks a field changed in both.
 
+Settings tables include a started bottom row when you save; **+** or Enter adds it to the table so you can start another (Ctrl/Command+Enter in a multiline cell). Missing required cells and repeated keys are marked when you leave the row or save, and must be corrected before saving. Reverting a field or tab clears its started row. Unsaved table input survives navigating away and back while the page remains open; reloading the page discards it. The project wizard includes its started milestone row when adding the project.
+
 | Key | Default | |
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |

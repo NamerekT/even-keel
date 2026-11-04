@@ -36,6 +36,8 @@ import { FieldHead, Row, Section } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { providerOptions } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
+import type { Draft } from './settingsDraft.js'
+import { TableDraft, tablesValid } from './settingsTableDraft.js'
 import { setupLine } from './Setup.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
@@ -73,6 +75,7 @@ function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: WizardFields | null = null
+let keptTables: Draft = { base: {}, edit: {} }
 
 interface Checked {
   draft: ProjectDraft
@@ -96,6 +99,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const navigate = useNavigate()
   const { send, sending, failure } = useCommand()
   const [fields, setFields] = useState<WizardFields>(() => kept ?? firstFields(state))
+  const [tableDraft, setTableDraft] = useState<Draft>(() => keptTables)
   const [checked, setChecked] = useState<Checked | null>(null)
   const [heldTracker, setHeldTracker] = useState<HeldTracker | null>(null)
   const [checkFailure, setCheckFailure] = useState<Notice | null>(null)
@@ -107,7 +111,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const choice = state.config.trackers.find((each) => each.name === fields.tracker)
   const shape = shapeOf(choice)
   const profile = state.profiles.profiles.find((each) => each.id === fields.profile)
-  const draft = draftOfFields(fields, profile?.isDefault === true)
+  const draft = draftOfFields({ ...fields, milestones: tableDraft.adding?.milestones?.value ?? fields.milestones }, profile?.isDefault === true)
   const draftText = JSON.stringify(draft ?? null)
   const fresh = checked !== null && JSON.stringify(checked.draft) === draftText
   // The tracker's answer depends on its own fields only (`trackerBasis`, BTN-737): it holds while the key or the name is
@@ -126,7 +130,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   useEffect(() => {
     kept = fields
-  }, [fields])
+    keptTables = tableDraft
+  }, [fields, tableDraft])
 
   useEffect(() => {
     if (draft === undefined || draft.repo === '' || basis === null) return
@@ -198,10 +203,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   }, [added, state, navigate])
 
   const add = async () => {
+    if (!tablesValid(document.querySelector<HTMLElement>('.project-add__steps')!)) return
     if (draft === undefined || !readyToAdd(check)) return
     const before = state.projects
     if (!(await send('project/add', { ...draft }))) return
     kept = null
+    keptTables = { base: {}, edit: {} }
     setAdded({ key: draft.key.trim(), before })
   }
 
@@ -218,6 +225,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   return (
     <div className="page project-add">
+      <TableDraft value={{ draft: tableDraft, setDraft: setTableDraft }}>
       <WizardFrame
         title={first ? t.setup.title : t.wizard.title}
         lead={first ? t.setup.lead : t.wizard.hint}
@@ -357,10 +365,11 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 />
               }
             />
-            {(milestonesOpen || trackerShared || fields.milestones.trim() !== '') && (
+            {(milestonesOpen || trackerShared || fields.milestones.trim() !== '' || tableDraft.adding?.milestones !== undefined) && (
               <div className="settings__field">
                 <FieldHead label={t.settings.rule.requiredMilestones} hint={t.wizard.milestonesHint} />
                 <ListTable
+                  field="milestones"
                   label={t.settings.rule.requiredMilestones}
                   value={fields.milestones}
                   add={t.settings.ruleAdd.requiredMilestones}
@@ -444,6 +453,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
           }
         />
       </WizardFrame>
+      </TableDraft>
     </div>
   )
 }
