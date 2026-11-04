@@ -2,6 +2,22 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: Sessions](../verified/sessions.md).
 
+## Writing Claude folder trust before launch (EKR-59)
+
+Proposed, not implemented: with the project's consent, write `projects["<checkout>"].hasTrustDialogAccepted = true` in the launching account's `.claude.json` immediately before Claude `--bg` starts or resumes. Implementation is conditional on a live check proving that this flag admits both the checkout and its worktrees. The existing wizard warning and manual trust commands remain in place until then.
+
+The Windows Sandbox bench could not be reached on 2026-11-04: `wsb list` ended with `StatusCode=Cancelled` and `System.OperationCanceledException`. Starting the bench's existing `sandbox.wsb` returned exit code 0 without a running Windows Sandbox process; another list request ended with `StatusCode=Internal` and a gRPC connection timeout. No Claude session was launched, no trust file or existing bench setting was changed, and neither success nor failure of the proposed flag has been established.
+
+Resume the check on the Windows Sandbox bench documented in `even-keel-backstage/stands/README.md`, using its install-trial kit:
+
+1. Start the existing sandbox kit and use a fresh Claude account folder. Sign in inside the sandbox; do not copy an API key into it. Record the CLI version and use that same binary for every probe.
+2. Use a disposable repository that this account has never trusted. Keep an original copy of its account configuration outside the repository. Confirm the untrusted checkout is refused by `claude --bg` before writing the flag, so an already trusted parent cannot make the result pass accidentally.
+3. Add only the checkout's `hasTrustDialogAccepted` flag to that account's `.claude.json`. Keep all other data and do not add a worktree entry. Start a session with a harmless fixed-response prompt in the checkout, then in a worktree under `.claude/worktrees/<key>-<n>`. Inspect the actual job and transcript for the answer and absence of a trust refusal; a launch command exiting successfully alone is insufficient. Use the bench's worktree for this probe; the task's own worktree and branch stay in place.
+4. Resume the sessions and repeat a launch after stopping the test account's daemon, recording whether Claude rewrote its trust configuration. Stop only the sessions and daemon created by this check, and restore every bench setting changed for it.
+5. Record results in [verified sessions](../verified/sessions.md). If the flag does not admit both locations, keep the current manual commands, as EKR-59 specifies. Otherwise proceed with the consent control, migration and launch integration. Service execution as another user, macOS and Linux still need separate live checks.
+
+Until that check, the risk is treating a config flag as sufficient when Claude still refuses a chain's first launch or its worktree. **Workaround:** accept Claude's trust dialog manually under the account that runs the chain, using the existing wizard commands.
+
 ## Continuation prompts without repeated instructions (EKR-61)
 
 Chat resumes, SDK steering and automatic resumes now keep their continuation text without appending model prompts or unattended instructions. Unit tests cover the exact text and a changed model; a scripted-agent e2e covers a chat reply after a service restart and instructions on the first launch and a new-session handoff. Not rechecked with a live CLI or SDK after the fix. If delivery differs there, the session could still receive repeated instructions. **Workaround:** use "New session" to start with the current instructions once.
