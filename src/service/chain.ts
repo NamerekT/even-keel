@@ -600,9 +600,9 @@ export function approved(ctx: ChainContext, task: string, session: HandoffSessio
 }
 
 export function goOnWith(ctx: ChainContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
-  const plan = ctx.planFor(task, prompt)
+  const { model } = ctx.planFor(task, prompt)
   const extras = ctx.agentExtras(home, ctx.projectOf(task), task)
-  return { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: ctx.settingsFor(task), ...extras }
+  return { name: task, cwd: session.cwd, prompt, model, settings: ctx.settingsFor(task), ...extras }
 }
 
 export async function steer(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
