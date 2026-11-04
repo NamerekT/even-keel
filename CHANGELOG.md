@@ -4,10 +4,14 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.1] - 2026-11-04
 
 ### Fixed
 
+- **Windows: git or an agent CLI installed while Even Keel runs is found after Restart in the tray**, instead of only after a reboot: the tray host and the Windows service start Even Keel with the system and user `PATH` read anew.
+- The setup's Git step offers the install command of the package manager the machine has (winget, brew, apt and the like) and always the download link from git-scm.com, the link alone where none is found, instead of a winget command on a Windows without winget. On Windows it says what makes Even Keel see a git installed since, by how it was started: Restart in the tray, a restart of the Windows service, or a start from a new terminal.
+- Windows: the README and the guide say to run `npx even-keel` and `even-keel` from cmd, or as `npx.cmd`/`even-keel.cmd` in PowerShell, whose default policy blocks npm's `.ps1` shims; the trust warning in the project wizard and the project's settings says to run its command in cmd.
+- The guide says to run `npx even-keel` from any folder but a clone of Even Keel, where npx looks for the package in the clone itself.
 - A very long line in an OpenCode account log no longer stalls Even Keel for seconds while it reads the log for errors.
 - The keyboard focus ring of a notification's link is drawn whole, a few pixels above its buttons, instead of a clipped line under them.
 - An install from npm with a Huly profile no longer crashes on every start while the Huly client is not installed yet (Huly in `.env` at the first start, or a client folder removed): the service comes up and installs the client.
