@@ -33,7 +33,8 @@ export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [C
 /**
  * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `system` — the one installed on the
  * machine, on whatever version it updated to, `checked` — Even Keel's own copy of the version it was last checked
- * against, 155–280 MB to download. The default was `checked` until BTN-603; installs from before keep it written.
+ * against, roughly 80–340 MB to download, depending on the provider and platform. The default was `checked` until
+ * BTN-603; installs from before keep it written.
  */
 export const CLI_SOURCES: readonly string[] = ['system', 'checked']
 
