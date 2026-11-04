@@ -28,6 +28,7 @@ export function GitStep({ state }: { state: EvenKeelState }) {
         {git !== undefined && !installed && (
           <>
             <Status>{text.absent}</Status>
+            {state.platform === 'win32' && <p className="setup-account__note">{text.windowsRestart}</p>}
             {commands.length > 1 && <p className="setup-account__note">{text.linux}</p>}
             <div className="cli-source__install">
               <div className="setup-git__commands">

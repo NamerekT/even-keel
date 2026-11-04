@@ -1475,6 +1475,7 @@ export const en: Messages = {
       checking: 'Checking git…',
       installed: (version: string) => `Git ${version} is installed.`,
       absent: 'Git is not found on this machine. Even Keel does not install it: run the command below, then check again.',
+      windowsRestart: 'Just installed git? Restart Even Keel from its tray menu, then check again.',
       linux: 'With the package manager of your distribution, for example:',
       again: 'Check again',
       identity: 'Name and e-mail for commits',
