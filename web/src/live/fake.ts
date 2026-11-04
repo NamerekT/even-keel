@@ -338,7 +338,8 @@ export function createFakeSource(search: string): LiveSource {
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('platform') && current.state !== null) current.state.platform = params.get('platform')!
-  if (params.get('git') === 'missing' && current.state !== null) current.state.git = { version: null, name: null, email: null }
+  if (params.get('git') === 'missing' && current.state !== null) current.state.git = { version: null, name: null, email: null, install: 'winget install --id Git.Git -e' }
+  if (params.get('git') === 'bare' && current.state !== null) current.state.git = { version: null, name: null, email: null }
   if (params.get('git') === 'anon' && current.state !== null) current.state.git = { version: '2.47.1', name: null, email: null }
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)

@@ -5,20 +5,21 @@ import { useCommand } from '../live/useCommand.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { PartDot } from './SetupAgent.js'
 import { Row, Section } from './settingsParts.js'
-import { gitInstall } from './setupSteps.js'
+import { gitDownload } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import '../layout/cliCopies.css'
 
 /**
- * The setup's Git step (BTN-731): whether git starts from the service, the command that installs it where it does not,
- * then the name and e-mail its commits are made as, written into git's global config. Git itself is never installed.
+ * The setup's Git step (BTN-731): whether git starts from the service; where it does not, the command of the package
+ * manager the service found and always the download link (EKR-54); then the name and e-mail its commits are made as,
+ * written into git's global config. Git itself is never installed.
  */
 export function GitStep({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const git = state.git
   const text = t.setup.git
   const installed = git !== undefined && git.version !== null
-  const commands = gitInstall(state.platform)
+  const command = git?.install
   return (
     <>
       <Section title={t.setup.titles.git} mark={<PartDot check={git === undefined ? 'empty' : installed ? 'passed' : 'failed'} first />} className="project-add__step">
@@ -29,12 +30,12 @@ export function GitStep({ state }: { state: EvenKeelState }) {
           <>
             <Status>{text.absent}</Status>
             {state.platform === 'win32' && <p className="setup-account__note">{text.windowsRestart}</p>}
-            {commands.length > 1 && <p className="setup-account__note">{text.linux}</p>}
             <div className="cli-source__install">
               <div className="setup-git__commands">
-                {commands.map((command) => (
-                  <CommandBlock key={command} command={command} />
-                ))}
+                {command !== undefined && <CommandBlock command={command} />}
+                <a href={gitDownload(state.platform)} target="_blank" rel="noreferrer">
+                  {command !== undefined ? text.download : text.downloadOnly}
+                </a>
               </div>
               <button type="button" className="button button--small" disabled={sending} onClick={() => void send('git/check')}>
                 {text.again}

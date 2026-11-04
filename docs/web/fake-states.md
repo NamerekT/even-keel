@@ -112,7 +112,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?fallback=on` | ABC-10 was launched on the project's provider because its `Codex` label had no account in the pool: the toast in the corner |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?platform=win32\|linux\|darwin` | the service's machine (`EvenKeelState.platform`, `win32` without it): the example paths of the wizard's folder and of the stats moves table (`web/src/examplePaths.ts`), and the trust commands of the wizard and of the Sessions tab, and the git install commands of the setup's Git step |
-| `?git=missing\|anon` | the setup's Git step (`/setup?step=git`): git does not start (the install commands and "Check again"), or git 2.47.1 with no name and e-mail. Without it git 2.47.1 as John Doe |
+| `?git=missing\|bare\|anon` | the setup's Git step (`/setup?step=git`): git does not start (the winget command, the download link and "Check again"), git does not start and no package manager was found (only the download link), or git 2.47.1 with no name and e-mail. Without it git 2.47.1 as John Doe |
 | `?delay=<ms>` | answers (stats, tools, card, session, transcript) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, loaders, dimming and the busy button |
 
 The default stats fixture includes separate Sol, Terra, Astra, Luna and DeepSeek comparison rows, sub-1% model shares, and 13 components (use `range=all` for "Show all"). `beforeModels`/`afterModels` select comparison families just as on the real page; no mark compares the page period on both sides. A long `account` value on `/stats` also exercises full wrapping names in "Limits by account".
