@@ -6,6 +6,8 @@ Chain drag previews and optimistic drops share `withOrder` in `web/src/ui/chainO
 
 Layout work on a fake state, without a tracker or sessions. The fake history starts in November 2023 and has several projects and folders without a project.
 
+CLI copy selectors resolve only known providers, including when a URL supplies an inherited object key such as `__proto__`. An unknown `copyAgent` leaves the state unchanged; an unknown `copyFailed` is ignored. A fake CLI command with an unknown agent fails with `Unknown agent`; completing a download for one does nothing. CLI copy lookup uses a `Map` so URL parameters cannot select or modify an object prototype.
+
 | Parameter | What it shows |
 | --- | --- |
 | `?copies=missing\|downloading\|failed\|system-missing\|ready` | CLI copy consent, byte progress, retry and installation actions; `copyAgent=claude\|codex\|opencode\|copilot` picks the provider, `copySystem=missing` hides the Installed choice, `copyFailed=<provider>` fails a second provider's download beside it. An explicit download completes after 3 s and opens account setup when started from the provider card. `copies=fresh` is a first run after BTN-603: every `cli` on `system`, Claude Code and OpenCode installed, Codex and Copilot not, no copy; `provider=` picks the chosen agent (`/setup?step=agent&copies=fresh&provider=opencode`). |
