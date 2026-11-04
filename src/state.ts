@@ -453,6 +453,8 @@ export interface GitSetupView {
   /** The name and e-mail commits are made as, which sessions commit and merge with; `null` — unset. */
   name: string | null
   email: string | null
+  /** Git does not start: the command that installs it with the package manager found on the service's machine (EKR-54); absent — none found. */
+  install?: string
 }
 
 export interface EvenKeelState {

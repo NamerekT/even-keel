@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { GitSetup, initRepository, readGitSetup, saveIdentity } from './setup.js'
+import { GitSetup, gitInstallCommand, initRepository, onPath, readGitSetup, saveIdentity } from './setup.js'
 import type { GitResult } from './types.js'
 
 const home = 'C:\\Users\\john'
@@ -46,8 +46,56 @@ describe('readGitSetup', () => {
 
   it('says git that does not start as no version, and asks nothing more', async () => {
     const { git, calls } = fakeGit({ '--version': MISSING })
-    expect(await readGitSetup(git, home)).toEqual({ version: null, name: null, email: null })
+    expect(await readGitSetup(git, home, () => null)).toEqual({ version: null, name: null, email: null })
     expect(calls).toHaveLength(1)
+  })
+
+  it('gives the command that installs git only when git does not start', async () => {
+    const install = () => 'winget install --id Git.Git -e'
+    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, install)).toEqual({ version: null, name: null, email: null, install: 'winget install --id Git.Git -e' })
+    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, install)).not.toHaveProperty('install')
+  })
+})
+
+describe('gitInstallCommand', () => {
+  const having =
+    (...bins: string[]) =>
+    (bin: string) =>
+      bins.includes(bin)
+
+  it('installs with winget on Windows, and gives nothing without it', () => {
+    expect(gitInstallCommand('win32', having('winget'))).toBe('winget install --id Git.Git -e')
+    expect(gitInstallCommand('win32', having())).toBeNull()
+  })
+
+  it('installs with brew on macOS, otherwise with the command line tools', () => {
+    expect(gitInstallCommand('darwin', having('brew'))).toBe('brew install git')
+    expect(gitInstallCommand('darwin', having())).toBe('xcode-select --install')
+  })
+
+  it.each([
+    ['apt-get', 'sudo apt install git'],
+    ['dnf', 'sudo dnf install git'],
+    ['pacman', 'sudo pacman -S git'],
+    ['zypper', 'sudo zypper install git'],
+    ['apk', 'sudo apk add git'],
+  ])('installs with %s on Linux', (bin, command) => {
+    expect(gitInstallCommand('linux', having(bin))).toBe(command)
+  })
+
+  it('takes the first package manager found on Linux, and gives nothing without one', () => {
+    expect(gitInstallCommand('linux', having('apk', 'dnf'))).toBe('sudo dnf install git')
+    expect(gitInstallCommand('linux', having('yum'))).toBeNull()
+    expect(gitInstallCommand('freebsd', having('apt-get'))).toBeNull()
+  })
+})
+
+describe('onPath', () => {
+  it('finds a package manager on the PATH without starting it', () => {
+    const dir = folder()
+    writeFileSync(join(dir, 'winget.exe'), '')
+    expect(onPath('winget', { PATH: dir }, 'win32')).toBe(true)
+    expect(onPath('brew', { PATH: dir }, 'win32')).toBe(false)
   })
 })
 

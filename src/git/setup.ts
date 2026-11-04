@@ -1,6 +1,7 @@
-import { statSync } from 'node:fs'
+import { lstatSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { fail } from '../notice/notice.js'
+import { findBinary } from '../paths.js'
 import { expandHome } from '../projects/folder.js'
 import type { GitSetupView } from '../state.js'
 import { runGit } from './run.js'
@@ -14,10 +15,54 @@ export function requireStarted(result: GitResult): GitResult {
   return result
 }
 
-export async function readGitSetup(git: Git, home: string): Promise<GitSetupView> {
+/** The package managers looked for on each platform, in order, and the command each installs git with. */
+const INSTALLERS: Readonly<Record<string, readonly (readonly [bin: string, command: string])[]>> = {
+  win32: [['winget', 'winget install --id Git.Git -e']],
+  darwin: [['brew', 'brew install git']],
+  linux: [
+    ['apt-get', 'sudo apt install git'],
+    ['dnf', 'sudo dnf install git'],
+    ['pacman', 'sudo pacman -S git'],
+    ['zypper', 'sudo zypper install git'],
+    ['apk', 'sudo apk add git'],
+  ],
+}
+
+/**
+ * The command that installs git with the first package manager the service's machine has; `null` — none known, and
+ * the page shows only the download link. macOS always has `xcode-select`.
+ */
+export function gitInstallCommand(platform: string, has: (bin: string) => boolean): string | null {
+  const found = INSTALLERS[platform]?.find(([bin]) => has(bin))
+  if (found !== undefined) return found[1]
+  return platform === 'darwin' ? 'xcode-select --install' : null
+}
+
+/**
+ * Whether a program is on the service's PATH, never started. `lstat`, not `existsSync`: winget is a Windows app alias,
+ * which `stat` refuses with EACCES.
+ */
+export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): boolean {
+  return findBinary(bin, env, platform, (path) => {
+    try {
+      lstatSync(path)
+      return true
+    } catch {
+      return false
+    }
+  })
+}
+
+const installHere = (): string | null => gitInstallCommand(process.platform, (bin) => onPath(bin))
+
+/** `install` — the command for a machine without git, read only then. */
+export async function readGitSetup(git: Git, home: string, install: () => string | null = installHere): Promise<GitSetupView> {
   const started = await git(home, ['--version'])
   const version = started.code === 0 ? (/(\d+(?:\.\d+)+)/.exec(started.out)?.[1] ?? started.out.trim()) : null
-  if (version === null) return { version: null, name: null, email: null }
+  if (version === null) {
+    const command = install()
+    return command === null ? { version: null, name: null, email: null } : { version: null, name: null, email: null, install: command }
+  }
   const [name, email] = await Promise.all(['user.name', 'user.email'].map((key) => configValue(git, home, key)))
   return { version, name: name ?? null, email: email ?? null }
 }

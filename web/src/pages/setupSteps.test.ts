@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
-import { accountShortName, agentReady, gitInstall, gitReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import { accountShortName, agentReady, gitDownload, gitReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
 
 describe('gitReady', () => {
   it('goes on once git is installed and has a name and an e-mail to commit with (BTN-731)', () => {
@@ -15,11 +15,11 @@ describe('gitReady', () => {
   })
 })
 
-describe('gitInstall', () => {
-  it('gives the install command of the service machine, never one Even Keel runs itself', () => {
-    expect(gitInstall('win32')).toEqual(['winget install --id Git.Git -e'])
-    expect(gitInstall('darwin')).toEqual(['xcode-select --install'])
-    expect(gitInstall('linux')).toEqual(['sudo apt install git', 'sudo dnf install git'])
+describe('gitDownload', () => {
+  it('links the git download page of the service machine’s platform (EKR-54)', () => {
+    expect(gitDownload('win32')).toBe('https://git-scm.com/download/win')
+    expect(gitDownload('darwin')).toBe('https://git-scm.com/download/mac')
+    expect(gitDownload('linux')).toBe('https://git-scm.com/download/linux')
   })
 })
 

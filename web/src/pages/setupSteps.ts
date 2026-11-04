@@ -61,13 +61,13 @@ export function gitReady(git: GitSetupView | undefined): boolean {
 }
 
 /**
- * The command that installs git on the service's machine, shown and never run: Even Keel installs no global CLI, and
- * a Linux one needs `sudo`.
+ * The git download page for the service's platform, shown under the install command or alone when the service found
+ * no package manager (EKR-54). Even Keel itself installs no global CLI.
  */
-export function gitInstall(platform: string): string[] {
-  if (platform === 'win32') return ['winget install --id Git.Git -e']
-  if (platform === 'darwin') return ['xcode-select --install']
-  return ['sudo apt install git', 'sudo dnf install git']
+export function gitDownload(platform: string): string {
+  if (platform === 'win32') return 'https://git-scm.com/download/win'
+  if (platform === 'darwin') return 'https://git-scm.com/download/mac'
+  return 'https://git-scm.com/download/linux'
 }
 
 /** The step before and after; `null` — none, the first step or the last. */
