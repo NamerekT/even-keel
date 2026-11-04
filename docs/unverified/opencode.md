@@ -73,5 +73,7 @@ Since BTN-642 the push groups also deny `git -* push …` on Claude and OpenCode
 service, [verified](../verified/opencode.md)) OpenCode refused `git -C . push --force` and `git --no-pager push -f`
 to a disposable remote, `rm -rf ~/…`, `rm -fr ../…` and `rm -rf /tmp/…` on throwaway folders, and the gateway
 refused the same `invoke_tool` delete; `rm -r -f ~/…` ran, as the guide says split flags are outside the rules.
-Not run: the push spellings of BTN-642 on the other agents, the `rm -rf` groups on macOS, other agents/subagents.
+On Linux (EKR-47, 2026-11-04, Codex 0.166.0 in a Docker Desktop container, [verified](../verified/opencode.md)), six native denials were confirmed: the force flags, remote deletion, `cd . && git push --force`, `git -C . push --force` and `git --no-pager push -f`. A plain push created a branch, and `git push origin +HEAD:refs/heads/check-plain` ran; the branch remained at the same commit. This refspec names a non-main branch: the generated Codex rules cover +refspecs of the project's main branch only, as the guide already says. EKR-66 records the mismatch with the check's all-seven-denied criterion and asks whether to correct the scenario or change the scope; no wider guarantee was verified.
+
+Not run: BTN-642's push spellings on Claude and Copilot, Codex on other platforms and a live main-branch +refspec denial on Linux, the `rm -rf` groups on macOS, other agents/subagents.
 **Workaround:** retain server-side branch protection and use disposable targets when checking native rules.
