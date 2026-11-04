@@ -1,9 +1,13 @@
-import { Fragment, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
+import { tableTexts } from '../i18n/table.js'
 import { PlusIcon, TrashIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { linesText, rowsOf } from './settingsRows.js'
+import { addingRow } from './settingsAdding.js'
+import { pendingRow, type PendingRow } from './settingsDraft.js'
+import { useTableDraft } from './settingsTableDraft.js'
 
 export interface Column {
   title: string
@@ -45,6 +49,7 @@ function Cell({ column, value, label, taken, invalid = false, onChange, onEnter 
         className={className}
         label={label}
         value={value}
+        invalid={invalid}
         options={column.options.filter((option) => option.value === value || !taken.includes(option.value))}
         onChange={onChange}
       />
@@ -85,6 +90,8 @@ function Cell({ column, value, label, taken, invalid = false, onChange, onEnter 
  * of it is filled. The first column is the key: two rows never share it.
  */
 export function RowsTable({
+  field,
+  encode = JSON.stringify,
   label,
   columns,
   rows,
@@ -92,6 +99,8 @@ export function RowsTable({
   rowNote,
   onChange,
 }: {
+  field?: string
+  encode?: (rows: readonly (readonly string[])[]) => string
   label: string
   columns: readonly Column[]
   rows: readonly (readonly string[])[]
@@ -99,22 +108,52 @@ export function RowsTable({
   rowNote?: (row: readonly string[]) => ReactNode
   onChange: (rows: string[][]) => void
 }) {
-  const [adding, setAdding] = useState<string[]>(columns.map(() => ''))
-  const keys = rows.map((row) => row[0]!)
+  const store = useTableDraft()
+  const key = field ?? label
+  const [local, setLocal] = useState<PendingRow | null>(null)
+  const pending = store === null ? local : store.draft.adding?.[key]
+  const checked = pending?.checked === true
+  const table = useRef<HTMLDivElement>(null)
+  const check = () => {
+    if (store === null) setLocal((row) => row === null ? null : { ...row, checked: true })
+    else store.setDraft((before) => {
+      const row = before.adding?.[key]
+      return row === undefined ? before : pendingRow(before, key, { ...row, checked: true })
+    })
+  }
+  useEffect(() => {
+    const element = table.current!
+    element.addEventListener('validate-rows', check)
+    return () => element.removeEventListener('validate-rows', check)
+  }, [store?.setDraft, key])
+  const adding = pending?.cells ?? columns.map(() => '')
+  const state = addingRow(columns, rows, adding)
+  const fresh = state.cells
+  const keys = rows.map((row) => row[0]!.trim())
   const free = (column: Column) => column.options?.find((option) => !keys.includes(option.value))?.value ?? ''
-  const fresh = columns.map((column, at) => (column.options === undefined ? adding[at]! : adding[at] !== '' && !keys.includes(adding[at]!) ? adding[at]! : free(column)))
-  const full = columns[0]!.options === undefined || free(columns[0]!) !== ''
-  const canAdd = fresh.every((value) => value.trim() !== '') && !keys.includes(fresh[0]!.trim())
+  const full = state.started || columns[0]!.options === undefined || free(columns[0]!) !== ''
+  const canAdd = state.valid
+  const invalid = rows.some((row, at) => row.some((cell) => cell.trim() === '') || keys.some((key, each) => each !== at && key === row[0]!.trim())) || (state.started && !state.valid)
+  const keep = (cells: readonly string[], nextRows = rows) => {
+    const next = addingRow(columns, nextRows, cells)
+    const value = next.started ? { cells: next.cells, value: encode([...nextRows, next.cells.map((cell) => cell.trim())]), valid: next.valid, checked: !next.valid && checked } : null
+    if (store === null) setLocal(value)
+    else store.setDraft((before) => pendingRow(before, key, value))
+  }
+  const update = (nextRows: string[][]) => {
+    onChange(nextRows)
+    keep(fresh, nextRows)
+  }
 
-  const put = (at: number, column: number, value: string) => onChange(rows.map((row, index) => (index === at ? row.map((cell, each) => (each === column ? value : cell)) : [...row])))
+  const put = (at: number, column: number, value: string) => update(rows.map((row, index) => (index === at ? row.map((cell, each) => (each === column ? value : cell)) : [...row])))
   const add = () => {
     if (!canAdd) return
     onChange([...rows.map((row) => [...row]), fresh.map((value) => value.trim())])
-    setAdding(columns.map(() => ''))
+    keep(columns.map(() => ''))
   }
 
   return (
-    <div className="rows">
+    <div className="rows" ref={table} data-rows-invalid={invalid}>
       <table className="rows__table" aria-label={label}>
         <colgroup>
           {columns.map((column, at) => (
@@ -144,7 +183,7 @@ export function RowsTable({
             <Fragment key={at}>
               <tr>
                 {columns.map((column, each) => (
-                  <td key={each}>
+                  <td key={each} title={each === 0 && keys.some((key, index) => index !== at && key === row[0]!.trim()) ? tableTexts().duplicate : undefined}>
                     <Cell
                       column={column}
                       value={row[each]!}
@@ -161,7 +200,7 @@ export function RowsTable({
                     className="rows__button"
                     title={t.settings.remove(row[0] || t.settings.row(at + 1))}
                     aria-label={t.settings.remove(row[0] || t.settings.row(at + 1))}
-                    onClick={() => onChange(rows.filter((_, index) => index !== at).map((each) => [...each]))}
+                    onClick={() => update(rows.filter((_, index) => index !== at).map((each) => [...each]))}
                   >
                     <TrashIcon />
                   </button>
@@ -176,16 +215,19 @@ export function RowsTable({
           ))}
         </tbody>
         {full && (
-          <tfoot>
+          <tfoot onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) check()
+          }}>
             <tr className="rows__new">
               {columns.map((column, at) => (
-                <td key={at}>
+                <td key={at} title={checked && at === 0 && state.duplicate && state.started ? tableTexts().duplicate : undefined}>
                   <Cell
                     column={column}
                     value={fresh[at]!}
                     label={column.placeholder}
                     taken={at === 0 ? keys : []}
-                    onChange={(value) => setAdding(columns.map((_, each) => (each === at ? value : fresh[each]!)))}
+                    invalid={checked && state.invalid[at]}
+                    onChange={(value) => keep(columns.map((_, each) => (each === at ? value : fresh[each]!)))}
                     onEnter={add}
                   />
                 </td>
@@ -205,6 +247,7 @@ export function RowsTable({
 
 /** A list field kept in the draft as lines, one row a line. */
 export function ListTable({
+  field,
   label,
   value,
   add,
@@ -213,6 +256,7 @@ export function ListTable({
   mono = false,
   onChange,
 }: {
+  field?: string
   label: string
   value: string
   add: string
@@ -223,6 +267,8 @@ export function ListTable({
 }) {
   return (
     <RowsTable
+      field={field}
+      encode={(rows) => linesText(rows.map((row) => row[0]!))}
       label={label}
       columns={[{ title: label, placeholder: add, suggest, mono }]}
       rows={rowsOf(value).map((row) => [row])}

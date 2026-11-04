@@ -325,7 +325,7 @@ export interface Marks {
 }
 
 export function marksOf(draft: Draft, saved: Values, same: Same, revert: (keys: string[]) => void): Marks {
-  const changed = (key: string) => !same(key, draft.edit[key]!, draft.base[key]!)
+  const changed = (key: string) => draft.adding?.[key] !== undefined || !same(key, draft.edit[key]!, draft.base[key]!)
   return {
     box: (keys, name = 'settings__field') => ([keys].flat().some(changed) ? `${name} settings__field--changed` : name),
     note: (keys, show = shown) => {

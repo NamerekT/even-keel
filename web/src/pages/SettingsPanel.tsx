@@ -67,6 +67,7 @@ import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
 import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
+import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
 import { AddPullProfile, PullHint } from './PullButtons.js'
 import { FORGES } from '../../../src/notice/en.js'
 import './settings.css'
@@ -474,6 +475,7 @@ export function SettingsPanel({
               },
               {
                 id: 'milestones',
+                fields: ['requiredMilestones', 'excludedMilestones'],
                 title: t.settings.milestones,
                 dirty: changed(draft, ['requiredMilestones', 'excludedMilestones'], same).length > 0,
                 render: () => (
@@ -779,10 +781,16 @@ export function SettingsPanel({
           ×
         </button>
       </header>
+      <TableDraft value={{ draft, setDraft }}>
       <form
         className="settings__form"
         role="tabpanel"
         aria-labelledby={`settings-tab-${open}`}
+        onSubmitCapture={(event) => {
+          const invalid = invalidPending(draft, keysOf(open))
+          validateTables(event, invalid)
+          if (invalid.length > 0) setConfiguring(true)
+        }}
         onSubmit={(event) => {
           event.preventDefault()
           void save()
@@ -792,6 +800,7 @@ export function SettingsPanel({
         {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
         <SaveBar shown={dirty(open)} canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />
       </form>
+      </TableDraft>
     </aside>
   )
 }

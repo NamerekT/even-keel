@@ -59,6 +59,7 @@ import { offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
+import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsProfiles } from './SettingsProfiles.js'
 import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
@@ -601,6 +602,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <div className={marks.box('allowedHosts')}>
             <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} mark={marks.note('allowedHosts')} />
             <ListTable
+              field="allowedHosts"
               label={t.shared.allowedHosts}
               value={text('allowedHosts')}
               add={t.shared.allowedHostsAdd}
@@ -627,6 +629,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <div className={marks.box('moves')}>
             <FieldHead label={t.shared.moves} hint={t.shared.movesHint} mark={marks.note('moves')} />
             <RowsTable
+              field="moves"
+              encode={(rows) => linesText(rows.map(lineOf))}
               label={t.shared.moves}
               columns={[
                 { title: t.shared.movesFrom, placeholder: examplePaths(state.platform).movedFrom, mono: true },
@@ -645,10 +649,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   }
 
   const draftForm = (titled: boolean) => (
+    <TableDraft value={{ draft, setDraft }}>
     <form
       key={open}
       className={titled ? 'settings__form settings-page__form' : 'settings__form'}
       aria-labelledby={titled ? 'settings-group' : undefined}
+      onSubmitCapture={(event) => validateTables(event, invalidPending(draft, keysOf(open)))}
       onSubmit={(event) => {
         event.preventDefault()
         void save()
@@ -657,8 +663,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       {titled && groupTitle(open)}
       {groups[open]()}
       {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
-      <SaveBar shown={dirty(open)} canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />
+      <SaveBar shown={dirty(open)} canSave={!sending && (next !== undefined || keysOf(open).some((key) => draft.adding?.[key] !== undefined))} onRevert={() => revert(keysOf(open))} />
     </form>
+    </TableDraft>
   )
 
   return (
@@ -736,5 +743,5 @@ function HiddenSkills({ state, value, onChange }: { state: EvenKeelState; value:
         ],
   )
   const suggest = [...new Set(known)].sort((a, b) => a.localeCompare(b))
-  return <ListTable label={t.shared.hiddenSkills} value={value} add={t.shared.hiddenSkillsAdd} empty={t.shared.none} suggest={suggest} mono onChange={onChange} />
+  return <ListTable field="hiddenSkills" label={t.shared.hiddenSkills} value={value} add={t.shared.hiddenSkillsAdd} empty={t.shared.none} suggest={suggest} mono onChange={onChange} />
 }

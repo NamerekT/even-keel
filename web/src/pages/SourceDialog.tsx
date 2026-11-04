@@ -5,6 +5,8 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { SlidersIcon, TrackerIcon } from '../ui/icons.js'
 import { useHeightGlide } from '../ui/useHeightGlide.js'
 import { GroupTabs, UnsavedDot } from './settingsParts.js'
+import { tablesValid, useTableDraft } from './settingsTableDraft.js'
+import { pendingRow } from './settingsDraft.js'
 import '../tools/addPackage.css'
 import './sourceDialog.css'
 
@@ -15,6 +17,7 @@ export interface SourceTab<T extends string = string> {
   render: () => ReactNode
   /** Whether the part holds edits nobody saved. */
   dirty: boolean
+  fields?: readonly string[]
 }
 
 interface SourceDialogProps<T extends string> {
@@ -76,10 +79,12 @@ export function SourceLine({ kind, title, sourceKey, own, dirty, onConfigure, me
  * the top, one save for all of them at the bottom.
  */
 export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, canSave, failure, onSave, onRevert, onClose }: SourceDialogProps<T>) {
+  const tableDraft = useTableDraft()
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
-  const [open, setOpen] = useState<T>(tabs[0]!.id)
+  const invalidTab = tabs.find((each) => each.fields?.some((key) => tableDraft?.draft.adding?.[key]?.valid === false))
+  const [open, setOpen] = useState<T>(invalidTab?.id ?? tabs[0]!.id)
   const tab = tabs.find((each) => each.id === open) ?? tabs[0]!
   const dirty = tabs.some((each) => each.dirty)
   const frame = useRef<HTMLDivElement>(null)
@@ -129,6 +134,16 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, c
             className="button button--primary"
             disabled={!dirty || !canSave}
             onClick={() => {
+              const valid = tablesValid(dialog.current!)
+              if (invalidTab !== undefined && tableDraft !== null) {
+                tableDraft.setDraft((before) => (invalidTab.fields ?? []).reduce((next, key) => {
+                  const row = next.adding?.[key]
+                  return row === undefined ? next : pendingRow(next, key, { ...row, checked: true })
+                }, before))
+                setOpen(invalidTab.id)
+                return
+              }
+              if (!valid) return
               void onSave().then((saved) => {
                 if (saved) onClose()
               })
