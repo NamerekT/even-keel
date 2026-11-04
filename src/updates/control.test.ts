@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, systemUnitOf, windowsControl, windowsServiceOf } from './control.js'
+import { autostartControl, launchdControl, launchdLabelOf, launcherOf, systemdControl, systemdUnitOf, systemUnitOf, windowsControl, windowsServiceOf, windowsStartOf } from './control.js'
 
 describe('launcherOf', () => {
   const exe = 'C:\\Users\\jdoe\\AppData\\Local\\even-keel\\service\\EvenKeel.exe'
@@ -28,6 +28,20 @@ describe('windowsServiceOf', () => {
     expect(windowsServiceOf('"pwsh.exe","4242","N/A"\r\n')).toBeNull()
     expect(windowsServiceOf('INFO: No tasks are running which match the specified criteria.\r\n')).toBeNull()
     expect(windowsServiceOf('')).toBeNull()
+  })
+})
+
+describe('windowsStartOf', () => {
+  const exe = 'C:\\Users\\jdoe\\AppData\\Local\\even-keel\\service\\EvenKeel.exe'
+
+  it('tells the tray host, a Windows service by its name and a terminal apart', () => {
+    expect(windowsStartOf('"EvenKeel.exe","4242","N/A"\r\n', { EVEN_KEEL_LAUNCHER: exe })).toEqual({ by: 'tray' })
+    expect(windowsStartOf('"EvenKeelService.exe","4242","EvenKeel"\r\n', {})).toEqual({ by: 'service', name: 'EvenKeel' })
+    expect(windowsStartOf('"cmd.exe","4242","N/A"\r\n', {})).toEqual({ by: 'console' })
+  })
+
+  it('takes a parent it cannot read for a terminal', () => {
+    expect(windowsStartOf('', {})).toEqual({ by: 'console' })
   })
 })
 

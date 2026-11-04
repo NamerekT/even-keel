@@ -3,7 +3,8 @@ import { homedir } from 'node:os'
 import { fail } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { expandHome } from '../projects/folder.js'
-import type { GitSetupView } from '../state.js'
+import type { GitSetupView, WindowsStart } from '../state.js'
+import { windowsStart } from '../updates/control.js'
 import { runGit } from './run.js'
 import type { Git, GitResult } from './types.js'
 
@@ -55,13 +56,19 @@ export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platfo
 
 const installHere = (): string | null => gitInstallCommand(process.platform, (bin) => onPath(bin))
 
-/** `install` — the command for a machine without git, read only then. */
-export async function readGitSetup(git: Git, home: string, install: () => string | null = installHere): Promise<GitSetupView> {
+/** `install` and `start` — the command and the way Even Keel was started on Windows, for a machine without git, read only then. */
+export async function readGitSetup(
+  git: Git,
+  home: string,
+  install: () => string | null = installHere,
+  start: () => Promise<WindowsStart | null> = windowsStart,
+): Promise<GitSetupView> {
   const started = await git(home, ['--version'])
   const version = started.code === 0 ? (/(\d+(?:\.\d+)+)/.exec(started.out)?.[1] ?? started.out.trim()) : null
   if (version === null) {
     const command = install()
-    return command === null ? { version: null, name: null, email: null } : { version: null, name: null, email: null, install: command }
+    const restart = await start()
+    return { version: null, name: null, email: null, ...(command === null ? {} : { install: command }), ...(restart === null ? {} : { restart }) }
   }
   const [name, email] = await Promise.all(['user.name', 'user.email'].map((key) => configValue(git, home, key)))
   return { version, name: name ?? null, email: email ?? null }

@@ -10,7 +10,7 @@ import { isLanguage } from '../../../src/language.js'
 import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
-import type { EvenKeelState, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, GitSetupView, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
@@ -338,8 +338,11 @@ export function createFakeSource(search: string): LiveSource {
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('platform') && current.state !== null) current.state.platform = params.get('platform')!
-  if (params.get('git') === 'missing' && current.state !== null) current.state.git = { version: null, name: null, email: null, install: 'winget install --id Git.Git -e' }
-  if (params.get('git') === 'bare' && current.state !== null) current.state.git = { version: null, name: null, email: null }
+  const start = params.get('start')
+  const restart: Pick<GitSetupView, 'restart'> =
+    start === 'none' ? {} : { restart: start === 'service' ? { by: 'service', name: 'EvenKeel' } : start === 'console' ? { by: 'console' } : { by: 'tray' } }
+  if (params.get('git') === 'missing' && current.state !== null) current.state.git = { version: null, name: null, email: null, install: 'winget install --id Git.Git -e', ...restart }
+  if (params.get('git') === 'bare' && current.state !== null) current.state.git = { version: null, name: null, email: null, ...restart }
   if (params.get('git') === 'anon' && current.state !== null) current.state.git = { version: '2.47.1', name: null, email: null }
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)

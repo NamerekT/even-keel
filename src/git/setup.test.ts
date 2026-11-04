@@ -7,6 +7,7 @@ import type { GitResult } from './types.js'
 
 const home = 'C:\\Users\\john'
 const MISSING: GitResult = { code: -1, out: 'spawn git ENOENT', missing: true }
+const noStart = async () => null
 
 function fakeGit(answers: Record<string, GitResult> = {}) {
   const calls: string[] = []
@@ -46,14 +47,20 @@ describe('readGitSetup', () => {
 
   it('says git that does not start as no version, and asks nothing more', async () => {
     const { git, calls } = fakeGit({ '--version': MISSING })
-    expect(await readGitSetup(git, home, () => null)).toEqual({ version: null, name: null, email: null })
+    expect(await readGitSetup(git, home, () => null, noStart)).toEqual({ version: null, name: null, email: null })
     expect(calls).toHaveLength(1)
   })
 
   it('gives the command that installs git only when git does not start', async () => {
     const install = () => 'winget install --id Git.Git -e'
-    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, install)).toEqual({ version: null, name: null, email: null, install: 'winget install --id Git.Git -e' })
-    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, install)).not.toHaveProperty('install')
+    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, install, noStart)).toEqual({ version: null, name: null, email: null, install: 'winget install --id Git.Git -e' })
+    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, install, noStart)).not.toHaveProperty('install')
+  })
+
+  it('says how Even Keel was started on Windows only when git does not start: the restart that finds a new git depends on it', async () => {
+    const start = async () => ({ by: 'service', name: 'EvenKeel' }) as const
+    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, () => null, start)).toEqual({ version: null, name: null, email: null, restart: { by: 'service', name: 'EvenKeel' } })
+    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, () => null, start)).not.toHaveProperty('restart')
   })
 })
 

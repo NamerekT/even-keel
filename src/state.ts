@@ -455,7 +455,15 @@ export interface GitSetupView {
   email: string | null
   /** Git does not start: the command that installs it with the package manager found on the service's machine (EKR-54); absent — none found. */
   install?: string
+  /** Git does not start on Windows: how Even Keel was started, which says what makes it see a git installed since. */
+  restart?: WindowsStart
 }
+
+/**
+ * How Even Keel runs on Windows: the tray host and a Windows service read `PATH` anew when they restart node (EKR-57),
+ * node in a terminal keeps that terminal's.
+ */
+export type WindowsStart = { by: 'tray' } | { by: 'service'; name: string } | { by: 'console' }
 
 export interface EvenKeelState {
   protection?: Record<string, import('./ci/protection-model.js').RemoteProtection[]>
