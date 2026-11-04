@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
@@ -208,6 +209,7 @@ public sealed class EvenKeelService : ServiceBase
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        info.EnvironmentVariables["PATH"] = FreshPath();
         if (data != null) info.EnvironmentVariables["EVEN_KEEL_DATA"] = data;
         if (launcher != null) info.EnvironmentVariables["EVEN_KEEL_LAUNCHER"] = launcher;
         try
@@ -246,6 +248,44 @@ public sealed class EvenKeelService : ServiceBase
             Log(who + ": could not start node: " + error.Message);
             return -1;
         }
+    }
+
+    // The host's own environment is frozen at its start, so git or a CLI installed since would stay unseen even after a
+    // Restart (EKR-57). The registry's machine and user PATH are read anew, as Explorer builds it; the inherited entries the
+    // registry lacks (fnm, nvm, Volta, a terminal profile's additions) stay at the end, or node and the CLIs could vanish.
+    string FreshPath()
+    {
+        string inherited = Environment.GetEnvironmentVariable("PATH") ?? "";
+        try
+        {
+            return MergePath(
+                Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine),
+                Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User),
+                inherited);
+        }
+        catch (Exception error)
+        {
+            Log(who + ": could not read PATH from the registry, node keeps the host's own: " + error.Message);
+            return inherited;
+        }
+    }
+
+    // Joins PATH lists in order, dropping empty entries and repeats; entries compare case-insensitively without a trailing '\'.
+    internal static string MergePath(params string[] parts)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new List<string>();
+        foreach (string part in parts)
+        {
+            if (part == null) continue;
+            foreach (string raw in part.Split(';'))
+            {
+                string entry = raw.Trim();
+                if (entry.Length == 0) continue;
+                if (seen.Add(entry.TrimEnd('\\'))) entries.Add(entry);
+            }
+        }
+        return string.Join(";", entries);
     }
 
     internal void Log(string line)
