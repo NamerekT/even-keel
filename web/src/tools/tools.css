@@ -366,6 +366,11 @@
 
 /* The chip in the project head (`ToolsChip`): quiet with only advice, amber with problems */
 
+/* Its tip anchor would hold a body-height line box and drop the chip below the status chip beside it. */
+.tools-chip {
+  display: inline-flex;
+}
+
 .chip--tools {
   display: inline-flex;
   align-items: center;

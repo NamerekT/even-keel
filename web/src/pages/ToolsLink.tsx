@@ -33,7 +33,7 @@ export function ToolsChip({ project, trim, packages }: { project: string; trim: 
     </>
   )
   return (
-    <Tipped tip={tip} inline>
+    <Tipped className="tools-chip" tip={tip} inline>
       <Link
         className={warn ? 'chip chip--link chip--tools chip--tools-warn' : 'chip chip--link chip--tools'}
         to={missing === null ? `/tools?projects=${encodeURIComponent(project)}` : trackerAddPath(project, missing.plugin)}
