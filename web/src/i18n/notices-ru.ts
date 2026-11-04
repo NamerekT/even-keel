@@ -413,6 +413,7 @@ export const noticesRu: NoticeTexts = {
   'huly.clientFailed': () => 'npm не смог установить клиент Huly; проекты на Huly ждут, пока установку не повторят',
   'packages.marketplaceUpdate': (p) => `claude plugin marketplace update ${p.marketplace} не удался`,
   'packages.marketplaceAdd': (p) => `claude plugin marketplace add не смог добавить ${p.marketplace}`,
+  'packages.marketplaceCliMissing': () => 'Claude Code не найден. Установите Claude Code и сделайте его доступным для Even Keel, затем снова добавьте маркетплейс на странице «Аккаунты».',
   'packages.noOwnMarketplace': (p) => `в ${p.dir} нет .claude-plugin/marketplace.json`,
   'packages.upToDate': (p) => `у ${p.name} уже последняя версия`,
   'packages.updated': (p) => `${p.name} обновлён до ${p.version}; идущие задачи остаются на версии, с которой начали`,

@@ -5,6 +5,9 @@
 .account-drawer .drawer__head { padding-right: var(--space-4); }
 .account-provider.ui-card { min-width: 0; }
 .account-provider > .ui-card__head { align-items: center; }
+.account-marketplace { min-width: 0; }
+.account-marketplace__known { color: var(--fg-muted); font-size: var(--text-12); }
+.account-marketplace > .tip { pointer-events: auto; }
 .account-provider .ui-card__title { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); }
 .account-provider__icon {
   display: grid; place-items: center; flex: none; width: 28px; height: 28px; color: var(--fg-muted);

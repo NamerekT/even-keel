@@ -165,6 +165,10 @@ function rawEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
+  if (mode === 'codex-only') {
+    const view = fakeAccount('codex', idle, limits)
+    return { ...view, accounts: view.accounts.filter((entry) => entry.agent === CODEX) }
+  }
   if (mode === 'overage' || mode === 'overage-long' || mode === 'overage-permitted') {
     const base = fakeAccount(mode === 'overage-long' ? 'rows-long' : 'rows', idle, limits)
     const token = fakeAccount('copilot', idle, limits).accounts.find((entry) => entry.key === 'github')!

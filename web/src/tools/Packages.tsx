@@ -8,7 +8,7 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
-import { ImportOffers, Keys, MarketplaceOffer } from './PackagesParts.js'
+import { ImportOffers, Keys } from './PackagesParts.js'
 import { heldLong, problemText, shownPackages } from './packageView.js'
 import './packages.css'
 
@@ -29,7 +29,6 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
       </div>
       {view.gateway !== null && <p className="notice notice--error">{say(view.gateway)}</p>}
       <ImportOffers view={view} projects={projects} />
-      <MarketplaceOffer view={view} />
       {packages.length === 0 ? (
         <p className="tools__muted">{t.packages.empty}</p>
       ) : (
