@@ -52,7 +52,7 @@ export const opencode: AgentAdapter = {
     const onMachine = () => findBinary(system(), env())
     const cli = new OpenCodeCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, OPENCODE)))
     return {
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_OPENCODE_BIN, 170 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_OPENCODE_BIN, 80 * 1_000_000),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),

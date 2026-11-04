@@ -90,7 +90,7 @@ export const claude: AgentAdapter = {
     return {
       updateMarketplace: (home, marketplace, timeout) => updateMarketplace(envOf(home), marketplace, timeout, bin()),
       addMarketplace: (home, dir, timeout) => addMarketplace(envOf(home), dir, timeout, bin()),
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CLAUDE_BIN, 280 * 1_000_000, sdkCopy),
+      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CLAUDE_BIN, 340 * 1_000_000, sdkCopy),
       mode: SESSION_MODE,
       env: envOf,
       launch: async (home, start) => {

@@ -21,7 +21,7 @@ export function sdkModuleIn(folder: string): string {
 
 /**
  * Downloads the SDK's npm package of `version` into `into`, checked against the registry's sha512. Only the package
- * itself: its optional platform packages carry a CLI of their own (~280 MB), and the session runs on Even Keel's copy.
+ * itself: its optional platform packages carry a CLI of their own (~340 MB), and the session runs on Even Keel's copy.
  */
 export async function fetchSdk(version: string, into: string, progress?: import('../../agent/download.js').DownloadProgress): Promise<void> {
   await fetchNpmPackage(PACKAGE, version, into, progress)
