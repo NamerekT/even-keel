@@ -311,7 +311,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             )}
             {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
               <div className="notice notice--warn project-add__trust">
-                <p>{t.wizard.untrusted}</p>
+                <p>{repoCheck.platform === 'win32' ? t.wizard.untrustedWin : t.wizard.untrusted}</p>
                 <TrustCommands place={{ ...repoCheck, folder: repoCheck.repo.root }} />
               </div>
             )}

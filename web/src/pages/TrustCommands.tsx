@@ -74,7 +74,7 @@ export function TrustWarning({ project, account }: { project: string; account: s
   if (trust === null || trust.trusted) return null
   return (
     <div className="notice notice--warn project-add__trust">
-      <p>{t.settings.untrusted}</p>
+      <p>{trust.platform === 'win32' ? t.settings.untrustedWin : t.settings.untrusted}</p>
       <TrustCommands place={trust} />
     </div>
   )
