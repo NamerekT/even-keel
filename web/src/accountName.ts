@@ -42,9 +42,10 @@ export function folderLabel(view: AccountView | undefined, key: string): string 
   return entry === undefined ? key : accountName(entry, view!.accounts)
 }
 
-/** The account a session's record names: by its folder key, else by its e-mail; `undefined` once it is gone. */
-export function accountOf(view: AccountView | undefined, account: string): AccountEntry | undefined {
-  return view?.accounts.find((entry) => entry.key === account) ?? view?.accounts.find((entry) => entry.status?.email === account)
+/** The account a session names: by folder key, else by e-mail within its agent when known; undefined once gone. */
+export function accountOf(view: AccountView | undefined, account: string, agent?: string): AccountEntry | undefined {
+  return view?.accounts.find((entry) => entry.key === account)
+    ?? view?.accounts.find((entry) => entry.status?.email === account && (agent === undefined || entry.agent === agent))
 }
 
 /**

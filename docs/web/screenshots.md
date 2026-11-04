@@ -2,6 +2,8 @@
 
 ## Screenshots (`npm run shot`)
 
+`?header=sessionAccounts` supplies Claude and Codex accounts with the same e-mail and distinct names, with ABC-5 running on Codex by e-mail. Open ABC-5's session list, its session record and its chat to check account pills. Suffixes `-long`, `-missing` and `-empty` exercise a long OpenAI name, a missing Codex account and a session without an account.
+
 `?account=connections` supplies every connection of every agent at once (BTN-576): Claude Max and Pro, an Anthropic key, ChatGPT Plus, Pro without five hours and Free with a month, OpenAI keys without credits (the problem band's paths), two Zen folders, OpenCode on ChatGPT, on Copilot and on both keys, and both Copilot sign-ins. Use it for the agent cards and connection groups on `/accounts` and in the drawer.
 
 `?account=opencodeCopilot` supplies an OpenCode folder holding only Copilot (with a monthly allowance) and a mixed Copilot/API-key folder. Shared settings select the former so `/setup?step=agent` and the project wizard show it as unsupported. Use it to check the accounts page/drawer, disabled account choices and the OpenCode add dialog without changing a real sign-in.

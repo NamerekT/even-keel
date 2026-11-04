@@ -8,11 +8,11 @@ import { seriesStyle } from './series.js'
  * The account a session ran on, by its folder key or e-mail: a pill in the account's colour with its name (`accountName`),
  * the key and e-mail in the tip. One no longer listed shows the e-mail's name part.
  */
-export function AccountTag({ account }: { account: string | null | undefined }) {
+export function AccountTag({ account, agent }: { account: string | null | undefined; agent?: string }) {
   const { state } = useLive()
   if (account == null) return null
   const view = state?.account
-  const entry = accountOf(view, account)
+  const entry = accountOf(view, account, agent)
   const at = account.lastIndexOf('@')
   const name = entry === undefined ? (at > 0 ? account.slice(0, at) : account) : accountName(entry, view!.accounts)
   const tip = entry === undefined ? account : [...new Set([entry.key, entry.status?.email ?? entry.key])].join(' · ')
