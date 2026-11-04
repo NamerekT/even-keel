@@ -80,7 +80,7 @@ interface SentLine {
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
-  const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl } = useLive()
+  const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const listRef = useRef<HTMLDivElement>(null)
@@ -227,7 +227,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
           <h2 className="panel__task">
             <span className="panel__key">{chat?.task ?? sessionId.slice(0, 8)}</span>
             <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
-            <AccountTag account={account} />
+            <AccountTag account={account} agent={chat?.session.agent ?? state?.sessions.find((session) => session.sessionId === sessionId)?.agent} />
           </h2>
           <HeadFacts session={chat?.session ?? null} scale={chat?.scale ?? null} edits={edits} />
           {chat?.review !== undefined && <PullButton review={chat.review} compact />}

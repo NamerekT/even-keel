@@ -136,3 +136,28 @@ describe('folderLabel and accountOptions', () => {
     ])
   })
 })
+
+describe('accountOf with a session agent', () => {
+  const email = 'john.doe@example.com'
+  const claude = entry('global', 'claude', email, { name: 'Claude account' })
+  const codex = entry('codex', 'codex', email, { name: 'OpenAI account' })
+  const view: AccountView = { active: 'global', accounts: [claude, codex], login: null, loginBlock: null, apps: [], pool: [], missing: [] }
+
+  it('selects the account of the session agent when e-mails match', () => {
+    expect(accountOf(view, email, 'codex')).toBe(codex)
+    expect(accountOf({ ...view, accounts: [codex, claude] }, email, 'claude')).toBe(claude)
+  })
+
+  it('does not borrow another agent\'s account when its own is missing', () => {
+    expect(accountOf(view, email, 'copilot')).toBeUndefined()
+    expect(accountOf({ ...view, accounts: [{ ...codex, status: null }] }, email, 'codex')).toBeUndefined()
+    expect(accountOf(undefined, email, 'codex')).toBeUndefined()
+  })
+
+  it('preserves folder priority and the lookup for records without an agent', () => {
+    expect(accountOf(view, 'global', 'codex')).toBe(claude)
+    expect(accountOf(view, email)).toBe(claude)
+    expect(accountOf(view, email, undefined)).toBe(claude)
+    expect(accountOf({ ...view, accounts: [codex, { ...codex, key: 'spare' }] }, email, 'codex')).toBe(codex)
+  })
+})

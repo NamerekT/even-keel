@@ -3,6 +3,7 @@ import type { ReceivedView, SkillSource, ToolsView } from '../../../src/tools/mo
 import { formatAgo } from '../format.js'
 import { t } from '../i18n/index.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { useLive } from '../live/context.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Chip } from './SettingsMatrix.js'
 
@@ -26,11 +27,12 @@ export function LastSessions({ views }: { views: ToolsView[] }) {
 }
 
 function Received({ received }: { received: ReceivedView }) {
+  const { state } = useLive()
   const ago = received.at === null ? '' : formatAgo(received.at, new Date())
   return (
     <>
       <p className="tools__muted tools__meta">
-        <AccountTag account={received.account} />
+        <AccountTag account={received.account} agent={state?.sessions.find((session) => session.sessionId === received.sessionId)?.agent} />
         {t.tools.meta(ago, received.version, received.mode)}
       </p>
       {received.cwd !== null && (

@@ -6,6 +6,18 @@ import { fakeAccount, FAKE_LIMITS } from './fakeAccounts.js'
 /** Read-only header fixtures exercise the server's selector too; the rendered page never chooses accounts. */
 export function prepareHeaderLevels(state: EvenKeelState, mode: string | null): EvenKeelState {
   if (!mode) return state
+  if (mode.startsWith('sessionAccounts')) {
+    const account = fakeAccount('codex', false, FAKE_LIMITS)
+    account.accounts = account.accounts
+      .filter((entry) => mode !== 'sessionAccounts-missing' || entry.agent !== 'codex')
+      .map((entry) => ({ ...entry, name: entry.key === 'global' ? 'Claude account' : entry.key === 'codex'
+        ? mode === 'sessionAccounts-long' ? 'OpenAI account with a deliberately long display name for session history' : 'OpenAI account'
+        : entry.name }))
+    const sessions = state.sessions.map((session) => session.task !== 'ABC-5' ? session : {
+      ...session, agent: 'codex', model: 'gpt-6.1-sol', account: mode === 'sessionAccounts-empty' ? null : 'john.doe@example.com',
+    })
+    return { ...state, account, sessions }
+  }
   const account = fakeAccount('opencode', false, FAKE_LIMITS)
   const shared: SharedForm = { ...state.config.shared, accounts: { ...state.config.shared.accounts, opencode: 'opencode' }, modelLabels: true, provider: mode === 'three' || mode === 'long' || mode === 'tokens' ? 'codex' : 'claude' }
   account.active = shared.accounts[shared.provider]!
