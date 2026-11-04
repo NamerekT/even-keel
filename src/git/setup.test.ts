@@ -92,10 +92,11 @@ describe('gitInstallCommand', () => {
 
 describe('onPath', () => {
   it('finds a package manager on the PATH without starting it', () => {
+    // The host's own platform: a real folder of a Linux runner read as win32 joins to a path that is not there.
     const dir = folder()
-    writeFileSync(join(dir, 'winget.exe'), '')
-    expect(onPath('winget', { PATH: dir }, 'win32')).toBe(true)
-    expect(onPath('brew', { PATH: dir }, 'win32')).toBe(false)
+    writeFileSync(join(dir, process.platform === 'win32' ? 'winget.exe' : 'winget'), '')
+    expect(onPath('winget', { PATH: dir })).toBe(true)
+    expect(onPath('brew', { PATH: dir })).toBe(false)
   })
 })
 
