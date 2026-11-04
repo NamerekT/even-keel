@@ -190,7 +190,6 @@ export const ru = {
     noData: 'нет данных',
     left: (count: number) => `осталось ${count}`,
     used: (count: number) => `использовано ${count}`,
-    leftShort: (count: number) => `ост. ${count}`,
     usedShort: (count: number) => `исп. ${count}`,
     empty: (title: string, source: string) => `${title}: нет данных${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: сброс через ${resetIn}${source}`,

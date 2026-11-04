@@ -153,7 +153,8 @@ function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSp
   const heat = entry.limitsOutdated ? ' account-value--outdated' : percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
   const reset = window === null ? '' : formatSpan(window.resetsAt, now)
   const source = entry.limits === null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
-  const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
+  const count = window === null || (window.left === undefined && window.used === undefined) ? null : windowValue(window, percent)
+  const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), count, source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
   return <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">

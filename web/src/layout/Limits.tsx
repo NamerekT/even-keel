@@ -17,9 +17,9 @@ export function usualSpans(limits: RateLimits | null | undefined): boolean {
   return limitSpans(limits).join() === 'fiveHour,sevenDay'
 }
 
-/** A window's number: what is left of a counted allowance, what was spent of one of unknown size, else the share used. Short words for a narrow column. */
+/** A window's number: what is left of a counted allowance, what was spent of one of unknown size, else the share used. A narrow column gets what is left as the bare number. */
 export function windowValue(window: LimitWindow, percent: number, short = false): string {
-  if (window.left !== undefined) return short ? t.limits.leftShort(window.left) : t.limits.left(window.left)
+  if (window.left !== undefined) return short ? String(window.left) : t.limits.left(window.left)
   if (window.used !== undefined) return short ? t.limits.usedShort(window.used) : t.limits.used(window.used)
   return `${percent}%`
 }
