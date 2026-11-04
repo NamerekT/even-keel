@@ -1,4 +1,4 @@
-import { PROVIDERS } from '../../../src/agent/providers.js'
+import { isProvider, PROVIDERS } from '../../../src/agent/providers.js'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
 import { notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
@@ -12,10 +12,10 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
   if (!mode) return state
   if (mode === 'fresh') return freshInstall(state, params)
   const provider = params.get('copyAgent') ?? 'claude'
-  const cliCopies = Object.fromEntries(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
+  const copies = new Map(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
     version: VERSIONS[agent]!, source: 'checked', status: 'ready', system: true, installed: INSTALLED[agent]!, received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
   }]))
-  const copy = cliCopies[provider]
+  const copy = copies.get(provider)
   if (!copy) return state
   copy.status = mode === 'downloading' ? 'downloading' : mode === 'failed' ? 'failed' : mode === 'ready' ? 'ready' : 'missing'
   copy.source = mode === 'failed' || mode === 'system-missing' ? 'system' : 'checked'
@@ -23,9 +23,9 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
   if (!copy.system) copy.installed = null
   copy.received = mode === 'downloading' ? 96_000_000 : 0
   copy.total = mode === 'downloading' ? copy.approximate : 0
-  const other = cliCopies[params.get('copyFailed') ?? '']
+  const other = copies.get(params.get('copyFailed') ?? '')
   if (other && other !== copy) Object.assign(other, { status: 'failed', source: 'system' })
-  const next = { ...state, cliCopies, config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [provider]: copy.source } } } }
+  const next = { ...state, cliCopies: Object.fromEntries(copies), config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [provider]: copy.source } } } }
   const blocked = copy.source === 'checked' && copy.status !== 'ready'
   return {
     ...next,
@@ -56,6 +56,7 @@ export function fakeCliCommand(state: EvenKeelState, name: string, body: Record<
   if (!name.startsWith('cli/')) return null
   if (name === 'cli/check') return state
   const agent = String(body.agent)
+  if (!isProvider(agent)) throw new Error('Unknown agent')
   const copy = state.cliCopies?.[agent]
   if (!copy) throw new Error('Unknown agent')
   const source = name === 'cli/system' ? 'system' : 'checked'
@@ -72,6 +73,7 @@ export function syncFakeCliSources(state: EvenKeelState): EvenKeelState {
 }
 
 export function finishFakeCli(state: EvenKeelState, agent: string): EvenKeelState {
+  if (!isProvider(agent)) return state
   const copy = state.cliCopies?.[agent]
   if (!copy || copy.status !== 'downloading') return state
   return { ...state,
