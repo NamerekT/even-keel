@@ -247,6 +247,7 @@ export const en = {
   // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none.
   'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean }) =>
     `Claude Code does not trust ${p.folder} yet, so ${p.task} was not started. Run claude in that folder once as ${p.user}, accept the trust and resume the chain`,
+  'claude.trustWriteFailed': (p: { folder: string }) => `Could not save Claude Code trust for ${p.folder}. Check that Claude's account configuration is valid and writable, then check again and resume. You can turn off Trust folder in Project settings → Sessions to accept trust manually`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,
   'claude.resumedNotShown': (p: { task: string }) => `claude: ${p.task} was resumed but did not show up in claude agents`,

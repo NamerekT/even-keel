@@ -1,4 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { Transport } from '../account/transport.js'
@@ -22,6 +23,7 @@ import { claudeBinaryIn, claudeLatest, fetchClaude } from './release.js'
 import { SdkSessions } from './sdk/host.js'
 import { SDK_KIND } from './sdk/registry.js'
 import { fetchSdk, sdkModuleIn, sdkVersionOf } from './sdk/release.js'
+import { trustFolder } from './trust.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
 const CHECKED = '2.1.317'
@@ -95,11 +97,13 @@ export const claude: AgentAdapter = {
       env: envOf,
       launch: async (home, start) => {
         if (viaSdk(home)) return sdk.launch(home, start)
+        if (start.trustedRepo !== undefined) trustFolder(envOf(home).CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(home.dir, '.claude.json'), start.trustedRepo)
         const { name, cwd, prompt, model, settings, mcp, plugins } = start
         return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
       },
       resume: async (home, { agentId, sessionId }, start) => {
         if (await sdk.knows(sessionId)) return sdk.resume(home, sessionId, start)
+        if (start.trustedRepo !== undefined) trustFolder(envOf(home).CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(home.dir, '.claude.json'), start.trustedRepo)
         const { name, cwd, prompt, model, settings, mcp, plugins } = start
         return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
       },

@@ -41,7 +41,8 @@ import { TableDraft, tablesValid } from './settingsTableDraft.js'
 import { setupLine } from './Setup.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
-import { TrustCommands } from './TrustCommands.js'
+import { TrustCommands, TrustConsent } from './TrustCommands.js'
+import { trustTexts } from '../i18n/trust.js'
 import { checkMarks } from './wizard.js'
 import { StepDot, WizardFoot, WizardFrame } from './WizardFrame.js'
 import { TrackerStep } from './WizardTracker.js'
@@ -317,7 +318,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 }
               />
             )}
-            {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
+            {(agent === 'claude' || state.config.shared.modelLabels) && <TrustConsent checked={fields.trustClaude} onChange={(trustClaude) => set({ trustClaude })} />}
+            {repoCheck?.trusted === false && fields.trustClaude && <p className="settings__hint">{trustTexts().pending}</p>}
+            {repoCheck?.trusted === false && !fields.trustClaude && repoCheck.repo.root !== null && (
               <div className="notice notice--warn project-add__trust">
                 <p>{repoCheck.platform === 'win32' ? t.wizard.untrustedWin : t.wizard.untrusted}</p>
                 <TrustCommands place={{ ...repoCheck, folder: repoCheck.repo.root }} />

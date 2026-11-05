@@ -8,7 +8,7 @@ The area is split by subtopic, a file each in `docs/sessions/`: read this table,
 
 | File | What is in it |
 | --- | --- |
-| [`agents.md`](sessions/agents.md) | Agent adapters; Stopping a turn; CLI and transcripts |
+| [`agents.md`](sessions/agents.md) | Agent adapters; Claude folder trust; Stopping a turn; CLI and transcripts |
 | [`codex.md`](sessions/codex.md) | Codex |
 | [`opencode.md`](sessions/opencode.md) | OpenCode; OpenCode (research) |
 | [`copilot.md`](sessions/copilot.md) | GitHub Copilot; GitHub Copilot CLI (research) |

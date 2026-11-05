@@ -14,7 +14,7 @@ describe('untrustedStart', () => {
 
   it('leaves any other failure as it is', () => {
     expect(untrustedStart(fail('claude.startFailed', { task: 'GLS-4', cwd: 'D:\\gls' }, { detail: 'spawn ENOENT' }), place)).toBeNull()
-    expect(untrustedStart(fail('claude.resumeFailed', { task: 'GLS-4', cwd: 'D:\\gls' }, { detail: refusal }), place)).toBeNull()
+    expect(noticeOf(untrustedStart(fail('claude.resumeFailed', { task: 'GLS-4', cwd: 'D:\\gls' }, { detail: refusal }), place)).code).toBe('claude.untrusted')
     expect(untrustedStart(new Error(refusal), place)).toBeNull()
   })
 })

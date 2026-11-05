@@ -218,6 +218,7 @@ export const noticesRu: NoticeTexts = {
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.untrusted': (p) =>
     `Claude Code ещё не доверяет папке ${p.folder}, поэтому ${p.task} не запущена. Выполните claude в этой папке от пользователя ${p.user}, примите доверие и продолжите цепочку`,
+  'claude.trustWriteFailed': (p) => `Не удалось сохранить доверие Claude Code к ${p.folder}. Проверьте корректность и доступность записи настроек аккаунта Claude, затем проверьте снова и продолжите цепочку. Для ручного подтверждения выключите «Доверять папке» в настройках проекта → Сессии`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,
   'claude.resumedNotShown': (p) => `${p.task} продолжена, но не появилась в claude agents`,

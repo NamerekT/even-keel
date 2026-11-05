@@ -178,6 +178,7 @@ const context = (key: 'window' | 'warn' | 'danger'): SettingDefinition => ({
 
 /** Every setting of Even Keel, in the order of the file. Project record fields (`id`, `key`, `name`, `repo`, `branch`, the tracker's project) are not here. */
 export const DEFINITIONS: readonly SettingDefinition[] = [
+  { key: 'trustClaude', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('trustClaude') },
   { key: 'protection', kind: 'json', scopes: ['global', 'project'], lands: ['protection', 'settings'], default: DEFAULT_PROTECTION, check: (value, place) => {
     const invalid = () => fail('config.protection', { where: at(place, 'protection') })
     if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalid()

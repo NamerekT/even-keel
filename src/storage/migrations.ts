@@ -150,6 +150,7 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const cli = version < 21 ? cliChecked(groups) : groups
   const sdk = version < 22 ? sdkChecked(cli) : cli
   // v23 → v24: a project's `statusMoves` and a feed's `moves` (BTN-554) are optional; the restamp above is all it takes.
+  // v24 → v25: optional project consent `trustClaude`; omitted means false, so existing projects keep manual trust.
   return version < 23 ? feedsRuled(sdk) : sdk
 }
 
