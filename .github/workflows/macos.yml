@@ -21,7 +21,27 @@ permissions:
   contents: read
 
 jobs:
+  # On Ubuntu, so that a push of a commit already green here waits for no Mac runner (docs/ci.md, "A commit already
+  # green").
+  already-green:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      green: ${{ steps.runs.outputs.green }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: runs
+        run: sh scripts/ci-already-green.sh "${{ github.event_name }}" "${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   test:
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: macos-latest
     timeout-minutes: 20
 
@@ -48,6 +68,8 @@ jobs:
 
   e2e:
     name: e2e (${{ matrix.shard }}/3)
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: macos-latest
     timeout-minutes: 20
     strategy:
@@ -77,6 +99,8 @@ jobs:
   # the checkout's .env, then uninstall.sh and the agent gone. If launchd does not start the agent on a runner, the
   # job says so; it is not worked around.
   service:
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: macos-latest
     timeout-minutes: ${{ inputs.debug && 90 || 20 }}
     env:
