@@ -7,6 +7,12 @@ const refusal =
   'Workspace not trusted. Run claude in D:\\gls\\.claude\\worktrees\\gls-4 once and accept the trust prompt, then retry.'
 
 describe('untrustedStart', () => {
+  it('carries the failed invocation context into the stored trust notice', () => {
+    const recovery = { binary: 'D:/checked/claude.exe', configDir: 'D:/accounts/one' }
+    const error = fail('claude.startFailed', { task: place.task, cwd: place.folder, recovery }, { detail: refusal })
+    expect(noticeOf(untrustedStart(error, place))).toEqual({ code: 'claude.untrusted', params: { ...place, recovery } })
+  })
+
   it("turns the CLI's refusal of an untrusted folder into a notice of its own, naming the project's folder (BTN-429)", () => {
     const error = fail('claude.startFailed', { task: 'GLS-4', cwd: 'D:\\gls\\.claude\\worktrees\\gls-4' }, { detail: `Error: ${refusal}\n` })
     expect(noticeOf(untrustedStart(error, place))).toEqual({ code: 'claude.untrusted', params: place })
