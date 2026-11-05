@@ -765,7 +765,8 @@ const SHORT_COMMIT = 7
 
 function fixTitle(episode: FixEpisode): string {
   const short = (commit: string | null) => commit?.slice(0, SHORT_COMMIT) ?? null
-  return episode.end?.how === 'landed' ? t.chain.fixLanded(short(episode.red), short(episode.end.commit)) : t.chain.fixDropped(short(episode.red))
+  if (episode.end?.how === 'landed') return t.chain.fixLanded(short(episode.red), short(episode.end.commit))
+  return episode.end?.how === 'unneeded' ? t.chain.fixUnneeded(short(episode.red)) : t.chain.fixDropped(short(episode.red))
 }
 
 function carryTitle(state: Pick<EvenKeelState, 'projectKeys' | 'projectLabels'>, episode: FixEpisode): string {

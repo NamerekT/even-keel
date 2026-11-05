@@ -227,6 +227,7 @@ export const chainEN: Messages['chain'] = {
     fix: 'Fixing main',
     fixLanded: (red: string | null, commit: string | null) => (commit === null ? fixOf(red) : `${fixOf(red)} → ${commit}`),
     fixDropped: (red: string | null) => `${fixOf(red)} — dropped, main stayed as it was`,
+    fixUnneeded: (red: string | null) => `${fixOf(red)} — nothing to fix, green on a rerun`,
     carry: (release: string) => `Carry of ${release}: the agent resolves the conflict`,
     carryAsked: (release: string) => `Carry of ${release}: the agent will resolve the conflict`,
     carried: (release: string, commits: number) => `Carry of ${release}: ${counted('commit', 'commits')(commits)}`,

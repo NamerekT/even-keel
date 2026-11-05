@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Git } from '../git/types.js'
 import { fail } from '../notice/notice.js'
 import type { CiJob, CiRun, CiSource } from './model.js'
-import { CiWatch, ERROR_RETRY_MS, POLL_MS, PUSH_WINDOW_MS } from './watcher.js'
+import { CiWatch, ERROR_RETRY_MS, POLL_MS, PUSH_WINDOW_MS, WANT_MS } from './watcher.js'
 import type { CiTarget } from './remote.js'
 
 const TARGET = { kind: 'forgejo' as const, remote: 'origin', web: 'https://forgejo.example.com', owner: 'john', repo: 'app' }
@@ -126,6 +126,27 @@ describe('CiWatch', () => {
     t.advance(POLL_MS * 10)
     await t.watch.tick()
     expect(t.calls.runs).toBe(1)
+  })
+
+  it('polls a finished history while the chain wants a fresh verdict, as for a rerun (EKR-88), and goes quiet once it stops asking', async () => {
+    const t = setup({ runs: [run(2, { status: 'failure' }), run(1)] })
+    await t.watch.tick()
+    t.advance(POLL_MS)
+    t.watch.want()
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(2)
+    expect(t.watch.view.current?.run.status).toBe('failure')
+
+    t.setRuns([run(2), run(1)])
+    t.advance(POLL_MS)
+    t.watch.want()
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(3)
+    expect(t.watch.view.current?.run.status).toBe('success')
+
+    t.advance(WANT_MS + POLL_MS)
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(3)
   })
 
   it('watches the remote’s copy of the project’s main branch, main by default', async () => {

@@ -184,6 +184,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         '- Задачи в трекере на эту починку нет: не заводи её и статусы не трогай, в сообщениях коммитов ID задач не пиши.',
         fill`- Починку слей в ${main} основного чекаута (git merge --no-edit в основной рабочей копии). Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel, он же проверит пуш.`,
+        fill`- Если код не сломан (сбой раннера или инфраструктуры, нестабильный тест) — чинить нечего: перезапусти упавшие прогоны, если CI это позволяет, оставь ветку без коммитов сверх ${main} и с пустым git status и закончи ход последней строкой \`NO CHANGES: <одна строка — почему>\`. Even Keel заново спросит вердикт по красному коммиту: зелёный — починка закрыта и цепочка идёт дальше, красный — цепочка ждёт пользователя.`,
         '- Перед концом хода останови свои фоновые команды (циклы ожидания, наблюдение за логом CI): пока они работают, Even Keel считает тебя занятым.',
       ].join('\n'),
     mainFixed: (red, fixed, main) =>
@@ -296,6 +297,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         '- There is no tracker task for this fix: do not create one or move statuses, and put no task id into commit messages.',
         fill`- Merge the fix into ${main} of the main checkout (git merge --no-edit in the main working copy). After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up and checks the push.`,
+        fill`- If the code is not broken (a runner or infrastructure failure, a flaky test), there is nothing to fix: rerun the failed runs if the CI allows it, leave the branch with no commits beyond ${main} and git status clean, and end the turn with the last line \`NO CHANGES: <one line — why>\`. Even Keel asks for the verdict on the red commit again: green — the fix is closed and the chain goes on; red — the chain waits for the user.`,
         '- Before you end the turn, stop your background commands (wait loops, watching a CI log): while they run, Even Keel takes you for busy.',
       ].join('\n'),
     mainFixed: (red, fixed, main) =>

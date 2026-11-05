@@ -167,10 +167,11 @@ export interface Shelved {
 export type ReleaseReason = 'postpone' | 'skip'
 
 /**
- * How the fix of a red main ended (BTN-153): its branch landed in main, or the user gave it up and main stayed as it
- * was; how a carry ended (BTN-369): the release commits are in the branch, or it was given up.
+ * How the fix of a red main ended (BTN-153): its branch landed in main, the user gave it up and main stayed as it
+ * was, or its session found nothing to fix and the red commit turned green, as after a rerun (EKR-88); how a carry
+ * ended (BTN-369): the release commits are in the branch, or it was given up.
  */
-export type FixOutcome = 'landed' | 'dropped' | 'carried'
+export type FixOutcome = 'landed' | 'dropped' | 'unneeded' | 'carried'
 
 /**
  * Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. `credit` —
@@ -408,6 +409,8 @@ export interface MainCheckDeps {
   head: (project: string) => Promise<string | null>
   /** What the project's counted CIs say of a commit pushed at `since`. */
   verdict: (project: string, commit: string, since: string) => CiVerdict
+  /** The project's counted CIs are asked again for a while, though no run is under way: a rerun may change a verdict (EKR-88). */
+  lookAgain: (project: string) => void
   /** The remote's main by project, where the project's counted CIs have read it and agree on it (BTN-707). */
   remoteHeads: () => Record<string, string>
   /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */

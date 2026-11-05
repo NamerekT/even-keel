@@ -159,6 +159,25 @@ export class MainCheck {
     return gate.check?.commit ?? gate.local?.commit ?? gate.green ?? null
   }
 
+  /**
+   * The verdict on the red commit the fix session is for, asked again once its session finds nothing to fix (EKR-88):
+   * `green` — a rerun passed, main counts as green and the fix is over; `red` — still red; `waiting` — no verdict yet.
+   */
+  refixed(project: string): 'green' | 'red' | 'waiting' {
+    const gate = this.state.ci[project]
+    const fix = gate?.fix
+    if (gate === undefined || fix?.report === undefined) return 'waiting'
+    const verdict = this.deps.verdict(project, fix.commit, fix.at)
+    if (verdict.state !== 'green') {
+      // The runs of the commit are over: without a fresh look a rerun would never be seen.
+      this.deps.lookAgain(project)
+      return verdict.state === 'red' ? 'red' : 'waiting'
+    }
+    delete gate.fix
+    this.passed(project, gate, { commit: fix.commit, at: fix.at, tasks: [] }, 'is green after all, the fix session found nothing to fix')
+    return 'green'
+  }
+
   /** The user gave the fix session up: main stays as it is. */
   dropFix(project: string): void {
     delete this.state.ci[project]?.fix

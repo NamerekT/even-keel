@@ -120,7 +120,8 @@ GitLab uses `GET /api/v4/projects/<encoded full path>/pipelines` with `ref=<bran
 - it has never asked (startup);
 - the ref moved since the last tick — a push; then for `PUSH_WINDOW_MS` (10 min) until a run of that commit, or one created after the push, shows up;
 - a run is unfinished — every `POLL_MS` (15 s);
-- the last call failed — every `ERROR_RETRY_MS` (60 s).
+- the last call failed — every `ERROR_RETRY_MS` (60 s);
+- the chain asked for a fresh look (`CiWatch.want`, EKR-88: a fix session found nothing to fix and may have rerun the red commit's runs) — every `POLL_MS` for `WANT_MS` (2 min) after the last ask; the chain asks again on each step while it waits.
 
 A finished run's jobs are not fetched again. The tasks of a run are the ids in `git log <previous run's commit>..<run's commit>` subjects, at most `TASK_COMMITS` commits, read once per run.
 

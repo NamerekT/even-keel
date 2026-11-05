@@ -26,6 +26,9 @@ export interface FixHost {
 // work while it runs. The session of the current task that was mid-turn is stopped for it (invariant 1,
 // exception 7) and goes on with a message once the fix is judged.
 export class MainFix {
+  /** The verdict last seen on the red commit of a fix session that found nothing to fix, for one log line per change. */
+  private readonly verdicts = new Map<string, 'green' | 'red' | 'waiting'>()
+
   constructor(
     private readonly state: ChainState,
     private readonly deps: DispatcherDeps,
@@ -80,6 +83,30 @@ export class MainFix {
     } else if (isFixName(current.task)) {
       this.ended(chain, 'dropped', null)
     }
+    chain.current = null
+    this.deps.save(this.state)
+    return true
+  }
+
+  /**
+   * The fix session marked `NO CHANGES:` with a clean branch (EKR-88): main was not broken — a runner failed, a flake —
+   * and the session may have rerun the failed jobs. `true` — the red commit is green now, the fix is over and cleaned up;
+   * `false` — the verdict is still awaited or still red, and the chain waits for the session as for any other turn.
+   */
+  async unneeded(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
+    const { project } = chain
+    const fix = this.main.sessionFix(project)
+    if (fix === undefined || fix.task !== current.task) return false
+    const verdict = this.main.refixed(project)
+    if (this.verdicts.get(current.task) !== verdict) {
+      this.verdicts.set(current.task, verdict)
+      if (verdict !== 'green') this.deps.log(`chain: ${project}: the fix session ${current.task} found nothing to fix, and ${shortCommit(fix.commit)} is ${verdict === 'red' ? 'still red; it waits for the user' : 'not judged again yet'}`)
+    }
+    if (verdict !== 'green') return false
+    await this.host.closeUp(project, fix.task)
+    forgetSkipped(this.state, project, fix.task)
+    if (chain.interrupted !== undefined) chain.interrupted.fixed = fix.commit
+    this.ended(chain, 'unneeded', fix.commit)
     chain.current = null
     this.deps.save(this.state)
     return true
@@ -173,6 +200,7 @@ export class MainFix {
   /** The launch log keeps how the fix ended, for its line in the chain's archive. */
   private ended(chain: ActiveChain, how: FixOutcome, commit: string | null): void {
     const current = chain.current!
+    this.verdicts.delete(current.task)
     const entry: LaunchEntry = { at: this.deps.now().toISOString(), project: chain.project, task: current.task, sessionId: current.sessionId ?? '', reason: how }
     if (commit !== null) entry.commit = commit
     this.deps.journal(entry)

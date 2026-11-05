@@ -106,6 +106,46 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     expect(calls('resume')).toEqual([])
   })
 
+  /** ABC-1 lands red; the fix session plays `fixer`, ABC-2 waits for the fix. */
+  const redAfterOne = async () => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.agent.script('ABC-1', commitAndMerge('one.txt'))
+    run.agent.script('ABC-2', commitAndMerge('two.txt'))
+    run.agent.script(fix, fixer)
+    run.ci.outcome = (subject) => (subject.includes('[ABC-1]') ? 'failure' : 'success')
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => calls('launch', fix).length === 1, 'the fix session launched')
+  }
+
+  it('closes a fix session that finds nothing to fix once its rerun of the red commit is green (EKR-88)', async () => {
+    fixer = async () => {
+      run.ci.finish('[ABC-1]', 'success')
+      return { noChanges: 'no runner took the jobs; they are rerun' }
+    }
+    await redAfterOne()
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done after the fix')
+    expect(run.log.some((line) => line.includes('chain: ABC-FIX found nothing to fix, main is green at'))).toBe(true)
+    expect(calls('launch', fix)).toHaveLength(1)
+    expect(launched()).toEqual(['ABC-1', fix, 'ABC-2'])
+    expect(calls('stop', fix)).toHaveLength(1)
+  })
+
+  it('keeps a fix session that finds nothing to fix while the red commit stays red, and goes on once a later rerun is green (EKR-88)', async () => {
+    fixer = ends({ noChanges: 'no runner took the jobs' })
+    await redAfterOne()
+    await run.until(() => run.agent.sessionsOf(fix)[0]?.resting === true, 'the turn of the fix session over')
+    await run.pass(5 * 60_000)
+    expect(chain()?.current?.task).toBe(fix)
+    expect(calls('launch', 'ABC-2')).toEqual([])
+    expect(run.log.some((line) => line.includes('found nothing to fix, and') && line.includes('is still red; it waits for the user'))).toBe(true)
+
+    run.ci.finish('[ABC-1]', 'success')
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done after the rerun')
+    expect(calls('launch', fix)).toHaveLength(1)
+  })
+
   it('goes on after the fix on an account with no e-mail, the stopped session resumed (BTN-537)', async () => {
     run.agent.statuses.set(ACCOUNT, { email: null })
     const gate = new Gate()

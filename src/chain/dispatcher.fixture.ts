@@ -79,6 +79,8 @@ export interface SetupOptions {
   main?: MainCheckDeps
   reviews?: ReviewDeps
   unchanged?: UnchangedDeps
+  /** PR mode without the review's deps; `reviews` turns it on too. */
+  pullRequests?: boolean
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -214,6 +216,7 @@ export function setup(options: SetupOptions = {}) {
     ...(options.main === undefined ? {} : { main: options.main }),
     ...(options.reviews === undefined ? {} : { reviews: options.reviews, pullRequests: () => true }),
     ...(options.unchanged === undefined ? {} : { unchanged: options.unchanged }),
+    ...(options.pullRequests === true ? { pullRequests: () => true } : {}),
   })
   return {
     dispatcher,
