@@ -92,6 +92,8 @@ Take the component that exists — the shared ones are in `web/src/ui/blocks.tsx
 
 - **Action with help** — `ButtonWithTip` (`web/src/ui/ButtonWithTip.tsx`) joins an existing action button to a separate `?` button at its right edge. The main action keeps its handler; help uses `useTip` like `HelpTip`: only a press opens or closes it, Escape and a press outside close it, pointing and focus do nothing. Both buttons remain in the Tab order.
 
+All tips built on `useTip` close on document or outside-container scrolling and on window resize. Scrolling the tip itself or its descendants keeps it open. Scroll dismissal uses a capture listener on `document` while the tip is shown; both listeners are removed when it closes.
+
 ## Layout
 
 - **A page** is the title row — the 22 px title, its help tip, the page's actions at the right — and the content under it (`.page`). The column is the whole width (`--column`).

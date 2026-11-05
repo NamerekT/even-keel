@@ -1,5 +1,7 @@
 # What Even Keel does
 
+Help tips close when you scroll the page or another area outside the tip, or resize the window. Scrolling inside a tip keeps it open.
+
 ## CLI copies
 
 During first-run setup, CLI downloads and sign-in state appear on the agent cards. System warnings about CLI versions and usage limits appear after setup. Usage warnings name each affected account in a shared or project account pool, including accounts of other providers; accounts that need sign-in show that on their card instead.

@@ -21,7 +21,7 @@ export function openDelay(now: number, open: number, closedAt: number): number {
 export type TipAlign = 'start' | 'end'
 
 /**
- * A tip in the top layer under its anchor, closed by Escape or a press elsewhere.
+ * A tip in the top layer under its anchor, closed by Escape, a press elsewhere, outside scrolling or window resizing.
  * `point` opens it after the pointer rests on the anchor (`OPEN_DELAY_MS`), `show` — at once, for focus and a press; `toggle` — for a tip opened only by pressing.
  */
 export function useTip<Anchor extends HTMLElement, Tip extends HTMLElement>(enabled = true, align: TipAlign = 'end') {
@@ -52,11 +52,19 @@ export function useTip<Anchor extends HTMLElement, Tip extends HTMLElement>(enab
     const away = (event: PointerEvent) => {
       if (!(event.target instanceof Node && owner.contains(event.target))) setOpen(false)
     }
+    const scroll = (event: Event) => {
+      if (!(event.target instanceof Node && element.contains(event.target))) setOpen(false)
+    }
+    const resize = () => setOpen(false)
     element.addEventListener('pointerdown', hold)
     document.addEventListener('pointerdown', away)
+    document.addEventListener('scroll', scroll, true)
+    window.addEventListener('resize', resize)
     return () => {
       element.removeEventListener('pointerdown', hold)
       document.removeEventListener('pointerdown', away)
+      document.removeEventListener('scroll', scroll, true)
+      window.removeEventListener('resize', resize)
       if (element.matches(':popover-open')) element.hidePopover()
       openTips -= 1
       lastClosed = performance.now()
