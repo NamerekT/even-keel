@@ -70,6 +70,8 @@ export interface AgentOptions {
 
 /** What a session is started or resumed with. */
 export interface SessionStart {
+  /** Consent to record this checkout as trusted, where the agent requires folder trust. */
+  trustedRepo?: string
   /** The task id, or the name of a fix session; the session is found by it once started. */
   name: string
   cwd: string

@@ -8,6 +8,14 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 **Check new CLI versions on this machine** (Settings → Providers and models, off by default) lets Even Keel try a new CLI version itself before you move to it. When a provider releases a newer CLI than the checked one, and once a week on the checked one, it runs a short live session on a cheap model in the account folder your projects use: launch, a question and its answer, a file written, the hooks, the limits and the stop. It waits until that folder has no live session, and the chains on that account wait while it runs, a few minutes. A banner says whether the version passed or at which step it failed; the service log has the whole run. A pass means that version works on this machine, a reason to switch that provider to Yours if you want it before the next Even Keel release. Each run spends the account's limits.
 
+## Claude folder trust
+
+**Sessions → Trust folder** lets Even Keel save Claude Code's trust for the project's repository before each background launch or resume, using the account selected for that session. It appears when the project's agent is Claude Code or Run labels is on. The project wizard starts with it on; existing projects keep it off until you enable it. Changes apply to the next launch or resume without restarting Even Keel.
+
+Trust also enables repository hooks from `.claude/settings*.json`. The chain disables `.mcp.json` servers. Turning the switch off stops future trust writes; it does not revoke trust already accepted in Claude Code. The Agent SDK and other agents do not use this setting.
+
+If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. With the switch off, an untrusted-folder pause offers the manual trust commands instead.
+
 ## OpenCode accounts
 
 OpenCode can use ChatGPT, API keys or its free models. **OpenCode on GitHub Copilot is not supported yet:** this combination has not passed a live session check, and Copilot Free's automatic model selection does not work with OpenCode's named-model calls. Existing Copilot sign-ins and credits remain visible, but a folder with only Copilot is unavailable for sessions. A folder with other providers can still use those providers; Copilot models are not offered. If a saved model or task label selects Copilot, the chain pauses and links to session settings: choose another Model or Account and update the task label before resuming. Adding Copilot sign-ins through OpenCode is unavailable. The separate GitHub Copilot CLI remains available.

@@ -2,6 +2,7 @@ import type { Notice } from '../notice/notice.js'
 
 /** A project the wizard of `/projects/add` is about to add; blank text — not given. */
 export interface ProjectDraft {
+  trustClaude?: boolean
   repo: string
   /** Blank — not chosen yet: the check suggests the checkout's current branch. */
   branch: string

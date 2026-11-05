@@ -363,6 +363,7 @@ function sharesOf(values: Values, project: string | null): CheckpointShares {
 
 function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<ProjectSettings, 'promptLanguage'> {
   return {
+    ...(values.trustClaude === true ? { trustClaude: true } : {}),
     branch: record.branch,
     prompt: (own.prompt as string | undefined) ?? null,
     beforeStart: values['commands.beforeStart'] as string[],

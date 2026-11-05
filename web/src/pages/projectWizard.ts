@@ -7,6 +7,7 @@ type Suggested = 'key' | 'name' | 'trackerProject'
 
 /** The wizard's fields as typed; `slots` counts only while the place is a pool of slots. */
 export interface WizardFields {
+  trustClaude: boolean
   repo: string
   branch: string
   key: string
@@ -28,6 +29,7 @@ export interface WizardFields {
 }
 
 export const EMPTY_FIELDS: WizardFields = {
+  trustClaude: true,
   repo: '',
   branch: '',
   key: '',
@@ -140,6 +142,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
       .map((line) => line.trim())
       .filter((line) => line !== ''),
     provider: fields.provider === '' ? null : fields.provider,
+    trustClaude: fields.trustClaude,
   }
 }
 

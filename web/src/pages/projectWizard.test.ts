@@ -87,6 +87,7 @@ describe('draftOfFields', () => {
       slot: 0,
       milestones: [],
       provider: null,
+      trustClaude: true,
     })
   })
 

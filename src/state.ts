@@ -110,6 +110,8 @@ export interface Standard {
  * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `standards`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
+  /** Consent to write Claude checkout trust before a background launch; existing trust is never revoked. */
+  trustClaude?: boolean
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
   branch: string
   /** Added to the prompt of every new session of the project, after Even Keel's own; `null` — none. Only the project's own: the levels add up. */
