@@ -520,6 +520,7 @@ export const en = {
   'config.provider': (p: { where: string; value: string; known: string[] }) => `config: ${p.where}: there is no provider ${p.value}, known: ${list(p.known)}`,
   'config.providerKey': (p: { where: string; key: string; known: string[] }) => `config: ${p.where}.${p.key} is not a provider, known: ${list(p.known)}`,
   'config.providerName': (p: { where: string }) => `config: ${p.where} must be text`,
+  'config.noticeKind': (p: { where: string; key: string; known: string[] }) => `config: ${p.where}.${p.key} is no notice that can be turned off here, known: ${list(p.known)}`,
   'config.execution': (p: { provider: string; value: string; known: string[] }) =>
     `config: execution.${p.provider}: there is no mode ${p.value}, known: ${list(p.known)}`,
   'config.cli': (p: { provider: string; value: string; known: string[] }) =>

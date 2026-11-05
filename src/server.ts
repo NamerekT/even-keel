@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf } from './server-request.js'
+import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf } from './server-request.js'
+import type { NoticeKind } from './notice/kinds.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
@@ -185,6 +186,10 @@ export interface SettingsControl {
   sourceMoves(project: string, feed: string | null, moves: StatusMoves): Promise<void>
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
+  /** A banner's "Got it" (BTN-759): its ids with the stamps of what they said; one comes back once its stamp changes. */
+  dismissNotices(entries: Record<string, string>): void
+  /** "Don't show again" and the "Notices" switches: one kind, `project` `null` for Even Keel's; `shown` `null` — back to Even Keel's. */
+  muteNotice(project: string | null, kind: NoticeKind, shown: boolean | null): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
   muteUpdates(): void
   /** The update window's "Update" to the latest release (BTN-163): waits for the chains, then the update process takes over. */
@@ -329,6 +334,9 @@ const COMMANDS: Record<string, Command> = {
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
+  'notices/dismiss': ({ settings }, body) => settings.dismissNotices(mapOf<string>(body.entries, 'entries', (stamp) => typeof stamp === 'string')),
+  'notices/mute': ({ settings }, body) =>
+    settings.muteNotice(optionalProjectOf(body) ?? null, noticeKindOf(body.kind), body.shown === null ? null : switchOf(body.shown, 'shown')),
   'updates/install': ({ settings }) => settings.installUpdate(),
   'updates/revert': ({ settings }) => settings.revertUpdate(),
   'updates/seen': ({ settings }) => settings.closeUpdateResult(),

@@ -1,6 +1,7 @@
 import { Fold, FoldList, FoldPresence } from '../ui/Fold.js'
 import { useState } from 'react'
-import { ProtectionWarnings, protectionAgents, remoteProtectionWarnings } from './ProtectionWarnings.js'
+import { ProtectionWarnings, protectionShown } from './ProtectionWarnings.js'
+import { kindShown, noticeId, notDismissed, NoticeButtons } from '../layout/NoticeButtons.js'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -23,6 +24,7 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
   const tone = forwardTone(state.forwards[project])
   const count = tasks.length + (tone !== null && tone !== 'error' ? 1 : 0)
   const errors = [...projectErrors(state.chain.projects[project]?.error ?? null, chainStatus(state.chain, project)), ...completionNotices(state, project), ...moveNotices(state, project)]
+    .filter((error) => notDismissed(state, errorMark(error.code, project), JSON.stringify(error)))
   const summary = [
     ...(tasks.length > 0 ? [t.project.cleanupSummary(tasks.slice(0, 3).join(', ') + (tasks.length > 3 ? '…' : ''))] : []),
     ...(tone !== null && tone !== 'error' ? [forwardSummary(state, project)] : []),
@@ -42,12 +44,12 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
     </>
   )
   // The open settings show the drift under the main branch field: the card leaves it to them.
-  const drift = settingsOpen ? undefined : state.branchDrift[project]
-  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionAgents(state, project).length > 0 || remoteProtectionWarnings(state, project).length > 0
+  const drift = settingsOpen ? undefined : driftShown(state, project)
+  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionShown(state, project)
   return (
     <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
-      <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} /> : null}</FoldPresence>
+      <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} closable /> : null}</FoldPresence>
       <FoldList items={errors.map((error, index) => ({
         key: `${error.code}-${index}`, children:
           <Band tone="error" action={
@@ -55,6 +57,7 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
               <NoticeFixButton project={project} notice={error} />
               <PullFixButton state={state} project={project} error={error} />
               <TrackerFixButtons state={state} project={project} error={error} />
+              <NoticeButtons stamps={{ [errorMark(error.code, project)]: JSON.stringify(error) }} small />
             </>
           }>
             <Said notice={error} />
@@ -78,6 +81,16 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
       <FoldPresence>{failure !== null ? <Band tone="error">{say(failure)}</Band> : null}</FoldPresence>
     </div> : null}</FoldPresence>
   )
+}
+
+/** An error holds the chain: it takes only "Got it", back when anything it says changes (BTN-759). */
+const errorMark = (code: string, project: string) => noticeId(`error:${code}`, project)
+
+/** The main checkout on another branch, unless turned off or closed while it said the same (BTN-759). */
+function driftShown(state: EvenKeelState, project: string) {
+  const drift = state.branchDrift[project]
+  if (drift === undefined || !kindShown(state, 'branch.drift', project)) return undefined
+  return notDismissed(state, noticeId('branch.drift', project), JSON.stringify(drift)) ? drift : undefined
 }
 
 function forwardSummary(state: EvenKeelState, project: string): string {

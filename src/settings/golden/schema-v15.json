@@ -122,6 +122,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {
         "protection": {
           "disabled": [
@@ -195,6 +196,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     }
@@ -303,5 +305,6 @@
   "updates": {
     "check": true,
     "notify": true
-  }
+  },
+  "notices": {}
 }

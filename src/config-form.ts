@@ -2,6 +2,7 @@ import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import { DEFAULT_RULES, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import { CI_KINDS } from './ci/model.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, readKeyOf, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
+import type { NoticeKind } from './notice/kinds.js'
 import { fail } from './notice/notice.js'
 import { cleanRules } from './profiles/rules.js'
 import { changesOf, type FormValue } from './settings/changes.js'
@@ -52,6 +53,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
+    notices: config.notices,
   }
   return { projects, shared }
 }
@@ -334,6 +336,16 @@ export function withUpdates(raw: unknown, patch: Partial<Pick<UpdateSettings, 'c
 export function withChainSwitches(raw: unknown, patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): Record<string, unknown> {
   const values = Object.entries(patch).map(([key, setting]) => value(key, key, setting))
   return withRows(raw, changesOf(null, values, () => true))
+}
+
+/**
+ * The raw config with one `notices` entry written (BTN-759): what "Don't show again" and the switches of the "Notices"
+ * section write. Even Keel's `true` is the default and leaves no row; a project's `true` or `false` is its own over
+ * Even Keel's, its `null` — back to Even Keel's.
+ */
+export function withNotice(raw: unknown, project: string | null, kind: NoticeKind, shown: boolean | null): Record<string, unknown> {
+  const unset = shown === null || (project === null && shown)
+  return withRows(raw, [unset ? { op: 'unset', key: 'notices', project, qualifier: kind } : { op: 'set', key: 'notices', project, qualifier: kind, value: shown }])
 }
 
 /** The raw config with Tally's place set: what the page's stats setup and settings write. */

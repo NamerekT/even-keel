@@ -84,6 +84,8 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       remove: record('removeProject'),
       dismissUpdate: record('dismiss'),
       muteUpdates: record('mute'),
+      dismissNotices: record('dismissNotices'),
+      muteNotice: record('muteNotice'),
       installUpdate: async () => record('installUpdate')(),
       revertUpdate: async () => record('revertUpdate')(),
       closeUpdateResult: record('closeUpdateResult'),

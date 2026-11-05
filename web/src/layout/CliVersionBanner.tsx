@@ -7,29 +7,19 @@ import { useCheckedSwitch } from './CliSource.js'
 import { cliText } from './cliText.js'
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { Banner } from './Banner.js'
-
-const DISMISSED_KEY = 'even-keel.cliVersions.dismissed'
+import { kindShown, noticeId, notDismissed, NoticeButtons } from './NoticeButtons.js'
 
 /**
  * A CLI sessions run on at a version Even Keel was not checked against (BTN-249, BTN-593), or a daemon on another version than the pin (BTN-250);
- * one folded line, each CLI's notice under "Details" (BTN-349, open until a reload); closed, it stays hidden until that
- * version changes.
+ * one folded line, each CLI's notice under "Details" (BTN-349, open until a reload); "Got it" hides it until that
+ * version changes, on every device (BTN-759).
  */
 export function CliVersionBanner() {
   const { state } = useLive()
-  const [dismissed, setDismissed] = useState(readDismissed)
   const [open, setOpen] = useState(false)
   const id = useId()
-  const shown = (state?.cliVersions ?? []).filter((each) => dismissed[keyOf(each)] !== each.installed)
+  const shown = kindShown(state, 'cli.versions') ? (state?.cliVersions ?? []).filter((each) => notDismissed(state, markOf(each), each.installed)) : []
   if (shown.length === 0) return <Banner />
-
-  const dismiss = () => {
-    const next = { ...dismissed, ...Object.fromEntries(shown.map((each) => [keyOf(each), each.installed])) }
-    setDismissed(next)
-    try {
-      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next))
-    } catch {}
-  }
 
   return (
     <Banner tone="warn">
@@ -39,9 +29,7 @@ export function CliVersionBanner() {
           <FoldToggle className="banner__toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
             {t.banner.cliDetails}
           </FoldToggle>
-          <button type="button" className="button" onClick={dismiss}>
-            {t.common.hide}
-          </button>
+          <NoticeButtons stamps={Object.fromEntries(shown.map((each) => [markOf(each), each.installed]))} kind="cli.versions" />
         </span>
       </div>
       <FoldBody id={id} open={open} className="banner__details">
@@ -75,12 +63,5 @@ function CheckedSwitch({ provider }: { provider: string }) {
 /** The installed CLI by its agent, a daemon (BTN-250) by its agent and account. */
 const keyOf = ({ agent, account }: CliVersionView): string => (account === null ? agent : `${agent}/${account}`)
 
-/** The installed version whose banner was closed, by `keyOf`. */
-function readDismissed(): Record<string, string> {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '{}')
-    return typeof value === 'object' && value !== null ? (value as Record<string, string>) : {}
-  } catch {
-    return {}
-  }
-}
+/** The "Got it" mark of a CLI's notice; its stamp is the installed version. */
+const markOf = (view: CliVersionView): string => noticeId(`cli.versions:${keyOf(view)}`)

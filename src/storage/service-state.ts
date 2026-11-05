@@ -6,9 +6,10 @@ import type { Queryable } from './database.js'
  * `profiles.imported` — when the first start made tracker profiles of the trackers' variables of `.env` (BTN-200);
  * `profiles.forgejo.imported` — when the first start made Forgejo profiles of `FORGEJO_TOKEN` (BTN-201);
  * `intake` — the GitHub issues taken into the projects' trackers and not closed yet (`IntakeEntry[]`, BTN-262);
- * `cliCheck.history` — per agent, the automatic CLI check's last lookup, versions tried and last result (`CheckHistory`, BTN-569).
+ * `cliCheck.history` — per agent, the automatic CLI check's last lookup, versions tried and last result (`CheckHistory`, BTN-569);
+ * `notices.dismissed` — the page's "Got it" marks, a banner's id to the stamp it was closed at (BTN-759, `withDismissed`).
  */
-export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported' | 'profiles.forgejo.imported' | 'intake' | 'cliCheck.history'
+export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported' | 'profiles.forgejo.imported' | 'intake' | 'cliCheck.history' | 'notices.dismissed'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

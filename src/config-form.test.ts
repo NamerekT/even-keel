@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -250,6 +250,29 @@ describe('withChainSwitches', () => {
     expect(withChainSwitches({ projects: [] }, { unattended: true })).toEqual({ projects: [], unattended: true })
     expect(withChainSwitches({ projects: [], unattended: true }, { trimTools: false })).toEqual({ projects: [], unattended: true, trimTools: false })
     expect(withChainSwitches({ projects: [], unattended: true, trimTools: false }, { unattended: false, trimTools: true })).toEqual({ projects: [] })
+  })
+})
+
+describe('withNotice', () => {
+  it('turns a kind off for Even Keel and back, its default leaving no row (BTN-759)', () => {
+    const off = withNotice({ projects: [] }, null, 'cli.versions', false)
+    expect(off).toEqual({ projects: [], notices: { 'cli.versions': false } })
+    expect(withNotice(off, null, 'cli.versions', true)).toEqual({ projects: [] })
+    expect(parseConfig(off).notices).toEqual({ 'cli.versions': false })
+  })
+
+  it('gives a project its own value over Even Keel\'s, and null takes it back', () => {
+    const own = withNotice({ projects: [abc()], notices: { 'protection.remote': false } }, 'id-abc', 'protection.remote', true)
+    expect(own.projects).toEqual([abc({ notices: { 'protection.remote': true } })])
+    const config = parseConfig(own)
+    expect(config.notices).toEqual({ 'protection.remote': false })
+    expect(config.settings['id-abc']!.notices).toEqual({ 'protection.remote': true })
+    expect(withNotice(own, 'id-abc', 'protection.remote', null).projects).toEqual([abc()])
+  })
+
+  it('refuses a kind a project cannot turn off, and a kind that is none', () => {
+    expect(() => parseConfig({ projects: [abc({ notices: { 'cli.versions': false } })] })).toThrow('ABC.notices.cli.versions is no notice that can be turned off here')
+    expect(() => parseConfig({ projects: [], notices: { 'chain.paused': false } })).toThrow('notices.chain.paused is no notice')
   })
 })
 

@@ -172,6 +172,8 @@ const context = {
   get db() { return db },
   get dismissedUpdate() { return dismissedUpdate },
   set dismissedUpdate(value: typeof dismissedUpdate) { dismissedUpdate = value },
+  get dismissedNotices() { return dismissedNotices },
+  set dismissedNotices(value: typeof dismissedNotices) { dismissedNotices = value },
   get dispatcher() { return dispatcher },
   get emailAt() { return emailAt },
   get envChanged() { return envChanged },
@@ -329,6 +331,8 @@ for (const method of ['log', 'warn', 'error'] as const) {
 }
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
+/** The page's "Got it" marks (BTN-759): state, not a setting. */
+let dismissedNotices = ((await stateValue(db, 'notices.dismissed')) as Record<string, string> | undefined) ?? {}
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
 const keyOrganizations = await loadKeyOrganizations(db)

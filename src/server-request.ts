@@ -1,3 +1,4 @@
+import { isNoticeKind, type NoticeKind } from './notice/kinds.js'
 import { fail, type NoticeCode } from './notice/notice.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { DEFAULT_CI } from './settings/defaults.js'
@@ -300,6 +301,11 @@ export function secretValuesOf(raw: unknown): Record<string, string | null> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('request.required', { field: 'values' })
   for (const [name, value] of Object.entries(raw)) if (value !== null && typeof value !== 'string') throw fail('request.required', { field: name })
   return raw as Record<string, string | null>
+}
+
+export function noticeKindOf(raw: unknown): NoticeKind {
+  if (!isNoticeKind(raw)) throw fail('request.required', { field: 'kind' })
+  return raw
 }
 
 export function optionalProjectOf(body: Record<string, unknown>): string | undefined {

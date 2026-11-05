@@ -372,7 +372,7 @@ export const settingsEN: Messages['settings'] = {
     intakeLabelHint:
       "An open issue of the project's GitHub repository with this label becomes a task of its tracker, with a link back; put the label on only after reading the issue. Comments of the repository's collaborators and of the issue's author are copied to the task, the author's as information; others' are not. When the task is done the issue gets one line — the version that ships it — and is closed once that release is out. The token of the GitHub profile needs Issues: Read and write.",
     intakeLabelNone: 'None — issues are not taken in',
-    groups: { repo: 'Repository', tracker: 'Tracker', sessions: 'Sessions', ci: 'Check and CI' },
+    groups: { repo: 'Repository', tracker: 'Tracker', sessions: 'Sessions', ci: 'Check and CI', notices: 'Notices' },
     groupsLabel: 'Settings groups',
     unsaved: 'has unsaved changes',
     unsavedGroup: 'The changes on this tab are not saved',

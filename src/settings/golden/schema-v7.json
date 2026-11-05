@@ -111,6 +111,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     },
@@ -159,6 +160,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     }
@@ -252,5 +254,6 @@
   "updates": {
     "check": true,
     "notify": true
-  }
+  },
+  "notices": {}
 }

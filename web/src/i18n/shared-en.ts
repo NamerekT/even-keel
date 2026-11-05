@@ -91,6 +91,7 @@ export const sharedEn = {
   contextWarn: 'Warning, %',
   contextDanger: 'Danger, %',
   stats: 'Stats',
+  notices: 'Notices',
   compare: 'Before/after comparisons',
   compareHint: 'The minimum tasks, sessions and days on each side of a before/after comparison on /stats.',
   minTasks: 'Tasks',

@@ -18,6 +18,7 @@ import { ConfigStore } from '../config-store.js'
 import { DEFAULT_BRANCH, idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
+import { withDismissed } from '../notice/kinds.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
@@ -77,6 +78,7 @@ type HostingContext = Pick<ServiceContext,
   | 'daemons'
   | 'db'
   | 'dismissedUpdate'
+  | 'dismissedNotices'
   | 'dispatcher'
   | 'emailAt'
   | 'forwards'
@@ -224,6 +226,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     tallyHealth: ctx.tally.health(),
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
+    noticesDismissed: ctx.dismissedNotices,
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
@@ -371,6 +374,15 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.dismissedUpdate = version
         ctx.writes.add('the dismissed update', setStateValue(ctx.db, 'updates.dismissed', version))
         ctx.hub.broadcastSoon('state', ctx.getState)
+      },
+      dismissNotices: (entries) => {
+        ctx.dismissedNotices = withDismissed(ctx.dismissedNotices, entries)
+        ctx.writes.add('the dismissed notices', setStateValue(ctx.db, 'notices.dismissed', ctx.dismissedNotices))
+        ctx.hub.broadcastSoon('state', ctx.getState)
+      },
+      muteNotice: (project, kind, shown) => {
+        ctx.configStore.saveNotice(project, kind, shown)
+        console.log(`page: the notice ${kind} is ${shown === null ? 'back to the shared value' : shown ? 'shown' : 'turned off'} for ${project === null ? 'Even Keel' : projectLabel(ctx.configStore.current, project)}`)
       },
       muteUpdates: () => ctx.configStore.saveUpdates({ notify: false }),
       installUpdate: () => ctx.updater.update(ctx.releasesView().available),

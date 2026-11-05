@@ -11,7 +11,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | Parameter | What it shows |
 | --- | --- |
 | `?copies=missing\|downloading\|failed\|system-missing\|ready` | CLI copy consent, byte progress, retry and installation actions; `copyAgent=claude\|codex\|opencode\|copilot` picks the provider, `copySystem=missing` hides the Installed choice, `copyFailed=<provider>` fails a second provider's download beside it. An explicit download completes after 3 s and opens account setup when started from the provider card. `copies=fresh` is a first run after BTN-603: every `cli` on `system`, Claude Code and OpenCode installed, Codex and Copilot not, no copy; `provider=` picks the chosen agent (`/setup?step=agent&copies=fresh&provider=opencode`). |
-| `?protection=unsafe|unprotected|unknown|protected|opencode|opencodeUnsafe|opencodeCustom` | empty Protection rules with Codex bypass, remote branch audit verdicts (`unknown` includes a long remote name), or OpenCode with default rules, no rules, or one custom command pattern |
+| `?protection=unsafe|unprotected|unknown|protected|twoRemotes|opencode|opencodeUnsafe|opencodeCustom` | empty Protection rules with Codex bypass, remote branch audit verdicts (`unknown` includes a long remote name, `twoRemotes` the same unprotected branch on `origin` and `github` in one band, BTN-759), or OpenCode with default rules, no rules, or one custom command pattern |
 | `?link=stale\|connecting` | connection states |
 | `?chain=idle` | no active chain, to check starting one; "Start" and "New session" go through the start phases 3 s each |
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |

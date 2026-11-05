@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { notice } from '../../../src/notice/notice.js'
 import { setLanguage } from '../i18n/index.js'
-import { usageNotices } from './usageNotices.js'
+import { usageGroups, usageNotices } from './usageNotices.js'
 
 const entry = (key: string, patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key, name: null, agent: 'claude', global: false,
@@ -39,6 +39,15 @@ describe('usageNotices', () => {
     expect(notices[0]?.key).not.toBe(notices[1]?.key)
     state.active = 'shared'
     expect(usageNotices(state)).toEqual(notices)
+  })
+
+  it('puts accounts whose limits are unread alike into one banner, a stopped poll apart', () => {
+    const off = { usage: { state: 'off', reason: notice('usage.turns', { value: '1' }), since: 'now' } } as const
+    const groups = usageGroups(usageNotices(view([entry('shared', { name: 'Build team' }), entry('codex', { agent: 'codex', status: null }), entry('project', off)])))
+    expect(groups.map((group) => group.notices.map((each) => each.account))).toEqual([['shared', 'codex'], ['project']])
+    expect(groups[0]).toMatchObject({ tone: 'warn' })
+    expect(groups[0]?.notices.map((each) => each.name)).toEqual(['Build team', 'Codex'])
+    expect(groups[1]).toMatchObject({ tone: 'error' })
   })
 
   it('shows no warning for an account that needs sign-in', () => {

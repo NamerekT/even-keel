@@ -70,6 +70,7 @@ import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
 import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
 import { AddPullProfile, PullHint } from './PullButtons.js'
 import { FORGES } from '../../../src/notice/en.js'
+import { NoticeSettings } from './NoticeSettings.js'
 import './settings.css'
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
@@ -81,6 +82,8 @@ const GROUPS = [
     keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
+  // Applied at once, as "Don't show again" on a banner is (BTN-759): no draft.
+  { id: 'notices', keys: [] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
@@ -783,6 +786,7 @@ export function SettingsPanel({
         </Section>
       </>
     ),
+    notices: () => <NoticeSettings project={project} />,
   }
 
   return (

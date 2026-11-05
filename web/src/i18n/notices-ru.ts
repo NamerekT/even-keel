@@ -473,6 +473,7 @@ export const noticesRu: NoticeTexts = {
   'config.provider': (p) => `${p.where}: провайдера ${p.value} нет, есть: ${list(p.known)}`,
   'config.providerKey': (p) => `${p.where}.${p.key} — не провайдер, есть: ${list(p.known)}`,
   'config.providerName': (p) => `${p.where} должен быть текстом`,
+  'config.noticeKind': (p) => `${p.where}.${p.key} — не уведомление, которое здесь можно выключить, есть: ${list(p.known)}`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
   'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,
   'config.executionCli': (p) => `execution.${p.provider}: ${p.mode} работает только на проверенной копии CLI, поставьте cli.${p.provider}: checked`,
