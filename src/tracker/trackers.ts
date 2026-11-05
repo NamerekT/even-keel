@@ -1,5 +1,6 @@
-import type { EvenKeelConfig } from '../config.js'
+import { idPrefixOf, type EvenKeelConfig } from '../config.js'
 import { defaultProfile, profileFor, type ProfileSet, type TrackerProfile } from '../profiles/model.js'
+import type { TimeTracker } from '../stats/tally.js'
 import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerPlace, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
@@ -42,6 +43,15 @@ export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string
     plan.places[project] = { key: config.keys[project] ?? project, ...(value === undefined ? {} : { value }) }
   }
   return plans
+}
+
+/** The profiles with projects of a tracker that takes a task's time (`logsTime`): Tally writes the time through them (EKR-35). */
+export function timeTrackers(config: TrackerConfig, set: ProfileSet, adapters: Readonly<Record<string, TrackerAdapter>>): TimeTracker[] {
+  return [...trackerPlans(config, set).values()].flatMap((plan) =>
+    adapters[plan.kind]?.logsTime !== true || plan.profile === undefined || plan.projects.length === 0
+      ? []
+      : [{ kind: plan.kind, values: plan.profile.values, places: plan.places, prefixes: [...new Set(plan.projects.map((project) => idPrefixOf(config, project, adapters)))] }],
+  )
 }
 
 /**

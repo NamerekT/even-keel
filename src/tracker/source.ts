@@ -142,8 +142,23 @@ export interface TaskSource {
    * that without `chain.requiredLabels` such a task enters the chain. Without it the tracker is taken as closed.
    */
   isPublic?(project: string): Promise<boolean>
+  /**
+   * Optional, with the adapter's `logsTime`. Writes the agent's active time on a done task into the tracker's own time
+   * tracking; Tally calls it once per task (EKR-35). `false` — the tracker refuses time for the task's project (tracking
+   * off, no right to log work): the task needs no report. Any other failure throws and the next run tries again.
+   */
+  logTime?(id: string, entry: TimeEntry): Promise<boolean>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+/** The agent's active time on a task (`TaskSource.logTime`). */
+export interface TimeEntry {
+  hours: number
+  /** ISO time the work ended: the task's last turn. */
+  at: string
+  /** The line the entry is signed with. */
+  summary: string
 }
 
 /** A task of a milestone for its changelog draft (`TaskSource.milestoneTasks`). */
@@ -302,6 +317,8 @@ export interface TrackerAdapter {
   mcpValues?: Readonly<Record<string, DerivedKey>>
   /** Optional. Its connection moves a task to a named status and lists the statuses (`moveTo`, `statuses`; BTN-554). */
   moves?: true
+  /** Optional. Its connection writes a task's time into the tracker (`logTime`): Tally hands it the done tasks' time (EKR-35). */
+  logsTime?: true
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
   /**

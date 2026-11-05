@@ -2,10 +2,10 @@ import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import { fail } from '../notice/notice.js'
 import { commentsAfterId } from '../tracker/comments.js'
-import { parseTaskId, uniqueStatuses, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { entryMinutes, parseTaskId, uniqueStatuses, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
-import { JiraApi } from './api.js'
+import { JiraApi, JiraHttpError } from './api.js'
 import {
   BLOCKS,
   CARD_FIELDS,
@@ -356,6 +356,19 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       }
     },
 
+    // A 403 is the missing "Work on issues" right; a 400 naming time tracking — tracking off on the site.
+    async logTime(id, entry) {
+      const seconds = entryMinutes(entry.hours) * 60
+      const started = jiraTime(Date.parse(entry.at) - seconds * 1000)
+      try {
+        await api.rest(`${issuePath(id)}/worklog?notifyUsers=false`, 'POST', { timeSpentSeconds: seconds, started, comment: markdownToAdf(entry.summary) })
+        return true
+      } catch (error) {
+        if (error instanceof JiraHttpError && (error.status === 403 || (error.status === 400 && /time ?tracking/i.test(error.message)))) return false
+        throw error
+      }
+    },
+
     close: async () => {},
   }
 }
@@ -367,3 +380,6 @@ interface IssueType {
   subtask?: boolean
   hierarchyLevel?: number
 }
+
+/** A worklog's `started`: Jira takes `2026-11-01T10:13:00.000+0000`, not the `Z` of ISO. */
+const jiraTime = (ms: number): string => new Date(ms).toISOString().replace(/Z$/, '+0000')

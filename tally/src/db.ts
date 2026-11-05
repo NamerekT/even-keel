@@ -700,7 +700,9 @@ export class TallyDb implements Store {
     return result.rows.map((row) => ({ task: row.task, hours: Number(row.hours), date: (row.last_at as Date).toISOString() }))
   }
 
-  async markReported(reported: ReadonlyMap<string, number>): Promise<void> {
+  /** Hours `null` — the tracker refuses time for the task: it needs no report and is not asked for again. */
+  async markReported(reported: ReadonlyMap<string, number | null>): Promise<void> {
+    if (reported.size === 0) return
     await this.client.query(
       `update tasks t set reported_h = x.hours, reported_at = now()
        from jsonb_to_recordset($1::jsonb) as x(task text, hours numeric)

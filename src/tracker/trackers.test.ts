@@ -3,7 +3,7 @@ import type { ProfileSet, TrackerProfile } from '../profiles/model.js'
 import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
-import { linksTracker, trackerPlans, Trackers, type TrackerConfig } from './trackers.js'
+import { linksTracker, timeTrackers, trackerPlans, Trackers, type TrackerConfig } from './trackers.js'
 
 const setupOf = (token: string): TrackerSetup => ({ connect: async () => Promise.reject(new Error(token)), issueUrl: () => `https://${token}/{id}` })
 
@@ -220,5 +220,23 @@ describe('linksTracker', () => {
 
   it('is none without projects', () => {
     expect(linksTracker({ projects: {}, trackers: {} })).toBeUndefined()
+  })
+})
+
+describe('timeTrackers', () => {
+  const timed: TrackerAdapter = { ...github, title: 'Timed', logsTime: true }
+
+  it('gives each profile of a tracker that logs time its values, places and task prefixes; none without a profile', () => {
+    const set: ProfileSet = { profiles: [profile('work', 'huly', { HULY_TOKEN: 'h' }), profile('lab', 'timed', { GITHUB_TOKEN: 't' })], links: {} }
+    const all = config({
+      projects: { ABC: 'D:/abc', XYZ: 'D:/xyz', DEF: 'D:/def', GHI: 'D:/ghi' },
+      keys: { ABC: 'ABC', XYZ: 'XYZ', DEF: 'DEF', GHI: 'GHI' },
+      trackers: { ABC: 'huly', XYZ: 'timed', DEF: 'timed', GHI: 'github' },
+      trackerProjects: { XYZ: 'group/xyz' },
+    })
+    expect(timeTrackers(all, set, { huly, github, timed })).toEqual([
+      { kind: 'timed', values: { GITHUB_TOKEN: 't' }, places: { DEF: { key: 'DEF' }, XYZ: { key: 'XYZ', value: 'group/xyz' } }, prefixes: ['DEF', 'XYZ'] },
+    ])
+    expect(timeTrackers(all, { profiles: [], links: {} }, { timed })).toEqual([])
   })
 })

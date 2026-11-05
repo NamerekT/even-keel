@@ -350,4 +350,26 @@ describe('Jira task source', () => {
     expect(await source.file!('ABC-1', '501')).toBeNull()
     expect(await source.file!('ABC-1', '../x')).toBeNull()
   })
+
+  it('writes a worklog in whole minutes, started when the work began, signed in ADF', async () => {
+    const { source, calls } = await connect([{ status: 201, body: { id: '9' } }])
+    expect(await source.logTime!('ABC-1', { hours: 0.29, at: '2026-11-01T10:30:00.000Z', summary: 'Tally' })).toBe(true)
+    expect(calls[2]).toMatchObject({
+      method: 'POST',
+      url: `${SITE}/rest/api/3/issue/ABC-1/worklog?notifyUsers=false`,
+      body: { timeSpentSeconds: 1020, started: '2026-11-01T10:13:00.000+0000', comment: doc('Tally') },
+    })
+  })
+
+  it('takes a worklog refused for the right or for time tracking off as no report needed, and throws on any other', async () => {
+    const { source } = await connect([
+      { status: 403, body: { errorMessages: ['You do not have the permission to associate a worklog to this issue.'] } },
+      { status: 400, body: { errorMessages: ['Time Tracking is disabled.'] } },
+      { status: 400, body: { errors: { timeLogged: 'Invalid time duration entered.' } } },
+    ])
+    const entry = { hours: 1, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' }
+    expect(await source.logTime!('ABC-1', entry)).toBe(false)
+    expect(await source.logTime!('ABC-1', entry)).toBe(false)
+    await expect(source.logTime!('ABC-1', entry)).rejects.toThrow('Invalid time duration')
+  })
 })

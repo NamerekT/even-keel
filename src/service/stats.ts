@@ -7,6 +7,8 @@ import { defaultProfile, profileFor } from '../profiles/model.js'
 import { StatsReader } from '../stats/reader.js'
 import { tallyKey } from '../stats/mode.js'
 import { TallyService } from '../stats/tally.js'
+import { ADAPTERS } from '../tracker/adapters.js'
+import { timeTrackers } from '../tracker/trackers.js'
 import type { ServiceContext } from '../service.js'
 
 type StatsContext = Pick<ServiceContext,
@@ -59,6 +61,7 @@ export function wireNewTally(ctx: StatsContext): () => TallyService {
         const byId = Object.fromEntries(set.profiles.filter((profile) => profile.kind === 'huly').map((profile) => [profile.id, profile.values]))
         return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
       },
+      trackers: () => timeTrackers(ctx.readers(), ctx.profiles.current(), ADAPTERS),
       log: (message) => console.log(message),
       changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     })

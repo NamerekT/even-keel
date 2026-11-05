@@ -17,7 +17,7 @@ import { closedStates } from './closed-tasks.js'
 import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
-import type { HulyProfiles } from '../../src/stats/tally.js'
+import type { HulyProfiles, TimeTracker } from '../../src/stats/tally.js'
 import { hulyOfProfiles } from './huly-profiles.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, loadRollout, type Source } from './load.js'
@@ -41,7 +41,8 @@ export type Log = (message: string) => void
 
 // One collector run: the exit code is 1 when a file failed to load, everything else is written anyway.
 // `root` — Even Keel's code, `home` — its data (the same folder in a checkout, BTN-265).
-export async function collect(settings: DbSettings, root: string, home: string, log: Log, huly: HulyProfiles): Promise<number> {
+// `trackers` — the GitLab and Jira profiles the time of their tasks is written through (EKR-35).
+export async function collect(settings: DbSettings, root: string, home: string, log: Log, huly: HulyProfiles, trackers: TimeTracker[] = []): Promise<number> {
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
@@ -132,7 +133,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     })
     const stepped = await refreshSteps(db, config.steps)
     const tasks = await refreshTasks(db, hulyOf, log)
-    const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, log)
+    const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, trackers, log)
     const classified = await classifySpans(db, config.classify, log)
     const unpriced = unpricedToLog(await db.unpricedModels(), config.unpriced)
     if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)
