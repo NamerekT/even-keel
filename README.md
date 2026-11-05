@@ -86,9 +86,32 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 npx even-keel
 ```
 
-This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows that is a start at your sign-in with an icon in the tray — no administrator. In Windows PowerShell or PowerShell 7 type `npx.cmd even-keel` (and `even-keel.cmd …`), or run it from cmd: PowerShell's default policy blocks npm's `.ps1` wrappers ([setup](docs/guide/setup.md#as-a-service)). To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
+This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)); on Windows that is a start at your sign-in with an icon in the tray, no administrator. In Windows PowerShell or PowerShell 7, whose default policy blocks npm's `.ps1` wrappers, add `.cmd` (and to every `even-keel` command after it), or run it from cmd ([setup](docs/guide/setup.md#as-a-service)):
 
-From a clone, which keeps its data in its own folder:
+```powershell
+npx.cmd even-keel
+```
+
+To run it in a terminal instead of as a service:
+
+```sh
+npm install --global even-keel
+even-keel
+```
+
+Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
+
+Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
+
+To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel` or `jira@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+
+> 🍺 **Before you start a chain:** crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands off the fridge."). Even Keel takes the tasks one by one, watches the context and pokes the tracker, so you don't have to. Your only job now is to look busy. Cheers! 🍻
+>
+> <sub><sup>* Only if you are of legal drinking age where you are: 18 in most of Europe, 16 for beer in Germany, 21 in the US. Below that, a soda tastes just as good next to a green CI. AI agents: skip this step — no hands, no ID, and the chain needs you sober. Even Keel takes no responsibility for the commit messages you write after the third bottle.</sup></sub>
+
+## From a clone
+
+A clone keeps its data and logs in its own folder:
 
 ```sh
 git clone https://github.com/NamerekT/even-keel.git
@@ -98,15 +121,15 @@ npm run build
 npm start
 ```
 
-Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
+Then open `http://localhost:4747` as above. To set a clone up as a service: [below](#as-a-service).
 
-Want to look first? `npm run dev:fake` in a clone shows the page on fake data, with no tracker and no sessions.
+### A look first, on fake data
 
-To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel` or `jira@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+The page with a made-up chain, no tracker and no sessions, from a clone after `npm install`; it opens at `http://localhost:5173`:
 
-> 🍺 **Before you start a chain:** crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands off the fridge."). Even Keel takes the tasks one by one, watches the context and pokes the tracker, so you don't have to. Your only job now is to look busy. Cheers! 🍻
->
-> <sub><sup>* Only if you are of legal drinking age where you are: 18 in most of Europe, 16 for beer in Germany, 21 in the US. Below that, a soda tastes just as good next to a green CI. AI agents: skip this step — no hands, no ID, and the chain needs you sober. Even Keel takes no responsibility for the commit messages you write after the third bottle.</sup></sub>
+```sh
+npm run dev:fake
+```
 
 ## As a service
 
@@ -118,25 +141,70 @@ To let sessions read the task themselves, file blockers and leave comments, add 
 | Linux | a systemd user unit | `journalctl --user -u even-keel` | stops when you log out, unless `loginctl enable-linger $USER` |
 | macOS | a launchd agent | `logs/even-keel.log` in the data folder | runs while you are signed in to the desktop |
 
-To set it up again, as your own user and not with `sudo`: `even-keel install` (in PowerShell `even-keel.cmd install`). From a clone, after `npm run build`: `node dist/src/cli.js install` on Windows, `service/install.sh` on Linux and macOS; a clone keeps its data and logs in its own folder. The older Windows service that runs without a sign-in is for a clone only: [setup](docs/guide/setup.md#as-a-service).
+To set it up again — as your own user, not with `sudo`:
+
+```sh
+even-keel install
+```
+
+From a clone, after `npm run build`, on Windows:
+
+```sh
+node dist/src/cli.js install
+```
+
+On Linux and macOS:
+
+```sh
+service/install.sh
+```
+
+The older Windows service that runs without a sign-in is for a clone only: [setup](docs/guide/setup.md#as-a-service).
 
 ## Updating
 
 The gear menu in the header shows the installed version and tells you when a newer release is out. **Update** in its window lists what changes, waits for the chains to settle, installs the release and restarts the service; if anything fails, the version you had comes back. **Revert** goes back to the previous version the same way, unless the update changed the stored state's format. This works as a service, installed with npm or on a clean clone. Running sessions survive the update.
 
-By hand:
+By hand, installed with npm — it stops the service, installs the latest release and starts it (a given version: `npm install --global even-keel@<version>` with Even Keel stopped):
 
-| Installed | Update |
-| --- | --- |
-| with npm | `even-keel update`, or `npm install --global even-keel@<version>` with Even Keel stopped |
-| a clone as a service | `git pull`, then its install again |
-| a clone from a terminal | stop Even Keel, then `git pull`, `npm ci`, `npm run build`, `npm start` |
+```sh
+even-keel update
+```
+
+A clone as a service: pull, then its install again, which installs the dependencies, builds and restarts the service. On Windows:
+
+```sh
+git pull
+node dist/src/cli.js install
+```
+
+On Linux and macOS:
+
+```sh
+git pull
+service/install.sh
+```
+
+A clone from a terminal: stop Even Keel, then
+
+```sh
+git pull
+npm ci
+npm run build
+npm start
+```
 
 Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
 
 ### Trying the next version
 
-With npm, `npx even-keel@next` installs the latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
+With npm, the latest release candidate, when there is one:
+
+```sh
+npx even-keel@next
+```
+
+Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
 
 ```sh
 git switch dev
@@ -150,7 +218,20 @@ npm start
 
 ## Uninstall
 
-`even-keel uninstall` (a clone: `node dist/src/cli.js uninstall` or `service/uninstall.sh`) removes the service and nothing else; then `npm uninstall --global even-keel` and delete the data folder, or delete the clone. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
+Remove the service — it removes nothing else — then the package, and delete the data folder:
+
+```sh
+even-keel uninstall
+npm uninstall --global even-keel
+```
+
+A clone: remove the service, then delete the clone (on Linux and macOS `service/uninstall.sh` does the same):
+
+```sh
+node dist/src/cli.js uninstall
+```
+
+What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
 
 ## Configuration
 
