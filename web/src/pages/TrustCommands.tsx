@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ProjectTrust } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
+import { trustTexts } from '../i18n/trust.js'
+import { SwitchField } from './settingsParts.js'
 import { useLive } from '../live/context.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { untrustedOf } from './noticeFix.js'
 import { trustCommandsOf, type TrustPlace } from './projectWizard.js'
 import './projectAdd.css'
+
+export function TrustConsent({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  const text = trustTexts()
+  return <SwitchField className="settings__field" label={text.label} hint={text.hint} checked={checked} onChange={onChange} />
+}
 
 /** The commands that open `claude` in the folder to accept its trust: as the user at hand, then, for a service, from another user's terminal. */
 export function TrustCommands({ place }: { place: TrustPlace }) {

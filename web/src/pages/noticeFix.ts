@@ -55,6 +55,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'config.token': PAGE,
   'config.tokenShape': PAGE,
   'claude.untrusted': { to: 'resume' },
+  'claude.trustWriteFailed': { to: 'resume' },
   'git.missing': { to: 'resume' },
   'git.noIdentity': { to: 'git' },
   'chain.packagesNotReady': { to: 'packages' },

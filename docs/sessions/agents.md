@@ -10,6 +10,16 @@ The seam for a second agent (BTN-116: Codex), on the pattern of `src/tracker/`. 
 - The contract does not need a live process between turns: a session is its id and its transcript, `resume` may start a process per turn (`codex exec resume`).
 - The agent of a new session (BTN-168, BTN-173): see "Run profiles" below. `choiceFor(project, task)` in `src/service.ts` picks the account folder a launch, a handoff (`relay`) and a fix session (`launchFix`) start in. The chain judges a launch block, the limits and the relay account by that same folder (`blocked`, `limitReset`, `account` in `src/chain/model.ts` take the project and the task). `agentExtras` adds what only Codex takes: the bypass (`execution.codex`) and the tracker's MCP server. Still Claude's and left for the accounts page: `AccountHomes` (folders, `.claude.json`, `.credentials.json`, sharing), `parseAuthStatus`, `parseCredentialTimes`, the statusline's `rate-limits.json`.
 
+## Claude folder trust (EKR-59)
+
+`trustClaude` is consent stored per project, false when absent; the project wizard offers it on by default. `wireLaunchIn` and `wireResumeIn` (`src/service/accounts.ts`) read current consent and the checkout inside the account's CLI lease, passing the checkout as the neutral `SessionStart.trustedRepo`. A changed account, consent or checkout is therefore taken on the next launch or resume without restarting the service.
+
+Only the Claude adapter writes trust, after choosing the transport: SDK launches and sessions known to `SdkSessions.knows` are left alone, even after the configured transport changes. For `--bg`, `trustFolder` (`src/claude/trust.ts`) reads the selected account's `.claude.json`, or the service user's global file when no `CLAUDE_CONFIG_DIR` is set, immediately before launch/resume. It uses `isTrusted` and `samePath`, reuses an existing spelling of the checkout, preserves other keys and projects, and writes atomically. A missing file is created; empty, malformed, wrongly shaped or inaccessible data is not replaced. Already trusted files are not rewritten. Turning consent off does not remove trust.
+
+Trust enables the repository's `.claude/settings*.json` hooks too; chain sessions still disable `.mcp.json` servers. A write failure pauses with `claude.trustWriteFailed`, whose action is Check again and resume. A CLI trust refusal on either launch or resume maps to `claude.untrusted`; with consent, the retry writes trust again, and without it the existing manual commands apply. This flag does not accept Claude's separate bypass-permissions disclaimer.
+
+The checkout and nested worktree flag, daemon restart and compiled writer were checked on Windows Sandbox with CLI 2.1.318 (2026-11-05, [verified sessions](../verified/sessions.md)); execution as another service user, macOS/Linux and the integrated chain remain [open checks](../unverified/sessions.md#writing-claude-folder-trust-before-launch-ekr-59).
+
 ## Stopping a turn (`killTree`, BTN-643)
 
 A Codex, Copilot or OpenCode turn and the SDK transport's executor are detached processes, each the leader of its own session and group; `killTree` (`src/agent/process.ts`) kills one with what it started. Claude's `--bg` jobs are stopped by `ClaudeCli.stop` ("CLI and transcripts" below).
