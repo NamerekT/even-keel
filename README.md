@@ -10,8 +10,8 @@
 **Already inside, so you don't glue five tools together:**
 
 - **Usage limits.** A spent 5-hour or weekly limit is waited out: the session is resumed after the reset while its prompt cache is warm, or handed to a fresh one — no work lost, no 3 a.m. restart.
-- **A full context, your way.** A session past its context threshold writes a handoff note and a fresh one takes over in the same worktree — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/reference.md#configuration). The statistics count both, and the session audit skill compares what each cost on your own tasks.
-- **What each task cost.** Built-in statistics (optional): cost and time per task, where sessions got stuck, how full the context ran, and before/after every change to your rule files.
+- **A full context, your way.** A session past its context threshold writes a handoff note and a fresh one takes over in the same worktree — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/reference.md#configuration). The statistics count both, so you can compare what each cost on your own tasks.
+- **What each task cost.** Built-in statistics (optional): cost and time per task, where sessions got stuck, how full the context ran, and before/after every change to your rule files. A session audit skill reads them and proposes what to change in your rules.
 - **Every account on one page.** Claude, Codex, OpenCode and Copilot — subscriptions and API keys — each with its limits or spend and what runs on it right now. You pick the account a project runs on.
 - **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent: Claude Code gets your `AGENTS.md`, Codex your `CLAUDE.md`.
 
@@ -28,25 +28,24 @@ Most agent orchestrators sell width: ten agents in parallel, each in its own wor
 - **A worktree isolates the work, not the result.** Conflicts, especially semantic ones that git does not see, move to merge time, where they are more expensive.
 - **The subscription limit is shared.** Parallel agents spend it sooner, not on more; and each of them reads the same area of the code again.
 
-Even Keel wins in time, not in width: the agent keeps working while you are away, and the chain survives what usually stops it — the usage limit running out, a context grown too large. That steady going is what the name means. Different projects are different repositories, so their chains can run side by side.
+Even Keel wins in time, not in width: the agent keeps working while you are away, and the chain survives what usually stops it — the usage limit running out, a context grown too large. That steady going is what the name means. One task at a time holds per folder, not per repository: different projects, or a second clone of the same repository on another branch, have chains of their own that run side by side.
 
 ![A task goes to Done, its worktree is cleaned up and the next task's session starts](assets/screens/chain.gif)
 
 ## What it does
 
-- **A chain per project.** Open blockers first, then the order you drag on the page, then milestone and priority. A task labelled `Manual` is yours and never enters it.
+- **A chain per project.** Tasks enter by the statuses and labels you choose; a task labelled `Manual` is yours and never enters. Open blockers go first — even one in another project of the same tracker — then the order you drag on the page, then milestone and priority. A task with subtasks runs as its subtasks and is closed after them.
 - **Several trackers per project.** Tasks from a second tracker or account — say the GitHub issues others file next to your private Huly project — join the same chain.
-- **Release branches.** A second chain on the same tracker project takes a released version's milestone in its own clone, and its fixes are merged forward into your development branch while that chain stands.
+- **Several chains on one tracker project**, split by milestone, each in its own clone and branch — say, fixes of a released version beside the next one. One chain's work is merged forward into another's branch whenever that chain stands, with an agent to resolve a conflict.
 - **A session per task**, in its own git worktree. The session does the task and merges; Even Keel closes the task, cleans up and starts the next. A task with nothing to merge (already done, research) the session marks `NO CHANGES: <why>`, and Even Keel closes it all the same.
 - **Questions** wait for you in the page's chat, as a tracker comment or in Claude's Remote Control. You can also write to a session while it works.
-- **Unattended mode** for nights: sessions ask nothing and park what a question holds.
-- **CI.** The next task waits for the CI's verdict on `main`, and a red `main` is fixed first. No CI — your own check commands.
+- **Unattended mode** for nights: sessions ask nothing. A task that needs your answer is left committed on its branch with the question in it, and the chain goes on to the next one.
+- **CI.** The next task waits for the CI's verdict on the main branch, and a red main branch is fixed first. No CI — your own check commands.
 - **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo, or a merge request on GitLab; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
-- **Protection.** Groups of deny rules for destructive actions, on by default, and a switch per tracker that refuses its MCP server's deletes for every agent.
-- **Standards.** A document of the repository reaches a session the first time it touches the files it guards (`**/*.tsx`), and can hold the merge until screenshots and the document's check are done.
-- **Accounts, one per project and provider.** OpenCode signs in with ChatGPT, GitHub Copilot, an API key or runs its free models; the Copilot CLI with your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
-- **A session audit skill** reads the statistics and proposes what to change in your rules.
+- **Protection.** Destructive commands are refused for every agent, on by default, and a switch per tracker stops sessions deleting its records.
+- **Standards.** A document of yours — say, a design guide for `**/*.tsx` — reaches a session the first time it touches those files, and can hold the merge until its screenshots and checks are done.
+- **One account per project and provider.** Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
 
 | A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
@@ -59,17 +58,27 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`).
 - **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and email set (`git config --global user.name "John Doe"`, `git config --global user.email john@example.com`). Nothing works without it: every task runs in its own git worktree, and sessions commit and merge under that name.
-- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page. **OpenCode** (preview) only for projects or tasks on it: `npm install -g opencode-ai`, signed in from the accounts page; checked with its free `opencode/big-pickle`. **GitHub Copilot CLI** (preview) only for projects or tasks on it: `winget install GitHub.Copilot` (or `npm install -g @github/copilot`), signed in with `copilot login` or a token on the accounts page.
+- **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The CLI can be your own install or a copy of the version Even Keel was checked on, which the setup downloads for you. You sign in from the setup or the accounts page. Only the agents your projects run on are needed.
 - **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, a Linear workspace or a Jira Cloud site.
 - **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
 
 - **Even Keel depends on undocumented behaviour of the agents' CLIs**: their background sessions, transcripts, session files and the text of their commands. None of it is a public API. Chain sessions run on your CLI, and the page warns while its version is not the one Even Keel was last checked against; "CLI version → Checked" has Even Keel download that version and run sessions on it instead. Last checked against **Claude Code 2.1.317**, **codex-cli 0.166.0**, **OpenCode 1.19.5** and **Copilot CLI 1.0.105**. A CLI update may still break a part of Even Keel until it is adapted — please open an issue when it does. What exactly it relies on and the limits of the pin: [setup](docs/guide/setup.md#the-clis-it-depends-on).
-- **Your subscription, the providers' terms.** Sessions run on the accounts you sign in with and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions/models.md](docs/sessions/models.md#run-profiles-btn-173-srcsessionslaunchts)). Claude sessions are governed by Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and [Usage Policy](https://www.anthropic.com/legal/aup) (the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team, Enterprise and API keys). Anthropic asks products built on the Agent SDK to [use API key authentication](https://code.claude.com/docs/en/legal-and-compliance), so a subscription runs on the CLI's own background sessions unless you switch its card to the SDK yourself. Codex sessions are governed by OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/) when you sign in with ChatGPT (the [Services Agreement](https://openai.com/policies/services-agreement/) for Business, Enterprise, Edu and API keys), with the [Service Terms](https://openai.com/policies/service-terms/) on top. OpenAI's terms do not allow getting round its usage limits, so Even Keel refuses a second Codex account on the free plan. OpenCode sessions are governed by the terms of the provider you sign it in with; a Claude subscription is allowed only in Claude Code, so OpenCode reaches Claude only on an API key. Copilot sessions are governed by GitHub's [Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and the [GitHub Copilot terms](https://github.com/customer-terms/github-copilot-product-specific-terms), which allow one free account per person. Even Keel does not share, pool or resell access: use accounts that are yours.
-- **Sessions run without asking you on each tool call**: Claude sessions with `--permission-mode auto`, Codex sessions with `--approve-for-me`, or with no sandbox at all when `execution.codex` is `bypass`. Set up the permissions and hooks you want in your Claude Code and Codex settings before you start a chain.
+- **Your subscription, the providers' terms.** Sessions run on accounts that are yours and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions/models.md](docs/sessions/models.md#run-profiles-btn-173-srcsessionslaunchts)). Even Keel does not share, pool or resell access. Each agent's sessions fall under its provider's terms, listed below.
+- **Sessions run without asking you on each tool call**: Claude sessions with `--permission-mode auto`, Codex sessions with `--approve-for-me`, or with no sandbox at all when `execution.codex` is `bypass`. Protection refuses destructive commands by default; set up any other permissions and hooks you want in your agents' settings before you start a chain.
 - **Your sign-in stays with the CLIs.** Even Keel reads only the expiry dates from Claude's `.credentials.json`, and only the e-mail and the plan from Codex's `auth.json`; tokens are never copied or sent anywhere. It also removes the lock files the CLI leaves behind in the account folders. An API key you add is sent only to its own provider, to check it.
 - **Some behaviour has never been checked live** — an early reset of Claude limits, long chains on Codex, OpenCode and Copilot under the service, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them. What has been checked live — where, when, on which versions and with what result — is logged in [What has been verified](docs/verified.md).
+
+<details>
+<summary>The providers' terms</summary>
+
+- **Claude** sessions are governed by Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and [Usage Policy](https://www.anthropic.com/legal/aup) (the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team, Enterprise and API keys). Anthropic asks products built on the Agent SDK to [use API key authentication](https://code.claude.com/docs/en/legal-and-compliance), so a subscription runs on the CLI's own background sessions unless you switch its card to the SDK yourself.
+- **Codex** sessions are governed by OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/) when you sign in with ChatGPT (the [Services Agreement](https://openai.com/policies/services-agreement/) for Business, Enterprise, Edu and API keys), with the [Service Terms](https://openai.com/policies/service-terms/) on top. OpenAI's terms do not allow getting round its usage limits, so Even Keel refuses a second Codex account on the free plan.
+- **OpenCode** sessions are governed by the terms of the provider you sign it in with; a Claude subscription is allowed only in Claude Code, so OpenCode reaches Claude only on an API key.
+- **Copilot** sessions are governed by GitHub's [Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and the [GitHub Copilot terms](https://github.com/customer-terms/github-copilot-product-specific-terms), which allow one free account per person.
+
+</details>
 
 ## Quick start
 
@@ -89,23 +98,11 @@ npm run build
 npm start
 ```
 
-Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
+Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
 
 Want to look first? `npm run dev:fake` in a clone shows the page on fake data, with no tracker and no sessions.
 
 To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel` or `jira@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
-
-To test the next version before its release: with npm, `npx even-keel@next` installs its latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
-
-```sh
-git switch dev
-git pull
-npm install
-npm run build
-npm start
-```
-
-`dev` is not a release: the page offers no updates on it, and the state it writes may be too new for the release to read, so test it in a separate clone.
 
 > 🍺 **Before you start a chain:** crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands off the fridge."). Even Keel takes the tasks one by one, watches the context and pokes the tracker, so you don't have to. Your only job now is to look busy. Cheers! 🍻
 >
@@ -144,6 +141,18 @@ The gear menu in the header shows the installed version and tells you when a new
 
 Running sessions survive the update. Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
 
+To test the next version before its release: with npm, `npx even-keel@next` installs its latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
+
+```sh
+git switch dev
+git pull
+npm install
+npm run build
+npm start
+```
+
+`dev` is not a release: the page offers no updates on it, and the state it writes may be too new for the release to read, so test it in a separate clone.
+
 ## Uninstall
 
 `even-keel uninstall` (a clone: `node dist/src/cli.js uninstall` or `service/uninstall.sh`) removes the service and nothing else; then `npm uninstall --global even-keel` and delete the data folder, or delete the clone. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
@@ -154,9 +163,7 @@ The settings live in Even Keel's database and are edited on the page: a project'
 
 ## What comes next
 
-The single executable once planned for v0.2 gave way to the npm package: an executable per platform meant its own build and release pipeline and a whole second install to check live on every system, while `npx even-keel` already installs Even Keel, sets up the service and updates it with one command.
-
-Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend.
+Looked at, not promised: several machines taking the tasks of one project, each folder still one task at a time; running in Docker; a cap on how much of the usage limit one task may spend.
 
 ## Extending
 
@@ -194,7 +201,7 @@ A vulnerability is reported privately, not as an issue: [SECURITY.md](SECURITY.m
 
 ## Support
 
-Even Keel is free. If it saves you time, [Patreon](https://www.patreon.com/Namerek) keeps it going: patrons get the write-ups of how it is built and what each change to the rules cost, measured on its own statistics.
+Even Keel is free. If it saves you time, [GitHub Sponsors](https://github.com/sponsors/NamerekT) or [Patreon](https://www.patreon.com/Namerek) keep it going; patrons on Patreon also get the write-ups of how it is built and what each change to the rules cost, measured on its own statistics.
 
 ## License
 
