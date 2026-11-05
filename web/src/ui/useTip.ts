@@ -56,14 +56,16 @@ export function useTip<Anchor extends HTMLElement, Tip extends HTMLElement>(enab
       if (!(event.target instanceof Node && element.contains(event.target))) setOpen(false)
     }
     const resize = () => setOpen(false)
+    // An options object, not a bare `true`: Node's EventTarget before 26 ignores a boolean capture on removal.
+    const capture = { capture: true }
     element.addEventListener('pointerdown', hold)
     document.addEventListener('pointerdown', away)
-    document.addEventListener('scroll', scroll, true)
+    document.addEventListener('scroll', scroll, capture)
     window.addEventListener('resize', resize)
     return () => {
       element.removeEventListener('pointerdown', hold)
       document.removeEventListener('pointerdown', away)
-      document.removeEventListener('scroll', scroll, true)
+      document.removeEventListener('scroll', scroll, capture)
       window.removeEventListener('resize', resize)
       if (element.matches(':popover-open')) element.hidePopover()
       openTips -= 1
