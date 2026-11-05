@@ -386,6 +386,7 @@ export const en: Messages = {
     loggingIn: 'Signing in…',
     loginFailed: 'Sign-in failed',
     needsLogin: 'Sign-in needed',
+    terminalLogin: "The CLI sees no sign-in in this folder. Sign in from a terminal on this machine, as the page can't finish this sign-in, or add an account with a token:",
     expiry: (left: string) => `sign-in: ${left}`,
     expired: 'expired',
     underDay: 'under a day',

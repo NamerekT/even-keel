@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runWithInput } from '../agent/oneturn.js'
-import { machineToken } from './machine.js'
+import { machineSignedIn, machineToken } from './machine.js'
 
 vi.mock('../agent/oneturn.js', () => ({ runWithInput: vi.fn() }))
 const run = vi.mocked(runWithInput)
@@ -68,5 +68,34 @@ describe('Copilot machine token', () => {
   it('keeps a failed gh call private', async () => {
     run.mockResolvedValueOnce(reply(GH)).mockRejectedValueOnce(new Error('gh unavailable'))
     expect(await machineToken('copilot', env, '/accounts/copilot', 1000)).toBeNull()
+  })
+})
+
+describe('Copilot machine sign-in', () => {
+  beforeEach(() => run.mockReset())
+
+  it('asks the same CLI and folder whether it is signed in, by any source', async () => {
+    run.mockResolvedValueOnce(reply({ isAuthenticated: true, authType: 'user' }))
+    expect(await machineSignedIn('/cli/copilot', env, '/accounts/copilot', 1000)).toBe(true)
+    expect(run.mock.calls[0]).toEqual([
+      '/cli/copilot', ['--headless', '--stdio', '--no-auto-update'],
+      expect.stringContaining('"method":"auth.getStatus"'),
+      { cwd: '/accounts/copilot', env, timeoutMs: 1000 },
+    ])
+  })
+
+  it('says signed out only when the CLI says so', async () => {
+    run.mockResolvedValueOnce(reply({ isAuthenticated: false }))
+    expect(await machineSignedIn('copilot', env, '/accounts/copilot', 1000)).toBe(false)
+  })
+
+  it.each([reply(null), reply({ authType: 'user' }), 'not RPC'])('does not know from an unreadable answer: %j', async (text) => {
+    run.mockResolvedValueOnce(text)
+    expect(await machineSignedIn('copilot', env, '/accounts/copilot', 1000)).toBeNull()
+  })
+
+  it('does not know when the CLI cannot be asked', async () => {
+    run.mockRejectedValueOnce(new Error('CLI unavailable'))
+    expect(await machineSignedIn('copilot', env, '/accounts/copilot', 1000)).toBeNull()
   })
 })

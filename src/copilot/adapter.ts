@@ -95,6 +95,7 @@ export const copilot: AgentAdapter = {
       feedFile: async (home, sessionId) => eventsFile(home.dir, sessionId),
       transcripts: async (home) => [...new Set([...(await sessionIds(home.dir)), ...(await registry.list(home.key)).map((entry) => entry.sessionId)])],
       authStatus: (home) => cli.authStatus(home),
+      terminalLogin: (home) => cli.terminalLogin(home),
       login: (home) => cli.login(home),
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),

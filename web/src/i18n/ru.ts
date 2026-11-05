@@ -390,6 +390,7 @@ export const ru = {
     loggingIn: 'Вход…',
     loginFailed: 'Вход не удался',
     needsLogin: 'Нужен вход',
+    terminalLogin: 'CLI не видит входа в этой папке. Войдите из терминала этой машины — со страницы этот вход не завершить — или добавьте аккаунт с токеном:',
     expiry: (left: string) => `вход: ${left}`,
     expired: 'истёк',
     underDay: 'меньше суток',
