@@ -217,7 +217,7 @@ export const noticesRu: NoticeTexts = {
 
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.untrusted': (p) =>
-    `Claude Code отказался запустить ${p.task}, потому что не доверяет папке ${p.folder}. Проверьте снова и продолжите цепочку: Even Keel ещё раз сохранит доверие перед повторной попыткой`,
+    `Claude Code отказался запустить ${p.task}, потому что не доверяет папке ${p.folder}. Запустите claude в этой папке от пользователя ${p.user}, примите доверие, затем нажмите «Проверить и продолжить»`,
   'claude.trustWriteFailed': (p) => `Не удалось сохранить доверие Claude Code к ${p.folder}. Проверьте корректность и доступность записи настроек аккаунта Claude, затем проверьте снова и продолжите цепочку`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,

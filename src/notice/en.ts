@@ -246,7 +246,7 @@ export const en = {
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
   // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none.
   'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean }) =>
-    `Claude Code refused to start ${p.task} because it does not trust ${p.folder}. Check again and resume: Even Keel will save folder trust again before retrying`,
+    `Claude Code refused to start ${p.task} because it does not trust ${p.folder}. Run claude in that folder as ${p.user}, accept the trust, then press Check again and resume`,
   'claude.trustWriteFailed': (p: { folder: string }) => `Could not save Claude Code trust for ${p.folder}. Check that Claude's account configuration is valid and writable, then check again and resume`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,

@@ -12,7 +12,7 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
 
-If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. A CLI trust refusal offers the same action: the retry saves trust again.
+If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. If the CLI still refuses folder trust, the pause also offers commands to open Claude in the checkout and accept its trust dialog manually, including a command for the service user. Run Windows commands in cmd. Use the same Claude account as the session; the commands invoke `claude` from the terminal's PATH. Then press **Check again and resume**; the retry saves trust again.
 
 
 ## OpenCode accounts
