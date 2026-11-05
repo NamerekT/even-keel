@@ -91,7 +91,7 @@ export interface TurnPlace {
  * A new session gets its id from Even Keel (`--session-id`) and its task as its name; a resume names the session. The
  * prompt goes as `--prompt=`: a reply starts with `- "question" → answer`, which `-p` would take for an option.
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'plugins' | 'protection'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'plugins' | 'protection' | 'mainBranch'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
   const { name, model, mcp, plugins = [] } = start
   return [
     '-C',
@@ -101,7 +101,7 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'p
     '--no-auto-update',
     '--no-ask-user',
     `--${SESSION_MODE}`,
-    ...(start.protection === undefined ? [] : protectionRules(start.protection, place.remotes).copilot.flatMap(rule => ['--deny-tool', rule])),
+    ...(start.protection === undefined ? [] : protectionRules(start.protection, place.remotes, start.mainBranch).copilot.flatMap(rule => ['--deny-tool', rule])),
     ...(session.resume ? [`--resume=${session.id}`] : ['--session-id', session.id, '--name', name]),
     ...(model === null ? [] : ['--model', model]),
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),

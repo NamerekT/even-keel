@@ -52,10 +52,11 @@ deleting a record in another system; then delete it yourself.
 Claude Code receives permission deny rules; Copilot receives tool deny rules. Codex receives command-prefix rules,
 which also work in its full-access mode. Codex and Copilot match literal command prefixes only: defaults cover common
 push flag orders (`git push -f`, `git push origin -f` for each of the project's remotes) and literal recursive-delete
-targets. On Codex they also cover the refspecs that force-push or delete the project's main branch on each remote
-(`git push origin +main`, `+HEAD:main`, `+main:main`, `+HEAD:refs/heads/main`, `:main`, `:refs/heads/main`) and the
-other spellings of those targets (`C:\`, `C:/`, `~/`, `~/*`, `$HOME/`, `../`, `../*`, `/*`). Other argument orders, refspecs, shell expansions and, on Codex, MCP calls are outside those rules: on Copilot
-`git push origin main --force`, a `+main` refspec and a push wrapped in `pwsh -Command` still run, and only denying every `git push` would stop the first two. A
+targets. Both also cover five force-refspecs of the project's main branch, immediately after each configured remote
+(`git push origin +main`, `+HEAD:main`, `+main:main`, `+main:refs/heads/main`, `+HEAD:refs/heads/main`, for a project whose main branch is `main`).
+Codex additionally covers deletion refspecs (`:main`, `:refs/heads/main`) and other spellings of recursive-delete
+targets (`C:\`, `C:/`, `~/`, `~/*`, `$HOME/`, `../`, `../*`, `/*`). Other argument orders, refspecs, shell expansions and, on Codex, MCP calls are outside those rules: on Copilot
+`git push origin main --force` and a push wrapped in `pwsh -Command` still run. Force-refspecs of other branches remain allowed by these defaults. A
 Copilot rule of your own is written `shell(<command>:*)` for a prefix; a `*` anywhere else in it matches nothing. What does not hold on Codex, as seen live: a command with a redirection (`2>&1`, `> file`),
 a variable or a substitution is checked as one whole command, so a forbidden push inside it runs; so does one wrapped
 in `bash -lc`, `sh -c`, `pwsh -Command` or `cmd /c`, a flag after the branch (`git push origin main --force`), a

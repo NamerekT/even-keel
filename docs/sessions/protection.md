@@ -26,8 +26,9 @@ is in [`verified.md`](../verified.md) (Sessions); the SDK transport is not check
 Copilot receives `--deny-tool` alongside `--allow-all-tools`. Its `shell(...)` rules are the same literal prefixes as
 Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` before each turn): Copilot matches a
 command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
-`shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch and a
-`+main` refspec cannot be caught on Copilot short of `shell(git push:*)`, which denies every push. Huly deletion rules
+`shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch still
+escapes these prefixes. Copilot also receives the five literal force-refspecs of the project's main branch listed
+below, with `mainBranch` passed on launch and resume (EKR-74). Huly deletion rules
 name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy. Each group's hint names what it denies, and
 each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking
 to the project's session settings.
@@ -82,10 +83,11 @@ Other Codex project configuration retains its normal trust requirements. Checked
 Responses server sending a harmless `echo` tool call: a `forbidden` prefix was rejected under bypass in the account
 and project config layers. [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes:
 defaults cover push flags immediately after `git push` or after a configured remote, and literal dangerous `rm`
-targets. Codex compares whole arguments, so it also gets, for each remote and the project's main branch (`mainBranch`
-of `SessionStart`), `+<branch>`, `+HEAD:<branch>` and `:<branch>`, and the targets `C:\`, `D:\`, `~/`, `$HOME/`,
-`../`, `/*` (BTN-462); Copilot does not, its parsing of a `:` or `*` inside a prefix being unchecked. Other argument
-orders, refspecs of other branches, expanded paths, shell variants and MCP are not covered.
+targets. For each remote and the project's main branch (`mainBranch` of `SessionStart`), Codex and Copilot get
+`+<branch>`, `+HEAD:<branch>`, `+<branch>:<branch>`, `+<branch>:refs/heads/<branch>` and `+HEAD:refs/heads/<branch>`.
+Only Codex gets deletion refspecs (`:<branch>`, `:refs/heads/<branch>`) and the additional rm targets `C:\`, `D:\`, `~/`, `$HOME/`,
+`../`, `/*` (BTN-462). Missing branch or remotes produce no refspec rules; disabling `forcePush` removes the five
+force forms. Other argument orders, refspecs of other branches, expanded paths, shell variants and MCP are not covered.
 Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
 
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)

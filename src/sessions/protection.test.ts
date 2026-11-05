@@ -88,6 +88,31 @@ describe('session protection', () => {
     expect(protectionRules(DEFAULT_PROTECTION, ['origin']).codex.some(rule => rule[3]?.startsWith('+'))).toBe(false)
   })
 
+  it('gives Copilot only the configured main branch force-refspecs on each remote', () => {
+    const rules = protectionRules(DEFAULT_PROTECTION, ['origin', 'github'], 'release/v1')
+    for (const remote of ['origin', 'github']) {
+      for (const form of ['+release/v1', '+HEAD:release/v1', '+release/v1:release/v1', '+release/v1:refs/heads/release/v1', '+HEAD:refs/heads/release/v1']) {
+        expect(rules.copilot).toContain(`shell(git push ${remote} ${form}:*)`)
+      }
+    }
+    expect(rules.copilot).not.toContain('shell(git push:*)')
+    expect(rules.copilot).not.toContain('shell(git push origin +HEAD:refs/heads/main:*)')
+    expect(rules.copilot).not.toContain('shell(git push origin :release/v1:*)')
+    for (const rules of [
+      protectionRules(DEFAULT_PROTECTION, ['origin']),
+      protectionRules(DEFAULT_PROTECTION, [], 'release/v1'),
+      protectionRules({ ...DEFAULT_PROTECTION, disabled: ['forcePush'] }, ['origin'], 'release/v1'),
+    ]) expect(rules.copilot.some(rule => rule.includes(' +'))).toBe(false)
+  })
+
+  it('passes main-branch protection on both a fresh Copilot turn and a resume', () => {
+    for (const resume of [false, true]) {
+      const args = copilotArgs({ name: 'ABC-1', model: null, mainBranch: 'release/v1', protection: DEFAULT_PROTECTION }, 'task', { cwd: 'example', dirs: [], disabled: [], remotes: ['origin'] }, { id: 'session', resume })
+      const rule = 'shell(git push origin +HEAD:refs/heads/release/v1:*)'
+      expect(args.slice(args.indexOf(rule) - 1, args.indexOf(rule) + 1)).toEqual(['--deny-tool', rule])
+    }
+  })
+
   it('denies a push behind git\'s global options without touching an ordinary push or commit', () => {
     const rules = protectionRules(DEFAULT_PROTECTION, ['origin'])
     const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)

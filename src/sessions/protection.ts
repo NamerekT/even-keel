@@ -56,24 +56,27 @@ const remove = (targets: string[]) => commands(
   ['-rf', '-fr'].flatMap(flags => targets.map(target => ['rm', flags, target])),
 )
 /**
- * Codex compares whole arguments, so `C:\` or `+main` slips past `C:` or `-f`. These spellings stay Codex's: Claude's
- * patterns already cover them, and Copilot's parsing of a `:` or `*` inside a prefix was never checked.
+ * Codex compares whole arguments, so `C:\` slips past `C:`. These rm spellings stay Codex's: Claude's patterns
+ * already cover them, and Copilot's parsing of a `*` inside a prefix was never checked.
  */
 const codexOnly = (prefixes: string[][]): Rules => ({ claude: [], codex: prefixes, copilot: [], opencode: { bash: [], tools: [] } })
 const removeSpelled = (targets: string[]) => codexOnly(['-rf', '-fr'].flatMap(flags => targets.map(target => ['rm', flags, target])))
-const refspec = (forms: string[], remotes: readonly string[]) => codexOnly(remotes.flatMap(remote => forms.map(form => ['git', 'push', remote, form])))
+const refspec = (forms: string[], remotes: readonly string[], copilot: boolean): Rules => {
+  const prefixes = remotes.flatMap(remote => forms.map(form => ['git', 'push', remote, form]))
+  return { ...codexOnly(prefixes), copilot: copilot ? commands([], prefixes).copilot : [] }
+}
 const merge = (...parts: Rules[]): Rules => ({ claude: parts.flatMap(part => part.claude), codex: parts.flatMap(part => part.codex), copilot: parts.flatMap(part => part.copilot), opencode: { bash: parts.flatMap(part => part.opencode.bash), tools: parts.flatMap(part => part.opencode.tools) } })
 
 /**
  * Codex and Copilot match literal command prefixes; the remote names cover the usual `git push <remote> <flag>` order too,
- * and with the project's main branch Codex also gets the refspecs that force-push or delete it.
+ * and with the project's main branch both get force-refspecs; Codex also gets deletion refspecs.
  */
 export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string, hulyServers: readonly string[] = ['plugin_huly_huly', 'huly']): Rules {
-  const refspecs = (forms: (branch: string) => string[]) => refspec(branch === undefined ? [] : forms(branch), remotes)
+  const refspecs = (forms: (branch: string) => string[], copilot = false) => refspec(branch === undefined ? [] : forms(branch), remotes, copilot)
   // Only Huly has native rules too; the other trackers' deletes are refused by the gateway alone (native ones: BTN-611).
   const gateway = (): Rules => ({ claude: [], codex: [], copilot: [], opencode: { bash: [], tools: [] } })
   const groups: Record<ProtectionGroup, Rules> = {
-    forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`, `+${main}:${main}`, `+${main}:refs/heads/${main}`, `+HEAD:refs/heads/${main}`])),
+    forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`, `+${main}:${main}`, `+${main}:refs/heads/${main}`, `+HEAD:refs/heads/${main}`], true)),
     mirrorPush: push(['--mirror'], remotes),
     deleteRemote: merge(push(['--delete', '-d'], remotes), refspecs(main => [`:${main}`, `:refs/heads/${main}`])),
     deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', 'C:/', 'D:/', '/*'])),
