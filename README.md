@@ -39,7 +39,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **Several trackers in one chain**, say the GitHub issues others file next to your private Huly project; or **several chains on one tracker project**, say fixes of a released version beside the next one.
 - **Unattended mode** for nights: a task that needs your answer is left on its branch with the question, and the chain moves on.
 - **CI.** The next task waits for a green main branch, and a red one is fixed first.
-- **Pull requests (experimental)** instead of merging, on GitHub, Forgejo or GitLab; review feedback goes back to the session.
+- **Pull requests** instead of merging, on GitHub, Forgejo or GitLab; review feedback goes back to the session.
 - **Plugins and MCP servers** per project, their keys kept away from the sessions.
 - **Protection.** Destructive commands are refused for every agent by default.
 - **Standards.** A guide of yours, say for the UI files, reaches a session when it touches them and can hold the merge until its checks are done.
