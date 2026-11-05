@@ -71,6 +71,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `first`, `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, BTN-506, `docs/sessions/checkpoint.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
 | `tally` | G | — (`off`, `local`, `server`) | page (the setup's stats step and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
 | `updates.check`, `updates.notify` | G | — | page (the check also in the first run's setup, BTN-310), hand, service (`muteUpdates`) | true, true; the check is held during the first run (`docs/web.md`) |
+| `notices.<kind>` | G, P | by kind (the qualifier), P over G; a project holds only the kinds of a project's banner (`PROJECT_KINDS`: `protection.noRules`, `protection.remote`, `branch.drift`), Even Keel's also the shared ones (`cli.versions`, `cli.check`, `usage.unread`, `unattended`); another key is `config.noticeKind` (`src/notice/kinds.ts`, BTN-759) | page ("Don't show again" on a banner and Settings → Notices, both sent at once, `notices/mute`), hand | `{}` — every kind shown; Even Keel's `true` leaves no row |
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
 | `slot` | P | — | page, hand | none (a worktree per task) |
@@ -125,7 +126,8 @@ schema version of a file of the format.
   `EVEN_KEEL_URL`: the collector's, which can run against an external Postgres. Tally's own file stays its own; its
   prices are reference data, already loaded into its `model_prices` table.
 - **State that sits among settings** — `updates.dismissed` (the service writes it when a toast is closed; `service_state`
-  since BTN-199, a key of the config before), a package's
+  since BTN-199, a key of the config before), `notices.dismissed` (a banner's "Got it": its id to the stamp of what it
+  said, `service_state`, BTN-759), a package's
   catalog entry, installs and the task pins of `state/packages.json`, the account pool's sign-ins in `state/account.json`.
 - **Project record fields** — `id`, `key`, `name`, `repo`, `branch`, the tracker's project. `branch` is a fact about the
   repository like `repo`, not a choice that could be shared. A tracker connection is a tracker profile (BTN-66): the

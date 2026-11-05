@@ -110,6 +110,8 @@ export interface EvenKeelConfig {
   tally: TallyMode | null
   /** The switches only: the version whose toast was closed is state (`service_state`). */
   updates: Pick<UpdateSettings, 'check' | 'notify'>
+  /** Even Keel's own `notices` entries (BTN-759), `false` — that kind is not shown; a project's own are in `settings`. */
+  notices: Record<string, boolean>
 }
 
 /**
@@ -333,6 +335,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,
     updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
+    notices: shared.notices as Record<string, boolean>,
   }
 }
 
@@ -387,6 +390,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     protection: values.protection as Protection,
     checkpointTokens: values['stats.checkpointTokens'] as number | null,
     checkpointShares: sharesOf(values, record.key),
+    notices: (own.notices as Record<string, boolean> | undefined) ?? {},
     own:Object.fromEntries(OWN_KEYS.flatMap((key) => (own[key] === undefined ? [] : [[key, own[key]]]))) as OwnValues,
   }
 }

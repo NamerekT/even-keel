@@ -159,6 +159,8 @@ export interface ProjectSettings {
   checkpointTokens: number | null
   /** The shares of the session's window the checkpoint thresholds come at, at most; each the shared one unless the project has its own. */
   checkpointShares: CheckpointShares
+  /** The project's own `notices` entries (BTN-759) over Even Keel's, read only: `notices/mute` writes them; none — as shared. */
+  notices?: Record<string, boolean>
   /** The project's own rows of the keys Even Keel sets too (`ci.*` and the five above); a key left out — as shared. */
   own: OwnValues
 }
@@ -288,6 +290,8 @@ export interface SharedForm {
   stats: StatsConfig
   /** The switches of `updates`; the closed version is written by the toast, not the form. */
   updates: Pick<UpdateSettings, 'check' | 'notify'>
+  /** Even Keel's `notices` entries (BTN-759), read only: `notices/mute` writes them, not the form. */
+  notices?: Record<string, boolean>
 }
 
 /** A tracker the settings can pick, and the key a project on it names its tracker project with. */
@@ -466,6 +470,11 @@ export interface EvenKeelState {
   /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
   hulyClient?: Notice | null
   updates: UpdatesView
+  /**
+   * The page's "Got it" marks (BTN-759): a banner's id and the stamp of what it said when closed; it comes back once
+   * the stamp changes. Kept in `service_state`, so every device sees them.
+   */
+  noticesDismissed?: Record<string, string>
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
   cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>

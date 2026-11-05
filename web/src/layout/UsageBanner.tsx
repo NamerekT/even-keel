@@ -1,45 +1,50 @@
-import { useState } from 'react'
-import { t } from '../i18n/index.js'
+import { Fragment } from 'react'
+import type { EvenKeelState } from '../../../src/state.js'
 import { useLive } from '../live/context.js'
 import { Tipped } from '../ui/Tipped.js'
-import { usageNotices, type AccountUsageNotice } from './usageNotices.js'
+import { usageGroups, usageNotices, type AccountUsageNotice, type UsageGroup } from './usageNotices.js'
 import { Banner } from './Banner.js'
+import { kindShown, noticeId, notDismissed, NoticeButtons } from './NoticeButtons.js'
 
-const DISMISSED_KEY = 'even-keel.usageNotice.dismissed'
-
+/**
+ * Accounts whose limits are unread: one banner for the accounts alike, each named with its own detail. "Got it"
+ * hides an account until its notice changes, on every device; "Don't show again" turns the warnings off (BTN-759).
+ */
 export function UsageBanner() {
   const { state } = useLive()
-  return (state === null ? [] : usageNotices(state.account)).map((notice) => <AccountUsageBanner key={notice.account} notice={notice} />)
+  return usageGroups(usageShown(state)).map((group) => <UsageGroupBanner key={group.notices[0]!.account} group={group} />)
 }
 
-function AccountUsageBanner({ notice }: { notice: AccountUsageNotice }) {
-  const storageKey = `${DISMISSED_KEY}.${notice.account}`
-  const [dismissed, setDismissed] = useState(() => readDismissed(storageKey))
-  if (notice.key === dismissed) return <Banner />
+function usageShown(state: EvenKeelState | null): AccountUsageNotice[] {
+  if (state === null) return []
+  const kind = kindShown(state, 'usage.unread')
+  return usageNotices(state.account).filter((notice) => (kind || notice.tone === 'error') && notDismissed(state, markOf(notice), notice.key))
+}
 
-  const dismiss = () => {
-    setDismissed(notice.key)
-    try {
-      localStorage.setItem(storageKey, notice.key)
-    } catch {}
-  }
-
+function UsageGroupBanner({ group }: { group: UsageGroup }) {
   return (
-    <Banner tone={notice.tone}>
+    <Banner tone={group.tone}>
       <div className="banner__inner">
-        <Tipped inline focusable tip={notice.detail}>{notice.text}</Tipped>
-        <button type="button" className="button" onClick={dismiss}>
-          {t.common.hide}
-        </button>
+        <span>
+          {group.notices.map((notice, index) => (
+            <Fragment key={notice.account}>
+              {index > 0 && ', '}
+              <Tipped inline focusable tip={notice.detail}>
+                {notice.name}
+              </Tipped>
+            </Fragment>
+          ))}
+          {`: ${group.reason}`}
+        </span>
+        <span className="banner__actions">
+          <NoticeButtons
+            stamps={Object.fromEntries(group.notices.map((notice) => [markOf(notice), notice.key]))}
+            kind={group.tone === 'error' ? undefined : 'usage.unread'}
+          />
+        </span>
       </div>
     </Banner>
   )
 }
 
-function readDismissed(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
+const markOf = (notice: AccountUsageNotice): string => noticeId(`usage:${notice.account}`)

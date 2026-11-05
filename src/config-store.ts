@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
+import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
@@ -178,6 +179,11 @@ export class ConfigStore {
   saveChainSwitches(patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): void {
     const changed = Object.entries(patch).filter(([key, on]) => this.current[key as keyof typeof patch] !== on)
     if (changed.length > 0) this.write(withChainSwitches(this.raw(), Object.fromEntries(changed)))
+  }
+
+  /** Writes one `notices` entry (BTN-759), by the same rule as `saveProject`: `project` — its id, `null` — Even Keel's. */
+  saveNotice(project: string | null, kind: NoticeKind, shown: boolean | null): void {
+    this.write(withNotice(this.raw(), project === null ? null : this.idOf(project), kind, shown))
   }
 
   saveTally(mode: TallyMode): void {

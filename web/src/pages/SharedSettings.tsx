@@ -64,6 +64,8 @@ import { SettingsNav } from './SettingsNav.js'
 import { SettingsProfiles } from './SettingsProfiles.js'
 import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
 import { TallySettings } from './TallyChoice.js'
+import { NoticeSettings } from './NoticeSettings.js'
+import { noticeTexts } from '../i18n/notice-choices.js'
 import { useVocabularies } from './useVocabularies.js'
 import './settings.css'
 
@@ -83,6 +85,8 @@ const GROUPS = [
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
+  // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
+  { id: 'notices', keys: [] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
@@ -237,7 +241,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
   const models = useModelCatalog(offered.map((provider) => text(`accounts.${provider}`)))
   const titleOf = (id: GroupId) => t.shared[id]
-  const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote }
+  const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote, notices: noticeTexts().hint }
   const groupTitle = (id: GroupId) => (
     <h2 id="settings-group" className="settings-page__group">
       {titleOf(id)}
@@ -646,6 +650,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       </>
     ),
     trackers: () => <SettingsProfiles state={state} onRules={(id) => setOpen(profileGroup(id))} />,
+    notices: () => <NoticeSettings />,
   }
 
   const draftForm = (titled: boolean) => (
@@ -709,11 +714,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             )}
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
           </section>
-        ) : open === 'trackers' || open === 'stats' ? (
-          // Every profile is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
+        ) : open === 'trackers' || open === 'notices' || open === 'stats' ? (
+          // Every profile and every notice switch is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}
-            {open === 'trackers' ? (
+            {open === 'trackers' || open === 'notices' ? (
               groups[open]()
             ) : (
               <>

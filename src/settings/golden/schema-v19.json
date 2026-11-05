@@ -124,6 +124,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {
         "protection": {
           "disabled": [
@@ -203,6 +204,7 @@
         "late": 85,
         "hard": 95
       },
+      "notices": {},
       "own": {
         "autoCompactWindow": null
       },
@@ -318,5 +320,6 @@
   "updates": {
     "check": true,
     "notify": true
-  }
+  },
+  "notices": {}
 }

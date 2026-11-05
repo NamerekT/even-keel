@@ -5,6 +5,7 @@ import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
+import { NOTICE_KINDS, PROJECT_KINDS } from '../notice/kinds.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
@@ -43,7 +44,7 @@ export interface SettingDefinition {
   kind: Kind
   scopes: readonly Scope[]
   /** A map whose entries merge across levels one by one; the qualifier is the entry's key. */
-  qualifier?: 'provider'
+  qualifier?: 'provider' | 'notice'
   /** The parser of the task's labels that feeds the task level. */
   taskLabel?: TaskLabel
   /** The fields of `EvenKeelConfig` the value ends up in. */
@@ -211,6 +212,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   { key: 'cliCheck', kind: 'boolean', scopes: ['global'], lands: ['cliCheck'], default: false, check: boolean('cliCheck') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
   { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
+  // The page's warnings by kind (BTN-759): `false` — not shown; a project's entry over Even Keel's, only of a project's kind.
+  { key: 'notices', kind: 'boolean', scopes: ['global', 'project'], qualifier: 'notice', lands: ['notices', 'settings'], default: {}, check: (value, place) => {
+    const known = place.project === null ? Object.keys(NOTICE_KINDS) : PROJECT_KINDS
+    if (!known.includes(place.qualifier)) throw fail('config.noticeKind', { where: at(place, 'notices'), key: place.qualifier, known })
+    return boolean(`notices.${place.qualifier}`)(value, place)
+  } },
   // A project's own only (BTN-345): a shared default silently moved every project that named none.
   { key: 'tracker', kind: 'enum', scopes: ['project'], lands: ['trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
     const where = at(place, 'tracker')

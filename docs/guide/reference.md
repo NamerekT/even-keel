@@ -131,6 +131,7 @@ Settings tables include a started bottom row when you save; **+** or Enter adds 
 | `cliCheck` | `false` | run a short live check of a new CLI version, and weekly of the checked one, in the account folder your projects use; it waits for the folder to be free, holds that account's chains for its few minutes and spends the account's limits ([CLI copies](features.md#cli-copies)) |
 | `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
 | `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
+| `notices` | `{}` | warnings turned off, by kind: `{ "protection.remote": false }`. Even Keel's may name `protection.noRules`, `protection.remote`, `branch.drift`, `cli.versions`, `cli.check`, `usage.unread`, `unattended`; a project's own only the first three, over Even Keel's. Written by **Don't show again** and **Settings → Notices** ([Closing warnings](features.md#closing-warnings)) |
 | `unattended` | `false` | [unattended mode](features.md#unattended-mode), the switch in **Settings → Chain** |
 | `trimTools` | `true` | the **Trim the tools** switch in **Settings → Sessions**: chain sessions get no claude.ai skills and plugins, and the `hiddenSkills` only through `/name` |
 

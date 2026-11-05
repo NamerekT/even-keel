@@ -90,6 +90,7 @@ export const sharedRu = {
   contextWarn: 'Предупреждение, %',
   contextDanger: 'Опасно, %',
   stats: 'Статистика',
+  notices: 'Уведомления',
   compare: 'Сравнения «до и после»',
   compareHint: 'Минимум задач, сессий и дней с каждой стороны сравнения «до и после» на /stats.',
   minTasks: 'Задач',

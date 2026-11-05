@@ -86,7 +86,16 @@ bypasses appear on the project page beside a link to the server's branch rules. 
 and branch deletion there, including enforcement for administrators where appropriate. Even Keel does not change
 server rules. GitHub rulesets with no bypass actors do not show a bypass warning; if the profile cannot read the
 bypass list, the warning remains. Older Forgejo rules without a force-push switch are recognized as protection too.
-Checks are cached for five minutes. No protection check is available for GitLab yet.
+Checks are cached for five minutes. No protection check is available for GitLab yet. Remotes with a warning share one
+band: the same warning for the same branch is written once, with a link to the rules of each remote.
+
+## Closing warnings
+
+Every banner and project band has **Got it**: it hides that band on every device until what it says changes — another
+verdict of a remote, another CLI version, another error. A warning also has **Don't show again**, which turns that kind
+of warning off: for the project, when the band is a project's, or for all of Even Keel. Settings → **Notices** lists the
+kinds with a switch each and turns back on what was turned off; a project's own Notices tab can show or hide its kinds
+over the shared choice. Errors that stop a chain, such as a broken config, only take **Got it**.
 
 The [README](../../README.md) has the short version. This is every feature in full; the keys named here are in the [reference](reference.md).
 

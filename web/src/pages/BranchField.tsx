@@ -4,6 +4,7 @@ import { branchTexts } from '../i18n/branch.js'
 import { say } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { noticeId, NoticeButtons } from '../layout/NoticeButtons.js'
 import { Band } from '../ui/blocks.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { branchOffers, moveLine } from './branchLines.js'
@@ -59,8 +60,11 @@ export function BranchMoveLine({ repo, value }: { repo: RepoBranches | null; val
   return line === null ? null : <p className="settings__hint">{line}</p>
 }
 
-/** The checkout moved off the project's branch by hand, with the two ways to make them one again. */
-export function BranchDriftBand({ project, drift }: { project: string; drift: BranchDrift }) {
+/**
+ * The checkout moved off the project's branch by hand, with the two ways to make them one again; over the chain it also
+ * takes "Got it" and "Don't show again" (`closable`, BTN-759), under the branch field it stays.
+ */
+export function BranchDriftBand({ project, drift, closable = false }: { project: string; drift: BranchDrift; closable?: boolean }) {
   const { send, failure } = useCommand()
   const texts = branchTexts()
   return (
@@ -77,6 +81,7 @@ export function BranchDriftBand({ project, drift }: { project: string; drift: Br
             <button type="button" className="button button--small" onClick={() => void send('project/branch/restore', { project })}>
               {texts.restore(drift.branch)}
             </button>
+            {closable && <NoticeButtons stamps={{ [noticeId('branch.drift', project)]: JSON.stringify(drift) }} kind="branch.drift" project={project} small />}
           </>
         }
       >

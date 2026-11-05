@@ -105,6 +105,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       changelog: 'CHANGELOG.md',
       provider: null,
       models: {},
+      notices: {},
       accounts: {},
       modelLabels: null,
       promptLanguage: 'en',

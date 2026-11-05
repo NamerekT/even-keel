@@ -229,6 +229,7 @@
         "late": 80,
         "hard": 90
       },
+      "notices": {},
       "own": {
         "ci.guard": false,
         "ci.kinds": [
@@ -303,6 +304,7 @@
         "late": 85,
         "hard": 90
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     },
@@ -365,6 +367,7 @@
         "late": 85,
         "hard": 90
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     },
@@ -427,6 +430,7 @@
         "late": 85,
         "hard": 90
       },
+      "notices": {},
       "own": {},
       "promptLanguage": "en"
     }
@@ -528,5 +532,6 @@
   "updates": {
     "check": true,
     "notify": false
-  }
+  },
+  "notices": {}
 }

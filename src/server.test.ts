@@ -216,6 +216,26 @@ describe('Even Keel HTTP server', () => {
     expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'version' } })
   })
 
+  it('passes on the banner buttons: "Got it" marks and a kind turned off or back (BTN-759)', async () => {
+    const post = (path: string, body: unknown) => fetch(base + `/api/notices/${path}`, { method: 'POST', body: JSON.stringify(body) })
+    expect((await post('dismiss', { entries: { 'protection.remote@id-abc': '[]' } })).status).toBe(200)
+    expect((await post('mute', { project: null, kind: 'cli.versions', shown: false })).status).toBe(200)
+    expect((await post('mute', { project: 'ABC', kind: 'protection.remote', shown: null })).status).toBe(200)
+    expect(calls).toContainEqual(['dismissNotices', { 'protection.remote@id-abc': '[]' }])
+    expect(calls).toContainEqual(['muteNotice', null, 'cli.versions', false])
+    expect(calls).toContainEqual(['muteNotice', 'ABC', 'protection.remote', null])
+    const refusals = [
+      ['dismiss', { entries: { a: 1 } }, 'entries'],
+      ['mute', { project: null, kind: 'chain.paused', shown: false }, 'kind'],
+      ['mute', { project: null, kind: 'unattended', shown: 'no' }, 'shown'],
+    ] as const
+    for (const [path, body, field] of refusals) {
+      const refused = await post(path, body)
+      expect(refused.status).toBe(400)
+      expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
+  })
+
   it('passes on the update window: update, revert and closing the result', async () => {
     for (const command of ['install', 'revert', 'seen']) {
       expect((await fetch(base + `/api/updates/${command}`, { method: 'POST', body: '{}' })).status).toBe(200)
