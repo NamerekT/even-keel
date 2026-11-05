@@ -33,7 +33,6 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       id,
       {
         ...config.settings[id]!,
-        trustClaude: config.settings[id]!.trustClaude === true,
         name: config.names[id] ?? null,
         repo,
         tracker: config.trackers[id]!,
@@ -115,7 +114,6 @@ export function withProjectForm(
   const entry = writeRows(withProjectSettings(list[index], form, changed), changesOf(id, values, changedGroup))
 
   if (changed('repo')) entry.repo = form.repo.trim()
-  if (changed('trustClaude')) entry.trustClaude = form.trustClaude === true
   if (changed('name')) {
     const name = form.name?.trim() ?? ''
     if (name === '') delete entry.name
@@ -138,7 +136,6 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   const config = isPlainObject(raw) ? raw : {}
   const shared = sharedValues(config, adapters)
   const entry: Record<string, unknown> = { id, key: draft.key.trim(), repo: draft.repo.trim() }
-  if (draft.trustClaude !== undefined) entry.trustClaude = draft.trustClaude
   const name = draft.name.trim()
   if (name !== '') entry.name = name
   const branch = draft.branch.trim()

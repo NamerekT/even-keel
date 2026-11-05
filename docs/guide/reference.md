@@ -2,6 +2,8 @@
 
 Every environment variable and every setting. How to set Even Keel up is in [setup](setup.md), what it does in [features](features.md).
 
+Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account.
+
 ### Protection setting
 
 `protection` is shared and per project, edited in **Sessions → Protection**. Its default is
@@ -77,7 +79,6 @@ Settings tables include a started bottom row when you save; **+** or Enter adds 
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
 | `projects[].tracker` | `github` | the project's tracker: `huly`, `github`, `linear`, `gitlab` or `jira` (Jira Cloud: the key is the Jira project key, task ids are the issue keys). The page and `config-export` always write it; a project of a file without it runs on GitHub. A file of an older Even Keel gives each project the tracker it ran on |
 | `projects[].brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
-| `projects[].trustClaude` | `false` | **Sessions → Trust folder**: consent to save Claude Code's checkout trust before each background launch/resume in the selected account. The new-project wizard writes `true` by default; existing projects remain off. Enables repository hooks too; turning off does not revoke trust. No shared or task-level value; SDK sessions and other agents ignore it |
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects[].gitlab` | — | full project path, including subgroups (`group/subgroup/project`), for a project on GitLab; issue ids use the Even Keel key and the project's issue `iid` |
 | `projects[].huly` | the key | identifier of the Huly project the project reads, when it is not the key; task ids stay Huly's (`ABC-12`) |

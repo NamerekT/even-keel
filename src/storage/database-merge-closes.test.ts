@@ -12,7 +12,7 @@ it('step 26 keeps the tasks the merge closer closed with the commits main had, n
     await frozen.exec(fixture(26))
     expect(await databaseVersion(frozen)).toBe(26)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 26)
+    await readsWhole(frozen, 26, 26)
     expect(await loadMergeMarks(frozen)).toEqual([
       { project: ABC, task: 'ABC-1', commits: ['1111111111111111111111111111111111111111'], closedAt: '2026-11-01T14:35:47.000Z' },
       { project: FEED, task: 'ABCGH-4', commits: ['2222222222222222222222222222222222222222', '3333333333333333333333333333333333333333'], closedAt: '2026-11-01T15:00:00.000Z' },

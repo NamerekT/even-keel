@@ -65,7 +65,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 7a | [The schema hint on a deferred MCP call](unverified/codex.md#the-schema-hint-on-a-deferred-mcp-call-btn-625) | Claude chain sessions calling a tracker tool before loading its schema; Copilot with the checkpoint package | the task is left without its estimate as before; Copilot loses the package's hooks |
 | 8 | [Claude daemon replacement from the service](unverified/sessions.md#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
 | 8a | [The automatic CLI check in the service](unverified/sessions.md#the-automatic-cli-check-in-the-service-btn-569) | machines with "Check new CLI versions" on (off by default) | a false failure on the banner; the account's chains wait a few minutes for nothing |
-| 9 | [The wizard's trust check](unverified/page.md#the-wizards-trust-check) | new users | a pause at the first launch |
+| 9 | [The wizard's trust check](unverified/page.md#the-wizards-trust-check) | new users; trusted/pending UI checked on fake data, integrated automatic launch still open | a pause at the first launch |
 | 10 | [A Codex chain session reaching its own compaction](unverified/sessions.md#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
 | 10a | [A task label selecting compaction](unverified/sessions.md#a-task-label-selecting-compaction) | tasks using the compaction label | the session may still receive a handoff nudge |
 | 11 | [Chat mail in a real session](unverified/sessions.md#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |

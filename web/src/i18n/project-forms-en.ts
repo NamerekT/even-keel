@@ -19,11 +19,6 @@ export const wizardEN: Messages['wizard'] = {
     repoFound: (root: string) => `Git repository ${root}`,
     mainBranch: (branch: string) => `main branch: ${branch}`,
     changeBranch: 'change',
-    untrusted: 'Claude Code does not trust this folder yet, and a session would stop on its trust dialog. Run the command in a terminal and accept the trust.',
-    untrustedWin:
-      'Claude Code does not trust this folder yet, and a session would stop on its trust dialog. Run the command in cmd (not PowerShell) and accept the trust.',
-    trustUser: (user: string) =>
-      `The service runs as ${user}: run the command as that user, or the trust lands in another user's profile. From another user's terminal:`,
     stepAgent: 'Agent',
     agent: 'Agent',
     agentHint: "What the project's sessions run on. Changed later in the project's settings.",
@@ -333,10 +328,6 @@ export const settingsEN: Messages['settings'] = {
     modelLabels: 'Run labels',
     modelLabelsHint:
       "On — a task's label picks its session: Claude | sonnet, Codex | gpt-6.1-sol, or a bare Codex for the provider's model. Off — such labels are ignored.",
-    untrusted:
-      "Claude Code does not trust the project's folder yet: a task that goes to Claude would pause the chain on it. Run the command in a terminal and accept the trust.",
-    untrustedWin:
-      "Claude Code does not trust the project's folder yet: a task that goes to Claude would pause the chain on it. Run the command in cmd (not PowerShell) and accept the trust.",
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',

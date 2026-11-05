@@ -40,7 +40,7 @@ describe('Claude trust at the transport boundary', () => {
     expect(trustFolder).toHaveBeenCalledTimes(2)
   })
 
-  it('does not write without project consent', async () => {
+  it('does not invent a checkout for a session outside a project', async () => {
     const { agent, launch } = setup()
     launch.mockResolvedValue({ sessionId: 'session' } as Awaited<ReturnType<ClaudeCli['launch']>>)
     await agent.launch(home, { ...start, trustedRepo: undefined })

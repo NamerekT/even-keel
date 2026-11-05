@@ -151,7 +151,20 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const sdk = version < 22 ? sdkChecked(cli) : cli
   // v23 → v24: a project's `statusMoves` and a feed's `moves` (BTN-554) are optional; the restamp above is all it takes.
   // v24 → v25: optional project consent `trustClaude`; omitted means false, so existing projects keep manual trust.
-  return version < 23 ? feedsRuled(sdk) : sdk
+  const feeds = version < 23 ? feedsRuled(sdk) : sdk
+  return version < 26 ? automaticTrust(feeds) : feeds
+}
+
+/** v25 → v26: Claude background launches always trust the checkout; project consent is no longer a setting. */
+export function automaticTrust(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if (!Array.isArray(raw.projects)) return stamped(raw)
+  const projects = raw.projects.map((project: unknown) => {
+    if (!isRecord(project)) return project
+    const { trustClaude: _removed, ...rest } = project
+    return rest
+  })
+  return stamped({ ...raw, projects })
 }
 
 /**

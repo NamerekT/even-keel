@@ -10,11 +10,10 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 ## Claude folder trust
 
-**Sessions → Trust folder** lets Even Keel save Claude Code's trust for the project's repository before each background launch or resume, using the account selected for that session. It appears when the project's agent is Claude Code or Run labels is on. The project wizard starts with it on; existing projects keep it off until you enable it. Changes apply to the next launch or resume without restarting Even Keel.
+Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
 
-Trust also enables repository hooks from `.claude/settings*.json`. The chain disables `.mcp.json` servers. Turning the switch off stops future trust writes; it does not revoke trust already accepted in Claude Code. The Agent SDK and other agents do not use this setting.
+If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. A CLI trust refusal offers the same action: the retry saves trust again.
 
-If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. With the switch off, an untrusted-folder pause offers the manual trust commands instead.
 
 ## OpenCode accounts
 

@@ -7,7 +7,6 @@ type Suggested = 'key' | 'name' | 'trackerProject'
 
 /** The wizard's fields as typed; `slots` counts only while the place is a pool of slots. */
 export interface WizardFields {
-  trustClaude: boolean
   repo: string
   branch: string
   key: string
@@ -29,7 +28,6 @@ export interface WizardFields {
 }
 
 export const EMPTY_FIELDS: WizardFields = {
-  trustClaude: true,
   repo: '',
   branch: '',
   key: '',
@@ -142,7 +140,6 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
       .map((line) => line.trim())
       .filter((line) => line !== ''),
     provider: fields.provider === '' ? null : fields.provider,
-    trustClaude: fields.trustClaude,
   }
 }
 
@@ -194,44 +191,11 @@ export function suggestOfRepo(fields: WizardFields, shape: TrackerShape, repo: P
   return suggest(branched, { trackerProject: place, key: keyOfFolder(name), name })
 }
 
-/** The repository, the entry and the tracker passed; the trust is only a warning, it can be given after. */
+/** The repository, the entry and the tracker passed; Claude trust is saved before launch. */
 export function readyToAdd(check: ProjectCheck | null): boolean {
   return check !== null && check.repo.root !== null && check.repo.notice === null && check.entry === null && check.tracker?.ok === true
 }
 
-/** What to run in a terminal on the service's machine to open `claude` in the folder and accept its trust dialog. */
-export function trustCommand(folder: string, platform: string): string {
-  if (platform === 'win32') return `pushd "${folder}" && claude`
-  return `cd ${quoted(folder)} && claude`
-}
-
-/**
- * The same as the service's user from a terminal of another one (BTN-310): the trust lands in the profile of whoever
- * runs `claude`. Windows' `runas` takes the command as one quoted argument, so the folder goes unquoted to `cd /d`,
- * which takes spaces as they are; `sudo` keeps the folder, `-H` gives the user's own home.
- */
-export function trustCommandAs(folder: string, platform: string, user: string): string {
-  if (platform === 'win32') return `runas /user:${user} "cmd /k cd /d ${folder} && claude"`
-  return `cd ${quoted(folder)} && sudo -u ${quoted(user)} -H claude`
-}
-
-/** Where a trust command is run: the folder, the service machine's platform and user, whether Even Keel is a service. */
-export interface TrustPlace {
-  folder: string
-  platform: string
-  user: string
-  service: boolean
-}
-
-/**
- * The commands that give the trust (BTN-687): `as` — from another user's terminal, only while Even Keel runs as a
- * system service; `npm start` and the tray run as the user at the terminal, where `runas` would only ask a password.
- */
-export function trustCommandsOf(place: TrustPlace): { own: string; as: string | null } {
-  return { own: trustCommand(place.folder, place.platform), as: place.service ? trustCommandAs(place.folder, place.platform, place.user) : null }
-}
-
-const quoted = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
 
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */
 export type Missing = 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'

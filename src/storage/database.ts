@@ -319,6 +319,11 @@ export const STEPS: readonly string[] = [
     primary key (project_id, task)
   );
   `,
+  // Claude background sessions always trust the checkout; remove legacy project consent and its definition.
+  `
+  delete from setting_values where key = 'trustClaude';
+  delete from setting_definitions where key = 'trustClaude';
+  `,
 ]
 
 /** The version this code reads and writes. */
