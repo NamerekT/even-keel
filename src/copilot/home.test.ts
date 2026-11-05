@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { copilotEnv, eventsFile, parseAuth, tokenOf, trustFolder, writeToken } from './home.js'
+import { copilotEnv, eventsFile, loginCommand, parseAuth, tokenOf, trustFolder, writeToken } from './home.js'
 
 describe('copilot home', () => {
   let dir: string | undefined
@@ -24,8 +24,20 @@ describe('copilot home', () => {
     const env = copilotEnv({ COPILOT_GITHUB_TOKEN: 'gho_inherited' }, dir)
     expect(env.COPILOT_GITHUB_TOKEN).toBeUndefined()
     expect(tokenOf(dir)).toBeNull()
-    expect(parseAuth(null)).toMatchObject({ loggedIn: true, authMethod: 'none' })
-    expect(parseAuth('gho_x')).toMatchObject({ loggedIn: true, authMethod: 'api_key' })
+    expect(parseAuth(null, true)).toMatchObject({ loggedIn: true, authMethod: 'none' })
+    expect(parseAuth('gho_x', null)).toMatchObject({ loggedIn: true, authMethod: 'api_key' })
+  })
+
+  it("counts a folder without a token signed out only when the CLI sees no sign-in in it (EKR-73)", () => {
+    expect(parseAuth(null, false)).toMatchObject({ loggedIn: false, authMethod: 'none' })
+    expect(parseAuth(null, null)).toMatchObject({ loggedIn: true, authMethod: 'none' })
+  })
+
+  it("gives the terminal sign-in into the folder with the sessions' binary, quoted for the platform's shell", () => {
+    expect(loginCommand('/home/node/state/cli/copilot', "/home/node/.copilot-accounts/it's", 'linux'))
+      .toBe("COPILOT_HOME='/home/node/.copilot-accounts/it'\\''s' '/home/node/state/cli/copilot' login")
+    expect(loginCommand('C:\\Program Files\\copilot.exe', "C:\\Users\\O'Neil\\.copilot-accounts\\copilot", 'win32'))
+      .toBe("$env:COPILOT_HOME = 'C:\\Users\\O''Neil\\.copilot-accounts\\copilot'; & 'C:\\Program Files\\copilot.exe' login")
   })
 
   it('keeps the transcripts under session-state', () => {

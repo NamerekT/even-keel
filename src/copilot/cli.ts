@@ -13,7 +13,8 @@ import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnSta
 import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { eventsFile, parseAuth, tokenFile, tokenOf, trustFolder } from './home.js'
+import { eventsFile, loginCommand, parseAuth, tokenFile, tokenOf, trustFolder } from './home.js'
+import { machineSignedIn } from './machine.js'
 import { COPILOT } from './name.js'
 import { pathFolders } from '../paths.js'
 import { protectionRules } from '../sessions/protection.js'
@@ -225,12 +226,17 @@ export class CopilotCli {
   }
 
   async authStatus(home: AccountHome): Promise<AccountStatus> {
-    return parseAuth(tokenOf(home.dir))
+    const token = tokenOf(home.dir)
+    return parseAuth(token, token === null ? await machineSignedIn(this.bin(), this.envOf(home), home.dir, this.timeoutMs) : null)
+  }
+
+  terminalLogin(home: AccountHome): string | undefined {
+    return tokenOf(home.dir) === null ? loginCommand(this.bin(), home.dir) : undefined
   }
 
   /**
-   * The CLI's own device sign-in. Its token goes to the OS credential store, shared by every folder, so the page adds
-   * Copilot accounts by token instead; this is only for the CLI's contract.
+   * The CLI's own device sign-in. Without a credential store its plaintext fallback needs a terminal, so the page
+   * gives a signed-out folder `terminalLogin`; this piped login is only for the CLI's contract.
    */
   login(home: AccountHome): ChildProcessWithoutNullStreams {
     return spawn(this.bin(), ['login'], { env: this.envOf(home), windowsHide: true, stdio: 'pipe' })

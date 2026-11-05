@@ -36,7 +36,7 @@ const SHOWN_OUTPUT_CHARS = 2 * 1024
 const REJECTED = { anthropic: 'account.apiKeyRejected', openai: 'account.codexKeyRejected', github: 'account.copilotTokenRejected' } as const
 const UNCHECKED = { anthropic: 'account.apiKeyUnchecked', openai: 'account.codexKeyUnchecked', github: 'account.copilotTokenUnchecked' } as const
 
-export type AccountAgent = Pick<Agent, 'authStatus' | 'login' | 'logout'>
+export type AccountAgent = Pick<Agent, 'authStatus' | 'login' | 'logout' | 'terminalLogin'>
 
 export interface AppControl {
   list: () => AppAccount[]
@@ -146,6 +146,8 @@ export class AccountWatcher {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, isApiKey(status))
       const seen = this.options.signedInAs?.(home.key)
+      const signedOut = this.needsLogin(home.key)
+      const terminalLogin = signedOut && !isApiKey(status) ? this.options.agentOf(home).terminalLogin?.(home) : undefined
       return {
         key: home.key,
         name: this.options.nameOf(home.key),
@@ -156,7 +158,8 @@ export class AccountWatcher {
         status,
         error,
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
-        needsLogin: this.needsLogin(home.key),
+        needsLogin: signedOut,
+        ...(terminalLogin !== undefined && { terminalLogin }),
         sessions: this.options.sessionsIn(home.key),
         working: this.options.workingIn?.(home.key) ?? false,
         projects: this.options.projectsOn(home.key),
