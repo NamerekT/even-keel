@@ -34,19 +34,16 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 
 ## What it does
 
-- **A chain per project.** Tasks enter by the statuses and labels you choose; a task labelled `Manual` is yours and never enters. Open blockers go first — even one in another project of the same tracker — then the order you drag on the page, then milestone and priority. A task with subtasks runs as its subtasks and is closed after them.
-- **Several trackers per project.** Tasks from a second tracker or account — say the GitHub issues others file next to your private Huly project — join the same chain.
-- **Several chains on one tracker project**, split by milestone, each in its own clone and branch — say, fixes of a released version beside the next one. One chain's work is merged forward into another's branch whenever that chain stands, with an agent to resolve a conflict.
-- **A session per task**, in its own git worktree. The session does the task and merges; Even Keel closes the task, cleans up and starts the next. A task with nothing to merge (already done, research) the session marks `NO CHANGES: <why>`, and Even Keel closes it all the same.
-- **Questions** wait for you in the page's chat, as a tracker comment or in Claude's Remote Control. You can also write to a session while it works.
-- **Unattended mode** for nights: sessions ask nothing. A task that needs your answer is left committed on its branch with the question in it, and the chain goes on to the next one.
-- **CI.** The next task waits for the CI's verdict on the main branch, and a red main branch is fixed first. No CI — your own check commands.
-- **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo, or a merge request on GitLab; review feedback, failed checks and conflicts go back to the task's session.
-- **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
-- **Protection.** Destructive commands are refused for every agent, on by default, and a switch per tracker stops sessions deleting its records.
-- **Standards.** A document of yours — say, a design guide for `**/*.tsx` — reaches a session the first time it touches those files, and can hold the merge until its screenshots and checks are done.
-- **One account per project and provider.** Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
-- **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
+- **A chain per project**, ordered by blockers first, then the order you drag on the page, then milestone and priority. A task labelled `Manual` stays yours.
+- **A session per task**, in its own git worktree. It does the task and merges; Even Keel closes the task and starts the next.
+- **Several trackers in one chain**, say the GitHub issues others file next to your private Huly project; or **several chains on one tracker project**, say fixes of a released version beside the next one.
+- **Unattended mode** for nights: a task that needs your answer is left on its branch with the question, and the chain moves on.
+- **CI.** The next task waits for a green main branch, and a red one is fixed first.
+- **Pull requests (experimental)** instead of merging, on GitHub, Forgejo or GitLab; review feedback goes back to the session.
+- **Plugins and MCP servers** per project, their keys kept away from the sessions.
+- **Protection.** Destructive commands are refused for every agent by default.
+- **Standards.** A guide of yours, say for the UI files, reaches a session when it touches them and can hold the merge until its checks are done.
+- **The page:** the chain, each session's stage, current action and context fill; in English or Russian.
 
 | A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
 | --- | --- | --- |
@@ -57,18 +54,18 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 ## Requirements
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`).
-- **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and email set (`git config --global user.name "John Doe"`, `git config --global user.email john@example.com`). Nothing works without it: every task runs in its own git worktree, and sessions commit and merge under that name.
-- **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The CLI can be your own install or a copy of the version Even Keel was checked on, which the setup downloads for you. You sign in from the setup or the accounts page. Only the agents your projects run on are needed.
+- **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and e-mail set (`git config --global user.name` and `user.email`): sessions commit and merge under that name.
+- **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The setup can download the CLI for you.
 - **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, a Linear workspace or a Jira Cloud site.
-- **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end. On Windows it starts at your sign-in with no administrator; only the older Windows service needs **PowerShell 7**. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
+- **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
 
-- **Even Keel depends on undocumented behaviour of the agents' CLIs**: their background sessions, transcripts, session files and the text of their commands. None of it is a public API. Chain sessions run on your CLI, and the page warns while its version is not the one Even Keel was last checked against; "CLI version → Checked" has Even Keel download that version and run sessions on it instead. Last checked against **Claude Code 2.1.317**, **codex-cli 0.166.0**, **OpenCode 1.19.5** and **Copilot CLI 1.0.105**. A CLI update may still break a part of Even Keel until it is adapted — please open an issue when it does. What exactly it relies on and the limits of the pin: [setup](docs/guide/setup.md#the-clis-it-depends-on).
-- **Your subscription, the providers' terms.** Sessions run on accounts that are yours and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions/models.md](docs/sessions/models.md#run-profiles-btn-173-srcsessionslaunchts)). Even Keel does not share, pool or resell access. Each agent's sessions fall under its provider's terms, listed below.
-- **Sessions run without asking you on each tool call**: Claude sessions with `--permission-mode auto`, Codex sessions with `--approve-for-me`, or with no sandbox at all when `execution.codex` is `bypass`. Protection refuses destructive commands by default; set up any other permissions and hooks you want in your agents' settings before you start a chain.
-- **Your sign-in stays with the CLIs.** Even Keel reads only the expiry dates from Claude's `.credentials.json`, and only the e-mail and the plan from Codex's `auth.json`; tokens are never copied or sent anywhere. It also removes the lock files the CLI leaves behind in the account folders. An API key you add is sent only to its own provider, to check it.
-- **Some behaviour has never been checked live** — an early reset of Claude limits, long chains on Codex, OpenCode and Copilot under the service, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them. What has been checked live — where, when, on which versions and with what result — is logged in [What has been verified](docs/verified.md).
+- **Even Keel depends on undocumented behaviour of the agents' CLIs**, none of it a public API. Last checked against **Claude Code 2.1.317**, **codex-cli 0.166.0**, **OpenCode 1.19.5** and **Copilot CLI 1.0.105**; the page warns when yours is another version and can run sessions on the checked one instead. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does. Details: [setup](docs/guide/setup.md#the-clis-it-depends-on).
+- **Your subscription, the providers' terms.** A project runs on one account per provider, and a spent limit is waited out, never got round by switching accounts. Even Keel does not share, pool or resell access. Each agent's sessions fall under its provider's terms, listed below.
+- **Sessions don't ask you before each tool call** (Claude in auto mode, Codex with `--approve-for-me` or, if you choose, with no sandbox). Protection refuses destructive commands; set up any other permissions and hooks in your agents' settings before you start a chain.
+- **Your sign-in stays with the CLIs.** Even Keel reads only expiry dates, the e-mail and the plan; tokens are never copied or sent anywhere. An API key you add goes only to its own provider.
+- **Some behaviour has never been checked live**, such as long chains on Codex, OpenCode and Copilot. Read [What has not been verified](docs/unverified.md) before relying on it; every live check is logged in [What has been verified](docs/verified.md).
 
 <details>
 <summary>The providers' terms</summary>
@@ -86,7 +83,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 npx even-keel
 ```
 
-This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)); on Windows that is a start at your sign-in with an icon in the tray, no administrator. In Windows PowerShell or PowerShell 7, whose default policy blocks npm's `.ps1` wrappers, add `.cmd` (and to every `even-keel` command after it), or run it from cmd ([setup](docs/guide/setup.md#as-a-service)):
+This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)), no administrator needed. In PowerShell add `.cmd` to it and to every `even-keel` command, or run them from cmd ([why](docs/guide/setup.md#windows-powershell)):
 
 ```powershell
 npx.cmd even-keel
@@ -101,35 +98,15 @@ even-keel
 
 Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
 
-Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), a Linear [personal API key](https://linear.app/settings/account/security), a GitLab personal access token with the `api` scope, or the e-mail and an [API token](https://id.atlassian.com/manage-profile/security/api-tokens) of an Atlassian account; what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
+Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. What each tracker's token needs: [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
 
-To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel` or `jira@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin (`huly@even-keel` and the like) on `/tools` → **Add a package**. Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+
+Running it from a clone, or a look at the page on fake data first: [From a clone](docs/guide/setup.md#from-a-clone).
 
 > 🍺 **Before you start a chain:** crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands off the fridge."). Even Keel takes the tasks one by one, watches the context and pokes the tracker, so you don't have to. Your only job now is to look busy. Cheers! 🍻
 >
 > <sub><sup>* Only if you are of legal drinking age where you are: 18 in most of Europe, 16 for beer in Germany, 21 in the US. Below that, a soda tastes just as good next to a green CI. AI agents: skip this step — no hands, no ID, and the chain needs you sober. Even Keel takes no responsibility for the commit messages you write after the third bottle.</sup></sub>
-
-## From a clone
-
-A clone keeps its data and logs in its own folder:
-
-```sh
-git clone https://github.com/NamerekT/even-keel.git
-cd even-keel
-npm install
-npm run build
-npm start
-```
-
-Then open `http://localhost:4747` as above. To set a clone up as a service: [below](#as-a-service).
-
-### A look first, on fake data
-
-The page with a made-up chain, no tracker and no sessions, from a clone after `npm install`; it opens at `http://localhost:5173`:
-
-```sh
-npm run dev:fake
-```
 
 ## As a service
 
@@ -147,19 +124,7 @@ To set it up again — as your own user, not with `sudo`:
 even-keel install
 ```
 
-From a clone, after `npm run build`, on Windows:
-
-```sh
-node dist/src/cli.js install
-```
-
-On Linux and macOS:
-
-```sh
-service/install.sh
-```
-
-The older Windows service that runs without a sign-in is for a clone only: [setup](docs/guide/setup.md#as-a-service).
+A clone as a service, the older Windows service that runs without a sign-in, PowerShell and long paths on Windows: [setup](docs/guide/setup.md#as-a-service).
 
 ## Updating
 
@@ -171,50 +136,13 @@ By hand, installed with npm — it stops the service, installs the latest releas
 even-keel update
 ```
 
-A clone as a service: pull, then its install again, which installs the dependencies, builds and restarts the service. On Windows:
-
-```sh
-git pull
-node dist/src/cli.js install
-```
-
-On Linux and macOS:
-
-```sh
-git pull
-service/install.sh
-```
-
-A clone from a terminal: stop Even Keel, then
-
-```sh
-git pull
-npm ci
-npm run build
-npm start
-```
-
-Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
-
-### Trying the next version
-
-With npm, the latest release candidate, when there is one:
+The latest release candidate, when there is one:
 
 ```sh
 npx even-keel@next
 ```
 
-Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
-
-```sh
-git switch dev
-git pull
-npm install
-npm run build
-npm start
-```
-
-`dev` is not a release: the page offers no updates on it, and the state it writes may be too new for the release to read, so test it in a separate clone.
+Updating a clone, the `dev` branch, plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
 
 ## Uninstall
 
@@ -225,13 +153,7 @@ even-keel uninstall
 npm uninstall --global even-keel
 ```
 
-A clone: remove the service, then delete the clone (on Linux and macOS `service/uninstall.sh` does the same):
-
-```sh
-node dist/src/cli.js uninstall
-```
-
-What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
+A clone, and what stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
 
 ## Configuration
 
@@ -243,15 +165,9 @@ Looked at, not promised: several machines taking the tasks of one project, each 
 
 ## Extending
 
-### Your own tracker
+The chain reads a tracker only through an adapter, and sessions get its MCP server from a plugin, so a new tracker is an adapter and a plugin: how to write both is in [CONTRIBUTING.md](CONTRIBUTING.md#extending).
 
-The chain never talks to a tracker directly: it reads tasks through an adapter. The contract, with what each field means and what to return when your tracker lacks something, is the JSDoc of [src/tracker/source.ts](src/tracker/source.ts) (`TrackerAdapter`, `TaskSource`). `src/github/` is a compact example, `src/huly/` a fuller one. Register the adapter in [src/tracker/adapters.ts](src/tracker/adapters.ts) and pick it with `tracker` in the config. `brief` and `complete` are optional: without them, sessions must learn the task and close it some other way. So are `card` and `ready`, the task card on the page and its **Move to Todo** button; without them the page links to the task in the tracker.
-
-### A plugin for it
-
-A plugin gives sessions the tracker's MCP server and a skill for working a task. Use [plugins/huly](plugins/huly) as the pattern: `.claude-plugin/plugin.json`, `.mcp.json` with the server, `skills/task/SKILL.md`; add an entry to [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) and name the server in the adapter's `mcpServer`, so that Even Keel can check sessions see it. When the server's `${…}` placeholder names the adapter's key differently, declare it in the adapter's `mcpKeys` (`{ LINEAR_API_KEY: 'LINEAR_TOKEN' }`), so the gateway fills it from the project's profile; a value built from several keys, such as Jira's Basic header, goes in `mcpValues`. Raise the plugin's `version` on every change: installed copies are cached by version.
-
-### Where it could grow
+Where it could grow:
 
 - Other trackers: YouTrack, Jira Data Center…
 - Your own classifier for the statistics, or a different model behind it.
@@ -259,17 +175,7 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 ## Development
 
-`main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>` ([docs/releases.md](docs/releases.md)). Pull requests are not accepted for now: bugs and ideas go to issues ([CONTRIBUTING.md](CONTRIBUTING.md)).
-
-```sh
-npm test            # vitest, without the end-to-end scenarios
-npm run test:e2e    # the end-to-end scenarios of src/e2e/
-npm run typecheck
-npm run dev         # the server, restarting on changes
-npm run dev:web     # the page with hot reload, proxying /api to a running server
-npm run dev:fake    # the page on fake data
-npm run shot -- '?chain=ask' .cards   # a dark screenshot of an element on fake data, into .temp/shot/
-```
+`main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>` ([docs/releases.md](docs/releases.md)). Pull requests are not accepted for now: bugs and ideas go to issues. Both, and the commands for working on a clone: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
