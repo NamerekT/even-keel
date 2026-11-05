@@ -39,3 +39,14 @@ it('keeps an own token ahead of the machine sign-in and offers no terminal comma
   expect(probe).not.toHaveBeenCalled()
   expect(cli.terminalLogin(home)).toBeUndefined()
 })
+
+it('reports unknown without a signed-in assumption and rechecks after refresh and restart', async () => {
+  const { cli, home } = setup()
+  probe.mockResolvedValueOnce(null).mockResolvedValueOnce(false).mockResolvedValueOnce(null).mockResolvedValueOnce(true).mockResolvedValueOnce(null)
+  for (const loggedIn of [null, false, null, true]) {
+    expect(await cli.authStatus(home)).toMatchObject({ loggedIn, authMethod: 'none' })
+  }
+  const restarted = new CopilotCli(() => 'copilot', 1000, (folder) => copilotEnv({}, folder.dir), {} as never)
+  expect(await restarted.authStatus(home)).toMatchObject({ loggedIn: null })
+  expect(probe).toHaveBeenCalledTimes(5)
+})

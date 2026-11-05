@@ -134,6 +134,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {!page && roles}
         {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : t.account.needsLogin}</span>}
         {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
+        {entry.status?.loggedIn === null && <span className="account-row__error account-row__unknown">{t.account.authUnknown}</span>}
         {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
         {outdatedText(entry, now) !== null && <span className="account-row__outdated">{outdatedText(entry, now)}</span>}
       </div>

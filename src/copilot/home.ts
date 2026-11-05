@@ -52,26 +52,25 @@ export function tokenFile(dir: string): string {
 /**
  * A folder with a token is signed in by it, an account of a key like an API one (its token is checked and refused the
  * same way); one without runs on the CLI's own sign-in, with the method `none` and no identity. `machine` is what the
- * CLI said of that sign-in in the folder (`machineSignedIn`): only its explicit "no" signs the folder out (EKR-73), an
- * unknown answer leaves it signed in.
+ * CLI said of that sign-in in the folder (`machineSignedIn`): an unknown answer stays unknown and does not block a launch.
  */
 export function parseAuth(token: string | null, machine: boolean | null): AccountStatus {
-  const loggedIn = token !== null || machine !== false
+  const loggedIn = token !== null ? true : machine
   return { loggedIn, authMethod: token === null ? 'none' : 'api_key', email: null, orgName: null, subscriptionType: null }
 }
 
 /**
  * The CLI's own sign-in into the folder, to run in a terminal of this machine: without a keyring (Linux) the CLI keeps
  * the token as plaintext in `COPILOT_HOME`'s `config.json` and asks about it only in a terminal, so the page cannot run
- * it (EKR-73). `bin` is the binary the sessions run on; the quoting is POSIX sh's, PowerShell's on Windows.
+ * it (EKR-73). `bin` is the binary the sessions run on; a child cmd or sh subshell removes inherited tokens and keeps
+ * the original terminal's environment intact even when login fails.
  */
 export function loginCommand(bin: string, dir: string, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {
-    const quote = (text: string) => `'${text.replaceAll("'", "''")}'`
-    return `$env:COPILOT_HOME = ${quote(dir)}; & ${quote(bin)} login`
+    return `cmd /d /v:off /c ${TOKEN_KEYS.map((key) => `set "${key}="`).join(' ^& ')} ^& set "COPILOT_HOME=${dir}" ^& "${bin}" login`
   }
   const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`
-  return `COPILOT_HOME=${quote(dir)} ${quote(bin)} login`
+  return `(unset ${TOKEN_KEYS.join(' ')}; COPILOT_HOME=${quote(dir)} ${quote(bin)} login)`
 }
 
 /**
