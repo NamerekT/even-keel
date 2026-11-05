@@ -259,7 +259,7 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
     } catch (error) {
       const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
-      throw (place === null ? null : untrustedStart(error, place)) ?? error
+      throw (place === null ? null : untrustedStart(error, place, ctx.stateDir)) ?? error
     }
   }
 }
@@ -276,7 +276,7 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
     } catch (error) {
       const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
-      throw (place === null ? null : untrustedStart(error, place)) ?? error
+      throw (place === null ? null : untrustedStart(error, place, ctx.stateDir)) ?? error
     }
   }
 }

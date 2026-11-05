@@ -31,15 +31,17 @@ describe('trustFolder', () => {
   it.each(['', '{broken', 'null', '[]', '{"projects":[]}', '{"projects":{"D:/repo":null}}'])('preserves damaged config: %s', (text) => {
     const target = file()
     writeFileSync(target, text)
-    expect(() => trustFolder(target, 'D:/repo', 'win32')).toThrow()
+    let thrown: unknown
+    try { trustFolder(target, 'D:/repo', 'win32') } catch (error) { thrown = error }
+    expect(noticeOf(thrown)).toMatchObject({ code: 'claude.trustWriteFailed', params: { folder: 'D:/repo', file: target, reason: 'invalid' } })
     expect(readFileSync(target, 'utf8')).toBe(text)
   })
 
-  it('reports an unreadable config as a recoverable trust error', () => {
+  it('reports an unreadable config as a recoverable trust error, naming the file', () => {
     const target = file()
     mkdirSync(target)
     try { trustFolder(target, 'D:/repo', 'win32') } catch (error) {
-      expect(noticeOf(error).code).toBe('claude.trustWriteFailed')
+      expect(noticeOf(error)).toMatchObject({ code: 'claude.trustWriteFailed', params: { folder: 'D:/repo', file: target, reason: 'access' } })
       return
     }
     throw new Error('Expected trust failure')
