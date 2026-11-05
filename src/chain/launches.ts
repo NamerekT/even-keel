@@ -63,7 +63,7 @@ export interface FixEnd {
   at: string
   /** `lost` — another fix started without a word of how this one ended. */
   how: FixOutcome | 'lost'
-  /** The commit main went out at when the fix landed. */
+  /** The commit main went out at when the fix landed; for an `unneeded` fix, the red commit that turned green. */
   commit: string | null
   /** The release commits a carry brought (BTN-369). */
   commits?: number
@@ -243,7 +243,7 @@ function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: Release
 }
 
 function isOutcome(entry: LaunchEntry): entry is LaunchEntry & { reason: FixOutcome } {
-  return entry.reason === 'landed' || entry.reason === 'dropped' || entry.reason === 'carried'
+  return entry.reason === 'landed' || entry.reason === 'dropped' || entry.reason === 'unneeded' || entry.reason === 'carried'
 }
 
 function localDay(date: Date): string {

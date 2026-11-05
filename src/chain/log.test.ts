@@ -31,5 +31,8 @@ describe('launchLine', () => {
       'chain: ABC-FIX landed, main is at ccccccc',
     )
     expect(launchLine({ at, project: 'ABC', task: 'ABC-FIX', sessionId: 'fix', reason: 'dropped' })).toBe('chain: ABC-FIX dropped, main stays as it was')
+    expect(launchLine({ at, project: 'ABC', task: 'ABC-FIX', sessionId: 'fix', reason: 'unneeded', commit: 'bbbbbbbbbb' })).toBe(
+      'chain: ABC-FIX found nothing to fix, main is green at bbbbbbb',
+    )
   })
 })

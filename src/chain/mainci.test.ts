@@ -38,6 +38,8 @@ const unguarded = (kinds: CiKind[]): CiSettings => ({ ...all(kinds), guard: fals
 function setup(settings: CiSettings, views: CiView[] | null, heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
   const gitCalls: string[][] = []
   const checks: string[] = []
+  /** The CIs asked to look again (`want`), by kind. */
+  const wanted: string[] = []
   const git: Git = async (cwd, args) => {
     gitCalls.push(args)
     if (args[0] === 'rev-parse') {
@@ -55,7 +57,12 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
   const watches: MainCiWatch[] | null =
-    views?.map((each) => ({ view: each, remoteHead: heads[`remote ${each.remote}`] ?? null, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) })) ?? null
+    views?.map((each) => ({
+      view: each,
+      remoteHead: heads[`remote ${each.remote}`] ?? null,
+      failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }),
+      want: () => wanted.push(each.kind),
+    })) ?? null
   const deps = mainCheckDeps({
     projects: () => ['ABC'],
     peers: () => ['XYZ'],
@@ -82,7 +89,7 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     },
     now: () => new Date('2026-10-12T10:05:00Z'),
   })
-  return { deps, gitCalls, checks }
+  return { deps, gitCalls, checks, wanted }
 }
 
 describe('mainCheckDeps', () => {
@@ -114,6 +121,16 @@ describe('mainCheckDeps', () => {
   it('has no projects of one remote with the guard of main off', () => {
     expect(setup(all([]), []).deps.peers('ABC')).toEqual(['XYZ'])
     expect(setup(unguarded([]), []).deps.peers('ABC')).toEqual([])
+  })
+
+  it('asks only the counted CIs to look again (EKR-88)', () => {
+    const views = [view('forgejo', 'failure'), view('github', 'success')]
+    const counted = setup(all(['github']), views)
+    counted.deps.lookAgain('ABC')
+    expect(counted.wanted).toEqual(['github'])
+    const off = setup(unguarded(['github']), views)
+    off.deps.lookAgain('ABC')
+    expect(off.wanted).toEqual([])
   })
 
   it('gives the remote main the counted CIs agree on, none while they disagree, are not found or the guard is off', () => {

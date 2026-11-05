@@ -9,6 +9,8 @@ export const POLL_MS = 15_000
 /** How long after a push the CI is polled for a run to take it. */
 export const PUSH_WINDOW_MS = 10 * 60_000
 export const ERROR_RETRY_MS = 60_000
+/** How long one `want` keeps a finished history polled: the chain asks again on each of its steps while it waits. */
+export const WANT_MS = 2 * 60_000
 export const HISTORY = 10
 /** A run's tasks come from at most this many commits since the previous run. */
 const TASK_COMMITS = 50
@@ -42,6 +44,7 @@ export class CiWatch {
   private push: { commit: string; at: string } | null = null
   private branch: string | undefined
   private polledAt = -Infinity
+  private wantedAt = -Infinity
   private jobsOf: string | null = null
   private tasksOf: { run: number; tasks: string[] } | null = null
   private busy = false
@@ -87,6 +90,14 @@ export class CiWatch {
     this.view.health = source === null ? 'off' : 'ok'
     this.view.error = source === null ? notice('ci.noToken', { kind: this.deps.target.kind }) : null
     this.deps.onChange()
+  }
+
+  /**
+   * The chain waits for a fresh verdict on a commit whose runs are over — a red one the fix session reran (EKR-88):
+   * no push and no run under way would poll for it, so the history is polled for `WANT_MS` after the last call.
+   */
+  want(): void {
+    this.wantedAt = this.now().getTime()
   }
 
   async tick(): Promise<void> {
@@ -160,7 +171,8 @@ export class CiWatch {
     if (this.view.health === 'error') return since >= ERROR_RETRY_MS
     const running = this.view.current !== null && !isFinished(this.view.current.run.status)
     const waiting = this.push !== null && now.getTime() - Date.parse(this.push.at) < PUSH_WINDOW_MS
-    return (running || waiting) && since >= POLL_MS
+    const wanted = now.getTime() - this.wantedAt < WANT_MS
+    return (running || waiting || wanted) && since >= POLL_MS
   }
 
   private async poll(source: CiSource, now: Date, branch: string): Promise<void> {

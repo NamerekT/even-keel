@@ -17,6 +17,8 @@ export interface MainCiWatch {
   /** The remote's main as the watch last read it; `null` — not yet. */
   readonly remoteHead: string | null
   failed(run: RedRun['run']): Promise<FailedRun>
+  /** Polls the CI's finished history for a while, for a fresh verdict on a commit (`CiWatch.want`). */
+  want(): void
 }
 
 export interface MainCiDeps {
@@ -81,6 +83,9 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       // Every CI the service watches, counted or not: a run of any project on a shared runner keeps it busy.
       const neighbours = deps.projects().flatMap((other) => deps.watches(other)?.map((watch) => watch.view) ?? [])
       return verdictOf(watches.map((watch) => watch.view), commit, since, deps.now(), neighbours)
+    },
+    lookAgain(project) {
+      for (const watch of counted(project) ?? []) watch.want()
     },
     remoteHeads() {
       const heads: Record<string, string> = {}
