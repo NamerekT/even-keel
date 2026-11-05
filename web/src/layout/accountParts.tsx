@@ -312,7 +312,13 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
-      {!entry.apiKey && (left.renew || entry.needsLogin) && (
+      {!entry.apiKey && entry.needsLogin && entry.terminalLogin !== undefined && (
+        <div className="accounts__note accounts__note--warn accounts__note--command">
+          <span>{t.account.terminalLogin}</span>
+          <CommandBlock command={entry.terminalLogin} />
+        </div>
+      )}
+      {!entry.apiKey && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
@@ -345,7 +351,7 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
   const left = loginLeft(entry.loginExpiresAt, now)
   return (
     <>
-      {!entry.apiKey && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
+      {!entry.apiKey && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
         <RenewButton entry={entry} view={view} sending={sending} send={send} again={!left.renew} />}
       {entry.apiKey && entry.needsLogin && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}

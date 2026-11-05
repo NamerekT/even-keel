@@ -372,17 +372,19 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }, { project: 'DEMO', provider: OPENCODE, account: 'opencode-2' }]
     return { ...signedIn, accounts: [own, work, free, chatgpt, codex], pool }
   }
-  if (mode === 'copilot') {
+  if (mode === 'copilot' || mode === 'copilot-out') {
     // OPS runs on the machine's own Copilot sign-in, which has no allowance to read; a second folder has a token of its
-    // own and shows what is left of its month.
+    // own and shows what is left of its month. `copilot-out`: the CLI sees no sign-in in the folder (EKR-73).
+    const out = mode === 'copilot-out'
     const machine = fakeEntry({
       key: 'copilot',
       global: false,
       agent: COPILOT,
-      status: { ...OPENCODE_STATUS, authMethod: 'none' },
+      status: { ...OPENCODE_STATUS, authMethod: 'none', loggedIn: !out },
       loginExpiresAt: null,
       projects: ['OPS'],
       usage: stale(notice('usage.copilotMachine', {})),
+      ...(out && { needsLogin: true, terminalLogin: "COPILOT_HOME='/home/node/.copilot-accounts/copilot' 'copilot' login" }),
     })
     const month = { usedPercentage: 60, resetsAt: new Date(Date.now() + 9 * 86_400_000).toISOString(), left: 120 }
     const allowance = { fiveHour: null, sevenDay: null, month, updatedAt: ago(2), source: 'api' as const }

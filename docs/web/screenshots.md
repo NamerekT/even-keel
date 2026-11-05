@@ -8,6 +8,8 @@
 
 `?account=connections` supplies every connection of every agent at once (BTN-576): Claude Max and Pro, an Anthropic key, ChatGPT Plus, Pro without five hours and Free with a month, OpenAI keys without credits (the problem band's paths), two Zen folders, OpenCode on ChatGPT, on Copilot and on both keys, and both Copilot sign-ins. Use it for the agent cards and connection groups on `/accounts` and in the drawer.
 
+`?account=copilot-out` supplies a Copilot folder whose CLI explicitly reports no sign-in, beside a working token folder. Use it on `/accounts` to check the copyable terminal sign-in command in the problem band; `?account=copilot` shows the signed-in state.
+
 `?account=opencodeCopilot` supplies an OpenCode folder holding only Copilot (with a monthly allowance) and a mixed Copilot/API-key folder. Shared settings select the former so `/setup?step=agent` and the project wizard show it as unsupported. Use it to check the accounts page/drawer, disabled account choices and the OpenCode add dialog without changing a real sign-in.
 
 `?account=overage|overage-long|overage-permitted` supplies Claude using extra usage, a working Codex account with an exhausted window and 12.4 ChatGPT credits, an idle OpenCode account sharing credits, Copilot with extra usage disabled, and accounts with no extra-usage source. The long variant lengthens the active account name; the permitted variant enables Copilot additional usage. Use on `/accounts` or `/p/ABC` (open the account drawer), with `lang=ru` for translated narrow rows. Available paid usage adds `OverageWarning`, a shared warning Band with the provider spending-settings action and a keyboard/touch-accessible policy tip. Its controls do not toggle the account row menu.

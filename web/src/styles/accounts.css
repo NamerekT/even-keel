@@ -238,6 +238,15 @@
   color: var(--warn-fg);
 }
 
+.accounts__note--command {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.accounts__note--command .ui-command {
+  color: var(--fg);
+}
+
 .accounts__add {
   display: flex;
   flex-wrap: wrap;

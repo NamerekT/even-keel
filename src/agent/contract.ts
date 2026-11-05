@@ -217,6 +217,11 @@ export interface Agent {
    * the agent's ways to sign in, for an agent that has several (OpenCode: `chatgpt`, `copilot`).
    */
   login(home: AccountHome, method?: string): ChildProcessWithoutNullStreams
+  /**
+   * Optional. The command that signs the folder in from a terminal of this machine, for a sign-in `login` cannot finish
+   * without one (Copilot's plaintext fallback, EKR-73); the page shows it instead of its sign-in button.
+   */
+  terminalLogin?(home: AccountHome): string | undefined
   logout(home: AccountHome): Promise<void>
   /** Optional. Whether the agent's CLI is found; without it, it is taken as there. */
   installed?(): boolean
