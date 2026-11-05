@@ -48,7 +48,7 @@ export const codex: AgentAdapter = {
     const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
     const system = () => resolveCodexBinary(env())
     const onMachine = () => findBinary(system(), env())
-    const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
+    const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf, log))
     const usage = new CodexUsage({
       timeoutMs,
       sessions: (home) => cli.sessions(home),

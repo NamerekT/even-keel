@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -87,9 +88,15 @@ export function untrustedHooks(answer: unknown, id: string, keys: readonly strin
   })
 }
 
+/** A folder in the log: its path holds the user's home and its name an account, so only a short hash of the path. */
+function folderTag(home: AccountHome): string {
+  return createHash('sha256').update(home.dir).digest('hex').slice(0, 8)
+}
+
 /**
  * The project's plugins in the Codex folders: a plugin goes into a folder on the first turn there, the hashes of its
- * hooks are asked once per folder and kept while the service runs — an install never changes. Before they are kept,
+ * hooks are asked once per folder and kept while the service runs — an install never changes. The log gets one line
+ * per folder and plugin in a service run, `installed into` or `found in the cache of`; later turns add none. Before they are kept,
  * `hooks/list` is asked again with the turn's flags: a hook Codex does not trust there fails the launch, so a change of
  * the hash format cannot turn the hooks off without a word.
  */
@@ -100,6 +107,8 @@ export class CodexPlugins {
   constructor(
     private readonly bin: () => string,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
+    private readonly log: (line: string) => void = () => {},
+    private readonly call: typeof appServer = appServer,
   ) {}
 
   /** The `-c` flags of a turn; one folder is prepared by one call at a time, since installs write its `config.toml`. */
@@ -131,18 +140,21 @@ export class CodexPlugins {
   private async install(home: AccountHome, cwd: string, plugin: SessionPlugin): Promise<Record<string, string>> {
     const id = pluginId(plugin)
     const env = this.envOf(home)
+    const folder = folderTag(home)
     if (!existsSync(join(home.dir, 'plugins', 'cache', plugin.marketplace, plugin.name))) {
-      await appServer(this.bin(), [], cwd, env, [
+      const started = Date.now()
+      await this.call(this.bin(), [], cwd, env, [
         ['plugin/install', { pluginName: plugin.name, marketplacePath: plugin.marketplaceFile }],
         ['config/value/write', { keyPath: `plugins.${id}.enabled`, value: false, mergeStrategy: 'replace' }],
       ])
-    }
-    const [list] = await appServer(this.bin(), ['-c', `plugins.${id}.enabled=true`], cwd, env, [['hooks/list', {}]])
+      this.log(`codex plugins: ${id} installed into folder ${folder} in ${Math.round((Date.now() - started) / 100) / 10} s`)
+    } else this.log(`codex plugins: ${id} found in the cache of folder ${folder}`)
+    const [list] = await this.call(this.bin(), ['-c', `plugins.${id}.enabled=true`], cwd, env, [['hooks/list', {}]])
     const hooks = pluginHooks(list, id)
     const keys = Object.keys(hooks)
     if (keys.length === 0) return hooks
     const configured = configPlugins(await readFile(join(home.dir, 'config.toml'), 'utf8').catch(() => ''))
-    const [check] = await appServer(this.bin(), pluginArgs([plugin], hooks, configured), cwd, env, [['hooks/list', {}]])
+    const [check] = await this.call(this.bin(), pluginArgs([plugin], hooks, configured), cwd, env, [['hooks/list', {}]])
     const untrusted = untrustedHooks(check, id, keys)
     if (untrusted.length > 0) throw new UntrustedHooks(plugin, untrusted)
     return hooks

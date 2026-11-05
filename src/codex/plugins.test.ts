@@ -1,6 +1,8 @@
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { configPlugins, pluginArgs, pluginId, pluginHooks, untrustedHooks } from './plugins.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { AccountHome } from '../account/homes.js'
+import { CodexPlugins, configPlugins, pluginArgs, pluginId, pluginHooks, untrustedHooks } from './plugins.js'
 
 const cache = join('C:', 'state', 'packages', 'huly@even-keel', 'b')
 const huly = { package: 'huly@even-keel', dir: join(cache, 'plugin'), name: 'huly', marketplace: 'ek-b', marketplaceFile: join(cache, '.claude-plugin', 'marketplace.json'), servers: ['huly'] }
@@ -110,5 +112,59 @@ describe('untrustedHooks', () => {
       { key: keys[0], status: 'unknown' },
       { key: keys[1], status: 'missing' },
     ])
+  })
+})
+
+describe('CodexPlugins', () => {
+  let dir: string
+  let home: AccountHome
+  let methods: string[]
+  let lines: string[]
+  const call = async (_bin: string, _config: string[], _cwd: string, _env: NodeJS.ProcessEnv, calls: Array<[string, unknown]>) => {
+    methods.push(...calls.map(([method]) => method))
+    return calls.map(() => ({ data: [] }))
+  }
+  const plugins = () => new CodexPlugins(() => 'codex', () => ({}), (line) => lines.push(line), call)
+
+  beforeEach(async () => {
+    await mkdir('.temp', { recursive: true })
+    dir = await mkdtemp(join('.temp', 'codex-plugins-'))
+    home = { key: 'john-doe', dir, global: false, agent: 'codex' }
+    methods = []
+    lines = []
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it('logs one install per folder and service run, without the folder path or its account', async () => {
+    const codex = plugins()
+    await codex.args(home, dir, [huly])
+    await codex.args(home, dir, [huly])
+    expect(methods.filter((method) => method === 'plugin/install')).toHaveLength(1)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/^codex plugins: huly@ek-b installed into folder [0-9a-f]{8} in \d+(\.\d)? s$/)
+    expect(lines[0]).not.toContain(dir)
+    expect(lines[0]).not.toContain('john-doe')
+  })
+
+  it('logs a folder whose cache already holds the plugin, and installs nothing there', async () => {
+    await mkdir(join(dir, 'plugins', 'cache', 'ek-b', 'huly'), { recursive: true })
+    const codex = plugins()
+    await codex.args(home, dir, [huly])
+    await codex.args(home, dir, [huly])
+    expect(methods).not.toContain('plugin/install')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatch(/^codex plugins: huly@ek-b found in the cache of folder [0-9a-f]{8}$/)
+  })
+
+  it('names two folders apart', async () => {
+    const other = { ...home, key: 'jane-doe', dir: join(dir, 'other') }
+    const codex = plugins()
+    await codex.args(home, dir, [huly])
+    await codex.args(other, dir, [huly])
+    const folders = lines.map((line) => /folder ([0-9a-f]{8})/.exec(line)?.[1])
+    expect(new Set(folders).size).toBe(2)
   })
 })
