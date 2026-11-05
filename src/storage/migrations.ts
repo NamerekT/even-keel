@@ -153,7 +153,35 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   // v24 → v25: optional project consent `trustClaude`; omitted means false, so existing projects keep manual trust.
   // v26 → v27: optional `notices`, Even Keel's and a project's (BTN-759); the restamp above is all it takes.
   const feeds = version < 23 ? feedsRuled(sdk) : sdk
-  return version < 26 ? automaticTrust(feeds) : feeds
+  const trusted = version < 26 ? automaticTrust(feeds) : feeds
+  return version < 28 ? manualKept(trusted) : trusted
+}
+
+const MANUAL_LABELS = ['Manual', 'Вручную']
+
+/**
+ * v27 → v28: `Manual` and `Вручную` kept a task out whatever the lists said, and no label does now (BTN-758); every
+ * list of excluded labels — Even Keel's, a project's, a feed's — gets the two it lacks, and Even Keel's is written where
+ * the file had none, so the same tasks stay out.
+ */
+export function manualKept(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  const kept = (list: unknown) => {
+    if (!Array.isArray(list)) return list
+    const has = (name: string) => list.some((each) => typeof each === 'string' && each.trim().toLocaleLowerCase() === name.toLocaleLowerCase())
+    return [...list, ...MANUAL_LABELS.filter((name) => !has(name))]
+  }
+  const ruled = (owner: Record<string, unknown>) =>
+    isRecord(owner.chain) && 'excludedLabels' in owner.chain ? { ...owner, chain: { ...owner.chain, excludedLabels: kept(owner.chain.excludedLabels) } } : owner
+  const chain = isRecord(raw.chain) ? raw.chain : 'chain' in raw ? undefined : {}
+  const shared = chain === undefined ? raw : ruled({ ...raw, chain: 'excludedLabels' in chain ? chain : { ...chain, excludedLabels: [] } })
+  if (!Array.isArray(raw.projects)) return stamped(shared)
+  const projects = raw.projects.map((project: unknown) => {
+    if (!isRecord(project)) return project
+    const own = ruled(project)
+    return Array.isArray(own.feeds) ? { ...own, feeds: own.feeds.map((feed: unknown) => (isRecord(feed) ? ruled(feed) : feed)) } : own
+  })
+  return stamped({ ...shared, projects })
 }
 
 /** v25 → v26: Claude background launches always trust the checkout; project consent is no longer a setting. */

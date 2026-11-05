@@ -36,6 +36,7 @@ describe('early database samples migrate with settings and profiles', { timeout:
       await readsWhole(opened.db)
       expect((await mailboxOf(opened.db)).waiting).toEqual(['And run the slow tests.'])
       expect((await readSettings(opened.db)).rows.map(({ key, value }) => [key, value])).toEqual([
+        ['chain.excludedLabels', ['Manual', 'Вручную']],
         ['cli', 'checked'],
         ['cli', 'checked'],
         ['cli', 'checked'],

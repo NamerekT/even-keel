@@ -1,5 +1,5 @@
 import { DEFAULT_RULES, isActive, isTerminal, sameName, type ChainRules } from '../../../src/chain/rules.js'
-import { MANUAL_LABELS, QUESTION_LABELS, runLabelOf, type StatusCategory, type TaskStatus } from '../../../src/tracker/model.js'
+import { QUESTION_LABELS, runLabelOf, type StatusCategory, type TaskStatus } from '../../../src/tracker/model.js'
 
 /**
  * The chain rules by what they are about (BTN-334): a status has one place, a label one rule. The values stay the lists
@@ -93,7 +93,7 @@ export function settled(value: string[] | null, inherited: string[] | null, expl
   return value ?? explicit
 }
 
-export type LabelRule = 'required' | 'excluded' | 'manual' | 'question' | 'run'
+export type LabelRule = 'required' | 'excluded' | 'question' | 'run'
 export interface LabelRow {
   name: string
   rule: LabelRule
@@ -105,11 +105,10 @@ export function labelRows(rules: LabelRules, origins: Record<keyof LabelRules, R
   const builtin = (rule: LabelRule) => (name: string): LabelRow => ({ name, rule, origin: 'builtin' })
   const runs = modelLabels ? known.filter((name) => runLabelOf(name) !== null) : []
   return [
-    ...MANUAL_LABELS.map(builtin('manual')),
     ...QUESTION_LABELS.map(builtin('question')),
     ...runs.map(builtin('run')),
     ...rules.requiredLabels.map((name): LabelRow => ({ name, rule: 'required', origin: origins.requiredLabels })),
-    ...rules.excludedLabels.filter((name) => !listed(MANUAL_LABELS, name)).map((name): LabelRow => ({ name, rule: 'excluded', origin: origins.excludedLabels })),
+    ...rules.excludedLabels.map((name): LabelRow => ({ name, rule: 'excluded', origin: origins.excludedLabels })),
   ]
 }
 

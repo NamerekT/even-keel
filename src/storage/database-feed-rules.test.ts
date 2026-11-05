@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 import { ABC, fixture, schemaOf, XYZ } from './database.fixture.js'
-import { currentConfig } from './migrations.js'
+import { currentConfig, manualKept } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 const feedsOf = async (db: PGlite, project: string) =>
@@ -57,13 +57,13 @@ it('config schema v23 copies a project\'s own chain rules into each feed without
   const ruled = { ...feed, id: 'f2', chain: { requiredLabels: ['agent'] } }
   const raw = { version: 22, projects: [{ key: 'ABC', chain: { excludedLabels: ['Later'], brief: true }, feeds: [feed, ruled] }, { key: 'XYZ', feeds: [feed] }] }
   const migrated = currentConfig(raw)
-  expect(migrated).toEqual({
+  expect(migrated).toEqual(manualKept({
     version: SCHEMA_VERSION,
     projects: [
       { key: 'ABC', chain: { excludedLabels: ['Later'], brief: true }, feeds: [{ ...feed, chain: { excludedLabels: ['Later'] } }, ruled] },
       { key: 'XYZ', feeds: [feed] },
     ],
-  })
+  }))
   expect(currentConfig(migrated)).toEqual(migrated)
-  expect(currentConfig({ version: 22, projects: [{ key: 'ABC', chain: {}, feeds: [feed] }] })).toEqual({ version: SCHEMA_VERSION, projects: [{ key: 'ABC', chain: {}, feeds: [feed] }] })
+  expect(currentConfig({ version: 22, projects: [{ key: 'ABC', chain: {}, feeds: [feed] }] })).toEqual(manualKept({ version: SCHEMA_VERSION, projects: [{ key: 'ABC', chain: {}, feeds: [feed] }] }))
 })

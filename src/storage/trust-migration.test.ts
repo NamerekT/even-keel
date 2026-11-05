@@ -36,7 +36,7 @@ describe('automatic Claude trust database migration', () => {
       await old.close()
       const migrated = await openDatabase(dir)
       try {
-        expect((await migrated.query("select key from setting_values order by key")).rows).toEqual([{ key: 'brief' }])
+        expect((await migrated.query("select key from setting_values where key <> 'chain.excludedLabels' order by key")).rows).toEqual([{ key: 'brief' }])
         expect((await migrated.query("select key from setting_definitions where key = 'trustClaude'")).rows).toEqual([])
         expect((await migrated.query('select id from projects order by id')).rows).toEqual([{ id: 'one' }, { id: 'two' }])
       } finally {

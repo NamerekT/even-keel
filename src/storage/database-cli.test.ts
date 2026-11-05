@@ -43,8 +43,9 @@ it('a fresh database keeps the new default of `cli`: no row written', { timeout:
 it('config schema v21 writes `checked` for every provider the file left out, an explicit value kept', () => {
   const raw = { version: 20, cli: { codex: 'system' }, projects: [] }
   const migrated = currentConfig(raw)
-  expect(migrated).toEqual({ version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'system', opencode: 'checked', copilot: 'checked' }, projects: [] })
+  const chain = { excludedLabels: ['Manual', 'Вручную'] }
+  expect(migrated).toEqual({ version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'system', opencode: 'checked', copilot: 'checked' }, projects: [], chain })
   expect(currentConfig(migrated)).toEqual(migrated)
-  expect(currentConfig({ version: 20, projects: [] })).toEqual({ version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, projects: [] })
+  expect(currentConfig({ version: 20, projects: [] })).toEqual({ version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, projects: [], chain })
   expect(currentConfig({ version: SCHEMA_VERSION, projects: [] })).toEqual({ version: SCHEMA_VERSION, projects: [] })
 })

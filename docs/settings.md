@@ -46,7 +46,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225) | page, hand | `null` |
 | `chain.active`, `chain.terminal` | G, profile, P | each key P over the profile's over G; `null` — back to the status categories | page, hand (not the profile's) | `null` |
 | `chain.requiredLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole | page, hand (not the profile's) | `[]` |
-| `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; `MANUAL_LABELS` are excluded on top of any list (BTN-187) | page, hand (not the profile's) | `[]` |
+| `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; `Manual` is only the default, removable (BTN-758) | page, hand (not the profile's) | `["Manual"]` |
 | `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain/projects.md`) | page, hand | `[]` |
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
@@ -103,7 +103,6 @@ schema version of a file of the format.
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
 | the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on; with it off the card dims the label and a save of the pick first asks to turn `modelLabels` on for the project (BTN-741) |
-| `Manual`/`Вручную` | tracker label | T | `MANUAL_LABELS`, built in: the chain skips the task whatever `chain.excludedLabels` holds |
 | other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
@@ -147,8 +146,11 @@ entries stay as the reason for the levels.
 - `context.window` is a property of the model, not of Even Keel. The window now comes from the agent (`/context` of
   Claude, the rollout of Codex, `docs/sessions.md`), and the setting is only the fallback.
 - `chain.excludedLabels` carried `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
-  hand-written shared list, with its own excluded labels silently ran the manual tasks. The manual labels are now
-  built in (`MANUAL_LABELS`, like `QUESTION_LABELS`) and the default list is empty.
+  hand-written shared list, with its own excluded labels silently ran the manual tasks. BTN-187 made the manual labels
+  built in (`MANUAL_LABELS`) with an empty default list; BTN-758 took that back: `Вручную` is no longer built in,
+  `Manual` is the default list `["Manual"]`, removable, and a level's list on the page starts from the inherited one.
+  Database step 28 and config schema 28 (`manualKept`) add `Manual` and `Вручную` to every list an installation
+  already had and write the shared `["Manual", "Вручную"]` where none was, so nothing upgraded lets a manual task in.
 - `unattended` and `trimTools` were user settings kept with the chain state (`chain_flags` of the database since BTN-147,
   `state/chain.json` before), and `updates.dismissed` was state kept in the config. Each moved to its own side with the
   settings (BTN-199): the switches are Even Keel rows, the closed version is in `service_state`.
@@ -310,8 +312,8 @@ there is no mapping table:
 - `effort` — `effort:<level>` (BTN-146), its own prefix so it never collides with a model label; no switch needed.
 - Two labels feeding the same setting with different values — a warning in the log and the project's value, as
   `runChoice` does now.
-- Flags are not values: excluded and required labels are G/P settings that read labels, the manual labels become
-  built in (`MANUAL_LABELS`, BTN-187), the question labels only mark the card.
+- Flags are not values: excluded and required labels are G/P settings that read labels, `Manual` is only the
+  default excluded label (BTN-758), the question labels only mark the card.
 
 The label syntax is part of the public contract (README), so it is code, not data. If users ever want their own names
 (`Сонет` for a model), the cheap way is a G/P setting `labels.aliases` (alias → canonical label), applied before the

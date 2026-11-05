@@ -35,17 +35,21 @@ describe('default rules', () => {
     expect(isDone(DEFAULT_RULES, canceled)).toBe(false)
   })
 
-  it('keep a task labelled "Вручную" or "Manual" out, whatever its case and spacing', () => {
-    expect(admits(DEFAULT_RULES, { status: todo, labels: [' вручную '] })).toBe(false)
+  it('keep a task labelled "Manual" out, whatever its case and spacing', () => {
+    expect(admits(DEFAULT_RULES, { status: todo, labels: [' manual '] })).toBe(false)
     expect(admits(DEFAULT_RULES, { status: todo, labels: ['MANUAL'] })).toBe(false)
     expect(admits(DEFAULT_RULES, { status: todo, labels: ['Bug'] })).toBe(true)
   })
 
-  it('keep a manual task out with a list of their own excluded labels too', () => {
+  it('take a task labelled "Вручную": no label is built in (BTN-758)', () => {
+    expect(admits(DEFAULT_RULES, { status: todo, labels: ['Вручную'] })).toBe(true)
+  })
+
+  it('take a "Manual" task once a list of excluded labels leaves it out', () => {
     const own = { ...DEFAULT_RULES, excludedLabels: ['Bug'] }
-    expect(admits(own, { status: todo, labels: ['Вручную'] })).toBe(false)
-    expect(admits(own, { status: todo, labels: ['Manual'] })).toBe(false)
+    expect(admits(own, { status: todo, labels: ['Manual'] })).toBe(true)
     expect(admits(own, { status: todo, labels: ['Bug'] })).toBe(false)
+    expect(admits(rules({ excludedLabels: [] }), { status: todo, labels: ['Manual'] })).toBe(true)
   })
 })
 

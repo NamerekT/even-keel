@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 import { ABC, fixture, schemaOf } from './database.fixture.js'
-import { currentConfig } from './migrations.js'
+import { currentConfig, manualKept } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 const TRACKERS = ['deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira']
@@ -34,6 +34,6 @@ it('step 19 splits the tracker group of Protection into a group per tracker, the
 it('config schema v20 splits the tracker group the same way, at both levels', () => {
   const raw = { version: 19, protection: { disabled: ['deleteTracker', 'mirrorPush'] }, projects: [{ id: 'p', key: 'ABC', tracker: 'huly', repo: 'C:/example', protection: { disabled: ['deleteTracker'], claude: [] } }, { id: 'q', key: 'XYZ', tracker: 'huly', repo: 'C:/other' }] }
   const migrated = currentConfig(raw)
-  expect(migrated).toEqual({ ...raw, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, protection: { disabled: [...TRACKERS, 'mirrorPush'] }, projects: [{ ...raw.projects[0], protection: { disabled: TRACKERS, claude: [] } }, raw.projects[1]] })
+  expect(migrated).toEqual(manualKept({ ...raw, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, protection: { disabled: [...TRACKERS, 'mirrorPush'] }, projects: [{ ...raw.projects[0], protection: { disabled: TRACKERS, claude: [] } }, raw.projects[1]] }))
   expect(currentConfig(migrated)).toEqual(migrated)
 })

@@ -1,10 +1,10 @@
-import { MANUAL_LABELS, type StatusCategory, type TaskMilestone, type TaskStatus } from '../tracker/model.js'
+import { type StatusCategory, type TaskMilestone, type TaskStatus } from '../tracker/model.js'
 
 export interface ChainRules {
   active: string[] | null
   terminal: string[] | null
   requiredLabels: string[]
-  /** Kept out besides `MANUAL_LABELS`, which no list can let in (BTN-187). */
+  /** Kept out: `Manual` by default, removable like any other (BTN-758). */
   excludedLabels: string[]
   /**
    * Split the tasks of one tracker project between Even Keel projects (BTN-172): a project takes only tasks in one of the
@@ -15,7 +15,7 @@ export interface ChainRules {
   excludedMilestones: string[]
 }
 
-export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: [], requiredMilestones: [], excludedMilestones: [] }
+export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual'], requiredMilestones: [], excludedMilestones: [] }
 
 const ACTIVE_CATEGORIES: readonly StatusCategory[] = ['ToDo', 'Active']
 const TERMINAL_CATEGORIES: readonly StatusCategory[] = ['Won', 'Lost']
@@ -37,12 +37,9 @@ export function isDone(rules: ChainRules, status: TaskStatus): boolean {
   return status.category === 'Won' && isTerminal(rules, status)
 }
 
-/** The labels that keep a task out: the manual ones and the rules' own. */
-export const excludedOf = (rules: ChainRules) => [...MANUAL_LABELS, ...rules.excludedLabels]
-
 /** Closed, or kept out for good by an excluded label: the chain will not take it whatever happens to it. */
 export function excludes(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
-  return isTerminal(rules, task.status) || task.labels.some((label) => listed(excludedOf(rules), label))
+  return isTerminal(rules, task.status) || task.labels.some((label) => listed(rules.excludedLabels, label))
 }
 
 export function admits(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {

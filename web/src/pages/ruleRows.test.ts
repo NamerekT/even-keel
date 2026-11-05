@@ -110,17 +110,21 @@ describe('settled', () => {
 
 describe('labelRows', () => {
   it('shows the built-in labels first, the run labels only while they pick a model, then the lists’ own', () => {
-    const rows = labelRows(rules({ requiredLabels: ['agent-ok'], excludedLabels: ['wip', 'manual'] }), { requiredLabels: 'project', excludedLabels: 'shared' }, ['Claude | opus', 'Bug'], true)
+    const rows = labelRows(rules({ requiredLabels: ['agent-ok'], excludedLabels: ['wip', 'Manual'] }), { requiredLabels: 'project', excludedLabels: 'shared' }, ['Claude | opus', 'Bug'], true)
     expect(rows).toEqual([
-      { name: 'Manual', rule: 'manual', origin: 'builtin' },
-      { name: 'Вручную', rule: 'manual', origin: 'builtin' },
       { name: 'Question', rule: 'question', origin: 'builtin' },
       { name: 'Вопрос', rule: 'question', origin: 'builtin' },
       { name: 'Claude | opus', rule: 'run', origin: 'builtin' },
       { name: 'agent-ok', rule: 'required', origin: 'project' },
       { name: 'wip', rule: 'excluded', origin: 'shared' },
+      { name: 'Manual', rule: 'excluded', origin: 'shared' },
     ])
     expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, ['Claude | opus'], false).some((row) => row.rule === 'run')).toBe(false)
+  })
+
+  it('shows `Manual` of the default list as an ordinary excluded row, nothing built in about it (BTN-758)', () => {
+    const rows = labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false)
+    expect(rows.filter((row) => row.origin !== 'builtin')).toEqual([{ name: 'Manual', rule: 'excluded', origin: 'shared' }])
   })
 })
 
@@ -133,6 +137,11 @@ describe('withLabel', () => {
 
   it('drops a label from both lists', () => {
     expect(withLabel(now, 'agent-ok', null)).toEqual({ requiredLabels: [], excludedLabels: ['wip'] })
+  })
+
+  it('starts a level’s own list from the inherited one, `Manual` kept', () => {
+    expect(withLabel(DEFAULT_RULES, 'wip', 'excluded')).toEqual({ requiredLabels: [], excludedLabels: ['Manual', 'wip'] })
+    expect(withLabel(DEFAULT_RULES, 'Manual', null)).toEqual({ requiredLabels: [], excludedLabels: [] })
   })
 })
 

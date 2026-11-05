@@ -486,11 +486,11 @@ export const settingsEN: Messages['settings'] = {
     ruleReset: (what: string) => `Reset ${what}`,
     ruleLabels: 'Labels',
     ruleLabelsHint:
-      "What a label does to a task. Required: a task needs one of the required labels to enter the chain. Don't take: a task with it never enters. " +
+      "What a label does to a task. Required: a task needs one of the required labels to enter the chain. Don't take: a task with it never enters, it is yours to run — Manual by default, removable like any other. " +
       'Set a required label for a public GitHub repository: anyone can open an issue there, only collaborators can label it. The built-in labels are Even Keel’s own and do not change here.',
     ruleLabel: 'Label',
     ruleRule: 'Rule',
-    labelRule: { required: 'Required', excluded: "Don't take", manual: "Don't take", question: 'Only a mark', run: 'Picks the model' },
+    labelRule: { required: 'Required', excluded: "Don't take", question: 'Only a mark', run: 'Picks the model' },
     labelAdd: 'A label from the tracker…',
     labelTakeTitle: 'Which tasks enter',
     labelTake: { any: 'Take any', required: 'Only with a required label' },

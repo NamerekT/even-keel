@@ -19,7 +19,7 @@ describe('formsOf', () => {
       trackerProject: 'octo-org/abc',
       slot: 1,
       brief: false,
-      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: [] },
+      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual'] },
     })
     expect(formOf({ projects: [abc()] }, 'id-abc')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
   })
@@ -46,7 +46,7 @@ describe('withProjectForm', () => {
       trackerProject: 'octo-org/abc',
       slot: 3,
       brief: false,
-      chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: [] },
+      chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: ['Manual'] },
     }
     const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))
     expect(next).toEqual({
@@ -69,7 +69,7 @@ describe('withProjectForm', () => {
 
   it('removes the keys that go back to what is inherited, and the project key of the tracker left', () => {
     const raw = { brief: false, projects: [abc({ tracker: 'github', github: 'octo-org/abc', brief: true, slot: 2, chain: { requiredLabels: ['Auto'] } })] }
-    const form: ProjectForm = { ...formOf(raw, 'id-abc'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: [] } }
+    const form: ProjectForm = { ...formOf(raw, 'id-abc'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual'] } }
     expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))).toEqual({ brief: false, projects: [abc()] })
   })
 
@@ -186,7 +186,7 @@ describe('withSharedForm', () => {
       allowedHosts: [' Box.Example.com '],
       context: { window: 1_000_000, warn: 50, danger: 80 },
       modelPrompts: { haiku: ' Be brief. ', sonnet: ' ' },
-      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: [] },
+      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual'] },
       stats: { ...sharedOf(raw).stats, compare: { minTasks: 5, minSessions: 10, days: 7 }, otherBelow: 2 },
       ci: { ...sharedOf(raw).ci, kinds: ['github'], waitMinutes: 15 },
       fillMilestone: true,

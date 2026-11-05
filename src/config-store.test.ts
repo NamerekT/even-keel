@@ -33,8 +33,12 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await writes.settled()
     return fileOf(await readSettings(db))
   }
-  /** A seed has no version, so it imports as an old config that keeps every provider on the checked CLI (BTN-603). */
-  const stored = (raw: Record<string, unknown>) => fresh({ cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, ...raw })
+  /**
+   * A seed has no version, so it imports as an old config that keeps every provider on the checked CLI (BTN-603) and
+   * the manual labels out of the chain (BTN-758).
+   */
+  const stored = (raw: Record<string, unknown>) =>
+    fresh({ cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, chain: { excludedLabels: ['Manual', 'Вручную'] }, ...raw })
   /** The stored settings of a database nothing was imported into. */
   const fresh = (raw: Record<string, unknown>) => ({ version: SCHEMA_VERSION, ...raw })
 

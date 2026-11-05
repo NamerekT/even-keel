@@ -61,7 +61,7 @@ describe('chain rules in the config', () => {
   })
 
   it('reject a label that is both required and excluded', () => {
-    expect(() => parse({ chain: { requiredLabels: ['Вручную'] }, projects: { ABC: 'C:\\abc' } })).toThrow(/ABC.*Вручную/)
+    expect(() => parse({ chain: { requiredLabels: ['Manual'] }, projects: { ABC: 'C:\\abc' } })).toThrow(/ABC.*Manual/)
   })
 
   it('reject a milestone that is both required and excluded', () => {

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { needsCheckedCli } from './agent/providers.js'
 import { fixStem, shortId } from './chain/fix.js'
 import { statusMovesOf, type StatusMoves } from './chain/moves.js'
-import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
+import { sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { colorsOf } from './projects/colors.js'
@@ -533,7 +533,7 @@ export function checkRules(rules: ChainRules, project: string): ChainRules {
   const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
   const status = clash(rules.active ?? [], rules.terminal ?? [])
   if (status !== undefined) throw fail('config.statusBoth', { project, status })
-  const label = clash(rules.requiredLabels, excludedOf(rules))
+  const label = clash(rules.requiredLabels, rules.excludedLabels)
   if (label !== undefined) throw fail('config.labelBoth', { project, label })
   const milestone = clash(rules.requiredMilestones, rules.excludedMilestones)
   if (milestone !== undefined) throw fail('config.milestoneBoth', { project, milestone })

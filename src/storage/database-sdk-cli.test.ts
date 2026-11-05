@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 import { fixture, schemaOf } from './database.fixture.js'
-import { currentConfig } from './migrations.js'
+import { currentConfig, manualKept } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 const claudeCli = async (db: PGlite) =>
@@ -56,10 +56,10 @@ it('step 21 writes `checked` where the Agent SDK left `cli.claude` at the instal
 it('config schema v22 writes `cli.claude: checked` for the Agent SDK of Claude, the other providers kept', () => {
   const raw = { version: 21, execution: { claude: 'sdk' }, cli: { claude: 'system', codex: 'system' }, projects: [] }
   const migrated = currentConfig(raw)
-  expect(migrated).toEqual({ ...raw, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'system' } })
+  expect(migrated).toEqual(manualKept({ ...raw, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'system' } }))
   expect(currentConfig(migrated)).toEqual(migrated)
-  expect(currentConfig({ version: 21, execution: { claude: 'sdk' }, projects: [] })).toEqual({ version: SCHEMA_VERSION, execution: { claude: 'sdk' }, cli: { claude: 'checked' }, projects: [] })
-  expect(currentConfig({ version: 21, execution: { claude: 'auto' }, projects: [] })).toEqual({ version: SCHEMA_VERSION, execution: { claude: 'auto' }, projects: [] })
+  expect(currentConfig({ version: 21, execution: { claude: 'sdk' }, projects: [] })).toEqual(manualKept({ version: SCHEMA_VERSION, execution: { claude: 'sdk' }, cli: { claude: 'checked' }, projects: [] }))
+  expect(currentConfig({ version: 21, execution: { claude: 'auto' }, projects: [] })).toEqual(manualKept({ version: SCHEMA_VERSION, execution: { claude: 'auto' }, projects: [] }))
   expect(currentConfig({ version: SCHEMA_VERSION, execution: { claude: 'sdk' }, projects: [] })).toEqual({ version: SCHEMA_VERSION, execution: { claude: 'sdk' }, projects: [] })
 })
 

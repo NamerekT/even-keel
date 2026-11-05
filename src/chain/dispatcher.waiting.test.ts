@@ -238,7 +238,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo), labels: ['Вручную'] }, task('ABC-2', todo, 'ABC-1'), task('ABC-3')])
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo), labels: ['Manual'] }, task('ABC-2', todo, 'ABC-1'), task('ABC-3')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-2', 'ABC/ABC-3'])
   })

@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite'
 import { describe, expect, it } from 'vitest'
-import { currentConfig } from './migrations.js'
+import { currentConfig, manualKept } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 import { STEPS, databaseVersion } from './database.js'
 import { fixture } from './database.fixture.js'
@@ -21,7 +21,7 @@ describe('model prompt pattern migration', () => {
   it('moves legacy model keys, in order, and leaves current patterns intact', () => {
     const old = { version: 16, projects: [], modelPrompts: { sonnet: 'First.', Codex: 'Second.' } }
     const patterns = { ...old, version: 17, modelPrompts: { '* | sonnet': 'First.', '* | Codex': 'Second.' } }
-    const current = { ...patterns, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' } }
+    const current = manualKept({ ...patterns, version: SCHEMA_VERSION, cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' } })
     expect(currentConfig(old)).toEqual(current)
     expect(currentConfig(patterns)).toEqual(current)
     expect(currentConfig(current)).toEqual(current)

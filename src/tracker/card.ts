@@ -1,5 +1,5 @@
 import { compareMilestones } from '../chain/order.js'
-import { excludedOf, missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
+import { missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
 import { QUESTION_LABELS, runLabelOf, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
@@ -98,7 +98,7 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, m
 
 function roleOf(label: string, rules: ChainRules): LabelRole | null {
   const listed = (names: string[]) => names.some((name) => sameName(name, label))
-  if (listed(excludedOf(rules))) return 'excluded'
+  if (listed(rules.excludedLabels)) return 'excluded'
   if (listed(rules.requiredLabels)) return 'required'
   if (listed(QUESTION_LABELS)) return 'question'
   return runLabelOf(label) === null ? null : 'model'

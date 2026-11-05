@@ -6,11 +6,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
-import { currentConfig, upgradeStorage } from './migrations.js'
+import { currentConfig, manualKept, upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
-/** What v21 writes into a config of before (BTN-603): the providers it left out of `cli` stay on the checked copy. */
-const CHECKED = { cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' } }
+/**
+ * What v21 writes into a config of before (BTN-603): the providers it left out of `cli` stay on the checked copy; and
+ * what v28 writes into one without a shared list of excluded labels: the two that were built in (BTN-758).
+ */
+const CHECKED = { cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, chain: { excludedLabels: ['Manual', 'Вручную'] } }
 
 describe('upgradeStorage', () => {
   it('upgrades v18 without writing a chain compaction override', () => {
@@ -205,7 +208,8 @@ describe('upgradeStorage', () => {
           delete old.tracker
           old.cli = { ...CHECKED.cli, ...old.cli }
         }
-        if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
+        const { version: __, ...kept } = name === 'even-keel.config.json' ? (manualKept(old) as Record<string, unknown>) : { ...old, version: 0 }
+        if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(kept)
       }
       const lines = text(state('launches.jsonl')).split('\n')
       expect(lines[0]).toBe(`{"version":${SCHEMA_VERSION}}`)

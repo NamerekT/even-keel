@@ -324,6 +324,41 @@ export const STEPS: readonly string[] = [
   delete from setting_values where key = 'trustClaude';
   delete from setting_definitions where key = 'trustClaude';
   `,
+  // No label keeps a task out by itself any more (BTN-758): `Manual` and `Вручную` did whatever the lists said. Every
+  // list of excluded labels an existing database keeps — Even Keel's, a profile's, a project's, a feed's — gets the two
+  // it lacks, and Even Keel's is written where it had none, so the same tasks stay out; a fresh one keeps `["Manual"]`.
+  `
+  create function pg_temp.with_manual(list jsonb) returns jsonb language sql immutable as $$
+    select list || coalesce((
+      select jsonb_agg(name order by n)
+        from unnest(array['Manual', 'Вручную']) with ordinality as m(name, n)
+       where not exists (select 1 from jsonb_array_elements_text(list) as e(have) where lower(trim(have)) = lower(name))
+    ), '[]'::jsonb)
+  $$;
+  update setting_values
+     set value = pg_temp.with_manual(value::jsonb)::text
+   where key = 'chain.excludedLabels' and jsonb_typeof(value::jsonb) = 'array';
+  insert into setting_definitions (key, kind, spec, default_value, scopes)
+    select 'chain.excludedLabels', 'list', '{}', '[]', 'global,project,profile'
+     where current_setting('even_keel.migration_from', true)::integer > 0
+    on conflict (key) do nothing;
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select 'chain.excludedLabels', null, '', '["Manual", "Вручную"]', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
+     where current_setting('even_keel.migration_from', true)::integer > 0
+       and not exists (select 1 from setting_values where key = 'chain.excludedLabels' and project_id is null and qualifier = '');
+  update tracker_profiles
+     set rules = jsonb_set(rules::jsonb, '{excludedLabels}', pg_temp.with_manual(rules::jsonb -> 'excludedLabels'))::text
+   where jsonb_typeof(rules::jsonb -> 'excludedLabels') = 'array';
+  update projects p
+     set feeds = (
+       select jsonb_agg(case when jsonb_typeof(f #> '{chain,excludedLabels}') = 'array'
+                             then jsonb_set(f, '{chain,excludedLabels}', pg_temp.with_manual(f #> '{chain,excludedLabels}'))
+                             else f end order by n)::text
+         from jsonb_array_elements(p.feeds::jsonb) with ordinality as e(f, n)
+     )
+   where exists (select 1 from jsonb_array_elements(p.feeds::jsonb) as e(f) where jsonb_typeof(f #> '{chain,excludedLabels}') = 'array');
+  drop function pg_temp.with_manual(jsonb);
+  `,
 ]
 
 /** The version this code reads and writes. */

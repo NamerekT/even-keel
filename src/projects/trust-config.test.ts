@@ -11,7 +11,7 @@ describe('automatic Claude trust configuration', () => {
   it.each([true, false, undefined])('removes legacy consent %s without changing other project data', (trustClaude) => {
     const raw = { version: 25, projects: [{ ...project, trustClaude }], language: 'ru' }
     const migrated = currentConfig(raw)
-    expect(migrated).toEqual({ version: SCHEMA_VERSION, projects: [project], language: 'ru' })
+    expect(migrated).toEqual({ version: SCHEMA_VERSION, chain: { excludedLabels: ['Manual', 'Вручную'] }, projects: [project], language: 'ru' })
     expect(currentConfig(migrated)).toEqual(migrated)
     const form = formsOf(parseConfig(migrated)).projects.p!
     expect(form).not.toHaveProperty('trustClaude')
