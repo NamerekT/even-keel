@@ -110,38 +110,33 @@ To let sessions read the task themselves, file blockers and leave comments, add 
 
 ## As a service
 
-The service starts by itself and restarts Even Keel if it fails. Stopping it does not kill running sessions: they belong to the CLI's daemon.
+`npx even-keel` sets it up for you: Even Keel starts by itself and is restarted if it fails. Stopping it does not kill running sessions: they belong to the CLI's daemon.
 
-**Windows.** As your own user, from cmd (in PowerShell: `even-keel.cmd install`):
+| | Runs as | Log | Keep in mind |
+| --- | --- | --- | --- |
+| Windows | a start at your sign-in, with a tray icon: **Open the page**, **Restart**, **Quit** | `logs\even-keel.log` in the data folder | after a night-time Windows Update restart it waits for you to sign in, unless Windows signs you back in (Settings → Accounts → Sign-in options → "Use my sign-in info to automatically finish setting up after an update") |
+| Linux | a systemd user unit | `journalctl --user -u even-keel` | stops when you log out, unless `loginctl enable-linger $USER` |
+| macOS | a launchd agent | `logs/even-keel.log` in the data folder | runs while you are signed in to the desktop |
 
-```powershell
-even-keel install          # installed with npm
-node dist/src/cli.js install  # a clone, after npm run build
-```
-
-Even Keel then starts when you sign in, with an icon in the tray: **Open the page**, **Restart**, **Quit**, and its tooltip says whether it runs, a chain is paused or a session waits for your answer. It runs only while you are signed in: after a night-time Windows Update restart it waits for you to sign in, unless Windows signs you back in itself (Settings → Accounts → Sign-in options → "Use my sign-in info to automatically finish setting up after an update"). Log: `logs\even-keel.log` in the data folder (a clone: in its own folder). The Windows service that runs without a sign-in is still there for a clone (`service\install.ps1` from PowerShell 7 as administrator): [setup](docs/guide/setup.md#as-a-service).
-
-**Linux and macOS.** As your own user, not with `sudo`:
-
-```sh
-even-keel install          # installed with npm
-service/install.sh         # a clone
-```
-
-On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep it running after you log out, `loginctl enable-linger $USER`. On macOS it is a launchd agent, logging to `logs/even-keel.log`; it runs while you are signed in to the desktop. More: [setup](docs/guide/setup.md#as-a-service).
+To set it up again, as your own user and not with `sudo`: `even-keel install` (in PowerShell `even-keel.cmd install`). From a clone, after `npm run build`: `node dist/src/cli.js install` on Windows, `service/install.sh` on Linux and macOS; a clone keeps its data and logs in its own folder. The older Windows service that runs without a sign-in is for a clone only: [setup](docs/guide/setup.md#as-a-service).
 
 ## Updating
 
-The gear menu in the header shows the installed version and tells you when a newer release is out.
+The gear menu in the header shows the installed version and tells you when a newer release is out. **Update** in its window lists what changes, waits for the chains to settle, installs the release and restarts the service; if anything fails, the version you had comes back. **Revert** goes back to the previous version the same way, unless the update changed the stored state's format. This works as a service, installed with npm or on a clean clone. Running sessions survive the update.
 
-- **From the page** (as a service, installed with npm or on a clean clone) — the update window lists what changes; **Update** waits for the chains to settle, installs the release (with npm, or a checkout and a build in a clone) and restarts the service, and goes back to the version you had if anything fails. **Revert** takes you back to the previous version the same way, unless the update changed the stored state's format.
-- **Installed with npm, by hand** — `even-keel update` (stops the service, installs the latest release, starts it), or `npm install --global even-keel@<version>` with Even Keel stopped.
-- **A clone as a service, by hand** — `git pull`, then run its install again.
-- **A clone from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`.
+By hand:
 
-Running sessions survive the update. Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
+| Installed | Update |
+| --- | --- |
+| with npm | `even-keel update`, or `npm install --global even-keel@<version>` with Even Keel stopped |
+| a clone as a service | `git pull`, then its install again |
+| a clone from a terminal | stop Even Keel, then `git pull`, `npm ci`, `npm run build`, `npm start` |
 
-To test the next version before its release: with npm, `npx even-keel@next` installs its latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
+Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
+
+### Trying the next version
+
+With npm, `npx even-keel@next` installs the latest release candidate when there is one. Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
 
 ```sh
 git switch dev
