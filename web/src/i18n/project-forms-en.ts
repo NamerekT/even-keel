@@ -351,7 +351,7 @@ export const settingsEN: Messages['settings'] = {
     fixTask: 'Create a task when CI fails',
     fixTaskHint:
       'Off: a session without a tracker task fixes a red main, and the working session is stopped until it is done, then goes on with a note. On: the chain creates a fix task and takes it after the current one. The same for a failed check of main.',
-    pullRequests: 'Pull requests instead of merging (experimental)',
+    pullRequests: 'Pull requests instead of merging',
     pullRequestsHint:
       'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request (a merge request on GitLab) and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; review comments, a failed CI or a conflict go back to the task\'s session. Experimental, use at your own risk: it ran live on GitHub, Forgejo and GitLab, but on few repositories so far.',
     pullNoRemote: 'The repository has no remote on GitHub, GitLab or Forgejo to open pull requests on: add one to it.',
