@@ -39,6 +39,7 @@ import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 import { fakeRecord, fakeTranscript } from './fakeTranscript.js'
+import { withTrustPause } from './fakeTrust.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -444,10 +445,7 @@ export function createFakeSource(search: string): LiveSource {
     const error = notice('git.noBranch', { project: active.project, branch: 'trunk', repo: 'D:/work/abc' })
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
-  if (params.get('chain') === 'untrusted' && active) {
-    const error = notice('claude.untrusted', { task: 'ABC-5', folder: 'D:/work/abc', platform: 'win32', user: 'evenkeel', service: asService })
-    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
-  }
+  withTrustPause(current.state, params, asService)
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: 'D:/work/abc/.claude/worktrees/even-keel' }, { detail: 'M src/app.ts\n?? src/scratch.ts' })
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
