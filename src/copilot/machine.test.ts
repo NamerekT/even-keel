@@ -89,7 +89,8 @@ describe('Copilot machine sign-in', () => {
     expect(await machineSignedIn('copilot', env, '/accounts/copilot', 1000)).toBe(false)
   })
 
-  it.each([reply(null), reply({ authType: 'user' }), 'not RPC'])('does not know from an unreadable answer: %j', async (text) => {
+  it.each([reply(null), reply({}), reply({ isAuthenticated: 'false' }), reply({ authType: 'user' }), '', 'not RPC',
+    'Content-Length: 1\r\n\r\n{', reply({ isAuthenticated: true }).slice(0, -1)])('does not know from an unreadable answer: %j', async (text) => {
     run.mockResolvedValueOnce(text)
     expect(await machineSignedIn('copilot', env, '/accounts/copilot', 1000)).toBeNull()
   })

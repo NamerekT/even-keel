@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { currentAccount } from './current.js'
 import { accountAt, emptyLedger, nameAccount } from './ledger.js'
-import { accountId, type AccountEntry, type AccountView } from './model.js'
+import { accountId, launchBlock, switchProblem, type AccountEntry, type AccountView } from './model.js'
 
 const entry = (key: string, agent: string): AccountEntry => ({
   key, agent, name: `${agent} build`, global: false,
@@ -12,6 +12,13 @@ const entry = (key: string, agent: string): AccountEntry => ({
 const view: AccountView = { active: 'global', accounts: [entry('global', 'claude'), entry('build', 'codex')], login: null, loginBlock: null, apps: [], pool: [], missing: [] }
 
 describe('current account for a task', () => {
+  it('allows a Copilot launch when its sign-in probe is unknown', () => {
+    const machine = entry('copilot-machine', 'copilot')
+    machine.status = { loggedIn: null, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
+    expect(currentAccount({ ...view, accounts: [machine] }, machine.key)).toMatchObject({ id: machine.key, ready: true })
+    expect(launchBlock({ ...view, accounts: [machine] }, machine.key)).toBeUndefined()
+    expect(switchProblem({ ...view, accounts: [machine] }, machine.key)).toBeUndefined()
+  })
   it('takes the selected provider account even while the header has another one', () => {
     expect(currentAccount(view, 'build')).toMatchObject({ label: 'codex build', provider: 'codex', ready: true })
     expect(currentAccount(view)).toMatchObject({ label: 'claude build', provider: 'claude', ready: true })

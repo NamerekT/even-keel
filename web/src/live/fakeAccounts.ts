@@ -372,19 +372,21 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }, { project: 'DEMO', provider: OPENCODE, account: 'opencode-2' }]
     return { ...signedIn, accounts: [own, work, free, chatgpt, codex], pool }
   }
-  if (mode === 'copilot' || mode === 'copilot-out') {
+  if (mode === 'copilot' || mode === 'copilot-out' || mode === 'copilot-unknown' || mode === 'copilot-out-cmd') {
     // OPS runs on the machine's own Copilot sign-in, which has no allowance to read; a second folder has a token of its
     // own and shows what is left of its month. `copilot-out`: the CLI sees no sign-in in the folder (EKR-73).
-    const out = mode === 'copilot-out'
+    const out = mode === 'copilot-out' || mode === 'copilot-out-cmd'
     const machine = fakeEntry({
       key: 'copilot',
       global: false,
       agent: COPILOT,
-      status: { ...OPENCODE_STATUS, authMethod: 'none', loggedIn: !out },
+      status: { ...OPENCODE_STATUS, authMethod: 'none', loggedIn: mode === 'copilot-unknown' ? null : !out },
       loginExpiresAt: null,
       projects: ['OPS'],
       usage: stale(notice('usage.copilotMachine', {})),
-      ...(out && { needsLogin: true, terminalLogin: "COPILOT_HOME='/home/node/.copilot-accounts/copilot' 'copilot' login" }),
+      ...(out && { needsLogin: true, terminalLogin: mode === 'copilot-out-cmd'
+        ? 'cmd /d /v:off /c set "COPILOT_GITHUB_TOKEN=" ^& set "GH_TOKEN=" ^& set "GITHUB_TOKEN=" ^& set "COPILOT_HOME=C:\\Fake path\\copilot" ^& "C:\\Fake bin\\copilot.exe" login'
+        : "(unset COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN; COPILOT_HOME='/home/node/.copilot-accounts/copilot' 'copilot' login)" }),
     })
     const month = { usedPercentage: 60, resetsAt: new Date(Date.now() + 9 * 86_400_000).toISOString(), left: 120 }
     const allowance = { fiveHour: null, sevenDay: null, month, updatedAt: ago(2), source: 'api' as const }

@@ -294,6 +294,7 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   return (
     <>
       {!brief && stale !== null && <p className="accounts__note">{stale}</p>}
+      {entry.status?.loggedIn === null && <p className="accounts__note">{t.account.authUnknownNote}</p>}
       {mixup !== null && (
         <div className="accounts__note accounts__note--warn">
           <span>{mixup.text}</span>
@@ -314,7 +315,7 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
       )}
       {!entry.apiKey && entry.needsLogin && entry.terminalLogin !== undefined && (
         <div className="accounts__note accounts__note--warn accounts__note--command">
-          <span>{t.account.terminalLogin}</span>
+          <span>{t.account.terminalLogin(entry.terminalLogin.startsWith('cmd ') ? 'cmd' : 'sh')}</span>
           <CommandBlock command={entry.terminalLogin} />
         </div>
       )}

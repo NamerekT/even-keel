@@ -18,6 +18,17 @@ describe('accounts and limits end to end', { timeout: 60_000 }, () => {
     await run.stop()
   })
 
+  it('launches a task after a sign-in check becomes unknown instead of treating it as signed out', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', commitAndMerge())
+    await run.start()
+    run.agent.statuses.set(ACCOUNT, { loggedIn: null, authMethod: 'none', email: null, subscriptionType: null })
+    await run.service.account.refresh()
+    expect(run.service.account.view.accounts.find((entry) => entry.key === ACCOUNT)).toMatchObject({ status: { loggedIn: null }, needsLogin: false })
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'task done on an unchecked sign-in')
+  })
+
   const launches = () => run.agent.calls.filter((call) => call.kind === 'launch')
   const resumes = () => run.agent.calls.filter((call) => call.kind === 'resume')
   const stops = () => run.agent.calls.filter((call) => call.kind === 'stop')

@@ -20,7 +20,8 @@ const FREE_PLAN = 'free'
 
 /** What an account folder is signed in as, by its agent (`Agent.authStatus`). */
 export interface AccountStatus {
-  loggedIn: boolean
+  /** `null` means the Copilot CLI could not confirm or deny sign-in; launches remain allowed. */
+  loggedIn: boolean | null
   authMethod: string | null
   email: string | null
   orgName: string | null
@@ -229,7 +230,7 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
   if (copilotOnly(target)) return copilotUnsupported()
-  if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
+  if (target.needsLogin || target.status == null || target.status.loggedIn === false) return notice('account.needsLogin', { account: target.status?.email ?? key })
   return freeHeld(view.accounts, key)
 }
 

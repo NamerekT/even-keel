@@ -138,12 +138,16 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
 
   it("gives only a signed-out folder its agent's terminal sign-in (EKR-73)", async () => {
     const { accounts, options } = await watcher(() => ({ state: 'ok' }))
-    let status = { ...API_STATUS, loggedIn: false, authMethod: 'none' }
+    let status: import('./model.js').AccountStatus = { ...API_STATUS, loggedIn: false, authMethod: 'none' }
     options.agentOf = (() => ({ authStatus: async () => status, terminalLogin: () => "COPILOT_HOME='/c' copilot login" })) as never
     await accounts.refresh()
     expect(accounts.view.accounts[0]).toMatchObject({ needsLogin: true, terminalLogin: "COPILOT_HOME='/c' copilot login" })
     status = { ...status, loggedIn: true }
     await accounts.refresh()
+    expect(accounts.view.accounts[0]).not.toHaveProperty('terminalLogin')
+    status = { ...status, loggedIn: null }
+    await accounts.refresh()
+    expect(accounts.view.accounts[0]).toMatchObject({ needsLogin: false, status: { loggedIn: null }, error: null })
     expect(accounts.view.accounts[0]).not.toHaveProperty('terminalLogin')
   })
 
