@@ -145,3 +145,47 @@ describe('Dispatcher on a restart', () => {
     expect(() => dispatcher.restart('ABC', 'ABC-1')).toThrow('chain: no session of ABC-1 is known')
   })
 })
+
+describe('Dispatcher on a new session with the user\'s message', () => {
+  it('hands the task over with the message at the end of the prompt and journals a restart caused by it', async () => {
+    const { dispatcher, relays, journal, clock } = await running()
+    clock.now = new Date('2026-09-26T13:00:00Z')
+
+    dispatcher.renew('ABC', 'ABC-1', 'old-session', null, 'Check the logs too.\n')
+    await dispatcher.idle()
+
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'old-session', reason: 'message' }])
+    expect(relays[0]?.prompt).toContain('Left: run the tests.')
+    expect(relays[0]?.prompt).toMatch(/кэш[\s\S]*Left: run the tests\.\n\nСообщение пользователя:\n\nCheck the logs too\.\n$/)
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
+    expect(dispatcher.state.active[0]?.current?.reply).toBeUndefined()
+    expect(journal.at(-1)).toEqual({
+      at: '2026-09-26T13:00:00.000Z',
+      project: 'ABC',
+      task: 'ABC-1',
+      sessionId: 'session-1',
+      reason: 'restart',
+      cause: 'message',
+      previous: 'old-session',
+    })
+  })
+
+  it('refuses a session the task moved past, a question answered already and a stopped chain', async () => {
+    const { dispatcher, relays } = await running({ asked: { 'ABC-1': 'toolu_2' } })
+    expect(() => dispatcher.renew('ABC', 'ABC-1', 'another', 'toolu_2', 'Hi\n')).toThrow('answer: the session of ABC-1 has moved on')
+    expect(() => dispatcher.renew('ABC', 'ABC-1', 'old-session', 'toolu_1', 'Hi\n')).toThrow('answer: the session of ABC-1 has moved on')
+    await dispatcher.idle()
+    expect(relays).toEqual([])
+
+    const loose = setup({ state: emptyChainState() })
+    loose.handoffs['ABC-1'] = handoff('old-session')
+    expect(() => loose.dispatcher.renew('ABC', 'ABC-1', 'old-session', null, 'Hi\n')).toThrow('chain: ABC-1 is not the current task of a chain')
+  })
+
+  it('refuses while the session is mid-turn or new sessions cannot start', async () => {
+    const busy = await running({ busy: new Set(['ABC-1']) })
+    expect(() => busy.dispatcher.renew('ABC', 'ABC-1', 'old-session', null, 'Hi\n')).toThrow('answer:')
+    const spent = await running({ limitReset: '2026-09-26T15:00:00.000Z' })
+    expect(() => spent.dispatcher.renew('ABC', 'ABC-1', 'old-session', null, 'Hi\n')).toThrow('chain: The usage limit is spent until 2026-09-26T15:00:00.000Z')
+  })
+})

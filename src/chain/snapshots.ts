@@ -20,6 +20,7 @@ export interface HandoffSnapshot {
 
 /** The launch journal's word for the handoff reason. */
 export function snapshotReason(reason: HandoffReason): SnapshotReason {
+  if (reason === 'message') return 'restart'
   return reason === 'limit' || reason === 'mainFixed' || reason === 'review' || reason === 'returned' ? 'relay' : reason
 }
 

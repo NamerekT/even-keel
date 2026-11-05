@@ -47,6 +47,8 @@ export interface ChatTarget {
   session: SessionView
   /** The task made way for the fix of a red main: the chat shows its question and takes no answer until the chain is back. */
   aside: boolean
+  /** The session is the current one of a running chain: a reply to it may go to a new session instead (BTN-757). */
+  renews: boolean
   /** For the head's meter of the session's context. */
   scale: ContextScale
   /** When the service began delivering the last answer to the session, for the turn line; `null` without one. */
@@ -292,6 +294,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               task={chat.task}
               session={chat.session}
               aside={chat.aside}
+              renews={chat.renews}
               mail={chat.mail}
               queued={queued}
               handle={composerRef}

@@ -315,6 +315,12 @@
   border-top: 1px solid var(--border);
 }
 
+/* Three choices with long labels: on a narrow screen they wrap, kept at the right. */
+.add-package__foot--wrap {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .add-package__foot .button {
   border-color: var(--border);
 }

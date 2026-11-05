@@ -32,7 +32,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; time reports to GitLab and Jira 91 — EKR-36.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
-- The chat: 11, 11a–11d, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
+- The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3 (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
@@ -73,6 +73,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 11b | [The chat's `/handoff` in a real session](unverified/sessions.md#the-chats-handoff-in-a-real-session-btn-557) | chat users handing a task over by hand | the session keeps the task instead of handing it over |
 | 11c | [Chat mail after the task's merge](unverified/sessions.md#chat-mail-after-the-tasks-merge-btn-558) | chat users writing to a session that has just merged | the request lands uncommitted in the closed task's worktree |
 | 11d | [A handoff past a failed session](unverified/sessions.md#a-handoff-past-a-failed-session-btn-650) | chains where a new session fails before its first answer (a bad key, no credit) | the next session starts without the plan of the one that worked |
+| 11e | [A reply to a cold session](unverified/sessions.md#a-reply-to-a-cold-session-btn-757) | chat users answering a session that waited past its cache window | the reply is lost with the old session, or the new one starts without it |
 | 13 | [Packages on Linux and macOS](unverified/packages.md#packages-on-linux-and-macos) | on Linux packages other than Huly, on macOS other than GitHub and checkpoint | the chain waits on a package that does not start |
 | 14 | [The update button on the page](unverified/updating.md#the-update-button-on-the-page-btn-163) | a revert release, once there is one (Windows, systemd and launchd checked) | the page shows no revert; update by hand |
 | 15 | [Stopping a turn on macOS and Linux](unverified/codex.md#stopping-a-turn-on-macos-and-linux) | Codex New session on macOS, Copilot/OpenCode stops on macOS; macOS creation time and a reused pid (Linux Copilot and Codex New session and their commands checked, Codex on a staged silence, EKR-64) | a stopped turn or its command goes on, or a reused pid is killed |

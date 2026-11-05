@@ -211,14 +211,32 @@ function restart(state: EvenKeelState, project: string, task: string, confirmati
   const confirmed = restartConfirmation(confirmation)
   if (confirmed !== undefined && (confirmed.sessionId !== view.sessionId || confirmed.since !== view.silentSince)) throw fail('chain.restartChanged', { task })
   if ((view.lamp === 'working' || view.waitingFor !== null) && !silentRestart(view.sessionId, view.silentSince, confirmed, Date.now())) throw fail('chain.midTurn', { task })
+  return replaced(state, active, current.since, view)
+}
+
+/** `session/answer` with `renew`: the reply starts a new session of the task instead of resuming this one (BTN-757). */
+function renew(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
+  const task = String(body.task)
+  const active = chainIn(state, String(body.project))
+  const current = active?.current?.task === task && active.current.sessionId === body.sessionId ? active.current : null
+  if (active === undefined || current === null) throw fail('chain.notCurrent', { task })
+  const view = state.sessions.find((each) => each.task === task && each.sessionId === body.sessionId)
+  if (view === undefined || (view.ask?.id ?? null) !== body.ask) throw fail('answer.moved', { task })
+  if (view.lamp === 'working') return fakeAnswer(state, { ...body, renew: false })
+  return replaced(state, active, current.since, view, 'message')
+}
+
+function replaced(state: EvenKeelState, active: ActiveChain, since: string, view: SessionView, cause?: 'message'): EvenKeelState {
+  const task = view.task
   const sessionId = crypto.randomUUID()
   const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, silentSince: null, hungSince: null, lastActivityAt: ago(0), startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
-  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
+  const why = cause === undefined ? {} : { cause }
+  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const, ...why } } : row))
   return {
     ...state,
-    chain: withChain(state, active, { ...active, current: { task, sessionId, since: current.since } }).chain,
-    sessions: state.sessions.map((each) => (each === view ? fresh : each)),
-    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0, answers: 0 }, ...rows] },
+    chain: withChain(state, active, { ...active, current: { task, sessionId, since } }).chain,
+    sessions: state.sessions.map((each) => (each === view ? { ...fresh, ask: null, waitingFor: null } : each)),
+    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', ...why, resumed: 0, answers: 0 }, ...rows] },
   }
 }
 
@@ -258,7 +276,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'stats/tally') return fakeTally(state, body)
-  if (name === 'session/answer') return fakeAnswer(state, body)
+  if (name === 'session/answer') return body.renew === true ? renew(state, body) : fakeAnswer(state, body)
   if (name === 'session/mail/dismiss') return fakeDismissMail(state, String(body.sessionId))
   if (name === 'task/ready') return fakeReady(state, String(body.task))
   if (name === 'task/unready') return fakeUnready(state, String(body.task))

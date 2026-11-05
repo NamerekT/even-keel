@@ -54,6 +54,7 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
     answers: Object.fromEntries(answered) as Record<string, string>,
     text: typeof text === 'string' ? text : '',
     files: sent.map((file: { name: string; data: string }) => ({ name: file.name, data: Buffer.from(file.data, 'base64') })),
+    renew: body.renew === true,
   }
 }
 

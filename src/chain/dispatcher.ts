@@ -374,6 +374,20 @@ export class Dispatcher {
     return delivery
   }
 
+  /**
+   * Invariant 1, exceptions 2 and 6 (BTN-757): the user's answer to a waiting session whose cache went cold starts a new
+   * session with the handoff and the answer instead of resuming the old one. Only for the current task of a running chain.
+   */
+  renew(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
+    const { chain, current, session } = this.answerable(project, task, sessionId, ask)
+    if (chain === null || current === null) throw fail('chain.notCurrent', { task })
+    this.pauses.require(project, task)
+    this.work = this.work.then(() => {
+      this.unhold(chain)
+      return this.handovers.renew(chain, current, session, prompt)
+    })
+  }
+
   /** A pause for the user to tell the session of a mark refused what to do ends once they do: its next mark opens at once. */
   private unhold(chain: ActiveChain): void {
     if (!chain.paused || chain.error?.code !== 'review.notOpened') return

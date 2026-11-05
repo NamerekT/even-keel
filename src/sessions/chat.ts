@@ -9,7 +9,7 @@ import type { Mailbox } from './mailbox.js'
 import type { MailRelay } from './mailRelay.js'
 
 interface ChatDeps {
-  dispatcher: Pick<Dispatcher, 'answerable' | 'answer' | 'closed'>
+  dispatcher: Pick<Dispatcher, 'answerable' | 'answer' | 'renew' | 'closed'>
   mailbox: Mailbox
   configuredProject: (task: string) => string | undefined
   liveView: (task: string) => Pick<SessionView, 'sessionId' | 'asking' | 'ask'> | undefined
@@ -45,13 +45,18 @@ export function createChat(deps: ChatDeps) {
     now: deps.now,
   }
 
-  /** Saves attachments and routes a page or tracker reply to the session or its mailbox. */
+  /**
+   * Saves attachments and routes a page or tracker reply to the session or its mailbox. `renew` — the user chose
+   * "New session with this message" for a session whose cache went cold (BTN-757): a session that waits is replaced by
+   * a new one with the reply; one mid-turn takes it as usual, its cache is warm.
+   */
   async function answerSession(
     project: string,
     task: string,
     sessionId: string,
     ask: string | null,
     reply: Omit<Reply, 'files'> & { files: InboxFile[] },
+    renew = false,
   ): Promise<void> {
     const takes = reply.from === 'page' && (deps.steering(sessionId) || mailbox.listens(sessionId))
     const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
@@ -76,9 +81,16 @@ export function createChat(deps: ChatDeps) {
       deps.changed()
       return
     }
+    const withFiles = files.length > 0 ? ` with ${files.length} file(s)` : ''
+    if (renew) {
+      dispatcher.renew(project, task, sessionId, ask, prompt)
+      mailbox.dismiss(sessionId)
+      deps.log(`chain: ${task}: the user's answer from the ${reply.from}${withFiles} goes to a new session instead of ${sessionId}, whose cache went cold`)
+      return
+    }
     dispatcher.answer(project, task, sessionId, ask, prompt)
     mailbox.dismiss(sessionId)
-    deps.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+    deps.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${withFiles}`)
   }
 
   return { mailRelay, answerSession }

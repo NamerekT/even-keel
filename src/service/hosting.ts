@@ -262,7 +262,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     control: ctx.chainControl,
     account: ctx.account,
     sessions: {
-      answer: ({ project, task, sessionId, ask, answers, text, files }) => ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
+      answer: ({ project, task, sessionId, ask, answers, text, files, renew }) => ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }, renew),
       dismissMail: (sessionId) => {
         ctx.mailbox.dismiss(sessionId)
         ctx.hub.broadcastSoon('state', ctx.getState)

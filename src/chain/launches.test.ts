@@ -110,6 +110,22 @@ describe('taskSessions', () => {
     ])
   })
 
+  it('keeps a restart that carried the user\'s message a restart, with the message as its cause', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'restart', cause: 'message', previous: 's1' }),
+        entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's3', { reason: 'restart', previous: 's2' }),
+      ],
+      [],
+    )['ABC-1']!
+    expect(list.map((row) => [row.sessionId, row.how, row.cause, row.replaced?.how, row.replaced?.cause])).toEqual([
+      ['s3', 'restart', undefined, undefined, undefined],
+      ['s2', 'restart', 'message', 'restart', undefined],
+      ['s1', 'launch', undefined, 'restart', 'message'],
+    ])
+  })
+
   it('leaves the cause of an older relay entry unset and a review of the same session a plain launch', () => {
     const list = taskSessions(
       [

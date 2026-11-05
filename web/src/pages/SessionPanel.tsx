@@ -298,6 +298,7 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }:
               task: body.task,
               session: chatSession,
               aside,
+              renews: live !== null,
               scale,
               answeredAt: block.answering ?? block.sessions.find((run) => run.sessionId === chatSession.sessionId)?.answeredAt ?? null,
               delivering: block.answering !== undefined,
@@ -571,11 +572,11 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
 }
 
 function launchText(row: TaskSession): string {
-  return row.how === 'relay' ? t.session.relayed[row.cause ?? 'limit'] : t.session.launches[row.how]
+  return row.how === 'relay' || row.cause !== undefined ? t.session.relayed[row.cause ?? 'limit'] : t.session.launches[row.how]
 }
 
 function replacedText(replaced: NonNullable<TaskSession['replaced']>): string {
-  return replaced.how === 'relay' ? t.session.replacedRelay[replaced.cause ?? 'limit'] : t.session.replaced[replaced.how]
+  return replaced.how === 'relay' || replaced.cause !== undefined ? t.session.replacedRelay[replaced.cause ?? 'limit'] : t.session.replaced[replaced.how]
 }
 
 function leftText(left: NonNullable<TaskSession['left']>): string {

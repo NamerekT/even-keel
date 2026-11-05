@@ -15,6 +15,8 @@ import { sendsReply } from './chatKeys.js'
 import { holdKey, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
 import { ChatMail } from './ChatMail.js'
+import { ColdReplyDialog } from './ColdReplyDialog.js'
+import { coldReply } from './coldReply.js'
 import { CommandText } from './CommandText.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
@@ -32,6 +34,8 @@ interface Props {
   task: string
   session: SessionView
   aside: boolean
+  /** The chain runs the task, so a reply may go to a new session instead (BTN-757); `false` — a session left after its chain stopped. */
+  renews: boolean
   /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
   /** Messages the working session has queued and not taken yet. */
@@ -47,7 +51,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, mail, queued, onSent, handle }: Props) {
+export function ChatComposer({ project, task, session, aside, renews, mail, queued, onSent, handle }: Props) {
   const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
   const [answered, setAnswered] = useState<string | null>(null)
@@ -81,14 +85,18 @@ export function ChatComposer({ project, task, session, aside, mail, queued, onSe
   // A question may be skipped: any answer, words or file is a reply.
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
 
-  const submit = async () => {
+  // A reply that would resume a session whose cache went cold first asks how to send it (BTN-757).
+  const [cold, setCold] = useState<{ since: string; tokens: number } | null>(null)
+
+  const submit = async (renew = false) => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)) }
+    const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)), renew }
     if (!(await send('session/answer', body))) return
     // Also when the window was closed while the reply went out: its last save kept the reply as a draft.
     void writeDraft(session.sessionId, { text: '', files: [] })
     if (ask !== null) setAnswered(ask.id)
-    if (!mailing) {
+    // A new session replaces this one: its transcript never gets the reply, the panel shows the new session instead.
+    if (!mailing && !renew) {
       if (!steering) sent.begin()
       onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering)
     }
@@ -101,9 +109,28 @@ export function ChatComposer({ project, task, session, aside, mail, queued, onSe
       className="chat"
       onSubmit={(event) => {
         event.preventDefault()
-        if (ready && !disabled) void submit()
+        if (!ready || disabled) return
+        const found = midTurn ? null : coldReply(session, new Date())
+        if (found === null) void submit()
+        else setCold(found)
       }}
     >
+      {cold !== null && (
+        <ColdReplyDialog
+          agent={session.agent}
+          cold={cold}
+          renews={renews}
+          onClose={() => setCold(null)}
+          onReply={() => {
+            setCold(null)
+            void submit()
+          }}
+          onRenew={() => {
+            setCold(null)
+            void submit(true)
+          }}
+        />
+      )}
       {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
       <ChatMail sessionId={session.sessionId} mail={mail?.mail ?? []} queued={queued} onReply={setText} />

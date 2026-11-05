@@ -142,6 +142,8 @@ export interface AnswerRequest {
   answers: Record<string, string>
   text: string
   files: { name: string; data: Uint8Array }[]
+  /** "New session with this message": the reply starts a new session with the handoff instead of resuming (BTN-757). */
+  renew: boolean
 }
 
 export interface SessionControl {

@@ -3,7 +3,7 @@ import { SESSION_MARK } from '../review/model.js'
 import { fill } from '../sessions/prompt.js'
 import type { ReturnReason } from './model.js'
 
-export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
+export type HandoffReason = 'limit' | 'restart' | 'message' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
 
 /** What a session is told of its pull request's feedback (BTN-205). */
 export interface ReviewTexts {
@@ -64,6 +64,8 @@ export interface PromptTexts {
   begin: (main: string) => string
   recentSteps: string
   lastMessage: string
+  /** The head of the user's chat message a `message` handover ends with (BTN-757). */
+  userMessage: string
   unattended: string
   /** The rules of a session that fixes a red main without a task. */
   fixRules: (main: string) => string
@@ -145,6 +147,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     why: {
       limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
       restart: 'Продолжение: прошлую сессию по этой задаче остановил пользователь — она задачу не довела, доводишь ты.',
+      message:
+        'Продолжение: пользователь написал прошлой сессии по этой задаче, когда её кэш уже остыл, и отдал сообщение новой сессии — тебе. Прошлая сессия остановлена, задачу доводишь ты. Сообщение пользователя — в конце, после передачи дел: прочитай его до начала работы.',
       checkpoint:
         'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
       mainFixed: 'Продолжение: прошлую сессию по этой задаче остановил Even Keel, потому что упала проверка main, — задачу доводишь ты.',
@@ -168,6 +172,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     recentSteps: 'Последние шаги прошлой сессии:',
     lastMessage: 'Последнее сообщение прошлой сессии:',
+    userMessage: 'Сообщение пользователя:',
     unattended: [
       'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах.',
       '- Вопросов не задавай и ответа не жди: AskUserQuestion не вызывай, ход вопросом не заканчивай.',
@@ -258,6 +263,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     why: {
       limit: 'Continuation: the previous session on this task hit the usage limit and was stopped; you finish the task.',
       restart: 'Continuation: the user stopped the previous session on this task before it finished the task; you finish it.',
+      message:
+        'Continuation: the user wrote to the previous session on this task when its cache had gone cold, and gave the message to a new session — you. The previous session is stopped; you finish the task. The user\'s message is at the end, after the handoff: read it before you start.',
       checkpoint:
         'Continuation: the previous session on this task set a checkpoint so as not to carry a bloated context further, and was stopped; you finish the task.',
       mainFixed: 'Continuation: Even Keel stopped the previous session on this task because the check of main failed; you finish the task.',
@@ -281,6 +288,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     recentSteps: 'Last steps of the previous session:',
     lastMessage: 'Last message of the previous session:',
+    userMessage: 'The user\'s message:',
     unattended: [
       'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses.',
       '- Ask nothing and wait for no answer: do not call AskUserQuestion, do not end the turn with a question.',

@@ -3,6 +3,7 @@ import { isSpendingLimit } from '../limits/spending.js'
 import { LimitRetries } from '../limits/retry.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move, ReturnReason } from './model.js'
 import { isOwnName } from './fix.js'
+import { PROMPTS } from './prompts.js'
 import {
   answered,
   failedOf,
@@ -189,6 +190,16 @@ export class Handovers {
     await this.handOverCurrent(chain, current, session, 'restart')
   }
 
+  /** "New session with this message" (BTN-757): the user's reply to a session whose cache went cold goes to a new one. */
+  async renew(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string): Promise<void> {
+    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) {
+      this.undelivered(current.task, session, 'the current session changed before the new session started')
+      return
+    }
+    const head = PROMPTS[this.deps.promptLanguage(current.task)].userMessage
+    await this.handOverCurrent(chain, current, session, 'message', `${head}\n\n${prompt.trimEnd()}`)
+  }
+
   /** The user's answer, or with `review` the feedback on the task's pull request, resumes the waiting session. */
   async deliver(
     chain: ActiveChain,
@@ -246,7 +257,7 @@ export class Handovers {
     chain: ActiveChain,
     current: CurrentTask,
     session: HandoffSession,
-    reason: 'restart' | 'checkpoint' | 'review' | ReturnReason,
+    reason: 'restart' | 'message' | 'checkpoint' | 'review' | ReturnReason,
     extra?: string,
   ): Promise<void> {
     delete current.limit
@@ -298,7 +309,7 @@ export class Handovers {
       else await this.handOverCurrent(chain, current, session, 'review', reply)
       return false
     }
-    if (move === 'restart' || move === 'returned' || move === 'unblocked' || move === 'unskipped') {
+    if (move === 'restart' || move === 'message' || move === 'returned' || move === 'unblocked' || move === 'unskipped') {
       await this.handOverCurrent(chain, current, session, move, reply)
       return false
     }
@@ -310,8 +321,12 @@ export class Handovers {
   /** Returned tasks are relays with their own cause, like a handover after a cold limit. */
   private moved(chain: ActiveChain, current: CurrentTask, move: Move, sessionId: string, previous: string, at = current.starting!): void {
     const returned = move === 'returned' || move === 'unblocked' || move === 'unskipped'
-    const reason = returned ? 'relay' : move
-    const cause = move === 'relay' ? (current.limit?.credit ? 'credit' : 'limit') : returned ? move : move === 'review' && sessionId !== previous ? 'review' : undefined
+    const reason = returned ? 'relay' : move === 'message' ? 'restart' : move
+    const cause =
+      move === 'relay' ? (current.limit?.credit ? 'credit' : 'limit')
+      : returned || move === 'message' ? move
+      : move === 'review' && sessionId !== previous ? 'review'
+      : undefined
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at

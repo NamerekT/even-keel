@@ -137,7 +137,7 @@ export function taskSessions(
     }
     const relayed = entry.reason === 'relay' || (entry.reason === 'review' && entry.cause !== undefined)
     const how = relayed ? 'relay' : entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
-    const cause = relayed ? entry.cause : undefined
+    const cause = relayed || (entry.reason === 'restart' && entry.cause === 'message') ? entry.cause : undefined
     rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, ...(cause === undefined ? {} : { cause }), resumed: 0, answers: 0 })
     if ((how === 'restart' || how === 'checkpoint' || how === 'relay') && entry.previous !== undefined) {
       const old = rows.get(entry.previous)

@@ -24,6 +24,7 @@ export const sessionEn = {
     returned: 'New after the task came back',
     unblocked: 'New after the blockers closed',
     unskipped: 'New after Skip was undone',
+    message: 'New with your message',
   },
   replaced: {
     restart: 'replaced by hand',
@@ -37,6 +38,7 @@ export const sessionEn = {
     returned: 'replaced after the task came back',
     unblocked: 'replaced after the blockers closed',
     unskipped: 'replaced after Skip was undone',
+    message: 'replaced, your message went to a new session',
   },
   remote: {
     starting: 'Remote Control is starting — the link comes in a couple of seconds.',
@@ -165,6 +167,16 @@ export const sessionEn = {
     send: 'Send',
     attach: 'Attach files',
     drop: 'Drop the files to attach them',
+    cold: {
+      title: 'The session’s cache went cold',
+      /** `ago` — when it went cold, `tokens` — the session's context; `claude` — the agent pays for the cache write. */
+      question: (ago: string, tokens: string, claude: boolean) =>
+        `The prompt cache of this session went cold ${ago}. A reply to it rereads the whole context, ${tokens} tokens, ${claude ? 'at the cache write price' : 'with no cache discount'}. A new session gets the handoff and your message instead.`,
+      loose: (ago: string, tokens: string, claude: boolean) =>
+        `The prompt cache of this session went cold ${ago}. A reply to it rereads the whole context, ${tokens} tokens, ${claude ? 'at the cache write price' : 'with no cache discount'}. The chain is stopped, so no new session starts from here.`,
+      renew: 'New session with this message',
+      reply: 'Reply to this session',
+    },
     tools: {
       read: 'Read',
       edit: 'Edited',

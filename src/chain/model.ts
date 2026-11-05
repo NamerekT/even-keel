@@ -27,7 +27,8 @@ export interface CurrentTask {
 }
 
 export type ReturnReason = 'returned' | 'unblocked' | 'unskipped'
-export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review' | ReturnReason
+/** `message` — "New session with this message" from the chat (BTN-757): a restart whose new session gets the user's message. */
+export type Move = 'answer' | RelayAction | 'restart' | 'message' | 'checkpoint' | 'review' | ReturnReason
 
 export interface ActiveChain {
   project: string
@@ -175,9 +176,9 @@ export type FixOutcome = 'landed' | 'dropped' | 'unneeded' | 'carried'
 
 /**
  * Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. `credit` —
- * the API key ran out of money.
+ * the API key ran out of money; `message` — of a `restart`: the user sent a chat message as a new session (BTN-757).
  */
-export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | ReturnReason
+export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | 'message' | ReturnReason
 
 export interface LaunchEntry {
   at: string

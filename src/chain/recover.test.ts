@@ -102,6 +102,14 @@ describe('Dispatcher after a service restart cut a transition short', () => {
     expect(dispatcher.state.active[0]?.current?.sessionId).toBe('session-1')
   })
 
+  it('starts the new session again with the same message when a cut "New session with this message" only stopped the old one', async () => {
+    const reply = 'Сообщение пользователя:\n\nCheck the logs too.'
+    const { relays, journal } = await resumed(cut({ move: 'message', reply }), handoff('old-session'))
+    expect(relays).toMatchObject([{ kind: 'relay', sessionId: 'old-session', reason: 'message' }])
+    expect(relays[0]?.prompt).toMatch(/\nСообщение пользователя:\n\nCheck the logs too\.\n$/)
+    expect(journal.at(-1)).toMatchObject({ sessionId: 'session-1', reason: 'restart', cause: 'message', previous: 'old-session' })
+  })
+
   it('hands over again after a limit when the cut relay did not start the new session', async () => {
     const session: LimitedSession = {
       ...handoff('old-session'),
