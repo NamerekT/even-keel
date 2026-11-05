@@ -53,7 +53,6 @@ import { useSourceMoves } from './SourceMoves.js'
 import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
 import { SuggestField } from '../ui/SuggestField.js'
-import { TrustWarning, TrustConsent } from './TrustCommands.js'
 import { offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { ProjectRemove } from './ProjectRemove.js'
@@ -78,7 +77,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'trustClaude', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -143,8 +142,6 @@ export function SettingsPanel({
   // The model is offered from the account its row runs on: the project's own, else the shared one.
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
   const models = useModelCatalog(offered.map(rowAccount))
-  // Claude takes the project's tasks as its agent, or any task by its run label (BTN-429): the form's values, not the saved ones.
-  const mayRunClaude = (text('provider') || shared.provider) === CLAUDE || (switchOf(text('modelLabels')) ?? shared.modelLabels)
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -585,8 +582,6 @@ export function SettingsPanel({
             }}
           />
           {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
-          {mayRunClaude && <TrustConsent checked={on('trustClaude')} onChange={(value) => edit('trustClaude', value)} />}
-          {mayRunClaude && !on('trustClaude') && <TrustWarning project={project} account={rowAccount(CLAUDE)} />}
         </Section>
         <Section title={t.settings.sections.prompt}>
           {pick('brief', t.settings.brief, t.settings.briefHint, [

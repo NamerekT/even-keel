@@ -25,8 +25,8 @@ export const SECOND_ABC = '66666666-6666-4666-8666-666666666666'
 /** The extra task feed of `ABC` (BTN-66). */
 export const FEED = '77777777-7777-4777-8777-777777777777'
 
-export async function readsWhole(db: Queryable, version = 3) {
-  expect(await databaseVersion(db)).toBe(DATABASE_VERSION)
+export async function readsWhole(db: Queryable, version = 3, schemaVersion = DATABASE_VERSION) {
+  expect(await databaseVersion(db)).toBe(schemaVersion)
   const state = await loadChainState(db)
   expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([[ABC, 'ABC-2']])
   expect(state.queue).toEqual([XYZ])

@@ -46,7 +46,7 @@ The wizard shows a validation error under the field that needs correcting and ma
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- for Claude Code in the background, trust in the repository. **Trust folder** in the wizard's Repository step is on by default: Even Keel saves trust for the session's account before starting it. This also enables repository hooks from `.claude/settings*.json`; the chain disables `.mcp.json` servers. With the switch off, the wizard and **Sessions** settings show manual commands instead. On Windows run them in cmd, not PowerShell. If Even Keel runs as a system service, a second command uses the service's user through `runas` or `sudo -u`. After accepting trust, press **Check again and resume** on a paused chain. Trust in the repository covers its task worktrees. The Agent SDK transport does not need this step.
+- for Claude Code in the background, Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. Its task worktrees inherit that trust. This also enables repository hooks. The Agent SDK and other agents do not write Claude trust.
 
 The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
 

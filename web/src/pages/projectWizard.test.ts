@@ -19,9 +19,6 @@ import {
   taskExample,
   trackerBasis,
   trackerPlace,
-  trustCommand,
-  trustCommandAs,
-  trustCommandsOf,
   typedIn,
   type TrackerShape,
   type WizardFields,
@@ -40,39 +37,6 @@ const passed: ProjectCheck = {
   service: true,
 }
 
-describe('trustCommand', () => {
-  it('goes to the folder with pushd on Windows, which both cmd and PowerShell 7 run', () => {
-    expect(trustCommand('D:\\Projects\\shop', 'win32')).toBe('pushd "D:\\Projects\\shop" && claude')
-  })
-
-  it('goes to the folder with cd elsewhere, escaping single quotes', () => {
-    expect(trustCommand('/home/me/shop', 'linux')).toBe("cd '/home/me/shop' && claude")
-    expect(trustCommand("/home/me/it's", 'darwin')).toBe("cd '/home/me/it'\\''s' && claude")
-  })
-})
-
-describe('trustCommandAs', () => {
-  it("opens claude as the service's user from another user's terminal, with runas on Windows (BTN-310)", () => {
-    expect(trustCommandAs('D:\\My Projects\\shop', 'win32', 'svc')).toBe('runas /user:svc "cmd /k cd /d D:\\My Projects\\shop && claude"')
-  })
-
-  it('with sudo elsewhere, which keeps the folder, and the home of the user', () => {
-    expect(trustCommandAs('/home/me/shop', 'linux', 'even-keel')).toBe("cd '/home/me/shop' && sudo -u 'even-keel' -H claude")
-  })
-})
-
-describe('trustCommandsOf', () => {
-  it("gives a service both commands: its user may not be the one at the terminal (BTN-687)", () => {
-    expect(trustCommandsOf({ folder: 'D:\\shop', platform: 'win32', user: 'svc', service: true })).toEqual({
-      own: 'pushd "D:\\shop" && claude',
-      as: 'runas /user:svc "cmd /k cd /d D:\\shop && claude"',
-    })
-  })
-
-  it('gives npm start and the tray only the first: they run as the user at the terminal', () => {
-    expect(trustCommandsOf({ folder: 'D:\\shop', platform: 'win32', user: 'jdoe', service: false })).toEqual({ own: 'pushd "D:\\shop" && claude', as: null })
-  })
-})
 
 describe('draftOfFields', () => {
   it('trims the texts and gives a worktree per task as slot 0', () => {
@@ -87,7 +51,6 @@ describe('draftOfFields', () => {
       slot: 0,
       milestones: [],
       provider: null,
-      trustClaude: true,
     })
   })
 

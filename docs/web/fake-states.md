@@ -17,8 +17,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=noBranch` | the chain is paused on `git.noBranch`: "Open the project's settings" under the error, to the Repository tab |
-| `?chain=untrusted` | the chain is paused on `claude.untrusted`: the trust commands under the error and "Check again and resume" |
-| `?trust=untrusted` | `project/trust` answers that Claude Code does not trust the folder: the warning on the Sessions tab of a project Claude may run |
+| `?chain=untrusted` | the chain is paused on `claude.untrusted`: the automatic trust retry notice and "Check again and resume" |
 | `?host=terminal` | Even Keel runs from `npm start` or the tray, not as a service: the trust commands of the wizard, the Sessions tab and the paused chain give no command from another user's terminal (BTN-687) |
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=limitsUnread` | after a restart the next launch waits for the first limits poll of its account (BTN-619): the band names the account and the next poll |

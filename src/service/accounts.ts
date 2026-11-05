@@ -281,7 +281,7 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
 
 function withTrust(ctx: AccountsContext, start: SessionStart, project: string | undefined): SessionStart {
   const config = ctx.configStore.current
-  const folder = project === undefined || config.settings[project]?.trustClaude !== true ? undefined : config.projects[project]
+  const folder = project === undefined ? undefined : config.projects[project]
   return { ...start, trustedRepo: folder }
 }
 

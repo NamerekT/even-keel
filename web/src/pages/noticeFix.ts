@@ -61,18 +61,6 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'chain.packagesNotReady': { to: 'packages' },
 }
 
-type Untrusted = Extract<Notice, { code: 'claude.untrusted' }>['params']
-
-/** The folder Claude Code refused to start a task in, from the notice or one of its reasons; `null` — none. */
-export function untrustedOf(notice: Notice | null | undefined): Untrusted | null {
-  if (notice === null || notice === undefined) return null
-  if (notice.code === 'claude.untrusted') return notice.params
-  for (const item of notice.items ?? []) {
-    const found = untrustedOf(item)
-    if (found !== null) return found
-  }
-  return untrustedOf(notice.cause)
-}
 
 /** The place a notice is fixed at: its own, or that of its first reason (the items, then the cause); `null` — none on the page. */
 export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null {
