@@ -20,7 +20,27 @@ permissions:
   contents: read
 
 jobs:
+  # A push of a commit this workflow already passed — a release's push to main, a fast-forward of one branch to
+  # another's commit — runs no other job and comes out green (docs/ci.md, "A commit already green").
+  already-green:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      green: ${{ steps.runs.outputs.green }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: runs
+        run: sh scripts/ci-already-green.sh "${{ github.event_name }}" "${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   test:
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -48,6 +68,8 @@ jobs:
   # files in parallel, not the scenarios inside one, so the longest file is the floor of a shard.
   e2e:
     name: e2e (${{ matrix.shard }}/3)
+    needs: already-green
+    if: needs.already-green.outputs.green != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -36,7 +36,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3 (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
-- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure). Not checked by choice: 63.
+- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
@@ -154,3 +154,4 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 89 | [Writing Claude folder trust before launch](unverified/sessions.md#writing-claude-folder-trust-before-launch-ekr-59) | checkout/worktree prerequisite passed on Windows; integrated chain, manual recovery commands under another service user, macOS/Linux still open | a first launch or resume may still pause; a separate bypass-permissions disclaimer is unaffected |
 | 90 | [A fix session that finds nothing to fix](unverified/ci.md#a-fix-session-that-finds-nothing-to-fix-ekr-88) | a red main from a runner failure or a flake, rerun by the fix session | the fix session waits for the user although main is green; skip it |
 | 91 | [Task time written to GitLab and Jira](unverified/trackers.md#task-time-written-to-gitlab-and-jira-ekr-35) | GitLab and Jira projects with stats on | a done task gets no time or gets it twice, or the log repeats a refusal every run; log the time by hand |
+| 92 | [A commit already green, pushed again](unverified/ci.md#a-commit-already-green-pushed-again-ekr-90) | the maintainer pushing a release to `main` or fast-forwarding a branch | the push runs the whole check as before, or its verdict is not green; run the workflow by hand |
