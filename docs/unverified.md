@@ -124,7 +124,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 57 | [A hung OpenCode turn](unverified/opencode.md#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
 | 57a | [OpenCode stream errors in the account log](unverified/opencode.md#opencode-stream-errors-in-the-account-log-btn-497) | OpenCode on a free model's limit or an ordinary stream failure | a changed log format could leave the turn busy until the hang check |
 | 58 | [OpenCode sign-in from the page](unverified/opencode.md#opencode-sign-in-from-the-page) | OpenCode with Copilot | the sign-in waits for good; sign in in a terminal |
-| 59 | [Plugins in a Codex folder on Linux and macOS](unverified/codex.md#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on macOS; exact Linux install count (EKR-65; Linux cache path checked) | a few seconds per first turn if the cache lookup misses |
+| 59 | [Plugins in a Codex folder on Linux and macOS](unverified/codex.md#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on macOS (Linux cache path and install count checked, EKR-65) | a few seconds per first turn if the cache lookup misses |
 | 61 | [Codex stats](unverified/codex.md#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
 | 63 | [Fast mode in statistics](unverified/claude-limits.md#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
 | 67 | [The OpenCode database read while a turn writes](unverified/opencode.md#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |

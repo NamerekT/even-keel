@@ -52,7 +52,7 @@ Checked live with Codex 0.164.0 on Windows on 2026-10-25: a shell write of the n
 
 ## Plugins in a Codex folder on Linux and macOS
 
-The cache path on Linux was checked on 2026-11-04 (EKR-47, [verified](../verified/codex.md)): the GitHub skill loaded from `<CODEX_HOME>/plugins/cache/<marketplace>/github/0.1.8`, and the existing cache's timestamps remained from the initial bench task. The path on macOS remains unchecked. The exact Linux installation count is still unverified (EKR-65): the service logs package installation, but no per-folder Codex `plugin/install` or cache-hit events. Stable files and a successful task alone do not count those RPCs. If the path differs, every first turn of a service run installs the plugin again, which costs a few seconds and changes nothing else.
+The cache path on Linux was checked on 2026-11-04 (EKR-47, [verified](../verified/codex.md)): the GitHub skill loaded from `<CODEX_HOME>/plugins/cache/<marketplace>/github/0.1.8`, and the existing cache's timestamps remained from the initial bench task. The installation count on Linux was checked on 2026-11-05 (EKR-65, [verified](../verified/codex.md)) through the service log's `codex plugins:` lines ([packages.md](../packages.md)): a cold folder got one install over two tasks of a service run, and after a restart the cache was hit with no install. The path on macOS remains unchecked; on a Mac the same lines show it — a second service run that logs `installed into` again for the same folder means the cache lookup misses. If the path differs, every first turn of a service run installs the plugin again, which costs a few seconds and changes nothing else.
 
 ## Codex memory off in the CLI check (BTN-724)
 
