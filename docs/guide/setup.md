@@ -1,6 +1,6 @@
 # Setting up Even Keel
 
-The [README](../../README.md) has the quick start. This is the rest: the CLIs Even Keel depends on, projects, trackers and plugins, reaching the page, the service, updating and uninstalling. Every variable and key is in the [reference](reference.md).
+The [README](../../README.md) has the quick start. This is the rest: the CLIs Even Keel depends on, projects, trackers and plugins, reaching the page, running it from a clone, the service, updating and uninstalling. Every variable and key is in the [reference](reference.md).
 
 ## The CLIs it depends on
 
@@ -153,33 +153,168 @@ Two ways to reach it from elsewhere:
 
 Starting MCP OAuth also sets a separate ten-minute `HttpOnly`, `SameSite=Lax` cookie for the callback alone, so the browser can return from the provider. The page's access cookie stays `SameSite=Strict`; the callback cookie cannot open other pages or API routes.
 
+## From a clone
+
+A clone keeps its data and logs in its own folder and runs its sources:
+
+```sh
+git clone https://github.com/NamerekT/even-keel.git
+cd even-keel
+npm install
+npm run build
+npm start
+```
+
+Then open `http://localhost:4747`, as in the README's quick start. To set the clone up as a service: [below](#a-clone-as-a-service).
+
+Do not run `npx even-keel` inside a clone: npx sees the clone's own `package.json`, takes the package for installed and fails with "'even-keel' is not recognized" because `node_modules/.bin` is empty.
+
+### A look first, on fake data
+
+The page with a made-up chain, no tracker and no sessions, after `npm install`; it opens at `http://localhost:5173`:
+
+```sh
+npm run dev:fake
+```
+
 ## As a service
 
 The service starts by itself and restarts Even Keel if it fails. Stopping the service does not kill running sessions: they belong to the CLI's daemon.
 
-**Installed with npm.** `npx even-keel` installs the package globally (`npm install --global even-keel`) and runs `even-keel install`: on Windows the start at sign-in below, elsewhere the package's own install script; once installed, `even-keel install` and `even-keel uninstall` do it again. The service runs from the global install, never from npx's cache, which npm may clear. A package keeps nothing of yours in its folder, since npm replaces the folder at every update: `.env`, `state/` and `logs/` are in the data folder — `%LOCALAPPDATA%\even-keel` on Windows, `~/Library/Application Support/even-keel` on macOS, `$XDG_DATA_HOME/even-keel` (`~/.local/share/even-keel`) on Linux, or the folder `EVEN_KEEL_DATA` names. The install script does not build anything, and on Windows it puts the service host into the data folder too. The service must run as the user whose data folder it is; for another account, pass `-Data <folder>` to `install.ps1` (or set `EVEN_KEEL_DATA`). `even-keel` with no command runs Even Keel in the terminal, on the same data folder.
+| | Runs as | Log |
+| --- | --- | --- |
+| Windows | a start at your sign-in, with a tray icon ([below](#windows-a-start-at-sign-in)) | `logs\even-keel.log` |
+| Linux | a systemd user unit | `journalctl --user -u even-keel` |
+| macOS | a launchd agent `local.even-keel` | `logs/even-keel.log` |
 
-Run `npx even-keel` from any folder except a clone of Even Keel: there npx sees the clone's own `package.json`, takes the package for installed and fails with "'even-keel' is not recognized" because `node_modules/.bin` is empty. In a clone use `npm install`, `npm run build` and `npm start`, as in **A clone** below.
+The log folder is the data folder's when installed with npm, the clone's own otherwise.
 
-On Windows, run these from cmd, or type `npx.cmd even-keel` and `even-keel.cmd …` in Windows PowerShell and PowerShell 7: npm puts a `.ps1` wrapper next to each `.cmd` one, PowerShell picks the `.ps1`, and its default execution policy refuses to run it ("running scripts is disabled on this system"). Even Keel does not change the policy for you; `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` lifts the block if you want plain `npx` and `even-keel` there. The commands Even Keel itself suggests are written for cmd.
+### Installed with npm
 
-**A clone** keeps its data in its own folder and runs its sources.
+`npx even-keel` installs the package globally (`npm install --global even-keel`) and sets the service up: on Windows the start at sign-in below, elsewhere the package's own install script. Once installed, these set it up again and remove it:
 
-**Windows: a start at sign-in.** `even-keel install` (a clone: `node dist/src/cli.js install` after `npm run build`), as your own user from cmd (in PowerShell: `even-keel.cmd install`, see above), no administrator and no PowerShell 7: it installs the dependencies and builds the page (a clone only), compiles a small host `EvenKeel.exe` with the `csc.exe` that ships with Windows (.NET Framework 4) into the data folder's `service` (a clone: `service\bin`), adds it to your sign-in start (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, the value `EvenKeel`; it shows in Settings → Apps → Startup, where it can be turned off) and starts it. The host keeps Even Keel running, restarts it if it fails and puts an icon in the tray: **Open the page** (or a double click), **Restart**, **Quit**. **Restart** also picks up programs installed since, git or an agent CLI: Even Keel starts with the system and user `PATH` read anew. The dot on the icon and its tooltip say how it is: green — it runs, amber — a chain is paused, blue — a session waits for your answer, grey — starting or stopped for an update, red — it does not answer. **Quit** ends it until your next sign-in; `even-keel install` starts it again. Log: `logs\even-keel.log` (of the data folder when installed with npm).
+```sh
+even-keel install
+even-keel uninstall
+```
+
+`even-keel` with no command runs Even Keel in the terminal, on the same data folder.
+
+The service runs from the global install, never from npx's cache, which npm may clear. The package keeps nothing of yours in its folder, since npm replaces the folder at every update: `.env`, `state/` and `logs/` are in the data folder.
+
+| | Data folder |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\even-keel` |
+| macOS | `~/Library/Application Support/even-keel` |
+| Linux | `$XDG_DATA_HOME/even-keel` (`~/.local/share/even-keel`) |
+
+`EVEN_KEEL_DATA` names another folder. The install script builds nothing; on Windows it puts the service host into the data folder too. The service must run as the user whose data folder it is; for another account, pass `-Data <folder>` to `install.ps1` (or set `EVEN_KEEL_DATA`).
+
+### A clone as a service
+
+After `npm run build`, as your own user. On Windows:
+
+```sh
+node dist/src/cli.js install
+```
+
+On Linux and macOS:
+
+```sh
+service/install.sh
+```
+
+From a clone the install also installs the dependencies and builds the page.
+
+### Windows: a start at sign-in
+
+`even-keel install` (a clone: `node dist/src/cli.js install`) runs as your own user, with no administrator and no PowerShell 7. It:
+
+1. installs the dependencies and builds the page (a clone only);
+2. compiles a small host `EvenKeel.exe` with the `csc.exe` that ships with Windows (.NET Framework 4), into the data folder's `service` (a clone: `service\bin`);
+3. adds it to your sign-in start (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, the value `EvenKeel`), which shows in Settings → Apps → Startup and can be turned off there;
+4. starts it.
+
+The host keeps Even Keel running, restarts it if it fails and puts an icon in the tray:
+
+- **Open the page**, or a double click on the icon;
+- **Restart**, which also picks up programs installed since, git or an agent CLI: Even Keel starts with the system and user `PATH` read anew;
+- **Quit**, until your next sign-in; `even-keel install` starts it again.
+
+The dot on the icon and its tooltip say how it is:
+
+| Dot | Means |
+| --- | --- |
+| green | it runs |
+| amber | a chain is paused |
+| blue | a session waits for your answer |
+| grey | starting, or stopped for an update |
+| red | it does not answer |
 
 It runs only while you are signed in. After a Windows Update restart at night Even Keel waits for you to sign in, unless Windows signs you back in to finish the update: Settings → Accounts → Sign-in options → "Use my sign-in info to automatically finish setting up after an update" (an organization's policy may turn that off). Signing out stops it; running sessions go on as they would after any stop.
 
-**Windows: a service.** For a machine where Even Keel must run without anyone signed in, a clone can still be the Windows service `EvenKeel`: `service\install.ps1` from PowerShell 7 as administrator installs the dependencies, builds the page, compiles the service host the same way and registers the service under your account. The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, which also grants the "Log on as a service" right, then start the service. One of the two per machine: they would take the same port, so `even-keel install` refuses while the service is installed and `install.ps1` refuses while the start at sign-in is.
+### Windows: PowerShell
 
-**Windows: long paths.** Even Keel's own git calls handle paths past 260 characters already, and cleanup deletes a worktree folder git could not. For your own git and the sessions' git (deep `node_modules` in a worktree), turn long paths on once: `git config --global core.longpaths true`, and the registry value `LongPathsEnabled` = `1` under `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem` (as administrator: `New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`).
+Run the commands from cmd, or add `.cmd` to them in Windows PowerShell and PowerShell 7:
 
-**Linux and macOS.** `service/install.sh` (installed with npm: `even-keel install`), as your own user, not with `sudo`. On Linux it installs a systemd user unit (`systemctl --user status even-keel`, log: `journalctl --user -u even-keel`). A user unit stops when you log out; to keep it running, `loginctl enable-linger $USER`. On macOS it installs a launchd agent `local.even-keel` (log: `logs/even-keel.log`), which runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off). The script takes `PATH` and `node` from your shell; if `node` changes (nvm and the like), run it again.
+```powershell
+npx.cmd even-keel
+even-keel.cmd install
+```
+
+npm puts a `.ps1` wrapper next to each `.cmd` one, PowerShell picks the `.ps1`, and its default execution policy refuses to run it ("running scripts is disabled on this system"). Even Keel does not change the policy for you; if you want plain `npx` and `even-keel` there, this lifts the block:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+The commands Even Keel itself suggests are written for cmd.
+
+### Windows: without a sign-in
+
+For a machine where Even Keel must run with nobody signed in, a clone can still be the Windows service `EvenKeel`. From PowerShell 7 as administrator:
+
+```powershell
+service\install.ps1
+```
+
+It installs the dependencies, builds the page, compiles the service host the same way and registers the service under your account. The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, which also grants the "Log on as a service" right, then start the service.
+
+One of the two per machine: they would take the same port, so `even-keel install` refuses while the service is installed, and `install.ps1` refuses while the start at sign-in is.
+
+### Windows: long paths
+
+Even Keel's own git calls handle paths past 260 characters already, and cleanup deletes a worktree folder git could not. For your own git and the sessions' git (deep `node_modules` in a worktree), turn long paths on once:
+
+```sh
+git config --global core.longpaths true
+```
+
+And the registry value `LongPathsEnabled`, from PowerShell as administrator:
+
+```powershell
+New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force
+```
+
+### Linux and macOS
+
+`even-keel install` (a clone: `service/install.sh`), as your own user, not with `sudo`. The script takes `PATH` and `node` from your shell; if `node` changes (nvm and the like), run it again.
+
+**Linux:** a systemd user unit; `systemctl --user status even-keel` shows it. A user unit stops when you log out; to keep it running:
+
+```sh
+loginctl enable-linger $USER
+```
+
+**macOS:** a launchd agent `local.even-keel`. It runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off).
 
 ## Updating
 
 The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.
 
-**From the page.** The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to <version>**. A release marked as a revert release (its notes have a **Reverted** section) says what of an earlier release it takes back. The update:
+### From the page
+
+The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to &lt;version&gt;**. A release marked as a revert release (its notes have a **Reverted** section) says what of an earlier release it takes back. The update:
 
 1. waits, up to 5 minutes, until no chain is starting a session, handing over or closing a task — a restart in that moment would pause the chain; the page shows which projects it waits for;
 2. stops the service, checks out the release's tag (`git fetch --tags`, `git checkout`), runs `npm ci` and `npm run build`, and starts the service again; installed with npm, it runs `npm install --global even-keel@<version>` into the same global folder instead;
@@ -187,17 +322,79 @@ The gear menu in the header ends with the installed version. Even Keel asks GitH
 
 If any step fails, including no answer, it checks out the commit it started from, installs and builds it again (with npm: installs the version it started from) and starts the service: you are back on the version you had. Either way the page reloads by itself and says how it went; **Details** shows the failed step and its output, and the whole log is `logs/update.log` (the outcome itself is in `logs/update.json`). Running sessions are not touched.
 
-The button is there only when Even Keel runs as a service and its folder is a clean git checkout on the tag of the installed version — a clone that you update with `git pull` on the main branch is one — or a global npm install. Otherwise the window says why and you update by hand. A checkout that was on a branch stays on it (moved to the new tag), so a later `git pull` still works.
+The button is there only when Even Keel runs as a service and its folder is:
 
-After an update the window and the gear menu also offer **Revert to <previous version>**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format. After a revert the newer release is offered again; nothing updates by itself. Once the version is changed by hand (below), the window no longer shows how the last update from the page went, nor offers to revert it.
+- a global npm install, or
+- a clean git checkout on the tag of the installed version; a clone that you update with `git pull` on the main branch is one.
 
-**By hand:**
+Otherwise the window says why and you update by hand. A checkout that was on a branch stays on it (moved to the new tag), so a later `git pull` still works.
 
-- **installed with npm** — `even-keel update` stops the service, installs the latest release (`even-keel update 0.2.0` — that version) into the same global folder and starts the service again; a release candidate from `npx even-keel@next` moves to the newer of the latest release and the latest candidate, and when nothing is newer the command says so and leaves the service running; unlike the button it does not wait for the chains, and a failed install leaves the version you had. Run from a terminal: stop Even Keel, `npm install --global even-keel@latest`, start it again;
-- **a clone run from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`;
-- **a clone as a service** — `git pull`, then run its install again (`node dist/src/cli.js install` on Windows, `service/install.sh` elsewhere, `service\install.ps1` for the Windows service): it installs the dependencies, builds the page and restarts the service.
+After an update the window and the gear menu also offer **Revert to &lt;previous version&gt;**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format. After a revert the newer release is offered again; nothing updates by itself. Once the version is changed by hand (below), the window no longer shows how the last update from the page went, nor offers to revert it.
 
-On Windows a running Even Keel holds files in `node_modules`: `npm ci` next to it fails with `EPERM` and leaves the folder half-removed. Stop Even Keel and run `npm ci` again. Running sessions are not stopped by any of this: they belong to the CLI's daemon, and the restarted Even Keel picks them up.
+### By hand
+
+Running sessions are not stopped by any of this: they belong to the CLI's daemon, and the restarted Even Keel picks them up.
+
+**Installed with npm.** This stops the service, installs the latest release into the same global folder and starts the service again:
+
+```sh
+even-keel update
+```
+
+`even-keel update 0.2.0` installs that version. A release candidate from `npx even-keel@next` moves to the newer of the latest release and the latest candidate; when nothing is newer, the command says so and leaves the service running. Unlike the button it does not wait for the chains, and a failed install leaves the version you had.
+
+Run from a terminal, not as a service: stop Even Keel, then start it again after
+
+```sh
+npm install --global even-keel@latest
+```
+
+**A clone as a service.** Pull, then run its install again: it installs the dependencies, builds the page and restarts the service. On Windows:
+
+```sh
+git pull
+node dist/src/cli.js install
+```
+
+On Linux and macOS:
+
+```sh
+git pull
+service/install.sh
+```
+
+The Windows service without a sign-in takes `service\install.ps1` instead, from PowerShell 7 as administrator.
+
+**A clone run from a terminal.** Stop Even Keel, then:
+
+```sh
+git pull
+npm ci
+npm run build
+npm start
+```
+
+On Windows a running Even Keel holds files in `node_modules`: `npm ci` next to it fails with `EPERM` and leaves the folder half-removed. Stop Even Keel and run `npm ci` again.
+
+### Trying the next version
+
+With npm, the latest release candidate, when there is one:
+
+```sh
+npx even-keel@next
+```
+
+Or switch a clone to the `dev` branch and build it again (back to the release: the same with `git switch main`):
+
+```sh
+git switch dev
+git pull
+npm install
+npm run build
+npm start
+```
+
+`dev` is not a release: the page offers no updates on it, and the state it writes may be too new for the release to read, so test it in a separate clone.
 
 ### Plugins
 
@@ -209,21 +406,81 @@ A new version may store the files of `state/` in a newer format: at startup, bef
 
 The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too). An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`. The config file `even-keel.config.json` is imported the same way, once, and kept as `even-keel.config.json.imported`; a file put there later is not read (the log says so). A database written by a newer version leaves the service with only the page, like a newer file.
 
-`npm run storage -- backup <new folder>` copies the database, also while Even Keel runs (to restore, stop Even Keel and put the folder in place of `state/even-keel`); with `.env` that is what a move to another machine needs.
+This copies the database, also while Even Keel runs; with `.env` it is what a move to another machine needs:
+
+```sh
+npm run storage -- backup <new folder>
+```
+
+To restore, stop Even Keel and put the folder in place of `state/even-keel`.
 
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
 
 ### Going back
 
-After an update from the page that kept the storage format, **Revert** in the update window does all of this. Otherwise, by hand: stop Even Keel (as a service — stop the service), check out the previous version's code (`git checkout <commit>`), put the `.bak` copies back in place of the rewritten files, then start it again (as a service — run its install script). Stop it first: a running Even Keel may write over the restored files. What the newer version wrote since the update — launches, the chain's state — goes with the `.bak`. The checkout leaves git on a detached commit, so the next update starts with `git checkout main` before `git pull`.
+After an update from the page that kept the storage format, **Revert** in the update window does all of this. Otherwise, by hand:
 
-To go back to a version from before the database, stop Even Keel, run `npm run storage -- export <empty folder>` and put the files it writes into `state/`, and `npm run storage -- config-export even-keel.config.json` for its config, before starting the old version.
+1. Stop Even Keel (as a service: stop the service). Stop it first: a running Even Keel may write over the restored files.
+2. Check out the previous version's code (`git checkout <commit>`).
+3. Put the `.bak` copies back in place of the rewritten files.
+4. Start it again (as a service: run its install script).
+
+What the newer version wrote since the update — launches, the chain's state — goes with the `.bak`. The checkout leaves git on a detached commit, so the next update starts with `git checkout main` before `git pull`.
+
+To go back to a version from before the database, stop Even Keel and export the state into an empty folder and the config into its old file, then put the exported state files into `state/` before starting the old version:
+
+```sh
+npm run storage -- export <empty folder>
+npm run storage -- config-export even-keel.config.json
+```
 
 ## Uninstall
 
-`even-keel uninstall` (a clone: `node dist/src/cli.js uninstall`, or `service/uninstall.sh`) stops and removes the service and nothing else: on Windows the start at sign-in with its host, and the Windows service too if there is one (that part needs PowerShell 7 as administrator; a clone: `service\uninstall.ps1`). Sessions it started keep running: they belong to the CLI's daemon, so finish or stop them first (`claude agents` lists them). The rest stays where it is, for you to remove by hand:
+Remove the service — it removes nothing else:
 
-- **Installed with npm** — the package (`npm uninstall --global even-keel`) and the data folder, which holds everything listed for a clone's folder below.
-- **The Even Keel folder** of a clone — the code, `.env` with the tracker credentials, the config, `logs/` (Windows and macOS; on Linux the log is the journal), and `state/` (`EVEN_KEEL_STATE_DIR`) with the state database (`state/even-keel/`: the chain, the launch log, closed tasks), the installed packages (`state/packages`) and the embedded statistics database (`state/tally/pgdata`). Deleting the folder removes all of it. On your own Postgres the statistics stay in that database.
-- **In each project's repository** — the worktrees of unfinished tasks in `.claude/worktrees/` with their branches `<key>-<number>/task` (`git worktree list`, then `git worktree remove` and `git branch -d`), the slots of a project with `slot`, and the lines `.claude/worktrees/` and `.temp/` Even Keel added to `.git/info/exclude`. With the plugin: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`, `gitlab@…`, `jira@…`) and commit `.claude/settings.json`.
-- **In your Claude Code config** — the plugin credentials in the `env` of `~/.claude/settings.json`, the marketplace (`claude plugin marketplace remove even-keel`), and the extra account folders in `~/.claude-accounts` (`EVEN_KEEL_ACCOUNTS_DIR`), each still signed in until you run `claude auth logout` with its `CLAUDE_CONFIG_DIR`; the Codex ones in `~/.codex-accounts` (`EVEN_KEEL_CODEX_ACCOUNTS_DIR`) the same, with `codex logout` and its `CODEX_HOME`. The OpenCode ones in `~/.opencode-accounts` (`EVEN_KEEL_OPENCODE_ACCOUNTS_DIR`) hold their credentials in `data/opencode/auth.json`: deleting a folder signs it out. Project memory moved to `~/.claude-memory/<project>`, with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too. Your skills in `~/.claude/skills` moved to `~/.claude-skills/<name>` the same way, each leaving a link behind, and so did `~/.claude/agents`, `commands`, `hooks` and `output-styles`, to `~/.claude-agents` and the like: leave them, or move the folders back in place of the links.
+```sh
+even-keel uninstall
+```
+
+From a clone, on Windows:
+
+```sh
+node dist/src/cli.js uninstall
+```
+
+On Linux and macOS:
+
+```sh
+service/uninstall.sh
+```
+
+On Windows it removes the start at sign-in with its host, and the Windows service too if there is one; that part needs PowerShell 7 as administrator (a clone: `service\uninstall.ps1`).
+
+Sessions it started keep running: they belong to the CLI's daemon, so finish or stop them first (`claude agents` lists them). The rest stays where it is, for you to remove by hand.
+
+**Installed with npm:** the package, then the data folder ([above](#installed-with-npm)), which holds everything listed for a clone's folder below.
+
+```sh
+npm uninstall --global even-keel
+```
+
+**A clone:** delete its folder. It holds the code, `.env` with the tracker credentials, the config, `logs/` (Windows and macOS; on Linux the log is the journal), and `state/` (`EVEN_KEEL_STATE_DIR`) with:
+
+- the state database, `state/even-keel/`: the chain, the launch log, closed tasks;
+- the installed packages, `state/packages`;
+- the embedded statistics database, `state/tally/pgdata`. On your own Postgres the statistics stay in that database.
+
+**In each project's repository:**
+
+- the worktrees of unfinished tasks in `.claude/worktrees/` with their branches `<key>-<number>/task` (`git worktree list`, then `git worktree remove` and `git branch -d`), and the slots of a project with `slot`;
+- the lines `.claude/worktrees/` and `.temp/` Even Keel added to `.git/info/exclude`;
+- with the plugin: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`, `gitlab@…`, `jira@…`), then commit `.claude/settings.json`.
+
+**In your Claude Code config and the other agents':**
+
+- the plugin credentials in the `env` of `~/.claude/settings.json`, and the marketplace (`claude plugin marketplace remove even-keel`);
+- the extra Claude account folders in `~/.claude-accounts` (`EVEN_KEEL_ACCOUNTS_DIR`), each still signed in until you run `claude auth logout` with its `CLAUDE_CONFIG_DIR`;
+- the Codex ones in `~/.codex-accounts` (`EVEN_KEEL_CODEX_ACCOUNTS_DIR`) the same, with `codex logout` and its `CODEX_HOME`;
+- the OpenCode ones in `~/.opencode-accounts` (`EVEN_KEEL_OPENCODE_ACCOUNTS_DIR`), whose credentials are in `data/opencode/auth.json`: deleting a folder signs it out;
+- project memory, moved to `~/.claude-memory/<project>` with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too;
+- your skills, moved from `~/.claude/skills` to `~/.claude-skills/<name>` the same way, each leaving a link behind, and so `~/.claude/agents`, `commands`, `hooks` and `output-styles`, to `~/.claude-agents` and the like: leave them, or move the folders back in place of the links.

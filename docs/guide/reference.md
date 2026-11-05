@@ -4,6 +4,8 @@ Every environment variable and every setting. How to set Even Keel up is in [set
 
 Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account.
 
+If Claude Code still refuses the folder, the pause offers one copyable command for the CLI and account of that failed attempt: under a system service it opens them as the service user (on Windows through `runas` and a short script in the state folder's `trust/`), otherwise as you. Run it in the shell named over it, accept trust, then press **Check again and resume**. Saved pauses from older versions retain their original commands using `claude` from PATH, both of them when the pause does not know whether Even Keel runs as a service; check the CLI and account yourself or retry to get fresh commands. A damaged or unwritable account configuration instead needs to be repaired before retrying; the pause names its file.
+
 ### Protection setting
 
 `protection` is shared and per project, edited in **Sessions → Protection**. Its default is

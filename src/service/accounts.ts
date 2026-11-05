@@ -253,12 +253,13 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
     if (project !== undefined) await ctx.protectionAudit.check(project)
     await ctx.requireModel(home, start)
     if (home.agent === CLAUDE && start.settings !== undefined) ctx.sayBlankedSecrets(home)
+    const trusted = withTrust(ctx, start, project)
     try {
-      return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, withTrust(ctx, start, project)))
+      return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, trusted))
     } catch (error) {
-      const folder = project === undefined ? undefined : ctx.configStore.current.projects[project]
+      const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
-      throw (place === null ? null : untrustedStart(error, place)) ?? error
+      throw (place === null ? null : untrustedStart(error, place, ctx.stateDir)) ?? error
     }
   }
 }
@@ -269,12 +270,13 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
     if (blocked) throw new NoticeError(blocked)
     await ctx.requireModel(home, start)
     const project = ctx.projectOf(start.name)
+    const trusted = withTrust(ctx, start, project)
     try {
-      return await ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, withTrust(ctx, start, project)))
+      return await ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, trusted))
     } catch (error) {
-      const folder = project === undefined ? undefined : ctx.configStore.current.projects[project]
+      const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
-      throw (place === null ? null : untrustedStart(error, place)) ?? error
+      throw (place === null ? null : untrustedStart(error, place, ctx.stateDir)) ?? error
     }
   }
 }

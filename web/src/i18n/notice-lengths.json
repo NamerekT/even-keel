@@ -1,0 +1,21 @@
+{
+  "en": {
+    "account.overagePolicy": 231,
+    "account.secondFree": 316,
+    "chain.limitSpent": 213,
+    "chain.noTrackerMcp": 258,
+    "changelog.unnoticed": 202,
+    "config.token": 230,
+    "copilot.binaryMissing": 235,
+    "tracker.completeRefused": 225,
+    "wizard.trackerShared": 218
+  },
+  "ru": {
+    "account.overagePolicy": 245,
+    "account.secondFree": 306,
+    "chain.noTrackerMcp": 228,
+    "changelog.unnoticed": 229,
+    "copilot.binaryMissing": 264,
+    "tracker.completeRefused": 239
+  }
+}

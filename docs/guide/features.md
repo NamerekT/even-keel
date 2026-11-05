@@ -1,5 +1,7 @@
 # What Even Keel does
 
+Help tips close when you scroll the page or another area outside the tip, or resize the window. Scrolling inside a tip keeps it open.
+
 ## CLI copies
 
 During first-run setup, CLI downloads and sign-in state appear on the agent cards. System warnings about CLI versions and usage limits appear after setup. Usage warnings name each affected account in a shared or project account pool, including accounts of other providers; accounts that need sign-in show that on their card instead.
@@ -12,7 +14,7 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
 
-If saving trust fails, the chain pauses without replacing a damaged configuration file. Fix the account's Claude configuration or its write access, then press **Check again and resume**. A CLI trust refusal offers the same action: the retry saves trust again.
+If saving trust fails, the chain pauses without replacing a damaged configuration file; the pause names the file. Fix it or its write access, then press **Check again and resume**. If the CLI still refuses folder trust, the pause gives one command that opens the same Claude CLI and account in the checkout — as the service user when Even Keel runs as a service — in the shell named over it. Accept the trust dialog, then press **Check again and resume**; the retry saves trust again. On a Windows service the command runs a short PowerShell script Even Keel writes into its state folder, under `trust/`, so you can open it and read what it does.
 
 
 ## OpenCode accounts

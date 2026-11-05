@@ -1,6 +1,8 @@
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
+type ClaudeRecovery = { binary: string; configDir: string | null }
+
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 /** Whose key an API account holds, by `keyProvider`. */
 export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
@@ -251,12 +253,16 @@ export const en = {
   'cliCheck.chainWaits': (p: { task: string; account: string }) =>
     `the CLI check is running on the account ${p.account}; ${p.task} starts as soon as it ends`,
 
-  'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
-  // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none.
-  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean }) =>
-    `Claude Code refused to start ${p.task} because it does not trust ${p.folder}. Check again and resume: Even Keel will save folder trust again before retrying`,
-  'claude.trustWriteFailed': (p: { folder: string }) => `Could not save Claude Code trust for ${p.folder}. Check that Claude's account configuration is valid and writable, then check again and resume`,
-  'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
+  'claude.startFailed': (p: { task: string; cwd: string; recovery?: ClaudeRecovery }) => `claude: could not start ${p.task} in ${p.cwd}`,
+  // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none. `script` — the `.ps1` a
+  // Windows service's command runs (EKR-87). The command itself is the page's (`web/src/pages/trustRecovery.ts`).
+  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean; recovery?: ClaudeRecovery; script?: string }) =>
+    `Claude Code does not trust ${p.folder}. Run the command and press Check again and resume`,
+  // `file` and `reason` came with EKR-87; a pause written before it has only the folder.
+  'claude.trustWriteFailed': (p: { folder: string; file?: string; reason?: 'access' | 'invalid' }) =>
+    p.file === undefined ? `Could not save Claude Code trust for ${p.folder}. Fix the account's .claude.json and press Check again and resume`
+    : `Could not save Claude Code trust: ${p.reason === 'invalid' ? `${p.file} is damaged` : `no access to ${p.file}`}. Fix it and press Check again and resume`,
+  'claude.resumeFailed': (p: { task: string; cwd: string; recovery?: ClaudeRecovery }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,
   'claude.resumedNotShown': (p: { task: string }) => `claude: ${p.task} was resumed but did not show up in claude agents`,
   'claude.stopFailed': (p: { agent: string }) => `claude: could not stop ${p.agent}`,
@@ -462,7 +468,7 @@ export const en = {
   'huly.clientFailed': () => 'huly: npm could not install the Huly client; Huly projects wait until it is retried',
   'packages.marketplaceUpdate': (p: { marketplace: string }) => `packages: claude plugin marketplace update ${p.marketplace} failed`,
   'packages.marketplaceAdd': (p: { marketplace: string }) => `packages: claude plugin marketplace add could not add ${p.marketplace}`,
-  'packages.marketplaceCliMissing': () => 'Claude Code was not found. Install Claude Code and make its executable available to Even Keel, then try adding the marketplace again on Accounts.',
+  'packages.marketplaceCliMissing': () => 'Even Keel cannot find Claude Code: install it, then add the marketplace again on Accounts',
   'packages.noOwnMarketplace': (p: { dir: string }) => `packages: ${p.dir} has no .claude-plugin/marketplace.json`,
   'packages.upToDate': (p: { name: string }) => `packages: ${p.name} is already the latest version`,
   'packages.updated': (p: { name: string; version: string }) => `packages: ${p.name} is updated to ${p.version}; running tasks stay on the version they started with`,

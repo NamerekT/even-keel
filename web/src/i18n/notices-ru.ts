@@ -222,9 +222,10 @@ export const noticesRu: NoticeTexts = {
   'cliCheck.chainWaits': (p) => `на аккаунте ${p.account} идёт проверка CLI — ${p.task} запустится, как только она закончится`,
 
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
-  'claude.untrusted': (p) =>
-    `Claude Code отказался запустить ${p.task}, потому что не доверяет папке ${p.folder}. Проверьте снова и продолжите цепочку: Even Keel ещё раз сохранит доверие перед повторной попыткой`,
-  'claude.trustWriteFailed': (p) => `Не удалось сохранить доверие Claude Code к ${p.folder}. Проверьте корректность и доступность записи настроек аккаунта Claude, затем проверьте снова и продолжите цепочку`,
+  'claude.untrusted': (p) => `Claude Code не доверяет папке ${p.folder}. Выполните команду и нажмите «Проверить и продолжить»`,
+  'claude.trustWriteFailed': (p) =>
+    p.file === undefined ? `Не удалось сохранить доверие Claude Code к ${p.folder}. Исправьте .claude.json аккаунта и нажмите «Проверить и продолжить»`
+    : `Не удалось сохранить доверие Claude Code: ${p.reason === 'invalid' ? `файл ${p.file} повреждён` : `нет доступа к ${p.file}`}. Исправьте и нажмите «Проверить и продолжить»`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,
   'claude.resumedNotShown': (p) => `${p.task} продолжена, но не появилась в claude agents`,
@@ -420,7 +421,7 @@ export const noticesRu: NoticeTexts = {
   'huly.clientFailed': () => 'npm не смог установить клиент Huly; проекты на Huly ждут, пока установку не повторят',
   'packages.marketplaceUpdate': (p) => `claude plugin marketplace update ${p.marketplace} не удался`,
   'packages.marketplaceAdd': (p) => `claude plugin marketplace add не смог добавить ${p.marketplace}`,
-  'packages.marketplaceCliMissing': () => 'Claude Code не найден. Установите Claude Code и сделайте его доступным для Even Keel, затем снова добавьте маркетплейс на странице «Аккаунты».',
+  'packages.marketplaceCliMissing': () => 'Even Keel не находит Claude Code: установите его и снова добавьте маркетплейс на странице «Аккаунты»',
   'packages.noOwnMarketplace': (p) => `в ${p.dir} нет .claude-plugin/marketplace.json`,
   'packages.upToDate': (p) => `у ${p.name} уже последняя версия`,
   'packages.updated': (p) => `${p.name} обновлён до ${p.version}; идущие задачи остаются на версии, с которой начали`,
