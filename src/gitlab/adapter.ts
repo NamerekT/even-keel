@@ -11,6 +11,7 @@ export const gitlab: TrackerAdapter = {
   help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/',
   mcpServer: 'gitlab',
   mcpKeys: { GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN },
+  logsTime: true,
   profileName: (_values, account) => account?.name ?? 'GitLab',
   account: async (values, timeoutMs) => (await import('./profile.js')).gitlabAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).gitlabProjects(values, query, timeoutMs),

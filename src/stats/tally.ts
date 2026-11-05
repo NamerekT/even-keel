@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { releaseOwn } from '../storage/claim.js'
+import type { TrackerPlace } from '../tracker/source.js'
 import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyHealth, type TallyMode } from './mode.js'
 import { readerSettings, type ReaderSettings } from './model.js'
 import { HALTED } from './tally-schema.js'
@@ -19,6 +20,17 @@ export interface CollectRun {
   home: string
   settings: ReaderSettings | null
   huly: HulyProfiles
+  trackers: TimeTracker[]
+}
+
+/** A profile of a tracker that takes a task's time (`TrackerAdapter.logsTime`, EKR-35): the collector writes through it. */
+export interface TimeTracker {
+  kind: string
+  values: Record<string, string>
+  /** Its projects' places by id, as the adapter's `setup` takes them. */
+  places: Record<string, TrackerPlace>
+  /** The task id prefixes of its projects. */
+  prefixes: string[]
 }
 
 /** The Huly profiles' values the collector reads task titles and writes times with (BTN-200), not the environment's. */
@@ -46,7 +58,9 @@ export interface TallyOptions {
   evenKeelUrl: () => string
   /** Read at each pass: the profiles change on the fly. */
   huly: () => HulyProfiles
-  log: (message: string) => void
+  /** Read at each pass, like `huly`. */
+  trackers: () => TimeTracker[]
+  log:(message: string) => void
   /** Each run's end and a failed open of the embedded database: `health()` changed. */
   changed?: () => void
 }
@@ -159,9 +173,9 @@ export class TallyService {
         return
       }
     }
-    const { root, home, env, evenKeelUrl, huly, log } = this.options
+    const { root, home, env, evenKeelUrl, huly, trackers, log } = this.options
     const run = new Worker(workerFile('collect-worker'), {
-      workerData: { root, home, settings, huly: huly() } satisfies CollectRun,
+      workerData: { root, home, settings, huly: huly(), trackers: trackers() } satisfies CollectRun,
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run

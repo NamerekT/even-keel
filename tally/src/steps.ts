@@ -5,7 +5,9 @@ import { fetchTasks, reportTimes } from './huly.js'
 import { byCredentials, type HulyOf } from './huly-profiles.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
 import { rulesFor, runsOf, stepsKey, type StepSettings } from './step-runs.js'
+import { connectTracker, reportTrackerTimes, type ConnectTracker } from './tracker-times.js'
 import { turnsKey, turnsOf, type TurnSource } from './turns.js'
+import type { TimeTracker } from '../../src/stats/tally.js'
 
 const TASK_MAX_AGE_MINUTES = 60
 const REPORT_IDLE_MINUTES = 60
@@ -91,7 +93,15 @@ export async function refreshTasks(db: TallyDb, hulyOf: HulyOf, log: Log): Promi
   return fetched
 }
 
-export async function reportTaskTimes(db: TallyDb, since: string | null, hulyOf: HulyOf, log: Log): Promise<number> {
+/** A task a Huly profile reaches is reported to Huly; the rest go to the GitLab or Jira profile of their prefix (EKR-35). */
+export async function reportTaskTimes(
+  db: TallyDb,
+  since: string | null,
+  hulyOf: HulyOf,
+  trackers: readonly TimeTracker[],
+  log: Log,
+  connect: ConnectTracker = connectTracker(HULY_TIMEOUT_MS),
+): Promise<number> {
   if (since === null) return 0
   const pending = await db.pendingReports(since, REPORT_IDLE_MINUTES)
   let written = 0
@@ -104,7 +114,10 @@ export async function reportTaskTimes(db: TallyDb, since: string | null, hulyOf:
       log(`tally: Huly time reports of ${credentials.workspace} not written: ${(error as Error).message}`)
     }
   }
-  return written
+  const elsewhere = pending.filter((report) => hulyOf(report.task) === undefined)
+  const reported = await reportTrackerTimes(elsewhere, trackers, log, connect)
+  await db.markReported(reported)
+  return written + [...reported.values()].filter((hours) => hours !== null).length
 }
 
 export async function classifySpans(db: TallyDb, settings: ClassifySettings, log: Log): Promise<number> {

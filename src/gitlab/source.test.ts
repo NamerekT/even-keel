@@ -131,4 +131,18 @@ describe('GitLab task source', () => {
     const { source } = await connect([{ body: [{ id: 20, title: 'v1.0' }] }, { body: [issue()] }, batchHierarchy(1), { body: [] }, { body: [note(1), note(2, { author: { id: 30, username: 'outsider' } })] }, { status: 404, body: {} }])
     expect((await source.milestoneTasks!('project-id', 'v1.0'))[0]!.lastComment).toBe('Note 1')
   })
+
+  it('logs the time spent on an issue in whole minutes, at least one', async () => {
+    const { source, calls } = await connect([{ body: {} }, { body: {} }])
+    expect(await source.logTime!('APP-4', { hours: 0.29, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' })).toBe(true)
+    expect(calls[1]).toMatchObject({ method: 'POST', url: `${SETTINGS.web}/api/v4/projects/group%2Fsubgroup%2Fapp/issues/4/add_spent_time`, body: { duration: '17m', summary: 'Tally' } })
+    await source.logTime!('APP-4', { hours: 0.001, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' })
+    expect(calls[2]!.body).toMatchObject({ duration: '1m' })
+  })
+
+  it('takes a refusal to log time as no report needed, and throws on any other failure', async () => {
+    const { source } = await connect([{ status: 403, body: {} }, { status: 500, body: {} }])
+    expect(await source.logTime!('APP-4', { hours: 1, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' })).toBe(false)
+    await expect(source.logTime!('APP-4', { hours: 1, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' })).rejects.toThrow('HTTP 500')
+  })
 })

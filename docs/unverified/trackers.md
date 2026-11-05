@@ -51,3 +51,15 @@ A removed key also stops the global folder's daemon (`claude daemon stop --any` 
 ## A parent with over a page of sub-issues on GitHub (BTN-606)
 
 GitHub and Linear read the subtasks of a parent through `children`, and Even Keel closes the parent once they are all closed and one is done (`docs/trackers.md`). Checked live ([verified log](../verified/trackers.md)): on GitHub a parent closed after its two sub-issues of the same repository (2026-10-31) and after its only sub-issue of another repository (2026-11-02); on Linear a parent closed after its two subtasks (2026-11-01), a team's own parent auto-close next to Even Keel's closed the parent once with no error, and a parent whose subtasks were all canceled stayed open (2026-11-02). Covered by adapter tests only: a GitHub parent with more sub-issues than one page of the `subIssues` query. If the next page is misread, the parent closes while a sub-issue on it is still open, or stays open after all are done. **Workaround:** close or reopen the parent by hand.
+
+## Task time written to GitLab and Jira (EKR-35)
+
+Tally writes a done task's active time into GitLab's spent time and Jira's worklog (`docs/tally.md`, "Task time"); only fixtures of both APIs and a faked tracker cover it (`src/gitlab/source.test.ts`, `src/jira/source.test.ts`, `tally/src/tracker-times.test.ts`). Not seen live:
+
+- a real `add_spent_time` on GitLab.com and a self-managed instance, and that the issue then shows the minutes with the label as its summary;
+- a real Jira worklog through the site's address and through Atlassian's gateway (a scoped token), with `started` in Jira's own time format and the ADF comment;
+- what Jira answers when time tracking is off for the site, or the account lacks "Work on issues": taken as a 403, or a 400 whose text names time tracking — any other answer is retried every run and logged each time instead of marking the task;
+- that GitLab's 403 is what a Guest gets, and that a project with time tracking off by its features refuses the same way;
+- a second run after a written report: only `tasks.reported_at` keeps it from writing again, the tracker is not asked.
+
+If one is wrong, a task gets no time, gets it twice, or the log repeats a refusal every five minutes. **Workaround:** log the time by hand, or set `reportsSince` to `null` in `tally/tally.config.json`. To check (EKR-36): run a GitLab and a Jira task to Done on the benches, wait an hour, read the issue's time and the log; then switch Jira's time tracking off and run one more.

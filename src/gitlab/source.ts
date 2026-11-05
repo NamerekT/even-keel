@@ -1,6 +1,6 @@
 import { Skipped } from '../github/trust.js'
 import { resolveLabels } from '../tracker/labels.js'
-import { parseTaskId, type TrackerTask } from '../tracker/model.js'
+import { entryMinutes, parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GitlabApi, GitlabHttpError } from './api.js'
 import { GitlabBatch, limitedMap } from './batch.js'
@@ -242,6 +242,17 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
 
     async isPublic(project) {
       return (await api.rest<{ visibility: string }>(projectBase(pathOf(project)))).visibility === 'public'
+    },
+
+    // A 403: the token's user may not log time in the project (below Reporter, or time tracking off by its features).
+    async logTime(id, entry) {
+      try {
+        await api.rest(`${addressOf(id).base}/add_spent_time`, 'POST', { duration: `${entryMinutes(entry.hours)}m`, summary: entry.summary })
+        return true
+      } catch (error) {
+        if (error instanceof GitlabHttpError && error.status === 403) return false
+        throw error
+      }
     },
     close: async () => {},
   }

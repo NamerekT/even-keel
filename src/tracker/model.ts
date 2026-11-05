@@ -109,6 +109,11 @@ export function parseTaskId(id: string): { project: string; number: number } | n
   return match === null ? null : { project: match[1]!, number: Number(match[2]) }
 }
 
+/** A time entry's hours in whole minutes, at least one: what a tracker's time tracking takes (`TaskSource.logTime`). */
+export function entryMinutes(hours: number): number {
+  return Math.max(1, Math.round(hours * 60))
+}
+
 /** The task's link by its project's template (`TrackerSetup.issueUrl`), as the page fills it. */
 export function issueLink(template: string | null, task: string): string | null {
   const parsed = parseTaskId(task)
