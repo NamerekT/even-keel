@@ -2,7 +2,7 @@ import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child
 import { existsSync, readdirSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
@@ -10,7 +10,7 @@ import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
-import { samePath } from '../paths.js'
+import { binaryPath, samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
 import type { TurnSpend } from '../state.js'
@@ -209,9 +209,17 @@ export class ClaudeCli {
   }
 
   private async start(home: AccountHome, args: string[], cwd: string, failure: Notice): Promise<void> {
+    const env = { ...this.envOf(home) }
+    const selected = this.bin()
+    const binary = binaryPath(selected, env, cwd) ?? selected
+    const override = env.CLAUDE_CONFIG_DIR
+    const recovery = { binary, configDir: override ? (isAbsolute(override) ? override : resolve(cwd, override)) : null }
     try {
-      await run(this.bin(), args, { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+      await run(binary, args, { cwd, env, timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
+      if (failure.code === 'claude.startFailed' || failure.code === 'claude.resumeFailed') {
+        failure = { ...failure, params: { ...failure.params, recovery } }
+      }
       throw new NoticeError({ ...failure, detail: outputOf(error) }, { cause: error })
     }
   }

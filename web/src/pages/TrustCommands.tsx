@@ -11,7 +11,7 @@ export function UntrustedCommands({ notice }: { notice: Notice | null }) {
   const commands = trustCommandsOf(place)
   return (
     <div className="project-add__trust">
-      <p>{place.platform === 'win32' ? text.terminalWin : text.terminal}</p>
+      <p>{commands.shell === 'powershell' ? text.terminalPowerShell : place.platform === 'win32' ? text.terminalWin : text.terminal}</p>
       <CommandBlock command={commands.own} />
       {commands.as !== null && <>
         <p>{text.serviceUser(place.user)}</p>

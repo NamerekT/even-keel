@@ -1,6 +1,8 @@
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
+type ClaudeRecovery = { binary: string; configDir: string | null }
+
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 /** Whose key an API account holds, by `keyProvider`. */
 export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
@@ -243,12 +245,12 @@ export const en = {
   'cliCheck.chainWaits': (p: { task: string; account: string }) =>
     `the CLI check is running on the account ${p.account}; ${p.task} starts as soon as it ends`,
 
-  'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
+  'claude.startFailed': (p: { task: string; cwd: string; recovery?: ClaudeRecovery }) => `claude: could not start ${p.task} in ${p.cwd}`,
   // `service` — Even Keel runs as a system service (BTN-687); a pause written before it has none.
-  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean }) =>
+  'claude.untrusted': (p: { task: string; folder: string; platform: string; user: string; service?: boolean; recovery?: ClaudeRecovery }) =>
     `Claude Code refused to start ${p.task} because it does not trust ${p.folder}. Run claude in that folder as ${p.user}, accept the trust, then press Check again and resume`,
   'claude.trustWriteFailed': (p: { folder: string }) => `Could not save Claude Code trust for ${p.folder}. Check that Claude's account configuration is valid and writable, then check again and resume`,
-  'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
+  'claude.resumeFailed': (p: { task: string; cwd: string; recovery?: ClaudeRecovery }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,
   'claude.resumedNotShown': (p: { task: string }) => `claude: ${p.task} was resumed but did not show up in claude agents`,
   'claude.stopFailed': (p: { agent: string }) => `claude: could not stop ${p.agent}`,

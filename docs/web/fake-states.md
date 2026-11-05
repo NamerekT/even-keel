@@ -17,7 +17,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=noBranch` | the chain is paused on `git.noBranch`: "Open the project's settings" under the error, to the Repository tab |
-| `?chain=untrusted` | the chain is paused on `claude.untrusted`: manual trust commands and "Check again and resume"; `untrustedLong` gives a long checkout path; `trustWriteFailed` shows the file-repair notice without commands |
+| `?chain=untrusted` | the chain is paused on `claude.untrusted`: commands pinned to the failed CLI/account and "Check again and resume"; `untrustedLong` gives a long checkout path, `untrustedGlobal` clears the account override, `untrustedLegacy` keeps the old PATH commands; `trustWriteFailed` shows the file-repair notice without commands |
 | `?host=terminal` | Even Keel runs from `npm start` or the tray, not as a service: the trust commands of the wizard, the Sessions tab and the paused chain give no command from another user's terminal (BTN-687) |
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=limitsUnread` | after a restart the next launch waits for the first limits poll of its account (BTN-619): the band names the account and the next poll |

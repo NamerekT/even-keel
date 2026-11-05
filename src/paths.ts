@@ -80,6 +80,21 @@ export function findBinary(bin: string, env: NodeJS.ProcessEnv, platform: NodeJS
   return pathFolders(env, platform).some((folder) => extensions.some((extension) => exists(paths.join(folder, `${bin}${extension}`))))
 }
 
+/** The executable spawn resolves, made absolute so a recovery terminal need not share the service's PATH. */
+export function binaryPath(bin: string, env: NodeJS.ProcessEnv, cwd: string, platform: NodeJS.Platform = process.platform, exists: (path: string) => boolean = existsSync): string | undefined {
+  const paths = pathsOf(platform)
+  if (bin.includes('/') || (platform === 'win32' && bin.includes('\\'))) return paths.resolve(cwd, bin)
+  const extensions = platform === 'win32' && paths.extname(bin) === '' ? SPAWN_EXTENSIONS : ['']
+  const folders = platform === 'win32' ? [cwd, ...pathFolders(env, platform)] : pathFolders(env, platform)
+  for (const folder of folders) {
+    for (const extension of extensions) {
+      const file = paths.resolve(cwd, folder, `${bin}${extension}`)
+      if (exists(file)) return file
+    }
+  }
+  return undefined
+}
+
 /** The folders of the PATH, whatever the case of the variable on Windows. */
 export function pathFolders(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform): string[] {
   const windows = platform === 'win32'

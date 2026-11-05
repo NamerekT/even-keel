@@ -33,6 +33,8 @@ const UNTRUSTED = /workspace not trusted/i
  * any other failure. `folder` is the project's checkout: its trust covers the task worktrees inside it.
  */
 export function untrustedStart(error: unknown, place: { task: string; folder: string; platform: string; user: string; service: boolean }): NoticeError | null {
-  if (!(error instanceof NoticeError) || !['claude.startFailed', 'claude.resumeFailed'].includes(error.notice.code) || !UNTRUSTED.test(error.notice.detail ?? '')) return null
-  return fail('claude.untrusted', place, {}, { cause: error })
+  if (!(error instanceof NoticeError)) return null
+  const { notice } = error
+  if ((notice.code !== 'claude.startFailed' && notice.code !== 'claude.resumeFailed') || !UNTRUSTED.test(notice.detail ?? '')) return null
+  return fail('claude.untrusted', { ...place, ...(notice.params.recovery === undefined ? {} : { recovery: notice.params.recovery }) }, {}, { cause: error })
 }

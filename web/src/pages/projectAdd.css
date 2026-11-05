@@ -54,6 +54,16 @@
   margin: 0;
 }
 
+.project-add__trust .ui-command__text {
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.project-add__trust .ui-command--copy .ui-command__text {
+  margin-right: calc(var(--space-24) + var(--space-8));
+  padding-right: var(--space-12);
+}
+
 /* "Make it a repository" under the folder's refusal (BTN-731). */
 .project-add__init {
   display: flex;

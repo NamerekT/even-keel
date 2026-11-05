@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { findBinary, isInside, pathKey, samePath, spelledUnder } from './paths.js'
+import { binaryPath, findBinary, isInside, pathKey, samePath, spelledUnder } from './paths.js'
 
 describe('a folder behind a link', () => {
   let root: string
@@ -98,5 +98,19 @@ describe('findBinary', () => {
     expect(findBinary('codex', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\codex.exe'))).toBe(true)
     expect(findBinary('codex', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\codex.cmd'))).toBe(false)
     expect(findBinary('copilot', env, 'win32', at('C:\\Users\\john\\AppData\\Roaming\\npm\\copilot'))).toBe(false)
+  })
+})
+
+describe('binaryPath', () => {
+  const at = (...files: string[]) => (path: string) => files.includes(path)
+  it('resolves an override relative to the launching checkout', () => {
+    expect(binaryPath('../cli/claude', {}, '/work/repo', 'linux')).toBe('/work/cli/claude')
+  })
+  it('freezes PATH search order and Windows executable extensions', () => {
+    expect(binaryPath('claude', { PATH: '/one:/two' }, '/work', 'linux', at('/one/claude', '/two/claude'))).toBe('/one/claude')
+    expect(binaryPath('claude', { Path: 'D:\\tools' }, 'D:\\repo', 'win32', at('D:\\tools\\claude.exe'))).toBe('D:\\tools\\claude.exe')
+    expect(binaryPath('claude.exe', { Path: 'D:\\tools' }, 'D:\\repo', 'win32', at('D:\\tools\\claude.exe'))).toBe('D:\\tools\\claude.exe')
+    expect(binaryPath('claude', { Path: 'D:\\tools' }, 'D:\\repo', 'win32', at('D:\\repo\\claude.exe', 'D:\\tools\\claude.exe'))).toBe('D:\\repo\\claude.exe')
+    expect(binaryPath('claude', {}, '/work', 'linux', at())).toBeUndefined()
   })
 })
