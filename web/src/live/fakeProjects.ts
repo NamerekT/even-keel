@@ -1,5 +1,5 @@
 import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
-import type { EvenKeelState, FeedView, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
+import type { BranchChoice, EvenKeelState, FeedView, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
 import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import type { StatusMoves } from '../../../src/chain/moves.js'
 import { colorsOf } from '../../../src/projects/colors.js'
@@ -8,7 +8,13 @@ import { fakeProjectMaps } from './fakeConfig.js'
 const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
   Object.fromEntries(Object.entries(forms).flatMap(([key, form]) => (form.color === null ? [] : [[key, form.color]])))
 
-const BRANCHES = ['main', 'master', 'develop']
+/** The fake repository's branches: `release/v1` lives only on `origin`. */
+const BRANCHES: BranchChoice[] = [
+  { name: 'main', remote: null },
+  { name: 'master', remote: null },
+  { name: 'develop', remote: null },
+  { name: 'release/v1', remote: 'origin' },
+]
 const KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 
 /** `?projects=none` — the config has no projects yet: the first start, before the wizard. */
@@ -33,12 +39,12 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 
 /**
  * The wizard's check by the fake's rules: a path with `nope` is not a repository, one with `fresh` has no commits, one with `master` is on that branch,
- * a branch outside main/master/develop is missing; `?wizard=untrusted|off|failed` — the folder is not trusted,
+ * a branch outside main/master/develop/release/v1 is created by adding, one with a space is no branch name; `?wizard=untrusted|off|failed` — the folder is not trusted,
  * the tracker has no variables, the tracker does not answer.
  */
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
-  const none = { root: null, current: null, suggested: null }
+  const none = { root: null, current: null, suggested: null, branches: null }
   const host = { platform: state.platform, user: 'EvenKeelSvc', service: true }
   if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   if (path.includes('nope')) {
@@ -48,7 +54,8 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
   const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null
-  const repo = { root, current, suggested, notice: repoNotice(state, root, draft.branch.trim()) }
+  const branches = { current, head: 'a1b2c3d', branches: [...BRANCHES.filter((each) => each.name === current), ...BRANCHES.filter((each) => each.name !== current)] }
+  const repo = { root, current, suggested, branches, notice: repoNotice(state, root, draft.branch.trim()) }
   const shared = sharedWith(state, draft)
   const entry = entryNotice(state, draft) ?? (shared.length > 0 && draft.milestones.length === 0 ? notice('wizard.trackerShared', { project: shared[0]! }) : null)
   const yields = entry === null && draft.milestones.length > 0 ? shared : []
@@ -74,7 +81,7 @@ function sharedWith(state: EvenKeelState, draft: ProjectDraft): string[] {
 function repoNotice(state: EvenKeelState, root: string, branch: string): ProjectCheck['repo']['notice'] {
   const taken = Object.entries(state.config.projects).find(([, form]) => form.repo.toLowerCase() === root.toLowerCase())
   if (taken !== undefined) return notice('wizard.repoTaken', { project: taken[0] })
-  if (branch !== '' && !BRANCHES.includes(branch)) return notice('wizard.noBranch', { branch, branches: BRANCHES })
+  if (/\s/.test(branch)) return notice('wizard.branchName', { value: branch })
   return null
 }
 

@@ -15,7 +15,7 @@ import { mergeCheck } from '../chain/mainci.js'
 import { pullReadiness } from '../review/open.js'
 import { archivedShown } from '../chain/archive.js'
 import { ConfigStore } from '../config-store.js'
-import { idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
+import { DEFAULT_BRANCH, idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
@@ -62,6 +62,7 @@ type HostingContext = Pick<ServiceContext,
   | 'approvals'
   | 'archive'
   | 'branchOf'
+  | 'branches'
   | 'chainControl'
   | 'changelogs'
   | 'checkMergeTarget'
@@ -146,6 +147,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     projectLabels: projectLabels(ctx.configStore.current),
     taskPrefixes: Object.fromEntries(Object.keys(ctx.configStore.current.keys).map((project) => [project, idPrefixOf(ctx.configStore.current, project)])),
     config: ctx.configStore.view(ctx.lockedReaders()),
+    branchDrift: ctx.branches.view(),
     chain: {
       active: ctx.dispatcher.state.active,
       parallel: ctx.configStore.current.parallel,
@@ -273,7 +275,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
           if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
         }
         if (form.mergeInto !== base.mergeInto || form.repo !== base.repo) await ctx.checkMergeTarget(project, form)
-        ctx.configStore.saveProject(project, form, base, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
+        const write = () => ctx.configStore.saveProject(project, form, base, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
+        // Another main branch moves the main checkout first; git's refusal leaves the config as it was (BTN-754).
+        const branch = form.branch.trim() || DEFAULT_BRANCH
+        if (branch !== (base.branch.trim() || DEFAULT_BRANCH)) await ctx.branches.change(project, form.repo, branch, write)
+        else write()
         console.log(`page: the settings of ${project} are written to the config`)
       },
       saveShared: (form, base) => {
@@ -303,6 +309,9 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         const trusted = configs.some((config) => isTrusted(config, folder))
         return { folder, trusted, platform: process.platform, user: userInfo().username, service: await runsAsService() }
       },
+      branches: (project) => ctx.branches.branches(project),
+      adoptBranch: (project) => ctx.branches.adopt(project),
+      restoreBranch: (project) => ctx.branches.restore(project),
       add: (draft) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, draft),
       remove: (project) => {
         const repo = ctx.configStore.current.projects[project]

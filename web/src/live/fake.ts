@@ -36,6 +36,7 @@ import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
+import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 import { fakeRecord, fakeTranscript } from './fakeTranscript.js'
@@ -147,6 +148,7 @@ function fakeState(
     projects: FAKE_PROJECTS,
     ...fakeProjectMaps(),
     config: fakeConfig(account),
+    branchDrift: {},
     chain: {
       active: idle
         ? []
@@ -385,6 +387,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
   if (params.get('modelLabels') === 'on' && current.state !== null) current.state.config.shared.modelLabels = true
+  if (params.has('branch') && current.state !== null) current.state.branchDrift = fakeBranchDrift(params.get('branch'))
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
@@ -727,7 +730,7 @@ export function createFakeSource(search: string): LiveSource {
     command: async (name, body = {}) => {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
-      const next = fakeCommand(state, name, body, launches)
+      const next = fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
         current = { ...current, state: finishFakeCli(current.state, String(body.agent)) }
@@ -810,6 +813,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
+      if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: current.state.platform, user: 'evenkeel', service: asService } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T

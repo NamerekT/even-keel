@@ -50,13 +50,27 @@ function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTa
   }
 }
 
+const REFS = 'for-each-ref --format=%(refname) refs/heads/ refs/remotes/'
+const BRANCHES = {
+  current: 'trunk',
+  head: 'abc1234',
+  branches: [
+    { name: 'trunk', remote: null },
+    { name: 'dev', remote: null },
+    { name: 'release', remote: 'origin' },
+  ],
+}
+
 function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult> = {}): CheckDeps {
   const git = async (cwd: string, args: string[]): Promise<GitResult> => {
     const answer = answers[`${cwd} ${args.join(' ')}`]
     if (answer !== undefined) return answer
     if (cwd.startsWith('D:\\new') && args[0] === 'rev-parse' && args[1] === '--show-toplevel') return { code: 0, out: 'D:/new' }
     if (cwd === 'D:\\new' && args[0] === 'symbolic-ref') return { code: 0, out: 'trunk' }
-    if (cwd === 'D:\\new' && args.join(' ') === 'for-each-ref --format=%(refname:short) refs/heads/') return { code: 0, out: 'trunk\ndev\n' }
+    if (cwd === 'D:\\new' && args.join(' ') === REFS) return { code: 0, out: 'refs/heads/trunk\nrefs/heads/dev\nrefs/remotes/origin/HEAD\nrefs/remotes/origin/trunk\nrefs/remotes/origin/release\n' }
+    if (cwd === 'D:\\new' && args[0] === 'remote') return { code: 0, out: 'origin' }
+    if (cwd === 'D:\\new' && args.join(' ') === 'rev-parse --short HEAD') return { code: 0, out: 'abc1234' }
+    if (cwd === 'D:\\new' && args[0] === 'check-ref-format') return { code: args[2]!.includes('..') ? 1 : 0, out: '' }
     return { code: 128, out: `fatal: not a git repository: ${cwd}` }
   }
   return {
@@ -98,7 +112,7 @@ describe('checkDraft', () => {
   it('takes the top of the repository, suggests its branch, asks the tracker and the trust', async () => {
     const check = await checkDraft(deps(), draft)
     expect(check).toEqual({
-      repo: { root: 'D:\\new', current: 'trunk', suggested: null, notice: null },
+      repo: { root: 'D:\\new', current: 'trunk', suggested: null, branches: BRANCHES, notice: null },
       entry: null,
       yields: [],
       tracker: { ok: true, missing: [], open: 2, openToAll: false, notice: null },
@@ -131,7 +145,7 @@ describe('checkDraft', () => {
 
   it('says a folder is not a git repository and checks nothing that needs one', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: 'E:\\plain' })
-    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'wizard.notRepo', params: { path: 'E:\\plain' } }) })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, branches: null, notice: expect.objectContaining({ code: 'wizard.notRepo', params: { path: 'E:\\plain' } }) })
     expect(check.trusted).toBeNull()
   })
 
@@ -147,7 +161,7 @@ describe('checkDraft', () => {
 
   it('gives a missing folder one wizard.noFolder, without git output and the repository button (BTN-744)', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: 'D:\\nowhere' })
-    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'wizard.noFolder', params: { path: 'D:\\nowhere' } }) })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, branches: null, notice: expect.objectContaining({ code: 'wizard.noFolder', params: { path: 'D:\\nowhere' } }) })
     expect(check.repo.notice?.detail).toBeUndefined()
   })
 
@@ -158,25 +172,37 @@ describe('checkDraft', () => {
 
   it('says git that does not start as missing, not the folder as no repository (BTN-731)', async () => {
     const check = await checkDraft(deps({}, { 'D:\\new\\src rev-parse --show-toplevel': { code: -1, out: 'spawn git ENOENT', missing: true } }), draft)
-    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'git.missing' }) })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, branches: null, notice: expect.objectContaining({ code: 'git.missing' }) })
   })
 
   it('leaves a blank folder unchecked, without a notice', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: ' ' })
-    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: null })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, branches: null, notice: null })
     expect(check.tracker).toBeNull()
   })
 
-  it('refuses a branch the repository does not have and names the ones it has', async () => {
+  it('takes a branch the repository does not have: adding creates it, the page reads what will happen from the branches (BTN-754)', async () => {
     const check = await checkDraft(deps(), { ...draft, branch: 'main' })
-    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.noBranch', params: { branch: 'main', branches: ['trunk', 'dev'] } }))
+    expect(check.repo).toEqual({ root: 'D:\\new', current: 'trunk', suggested: null, branches: BRANCHES, notice: null })
+    expect(check.tracker).not.toBeNull()
+  })
+
+  it('reads a detached checkout as no current branch, the branches offered as usual', async () => {
+    const detached = { 'D:\\new symbolic-ref --quiet --short HEAD': { code: 1, out: '' } }
+    const check = await checkDraft(deps({}, detached), { ...draft, branch: '' })
+    expect(check.repo).toMatchObject({ current: null, branches: { current: null, branches: [{ name: 'trunk' }, { name: 'dev' }, { name: 'release' }] }, notice: null })
+  })
+
+  it('refuses a name git does not take as a branch', async () => {
+    const check = await checkDraft(deps(), { ...draft, branch: 'bad..name' })
+    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.branchName', params: { value: 'bad..name' } }))
   })
 
   it('says a repository without a commit needs one, whatever the branch, and asks no tracker', async () => {
-    const empty = { 'D:\\new for-each-ref --format=%(refname:short) refs/heads/': { code: 0, out: '' } }
+    const empty = { [`D:\\new ${REFS}`]: { code: 0, out: '' } }
     for (const branch of ['', 'main']) {
       const check = await checkDraft(deps({}, empty), { ...draft, branch })
-      expect(check.repo).toEqual({ root: 'D:\\new', current: 'trunk', suggested: null, notice: expect.objectContaining({ code: 'wizard.noCommits' }) })
+      expect(check.repo).toEqual({ root: 'D:\\new', current: 'trunk', suggested: null, branches: null, notice: expect.objectContaining({ code: 'wizard.noCommits' }) })
       expect(check.tracker).toBeNull()
     }
   })

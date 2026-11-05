@@ -387,7 +387,7 @@ export const settingsEN: Messages['settings'] = {
     repo: 'Repository',
     repoHint: "Path to the project's main checkout.",
     branch: 'Main branch',
-    branchHint: 'Tasks branch off it and merge into it, the CI checks it. The branch must exist in the repository, or the chain pauses.',
+    branchHint: 'Tasks branch off it and merge into it, the CI checks it. Saving another branch switches the main checkout to it, and one the repository lacks is created.',
     mergeInto: 'Merges into',
     mergeIntoHint:
       'A release project: its main branch goes into the main branch of the project chosen here, in that project’s folder, once its chain is quiet (stopped, empty or paused). A conflict is aborted and waits for a merge by hand or "Resolve with the agent" on this project’s page: its session resolves it in the chain of the project chosen here.',

@@ -169,7 +169,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             {look === 'tag' && tools}
           </ChainControls>
         </header>
-        <ProjectNotices key={`notices-${key}`} state={state} project={key} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
+        <ProjectNotices key={`notices-${key}`} state={state} project={key} settingsOpen={settingsOpen} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
         <EmptyCall state={state} project={key} />
         <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
           {blocks.length === 0 ? (

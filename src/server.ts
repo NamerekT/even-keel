@@ -46,6 +46,7 @@ import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
 import type { HookMail } from './sessions/mailRelay.js'
 import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard, StatsConfig } from './state.js'
+import type { RepoBranches } from './projects/branch.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -160,8 +161,14 @@ export interface SettingsControl {
   check(draft: ProjectDraft, options: { tracker: boolean }): Promise<ProjectCheck>
   /** Claude Code's trust in the project's checkout as the Claude account folder `account` (blank — the project's own) sees it. */
   trust(project: string, account: string | null): Promise<ProjectTrust>
-  /** Adds the wizard's project to the config; refuses one the config would not parse. */
-  add(draft: ProjectDraft): void
+  /** The main checkout's branches for the main branch field; reading them notes a checkout moved by hand (BTN-754). */
+  branches(project: string): Promise<RepoBranches>
+  /** "Make it the main branch": the checkout's branch becomes the project's, git is not touched. */
+  adoptBranch(project: string): Promise<void>
+  /** "Put the folder back": the main checkout goes onto the project's branch. */
+  restoreBranch(project: string): Promise<void>
+  /** Adds the wizard's project to the config, the checkout moved onto its branch first; refuses one the config would not parse. */
+  add(draft: ProjectDraft): void | Promise<void>
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
   remove(project: string): void
   /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */
@@ -309,6 +316,8 @@ const COMMANDS: Record<string, Command> = {
   'session/mail/dismiss': ({ sessions }, body) => sessions.dismissMail(textOf(body.sessionId, 'sessionId')),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   'project/add': ({ settings }, body) => settings.add(draftOf(body)),
+  'project/branch/adopt': ({ settings }, body) => settings.adoptBranch(projectOf(body)),
+  'project/branch/restore': ({ settings }, body) => settings.restoreBranch(projectOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
   'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),
   'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
@@ -385,6 +394,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
     changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'edit', instruction: textOf(body.instruction, 'instruction') }),
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
   'models/list': ({ models }, body) => models(textOf(body.account, 'account')),
+  'project/branches': ({ settings }, body) => settings.branches(projectOf(body)),
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),

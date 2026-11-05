@@ -27,7 +27,7 @@ import {
 const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIELDS, tracker: 'huly', ...change })
 
 const passed: ProjectCheck = {
-  repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, notice: null },
+  repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, branches: { current: 'main', head: 'a1b2c3d', branches: [{ name: 'main', remote: null }] }, notice: null },
   entry: null,
   yields: [],
   tracker: { ok: true, missing: [], open: 3, openToAll: false, notice: null },
@@ -102,7 +102,7 @@ describe('readyToAdd', () => {
 
   it('is not ready without a check, a repository, with a bad entry or a tracker that did not answer', () => {
     expect(readyToAdd(null)).toBe(false)
-    expect(readyToAdd({ ...passed, repo: { root: null, current: null, suggested: null, notice: null }, tracker: null })).toBe(false)
+    expect(readyToAdd({ ...passed, repo: { root: null, current: null, suggested: null, branches: null, notice: null }, tracker: null })).toBe(false)
     expect(readyToAdd({ ...passed, repo: { ...passed.repo, notice: { code: 'wizard.repoTaken', params: { project: 'ABC' } } } })).toBe(false)
     expect(readyToAdd({ ...passed, entry: { code: 'config.projectKey', params: { where: 'projects[1].key', value: 'x' } }, tracker: null })).toBe(false)
     expect(readyToAdd({ ...passed, tracker: null })).toBe(false)
@@ -152,8 +152,8 @@ describe('stepChecks', () => {
   })
 
   it('fails the folder on its notice and the tracker on its answer', () => {
-    const noBranch: Notice = { code: 'wizard.noBranch', params: { branch: 'x', branches: [] } }
-    const repoRefused = { ...passed, repo: { ...passed.repo, notice: noBranch } }
+    const badName: Notice = { code: 'wizard.branchName', params: { value: 'a b' } }
+    const repoRefused = { ...passed, repo: { ...passed.repo, notice: badName } }
     expect(stepChecks(typed, 'key', repoRefused, repoRefused, 'passed').repo).toBe('failed')
     const failed: Notice = { code: 'wizard.trackerFailed', params: { tracker: 'Huly' } }
     const trackerRefused = { ...passed, tracker: { ok: false, missing: [], open: null, openToAll: false, notice: failed } }

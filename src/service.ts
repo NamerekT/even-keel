@@ -252,6 +252,7 @@ const context = {
   get releasesView() { return releasesView },
   get remotes() { return remotes },
   get removalFacts() { return removalFacts },
+  get branches() { return branches },
   get requireModel() { return requireModel },
   get resumeIn() { return resumeIn },
   get resumeWith() { return resumeWith },
@@ -715,6 +716,9 @@ function stopLingering(): Promise<void> { return chainService.stopLingering(cont
 /** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
 function removalFacts(project: string, repo: string): RemovalFacts { return chainService.removalFacts(context, project, repo) }
 
+/** The project's main branch and its main checkout as one (BTN-754). */
+const branches = chainService.wireBranches(context)
+
 const getState = hostingService.wireGetState(context)
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
@@ -722,8 +726,13 @@ const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = {
   setUnattended: (on) => configStore.saveChainSwitches({ unattended: on }),
   setTrimTools: (on) => configStore.saveChainSwitches({ trimTools: on }),
 }
+// The chain's start reads the checkout, so its card warns of a moved folder before a task's launch refuses (BTN-754).
+const startChain = async (project: string) => {
+  await branches.refresh(project)
+  return dispatcher.start(project)
+}
 const chainControl: ChainControl = new Proxy(dispatcher, {
-  get: (target, key, receiver) => SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver),
+  get: (target, key, receiver) => (key === 'start' ? startChain : (SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver))),
 })
 
 let server = hostingService.wireServer(context)

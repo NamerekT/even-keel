@@ -154,6 +154,14 @@ export const en = {
     `git: ${p.repo} has no branch ${p.branch}, the main branch of ${p.project}; create it or name the right one in the project's settings`,
   'git.wrongBranch': (p: { project: string; branch: string; current: string | null; repo: string }) =>
     `git: ${p.repo} stands ${p.current === null ? 'on a detached HEAD' : `on ${p.current}`}, not on ${p.branch}, the main branch of ${p.project}; switch it to ${p.branch} or name the right branch in the project's settings`,
+  'branch.taken': (p: { branch: string }) =>
+    `the main checkout cannot go to ${p.branch}: another worktree has it checked out; pick another branch or free that worktree first`,
+  'branch.dirty': (p: { branch: string; current: string | null }) =>
+    `the main checkout cannot go ${p.current === null ? '' : `from ${p.current} `}to ${p.branch}: its uncommitted changes conflict with that branch; commit them or put them aside first`,
+  'branch.switchFailed': (p: { branch: string; current: string | null }) =>
+    `the main checkout could not go ${p.current === null ? '' : `from ${p.current} `}to ${p.branch}; nothing was changed`,
+  'branch.busy': (p: { project: string }) => `the main branch of ${p.project} does not change while its task is in work: wait for the task to end`,
+  'branch.noRepo': (p: { project: string }) => `the folder of ${p.project} is not a git repository with a commit: its branches cannot be read`,
 
   'sync.alias': (p: { exit: number }) => `git sync exited with ${p.exit}`,
   'sync.notMain': (p: { repo: string; branch: string; main: string }) =>
@@ -599,7 +607,6 @@ export const en = {
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
   'wizard.keyTaken': (p: { key: string; project: string }) =>
     `the key ${p.key} is already the project ${p.project} on another repository, and the task ids of both would be the same: pick another one`,
-  'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'the repository has no commits yet, so its branch is not born: make the first commit',
   'wizard.noFolder': (p: { path: string }) => `${p.path} is not a folder`,
   'wizard.relativePath': (p: { path: string }) => `${p.path} is not a full path: give the folder from its root, or from ~`,

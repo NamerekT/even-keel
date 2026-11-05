@@ -1,4 +1,5 @@
 import type { Notice } from '../notice/notice.js'
+import type { RepoBranches } from './branch.js'
 
 /** A project the wizard of `/projects/add` is about to add; blank text — not given. */
 export interface ProjectDraft {
@@ -31,6 +32,8 @@ export interface ProjectCheck {
     current: string | null
     /** The draft tracker's project its remotes suggest (GitHub: `owner/name` of a github.com remote); `null` — none. */
     suggested: string | null
+    /** What the branch field offers and what adding does to the checkout (BTN-754); `null` — not read: no repository, or one another project has. */
+    branches: RepoBranches | null
     notice: Notice | null
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */

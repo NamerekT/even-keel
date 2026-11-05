@@ -300,6 +300,8 @@ export interface TrackerChoice {
 }
 
 export type { ProjectDraft, ProjectCheck, ProjectTrust } from './projects/state.js'
+export type { BranchChoice, BranchDrift, BranchMove, RepoBranches } from './projects/branch.js'
+import type { BranchDrift } from './projects/branch.js'
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */
 export interface ForwardView {
@@ -407,6 +409,8 @@ export interface EvenKeelState {
   /** The prefix of each project's task ids (`idPrefixOf`): its key, or its tracker project's where that is another one. */
   taskPrefixes: Record<string, string>
   config: ConfigView
+  /** The projects whose main checkout stood off their main branch when last read: the settings opened or the chain started (BTN-754). */
+  branchDrift: Record<string, BranchDrift>
   chain: {
     active: ActiveChain[]
     /** How many chains run at once (`parallel` in the config). */

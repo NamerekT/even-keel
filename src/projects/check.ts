@@ -4,6 +4,7 @@ import { CLAUDE } from '../claude/name.js'
 import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
+import { currentBranch, isBranchName, readBranches } from '../git/branches.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -84,36 +85,28 @@ export async function checkRepo(
   folders: Folders = REAL_FOLDERS,
 ): Promise<ProjectCheck['repo']> {
   const typed = draft.repo.trim()
-  if (typed === '') return { root: null, current: null, suggested: null, notice: null }
+  const none = { root: null, current: null, suggested: null, branches: null }
+  if (typed === '') return { ...none, notice: null }
   const path = expandFolder(typed, folders.home, platform)
-  const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ root: null, current: null, suggested: null, notice: notice(code, { path: typed }) })
+  const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ ...none, notice: notice(code, { path: typed }) })
   if (!isFullPath(path, platform)) return refuse(platform === 'win32' && /%[^%]+%/.test(path) ? 'wizard.noFolder' : 'wizard.relativePath')
   if (!folders.isFolder(path)) return refuse('wizard.noFolder')
   const top = await git(path, ['rev-parse', '--show-toplevel'])
-  if (top.missing === true) return { root: null, current: null, suggested: null, notice: notice('git.missing', {}) }
-  if (top.code !== 0) return { root: null, current: null, suggested: null, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
+  if (top.missing === true) return { ...none, notice: notice('git.missing', {}) }
+  if (top.code !== 0) return { ...none, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
   const root = pathsOf(platform).normalize(top.out.trim())
-  const head = await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
-  const current = head.code === 0 && head.out.trim() !== '' ? head.out.trim() : null
+  const current = await currentBranch(git, root)
   const suggested = await suggestedOf(git, root, adapter, env)
+  const found = { root, current, suggested, branches: null }
   const taken = projectOfRepo(raw, root, platform)
-  if (taken !== undefined) return { root, current, suggested, notice: notice('wizard.repoTaken', { project: taken }) }
-  const branches = await branchesOf(git, root)
+  if (taken !== undefined) return { ...found, notice: notice('wizard.repoTaken', { project: taken }) }
+  const branches = await readBranches(git, root)
   // A fresh `git init` has a current branch that is not born yet: no commit, so no branch at all.
-  if (branches?.length === 0) return { root, current, suggested, notice: notice('wizard.noCommits', {}) }
+  if (branches !== null && !branches.branches.some((each) => each.remote === null)) return { ...found, notice: notice('wizard.noCommits', {}) }
+  // A branch the repository lacks is no refusal: adding the project creates it (BTN-754).
   const branch = draft.branch.trim()
-  if (branch !== '' && branches !== null && !branches.includes(branch)) return { root, current, suggested, notice: notice('wizard.noBranch', { branch, branches }) }
-  return { root, current, suggested, notice: null }
-}
-
-/** The local branches; `null` when git cannot list them. */
-async function branchesOf(git: Git, root: string): Promise<string[] | null> {
-  const listed = await git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'])
-  if (listed.code !== 0) return null
-  return listed.out
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
+  if (branch !== '' && !(await isBranchName(git, root, branch))) return { ...found, branches, notice: notice('wizard.branchName', { value: branch }) }
+  return { ...found, branches, notice: null }
 }
 
 async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined, env: Readonly<Record<string, string | undefined>>): Promise<string | null> {

@@ -44,6 +44,7 @@ function state(startedAt: string): EvenKeelState {
     projectKeys: {},
     projectLabels: {},
     taskPrefixes: {},
+    branchDrift: {},
     config: { shared: FAKE_SHARED, projects: {}, trackers: [], feeds: {}, trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
@@ -101,7 +102,7 @@ describe('LiveConnection', () => {
       fetchTools: async () => null,
       fetchCard: async () => null,
       fetchVocabulary: async () => null,
-      checkProject: async () => ({ repo: { root: null, current: null, suggested: null, notice: null }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32', user: 'svc', service: true }),
+      checkProject: async () => ({ repo: { root: null, current: null, suggested: null, branches: null, notice: null }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32', user: 'svc', service: true }),
       sendQuery: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {

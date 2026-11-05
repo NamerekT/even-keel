@@ -40,6 +40,7 @@ import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type 
 import { KEEP_WARM_PROMPT, KeepWarm, warmTasks, type WarmFacts } from '../sessions/keepwarm.js'
 import { isInside } from '../paths.js'
 import { profileFor } from '../profiles/model.js'
+import { BranchControl } from '../projects/branch-control.js'
 import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
 import type { ProjectForm } from '../state.js'
@@ -690,6 +691,31 @@ export function removalFacts(ctx: ChainContext, project: string, repo: string): 
     held: ctx.dispatcher.held(project),
     leftovers: (leftovers[project] ?? []).map((leftover) => leftover.task),
   }
+}
+
+/**
+ * A task of the project is in hand, or a session of its launches is mid-turn: the merge goes into the branch the task
+ * started from, so the branch and the checkout hold until it ends (BTN-754).
+ */
+export function branchBusy(ctx: ChainContext, project: string): boolean {
+  if (ctx.dispatcher.state.active.some((chain) => chain.project === project && chain.current !== null)) return true
+  const own = new Set(ctx.launches.filter((entry) => entry.project === project).map((entry) => entry.sessionId))
+  return ctx.agents.some((agent) => own.has(agent.sessionId) && isLive(agent) && midTurn(agent))
+}
+
+export function wireBranches(ctx: ChainContext): BranchControl {
+  return new BranchControl({
+    git: runGit,
+    repo: (project) => ctx.configStore.current.projects[project],
+    branch: ctx.branchOf,
+    key: (project) => ctx.configStore.current.keys[project] ?? project,
+    busy: (project) => branchBusy(ctx, project),
+    write: (project, branch) => {
+      const base = ctx.configStore.view().projects[project]!
+      ctx.configStore.saveProject(project, { ...base, branch }, base, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
+    },
+    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
+  })
 }
 
 export function projectOf(ctx: ChainContext, task: string): string | undefined {

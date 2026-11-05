@@ -11,6 +11,7 @@ import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
+import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import {
   draftOfFields,
@@ -181,11 +182,13 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     setFields((before) => suggestOfRepo(before, shape, { root, current, suggested }))
   }, [root, current, suggested, shape])
 
-  // A branch the repository lacks opens the field, and it stays open while the branch is typed again.
-  const noBranch = repoCheck?.repo.notice?.code === 'wizard.noBranch'
+  // A bad branch name, or one that moves the checkout, opens the field, and it stays open while the branch is typed again (BTN-754).
+  const branches = repo?.branches ?? null
+  const badBranch = repoCheck?.repo.notice?.code === 'wizard.branchName'
+  const moves = branches !== null && fields.branch.trim() !== '' && fields.branch.trim() !== current
   useEffect(() => {
-    if (noBranch) setBranchOpen(true)
-  }, [noBranch])
+    if (badBranch || moves) setBranchOpen(true)
+  }, [badBranch, moves])
 
   // A tracker project another project has opens the milestones, and they stay open while they are typed (BTN-306).
   const trackerShared = check?.entry?.code === 'wizard.trackerShared'
@@ -214,7 +217,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
-  const branchShown = branchOpen || noBranch || (root !== null && current === null)
+  const branchShown = branchOpen || badBranch || moves || (root !== null && current === null)
   const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent), tracker)
   const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
   const dot = (step: WizardStepId) => {
@@ -306,16 +309,18 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 hint={t.settings.branchHint}
                 htmlFor="wizard-branch"
                 control={
-                  <input
+                  <BranchField
                     id="wizard-branch"
-                    className="settings__text settings__text--mono"
-                    spellCheck={false}
                     value={fields.branch}
+                    repo={branches}
                     placeholder={current ?? 'main'}
-                    onChange={(event) => set({ branch: event.target.value })}
+                    invalid={badBranch}
+                    onChange={(branch) => set({ branch })}
                   />
                 }
-              />
+              >
+                <BranchMoveLine repo={branches} value={fields.branch} />
+              </Row>
             )}
             {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
             {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}

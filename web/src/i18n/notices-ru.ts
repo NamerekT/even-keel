@@ -136,6 +136,12 @@ export const noticesRu: NoticeTexts = {
     `в ${p.repo} нет ветки ${p.branch} — главной ветки проекта ${p.project}; создайте её или укажите нужную в настройках проекта`,
   'git.wrongBranch': (p) =>
     `${p.repo} стоит ${p.current === null ? 'на отсоединённом HEAD' : `на ${p.current}`}, а не на ${p.branch} — главной ветке проекта ${p.project}; переключите копию на ${p.branch} или укажите нужную ветку в настройках проекта`,
+  'branch.taken': (p) => `чекаут не перейдёт на ${p.branch}: эта ветка занята другим worktree; выберите другую ветку или сначала освободите тот worktree`,
+  'branch.dirty': (p) =>
+    `чекаут не перейдёт ${p.current === null ? '' : `с ${p.current} `}на ${p.branch}: незакоммиченные правки конфликтуют с этой веткой; закоммитьте их или отложите`,
+  'branch.switchFailed': (p) => `чекаут не перешёл ${p.current === null ? '' : `с ${p.current} `}на ${p.branch}; ничего не изменено`,
+  'branch.busy': (p) => `главная ветка проекта ${p.project} не меняется, пока его задача в работе: дождитесь конца задачи`,
+  'branch.noRepo': (p) => `папка проекта ${p.project} — не git-репозиторий с коммитом: её ветки не прочитать`,
 
   'sync.alias': (p) => `git sync завершился с кодом ${p.exit}`,
   'sync.notMain': (p) => `${p.repo} стоит на ${p.branch || 'отцепленном HEAD'}, а не на ${p.main} — переключите его на ${p.main}`,
@@ -535,7 +541,6 @@ export const noticesRu: NoticeTexts = {
   'wizard.notRepo': (p) => `${p.path} — не папка git-репозитория`,
   'wizard.repoTaken': (p) => `этот репозиторий уже подключён как проект ${p.project}`,
   'wizard.keyTaken': (p) => `ключ ${p.key} уже у проекта ${p.project} на другом репозитории, и ID задач у них совпадут — выберите другой`,
-  'wizard.noBranch': (p) => `в репозитории нет ветки ${p.branch}, есть ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов, и его ветка не родилась: сделайте первый коммит',
   'wizard.noFolder': (p) => `${p.path} — не папка`,
   'wizard.relativePath': (p) => `${p.path} — не полный путь: укажите папку от корня диска или от ~`,

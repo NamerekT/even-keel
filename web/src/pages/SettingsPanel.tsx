@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
+import { BranchDriftBand, BranchField, BranchMoveLine, useRepoBranches } from './BranchField.js'
 import { protectionText, sameProtection } from './protectionDraft.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -142,6 +143,8 @@ export function SettingsPanel({
   // The model is offered from the account its row runs on: the project's own, else the shared one.
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
   const models = useModelCatalog(offered.map(rowAccount))
+  const drift = state?.branchDrift[project]
+  const branches = useRepoBranches(project, form.branch, drift)
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -332,7 +335,20 @@ export function SettingsPanel({
               />
             </ErrorStrip>
           </div>
-          {input('branch', t.settings.branch, t.settings.branchHint, 'main')}
+          <Row
+            className={marks.box('branch')}
+            label={t.settings.branch}
+            hint={t.settings.branchHint}
+            htmlFor={fieldId('branch')}
+            mark={marks.note('branch')}
+            control={
+              <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} />
+            }
+            error={errorOf('branch')}
+          >
+            {text('branch').trim() !== form.branch && <BranchMoveLine repo={branches} value={text('branch')} />}
+            {drift !== undefined && <BranchDriftBand project={project} drift={drift} />}
+          </Row>
           {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
           <Row
             className={marks.box('slot')}

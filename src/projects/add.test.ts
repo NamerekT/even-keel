@@ -21,11 +21,17 @@ describe('project addition', () => {
   let configStore: ConfigStore
   let read: () => Promise<unknown>
   const link = vi.fn()
+  const switches: string[][] = []
   const git: Git = async (cwd, args) => {
     if (cwd.endsWith('missing') || cwd.endsWith('plain')) return { code: 128, out: `fatal: not a git repository: ${cwd}` }
-    if (args[0] === 'rev-parse') return { code: 0, out: root.replaceAll('\\', '/') }
+    if (args[0] === 'rev-parse') return { code: 0, out: args[1] === '--short' ? 'abc1234' : root.replaceAll('\\', '/') }
     if (args[0] === 'symbolic-ref') return { code: 0, out: 'trunk' }
-    if (args[0] === 'for-each-ref') return { code: 0, out: 'trunk\ndev' }
+    if (args[0] === 'for-each-ref') return { code: 0, out: 'refs/heads/trunk\nrefs/heads/dev' }
+    if (args[0] === 'check-ref-format') return { code: args[2]!.includes('..') ? 1 : 0, out: '' }
+    if (args[0] === 'switch' || args[0] === 'branch') {
+      switches.push(args)
+      return { code: 0, out: '' }
+    }
     return { code: 1, out: '' }
   }
   const folders = { home: join(root, 'home'), isFolder: () => true }
@@ -42,6 +48,7 @@ describe('project addition', () => {
       return fileOf(await readSettings(db))
     }
     link.mockClear()
+    switches.length = 0
   })
 
   it.each(['missing', 'plain'])('refuses a %s folder with the check notice and leaves the config and profile links alone', async (folder) => {
@@ -80,14 +87,37 @@ describe('project addition', () => {
   })
 
   it.each([
-    { branches: '', code: 'wizard.noCommits' },
-    { branches: 'dev', code: 'wizard.noBranch' },
-  ])('refuses $code before writing', async ({ branches, code }) => {
+    { branches: '', change: {}, code: 'wizard.noCommits' },
+    { branches: 'refs/heads/trunk', change: { branch: 'bad..name' }, code: 'wizard.branchName' },
+  ])('refuses $code before writing', async ({ branches, change, code }) => {
     const before = await read()
     const withBranches: Git = (cwd, args) => args[0] === 'for-each-ref' ? Promise.resolve({ code: 0, out: branches }) : git(cwd, args)
-    await expect(addProject({ ...deps(), git: withBranches }, draft)).rejects.toMatchObject({ notice: { code } })
+    await expect(addProject({ ...deps(), git: withBranches }, { ...draft, ...change })).rejects.toMatchObject({ notice: { code } })
     expect(await read()).toEqual(before)
     expect(link).not.toHaveBeenCalled()
+    expect(switches).toEqual([])
+  })
+
+  it('leaves git alone when the checkout already stands on the branch', async () => {
+    await addProject(deps(), draft)
+    expect(switches).toEqual([])
+  })
+
+  it('switches the checkout onto another branch it has before writing (BTN-754)', async () => {
+    await addProject(deps(), { ...draft, branch: 'dev' })
+    expect(switches).toEqual([['switch', 'dev']])
+    expect(await read()).toMatchObject({ projects: [{ repo: root, branch: 'dev' }] })
+  })
+
+  it('creates a branch the repository lacks from the checkout\'s HEAD', async () => {
+    await addProject(deps(), { ...draft, branch: 'next' })
+    expect(switches).toEqual([['switch', '-c', 'next']])
+    expect(await read()).toMatchObject({ projects: [{ branch: 'next' }] })
+  })
+
+  it('puts the checkout back and drops the branch it made when the config refuses the entry', async () => {
+    await expect(Promise.resolve().then(() => addProject(deps(), { ...draft, branch: 'next', key: 'bad key' }))).rejects.toMatchObject({ notice: { code: 'config.projectKey' } })
+    expect(switches).toEqual([['switch', '-c', 'next'], ['switch', 'trunk'], ['branch', '-D', 'next']])
   })
 
   it('adds with the default profile without creating a profile link', async () => {

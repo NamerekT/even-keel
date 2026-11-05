@@ -9,13 +9,14 @@ import { useCommand } from '../live/useCommand.js'
 import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
 import { Band, FoldBand } from '../ui/blocks.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
+import { BranchDriftBand } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { forwardTone, projectErrors, warningTasks } from './noticeGroups.js'
 import './projectNotices.css'
 
-export function ProjectNotices({ state, project, rows }: { state: EvenKeelState; project: string; rows: string[] }) {
+export function ProjectNotices({ state, project, rows, settingsOpen = false }: { state: EvenKeelState; project: string; rows: string[]; settingsOpen?: boolean }) {
   const { send, failure } = useCommand()
   const [dismissing, setDismissing] = useState(false)
   const tasks = warningTasks(state.chain.leftovers[project] ?? [], rows)
@@ -40,10 +41,13 @@ export function ProjectNotices({ state, project, rows }: { state: EvenKeelState;
       <FoldPresence>{tone !== null && tone !== 'error' ? <Forward state={state} project={project} /> : null}</FoldPresence>
     </>
   )
-  const shown = errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionAgents(state, project).length > 0 || remoteProtectionWarnings(state, project).length > 0
+  // The open settings show the drift under the main branch field: the card leaves it to them.
+  const drift = settingsOpen ? undefined : state.branchDrift[project]
+  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionAgents(state, project).length > 0 || remoteProtectionWarnings(state, project).length > 0
   return (
     <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
+      <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} /> : null}</FoldPresence>
       <FoldList items={errors.map((error, index) => ({
         key: `${error.code}-${index}`, children:
           <Band tone="error" action={
