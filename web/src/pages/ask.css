@@ -42,15 +42,22 @@
 
 .answer-card__summary {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   width: 100%;
+  padding-left: var(--space-12);
   list-style: none;
   cursor: pointer;
 }
 
-.answer-card__summary > .ui-fold__caret { margin: var(--space-8) 0 0 var(--space-4); }
-.answer-card__summary > .answer-card__row { grid-column: 2; }
+/* One line box tall, so the caret centres on the question's first line whatever its line-height. */
+.answer-card__summary > .ui-fold__caret {
+  grid-row: 1;
+  height: 1lh;
+  margin-top: var(--space-8);
+  align-items: center;
+}
+.answer-card__summary > .answer-card__row { grid-column: 2; padding-left: 0; }
 
 .answer-card__summary::-webkit-details-marker {
   display: none;
