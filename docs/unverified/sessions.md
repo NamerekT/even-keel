@@ -28,7 +28,7 @@ Codex's `Selected model is at capacity. Please try a different model.` was repor
 
 ## A reply to a cold session (BTN-757)
 
-A chat reply to a waiting session whose cache went cold asks first and may go to a new session with the handoff and the message (`docs/sessions/chat.md`, "A reply to a cold session"). Unit tests cover the dialog's condition, the handoff with the message, its launch log row and its repeat after a cut move; the dialog was shot on `dev:fake`. Not run live: the dialog on a real session past its cache window, the new session's prompt carrying the words, the answers and the files in `.temp/inbox/`, the old session stopped, and a service restart mid-move repeating the handoff with the same message.
+A chat reply to a waiting session whose cache went cold asks first and may go to a new session with the handoff and the message (`docs/sessions/chat.md`, "A reply to a cold session"). Unit tests cover the dialog's condition, the handoff with the message, its launch log row and its repeat after a cut move; the dialog was shot on `dev:fake`. Run live on 2026-11-06 on a `--bg` session cold for 3 h ([verified sessions](../verified/sessions.md)): the dialog came, and "New session with this message" stopped the old session and started a new one whose prompt ended with the reply's words. Not run live: "Reply to this session" going to the old session at the cache write price, the answers and the files in `.temp/inbox/`, and a service restart mid-move repeating the handoff with the same message.
 
 ## A handoff past a failed session (BTN-650)
 
