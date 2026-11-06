@@ -271,7 +271,7 @@ export function wireKeepWarm(ctx: ChainContext): KeepWarm {
         const view = ctx.warmable(each)
         if (view === undefined) return []
         const busy = ctx.agentStatus(view.task) === 'busy' || ctx.monitor.holds.held(view.sessionId)
-        return [{ task: view.task, sessionId: view.sessionId, busy, limited: view.lamp === 'limit', asking: view.asking, cache: view.cache }]
+        return [{ task: view.task, sessionId: view.sessionId, busy, limited: view.lamp === 'limit', cache: view.cache }]
       }),
     ping: async ({ task, sessionId }) => {
       const view = ctx.warmable({ task, sessionId })

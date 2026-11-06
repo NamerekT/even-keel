@@ -25,8 +25,6 @@ export interface WarmFacts {
   busy: boolean
   /** The session or its chain waits on a limit: the ping would hit it too. */
   limited: boolean
-  /** Waits on an `AskUserQuestion` (`SessionView.asking`): a fork of such a `--bg` session read nothing of its cache (BTN-704). */
-  asking: boolean
   /** The cache its transcript last wrote. */
   cache: CacheWindow | null
 }
@@ -44,7 +42,7 @@ export type WarmStep = 'ping' | 'wait'
 /** Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even. */
 export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number): WarmStep {
   const { cache } = facts
-  if (facts.busy || facts.limited || facts.asking || cache === null) return 'wait'
+  if (facts.busy || facts.limited || cache === null) return 'wait'
   const ttlMs = TTL_MS[cache.ttl]
   const stretch = Date.parse(cache.until) - ttlMs
   const own = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory : undefined

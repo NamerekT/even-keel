@@ -13,7 +13,6 @@ const facts = (over: Partial<WarmFacts> = {}): WarmFacts => ({
   sessionId: 'session-1',
   busy: false,
   limited: false,
-  asking: false,
   cache: { ttl: '1h', until: '2026-10-26T13:00:00.000Z' },
   ...over,
 })
@@ -79,10 +78,6 @@ describe('warmStep', () => {
     const short = facts({ cache: { ttl: '5m', until: '2026-10-26T12:05:00.000Z' } })
     expect(warmStep(short, undefined, at('12:03'), 8 * HOUR)).toBe('wait')
     expect(warmStep(short, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
-  })
-
-  it('leaves a session waiting on AskUserQuestion alone: its fork missed the cache whole (BTN-704)', () => {
-    expect(warmStep(facts({ asking: true }), undefined, at('12:55'), 8 * HOUR)).toBe('wait')
   })
 
   it('leaves a cold cache alone', () => {
