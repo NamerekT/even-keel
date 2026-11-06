@@ -8,7 +8,7 @@ import { fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
 /**
  * `?card=builtin`: every card is one Even Keel keeps itself and edits in place; `?card=conflict` — the first title edit
- * meets the title changed meanwhile (BTN-771). Parents the fake lists no task for get one made up here.
+ * meets the title changed meanwhile (BTN-771), and so does the first description edit (BTN-772). Parents the fake lists no task for get one made up here.
  */
 export const isBuiltinCard = (mode: string | null): boolean => mode === 'builtin' || mode === 'conflict'
 
@@ -20,7 +20,10 @@ const MADE_UP: Record<string, { title: string; parent: string | null }> = {
 
 const OWN_LABELS = ['UI', 'Docs', 'Backend']
 const related = new Set<string>()
+/** Each card's description as it was first shown, then as edited: the fake's tasks hold none. */
+const descriptions = new Map<string, string>()
 let conflicted = false
+let descriptionConflicted = false
 
 const pair = (a: string, b: string) => [a, b].sort().join(' ')
 const refOf = (task: ProjectTask): TaskRef => ({ id: task.id, title: task.title, status: task.status })
@@ -47,11 +50,25 @@ function withParents(state: EvenKeelState): ProjectTask[] {
   return [...state.tasks, ...madeUp]
 }
 
-export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: string | null): TaskCard | null {
+/**
+ * `?description=html|long|empty` (BTN-772): a description holding raw HTML, so the visual editor is closed to it; one long
+ * enough to scroll inside the editor; none, for the placeholder. Otherwise the shared card's text without its Huly HTML
+ * table: a built-in task is Markdown only.
+ */
+function fakeDescription(described: string | null, base: string): string {
+  const markdown = base.replace(/\n\n[^\n]*:\n\n<table>.*<\/table>/s, '')
+  if (described === 'empty') return ''
+  if (described === 'html') return `${base}\n\nСохранить — <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.`
+  if (described === 'long') return Array.from({ length: 12 }, (_, at) => `## Часть ${at + 1}\n\n${markdown}`).join('\n\n')
+  return markdown
+}
+
+export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: string | null, described: string | null = null): TaskCard | null {
   const tasks = withParents(state)
   const task = tasks.find((each) => each.id === id)
   const base = fakeCard({ ...state, tasks }, id, 'builtin')
   if (task === undefined || base === null) return null
+  if (!descriptions.has(id)) descriptions.set(id, fakeDescription(described, base.description))
   const find = (other: string) => tasks.find((each) => each.id === other)
   const ancestors: TaskRef[] = []
   for (let up = task.parent; up !== null; ) {
@@ -63,6 +80,7 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
   const own = new Set(tasks.flatMap((each) => each.labels).filter((name) => runLabelOf(name) === null))
   return {
     ...base,
+    description: descriptions.get(id)!,
     priority: task.priority,
     labels: [
       ...(task.question ? [{ name: 'Question', role: 'question' as const }] : []),
@@ -171,6 +189,17 @@ function fakeEdit(
     conflicted = true
     const theirs = 'Порядок задач по связям blocks и вехам'
     return { ...change((each) => ({ ...each, title: theirs })), refusal: fail('builtin.conflict', { task, field: 'title', current: theirs }) }
+  }
+  if (field === 'description') {
+    const held = descriptions.get(task) ?? ''
+    if (mode === 'conflict' && !descriptionConflicted) {
+      descriptionConflicted = true
+      const theirs = `${held.split('\n').slice(0, -2).join('\n')}\n\nДобавлено агентом: порядок берётся из связей blocks.`
+      descriptions.set(task, theirs)
+      return { state: { ...state }, result: null, refusal: fail('builtin.conflict', { task, field: 'description', current: theirs }) }
+    }
+    descriptions.set(task, to ?? '')
+    return { state: { ...state }, result: null }
   }
   switch (field) {
     case 'title':

@@ -37,8 +37,6 @@
 }
 
 .changelog.add-package {
-  --diff-added: color-mix(in srgb, var(--lamp-done) 22%, transparent);
-  --diff-removed: color-mix(in srgb, var(--lamp-error) 20%, transparent);
   /* One size whatever it holds — the boat, a short draft, a long one — so the window never jumps: the text box takes
      the room left and scrolls. */
   width: min(760px, calc(100vw - 32px));
@@ -82,38 +80,6 @@
   outline: 2px solid var(--accent);
 }
 
-.changelog__line {
-  padding: 0 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.changelog__line--added {
-  background: var(--diff-added);
-}
-
-.changelog__line--removed {
-  background: var(--diff-removed);
-  color: var(--fg-muted);
-}
-
-.changelog__line ins,
-.changelog__line del {
-  border-radius: var(--radius-small);
-  color: inherit;
-}
-
-.changelog__line ins {
-  text-decoration: none;
-}
-
-.changelog__line--changed ins {
-  background: var(--diff-added);
-}
-
-.changelog__line--changed del {
-  background: var(--diff-removed);
-}
 
 .changelog__edit {
   padding: 8px 12px;

@@ -126,6 +126,46 @@ describe('description', () => {
     expect((await store.setDescription(abc(1), 'Still mine', 0)).descriptionRev).toBe(1)
   })
 
+  describe('the card edits it as a field, from the text it started from', () => {
+    const START = 'Read the file.\n\nThen parse it.'
+    const edit = (from: string, to: string) => store.edit(abc(1), { field: 'description', from, to })
+
+    it('goes when the text is still the one the edit began from, and moves the revision', async () => {
+      expect(await edit(START, 'Read the folder.')).toMatchObject({ description: 'Read the folder.', descriptionRev: 1 })
+    })
+
+    it('is no conflict when the status, labels, links or milestone changed meanwhile', async () => {
+      await store.create({ project: ABC, title: 'Other' })
+      await store.edit(abc(1), { field: 'status', from: 'Todo', to: 'In Progress' })
+      await store.relabel(abc(1), { add: ['Bug'], remove: [] })
+      await store.relate(abc(2), abc(1), 'blocks')
+      await store.edit(abc(1), { field: 'milestone', from: null, to: 'v0.3' })
+      expect(await edit(START, 'Mine')).toMatchObject({ description: 'Mine' })
+    })
+
+    it('is no conflict when the text was changed and changed back meanwhile', async () => {
+      await store.setDescription(abc(1), 'Theirs', 0)
+      await store.setDescription(abc(1), START, 1)
+      expect(await edit(START, 'Mine')).toMatchObject({ description: 'Mine', descriptionRev: 3 })
+    })
+
+    it('is no conflict, only saved, when the text was changed meanwhile to the same as mine', async () => {
+      await store.setDescription(abc(1), 'Mine', 0)
+      expect(await edit(START, 'Mine')).toMatchObject({ description: 'Mine', descriptionRev: 1 })
+    })
+
+    it('is refused, naming the text it holds now, when it was changed otherwise', async () => {
+      await store.setDescription(abc(1), 'Theirs', 0)
+      expect(await code(edit(START, 'Mine'))).toEqual({ code: 'builtin.conflict', params: { task: 'ABC-1', field: 'description', current: 'Theirs' } })
+      expect((await store.get(abc(1)))!.description).toBe('Theirs')
+    })
+
+    it('may empty the description, and keeps its spaces and lines as typed', async () => {
+      expect(await edit(START, '')).toMatchObject({ description: '' })
+      expect(await edit('', '  indented\n\n')).toMatchObject({ description: '  indented\n\n' })
+    })
+  })
+
   it('a patch needs no revision but its text found exactly once', async () => {
     await store.setDescription(abc(1), 'Read the file.\n\nThen parse it.\n\nThen parse it.', 0)
     expect(await code(store.patchDescription(abc(1), 'Then parse it.', 'x'))).toMatchObject({ params: { count: 2 } })

@@ -62,6 +62,8 @@ function editOf(body: Record<string, unknown>): BuiltinEdit {
       return { field, from: nullableText(body.from, 'from'), to: nullableText(body.to, 'to') }
     case 'parent':
       return { field, from: nullableText(body.from, 'from'), to: nullableText(body.to, 'to') }
+    case 'description':
+      return { field, from: textOf(body.from, 'from'), to: textOf(body.to, 'to') }
     default:
       throw fail('request.required', { field: 'field' })
   }

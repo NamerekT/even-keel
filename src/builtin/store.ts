@@ -71,6 +71,8 @@ export type FieldEdit =
   /** By name; a new name creates the milestone. */
   | { field: 'milestone'; from: string | null; to: string | null }
   | { field: 'parent'; from: number | null; to: number | null }
+  /** The whole text, as typed: the card's editor (BTN-772). An agent's edits go by revision or by patch. */
+  | { field: 'description'; from: string; to: string }
 
 interface TaskRow {
   id: string
@@ -194,6 +196,9 @@ export class BuiltinStore {
         }
         case 'parent':
           await this.setParent(tx, row, edit.to)
+          break
+        case 'description':
+          await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, edit.to])
           break
       }
       return true
@@ -367,6 +372,8 @@ export class BuiltinStore {
     switch (field) {
       case 'title':
         return row.title
+      case 'description':
+        return row.description
       case 'status':
         return row.status
       case 'priority':
@@ -532,7 +539,7 @@ function priorityOf(priority: string): TaskPriority {
   return priority as TaskPriority
 }
 
-/** A field's value as compared: a status and a milestone by name ignoring case, a title as trimmed. */
+/** A field's value as compared: a status and a milestone by name ignoring case, a title as trimmed, a description as is. */
 function normal(field: FieldEdit['field'], value: string | number | null): string | number | null {
   if (value === null || typeof value === 'number') return value
   if (field === 'status') return builtinStatus(value)?.name ?? value.trim()

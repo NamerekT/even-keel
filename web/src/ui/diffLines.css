@@ -1,0 +1,34 @@
+.diff-line {
+  --diff-added: color-mix(in srgb, var(--lamp-done) 22%, transparent);
+  --diff-removed: color-mix(in srgb, var(--lamp-error) 20%, transparent);
+  padding: 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-line--added {
+  background: var(--diff-added);
+}
+
+.diff-line--removed {
+  background: var(--diff-removed);
+  color: var(--fg-muted);
+}
+
+.diff-line ins,
+.diff-line del {
+  border-radius: var(--radius-small);
+  color: inherit;
+}
+
+.diff-line ins {
+  text-decoration: none;
+}
+
+.diff-line--changed ins {
+  background: var(--diff-added);
+}
+
+.diff-line--changed del {
+  background: var(--diff-removed);
+}

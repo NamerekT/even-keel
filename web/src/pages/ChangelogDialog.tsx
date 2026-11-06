@@ -13,6 +13,7 @@ import { useLive } from '../live/context.js'
 import { Segmented } from '../stats/common.js'
 import { formatUsd, modelVersionLabel } from '../stats/format.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { DiffLines } from '../ui/DiffLines.js'
 import { ChangelogIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
@@ -329,20 +330,7 @@ function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent
 function Section({ lines, label }: { lines: DiffLine[]; label: string }) {
   return (
     <div className="changelog__text" role="document" aria-label={label} tabIndex={0}>
-      {lines.map((line, index) => (
-        <div key={index} className={`changelog__line changelog__line--${line.kind}`}>
-          {line.pieces.map((piece, at) =>
-            piece.kind === 'added' ? (
-              <ins key={at}>{piece.text}</ins>
-            ) : piece.kind === 'removed' ? (
-              <del key={at}>{piece.text}</del>
-            ) : (
-              <span key={at}>{piece.text}</span>
-            ),
-          )}
-          {line.pieces.every((piece) => piece.text === '') && ' '}
-        </div>
-      ))}
+      <DiffLines lines={lines} />
     </div>
   )
 }

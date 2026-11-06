@@ -31,6 +31,7 @@ import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
 import { useCardEdit, type CardEditor } from './useCardEdit.js'
 import { CardJournal } from './CardJournal.js'
+import { CardDescription } from './CardDescription.js'
 import './card.css'
 import './cardEdit.css'
 
@@ -59,10 +60,10 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const [error, setError] = useState<Notice | null>(null)
   const [round, setRound] = useState(0)
   const [removing, setRemoving] = useState(false)
-  const [leaving, setLeaving] = useState(false)
-  // A note typed into the journal is lost with the card: closing it asks first.
-  const drafting = useRef(false)
-  const close = () => (drafting.current ? setLeaving(true) : onClose())
+  const [leaving, setLeaving] = useState<Drafts | null>(null)
+  // A note typed into the journal or an unsaved description is lost with the card: closing it asks first.
+  const drafting = useRef<Drafts>({ note: false, description: false })
+  const close = () => (drafting.current.note || drafting.current.description ? setLeaving({ ...drafting.current }) : onClose())
   const dialog = useRef<HTMLDialogElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const backdrop = useBackdropClose(dialog, close)
@@ -158,26 +159,26 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
                 live={live}
                 onOpen={onOpen}
                 onChanged={reread}
-                onDraft={(on) => {
-                  drafting.current = on
+                onDraft={(kind, on) => {
+                  drafting.current = { ...drafting.current, [kind]: on }
                 }}
               />
             )}
           </Loading>
         </div>
       </div>
-      {leaving && (
+      {leaving !== null && (
         <ConfirmDialog
-          title={t.card.journal.leaveTitle}
-          question={t.card.journal.leaveQuestion}
-          confirm={t.card.journal.leaveConfirm}
-          cancel={t.card.journal.leaveCancel}
+          title={t.card.leave.title}
+          question={t.card.leave.question(leaving.note, leaving.description)}
+          confirm={t.card.leave.confirm}
+          cancel={t.card.leave.cancel}
           busy={false}
           onConfirm={() => {
-            setLeaving(false)
+            setLeaving(null)
             onClose()
           }}
-          onClose={() => setLeaving(false)}
+          onClose={() => setLeaving(null)}
         />
       )}
       {editor.conflict !== null && <ConflictDialog editor={editor} conflict={editor.conflict} />}
@@ -194,6 +195,12 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
       )}
     </dialog>
   )
+}
+
+/** What the card holds unsaved. */
+interface Drafts {
+  note: boolean
+  description: boolean
 }
 
 const maybeSay = (notice: Notice | null) => (notice === null ? undefined : say(notice))
@@ -250,7 +257,7 @@ interface BodyProps {
   live: boolean
   onOpen: (task: string) => void
   onChanged: () => void
-  onDraft: (drafting: boolean) => void
+  onDraft: (kind: keyof Drafts, drafting: boolean) => void
 }
 
 function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged, onDraft }: BodyProps) {
@@ -295,22 +302,33 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               )}
             </div>
           )}
-          <section className="task-card__section">
-            <h3 className="task-card__heading">{t.card.description}</h3>
-            {card.description.trim() === '' ? (
-              <p className="placeholder">{t.card.noDescription}</p>
-            ) : (
-              <Text components={markdown}>{card.description}</Text>
-            )}
-          </section>
+          {editable !== null ? (
+            <CardDescription
+              key={`description:${card.id}`}
+              task={card.id}
+              text={card.description}
+              editor={editable.editor}
+              render={(text) => <Text components={markdown}>{text}</Text>}
+              onDraft={(on) => onDraft('description', on)}
+            />
+          ) : (
+            <section className="task-card__section">
+              <h3 className="task-card__heading">{t.card.description}</h3>
+              {card.description.trim() === '' ? (
+                <p className="placeholder">{t.card.noDescription}</p>
+              ) : (
+                <Text components={markdown}>{card.description}</Text>
+              )}
+            </section>
+          )}
           {editable !== null && <Subtasks card={editable.card} project={project} editor={editable.editor} inWork={inWork} onOpen={onOpen} />}
           <CardJournal
-            key={card.id}
+            key={`journal:${card.id}`}
             task={card.id}
             comments={card.comments}
             editor={editable?.editor ?? null}
             render={(text) => <Text components={markdown}>{text}</Text>}
-            onDraft={onDraft}
+            onDraft={(on) => onDraft('note', on)}
           />
         </div>
         <aside className="task-card__side">

@@ -99,11 +99,14 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  blocked = [],
 }: {
   label: string
   options: [T, string, string?][]
   value: T
   onChange: (value: T) => void
+  /** Options greyed and not picked; the caller says why next to the switch. */
+  blocked?: readonly T[]
 }) {
   return (
     <div className="segmented" role="group" aria-label={label}>
@@ -114,7 +117,10 @@ export function Segmented<T extends string>({
           title={title}
           className={option === value ? 'segmented__item segmented__item--on' : 'segmented__item'}
           aria-pressed={option === value}
-          onClick={() => onChange(option)}
+          aria-disabled={blocked.includes(option) || undefined}
+          onClick={() => {
+            if (!blocked.includes(option)) onChange(option)
+          }}
         >
           {text}
         </button>

@@ -798,7 +798,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('card')
       if (current.state === null) return null
-      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal')) : fakeCard(current.state, task, mode)
+      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description')) : fakeCard(current.state, task, mode)
     },
     vocabulary: async (projectId) => {
       await answer()

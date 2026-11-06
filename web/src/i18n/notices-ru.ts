@@ -5,7 +5,14 @@ import { plural } from './plural.js'
 
 const list = (items: string[]) => items.join(', ')
 
-const BUILTIN_FIELDS: Record<BuiltinField, string> = { title: 'заголовок', status: 'статус', priority: 'приоритет', milestone: 'веху', parent: 'родительскую задачу' }
+const BUILTIN_FIELDS: Record<BuiltinField, string> = {
+  title: 'заголовок',
+  status: 'статус',
+  priority: 'приоритет',
+  milestone: 'веху',
+  parent: 'родительскую задачу',
+  description: 'описание',
+}
 
 const MOVE_LABELS = { start: '«При старте задачи»', review: '«При открытии PR»', done: '«При завершении задачи»' } as const
 const chats = (count: number) => `${count} ${plural('ru', count, { one: 'чат', few: 'чата', many: 'чатов', other: 'чата' })}`
@@ -444,7 +451,9 @@ export const noticesRu: NoticeTexts = {
   'tally.unreachable': (p) => `${p.address} не пустил ${p.role}`,
   'builtin.noTask': (p) => `задачи ${p.task} нет — возможно, страница устарела`,
   'builtin.conflict': (p) =>
-    `${p.task}: ${BUILTIN_FIELDS[p.field]} уже изменили на ${p.current === null ? '«нет»' : `«${p.current}»`} — посмотрите и измените снова`,
+    p.field === 'description'
+      ? `${p.task}: описание уже изменили — посмотрите и измените снова`
+      : `${p.task}: ${BUILTIN_FIELDS[p.field]} уже изменили на ${p.current === null ? '«нет»' : `«${p.current}»`} — посмотрите и измените снова`,
   'builtin.descriptionConflict': (p) => `${p.task}: описание уже изменили — откройте его заново и повторите правку`,
   'builtin.patchMissing': (p) =>
     `${p.task}: заменяемого текста ${p.count === 0 ? 'нет в описании' : `в описании ${p.count} раз(а)`} — возьмите отрывок, который встречается ровно один раз`,

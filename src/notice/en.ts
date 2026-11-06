@@ -16,8 +16,15 @@ const list = (items: string[]) => items.join(', ')
 export const MODELS_NAMED = 8
 
 /** The short fields of a built-in tracker's task an edit checks one by one (`FieldEdit` of `src/builtin/store.ts`). */
-export type BuiltinField = 'title' | 'status' | 'priority' | 'milestone' | 'parent'
-const BUILTIN_FIELDS: Record<BuiltinField, string> = { title: 'title', status: 'status', priority: 'priority', milestone: 'milestone', parent: 'parent task' }
+export type BuiltinField = 'title' | 'status' | 'priority' | 'milestone' | 'parent' | 'description'
+const BUILTIN_FIELDS: Record<BuiltinField, string> = {
+  title: 'title',
+  status: 'status',
+  priority: 'priority',
+  milestone: 'milestone',
+  parent: 'parent task',
+  description: 'description',
+}
 
 /** Where a status move is set (BTN-554): its notices lead to that setting. */
 export type MoveLevel = 'profile' | 'source'
@@ -493,7 +500,9 @@ export const en = {
   'tally.unreachable': (p: { role: string; address: string }) => `stats: ${p.address} did not let ${p.role} in`,
   'builtin.noTask': (p: { task: string }) => `there is no task ${p.task}; the page may be out of date`,
   'builtin.conflict': (p: { task: string; field: BuiltinField; current: string | null }) =>
-    `${p.task}: its ${BUILTIN_FIELDS[p.field]} was changed meanwhile to ${p.current === null ? 'none' : `"${p.current}"`}; look at it and change it again`,
+    p.field === 'description'
+      ? `${p.task}: its description was changed meanwhile; look at it and change it again`
+      : `${p.task}: its ${BUILTIN_FIELDS[p.field]} was changed meanwhile to ${p.current === null ? 'none' : `"${p.current}"`}; look at it and change it again`,
   'builtin.descriptionConflict': (p: { task: string; rev: number }) => `${p.task}: its description was changed meanwhile; open it again and redo the edit`,
   'builtin.patchMissing': (p: { task: string; count: number }) =>
     `${p.task}: the text to replace is ${p.count === 0 ? 'not in the description' : `in the description ${p.count} times`}; quote a passage found exactly once`,
