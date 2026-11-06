@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -118,5 +118,17 @@ describe('trustFolder', () => {
     const folder = join(tmpdir(), 'ek-trust-missing', 'repo')
     trustFolder(target, folder, 'linux')
     expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ projects: { [folder]: { hasTrustDialogAccepted: true } } })
+  })
+
+  it.skipIf(process.platform === 'win32')('keeps the account file private: a new one is 600, an existing one keeps its mode (EKR-95)', () => {
+    const fresh = file()
+    trustFolder(fresh, '/repo/a', 'linux')
+    expect(statSync(fresh).mode & 0o777).toBe(0o600)
+
+    const existing = file()
+    writeFileSync(existing, '{}')
+    chmodSync(existing, 0o640)
+    trustFolder(existing, '/repo/b', 'linux')
+    expect(statSync(existing).mode & 0o777).toBe(0o640)
   })
 })

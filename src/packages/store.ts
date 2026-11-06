@@ -32,7 +32,8 @@ export function loadPackages(file: string): PackagesFile | undefined {
   }
 }
 
+/** Private (600 off Windows): a package's settings may hold a header or a variable with a token. */
 export function savePackages(file: string, packages: PackagesFile): void {
   const stored = { version: SCHEMA_VERSION, packages: packages.packages, projects: packages.projects, pins: packages.pins }
-  writeAtomic(file, `${JSON.stringify(stored, null, 2)}\n`)
+  writeAtomic(file, `${JSON.stringify(stored, null, 2)}\n`, 0o600)
 }

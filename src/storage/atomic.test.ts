@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { writeAtomic } from './atomic.js'
@@ -74,5 +74,30 @@ describe('writeAtomic', () => {
     expect(Atomics.wait).not.toHaveBeenCalled()
     expect(readFileSync(file, 'utf8')).toBe('old')
     expect(existsSync(`${file}.${process.pid}.tmp`)).toBe(false)
+  })
+
+  describe.skipIf(process.platform === 'win32')('permissions', () => {
+    const modeOf = (path: string) => statSync(path).mode & 0o777
+
+    beforeEach(() => { Object.defineProperty(process, 'platform', platform) })
+
+    it.each([0o600, 0o640, 0o444])('keeps the replaced file\'s mode %o', (mode) => {
+      chmodSync(file, mode)
+
+      writeAtomic(file, 'new')
+
+      expect(readFileSync(file, 'utf8')).toBe('new')
+      expect(modeOf(file)).toBe(mode)
+    })
+
+    it('gives a private file its mode whether it is new or replaced', () => {
+      const fresh = join(dir, 'fresh.json')
+      writeAtomic(fresh, 'new', 0o600)
+      chmodSync(file, 0o644)
+      writeAtomic(file, 'new', 0o600)
+
+      expect(modeOf(fresh)).toBe(0o600)
+      expect(modeOf(file)).toBe(0o600)
+    })
   })
 })

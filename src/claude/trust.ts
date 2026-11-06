@@ -24,7 +24,8 @@ export function trustFolder(file: string, folder: string, platform: NodeJS.Platf
     const key = keys.find((key) => readsKey(key, folder, platform)) ?? (platform === 'win32' ? folder.replaceAll('\\', '/') : workingFolder(folder, platform))
     const entry = projects[keys.includes(key) ? key : keys[0] ?? key]
     if (entry !== undefined && !isPlainObject(entry)) throw new Error('Invalid Claude project configuration')
-    writeAtomic(file, `${JSON.stringify({ ...config, projects: { ...projects, [key]: { ...entry as object, hasTrustDialogAccepted: true } } }, null, 2)}\n`)
+    // A new file is private, as the CLI creates it; an existing one keeps its own mode (EKR-95).
+    writeAtomic(file, `${JSON.stringify({ ...config, projects: { ...projects, [key]: { ...entry as object, hasTrustDialogAccepted: true } } }, null, 2)}\n`, text === undefined ? 0o600 : undefined)
   } catch (error) {
     // A file system error has a code; a parse error or a wrong shape has none.
     const reason = typeof (error as NodeJS.ErrnoException).code === 'string' ? 'access' : 'invalid'
