@@ -207,10 +207,10 @@ export function isTrusted(config: unknown, folder: string, platform: NodeJS.Plat
 }
 
 /**
- * Whether the CLI started in `folder` reads its trust under `key`: on Windows any spelling with forward slashes; elsewhere
- * the real path of the folder as written, a key under a link to it does not count (EKR-94).
+ * Whether the CLI started in `folder` reads its trust under `key`: the folder's real path (`workingFolder`), a key under
+ * a link or junction to it does not count (EKR-94, EKR-96); on Windows in any case, with forward slashes only (EKR-92).
  */
 export function readsKey(key: string, folder: string, platform: NodeJS.Platform = process.platform): boolean {
-  if (platform === 'win32') return !key.includes('\\') && samePath(key, folder, platform)
+  if (platform === 'win32' && key.includes('\\')) return false
   return sameSpelling(key, workingFolder(folder, platform), platform)
 }

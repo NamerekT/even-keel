@@ -113,6 +113,30 @@ describe('trustFolder', () => {
     expect(JSON.parse(readFileSync(target, 'utf8')).projects[repo]).toEqual({ hasTrustDialogAccepted: true })
   })
 
+  // The CLI on Windows resolves a junction as well: a key under the junction is refused (EKR-96, Windows Sandbox).
+  it.skipIf(process.platform !== 'win32')('writes the real path of a junction on Windows with forward slashes, carrying the entry the junction had', () => {
+    const target = file()
+    const { repo, link } = linked()
+    const linkKey = link.replaceAll('\\', '/')
+    writeFileSync(target, JSON.stringify({ projects: { [linkKey]: { keep: 3, hasTrustDialogAccepted: true } } }))
+    trustFolder(target, link, 'win32')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects).toEqual({
+      [linkKey]: { keep: 3, hasTrustDialogAccepted: true }, [repo.replaceAll('\\', '/')]: { keep: 3, hasTrustDialogAccepted: true },
+    })
+    const text = readFileSync(target, 'utf8')
+    trustFolder(target, link, 'win32')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  it.skipIf(process.platform !== 'win32')('counts trust under the real path as trust of a junction on Windows', () => {
+    const target = file()
+    const { repo, link } = linked()
+    const text = JSON.stringify({ projects: { [repo.replaceAll('\\', '/')]: { hasTrustDialogAccepted: true } } })
+    writeFileSync(target, text)
+    trustFolder(target, link, 'win32')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
   it('writes a missing folder as it is on Linux', () => {
     const target = file()
     const folder = join(tmpdir(), 'ek-trust-missing', 'repo')

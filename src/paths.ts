@@ -57,13 +57,17 @@ export function samePath(a: string, b: string, platform: NodeJS.Platform = proce
 }
 
 /**
- * The folder as a CLI started in it sees its working folder: off Windows `getcwd` resolves links, so a project under a
- * link (macOS `/tmp` is `/private/tmp`) is the real path (EKR-94). A folder that cannot be resolved is kept as it is.
- * Windows is left as written: whether the CLI follows a junction or `subst` there is unchecked.
+ * The folder as a CLI started in it sees its working folder: the real path, links resolved — a symlink off Windows
+ * (macOS `/tmp` is `/private/tmp`, EKR-94) and a junction on Windows (EKR-96). A folder that cannot be resolved is kept
+ * as it is, and so is a Windows one whose real path leaves its drive (a `subst` or mapped drive, a `\\?\` or UNC path):
+ * what the CLI reads there is unchecked.
  */
-export function workingFolder(folder: string, platform: NodeJS.Platform = process.platform): string {
-  if (platform === 'win32') return folder
-  try { return realpathSync.native(folder) } catch { return folder }
+export function workingFolder(folder: string, platform: NodeJS.Platform = process.platform, real: (path: string) => string = realpathSync.native): string {
+  let resolved: string
+  try { resolved = real(folder) } catch { return folder }
+  if (platform !== 'win32') return resolved
+  const sameDrive = !resolved.startsWith('\\\\') && win32.parse(resolved).root.toLowerCase() === win32.parse(win32.resolve(folder)).root.toLowerCase()
+  return sameDrive ? resolved : folder
 }
 
 /** The same path as written, links not followed: where a link points, not where it leads. */

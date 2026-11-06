@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { binaryPath, findBinary, isInside, pathKey, samePath, spelledUnder } from './paths.js'
+import { binaryPath, findBinary, isInside, pathKey, samePath, spelledUnder, workingFolder } from './paths.js'
 
 describe('a folder behind a link', () => {
   let root: string
@@ -63,6 +63,33 @@ describe('pathKey', () => {
 
   it('folds the drive letter spellings of the CLI and VS Code into one key', () => {
     expect(pathKey('d:/Projects/Repo', 'win32')).toBe(pathKey('D:\\Projects\\Repo', 'win32'))
+  })
+})
+
+describe('workingFolder', () => {
+  const resolvesTo = (real: string) => () => real
+  const unresolved = () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }) }
+
+  it('resolves a Windows junction on the same drive (EKR-96)', () => {
+    expect(workingFolder('c:\\ek\\link', 'win32', resolvesTo('C:\\ek\\repo'))).toBe('C:\\ek\\repo')
+  })
+
+  it.each([
+    ['a subst drive moved to its target drive', 'X:\\repo', 'C:\\real\\repo'],
+    ['a mapped drive turned into a UNC path', 'Z:\\repo', '\\\\server\\share\\repo'],
+    ['a long-path prefix', 'C:\\ek\\link', '\\\\?\\C:\\ek\\repo'],
+    ['a volume without a drive letter', 'C:\\ek\\link', '\\\\?\\Volume{00000000-0000-0000-0000-000000000000}\\repo'],
+  ])('keeps a Windows folder as written for %s', (_, folder, real) => {
+    expect(workingFolder(folder, 'win32', resolvesTo(real))).toBe(folder)
+  })
+
+  it('keeps a folder that cannot be resolved as written', () => {
+    expect(workingFolder('C:\\missing', 'win32', unresolved)).toBe('C:\\missing')
+    expect(workingFolder('/missing', 'linux', unresolved)).toBe('/missing')
+  })
+
+  it('resolves a link off Windows', () => {
+    expect(workingFolder('/tmp/repo', 'darwin', resolvesTo('/private/tmp/repo'))).toBe('/private/tmp/repo')
   })
 })
 

@@ -7,8 +7,9 @@ import { writeAtomic } from '../storage/atomic.js'
 import { NoticeError, fail } from '../notice/notice.js'
 
 /**
- * Add checkout trust without replacing any of the CLI's other settings, under the key the CLI reads (`readsKey`): off
- * Windows the folder's real path, carrying what an entry under another spelling of it already holds.
+ * Add checkout trust without replacing any of the CLI's other settings, under the key the CLI reads (`readsKey`): the
+ * folder's real path (`workingFolder`), with forward slashes on Windows, carrying what an entry under another spelling
+ * of it already holds.
  */
 export function trustFolder(file: string, folder: string, platform: NodeJS.Platform = process.platform): void {
   try {
@@ -21,7 +22,8 @@ export function trustFolder(file: string, folder: string, platform: NodeJS.Platf
     if (isTrusted(config, folder, platform)) return
     const projects = config.projects === undefined ? {} : config.projects as Record<string, unknown>
     const keys = Object.keys(projects).filter((key) => samePath(key, folder, platform))
-    const key = keys.find((key) => readsKey(key, folder, platform)) ?? (platform === 'win32' ? folder.replaceAll('\\', '/') : workingFolder(folder, platform))
+    const real = workingFolder(folder, platform)
+    const key = keys.find((key) => readsKey(key, folder, platform)) ?? (platform === 'win32' ? real.replaceAll('\\', '/') : real)
     const entry = projects[keys.includes(key) ? key : keys[0] ?? key]
     if (entry !== undefined && !isPlainObject(entry)) throw new Error('Invalid Claude project configuration')
     // A new file is private, as the CLI creates it; an existing one keeps its own mode (EKR-95).
