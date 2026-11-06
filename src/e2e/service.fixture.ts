@@ -97,6 +97,17 @@ export class Harness {
    * those of the pull requests, which `githubPulls` answers.
    */
   githubRemote = false
+  /**
+   * Set before `start`: the real adapters left in `AGENTS` beside the scripted one, by name (`opencode`) — the level of
+   * real CLIs (`src/e2e-cli/`, `docs/chain/e2e.md`).
+   */
+  realAgents: string[] = []
+  /**
+   * Set before `start`: real ms each step of the clock waits besides the real work, and the service's `Date` is the real
+   * one. A real CLI's process, files and turn take real time, which a fake `Date` far from it would misread. 0 — the
+   * fake clock of the scripted agent.
+   */
+  pace = 0
   private context: ServiceContext | undefined
   /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
   private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
@@ -110,7 +121,8 @@ export class Harness {
 
   /** `prepared` runs once the folder, its checkouts and the environment are ready, before the service reads them. */
   async start(prepared?: () => void): Promise<void> {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'], now: new Date('2026-10-01T09:00:00Z') })
+    const timers = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] as const
+    vi.useFakeTimers(this.pace > 0 ? { toFake: [...timers] } : { toFake: [...timers, 'Date'], now: new Date('2026-10-01T09:00:00Z') })
     this.prepare()
     await this.environment()
     prepared?.()
@@ -143,6 +155,7 @@ export class Harness {
       await vi.advanceTimersByTimeAsync(step)
       await this.agent.settled()
       await realWork()
+      if (this.pace > 0) await new Promise((resolve) => realTimeout(resolve, this.pace))
     }
     if (done()) return
     throw new Error(`e2e: ${what} did not happen in ${limitMs / 1000} s of the service's time\n${this.log.slice(-40).join('\n')}`)
@@ -300,7 +313,9 @@ export class Harness {
     vi.doMock('../account/network.js', async (original) => ({ ...(await original<typeof import('../account/network.js')>()), answers: async () => true }))
     const { AGENTS } = await import('../agent/adapters.js')
     const agents = AGENTS as Record<string, unknown>
+    const real = Object.fromEntries(this.realAgents.map((name) => [name, agents[name]]))
     for (const name of Object.keys(agents)) delete agents[name]
+    Object.assign(agents, real)
     const { CLAUDE } = await import('../claude/name.js')
     const { CODEX } = await import('../codex/name.js')
     agents[CLAUDE] = this.agent.adapter()

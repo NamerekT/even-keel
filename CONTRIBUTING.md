@@ -19,6 +19,7 @@ Forks are welcome: the MIT license lets you change Even Keel and run your own co
 ```sh
 npm test            # vitest, without the end-to-end scenarios
 npm run test:e2e    # the end-to-end scenarios of src/e2e/
+npm run test:cli    # the same on the real checked CLIs with a scripted model, src/e2e-cli/ (downloads them once)
 npm run typecheck
 npm run dev         # the server, restarting on changes
 npm run dev:web     # the page with hot reload, proxying /api to a running server

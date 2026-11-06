@@ -1,0 +1,38 @@
+name: Real CLIs
+
+# The chain's scenarios on the real CLIs with a scripted model (src/e2e-cli/, docs/chain/e2e.md, BTN-572): the checked
+# version of each CLI, a local provider that plays fixed tool calls, no subscription and no limits. A schedule fires
+# only on the default branch, so the night checks out `dev`, the next version; a run by hand takes the branch it is
+# started on. Out of the push check: a run of a real CLI takes minutes and needs the npm registry.
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opencode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The checked copy, unpacked by the first run (`openCodeBinary`); the key follows the adapter, where `checked` is.
+      - uses: actions/cache@v4
+        with:
+          path: .temp/e2e-cli
+          key: e2e-cli-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/opencode/adapter.ts') }}
+
+      - run: npm run test:cli
