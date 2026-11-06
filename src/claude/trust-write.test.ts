@@ -16,13 +16,13 @@ afterEach(() => { for (const folder of folders.splice(0)) rmSync(folder, { recur
 describe('trustFolder', () => {
   it('creates missing config and preserves existing fields on a repeated write', () => {
     const target = file()
-    trustFolder(target, 'D:/repo', 'win32')
+    trustFolder(target, 'D:\\repo', 'win32')
     const first = JSON.parse(readFileSync(target, 'utf8'))
     expect(first).toEqual({ projects: { 'D:/repo': { hasTrustDialogAccepted: true } } })
-    const text = JSON.stringify({ keep: 4, projects: { 'd:\\REPO': { keep: 7 }, other: { keep: 8 } } })
+    const text = JSON.stringify({ keep: 4, projects: { 'd:/REPO': { keep: 7 }, other: { keep: 8 } } })
     writeFileSync(target, text)
     trustFolder(target, 'D:/repo', 'win32')
-    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ keep: 4, projects: { 'd:\\REPO': { keep: 7, hasTrustDialogAccepted: true }, other: { keep: 8 } } })
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ keep: 4, projects: { 'd:/REPO': { keep: 7, hasTrustDialogAccepted: true }, other: { keep: 8 } } })
     const trusted = readFileSync(target, 'utf8')
     trustFolder(target, 'D:/repo', 'win32')
     expect(readFileSync(target, 'utf8')).toBe(trusted)
@@ -47,13 +47,38 @@ describe('trustFolder', () => {
     throw new Error('Expected trust failure')
   })
 
-  it('does not duplicate any already trusted spelling or trust a parent or sibling', () => {
+  it.each([true, false])('copies a legacy Windows entry without changing it (trusted: %s)', (hasTrustDialogAccepted) => {
     const target = file()
-    const text = JSON.stringify({ projects: { 'D:/repo': { hasTrustDialogAccepted: false }, 'd:\\repo': { hasTrustDialogAccepted: true } } })
+    const legacy = { keep: { nested: 7 }, hasTrustDialogAccepted }
+    writeFileSync(target, JSON.stringify({ keep: 4, projects: { 'd:\\REPO': legacy, other: { keep: 8 } } }))
+    trustFolder(target, 'D:\\repo', 'win32')
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ keep: 4, projects: {
+      'd:\\REPO': legacy, 'D:/repo': { ...legacy, hasTrustDialogAccepted: true }, other: { keep: 8 },
+    } })
+    const trusted = readFileSync(target, 'utf8')
+    trustFolder(target, 'D:\\repo', 'win32')
+    expect(readFileSync(target, 'utf8')).toBe(trusted)
+  })
+
+  it('updates only the CLI key when a legacy entry already trusts the folder', () => {
+    const target = file()
+    const projects = { 'd:\\repo': { hasTrustDialogAccepted: true, legacy: 1 }, 'D:/repo': { hasTrustDialogAccepted: false, keep: 2 } }
+    const text = JSON.stringify({ projects })
     writeFileSync(target, text)
-    trustFolder(target, 'D:/repo', 'win32')
-    expect(readFileSync(target, 'utf8')).toBe(text)
+    trustFolder(target, 'D:\\repo', 'win32')
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ projects: { ...projects, 'D:/repo': { hasTrustDialogAccepted: true, keep: 2 } } })
     trustFolder(target, 'D:/repo-other', 'win32')
     expect(JSON.parse(readFileSync(target, 'utf8')).projects['D:/repo-other'].hasTrustDialogAccepted).toBe(true)
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects).not.toHaveProperty('D:/')
+  })
+
+  it.each(['linux', 'darwin'] as const)('keeps existing trust behaviour on %s', (platform) => {
+    const target = file()
+    const folder = '/repo\\name'
+    trustFolder(target, folder, platform)
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ projects: { [folder]: { hasTrustDialogAccepted: true } } })
+    const text = readFileSync(target, 'utf8')
+    trustFolder(target, folder, platform)
+    expect(readFileSync(target, 'utf8')).toBe(text)
   })
 })

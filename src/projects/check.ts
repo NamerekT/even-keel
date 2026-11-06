@@ -200,8 +200,8 @@ async function checkTracker(
   }
 }
 
-/** Whether `.claude.json` trusts the folder under any spelling of its path the CLI wrote. */
+/** Whether `.claude.json` trusts the folder in a spelling the CLI reads (forward slashes on Windows). */
 export function isTrusted(config: unknown, folder: string, platform: NodeJS.Platform = process.platform): boolean {
   const projects = isPlainObject(config) && isPlainObject(config.projects) ? config.projects : {}
-  return Object.entries(projects).some(([path, entry]) => samePath(path, folder, platform) && isPlainObject(entry) && entry.hasTrustDialogAccepted === true)
+  return Object.entries(projects).some(([path, entry]) => (platform !== 'win32' || !path.includes('\\')) && samePath(path, folder, platform) && isPlainObject(entry) && entry.hasTrustDialogAccepted === true)
 }

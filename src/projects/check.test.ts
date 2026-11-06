@@ -307,10 +307,17 @@ describe('checkDraft', () => {
 })
 
 describe('isTrusted', () => {
-  it('finds the folder under any spelling the CLI wrote it by', () => {
+  it('requires a trusted Windows key with forward slashes', () => {
     const config = { projects: { 'D:/other': { hasTrustDialogAccepted: true }, 'd:/new': { hasTrustDialogAccepted: false }, 'D:\\new': { hasTrustDialogAccepted: true } } }
-    expect(isTrusted(config, 'D:\\new', 'win32')).toBe(true)
+    expect(isTrusted(config, 'D:\\new', 'win32')).toBe(false)
+    expect(isTrusted({ projects: { 'D:\\new': { hasTrustDialogAccepted: true } } }, 'D:\\new', 'win32')).toBe(false)
+    expect(isTrusted({ projects: { 'd:/NEW': { hasTrustDialogAccepted: true } } }, 'D:\\new', 'win32')).toBe(true)
     expect(isTrusted({ projects: { 'D:/new': { hasTrustDialogAccepted: false } } }, 'D:\\new', 'win32')).toBe(false)
     expect(isTrusted(undefined, 'D:\\new', 'win32')).toBe(false)
+  })
+
+  it.each(['linux', 'darwin'] as const)('keeps native path spelling on %s', (platform) => {
+    expect(isTrusted({ projects: { '/repo\\name': { hasTrustDialogAccepted: true } } }, '/repo\\name', platform)).toBe(true)
+    expect(isTrusted({ projects: { '/repo': { hasTrustDialogAccepted: true } } }, '/repo/child', platform)).toBe(false)
   })
 })
