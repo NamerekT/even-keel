@@ -1,4 +1,8 @@
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { linkType } from '../account/share.js'
 import type { GitResult } from '../git/types.js'
 import { englishOf } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
@@ -319,5 +323,19 @@ describe('isTrusted', () => {
   it.each(['linux', 'darwin'] as const)('keeps native path spelling on %s', (platform) => {
     expect(isTrusted({ projects: { '/repo\\name': { hasTrustDialogAccepted: true } } }, '/repo\\name', platform)).toBe(true)
     expect(isTrusted({ projects: { '/repo': { hasTrustDialogAccepted: true } } }, '/repo/child', platform)).toBe(false)
+  })
+
+  it('reads a linked folder under its real path on Linux, as the CLI does (EKR-94)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ek-trusted-'))
+    try {
+      const repo = join(root, 'repo')
+      mkdirSync(repo)
+      const link = join(root, 'link')
+      symlinkSync(repo, link, linkType(process.platform))
+      expect(isTrusted({ projects: { [link]: { hasTrustDialogAccepted: true } } }, link, 'linux')).toBe(false)
+      expect(isTrusted({ projects: { [realpathSync.native(repo)]: { hasTrustDialogAccepted: true } } }, link, 'linux')).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

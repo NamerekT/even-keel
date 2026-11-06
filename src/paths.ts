@@ -56,6 +56,16 @@ export function samePath(a: string, b: string, platform: NodeJS.Platform = proce
   return pathKey(a, platform) === pathKey(b, platform)
 }
 
+/**
+ * The folder as a CLI started in it sees its working folder: off Windows `getcwd` resolves links, so a project under a
+ * link (macOS `/tmp` is `/private/tmp`) is the real path (EKR-94). A folder that cannot be resolved is kept as it is.
+ * Windows is left as written: whether the CLI follows a junction or `subst` there is unchecked.
+ */
+export function workingFolder(folder: string, platform: NodeJS.Platform = process.platform): string {
+  if (platform === 'win32') return folder
+  try { return realpathSync.native(folder) } catch { return folder }
+}
+
 /** The same path as written, links not followed: where a link points, not where it leads. */
 export function sameSpelling(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   const paths = pathsOf(platform)

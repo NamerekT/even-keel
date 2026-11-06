@@ -6,7 +6,7 @@ import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
-import { pathsOf, samePath } from '../paths.js'
+import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
 import { expandFolder, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
@@ -200,8 +200,17 @@ async function checkTracker(
   }
 }
 
-/** Whether `.claude.json` trusts the folder in a spelling the CLI reads (forward slashes on Windows). */
+/** Whether `.claude.json` trusts the folder under a key the CLI reads. */
 export function isTrusted(config: unknown, folder: string, platform: NodeJS.Platform = process.platform): boolean {
   const projects = isPlainObject(config) && isPlainObject(config.projects) ? config.projects : {}
-  return Object.entries(projects).some(([path, entry]) => (platform !== 'win32' || !path.includes('\\')) && samePath(path, folder, platform) && isPlainObject(entry) && entry.hasTrustDialogAccepted === true)
+  return Object.entries(projects).some(([path, entry]) => readsKey(path, folder, platform) && isPlainObject(entry) && entry.hasTrustDialogAccepted === true)
+}
+
+/**
+ * Whether the CLI started in `folder` reads its trust under `key`: on Windows any spelling with forward slashes; elsewhere
+ * the real path of the folder as written, a key under a link to it does not count (EKR-94).
+ */
+export function readsKey(key: string, folder: string, platform: NodeJS.Platform = process.platform): boolean {
+  if (platform === 'win32') return !key.includes('\\') && samePath(key, folder, platform)
+  return sameSpelling(key, workingFolder(folder, platform), platform)
 }

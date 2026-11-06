@@ -1,7 +1,8 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { linkType } from '../account/share.js'
 import { noticeOf } from '../notice/notice.js'
 import { trustFolder } from './trust.js'
 
@@ -80,5 +81,42 @@ describe('trustFolder', () => {
     const text = readFileSync(target, 'utf8')
     trustFolder(target, folder, platform)
     expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  // The CLI looks trust up by its working folder's real path: getcwd resolves links (EKR-94).
+  const linked = () => {
+    const root = mkdtempSync(join(tmpdir(), 'ek-trust-link-'))
+    folders.push(root)
+    const repo = join(root, 'repo')
+    mkdirSync(repo)
+    const link = join(root, 'link')
+    symlinkSync(repo, link, linkType(process.platform))
+    return { repo: realpathSync.native(repo), link }
+  }
+
+  it('writes the real path of a linked folder on Linux, carrying the entry the link had', () => {
+    const target = file()
+    const { repo, link } = linked()
+    writeFileSync(target, JSON.stringify({ projects: { [link]: { keep: 3 } } }))
+    trustFolder(target, link, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects).toEqual({ [link]: { keep: 3 }, [repo]: { keep: 3, hasTrustDialogAccepted: true } })
+    const text = readFileSync(target, 'utf8')
+    trustFolder(target, link, 'linux')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  it('does not count trust under the link path as trust on Linux', () => {
+    const target = file()
+    const { repo, link } = linked()
+    writeFileSync(target, JSON.stringify({ projects: { [link]: { hasTrustDialogAccepted: true } } }))
+    trustFolder(target, link, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects[repo]).toEqual({ hasTrustDialogAccepted: true })
+  })
+
+  it('writes a missing folder as it is on Linux', () => {
+    const target = file()
+    const folder = join(tmpdir(), 'ek-trust-missing', 'repo')
+    trustFolder(target, folder, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ projects: { [folder]: { hasTrustDialogAccepted: true } } })
   })
 })
