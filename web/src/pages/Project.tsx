@@ -238,6 +238,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <Suspense fallback={null}>
           <TaskCard
             task={opened}
+            project={taskProject(state, opened)}
             link={issueLink(state.trackerUrls, opened)}
             tracker={state.trackers.find((view) => view.projects.includes(taskProject(state, opened)))?.title ?? null}
             refused={state.chain.projects[taskProject(state, opened)]?.refused?.[opened] ?? null}

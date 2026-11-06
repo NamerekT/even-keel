@@ -18,6 +18,7 @@ import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
 import { taskProject } from '../state.js'
+import { recallCard, rememberCard } from './cardMemory.js'
 import { runLabelsOn } from './runPick.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { TaskRunPick } from './TaskRunPick.js'
@@ -32,6 +33,8 @@ const LOUD = new Set<CardLabel['role']>(['question', 'excluded'])
 
 interface Props {
   task: string
+  /** The task's project GUID: the remembered card is keyed by it, since project keys are not unique. */
+  project: string
   link: string | null
   tracker: string | null
   /** Why the task cannot be moved to Todo: the chain would lose its order. */
@@ -44,9 +47,9 @@ interface Props {
   onClose: () => void
 }
 
-export function TaskCard({ task, link, tracker, refused, work, live, onOpen, onClose }: Props) {
+export function TaskCard({ task, project, link, tracker, refused, work, live, onOpen, onClose }: Props) {
   const { card: load } = useLive()
-  const [card, setCard] = useState<Card | null | undefined>(undefined)
+  const [card, setCard] = useState<Card | null | undefined>(() => recallCard(project, task))
   const [error, setError] = useState<Notice | null>(null)
   const [round, setRound] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
@@ -58,19 +61,27 @@ export function TaskCard({ task, link, tracker, refused, work, live, onOpen, onC
     frame.current?.focus()
   }, [])
 
-  useEffect(() => setCard(undefined), [task])
+  const shown = useRef({ project, task })
+  useEffect(() => {
+    if (shown.current.project === project && shown.current.task === task) return
+    shown.current = { project, task }
+    setCard(recallCard(project, task))
+  }, [project, task])
 
   useEffect(() => {
     let live = true
     setError(null)
     load(task).then(
-      (answer) => live && setCard(answer),
+      (answer) => {
+        rememberCard(project, task, answer)
+        if (live) setCard(answer)
+      },
       (reason: unknown) => live && setError(noticeOf(reason)),
     )
     return () => {
       live = false
     }
-  }, [task, round])
+  }, [project, task, round])
 
   return (
     <dialog
