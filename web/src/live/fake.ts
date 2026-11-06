@@ -15,7 +15,7 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
-import { EVENT_MS, fakeEvent } from './fakeEvents.js'
+import { EVENT_MS, fakeEvent, fakeEventLog } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
@@ -267,6 +267,7 @@ function fakeState(
     mailbox: {},
     changelogs: fakeWrittenChangelogs(),
     forwards: {},
+    eventLog: fakeEventLog(FAKE_PROJECTS),
   }
 }
 
@@ -348,6 +349,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('git') === 'bare' && current.state !== null) current.state.git = { version: null, name: null, email: null, ...restart }
   if (params.get('git') === 'anon' && current.state !== null) current.state.git = { version: '2.47.1', name: null, email: null }
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
+  if (params.get('log') === 'empty' && current.state !== null) current.state.eventLog = []
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (params.get('hulyClient') === 'installing' && current.state !== null) current.state.hulyClient = notice('huly.clientInstalling', {})
   if (params.get('hulyClient') === 'failed' && current.state !== null) {

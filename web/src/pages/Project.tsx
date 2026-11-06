@@ -8,7 +8,7 @@ import { useNow } from '../layout/useNow.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
-import { shownWork } from '../work.js'
+import { shownWork } from '../../../src/shown-work.js'
 import {
   activeChain,
   backlogTasks,

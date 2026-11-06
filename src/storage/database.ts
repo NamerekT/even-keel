@@ -30,7 +30,8 @@ export interface Queryable {
  * organization each API account's key pays through, `key_organizations` (BTN-418); step 21 puts the Agent SDK of
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
- * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689). A foreign key between tables is deferred, so that a copy inserts the
+ * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
+ * log, `event_log` (BTN-350). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -358,6 +359,16 @@ export const STEPS: readonly string[] = [
      )
    where exists (select 1 from jsonb_array_elements(p.feeds::jsonb) as e(f) where jsonb_typeof(f #> '{chain,excludedLabels}') = 'array');
   drop function pg_temp.with_manual(jsonb);
+  `,
+  // The event log the page shows (BTN-350): what came while nobody looked, the newest `EVENT_LOG_LIMIT` entries.
+  `
+  create table event_log (
+    id     integer primary key,
+    at     text not null,
+    level  text not null,
+    notice text not null,
+    place  text
+  );
   `,
 ]
 

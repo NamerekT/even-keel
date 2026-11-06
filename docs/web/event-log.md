@@ -1,0 +1,21 @@
+# Page: the event log (BTN-350)
+
+What happened while nobody looked: the service writes an entry for each event, a toast shows the warnings and errors that come while a page is open, and `/log` keeps them all.
+
+## The service side (`src/event-log/`)
+
+- `EventLog` (`log.ts`) holds the newest `EVENT_LOG_LIMIT` (500) entries, loaded from the state database's `event_log` at the start (`loadEventLog`) and written behind (`docs/storage.md`, step 29). An entry (`EventEntry`, `model.ts`) is an ascending `id`, `at`, a `level`, a `notice` (a code, translated on the page like any server message) and a `place` — where "Open" leads (`project`, `task`, `ask`, `backlog`, `ci`, `settings`) or `null`.
+- Levels: **info** — launches, stops and settings; **warning** — what waits for a person (a question, a usage limit, work left in a folder, an uncounted CI failure, a CLI version Even Keel was not checked against); **error** — what holds a chain (a red main, a carry conflict, a chain paused on an error, the MCP gateway failing, a config error).
+- Sources:
+  - The state the service builds for the page: `EventHub.watch('state', …, 2_000)` (`src/events.ts`) hands it to `EventLog.observe` at most every 2 s, also while no page listens. `watchedOf` (`watch.ts`) reads from it the page's events (`pageEvents`, `src/event-log/page-events.ts` — the toasts' events of before BTN-350: limit, red and CI red main, a question, a conflict, uncommitted or unmerged work), the CLI version warnings, the gateway's and the config's errors, and each chain's pause and error. A chain paused on the limit or a red main writes no entry of its own: the event says it.
+  - `observe` writes an entry for a condition that appears and for a chain that starts, stops, pauses, goes on or is held on a new error. What holds keeps a "last seen" stamp; a condition gone and back within `GRACE_MS` (10 min) is the same one, since the state is read in parts, at a start above all. Nothing remembered yet (a fresh database) writes nothing: everything is old news.
+  - The memory (`EventMemory`) is kept in `service_state` as `eventLog.memory`; at a start each remembered condition counts as seen at that moment, so a restart repeats nothing that held before it.
+  - The service tells it directly: a launch from the launch log (`launched`, `src/service/chain.ts`), a session the chain stopped mid-turn (`stopped`), and every settings change (`settingsSeen` from the config store's `onChange` in `src/service/hosting.ts`: Even Keel's settings, a project's settings, a project added or removed; the first call only remembers).
+- The page gets the entries as `EvenKeelState.eventLog`; the hub sends them keyed by `id`, so a frame carries only the new ones.
+
+## The page side
+
+- **Toasts** (`web/src/layout/EventToasts.tsx`): one for each warning or error that came after the page's first state (`freshAlerts`); info goes only to the log. A toast holds `TOAST_MS` (12 s) of the page in sight: `visibilitychange` to hidden stops the count and coming back starts it over, so a toast is not missed in a background tab. At most `TOAST_LIMIT` (3) at once, an older one gives way. "Open" goes to the entry's place (`placePath` in `web/src/layout/eventLog.ts`), "Close" drops it; the entry stays in the log.
+- **Unread** (`useUnread`): per browser, the id of the last entry read is kept in `localStorage` (`even-keel.eventLog.read`), live across tabs. A browser that never saw the log starts with all of it read (`useFirstReadMark`, called from `EventToasts` on every page, since on a narrow screen "Log" mounts only with the opened menu). The header's "Log" (`LogLink`) carries the count of unread warnings and errors, amber, red when one is an error; the narrow menu's row the same.
+- **`/log`** (`web/src/pages/EventLogPage.tsx`): a card per day, newest first; a row is the time (full date in a tip), the level's dot with its name in a tip, the text with its projects as links, a "new" chip on what was unread at opening, and "Open" where the entry has a place. Opening the page marks everything read. An empty log says what will show and has a button to the projects.
+- Fake data: `dev:fake` has a day of entries of every kind (`fakeEventLog`); `?event=…` appends the entries of its event (`web/src/live/fakeEvents.ts`), `?log=empty` empties the log (`docs/web/fake-states.md`).

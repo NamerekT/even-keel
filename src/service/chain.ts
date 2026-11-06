@@ -75,6 +75,7 @@ type ChainContext = Pick<ServiceContext,
   | 'daemons'
   | 'db'
   | 'dispatcher'
+  | 'eventLog'
   | 'envOf'
   | 'getState'
   | 'goOnWith'
@@ -334,6 +335,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const entry = ctx.withSource(launched)
       ctx.writes.add(`the launch of ${entry.task}`, appendLaunch(ctx.db, entry))
       ctx.launches.push(entry)
+      ctx.eventLog.launched(entry)
       console.log(launchLine(entry))
     },
     moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),
@@ -423,7 +425,11 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     },
     carried: async (project, commit) =>
       (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
-    stop: (session) => ctx.stopIn(ctx.homeOf(session.account), session),
+    stop: async (session) => {
+      await ctx.stopIn(ctx.homeOf(session.account), session)
+      const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
+      if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)
+    },
     finish: async (project, task, pull) => {
       if (!isOwnName(task) && pull?.unmerged !== true) ctx.archiveClosed(project, task)
       const repo = ctx.configStore.current.projects[project]!

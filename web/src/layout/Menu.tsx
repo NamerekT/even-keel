@@ -3,6 +3,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { accountBadge } from '../state.js'
 import { AccountSheet } from './AccountBlock.js'
+import { LogLink } from './LogLink.js'
 import { QueueMenu } from './Queue.js'
 import { GearRows, Waiting } from './Status.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
@@ -35,6 +36,7 @@ export function MobileMenu({ now }: { now: Date }) {
             <NavLink to="/stats" className="gear__item">
               {t.header.stats}
             </NavLink>
+            <LogLink className="gear__item" />
           </nav>
           {state !== null && (
             <div className="sheet__work">

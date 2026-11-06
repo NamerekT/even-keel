@@ -11,6 +11,7 @@ The area is split by subtopic, a file each in `docs/web/`: read this table, then
 | [`interface.md`](web/interface.md) | The stack, the state stream, routes, the header and the home page |
 | [`project-page.md`](web/project-page.md) | The project page |
 | [`session-panel.md`](web/session-panel.md) | The session panel and the chat |
+| [`event-log.md`](web/event-log.md) | The event log: what the service writes, toasts, unread, `/log` |
 | [`language.md`](web/language.md) | Language |
 | [`config.md`](web/config.md) | Live config and shared settings |
 | [`project-settings.md`](web/project-settings.md) | Project settings |

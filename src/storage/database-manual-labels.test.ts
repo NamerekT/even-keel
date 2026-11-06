@@ -24,13 +24,13 @@ const excluded = async (db: PGlite) => {
 const step = async (db: PGlite, from: number) =>
   db.transaction(async (tx) => {
     await tx.query("select set_config('even_keel.migration_from', $1, true)", [String(from)])
-    await tx.exec(STEPS[STEPS.length - 1]!)
+    await tx.exec(STEPS[25]!)
   })
 
 describe('step 28: no built-in excluded label (BTN-758)', () => {
   it('makes the tables of the frozen sample', { timeout: 120_000 }, async () => {
     const frozen = await PGlite.create()
-    const made = await openDatabase(undefined)
+    const made = await openDatabase(undefined, STEPS.slice(0, 26))
     try {
       await frozen.exec(fixture(28))
       expect(await databaseVersion(frozen)).toBe(28)

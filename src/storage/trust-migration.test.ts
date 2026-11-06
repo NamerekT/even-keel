@@ -8,7 +8,7 @@ import { fixture, schemaOf } from './database.fixture.js'
 describe('automatic Claude trust database migration', () => {
   it('matches the frozen database at step 27', async () => {
     const frozen = await openDatabase(undefined, [])
-    const made = await openDatabase(undefined)
+    const made = await openDatabase(undefined, STEPS.slice(0, 25))
     try {
       await frozen.exec(fixture(27))
       expect(await databaseVersion(frozen)).toBe(27)

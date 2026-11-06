@@ -1,0 +1,84 @@
+/* `/log` (BTN-350): a centred column of day cards, a line per entry — time, level dot, text, "Open" at the right. */
+.event-log {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+}
+
+.event-log__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-log__row {
+  display: grid;
+  grid-template-columns: 5ch 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 32px;
+  padding-block: var(--space-4);
+  font-size: var(--text-14);
+}
+
+.event-log__row + .event-log__row {
+  border-top: 1px solid var(--border);
+}
+
+.event-log__time {
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The tip anchor fills its cell, so an empty time still has its tip. */
+.event-log__time,
+.event-log__level {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+}
+
+.event-log__level {
+  justify-content: center;
+}
+
+.event-log__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lamp-idle);
+}
+
+.event-log__row--warning .event-log__dot {
+  background: var(--lamp-waiting);
+}
+
+.event-log__row--error .event-log__dot {
+  background: var(--lamp-error);
+}
+
+.event-log__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.event-log__fresh {
+  margin-left: var(--space-8);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--fg);
+  vertical-align: 1px;
+}
+
+@media (max-width: 760px) {
+  .event-log__row {
+    grid-template-columns: 5ch 16px minmax(0, 1fr);
+  }
+
+  .event-log__open {
+    grid-column: 3;
+    justify-self: start;
+  }
+}

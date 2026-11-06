@@ -18,6 +18,8 @@ import { addOf, legacyAdd } from './accountAdd.js'
 import { AddAccountDialog } from './layout/AddAccountDialog.js'
 import { CliConsent } from './layout/CliCopies.js'
 import { AccountsPage } from './pages/Accounts.js'
+import { EventLogPage } from './pages/EventLogPage.js'
+import { LOG_PATH } from './layout/eventLog.js'
 import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
@@ -72,6 +74,7 @@ export function App() {
                 <Route path="/p/:id" element={<ProjectRoute state={state} />} />
                 <Route path="/projects/add" element={<ProjectAddPage state={state} />} />
                 <Route path="/stats" element={<StatsPage state={state} />} />
+                <Route path={LOG_PATH} element={<EventLogPage state={state} />} />
                 <Route path={SETUP} element={<SetupPage state={state} />} />
                 <Route path="/tools" element={<ToolsPage state={state} />} />
                 <Route path="/settings" element={<SharedSettings state={state} />} />

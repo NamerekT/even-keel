@@ -1,85 +1,73 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import type { EvenKeelState } from '../../../src/state.js'
-import { language, t } from '../i18n/index.js'
+import type { EventEntry } from '../../../src/event-log/model.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
-import { CI_HASH } from '../pages/CiChip.js'
-import { projectPath } from '../state.js'
-import { ProjectLinks } from '../ui/ProjectLinks.js'
+import { Said } from '../ui/ProjectLinks.js'
 import { Toast } from '../ui/Toast.js'
-import { freshEvents, pageEvents, toastEvents, type PageEvent } from './pageEvents.js'
+import { freshAlerts, lastId, placePath, useFirstReadMark, withFresh } from './eventLog.js'
+
+/** How long a toast stays while the page is in sight; a hidden tab stops it, and coming back starts it over. */
+export const TOAST_MS = 12_000
 
 /**
- * A toast for each event that came while the page is open (`pageEvents`); it goes when closed, opened, or once the
- * event is over. The state itself stays on the card: the toast only points at it.
+ * A toast for each warning and error the service's log wrote while the page is open (BTN-350); it goes when closed,
+ * opened, or after `TOAST_MS` in sight, and stays in the log (`/log`). Info goes only to the log.
  */
 export function EventToasts() {
   const { state } = useLive()
   const navigate = useNavigate()
-  const seen = useRef<PageEvent[] | null>(null)
-  const [shown, setShown] = useState<PageEvent[]>([])
+  const seen = useRef<number | null>(null)
+  const [shown, setShown] = useState<EventEntry[]>([])
+  useFirstReadMark(state?.eventLog)
   useEffect(() => {
     if (state === null) return
-    const events = pageEvents(state)
-    const fresh = freshEvents(seen.current, events)
-    seen.current = events
-    setShown((now) => toastEvents(now, events, fresh))
+    const before = seen.current
+    seen.current = lastId(state.eventLog)
+    if (before === null) return
+    const fresh = freshAlerts(state.eventLog, before)
+    if (fresh.length > 0) setShown((now) => withFresh(now, fresh))
   }, [state])
   if (state === null || shown.length === 0) return null
 
-  const close = (key: string) => setShown((now) => now.filter((each) => each.key !== key))
+  const close = (id: string) => setShown((now) => now.filter((each) => each.id !== id))
   return (
     <>
-      {shown.map((event) => {
-        const { title, body } = textOf(event)
+      {shown.map((entry) => {
+        const path = placePath(entry.place, state)
+        const open = path === null ? [] : [{ label: t.events.open, onClick: () => (close(entry.id), navigate(path)) }]
         return (
-          <Toast
-            key={event.key}
-            source="Even Keel"
-            icon="/favicon.svg"
-            title={<ProjectLinks text={title} />}
-            body={body}
-            actions={[
-              {
-                label: t.events.open,
-                onClick: () => {
-                  close(event.key)
-                  navigate(placeOf(event, state))
-                },
-              },
-              { label: t.events.close, onClick: () => close(event.key) },
-            ]}
-          />
+          <TimedToast key={entry.id} onTimeout={() => close(entry.id)}>
+            <Toast
+              source="Even Keel"
+              icon="/favicon.svg"
+              title={<Said notice={entry.notice} />}
+              body={t.events.hints[entry.notice.code]}
+              actions={[...open, { label: t.events.close, onClick: () => close(entry.id) }]}
+            />
+          </TimedToast>
         )
       })}
     </>
   )
 }
 
-/** The title names its projects by their ids, shown through `ProjectLinks`. */
-function textOf(event: PageEvent): { title: string; body: string } {
-  if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.session.limitEvent }
-  if (event.kind === 'red' || event.kind === 'ciRed') {
-    const cis = new Intl.ListFormat(language, { type: 'conjunction' }).format(event.cis.map((ci) => t.ci.kinds[ci]))
-    return event.kind === 'red'
-      ? { title: t.events.red(event.project), body: t.events.redBody(event.commit, cis) }
-      : { title: t.events.ciRed(event.project, cis), body: t.events.ciRedBody(event.commit) }
-  }
-  if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }
-  if (event.kind === 'work') {
-    return { title: event.files > 0 ? t.events.uncommitted(event.task) : t.events.unmerged(event.task), body: t.events.workBody(event.path) }
-  }
-  return { title: t.events.conflict(event.project, event.into), body: t.events.conflictBody }
-}
-
-/** A task's work opens the backlog it is in, or else the task's card. */
-function placeOf(event: PageEvent, state: EvenKeelState): { pathname: string; search?: string; hash?: string } {
-  if (event.kind === 'ask') return event.project === null ? { pathname: '/' } : { pathname: projectPath(event.project), hash: event.task }
-  if (event.kind === 'work') {
-    const pathname = projectPath(event.project)
-    return event.backlog ? { pathname, hash: BACKLOG_HASH } : { pathname, search: `?task=${encodeURIComponent(event.task)}` }
-  }
-  if ((event.kind === 'red' || event.kind === 'ciRed') && state.ci[event.project] !== undefined) return { pathname: projectPath(event.project), hash: CI_HASH }
-  return { pathname: projectPath(event.project) }
+/** Calls `onTimeout` after `TOAST_MS` of the page in sight; hiding the tab drops the count, showing it starts again. */
+function TimedToast({ onTimeout, children }: { onTimeout: () => void; children: ReactNode }) {
+  const done = useRef(onTimeout)
+  done.current = onTimeout
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const restart = () => {
+      clearTimeout(timer)
+      timer = document.hidden ? undefined : setTimeout(() => done.current(), TOAST_MS)
+    }
+    restart()
+    document.addEventListener('visibilitychange', restart)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', restart)
+    }
+  }, [])
+  return children
 }

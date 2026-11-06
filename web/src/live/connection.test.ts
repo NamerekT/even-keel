@@ -79,6 +79,7 @@ function state(startedAt: string): EvenKeelState {
     mailbox: {},
     changelogs: {},
     forwards: {},
+    eventLog: [],
   }
 }
 

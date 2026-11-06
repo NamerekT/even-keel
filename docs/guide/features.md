@@ -234,6 +234,8 @@ What each lamp and shape of a row means, and each sign of the header that has no
 
 Notices under the header stay with it as you scroll, with a dividing line between them. The project settings panel leaves room for them and keeps its save button in view. When there are many notices, their area scrolls separately. Notices slide open and closed; reduced motion in your system settings disables that animation.
 
+**Log** in the header is the event log: launches, stops and settings changes, questions, usage limits, a red main, a carry conflict, work left in a folder, a chain paused on an error. Even Keel writes it also while no page is open and keeps the last 500 entries. A warning or an error that comes while the page is open shows in the corner for 12 seconds of the tab in sight — a hidden tab holds it until you come back — and stays in the log. The count next to **Log** is what this browser has not seen there yet, red when one of them is an error; opening the log marks it all read.
+
 ## Chat with the session
 
 On a computer, Enter sends a reply and Shift+Enter starts a new line; Ctrl+Enter and Cmd+Enter also send. In a question's "Other" field, Enter goes to the next question or submits the last one, while Shift+Enter starts a new line. Selecting an option never advances by itself. Enter that confirms IME input does not send. On a phone or tablet, Enter starts a new line: use the buttons to send or go to the next question.
