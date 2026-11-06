@@ -176,11 +176,6 @@ export const ru = {
     packagesSilentHold: (packages: string) =>
       `Следующая задача ждёт пакеты: ${packages}. Их спросят снова через полминуты, потом всё реже, до раза в час; проверьте их команду и настройки.`,
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
-    cliOne: (title: string, installed: string, checked: string) => `${title} ${installed} · проверен ${checked}`,
-    cliDaemon: (title: string, account: string, running: string, checked: string) =>
-      `Демон ${title} аккаунта ${account} на ${running} · проверен ${checked}`,
-    cliMany: (count: number) => `${count} CLI на версиях, на которых Even Keel не проверяли`,
-    cliDetails: 'Подробнее',
   },
   limits: {
     fiveHour: '5 часов',

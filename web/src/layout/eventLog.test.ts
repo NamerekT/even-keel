@@ -22,6 +22,9 @@ describe('placePath', () => {
     expect(placePath({ view: 'settings', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1', hash: 'settings' })
     expect(placePath({ view: 'settings', project: null }, state)).toEqual({ pathname: '/settings' })
     expect(placePath({ view: 'project', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1' })
+    expect(placePath({ view: 'packages', project: 'p-1' }, state)).toEqual({ pathname: '/tools', search: '?projects=p-1' })
+    expect(placePath({ view: 'packages', project: 'p-gone' }, state)).toBeNull()
+    expect(placePath({ view: 'accounts' }, state)).toEqual({ pathname: '/accounts' })
   })
 
   it('opens the CI chip only of a project that has one', () => {

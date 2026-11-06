@@ -11,6 +11,8 @@ export type EventPlace =
   | { view: 'task'; project: string; task: string }
   | { view: 'ask'; project: string | null; task: string }
   | { view: 'settings'; project: string | null }
+  | { view: 'packages'; project: string }
+  | { view: 'accounts' }
 
 /** An entry of the event log (BTN-350): written by the service, also while no page is open. */
 export interface EventEntry {

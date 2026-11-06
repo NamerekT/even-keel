@@ -109,8 +109,8 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `&storage` | with `previous=`: the update changed the storage format, so no "Revert", and the way back from the `.bak` copies |
 | `?updateResult=done\|<step>\|rollback` | how the last update ended, as after the restart: `done`, failed at `<step>` (`build` by default) and rolled back, or `rollback` — bringing the old version back failed too |
 | `?updateProgress=settling\|running` | an update under way: waiting for the chains, or the update process running |
-| `?cli=unchecked` | Claude Code and Codex on versions Even Keel was not checked against: the banner under the header (`CliVersionBanner`) |
-| `?cli=daemon` | the Claude Code daemon of the global account on another version than the pinned one (BTN-250): the same banner |
+| `?cli=unchecked` | Claude Code and Codex on versions Even Keel was not checked against, in `cliVersions`. Since BTN-780 no banner shows them, the header must stay clean; the fake log's CLI entry is its own (`fakeEvents.ts`) |
+| `?cli=daemon` | the Claude Code daemon of the global account on another version than the pinned one (BTN-250), in `cliVersions`: likewise no banner |
 | `?cliCheck=mixed\|passed` | the automatic CLI check's banner (`CliCheckBanner`, BTN-569): Claude Code waiting for a free account and a failed Codex run, or one passed run |
 | `?fallback=on` | ABC-10 was launched on the project's provider because its `Codex` label had no account in the pool: the toast in the corner |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |

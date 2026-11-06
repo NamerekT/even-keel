@@ -3,10 +3,10 @@ import { asNotice } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
 import type { EventDraft, EventEntry, EventLevel, EventPlace } from './model.js'
-import { launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type EventMemory, type WatchInput } from './watch.js'
+import { GRACE_MS, launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type EventMemory, type Restored, type WatchInput } from './watch.js'
 
-/** The entries the log keeps, the newest; the older ones go from the database too. */
-export const EVENT_LOG_LIMIT = 500
+/** The entries the log keeps, the newest; a new one over it pushes out the oldest, from the database too. */
+export const EVENT_LOG_LIMIT = 3000
 
 /** Where the log's writes go: behind, in the service (`Writes`). */
 export interface EventStore {
@@ -23,6 +23,7 @@ export interface EventStore {
 export class EventLog {
   private readonly list: EventEntry[]
   private memory: EventMemory | null
+  private readonly restored: Restored | undefined
   private settings: Record<string, unknown> | null = null
 
   constructor(
@@ -32,9 +33,12 @@ export class EventLog {
     private readonly changed: () => void = () => {},
   ) {
     this.list = [...loaded.entries]
-    // Whatever held before the restart counts as seen at the start: how long the service was down says nothing.
-    const start = this.now().toISOString()
-    this.memory = loaded.memory === null ? null : { ...loaded.memory, seen: Object.fromEntries(Object.keys(loaded.memory.seen).map((key) => [key, start])) }
+    // Whatever held before the restart counts as seen at the start, how long the service was down says nothing, and as
+    // held for `GRACE_MS` after it, while the state is read in parts.
+    const start = this.now()
+    const keys = Object.keys(loaded.memory?.seen ?? {})
+    this.restored = loaded.memory === null ? undefined : { keys: new Set(keys), until: start.getTime() + GRACE_MS }
+    this.memory = loaded.memory === null ? null : { chains: loaded.memory.chains, seen: Object.fromEntries(keys.map((key) => [key, start.toISOString()])), gone: {} }
   }
 
   get entries(): readonly EventEntry[] {
@@ -54,7 +58,7 @@ export class EventLog {
   }
 
   observe(state: WatchInput): void {
-    const step = observe(this.memory, watchedOf(state), this.now())
+    const step = observe(this.memory, watchedOf(state), this.now(), this.restored)
     this.memory = step.memory
     if (step.changed) this.store.remember(step.memory)
     for (const draft of step.drafts) this.add(draft)

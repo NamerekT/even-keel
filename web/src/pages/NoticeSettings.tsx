@@ -7,7 +7,8 @@ import { useCommand } from '../live/useCommand.js'
 import { Select } from '../ui/Select.js'
 import { FieldNote, Row, Section, Switch } from './settingsParts.js'
 
-const SHARED_KINDS = (Object.keys(NOTICE_KINDS) as NoticeKind[]).filter((kind) => NOTICE_KINDS[kind] === 'global')
+// `cli.versions` has no banner since BTN-780, only entries of the event log: the config still takes it, the page offers none.
+const SHARED_KINDS = (Object.keys(NOTICE_KINDS) as NoticeKind[]).filter((kind) => NOTICE_KINDS[kind] === 'global' && kind !== 'cli.versions')
 
 /**
  * Settings → Notices (BTN-759): a switch per kind of warning; with `project`, the project's own value of each project

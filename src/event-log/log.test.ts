@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import { EVENT_LOG_LIMIT, EventLog, type EventStore } from './log.js'
 import type { EventEntry } from './model.js'
-import type { EventMemory, WatchInput } from './watch.js'
+import { GRACE_MS, type EventMemory, type WatchInput } from './watch.js'
 
 const quiet: WatchInput = {
   config: { shared: { ci: { guard: true, kinds: [] } }, projects: {} },
@@ -14,7 +14,8 @@ const quiet: WatchInput = {
   forwards: {},
   works: {},
   cliVersions: [],
-  packages: { gateway: null },
+  packages: { gateway: null, projects: {} },
+  account: { accounts: [], pool: [] },
   configError: null,
 }
 const running = { ...quiet, chain: { ...quiet.chain, active: [{ project: 'p1', current: null, paused: false, error: null }] } } as WatchInput
@@ -40,6 +41,7 @@ describe('EventLog', () => {
   })
 
   it('keeps the newest entries only, and has the store drop the older ones', () => {
+    expect(EVENT_LOG_LIMIT).toBe(3000)
     const { calls, pruned } = store()
     const log = new EventLog({ entries: [], memory: null }, calls)
     for (let index = 0; index < EVENT_LOG_LIMIT + 2; index++) log.add({ level: 'info', notice: notice('eventLog.settings', {}), place: null })
@@ -65,6 +67,24 @@ describe('EventLog', () => {
     const log = new EventLog({ entries: [], memory }, store().calls, () => new Date('2026-11-05T12:00:00.000Z'))
     log.observe({ ...quiet, forwards: { p1: { into: 'p2', behind: 1, hold, held: true } } } as WatchInput)
     expect(log.entries).toEqual([])
+  })
+
+  it('gives what it remembered before a restart the grace after the start, and a later return an entry', () => {
+    const memory = { seen: { 'conflict|p1|p2': '2026-10-01T00:00:00.000Z' }, chains: {} }
+    const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
+    const held = { ...quiet, forwards: { p1: { into: 'p2', behind: 1, hold, held: true } } } as WatchInput
+    const start = Date.parse('2026-11-05T12:00:00.000Z')
+    let now = start
+    const log = new EventLog({ entries: [], memory }, store().calls, () => new Date(now))
+    log.observe(quiet)
+    now = start + GRACE_MS - 60_000
+    log.observe(held)
+    expect(log.entries).toEqual([])
+    log.observe(quiet)
+    now = start + GRACE_MS + 60_000
+    log.observe(quiet)
+    log.observe(held)
+    expect(log.entries.map((entry) => entry.notice.code)).toEqual(['eventLog.conflict'])
   })
 
   it('writes a change of the settings against the last ones seen, none for the first', () => {

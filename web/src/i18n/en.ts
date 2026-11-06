@@ -172,11 +172,6 @@ export const en: Messages = {
     packagesSilentHold: (packages: string) =>
       `The next task waits for its packages: ${packages}. They are asked again in half a minute, then less often up to once an hour; check their command and settings.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
-    cliOne: (title: string, installed: string, checked: string) => `${title} ${installed} · checked ${checked}`,
-    cliDaemon: (title: string, account: string, running: string, checked: string) =>
-      `The ${title} daemon of ${account} runs ${running} · checked ${checked}`,
-    cliMany: (count: number) => `${count} CLIs on versions Even Keel was not checked against`,
-    cliDetails: 'Details',
   },
   limits: {
     fiveHour: '5 hours',

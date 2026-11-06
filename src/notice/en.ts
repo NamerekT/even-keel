@@ -652,4 +652,19 @@ export const en = {
   'eventLog.projectSettings': (p: { project: string }) => `${p.project}: the settings changed`,
   'eventLog.projectAdded': (p: { project: string }) => `${p.project}: the project was added`,
   'eventLog.projectRemoved': (p: { key: string }) => `${p.key}: the project was removed`,
+  'eventLog.packages': (p: { project: string; package?: string; problem: LoggedPackageProblem; detail: string }) =>
+    `${p.project}: ${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
+  'eventLog.usageUnread': (p: { account: string }) => `The limits of the account ${p.account} can't be read, taken from the sessions`,
+  'eventLog.usageOff': (p: { account: string }) => `The limits of the account ${p.account} are not read until a restart`,
+}
+
+/** The package problems the event log writes (`watchedOf`): those that pass by themselves and `unsupported` write none. */
+export type LoggedPackageProblem = 'notInstalled' | 'installFailed' | 'noKey' | 'noResponse' | 'noTrackerMcp'
+
+const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string> = {
+  notInstalled: () => 'not installed',
+  installFailed: () => 'install failed',
+  noKey: (keys) => `not set: ${keys}`,
+  noResponse: (servers) => `${servers} does not answer`,
+  noTrackerMcp: (server) => `no tracker MCP ${server}`,
 }

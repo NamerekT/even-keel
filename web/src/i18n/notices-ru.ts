@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type GitStep } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -577,4 +577,15 @@ export const noticesRu: NoticeTexts = {
   'eventLog.projectSettings': (p) => `${p.project}: настройки изменены`,
   'eventLog.projectAdded': (p) => `${p.project}: проект добавлен`,
   'eventLog.projectRemoved': (p) => `${p.key}: проект удалён`,
+  'eventLog.packages': (p) => `${p.project}: ${p.package === undefined ? 'набор пакетов' : `пакет ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
+  'eventLog.usageUnread': (p) => `Лимиты аккаунта ${p.account} не читаются, берутся из сессий`,
+  'eventLog.usageOff': (p) => `Лимиты аккаунта ${p.account} не читаются до перезапуска`,
+}
+
+const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string> = {
+  notInstalled: () => 'не установлен',
+  installFailed: () => 'установка не удалась',
+  noKey: (keys) => `не задан: ${keys}`,
+  noResponse: (servers) => `${servers} не отвечает`,
+  noTrackerMcp: (server) => `нет MCP трекера ${server}`,
 }
