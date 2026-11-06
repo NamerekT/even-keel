@@ -4,7 +4,7 @@ import { ciKindsEn } from './ci-en.js'
 import { addAccount } from './add-account-en.js'
 const forms = (one: string, other: string) => (count: number) => plural('en', count, { one, other })
 const counted = (one: string, other: string) => (count: number) => `${count} ${forms(one, other)(count)}`
-const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', gitlab: 'Project on GitLab' }
+const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', gitlab: 'Project on GitLab', forgejo: 'Repository on Forgejo' }
 const fixes = counted('fix', 'fixes')
 const tasks = counted('task', 'tasks')
 import type { Messages } from './ru.js'
@@ -37,7 +37,7 @@ export const wizardEN: Messages['wizard'] = {
     signedIn: (login: string) => `signed in as ${login}`,
     trackerField: 'Project in the tracker',
     projectHint: (title: string) => `Its identifier in ${title} becomes the key of the tasks, their branches and the stats.`,
-    repoPlaceHint: 'The path from its address: owner/name on GitHub, group/project on GitLab; its issues become the tasks.',
+    repoPlaceHint: 'The path from its address: owner/name on GitHub and Forgejo, group/project on GitLab; its issues become the tasks.',
     team: 'Team key',
     teamHint: (title: string) => `The team's key in ${title}, as in its issue ids: ENG-12.`,
     noSuchProject: (title: string, key: string) => `${title} has no project ${key}`,
@@ -423,7 +423,7 @@ export const settingsEN: Messages['settings'] = {
     statusRulesReset: "The project's own status rules were for the old tracker: saving the tracker resets them to what the new one inherits. Check them in its window.",
     originFeed: 'feed',
     feedKey: 'Key',
-    feedKeyHint: 'Task IDs of a GitHub or GitLab feed are KEY-<number>; Huly, Linear and Jira keep their own. The prefix must be unique among projects and feeds.',
+    feedKeyHint: 'Task IDs of a GitHub, GitLab or Forgejo feed are KEY-<number>; Huly, Linear and Jira keep their own. The prefix must be unique among projects and feeds.',
     feedAdd: 'Add a feed',
     feedNew: 'New feed',
     feedRemoveQuestion: (key: string) => `Remove the feed ${key}? Its closed tasks stay on the page for 7 days.`,

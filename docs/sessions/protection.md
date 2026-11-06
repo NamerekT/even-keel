@@ -2,12 +2,13 @@
 
 ## Protection
 
-`src/sessions/protection.ts` defines eleven default deny groups. `protection` has `disabled` (group ids), `claude`
+`src/sessions/protection.ts` defines twelve default deny groups. `protection` has `disabled` (group ids), `claude`
 (permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode`
 (bash command glob patterns). Fields inherit
 from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
 `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and one per tracker (`TRACKER_GROUPS`):
-`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`. Sessions → Protection
+`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo` (BTN-476; a new group needs
+no migration: `disabled` names only the groups turned off). Sessions → Protection
 edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
 OS sandbox or a guarantee against equivalent commands.
 
@@ -15,8 +16,8 @@ The tracker groups (BTN-541) are enforced in the MCP gateway, not by the agents:
 deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool`
 (BTN-641; `docs/packages.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps
 Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none (native lists per tracker are
-an idea for 0.3). The page shows "Deleting tracker records" over the five tracker switches; it stores nothing: it is on
-while all five are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the
+an idea for 0.3). The page shows "Deleting tracker records" over the six tracker switches; it stores nothing: it is on
+while all six are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the
 fields: on means the project has no `protection` of its own; changing a field copies the shared values with the change
 and turns it off; turning it on drops the project's values.
 

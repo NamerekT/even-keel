@@ -15,7 +15,7 @@
 - **Every account on one page.** Claude, Codex, OpenCode and Copilot — subscriptions and API keys — each with its limits or spend and what runs on it right now. You pick the account a project runs on.
 - **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent: Claude Code gets your `AGENTS.md`, Codex your `CLAUDE.md`.
 
-It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues (GitLab.com or your own server) and Jira Cloud.
+It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues (GitLab.com or your own server), Jira Cloud and Forgejo Issues (Forgejo, Gitea or Codeberg).
 
 ![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](assets/screens/chain.png)
 
@@ -56,7 +56,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`).
 - **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and e-mail set (`git config --global user.name` and `user.email`): sessions commit and merge under that name.
 - **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The setup can download the CLI for you.
-- **A tracker:** a Huly workspace, GitHub or GitLab projects with Issues, a Linear workspace or a Jira Cloud site.
+- **A tracker:** a Huly workspace, GitHub, GitLab or Forgejo projects with Issues, a Linear workspace or a Jira Cloud site.
 - **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end. The MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it

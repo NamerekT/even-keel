@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CredentialsRefused } from '../tracker/source.js'
-import { FORGEJO_PROFILE, forgejoAccount, hostOf } from './forgejo-profile.js'
+import { forgejoAccount, hostOf } from './forgejo-profile.js'
 
 const VALUES = { FORGEJO_URL: 'git.example.com/', FORGEJO_TOKEN: 'example-token' }
 
@@ -43,17 +43,6 @@ describe('forgejoAccount', () => {
     const failed = forgejoAccount(VALUES, 5_000, reply(502))
     await expect(failed).rejects.toThrow('forgejo: HTTP 502')
     await expect(failed).rejects.not.toBeInstanceOf(CredentialsRefused)
-  })
-})
-
-describe('FORGEJO_PROFILE', () => {
-  it('makes a profile of the address and the token together', () => {
-    expect(FORGEJO_PROFILE.complete({})).toBe(false)
-    expect(FORGEJO_PROFILE.complete(VALUES)).toBe(true)
-    expect(() => FORGEJO_PROFILE.complete({ FORGEJO_TOKEN: 'example-token' })).toThrow('FORGEJO_URL')
-    expect(() => FORGEJO_PROFILE.complete({ ...VALUES, FORGEJO_URL: 'http://' })).toThrow('FORGEJO_URL')
-    expect(FORGEJO_PROFILE.profileName(VALUES, null)).toBe('Forgejo · git.example.com')
-    expect(FORGEJO_PROFILE.projects).toBeUndefined()
   })
 })
 

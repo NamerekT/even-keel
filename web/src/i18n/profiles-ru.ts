@@ -31,7 +31,7 @@ export const profilesRu = {
       linear: 'Рабочее пространство Linear',
       gitlab: 'Задачи и CI на GitLab.com или своём сервере',
       jira: 'Задачи на сайте Jira Cloud',
-      forgejo: 'CI своего сервера Forgejo, не трекер',
+      forgejo: 'Задачи и CI на Forgejo, Gitea или Codeberg',
     } as Record<string, string>,
     pullsRefused: 'PR отклонён',
     rulesOf: (name: string) => `Правила: ${name}`,
@@ -75,7 +75,7 @@ export const profilesRu = {
       linear: 'Личный ключ API.',
       gitlab: 'Личный токен со scope api. Для GitLab.com адрес можно оставить пустым.',
       jira: 'Адрес сайта, почта учётки Atlassian, которая видит проекты, и её API-токен.',
-      forgejo: 'Адрес сервера и токен. CI и pull requests берут профиль, чей хост совпадает с хостом remote.',
+      forgejo: 'Адрес сервера и токен. Задачи репозиториев становятся задачами цепочки; CI и pull requests берут профиль, чей хост совпадает с хостом remote.',
     } as Record<string, string>,
     rightsUse: { tracker: 'Трекер', ci: 'CI', pullRequests: 'Pull requests' },
     rights: {
@@ -93,6 +93,7 @@ export const profilesRu = {
       },
       jira: { tracker: 'Browse projects, Add comments, Transition issues и Edit issues в проектах; у токена со scope — read:jira-work, write:jira-work, read:jira-user' },
       forgejo: {
+        tracker: 'write:issue (закрывать задачи, комментарии, метки и вехи), read:repository (репозитории и их участники), read:user (проверка входа)',
         ci: 'read:repository (репозитории и их Actions), read:user (проверка входа)',
         pullRequests: 'write:repository (открыть PR, читать его ревью и права ревьюеров), read:issue (комментарии в обсуждении PR), read:user; чтобы считались ревьюеры, кроме самого аккаунта и владельца, аккаунт должен быть админом репозитория',
       },

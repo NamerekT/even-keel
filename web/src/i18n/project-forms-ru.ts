@@ -4,7 +4,7 @@ import { ciKindsRu } from './ci-ru.js'
 import { addAccount } from './add-account-ru.js'
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
 const counted = (one: string, few: string, many: string) => (count: number) => `${count} ${forms(one, few, many)(count)}`
-const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub', gitlab: 'Проект на GitLab' }
+const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub', gitlab: 'Проект на GitLab', forgejo: 'Репозиторий на Forgejo' }
 const tasks = counted('задача', 'задачи', 'задач')
 export const wizardRU = {
     title: 'Новый проект',
@@ -35,7 +35,7 @@ export const wizardRU = {
     signedIn: (login: string) => `вход как ${login}`,
     trackerField: 'Проект в трекере',
     projectHint: (title: string) => `Его идентификатор в ${title} станет ключом задач, их веток и статистики.`,
-    repoPlaceHint: 'Путь из его адреса: owner/name на GitHub, group/project на GitLab; его issues станут задачами.',
+    repoPlaceHint: 'Путь из его адреса: owner/name на GitHub и Forgejo, group/project на GitLab; его issues станут задачами.',
     team: 'Ключ команды',
     teamHint: (title: string) => `Ключ команды в ${title}, как в ID её задач: ENG-12.`,
     noSuchProject: (title: string, key: string) => `В ${title} нет проекта ${key}`,
@@ -421,7 +421,7 @@ export const settingsRU = {
     statusRulesReset: 'Свои правила статусов проекта были для прежнего трекера: сохранение трекера сбрасывает их к тому, что даёт новый. Проверьте их в окне источника.',
     originFeed: 'источник',
     feedKey: 'Ключ',
-    feedKeyHint: 'ID задач источника на GitHub или GitLab — КЛЮЧ-<номер>; Huly, Linear и Jira оставляют свои. Префикс не должен повторяться среди проектов и источников.',
+    feedKeyHint: 'ID задач источника на GitHub, GitLab или Forgejo —КЛЮЧ-<номер>; Huly, Linear и Jira оставляют свои. Префикс не должен повторяться среди проектов и источников.',
     feedAdd: 'Добавить источник',
     feedNew: 'Новый источник',
     feedRemoveQuestion: (key: string) => `Убрать источник ${key}? Его закрытые задачи останутся на странице на 7 дней.`,

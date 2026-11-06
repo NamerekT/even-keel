@@ -51,7 +51,7 @@ const KINDS: ProfileKindView[] = [
   {
     kind: 'forgejo',
     title: 'Forgejo',
-    tracker: false,
+    tracker: true,
     fields: [
       { name: 'FORGEJO_URL', secret: false },
       { name: 'FORGEJO_TOKEN', secret: true },

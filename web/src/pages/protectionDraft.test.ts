@@ -26,7 +26,7 @@ describe('the switch of all trackers', () => {
 
   it('turns every tracker on or off, and leaves the other groups', () => {
     expect(switched(['forcePush', 'deleteJira'], TRACKER_PROTECTION, true)).toEqual(['forcePush'])
-    expect(switched(['forcePush', 'deleteJira'], TRACKER_PROTECTION, false)).toEqual(['forcePush', 'deleteJira', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear'])
+    expect(switched(['forcePush', 'deleteJira'], TRACKER_PROTECTION, false)).toEqual(['forcePush', 'deleteJira', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteForgejo'])
   })
 
   it('lights up again when the last tracker is turned back on', () => {

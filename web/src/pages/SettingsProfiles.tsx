@@ -88,7 +88,7 @@ const LAMPS: Record<ProfileView['check']['state'], string> = {
 /**
  * A row, quiet while all is well: a lamp, the name and whether it is the default. Colour only on what needs a look —
  * a refusal, a near expiry, hidden CI, a refused pull request. Whom it signs in as and its projects open on pointing at
- * the name — a CI's profile (`tracker` off) names the remotes whose CI takes it instead.
+ * the name, and the remotes whose CI takes it when there are any; a CI's profile (`tracker` off) always names them.
  */
 function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileView; tracker: boolean; onEdit: () => void; onRules: () => void }) {
   const { send, sending, failure } = useCommand()
@@ -98,9 +98,9 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
   const details = (
     <>
       <span className="profiles__line">{profile.login === null ? t.profiles.states.unchecked : t.profiles.login(profile.login)}</span>
-      {tracker ? (
-        <span className="profiles__line">{profile.projects.length === 0 ? t.profiles.noProjects : t.profiles.projects(profile.projects.join(', '))}</span>
-      ) : (
+      {tracker && <span className="profiles__line">{profile.projects.length === 0 ? t.profiles.noProjects : t.profiles.projects(profile.projects.join(', '))}</span>}
+      {/* Forgejo's profile is a tracker's and its host's CI's at once (BTN-476): the remotes show whenever there are some. */}
+      {(!tracker || profile.ci.length > 0) && (
         <span className="profiles__line">{profile.ci.length === 0 ? t.profiles.noCi : t.profiles.ci(remotesOf(profile.ci, label))}</span>
       )}
       {profile.hiddenCi.length > 0 && <span className="profiles__line">{t.profiles.hiddenCi(remotesOf(profile.hiddenCi, label), profile.kind)}</span>}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "forgejo": {
+      "command": "gitea-mcp",
+      "args": ["-t", "stdio"],
+      "env": {
+        "GITEA_HOST": "${GITEA_HOST}",
+        "GITEA_ACCESS_TOKEN": "${GITEA_ACCESS_TOKEN}",
+        "GITEA_SCOPES": "issue,label,milestone,user"
+      }
+    }
+  }
+}

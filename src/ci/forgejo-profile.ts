@@ -1,4 +1,3 @@
-import type { ProfileKind } from '../profiles/model.js'
 import { fail } from '../notice/notice.js'
 import { CredentialsRefused, type ProfileAccount } from '../tracker/source.js'
 import { forgejoBase, hostOf } from './host.js'
@@ -45,10 +44,11 @@ export async function forgejoAccount(values: Readonly<Record<string, string>>, t
     throw new Error(`forgejo: HTTP ${response.status}`)
   }
   const user = (await response.json()) as { login: string }
-  return { login: user.login, name: nameOf(url), expiresAt: null }
+  return { login: user.login, name: forgejoName(url), expiresAt: null }
 }
 
-const nameOf = (url: string): string => `Forgejo · ${hostOf(url) ?? url}`
+/** A Forgejo profile is named by its host: the token's login says nothing of the server. */
+export const forgejoName = (url: string): string => `Forgejo · ${hostOf(url) ?? url}`
 
 /**
  * A remote on an unknown domain is taken for Forgejo (`remoteKind`), so the profile's check is where a GitLab or another
@@ -66,24 +66,4 @@ async function assertForgejo(response: Response, url: string): Promise<void> {
   if (typeof (body as { version?: unknown } | null)?.version !== 'string') {
     throw new Error(`forgejo: ${hostOf(url) ?? url} is not a Forgejo or Gitea server: /api/v1/version gave no version (HTTP ${response.status})`)
   }
-}
-
-/**
- * Forgejo as a profile's kind (BTN-201): a server's address and a token that reads its repositories and their Actions.
- * It is no tracker: the CI of a remote on the profile's host takes its token (`ciToken`).
- */
-export const FORGEJO_PROFILE: ProfileKind = {
-  title: 'Forgejo',
-  variables: [FORGEJO_URL, FORGEJO_TOKEN],
-  hostVariables: [FORGEJO_URL],
-  help: 'https://forgejo.org/docs/latest/user/token-scope/',
-  profileName: (values) => nameOf(values[FORGEJO_URL] ?? ''),
-  account: (values, timeoutMs) => forgejoAccount(values, timeoutMs),
-  complete(values) {
-    const url = values[FORGEJO_URL]
-    if (!url && !values[FORGEJO_TOKEN]) return false
-    if (!url || !values[FORGEJO_TOKEN]) throw new Error(`forgejo: ${FORGEJO_URL} and ${FORGEJO_TOKEN} go together`)
-    if (hostOf(url) === null) throw new Error(`forgejo: ${FORGEJO_URL} is not an address: ${url}`)
-    return true
-  },
 }

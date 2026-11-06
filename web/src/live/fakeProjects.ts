@@ -101,7 +101,7 @@ function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['e
 }
 
 function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
-  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : name === 'gitlab' ? 'GitLab' : name === 'jira' ? 'Jira' : 'Huly'
+  const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : name === 'gitlab' ? 'GitLab' : name === 'jira' ? 'Jira' : name === 'forgejo' ? 'Forgejo' : 'Huly'
   if (mode === 'off') {
     const variables =
       name === 'github' ? ['GITHUB_TOKEN']

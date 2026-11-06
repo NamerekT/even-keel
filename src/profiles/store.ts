@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { FORGEJO_PROFILE, FORGEJO_TOKEN, FORGEJO_URL, hostOf } from '../ci/forgejo-profile.js'
+import { FORGEJO_TOKEN, FORGEJO_URL, forgejoName, hostOf } from '../ci/forgejo-profile.js'
 import type { StatusMoves } from '../chain/moves.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
@@ -141,14 +141,17 @@ export async function importForgejo({ db, env, webs, log }: ImportForgejoOptions
   if ((await stateValue(db, 'profiles.forgejo.imported')) !== undefined) return stored
   const token = env[FORGEJO_TOKEN]
   const byHost = new Map<string, string>()
-  for (const web of token ? await webs() : []) {
+  // `FORGEJO_URL` beside the token names the tracker's server (BTN-476): its host goes first and becomes the default.
+  const own = env[FORGEJO_URL]
+  for (const web of token ? [...(own ? [own] : []), ...(await webs())] : []) {
     const host = hostOf(web)
-    if (host !== null && !byHost.has(host)) byHost.set(host, web)
+    const known = stored.profiles.some((profile) => profile.kind === 'forgejo' && hostOf(profile.values[FORGEJO_URL] ?? '') === host)
+    if (host !== null && !known && !byHost.has(host)) byHost.set(host, web)
   }
   const hasDefault = stored.profiles.some((profile) => profile.kind === 'forgejo' && profile.isDefault)
   const made: TrackerProfile[] = [...byHost.values()].map((web, index) => {
     const values = { [FORGEJO_URL]: web, [FORGEJO_TOKEN]: token! }
-    return { id: randomUUID(), kind: 'forgejo', name: FORGEJO_PROFILE.profileName(values, null), values, isDefault: !hasDefault && index === 0, login: null, expiresAt: null }
+    return { id: randomUUID(), kind: 'forgejo', name: forgejoName(web), values, isDefault: !hasDefault && index === 0, login: null, expiresAt: null }
   })
   const set = { ...stored, profiles: [...stored.profiles, ...made] }
   await inTransaction(db, async (tx) => {

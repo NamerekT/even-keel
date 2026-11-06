@@ -20,7 +20,6 @@ import { PullRefusals } from './review/refusals.js'
 import { closedTasks, loadQuestions, readLaunches, type ClosedTask } from './chain/store.js'
 import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { ProtectionAudit } from './ci/protection-audit.js'
-import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import { type CiTarget, type Remote } from './ci/remote.js'
 import type { IntakeEntry } from './intake/model.js'
 import { DEFAULT_BRANCH, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
@@ -356,13 +355,17 @@ const savedLimits = await loadSavedLimits(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
 const envFile = loadEnv()
-/** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
-const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
-/** The trackers' and Forgejo's credentials (BTN-200, BTN-201); the first start makes them of the variables of `.env`. */
+/** What a profile is made for: the trackers, Forgejo's among them, which serves its CI too (BTN-201, BTN-476). */
+const profileKindsOf = profileKinds(ADAPTERS)
+/**
+ * The trackers' and Forgejo's credentials (BTN-200, BTN-201); the first start makes them of the variables of `.env`.
+ * Forgejo's are `importForgejo`'s: `FORGEJO_TOKEN` alone is the CI's older form and makes a profile per remote host.
+ */
+const { forgejo: _forgejo, ...importedAdapters } = ADAPTERS
 const trackerProfiles = await importProfiles({
   db,
   env: process.env,
-  adapters: ADAPTERS,
+  adapters: importedAdapters,
   trackers: configStore.current.trackers,
   log: (line) => console.log(line),
 })

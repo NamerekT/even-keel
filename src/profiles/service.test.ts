@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { FORGEJO_PROFILE } from '../ci/forgejo-profile.js'
+import { forgejo } from '../forgejo/adapter.js'
 import { openDatabase, Writes } from '../storage/database.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { CredentialsRefused, type TrackerAdapter } from '../tracker/source.js'
@@ -200,7 +200,7 @@ describe('Profiles', { timeout: 60_000 }, () => {
     })
 
     it('reports a GitLab host as GitLab without an untranslated detail', async () => {
-      const profiles = make(undefined, { kinds: profileKinds({}, { forgejo: FORGEJO_PROFILE }) })
+      const profiles = make(undefined, { kinds: profileKinds({ forgejo }) })
       await expect(profiles.check({ kind: 'forgejo', values: { FORGEJO_URL: 'https://gitlab.com', FORGEJO_TOKEN: 'example-token' } }))
         .rejects.toMatchObject({ notice: { code: 'profiles.isGitlab', params: { host: 'gitlab.com' } } })
     })

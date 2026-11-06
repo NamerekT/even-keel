@@ -25,7 +25,7 @@ export const profilesEn: Messages['profiles'] = {
         : kind === 'gitlab'
           ? `GitLab CI not shown (${remotes}): the token does not reach the project's pipelines, check its api scope and project access`
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
-    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues and CI on GitLab.com or your own server', jira: 'Issues on a Jira Cloud site', forgejo: 'The CI of an own Forgejo server, no tracker' },
+    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', gitlab: 'Issues and CI on GitLab.com or your own server', jira: 'Issues on a Jira Cloud site', forgejo: 'Issues and CI on Forgejo, Gitea or Codeberg' },
     pullsRefused: 'PR refused',
     rulesOf: (name) => `Rules: ${name}`,
     rulesFor: (keys) => `Projects on this profile: ${keys}.`,
@@ -68,7 +68,7 @@ export const profilesEn: Messages['profiles'] = {
       linear: 'A personal API key.',
       gitlab: 'A personal access token with the api scope. Leave the address empty for GitLab.com.',
       jira: 'The site address, the e-mail of an Atlassian account that sees the projects and its API token.',
-      forgejo: "The server's address and a token. A CI and pull requests take the profile whose host is their remote's.",
+      forgejo: "The server's address and a token. Its repositories' issues become tasks; a CI and pull requests take the profile whose host is their remote's.",
     },
     rightsUse: { tracker: 'Tracker', ci: 'CI', pullRequests: 'Pull requests' },
     rights: {
@@ -86,6 +86,7 @@ export const profilesEn: Messages['profiles'] = {
       },
       jira: { tracker: 'Browse projects, Add comments, Transition issues and Edit issues in the projects; a token with scopes: read:jira-work, write:jira-work, read:jira-user' },
       forgejo: {
+        tracker: "write:issue (closing issues, comments, labels and milestones), read:repository (the repositories and their collaborators), read:user (the sign-in check)",
         ci: 'read:repository (the repositories and their Actions), read:user (the sign-in check)',
         pullRequests: "write:repository (opening a pull request, reading its reviews and its reviewers' access), read:issue (comments in the pull request's conversation), read:user; the account must be an admin of the repository for reviewers other than itself and the owner to count",
       },

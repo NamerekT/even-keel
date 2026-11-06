@@ -3,7 +3,7 @@ import { language } from './index.js'
 const en = {
   title: 'Protection', inherit: 'Use shared protection', hint: 'Applies to new sessions. Each switch enables native deny rules. These match tool calls; they do not replace a sandbox or server-side branch protection.',
   inheritHint: 'On: the project has no values of its own and follows the shared Protection, later changes there too. Changing any switch or rule below gives the project its own values and turns this off. Turning it on drops the project’s values and returns it to the shared ones.',
-  groups: { forcePush: 'Force pushes', mirrorPush: 'Mirror pushes', deleteRemote: 'Deleting remote branches', deleteRoot: 'Recursive removal from a root or drive', deleteHome: 'Recursive removal from the home folder', deleteParent: 'Recursive removal from parent folders', deleteHuly: 'Huly', deleteGithub: 'GitHub', deleteGitlab: 'GitLab', deleteLinear: 'Linear', deleteJira: 'Jira' },
+  groups: { forcePush: 'Force pushes', mirrorPush: 'Mirror pushes', deleteRemote: 'Deleting remote branches', deleteRoot: 'Recursive removal from a root or drive', deleteHome: 'Recursive removal from the home folder', deleteParent: 'Recursive removal from parent folders', deleteHuly: 'Huly', deleteGithub: 'GitHub', deleteGitlab: 'GitLab', deleteLinear: 'Linear', deleteJira: 'Jira', deleteForgejo: 'Forgejo' },
   allTrackers: 'Deleting tracker records',
   allTrackersHint: 'Even Keel’s MCP gateway refuses the calls of a tracker’s MCP server that delete a record: tasks, comments, labels, milestones and the rest. This holds for every agent, Codex too. On while every tracker below is on; turning it off turns them all off, and then they can be turned on one by one.',
   groupHints: {
@@ -18,6 +18,7 @@ const en = {
     deleteGitlab: 'The gateway refuses the calls of the GitLab MCP server that delete a record: issues, their links, milestones and the rest. Turn off to allow them.',
     deleteLinear: 'The gateway refuses the calls of the Linear MCP server that delete a record. Turn off to allow them.',
     deleteJira: 'The gateway refuses the calls of the Jira MCP server that delete a record. Turn off to allow them.',
+    deleteForgejo: 'The gateway refuses the calls of the Forgejo MCP server that delete a record: comments, attachments, labels, milestones and the rest. Turn off to allow them.',
   },
   custom: 'Additional agent rules', invalid: 'Codex rules must be nonempty JSON arrays of strings.',
   native: {
@@ -33,7 +34,7 @@ const en = {
 const ru: typeof en = {
   title: 'Защита', inherit: 'Использовать общую защиту', hint: 'Действует для новых сессий. Каждый переключатель включает запреты агента. Они сопоставляют вызовы инструментов; песочница и защита ветки на сервере настраиваются отдельно.',
   inheritHint: 'Включено: своих значений у проекта нет, он следует общей «Защите» и её будущим изменениям. Изменение любого переключателя или правила ниже даёт проекту свои значения и выключает этот пункт. Включите — свои значения проекта сбросятся к общим.',
-  groups: { forcePush: 'Принудительная отправка изменений', mirrorPush: 'Зеркальная отправка репозитория', deleteRemote: 'Удаление веток на сервере', deleteRoot: 'Рекурсивное удаление от корня или диска', deleteHome: 'Рекурсивное удаление домашней папки', deleteParent: 'Рекурсивное удаление родительских папок', deleteHuly: 'Huly', deleteGithub: 'GitHub', deleteGitlab: 'GitLab', deleteLinear: 'Linear', deleteJira: 'Jira' },
+  groups: { forcePush: 'Принудительная отправка изменений', mirrorPush: 'Зеркальная отправка репозитория', deleteRemote: 'Удаление веток на сервере', deleteRoot: 'Рекурсивное удаление от корня или диска', deleteHome: 'Рекурсивное удаление домашней папки', deleteParent: 'Рекурсивное удаление родительских папок', deleteHuly: 'Huly', deleteGithub: 'GitHub', deleteGitlab: 'GitLab', deleteLinear: 'Linear', deleteJira: 'Jira', deleteForgejo: 'Forgejo' },
   allTrackers: 'Удаление записей трекеров',
   allTrackersHint: 'Шлюз MCP Even Keel отказывает в вызовах MCP-сервера трекера, которые удаляют запись: задачу, комментарий, метку, веху и прочее. Действует для всех агентов, и для Codex тоже. Включён, пока включены все трекеры ниже; выключите — выключатся все, и дальше их можно включать по одному.',
   groupHints: {
@@ -48,6 +49,7 @@ const ru: typeof en = {
     deleteGitlab: 'Шлюз отказывает в вызовах MCP-сервера GitLab, которые удаляют запись: задачи, их связи, вехи и прочее. Выключите, чтобы разрешить.',
     deleteLinear: 'Шлюз отказывает в вызовах MCP-сервера Linear, которые удаляют запись. Выключите, чтобы разрешить.',
     deleteJira: 'Шлюз отказывает в вызовах MCP-сервера Jira, которые удаляют запись. Выключите, чтобы разрешить.',
+    deleteForgejo: 'Шлюз отказывает в вызовах MCP-сервера Forgejo, которые удаляют запись: комментарии, вложения, метки, вехи и прочее. Выключите, чтобы разрешить.',
   },
   custom: 'Дополнительные правила агентов', invalid: 'Правила Codex должны быть непустыми JSON-массивами строк.',
   native: {

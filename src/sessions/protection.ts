@@ -8,21 +8,23 @@ export interface Protection {
 }
 
 export const DEFAULT_PROTECTION: Protection = { disabled: [], claude: [], codex: [], copilot: [], opencode: [] }
-export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira'] as const
+export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira', 'deleteForgejo'] as const
 export type ProtectionGroup = (typeof PROTECTION_GROUPS)[number]
 /** Each tracker's own group, by the adapter's key: the MCP gateway refuses the delete calls of its server (BTN-541). */
-export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly: 'deleteHuly', github: 'deleteGithub', gitlab: 'deleteGitlab', linear: 'deleteLinear', jira: 'deleteJira' }
+export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly: 'deleteHuly', github: 'deleteGithub', gitlab: 'deleteGitlab', linear: 'deleteLinear', jira: 'deleteJira', forgejo: 'deleteForgejo' }
+
+const wordsOf = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
 
 /**
- * A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), one with
- * `method: "delete"` (GitHub's `label_write`), one named `destructive` (Jira's `executeDestructive`, whatever operation
- * it runs), or a dispatcher (Huly's `invoke_tool`) calling such a tool (BTN-641). A tool name in the arguments of
- * anything else (`get_tool_schema`) is a read, not a call (BTN-659).
+ * A call that deletes a record: a tool named with the word `delete` (`delete_issue`, `deleteComment`), one whose
+ * `method` has that word (GitHub's `label_write` with `delete`, gitea-mcp's `issue_write` with `delete_comment`), one
+ * named `destructive` (Jira's `executeDestructive`, whatever operation it runs), or a dispatcher (Huly's `invoke_tool`)
+ * calling such a tool (BTN-641). A tool name in the arguments of anything else (`get_tool_schema`) is a read, not a call (BTN-659).
  */
 export function deletesRecord(tool: string, args: unknown): boolean {
-  const words = tool.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
+  const words = wordsOf(tool)
   const fields = typeof args === 'object' && args !== null ? args as Record<string, unknown> : {}
-  if (words.includes('delete') || words.includes('destructive') || (typeof fields.method === 'string' && fields.method.toLowerCase() === 'delete')) return true
+  if (words.includes('delete') || words.includes('destructive') || (typeof fields.method === 'string' && wordsOf(fields.method).includes('delete'))) return true
   if (!['invoke', 'call', 'execute', 'run'].some(word => words.includes(word))) return false
   const nested = [fields.toolName, fields.tool_name, fields.name, fields.tool].find(name => typeof name === 'string')
   return typeof nested === 'string' && deletesRecord(nested, parsed(fields.arguments ?? fields.args ?? fields.params ?? fields.input ?? fields.inputs))
@@ -86,6 +88,7 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     deleteGitlab: gateway(),
     deleteLinear: gateway(),
     deleteJira: gateway(),
+    deleteForgejo: gateway(),
     deleteHuly: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]), opencode: { bash: [], tools: hulyServers.flatMap(server => DELETE_TOOLS.map(name => `${server}_${name}`)) } },
   }
   for (const git of ['git', 'git -*']) {

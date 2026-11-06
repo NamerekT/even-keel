@@ -20,7 +20,7 @@ const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
 const fixes = counted('fix', 'fixes')
 const fixOf = (red: string | null) => (red === null ? 'Fix of main' : `Fix of main: ${red}`)
-const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', gitlab: 'Project on GitLab' }
+const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', gitlab: 'Project on GitLab', forgejo: 'Repository on Forgejo' }
 
 export const en: Messages = {
   notice: noticesEn,

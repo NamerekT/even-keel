@@ -25,7 +25,7 @@ const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
 const fixes = counted('починка', 'починки', 'починок')
 const fixOf = (red: string | null) => (red === null ? 'Починка main' : `Починка main: ${red}`)
-const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub', gitlab: 'Проект на GitLab' }
+const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий на GitHub', gitlab: 'Проект на GitLab', forgejo: 'Репозиторий на Forgejo' }
 
 export const ru = {
   notice: noticesRu,

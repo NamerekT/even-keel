@@ -27,7 +27,7 @@ describe('session protection', () => {
 
   it('keeps the native Huly rules with the Huly group only: the other trackers are the gateway\'s', () => {
     expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteHuly'] }).claude.some(rule => rule.includes('huly'))).toBe(false)
-    expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira'] }).claude).toContain('mcp__plugin_huly_huly__delete_issue')
+    expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira', 'deleteForgejo'] }).claude).toContain('mcp__plugin_huly_huly__delete_issue')
     expect(Object.values(TRACKER_GROUPS).every(group => PROTECTION_GROUPS.includes(group))).toBe(true)
     expect(Object.keys(TRACKER_GROUPS).sort()).toEqual(Object.keys(ADAPTERS).sort())
   })
@@ -37,6 +37,11 @@ describe('session protection', () => {
     for (const tool of ['preview_deletion', 'remove_issue_label', 'undeleted_items', 'update_issue', 'label_write']) expect(deletesRecord(tool, { method: 'update' })).toBe(false)
     expect(deletesRecord('label_write', { method: 'delete', name: 'bug' })).toBe(true)
     expect(deletesRecord('label_write', null)).toBe(false)
+  })
+
+  it('knows the delete methods of gitea-mcp, which name what they delete', () => {
+    for (const method of ['delete_comment', 'delete_attachment', 'delete_repo_label', 'DELETE_LABEL', 'deleteComment']) expect(deletesRecord('issue_write', { method })).toBe(true)
+    for (const method of ['add_dependency', 'remove_label', 'undeleted', 'edit_comment']) expect(deletesRecord('issue_write', { method })).toBe(false)
   })
 
   it('looks into the tool a dispatcher such as Huly\'s invoke_tool calls', () => {

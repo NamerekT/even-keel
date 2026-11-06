@@ -153,6 +153,7 @@ export function fakeConfig(account?: string | null): ConfigView {
       { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true, alias: false } },
       { name: 'gitlab', title: 'GitLab', projectKey: { key: 'gitlab', example: 'group/subgroup/app', optional: false, alias: false } },
       { name: 'jira', title: 'Jira', projectKey: null },
+      { name: 'forgejo', title: 'Forgejo', projectKey: { key: 'forgejo', example: 'owner/name', optional: false, alias: false } },
     ],
     feeds: {
       ABC: [
