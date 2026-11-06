@@ -58,7 +58,7 @@ Tally writes a done task's active time into GitLab's spent time and Jira's workl
 
 - a real `add_spent_time` on GitLab.com and a self-managed instance, and that the issue then shows the minutes with the label as its summary;
 - a real Jira worklog through the site's address and through Atlassian's gateway (a scoped token), with `started` in Jira's own time format and the ADF comment;
-- what Jira answers when time tracking is off for the site, or the account lacks "Work on issues": taken as a 403, or a 400 whose text names time tracking — any other answer is retried every run and logged each time instead of marking the task;
+- what Jira answers when time tracking is off for the site: taken, like a refusal of the right, as a 403 or a 400 whose `errors` name no field of the request — a 400 naming a field, or any other status, is retried every run and logged each time instead of marking the task. The missing "Work on issues" was seen on the bench (EKR-91): a 400 with two `errorMessages` in the account's language and empty `errors`, so the text is never matched; `GET /mypermissions` said `havePermission: false` even after the right came back and is not asked;
 - that GitLab's 403 is what a Guest gets, and that a project with time tracking off by its features refuses the same way;
 - a second run after a written report: only `tasks.reported_at` keeps it from writing again, the tracker is not asked.
 

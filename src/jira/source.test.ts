@@ -365,11 +365,18 @@ describe('Jira task source', () => {
     const { source } = await connect([
       { status: 403, body: { errorMessages: ['You do not have the permission to associate a worklog to this issue.'] } },
       { status: 400, body: { errorMessages: ['Time Tracking is disabled.'] } },
+      // The live answer of Jira Cloud without "Work on issues" (EKR-91): a 400, in the account's language, no field named.
+      { status: 400, body: { errorMessages: ['John Doe, у вас нет прав для ассоциации журнала работ с этой задачей.', 'Журнал работ не должен быть пуст.'], errors: {} } },
       { status: 400, body: { errors: { timeLogged: 'Invalid time duration entered.' } } },
+      { status: 400, body: { errorMessages: ['Something else.'], errors: { started: 'Неверный формат даты.' } } },
+      { status: 500, body: { errorMessages: ['Internal error.'] } },
     ])
     const entry = { hours: 1, at: '2026-11-01T10:00:00.000Z', summary: 'Tally' }
     expect(await source.logTime!('ABC-1', entry)).toBe(false)
     expect(await source.logTime!('ABC-1', entry)).toBe(false)
+    expect(await source.logTime!('ABC-1', entry)).toBe(false)
     await expect(source.logTime!('ABC-1', entry)).rejects.toThrow('Invalid time duration')
+    await expect(source.logTime!('ABC-1', entry)).rejects.toThrow('Неверный формат даты')
+    await expect(source.logTime!('ABC-1', entry)).rejects.toThrow('HTTP 500')
   })
 })
