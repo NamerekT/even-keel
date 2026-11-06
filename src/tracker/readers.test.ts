@@ -6,7 +6,7 @@ import { ReaderTasks } from './readers.js'
 
 /** ABC reads its own tasks and those of the feed `gh`, whose ids are `ABCGH-<n>`. */
 function setup(released: string[] = []) {
-  const calls: { setTasks: [string, string[]][]; setOutside: [string, string[]][]; setReleased: [string, string[]][]; preview: [string, string[]][] } = {
+  const calls: { setTasks: [string, string[]][]; setOutside: [string, string[]][]; setReleased: [string, string[], string[]?][]; preview: [string, string[]][] } = {
     setTasks: [],
     setOutside: [],
     setReleased: [],
@@ -23,7 +23,7 @@ function setup(released: string[] = []) {
       setTasks: (project, tasks) => void calls.setTasks.push([project, tasks.map((each) => each.id)]),
       setOutside: (project, tasks) => void calls.setOutside.push([project, tasks.map((each) => each.id)]),
       released: () => released,
-      setReleased: (project, tasks) => void calls.setReleased.push([project, tasks.map((each) => each.id)]),
+      setReleased: (project, tasks, asked) => void calls.setReleased.push([project, tasks.map((each) => each.id), asked]),
       held: () => ['ABCGH-2', ...released],
       view: () => view,
       preview: (project, tasks) => {
@@ -78,10 +78,10 @@ describe('ReaderTasks', () => {
 
   it('hands the released tasks to the chain once every reader with some has read them', () => {
     const { join, calls } = setup(['ABC-4', 'ABCGH-5'])
-    join.setReleased('ABC', [task('ABC-4')])
+    join.setReleased('ABC', [task('ABC-4')], ['ABC-4'])
     expect(calls.setReleased).toEqual([])
-    join.setReleased('gh', [task('ABCGH-5')])
-    expect(calls.setReleased).toEqual([['ABC', ['ABC-4', 'ABCGH-5']]])
+    join.setReleased('gh', [], ['ABCGH-5'])
+    expect(calls.setReleased).toEqual([['ABC', ['ABC-4'], ['ABC-4', 'ABCGH-5']]])
   })
 
   it('forgets a reader that goes: its tasks leave the project, the project stays', () => {

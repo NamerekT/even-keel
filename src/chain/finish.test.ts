@@ -345,6 +345,28 @@ describe('Dispatcher finishing a task it let go of', () => {
     expect(dispatcher.released('ABC')).toEqual([])
   })
 
+  it('keeps a task released while the tracker was reading the released tasks before it, and cleans up after it once done', async () => {
+    const { dispatcher, finished } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3')])
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-3')])
+    await dispatcher.idle()
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1', 'ABC-2'])
+
+    // Asked only about ABC-1: ABC-2 went to the backlog while the answer was on its way (BTN-766).
+    dispatcher.setReleased('ABC', [task('ABC-1')], ['ABC-1'])
+    await dispatcher.idle()
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1', 'ABC-2'])
+
+    dispatcher.setReleased('ABC', [task('ABC-1'), task('ABC-2', done)], ['ABC-1', 'ABC-2'])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
+  })
+
   it('waits until the session of the released task is not mid-turn', async () => {
     const busy = new Set<string>()
     const { dispatcher, finished } = setup({ busy })
@@ -404,7 +426,7 @@ describe('Dispatcher finishing a task it let go of', () => {
     await dispatcher.idle()
     expect(dispatcher.released('ABC')).toEqual(['ABC-1', 'ABC-2'])
 
-    dispatcher.setReleased('ABC', [task('ABC-1', canceled)])
+    dispatcher.setReleased('ABC', [task('ABC-1', canceled)], ['ABC-1', 'ABC-2'])
     await dispatcher.idle()
     expect(dispatcher.released('ABC')).toEqual([])
     expect(dispatcher.state.released).toEqual({})

@@ -24,7 +24,8 @@ export class ReaderTasks implements Chain {
   private readonly listed = new Map<string, Task[]>()
   private readonly chained = new Map<string, Task[]>()
   private readonly outside = new Map<string, Task[]>()
-  private readonly releasedRead = new Map<string, Task[]>()
+  /** By reader: its released tasks the tracker gave and the ids it was asked about. */
+  private readonly releasedRead = new Map<string, { tasks: Task[]; asked: string[] }>()
   /** The project each reader was last read for. */
   private readonly owners = new Map<string, string>()
 
@@ -76,12 +77,13 @@ export class ReaderTasks implements Chain {
    * The chain judges the project's released tasks all at once and lets go of one it is not given: it gets them only once
    * every reader that has some has read its own.
    */
-  setReleased(reader: string, tasks: Task[]): void {
-    this.releasedRead.set(reader, tasks)
+  setReleased(reader: string, tasks: Task[], asked: string[]): void {
+    this.releasedRead.set(reader, { tasks, asked })
     const project = this.deps.owner(reader)
     const readers = this.deps.readers(project).filter((each) => this.released(each).length > 0)
     if (readers.some((each) => !this.releasedRead.has(each))) return
-    this.deps.dispatcher.setReleased(project, readers.flatMap((each) => this.releasedRead.get(each)!))
+    const reads = readers.map((each) => this.releasedRead.get(each)!)
+    this.deps.dispatcher.setReleased(project, reads.flatMap((read) => read.tasks), reads.flatMap((read) => read.asked))
   }
 
   held(reader: string): string[] {

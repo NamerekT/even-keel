@@ -114,6 +114,21 @@ describe('startTracker', () => {
     expect(closed).toBe(true)
   })
 
+  it('tells the chain which released tasks it read, not those released while the read was on its way', async () => {
+    const released = ['APP-2']
+    const setReleased = vi.fn()
+    start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [task('APP-1')], statuses: ['Todo'] }),
+      tasks: async () => {
+        released.push('APP-3')
+        return [task('APP-2')]
+      },
+      close: async () => {},
+    }), { dispatcher: { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [...released], setReleased, held: () => [], preview: (_project: string, tasks: TrackerTask[]) => ({ tasks, blockers: [], current: undefined }) } as unknown as TrackerStartDeps['dispatcher'] })
+    await vi.waitFor(() => expect(setReleased).toHaveBeenCalled())
+    expect(setReleased.mock.calls[0]).toEqual(['APP', [expect.objectContaining({ id: 'APP-2' })], ['APP-2']])
+  })
+
   it('logs repeated status poll failures once and logs recovery once', async () => {
     vi.useFakeTimers()
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})

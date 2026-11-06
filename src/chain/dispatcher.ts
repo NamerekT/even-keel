@@ -139,14 +139,19 @@ export class Dispatcher {
     return [...holds, ...this.released(project).filter((id) => !holds.includes(id))]
   }
 
-  setReleased(project: string, tasks: Task[]): void {
+  /**
+   * `asked` — the released tasks the tracker was asked about: only they are judged, one missing from `tasks` is gone. A
+   * task released while the read was on its way is kept for the next read (BTN-766).
+   */
+  setReleased(project: string, tasks: Task[], asked: string[] = tasks.map((task) => task.id)): void {
     const rules = (id: string) => this.deps.rules(project, id)
     const statuses = new Map(tasks.map((task) => [task.id, task.status]))
     const kept = this.released(project).filter((id) => {
+      if (!asked.includes(id)) return true
       const status = statuses.get(id)
       return status !== undefined && (isDone(rules(id), status) || !isTerminal(rules(id), status))
     })
-    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules(id), statuses.get(id)!))))
+    this.cleanups.done.set(project, new Set(kept.filter((id) => statuses.has(id) && isDone(rules(id), statuses.get(id)!))))
     if (kept.length !== this.released(project).length) {
       this.cleanups.keepReleased(project, kept)
       this.deps.save(this.state)

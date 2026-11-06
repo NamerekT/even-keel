@@ -229,8 +229,9 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
+      // Taken before the chain has followed the list just set: a task it releases meanwhile is not in this read (BTN-766).
       const released = dispatcher.released(project)
-      if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released), JSON.stringify(['tasks', ...released])))
+      if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released), JSON.stringify(['tasks', ...released])), released)
       if (!completes) return
       const open = shown.filter((task) => isOpen(task.status)).map((task) => task.id)
       for (const task of await closer.sweep(project, dispatcher.held(project), open)) {
