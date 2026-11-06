@@ -26,7 +26,7 @@ import { fetchSdk, sdkModuleIn, sdkVersionOf } from './sdk/release.js'
 import { trustFolder } from './trust.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '2.1.317'
+const CHECKED = '2.1.319'
 /** Even Keel's folder of SDK sessions in `state/` and of the SDK's copies in `state/cli/`. */
 const CLAUDE_SDK = 'claude-sdk'
 const SDK_TRANSPORT: Transport = 'sdk'

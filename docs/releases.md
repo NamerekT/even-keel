@@ -100,6 +100,8 @@ Passed on 2026-11-02: Claude Code 2.1.316 (SDK 0.3.316, with `/usage`), codex-cl
 
 Passed on 2026-11-03: Claude Code 2.1.317 (SDK 0.3.317, Haiku, `--no-usage`) on Windows x64, for 0.2.0; codex-cli 0.166.0, OpenCode 1.19.5 and Copilot CLI 1.0.105 were still the newest. `cli-compare` against 2.1.316 showed a new line type `session-owner` (account, organization and session ids, anonymized in the capture) and `is_error` in an API request blob's content, neither of which a parser reads.
 
+Passed on 2026-11-06, for 0.2.2 (EKR-97): Claude Code 2.1.319 (npm's `next`; `latest` was 2.1.318; Haiku, with `/usage`, window 250000), codex-cli 0.167.0 (`gpt-5.6-luna`, `rate_limits` from the rollout, window 258400), OpenCode 1.19.5, still the newest (window 200000), and Copilot CLI 1.0.106 (window 272000) on Windows x64, and `npm run cli-fetch` for all five (SDK 0.3.319). `cli-compare` showed no change a parser reads: Claude against 2.1.317 and Codex against 0.166.0 gained or lost no event type, their fields differing only in sample ids and paths, and Claude no longer writes `attachment.addedBlocks`; Copilot against 1.0.105 gained an `instruction.update` event, which the transcript's fold skips like any unknown type, and lost `assistant.message`'s `data.reasoningText` and `reasoningBlocks[].summary[]`, which nothing reads.
+
 ## Tally across clones
 
 - A task's cost is by its ID, whatever folder its sessions ran in.
