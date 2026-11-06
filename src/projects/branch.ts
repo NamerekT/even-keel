@@ -8,6 +8,11 @@ export interface BranchChoice {
   name: string
   /** The remote it is only on, the checkout would take it from there; `null` — a local branch. */
   remote: string | null
+  /**
+   * Not offered (BTN-765): a task's branch, `<slug>/task`, or one another worktree holds. It stays in the list so that
+   * typing it still moves the checkout by what is there, not as a new branch.
+   */
+  hidden?: true
 }
 
 /** The main checkout's branches as the field offers them. */
@@ -16,7 +21,7 @@ export interface RepoBranches {
   current: string | null
   /** The short sha of HEAD, which a new branch starts from; `null` — no commit yet. */
   head: string | null
-  /** The current branch first, then the other local ones, then those only on a remote. */
+  /** The current branch first, then the other local ones, then those only on a remote; the hidden ones too. */
   branches: BranchChoice[]
 }
 

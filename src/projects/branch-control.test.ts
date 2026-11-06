@@ -105,6 +105,19 @@ describe('readBranches', { timeout: 30_000 }, () => {
     expect(read?.current).toBeNull()
     expect(read?.branches.map((each) => each.name)).toEqual(['local', 'main', 'shared'])
   })
+
+  it('marks hidden a branch another worktree holds and a task branch left without its worktree', async () => {
+    await git('worktree', 'add', '-q', '-b', 'abc-1/task', join(top, 'task'))
+    await git('branch', 'abc-2/task')
+    const read = await readBranches(runGit, repo)
+    expect(read?.branches).toEqual([
+      { name: 'main', remote: null },
+      { name: 'abc-1/task', remote: null, hidden: true },
+      { name: 'abc-2/task', remote: null, hidden: true },
+      { name: 'local', remote: null },
+      { name: 'shared', remote: 'origin' },
+    ])
+  })
 })
 
 describe('branchMove', () => {
@@ -115,6 +128,11 @@ describe('branchMove', () => {
     expect(branchMove(repoBranches, 'local')).toEqual({ kind: 'switch', from: 'main' })
     expect(branchMove(repoBranches, 'shared')).toEqual({ kind: 'track', remote: 'origin', from: 'main' })
     expect(branchMove(repoBranches, 'next')).toEqual({ kind: 'create', from: 'main', head: 'abc1234' })
+  })
+
+  it('moves to a hidden branch as to any other, so git refuses one a worktree holds rather than a new one being made', () => {
+    const withTask = { ...repoBranches, branches: [...repoBranches.branches, { name: 'abc-1/task', remote: null, hidden: true as const }] }
+    expect(branchMove(withTask, 'abc-1/task')).toEqual({ kind: 'switch', from: 'main' })
   })
 })
 
@@ -156,6 +174,14 @@ describe('BranchControl.change', { timeout: 30_000 }, () => {
     const { save, writes } = control()
     await expect(save('local')).rejects.toMatchObject({ notice: notice('branch.taken', { branch: 'local' }) })
     expect(await head()).toBe('main')
+    expect(writes).toEqual([])
+  })
+
+  it('refuses a task branch its worktree holds, though the field does not offer it', async () => {
+    await git('worktree', 'add', '-q', '-b', 'abc-1/task', join(top, 'task'))
+    const { save, writes } = control()
+    await expect(save('abc-1/task')).rejects.toMatchObject({ notice: notice('branch.taken', { branch: 'abc-1/task' }) })
+    expect(await git('branch', '--list', 'abc-1/task')).toContain('abc-1/task')
     expect(writes).toEqual([])
   })
 

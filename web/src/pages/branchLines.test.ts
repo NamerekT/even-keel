@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { RepoBranches } from '../../../src/state.js'
+import type { EvenKeelState, RepoBranches } from '../../../src/state.js'
 import { branchTexts } from '../i18n/branch.js'
 import { setLanguage } from '../i18n/index.js'
+import { fakeRepoBranches } from '../live/fakeBranches.js'
 import { branchOffers, moveLine } from './branchLines.js'
 
 const repo: RepoBranches = {
@@ -23,6 +24,21 @@ describe('branchOffers', () => {
       { value: 'main' },
       { value: 'release/v1', label: 'on origin' },
     ])
+  })
+
+  it('leaves out the hidden branches', () => {
+    const withTasks: RepoBranches = {
+      ...repo,
+      branches: [...repo.branches, { name: 'abc-1/task', remote: null, hidden: true }, { name: 'abc-2/task', remote: 'origin', hidden: true }],
+    }
+    expect(branchOffers(withTasks).map((offer) => offer.value)).toEqual(['dev', 'main', 'release/v1'])
+  })
+
+  it('offers no task branches on dev:fake', () => {
+    const state = { branchDrift: {}, config: { projects: {} } } as unknown as EvenKeelState
+    const values = branchOffers(fakeRepoBranches(state, 'ABC')).map((offer) => offer.value)
+    expect(values).toContain('develop')
+    expect(values.some((value) => value.endsWith('/task'))).toBe(false)
   })
 
   it('offers nothing while the branches are not read', () => {

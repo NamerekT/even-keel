@@ -1,11 +1,13 @@
 import { fail } from '../../../src/notice/notice.js'
 import type { BranchChoice, BranchDrift, EvenKeelState, RepoBranches } from '../../../src/state.js'
 
-/** The fake checkouts' other branches: `release/v1` lives only on `origin`. */
+/** The fake checkouts' other branches: `release/v1` lives only on `origin`; the task branches are hidden (BTN-765). */
 const OTHERS: BranchChoice[] = [
   { name: 'develop', remote: null },
   { name: 'feature/spike', remote: null },
+  { name: 'abc-12/task', remote: null, hidden: true },
   { name: 'release/v1', remote: 'origin' },
+  { name: 'abc-7/task', remote: 'origin', hidden: true },
 ]
 
 /** `?branch=drift` — ABC's checkout was switched by hand to `feature/spike` (BTN-754). */

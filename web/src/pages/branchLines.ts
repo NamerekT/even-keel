@@ -3,11 +3,14 @@ import type { RepoBranches } from '../../../src/state.js'
 import { branchTexts } from '../i18n/branch.js'
 import type { Offer } from '../ui/selectKeys.js'
 
-/** The main branch field's list (BTN-754): the checkout's branch first, marked so, then the local ones, then those only on a remote. */
+/**
+ * The main branch field's list (BTN-754): the checkout's branch first, marked so, then the local ones, then those only
+ * on a remote; without the hidden ones, task branches and those other worktrees hold (BTN-765).
+ */
 export function branchOffers(repo: RepoBranches | null): Offer[] {
   if (repo === null) return []
   const texts = branchTexts()
-  return repo.branches.map((branch) => {
+  return repo.branches.filter((branch) => branch.hidden !== true).map((branch) => {
     const label = branch.name === repo.current ? texts.current : branch.remote === null ? undefined : texts.remote(branch.remote)
     return label === undefined ? { value: branch.name } : { value: branch.name, label }
   })

@@ -54,7 +54,7 @@ function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTa
   }
 }
 
-const REFS = 'for-each-ref --format=%(refname) refs/heads/ refs/remotes/'
+const REFS = 'for-each-ref --format=%(refname) %(worktreepath) refs/heads/ refs/remotes/'
 const BRANCHES = {
   current: 'trunk',
   head: 'abc1234',

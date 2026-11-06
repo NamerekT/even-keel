@@ -14,7 +14,7 @@ export async function readBranches(git: Git, repo: string): Promise<RepoBranches
   const [current, head, refs, remotes] = await Promise.all([
     currentBranch(git, repo),
     git(repo, ['rev-parse', '--short', 'HEAD']),
-    git(repo, ['for-each-ref', '--format=%(refname)', 'refs/heads/', 'refs/remotes/']),
+    git(repo, ['for-each-ref', '--format=%(refname) %(worktreepath)', 'refs/heads/', 'refs/remotes/']),
     git(repo, ['remote']),
   ])
   if (refs.code !== 0) return null
@@ -22,25 +22,44 @@ export async function readBranches(git: Git, repo: string): Promise<RepoBranches
   return { current, head: head.code === 0 && head.out.trim() !== '' ? head.out.trim() : null, branches: choicesOf(refs.out, names, current) }
 }
 
-/** The local branches, the current one first, then the remote ones no local branch has, each name once. */
+/**
+ * The local branches, the current one first, then the remote ones no local branch has, each name once. `refs` is
+ * `for-each-ref` of `%(refname) %(worktreepath)`. A task's branch (`taskPlace`) and a branch some worktree other than
+ * the checkout holds are marked hidden (BTN-765): never a main branch, and git would refuse the latter anyway.
+ */
 export function choicesOf(refs: string, remotes: string[], current: string | null): BranchChoice[] {
   const local: BranchChoice[] = []
   const remote: BranchChoice[] = []
   // A remote's name may hold a slash: the longest one that prefixes the ref is its remote.
   const byLength = [...remotes].sort((a, b) => b.length - a.length)
   for (const line of refs.split('\n').map((each) => each.trim())) {
-    if (line.startsWith('refs/heads/')) local.push({ name: line.slice('refs/heads/'.length), remote: null })
-    else if (line.startsWith('refs/remotes/')) {
-      const rest = line.slice('refs/remotes/'.length)
+    const gap = line.indexOf(' ')
+    const ref = gap < 0 ? line : line.slice(0, gap)
+    // The checkout holds only its current branch, so any other branch with a worktree path is another worktree's.
+    const held = gap >= 0 && line.slice(gap + 1).trim() !== ''
+    if (ref.startsWith('refs/heads/')) {
+      const name = ref.slice('refs/heads/'.length)
+      local.push(choice(name, null, name !== current && (held || isTaskBranch(name))))
+    } else if (ref.startsWith('refs/remotes/')) {
+      const rest = ref.slice('refs/remotes/'.length)
       const owner = byLength.find((name) => rest.startsWith(`${name}/`)) ?? rest.split('/')[0]!
       const name = rest.slice(owner.length + 1)
-      if (name !== '' && name !== 'HEAD') remote.push({ name, remote: owner })
+      if (name !== '' && name !== 'HEAD') remote.push(choice(name, owner, isTaskBranch(name)))
     }
   }
   const taken = new Set(local.map((each) => each.name))
   const only = remote.filter((each) => !taken.has(each.name) && (taken.add(each.name), true))
   const first = local.filter((each) => each.name === current)
   return [...first, ...local.filter((each) => each.name !== current), ...only]
+}
+
+function choice(name: string, remote: string | null, hidden: boolean): BranchChoice {
+  return hidden ? { name, remote, hidden: true } : { name, remote }
+}
+
+/** Even Keel names a task's branch `<slug>/task` (`taskPlace`); a task key may itself hold a slash (`owner/repo#12`). */
+function isTaskBranch(name: string): boolean {
+  return name.endsWith('/task')
 }
 
 /** Whether git takes the name as a branch (`git check-ref-format --branch`). */
