@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest'
+import { notice } from '../notice/notice.js'
+import type { EventsInput } from './page-events.js'
+import { GRACE_MS, launchDraft, observe, settingsDrafts, watchedOf, type WatchInput } from './watch.js'
+
+const none: WatchInput = {
+  config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {} },
+  chain: { active: [], projects: {}, leftovers: {}, skipped: {} },
+  ci: {},
+  fixes: {},
+  sessions: [],
+  tasks: [],
+  forwards: {},
+  works: {},
+  cliVersions: [],
+  packages: { gateway: null },
+  configError: null,
+}
+const chain = (fields: object = {}) => ({ project: 'p1', current: null, paused: false, error: null, ...fields }) as EventsInput['chain']['active'][number]
+const withChain = (fields: object = {}): WatchInput => ({ ...none, chain: { ...none.chain, active: [chain(fields)] } })
+const asking = (id: string): WatchInput =>
+  ({ ...none, sessions: [{ task: 'ABC-1', sessionId: 's1', asking: true, ask: { id } }], tasks: [{ id: 'ABC-1', project: 'p1' }] }) as unknown as WatchInput
+const at = (minutes: number) => new Date(Date.UTC(2026, 10, 5, 12, minutes))
+
+/** The entries the step from `before` to `after` writes, after a quiet first look at `before`. */
+function step(before: WatchInput, after: WatchInput) {
+  const first = observe(null, watchedOf(before), at(0))
+  return observe(first.memory, watchedOf(after), at(1)).drafts
+}
+
+describe('observe', () => {
+  it('takes the first look as old news and writes what comes after it', () => {
+    const first = observe(null, watchedOf(asking('q1')), at(0))
+    expect(first.drafts).toEqual([])
+    expect(observe(first.memory, watchedOf(asking('q1')), at(1)).drafts).toEqual([])
+    expect(step(none, asking('q1'))).toEqual([
+      { level: 'warning', notice: notice('eventLog.ask', { task: 'ABC-1' }), place: { view: 'ask', project: 'p1', task: 'ABC-1' } },
+    ])
+  })
+
+  it('gives each kind of event its level and place', () => {
+    const red = { ...none, fixes: { p1: [{ id: 'ABC-FIX.1', red: 'abc1234def', at: '2026-11-05T11:00:00Z', end: null }] } } as WatchInput
+    expect(step(none, red)).toEqual([
+      { level: 'error', notice: notice('eventLog.red', { project: 'p1', commit: 'abc1234', cis: [] }), place: { view: 'ci', project: 'p1' } },
+    ])
+    expect(step(none, withChain({ limitUntil: '2026-11-05T14:00:00Z' }))).toEqual([
+      { level: 'info', notice: notice('eventLog.chainStarted', { project: 'p1' }), place: { view: 'project', project: 'p1' } },
+      { level: 'warning', notice: notice('eventLog.limit', { project: 'p1' }), place: { view: 'project', project: 'p1' } },
+    ])
+    const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
+    expect(step(none, { ...none, forwards: { p1: { into: 'p2', behind: 2, hold, held: true } } } as WatchInput)).toEqual([
+      { level: 'error', notice: notice('eventLog.conflict', { project: 'p1', into: 'p2' }), place: { view: 'project', project: 'p1' } },
+    ])
+  })
+
+  it('writes the same question again only when the session asks a new one', () => {
+    const first = observe(null, watchedOf(asking('q1')), at(0))
+    const quiet = observe(first.memory, watchedOf(none), at(1))
+    expect(quiet.drafts).toEqual([])
+    expect(observe(quiet.memory, watchedOf(asking('q2')), at(2)).drafts).toHaveLength(1)
+  })
+
+  it('takes an event gone and back within the grace for the same one, and a later return for a new one', () => {
+    const first = observe(null, watchedOf(none), at(0))
+    const came = observe(first.memory, watchedOf(asking('q1')), at(1))
+    const gone = observe(came.memory, watchedOf(none), at(2))
+    expect(observe(gone.memory, watchedOf(asking('q1')), at(3)).drafts).toEqual([])
+    const later = new Date(at(2).getTime() + GRACE_MS + 1)
+    expect(observe(gone.memory, watchedOf(asking('q1')), later).drafts).toHaveLength(1)
+  })
+
+  it('writes a CI that comes to hold the chain once more, as an error', () => {
+    const view = (kind: string, status: string) => ({ kind, remote: kind, current: { run: { id: 1, commit: 'abc1234', status }, tasks: [], jobs: [] } })
+    const optional = { ...none, ci: { p1: [view('forgejo', 'success'), view('github', 'failure')] } } as unknown as WatchInput
+    const both = { ...none, ci: { p1: [view('forgejo', 'failure'), view('github', 'failure')] } } as unknown as WatchInput
+    expect(step(none, optional).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.ciRed', 'warning']])
+    expect(step(optional, both).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.red', 'error']])
+    expect(step(both, optional)).toEqual([])
+  })
+
+  it('writes a chain started, paused, resumed and stopped, and a pause on an error as one', () => {
+    expect(step(withChain(), withChain({ paused: true })).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.chainPaused', 'info']])
+    expect(step(withChain({ paused: true }), withChain()).map((each) => each.notice.code)).toEqual(['eventLog.chainResumed'])
+    expect(step(withChain(), none).map((each) => each.notice.code)).toEqual(['eventLog.chainStopped'])
+    const error = notice('chain.empty', { project: 'p1' })
+    expect(step(withChain(), withChain({ paused: true, error }))).toEqual([
+      { level: 'error', notice: notice('eventLog.chainHeld', { project: 'p1' }, { cause: error }), place: { view: 'project', project: 'p1' } },
+    ])
+    expect(step(withChain({ paused: true }), withChain({ paused: true, error })).map((each) => each.notice.code)).toEqual(['eventLog.chainHeld'])
+  })
+
+  it('leaves a pause on the limit or a red main to their own entries, and a fix-only chain out', () => {
+    const limit = notice('chain.limitSpent', { until: '20:00' })
+    expect(step(withChain(), withChain({ paused: true, error: limit })).map((each) => each.notice.code)).toEqual(['eventLog.limit'])
+    const check = notice('check.fixNotStarted', { commit: 'abc1234' })
+    expect(step(withChain(), withChain({ paused: true, error: check })).map((each) => each.notice.code)).toEqual(['eventLog.red'])
+    expect(step(none, withChain({ fixOnly: true }))).toEqual([])
+  })
+
+  it('writes a CLI on a version not checked, a gateway that does not listen and settings that do not parse', () => {
+    const cli = { agent: 'claude', account: null, installed: '2.2.0', checked: '2.1.0', notice: notice('text', { text: 'claude 2.2.0' }) }
+    const gateway = notice('text', { text: 'gateway down' })
+    const config = notice('text', { text: 'broken' })
+    expect(step(none, { ...none, cliVersions: [cli], packages: { gateway }, configError: config })).toEqual([
+      { level: 'warning', notice: cli.notice, place: null },
+      { level: 'error', notice: gateway, place: null },
+      { level: 'error', notice: config, place: { view: 'settings', project: null } },
+    ])
+  })
+
+  it('says whether what it remembers changed, not only when it was last seen', () => {
+    const first = observe(null, watchedOf(asking('q1')), at(0))
+    expect(first.changed).toBe(true)
+    expect(observe(first.memory, watchedOf(asking('q1')), at(1)).changed).toBe(false)
+    expect(observe(first.memory, watchedOf(none), at(1)).changed).toBe(false)
+    expect(observe(first.memory, watchedOf(withChain()), at(1)).changed).toBe(true)
+  })
+})
+
+describe('settingsDrafts', () => {
+  const raw = (shared: object, projects: object[]) => ({ version: 28, ...shared, projects })
+  const p1 = { id: 'p1', key: 'ABC', repo: 'D:/abc' }
+
+  it('writes Even Keel\'s settings and each project changed, added or removed', () => {
+    expect(settingsDrafts(raw({}, [p1]), raw({}, [p1]))).toEqual([])
+    expect(settingsDrafts(raw({}, [p1]), raw({ parallel: 2 }, [p1]))).toEqual([
+      { level: 'info', notice: notice('eventLog.settings', {}), place: { view: 'settings', project: null } },
+    ])
+    expect(settingsDrafts(raw({}, [p1]), raw({}, [{ ...p1, branch: 'dev' }]))).toEqual([
+      { level: 'info', notice: notice('eventLog.projectSettings', { project: 'p1' }), place: { view: 'settings', project: 'p1' } },
+    ])
+    const p2 = { id: 'p2', key: 'XYZ', repo: 'D:/xyz' }
+    expect(settingsDrafts(raw({}, [p1]), raw({}, [p2]))).toEqual([
+      { level: 'info', notice: notice('eventLog.projectAdded', { project: 'p2' }), place: { view: 'project', project: 'p2' } },
+      { level: 'info', notice: notice('eventLog.projectRemoved', { key: 'ABC' }), place: null },
+    ])
+  })
+})
+
+describe('launchDraft', () => {
+  it('writes a session launched for a task, and no release or outcome of the launch log', () => {
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-1', sessionId: 's1' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.launch', { task: 'ABC-1' }),
+      place: { view: 'task', project: 'p1', task: 'ABC-1' },
+    })
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-FIX.1', sessionId: 's2' })?.place).toEqual({ view: 'project', project: 'p1' })
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-1', sessionId: 's1', reason: 'skip' })).toBeNull()
+  })
+})

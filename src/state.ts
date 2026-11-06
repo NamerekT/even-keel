@@ -490,6 +490,8 @@ export interface EvenKeelState {
   changelogs: Record<string, Record<string, string[]>>
   /** How each release project's branch goes into the project it merges into, by the release project (BTN-172). */
   forwards: Record<string, ForwardView>
+  /** The event log, oldest first (BTN-350): the service writes it also while no page is open; the page's toasts are its new entries. */
+  eventLog: import('./event-log/model.js').EventEntry[]
 }
 
 /**

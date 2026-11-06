@@ -14,7 +14,7 @@ import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, T
 import { accountName } from './accountName.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
-import { shownWork } from './work.js'
+import { shownWork } from '../../src/shown-work.js'
 import { taskLamp } from './taskLamp.js'
 import { completionTasks, needsReply } from './completion.js'
 

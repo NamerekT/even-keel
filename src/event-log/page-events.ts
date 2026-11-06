@@ -1,7 +1,7 @@
-import type { EvenKeelState } from '../../../src/state.js'
-import type { CiKind } from '../../../src/ci/model.js'
-import { isCarryName } from '../../../src/chain/fix.js'
-import { shownWork, type WorkInput } from '../work.js'
+import type { EvenKeelState } from '../state.js'
+import type { CiKind } from '../ci/model.js'
+import { isCarryName } from '../chain/fix.js'
+import { shownWork, type WorkInput } from '../shown-work.js'
 
 export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
   WorkInput & {
@@ -13,9 +13,9 @@ export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
   }
 
 /**
- * Something on the page that waits for a person, worth a toast when it comes: a chain held by the usage limit, a red
- * main, a session that asks, a carry of a release held by a conflict, work left in the folder of a task out of the
- * chain. `key` tells one occurrence from the next.
+ * Something that waits for a person, an entry of the event log when it comes (BTN-350): a chain held by the usage limit,
+ * a red main, a session that asks, a carry of a release held by a conflict, work left in the folder of a task out of
+ * the chain. `key` tells one occurrence from the next; the service reads them, the page only shows the log.
  */
 export type PageEvent =
   | { key: string; kind: 'limit'; project: string; until?: string }
@@ -57,7 +57,9 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   for (const session of state.sessions) {
     if (!session.asking) continue
     const project = state.tasks.find((task) => task.id === session.task)?.project ?? null
-    events.push({ key: `ask|${session.sessionId}`, kind: 'ask', project, task: session.task })
+    // A second question of the same session is an entry of its own.
+    const ask = session.ask?.id === undefined ? '' : `|${session.ask.id}`
+    events.push({ key: `ask|${session.sessionId}${ask}`, kind: 'ask', project, task: session.task })
   }
   for (const [project, forward] of Object.entries(state.forwards)) {
     if (forward.hold?.code === 'forward.conflict' && !forward.agent) events.push({ key: `conflict|${project}|${forward.into}`, kind: 'conflict', project, into: forward.into })
@@ -70,19 +72,4 @@ export function pageEvents(state: EventsInput): PageEvent[] {
     }
   }
   return events
-}
-
-/** New occurrences and a CI failure that now holds the chain; the first state is old news. */
-export function freshEvents(seen: readonly PageEvent[] | null, events: PageEvent[]): PageEvent[] {
-  return seen === null ? [] : events.filter((each) => {
-    const previous = seen.find((old) => old.key === each.key)
-    return previous === undefined || (previous.kind === 'ciRed' && each.kind === 'red')
-  })
-}
-
-/** Refresh visible toasts in place; a dismissed occurrence only returns when it is fresh again. */
-export function toastEvents(shown: PageEvent[], events: PageEvent[], fresh: PageEvent[]): PageEvent[] {
-  const current = new Map(events.map((each) => [each.key, each]))
-  const kept = shown.flatMap((each) => current.get(each.key) ?? [])
-  return [...kept, ...fresh.filter((each) => !kept.some((old) => old.key === each.key))]
 }

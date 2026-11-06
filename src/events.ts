@@ -15,6 +15,16 @@ interface Entries {
   json: Map<string, string>
 }
 
+interface Watcher {
+  watch: (data: unknown) => void
+  windowMs: number
+  /** When it was last handed data. */
+  at: number
+  pending: { produce: () => unknown; since: number } | null
+  /** The data a page's build made last, while the watcher waits. */
+  built: { data: unknown; at: number } | null
+}
+
 /** The JSON of each part last sent, a keyed part's by its entries. */
 interface Sent {
   parts: Map<string, string>
@@ -28,6 +38,7 @@ export class EventHub {
   private readonly sent = new Map<string, Sent>()
   private readonly soon = new Map<string, { produce: () => unknown }>()
   private readonly builtAt = new Map<string, number>()
+  private readonly watchers = new Map<string, Watcher>()
 
   /** `parted` — the events whose object data goes in parts after the first frame, with their keyed parts. */
   constructor(private readonly parted: Record<string, KeyedParts> = {}) {}
@@ -118,6 +129,7 @@ export class EventHub {
    * only the last producer once. With no page listening nothing is built.
    */
   broadcastSoon(event: string, produce: () => unknown): void {
+    this.watchSoon(event, produce)
     const pending = this.soon.get(event)
     if (pending !== undefined) {
       pending.produce = produce
@@ -144,7 +156,40 @@ export class EventHub {
       return
     }
     this.builtAt.set(event, Date.now())
-    this.broadcast(event, produce())
+    const data = produce()
+    const watcher = this.watchers.get(event)
+    if (watcher !== undefined) watcher.built = { data, at: Date.now() }
+    this.broadcast(event, data)
+  }
+
+  /**
+   * Hands `watch` the data of `broadcastSoon` at most once per `windowMs`, also while no page listens (BTN-350): the
+   * event log looks at the state the service builds for the page. A page's build since the call is taken as it is.
+   */
+  watch(event: string, watch: (data: unknown) => void, windowMs: number): void {
+    this.watchers.set(event, { watch, windowMs, at: -Infinity, pending: null, built: null })
+  }
+
+  private watchSoon(event: string, produce: () => unknown): void {
+    const watcher = this.watchers.get(event)
+    if (watcher === undefined) return
+    if (watcher.pending !== null) {
+      watcher.pending.produce = produce
+      return
+    }
+    const slot = { produce, since: Date.now() }
+    watcher.pending = slot
+    setTimeout(() => {
+      watcher.pending = null
+      watcher.at = Date.now()
+      const built = watcher.built
+      watcher.built = null
+      try {
+        watcher.watch(built !== null && built.at >= slot.since ? built.data : slot.produce())
+      } catch (error) {
+        console.error(`events: the watcher of ${event} failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
+      }
+    }, Math.max(0, watcher.at + watcher.windowMs - Date.now())).unref?.()
   }
 
   /** Sends the event every time, unlike `broadcast`: it says something happened, not what the data is now. */

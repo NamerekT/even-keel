@@ -6,6 +6,8 @@ import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { loadSavedLimits } from './limits/saved.js'
 import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
+import { EventLog, loadEventLog, pruneEventLog, saveEventEntry, saveEventMemory } from './event-log/log.js'
+import type { EvenKeelState } from './state.js'
 import { providerUrl } from './account/network.js'
 import type { SessionStart } from './agent/contract.js'
 import { copies } from './agent/copies.js'
@@ -176,6 +178,7 @@ const context = {
   set dismissedNotices(value: typeof dismissedNotices) { dismissedNotices = value },
   get dispatcher() { return dispatcher },
   get emailAt() { return emailAt },
+  get eventLog() { return eventLog },
   get envChanged() { return envChanged },
   get envFile() { return envFile },
   get envOf() { return envOf },
@@ -323,7 +326,19 @@ const stateDb = keptDatabase()
 const db = stateDb.db
 /** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
 const writes = new Writes((line) => console.warn(line))
+/** What happened while nobody looked (BTN-350): the page's toasts and its /log come from it. */
+const eventLog = new EventLog(
+  await loadEventLog(db),
+  {
+    save: (entry) => writes.add(`the event log entry ${entry.id}`, saveEventEntry(db, entry)),
+    prune: (below) => writes.add('the old event log entries', pruneEventLog(db, below)),
+    remember: (memory) => writes.add('the event log memory', saveEventMemory(db, memory)),
+  },
+  undefined,
+  () => stateChanged(),
+)
 const configStore = await hostingService.wireConfigStore(context)
+eventLog.settingsSeen(configStore.raw())
 // The service names a project by its id (BTN-271): its log shows the project's label (`projectLabel`) instead.
 for (const method of ['log', 'warn', 'error'] as const) {
   const write = console[method].bind(console)
@@ -416,7 +431,9 @@ const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(as
 /** The statuses of each tracker profile (BTN-554), for its status moves. */
 const profileStatuses = new KeptReads((id) => profileStatusesOf(ADAPTERS, profiles.current(), id))
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695).
-const hub = new EventHub({ state: { sessions: 'sessionId' } })
+const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id' } })
+// The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
+hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**
  * Sends the page the new state soon. `getState` is read only when the state is built: handlers wired above its
  * declaration may fire while this module still starts — the Huly client's install does at once (EKR-52).

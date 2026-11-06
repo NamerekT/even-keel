@@ -347,6 +347,26 @@
   font-weight: 600;
 }
 
+/* The unread warnings and errors next to "Log" (BTN-350): amber, red when one of them is an error. */
+.log-count {
+  min-width: 18px;
+  margin-left: var(--space-6);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--lamp-waiting);
+  color: var(--on-bright);
+  font-size: var(--text-11);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-count--error {
+  background: var(--lamp-error);
+  color: var(--on-fill);
+}
+
 .gear__version {
   display: flex;
   align-items: baseline;

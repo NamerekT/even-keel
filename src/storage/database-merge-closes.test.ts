@@ -6,7 +6,7 @@ import { databaseVersion, openDatabase, STEPS } from './database.js'
 
 it('step 26 keeps the tasks the merge closer closed with the commits main had, none before it', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined)
+  const made = await openDatabase(undefined, STEPS.slice(0, 24))
   const upgraded = await PGlite.create()
   try {
     await frozen.exec(fixture(26))

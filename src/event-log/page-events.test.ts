@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { notice } from '../../../src/notice/notice.js'
-import type { CiView } from '../../../src/ci/model.js'
-import { freshEvents, pageEvents, toastEvents, type EventsInput } from './pageEvents.js'
+import { notice } from '../notice/notice.js'
+import type { CiView } from '../ci/model.js'
+import { pageEvents, type EventsInput } from './page-events.js'
 
 const none: EventsInput = { config: { shared: { ci: { guard: true, kinds: ['forgejo', 'github'] } }, projects: {} }, chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
@@ -63,6 +63,8 @@ describe('pageEvents', () => {
   it('sees a session that asks, under the project of its task', () => {
     const input = { ...none, sessions: [{ task: 'ABC-1', sessionId: 's1', asking: true }], tasks: [{ id: 'ABC-1', project: 'p1', title: 'Fix it' }] } as unknown as EventsInput
     expect(pageEvents(input)).toEqual([{ key: 'ask|s1', kind: 'ask', project: 'p1', task: 'ABC-1' }])
+    const asked = { ...input, sessions: [{ task: 'ABC-1', sessionId: 's1', asking: true, ask: { id: 'q2' } }] } as unknown as EventsInput
+    expect(pageEvents(asked).map((each) => each.key)).toEqual(['ask|s1|q2'])
   })
 
   it('sees a carry held by a conflict', () => {
@@ -77,14 +79,7 @@ describe('pageEvents', () => {
     const conflict = pageEvents({ ...none, forwards: { p1: forward } })
     const assigned = pageEvents({ ...none, forwards: { p1: { ...forward, agent: 'ABC-CARRY' } } })
     expect(assigned).toEqual([])
-    expect(freshEvents(conflict, assigned)).toEqual([])
-    expect(freshEvents(assigned, conflict)).toEqual(conflict)
-  })
-
-  it('shows no conflict toast when the agent takes it automatically', () => {
-    const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
-    const input = { ...none, forwards: { p1: { into: 'p2', behind: 2, hold, held: true, agent: 'ABC-CARRY' } } }
-    expect(freshEvents([], pageEvents(input))).toEqual([])
+    expect(conflict).toHaveLength(1)
   })
 
   it('sees work left in the folder of a task out of the chain, but not of one in it or with a pull request', () => {
@@ -117,19 +112,7 @@ describe('pageEvents', () => {
   })
 })
 
-describe('freshEvents', () => {
-  const ask = { key: 'ask|s1', kind: 'ask', project: 'p1', task: 'ABC-1' } as const
-  it('shows nothing that was there when the page opened', () => {
-    expect(freshEvents(null, [ask])).toEqual([])
-  })
-
-  it('shows what came since the last state', () => {
-    expect(freshEvents([], [ask])).toEqual([ask])
-    expect(freshEvents([ask], [ask])).toEqual([])
-  })
-})
-
-describe('CI toast transitions', () => {
+describe('a red main of several CIs', () => {
   const config = { ...none.config, projects: { p1: { ci: { guard: true, kinds: ['forgejo'] as const } } } }
   const failures = (forgejo: boolean, github: boolean, commit = 'abc1234') => pageEvents({
     ...none, config, ci: { p1: [
@@ -138,47 +121,21 @@ describe('CI toast transitions', () => {
     ] },
   })
 
-  for (const guardFirst of [true, false]) {
-    it(`updates the open toast in place when ${guardFirst ? 'guard' : 'optional CI'} fails first`, () => {
+  it('is one event of the same commit whichever CI fails first, held by the counted one', () => {
+    for (const guardFirst of [true, false]) {
       const first = failures(guardFirst, !guardFirst)
       const both = failures(true, true)
-      const fresh = freshEvents(first, both)
-      const shown = toastEvents(first, both, fresh)
-      expect(shown).toEqual(both)
-      expect(shown).toHaveLength(1)
-      expect(shown[0]!.key).toBe(first[0]!.key)
-      expect(fresh).toEqual(guardFirst ? [] : both)
-    })
-
-    it(`handles the closed toast when ${guardFirst ? 'guard' : 'optional CI'} fails first`, () => {
-      const first = failures(guardFirst, !guardFirst)
-      const both = failures(true, true)
-      const fresh = freshEvents(first, both)
-      expect(toastEvents([], both, fresh)).toEqual(guardFirst ? [] : both)
-      expect(freshEvents(both, both)).toEqual([])
-    })
-  }
-
-  it('keeps the toast until every failed CI recovers, updating its text', () => {
-    const both = failures(true, true)
-    const optional = failures(false, true)
-    expect(toastEvents(both, optional, freshEvents(both, optional))).toEqual(optional)
-    expect(toastEvents(optional, failures(false, false), [])).toEqual([])
+      expect(first.map((each) => [each.key, each.kind])).toEqual([['red|p1|abc1234', guardFirst ? 'red' : 'ciRed']])
+      expect(both.map((each) => [each.key, each.kind, (each as { cis: string[] }).cis])).toEqual([['red|p1|abc1234', 'red', ['forgejo', 'github']]])
+    }
+    expect(failures(false, false)).toEqual([])
   })
 
-  it('replaces the old commit and keeps different projects and commits separate', () => {
-    const before = failures(true, false)
-    const after = failures(true, false, 'def5678')
-    expect(toastEvents(before, after, freshEvents(before, after))).toEqual(after)
+  it('keeps different projects and commits separate', () => {
+    expect(failures(true, false, 'def5678')[0]!.key).toBe('red|p1|def5678')
     const input = { ...none, ci: { p1: [view('failure'), { ...view('failure'), remote: 'other' }], p2: [view('failure')] } }
     expect(pageEvents(input)).toHaveLength(2)
     expect(pageEvents(input)[0]).toMatchObject({ cis: ['forgejo'] })
     expect(failures(true, true, 'def5678')).toHaveLength(2)
-  })
-
-  it('does not replay initial failures, but announces a later guard failure', () => {
-    const first = failures(false, true)
-    expect(freshEvents(null, first)).toEqual([])
-    expect(freshEvents(first, failures(true, true))).toEqual(failures(true, true))
   })
 })

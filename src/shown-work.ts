@@ -1,4 +1,4 @@
-import type { EvenKeelState, TaskWork } from '../../src/state.js'
+import type { EvenKeelState, TaskWork } from './state.js'
 
 export type WorkInput = Pick<EvenKeelState, 'sessions' | 'tasks' | 'works'> & {
   chain: Pick<EvenKeelState['chain'], 'projects' | 'skipped' | 'leftovers'>

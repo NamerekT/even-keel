@@ -138,6 +138,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     mailbox: {},
     changelogs: {},
     forwards: {},
+    eventLog: [],
     ...patch,
   }
 }

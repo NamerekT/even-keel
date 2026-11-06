@@ -80,6 +80,7 @@ type HostingContext = Pick<ServiceContext,
   | 'dismissedUpdate'
   | 'dismissedNotices'
   | 'dispatcher'
+  | 'eventLog'
   | 'emailAt'
   | 'forwards'
   | 'getState'
@@ -246,6 +247,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     ),
     changelogs: ctx.changelogs.writtenTasks(),
     forwards: ctx.forwards.view(),
+    eventLog: [...ctx.eventLog.entries],
   })
   return () => view(ctx.dispatcher.orders())
 }
@@ -597,6 +599,7 @@ export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore>
       ctx.dispatcher.check()
       ctx.updates.configChanged()
       void ctx.applyTally()
+      ctx.eventLog.settingsSeen(ctx.configStore.raw())
       ctx.hub.broadcastSoon('state', ctx.getState)
     },
   })

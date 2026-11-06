@@ -114,6 +114,57 @@ describe('EventHub', () => {
     })
   })
 
+  describe('watch', () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    it('hands the watcher the data once per its window while no page listens, the last producer of a burst', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const seen: unknown[] = []
+      hub.watch('state', (data) => seen.push(data), 2000)
+      hub.broadcastSoon('state', () => 'a')
+      hub.broadcastSoon('state', () => 'b')
+      vi.advanceTimersByTime(0)
+      expect(seen).toEqual(['b'])
+      hub.broadcastSoon('state', () => 'c')
+      hub.broadcastSoon('state', () => 'd')
+      vi.advanceTimersByTime(1999)
+      expect(seen).toEqual(['b'])
+      vi.advanceTimersByTime(1)
+      expect(seen).toEqual(['b', 'd'])
+      vi.advanceTimersByTime(10_000)
+      expect(seen).toEqual(['b', 'd'])
+    })
+
+    it('takes the data a page build made since it was asked instead of building it again', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      hub.subscribe(() => {})
+      const seen: unknown[] = []
+      hub.watch('state', (data) => seen.push(data), 2000)
+      const produce = vi.fn(() => ({ n: produce.mock.calls.length }))
+      hub.broadcastSoon('state', produce)
+      vi.advanceTimersByTime(0)
+      expect(produce).toHaveBeenCalledTimes(1)
+      expect(seen).toEqual([{ n: 1 }])
+    })
+
+    it('keeps watching after a watcher throws', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      let calls = 0
+      hub.watch('state', () => { calls++; throw new Error('boom') }, 100)
+      hub.broadcastSoon('state', () => 1)
+      vi.advanceTimersByTime(0)
+      hub.broadcastSoon('state', () => 2)
+      vi.advanceTimersByTime(100)
+      expect(calls).toBe(2)
+      expect(error).toHaveBeenCalled()
+      error.mockRestore()
+    })
+  })
+
   describe('an event sent in parts', () => {
     const session = (sessionId: string, lamp: string) => ({ sessionId, lamp })
     const parted = () => {

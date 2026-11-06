@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { notice } from '../../src/notice/notice.js'
-import { shownWork, type WorkInput } from './work.js'
+import { notice } from './notice/notice.js'
+import { shownWork, type WorkInput } from './shown-work.js'
 
 const work = { path: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/task', files: 2, ahead: 0 }
 const order = { order: ['ABC-2'], waiting: ['ABC-3'], backlog: ['ABC-1'], error: null }

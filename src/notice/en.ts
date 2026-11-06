@@ -631,4 +631,25 @@ export const en = {
   'project.removeSessions': (p: { sessions: string[] }) => `live sessions: ${list(p.sessions)}`,
   'project.removePlaces': (p: { tasks: string[] }) => `the chain holds the worktree or slot of ${list(p.tasks)}`,
   'project.removeLeftovers': (p: { tasks: string[] }) => `the cleanup after Done left the place of ${list(p.tasks)}`,
+  // The event log's entries (BTN-350, `src/event-log/`).
+  'eventLog.limit': (p: { project: string }) => `${p.project}: the chain stopped on the usage limit`,
+  'eventLog.red': (p: { project: string; commit: string; cis: CiKind[] }) =>
+    `${p.project}: main is red at ${p.commit}${p.cis.length > 0 ? ` (${list(p.cis.map((ci) => FORGES[ci]))})` : ''}`,
+  'eventLog.ciRed': (p: { project: string; commit: string; cis: CiKind[] }) =>
+    `${p.project}: ${list(p.cis.map((ci) => FORGES[ci]))} is red at ${p.commit}, the chain goes on`,
+  'eventLog.ask': (p: { task: string }) => `${p.task} asks a question`,
+  'eventLog.conflict': (p: { project: string; into: string }) => `${p.project}: the carry into ${p.into} hit a conflict`,
+  'eventLog.uncommitted': (p: { task: string; path: string }) => `${p.task}: the work is done but not committed, in ${p.path}`,
+  'eventLog.unmerged': (p: { task: string; path: string }) => `${p.task}: the work is committed but not merged, in ${p.path}`,
+  'eventLog.chainStarted': (p: { project: string }) => `${p.project}: the chain started`,
+  'eventLog.chainStopped': (p: { project: string }) => `${p.project}: the chain stopped`,
+  'eventLog.chainPaused': (p: { project: string }) => `${p.project}: the chain paused`,
+  'eventLog.chainResumed': (p: { project: string }) => `${p.project}: the chain goes on`,
+  'eventLog.chainHeld': (p: { project: string }) => `${p.project}: the chain paused on an error`,
+  'eventLog.launch': (p: { task: string }) => `${p.task}: a session started`,
+  'eventLog.stopped': (p: { task: string }) => `${p.task}: the chain stopped its session`,
+  'eventLog.settings': () => 'Even Keel’s settings changed',
+  'eventLog.projectSettings': (p: { project: string }) => `${p.project}: the settings changed`,
+  'eventLog.projectAdded': (p: { project: string }) => `${p.project}: the project was added`,
+  'eventLog.projectRemoved': (p: { key: string }) => `${p.key}: the project was removed`,
 }

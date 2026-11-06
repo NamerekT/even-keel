@@ -6,6 +6,7 @@ import { projectOfPath } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
 import { Limits } from './Limits.js'
+import { LogLink } from './LogLink.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
 import { GearMenu, Waiting } from './Status.js'
@@ -54,6 +55,7 @@ export function Header() {
               <NavLink to="/stats" className="header__link">
                 {t.header.stats}
               </NavLink>
+              <LogLink className="header__link" />
             </>
           )}
         </nav>
