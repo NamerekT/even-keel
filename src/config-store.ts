@@ -7,7 +7,7 @@ import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
-import { readSettings, saveSettings, settingsText } from './settings/store.js'
+import { readSettings, saveSettings, settingsText, sortedRows } from './settings/store.js'
 import type { Queryable, Writes } from './storage/database.js'
 import type { ConfigView, FeedDraft, ProjectDraft, ProjectForm, SharedForm } from './state.js'
 import type { TallyMode } from './stats/mode.js'
@@ -209,7 +209,8 @@ export class ConfigStore {
 
   private write(next: Record<string, unknown>): void {
     const config = parseConfig(next)
-    const contents = fileRows(next, trackerKeysOf(ADAPTERS))
+    const { records, rows } = fileRows(next, trackerKeysOf(ADAPTERS))
+    const contents = { records, rows: sortedRows(rows) }
     this.written++
     this.stored = settingsText(contents)
     this.options.writes.add('the settings', saveSettings(this.options.db, contents, 'page'))

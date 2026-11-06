@@ -54,7 +54,10 @@ export function mirrorDefinitions(db: Db): Promise<void> {
   })
 }
 
-/** The project records in their order and every setting row, in one statement: a consistent snapshot while the service writes. */
+/**
+ * The project records in their order and every setting row (`sortedRows`), in one statement: a consistent snapshot
+ * while the service writes.
+ */
 export async function readSettings(db: Queryable): Promise<FileContents> {
   const { rows } = await db.query<{ settings: { projects: ProjectRow[]; values: ValueRow[] } }>(
     `select json_build_object(
@@ -68,7 +71,7 @@ export async function readSettings(db: Queryable): Promise<FileContents> {
       const list = JSON.parse(feeds) as Record<string, unknown>[]
       return { id, key, name, repo, branch, trackerProjects: JSON.parse(tracker_projects), ...(list.length === 0 ? {} : { feeds: list }) }
     }),
-    rows: values.map(({ key, project_id, qualifier, value }) => ({ key, project: project_id, qualifier, value: JSON.parse(value) })),
+    rows: sortedRows(values.map(({ key, project_id, qualifier, value }) => ({ key, project: project_id, qualifier, value: JSON.parse(value) }))),
   }
 }
 
@@ -137,9 +140,16 @@ const projectRow = ({ id, key, name, repo, branch, trackerProjects, feeds = [] }
 
 const valueRow = ({ key, project, qualifier, value }: SettingRow): ValueRow => ({ key, project_id: project, qualifier, value: JSON.stringify(value) })
 
+/**
+ * The rows by key, then project with Even Keel's first, then qualifier: one order whether they came from the database or
+ * from the file, so that `fileOf` of either gives its keys in the same order (BTN-781).
+ */
+export function sortedRows(rows: readonly SettingRow[]): SettingRow[] {
+  const place = (row: SettingRow) => `${row.key}\u0000${row.project ?? ''}\u0000${row.qualifier}`
+  return [...rows].sort((a, b) => (place(a) < place(b) ? -1 : place(a) > place(b) ? 1 : 0))
+}
+
 /** The records and rows as one text that two equal configs share, whatever order their rows came in. */
 export function settingsText({ records, rows }: FileContents): string {
-  const place = (row: SettingRow) => `${row.key}\u0000${row.project ?? ''}\u0000${row.qualifier}`
-  const sorted = [...rows].sort((a, b) => (place(a) < place(b) ? -1 : place(a) > place(b) ? 1 : 0))
-  return JSON.stringify({ records, rows: sorted.map((row) => [row.key, row.project, row.qualifier, row.value]) })
+  return JSON.stringify({ records, rows: sortedRows(rows).map((row) => [row.key, row.project, row.qualifier, row.value]) })
 }

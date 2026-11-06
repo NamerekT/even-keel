@@ -1,4 +1,4 @@
-import { isOwnName } from '../chain/fix.js'
+import { isCarryName, isFixName } from '../chain/fix.js'
 import { isLaunch } from '../chain/launches.js'
 import type { LaunchEntry } from '../chain/model.js'
 import type { LoggedPackageProblem } from '../notice/en.js'
@@ -227,14 +227,20 @@ function projectsOf(raw: RawSettings): Map<string, Record<string, unknown>> {
   return new Map(list.filter((entry) => typeof entry.id === 'string').map((entry) => [entry.id as string, entry]))
 }
 
-/** The entry of a session launched, from the launch log; its releases and outcomes are no launch. */
+/**
+ * The entry of a session launched, from the launch log; its releases and outcomes are no launch. A fix of main or a
+ * carry has no task: its entry names the project (BTN-781).
+ */
 export function launchDraft(entry: LaunchEntry): EventDraft | null {
   if (!isLaunch(entry)) return null
-  const place = isOwnName(entry.task) ? { view: 'project' as const, project: entry.project } : { view: 'task' as const, project: entry.project, task: entry.task }
-  return { level: 'info', notice: notice('eventLog.launch', { task: entry.task }), place }
+  const { project, task } = entry
+  if (isFixName(task)) return { level: 'info', notice: notice('eventLog.fixLaunch', { project }), place: { view: 'project', project } }
+  if (isCarryName(task)) return { level: 'info', notice: notice('eventLog.carryLaunch', { project }), place: { view: 'project', project } }
+  return { level: 'info', notice: notice('eventLog.launch', { task }), place: { view: 'task', project, task } }
 }
 
 /** The entry of a session the chain stopped mid-turn: a red main or subscription overage (invariant 1). */
 export function stopDraft(project: string, task: string): EventDraft {
-  return { level: 'info', notice: notice('eventLog.stopped', { task }), place: { view: 'project', project } }
+  const said = isFixName(task) ? notice('eventLog.fixStopped', { project }) : isCarryName(task) ? notice('eventLog.carryStopped', { project }) : notice('eventLog.stopped', { task })
+  return { level: 'info', notice: said, place: { view: 'project', project } }
 }

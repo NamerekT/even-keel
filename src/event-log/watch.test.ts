@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import type { EventsInput } from './page-events.js'
-import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, watchedOf, type WatchInput } from './watch.js'
+import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type WatchInput } from './watch.js'
 
 const none: WatchInput = {
   config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {} },
@@ -195,7 +195,28 @@ describe('launchDraft', () => {
       notice: notice('eventLog.launch', { task: 'ABC-1' }),
       place: { view: 'task', project: 'p1', task: 'ABC-1' },
     })
-    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-FIX.1', sessionId: 's2' })?.place).toEqual({ view: 'project', project: 'p1' })
     expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-1', sessionId: 's1', reason: 'skip' })).toBeNull()
+  })
+
+  it('writes a fix of main or a carry as a session of the project, not of a task named so (BTN-781)', () => {
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-FIX', sessionId: 's2' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.fixLaunch', { project: 'p1' }),
+      place: { view: 'project', project: 'p1' },
+    })
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'ABC-FIX.2', sessionId: 's3' })?.notice).toEqual(notice('eventLog.fixLaunch', { project: 'p1' }))
+    expect(launchDraft({ at: '2026-11-05T12:00:00Z', project: 'p1', task: 'EKR-CARRY', sessionId: 's4' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.carryLaunch', { project: 'p1' }),
+      place: { view: 'project', project: 'p1' },
+    })
+  })
+})
+
+describe('stopDraft', () => {
+  it('names the task of a stopped session, and the project for a fix of main or a carry (BTN-781)', () => {
+    expect(stopDraft('p1', 'ABC-1')).toEqual({ level: 'info', notice: notice('eventLog.stopped', { task: 'ABC-1' }), place: { view: 'project', project: 'p1' } })
+    expect(stopDraft('p1', 'ABC-FIX.1')).toEqual({ level: 'info', notice: notice('eventLog.fixStopped', { project: 'p1' }), place: { view: 'project', project: 'p1' } })
+    expect(stopDraft('p1', 'EKR-CARRY')).toEqual({ level: 'info', notice: notice('eventLog.carryStopped', { project: 'p1' }), place: { view: 'project', project: 'p1' } })
   })
 })

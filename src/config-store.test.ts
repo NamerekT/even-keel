@@ -1,6 +1,7 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConfigStore } from './config-store.js'
+import { settingsDrafts } from './event-log/watch.js'
 import { fileOf } from './settings/file.js'
 import { importConfig } from './settings/import.js'
 import { mirrorDefinitions, putSettings, readSettings } from './settings/store.js'
@@ -188,6 +189,21 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(await read()).toEqual(stored({ parallel: 2, projects: [abc()] }))
     expect(config.current.parallel).toBe(2)
     expect(config.view().shared).not.toHaveProperty('tracker')
+  })
+
+  it('gives the same settings in the same key order whether read from the database or just written (BTN-781)', async () => {
+    await seed({ trimTools: true, parallel: 2, projects: [abc({ slot: 2, prompt: 'Run tests.', carryAgent: true, fillMilestone: true }), xyz({ modelLabels: true, branch: 'dev' })] })
+    const config = await open()
+    const fromDb = config.raw()
+
+    config.saveShared(config.view().shared, config.view().shared)
+    expect(JSON.stringify(config.raw())).toBe(JSON.stringify(fromDb))
+    expect(settingsDrafts(fromDb, config.raw())).toEqual([])
+
+    config.saveChainSwitches({ unattended: true })
+    expect(settingsDrafts(fromDb, config.raw()).map((draft) => draft.notice.code)).toEqual(['eventLog.settings'])
+    await writes.settled()
+    expect(JSON.stringify((await open()).raw())).toBe(JSON.stringify(config.raw()))
   })
 
   it('keeps the Agent SDK of Claude on the checked CLI: refuses Installed, and a failed copy does not fall back (BTN-610)', async () => {
