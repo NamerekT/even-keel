@@ -62,9 +62,42 @@ export function quitHost(exe: string): void {
   if (existsSync(exe)) attempt([exe, '--quit'], `${LAUNCHER_EXE} --quit`)
 }
 
+const HELD_CODES = ['EPERM', 'EACCES', 'EBUSY']
+const HELD_TIMEOUT_MS = 10_000
+const waitBuffer = new Int32Array(new SharedArrayBuffer(4))
+
+/**
+ * Removes the host's exe, retried for up to ten seconds: `--quit` returns once the host lets its mutex go, while its
+ * process may still hold the exe's image (EKR-93). A missing exe is no error.
+ */
+export function removeHostExe(
+  exe: string,
+  remove: (file: string) => void = (file) => rmSync(file, { force: true }),
+  wait: (ms: number) => void = (ms) => void Atomics.wait(waitBuffer, 0, 0, ms),
+): void {
+  let waited = 0
+  let pause = 50
+  for (;;) {
+    try {
+      remove(exe)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? ''
+      if (!HELD_CODES.includes(code)) throw error
+      if (waited >= HELD_TIMEOUT_MS) {
+        throw new Error(`${exe} is still in use after ${HELD_TIMEOUT_MS / 1000} s (${code}): quit Even Keel from its tray icon and run the command again`)
+      }
+      const step = Math.min(pause, HELD_TIMEOUT_MS - waited)
+      wait(step)
+      waited += step
+      pause = Math.min(pause * 2, 500)
+    }
+  }
+}
+
 /**
  * Compiles the host with the `csc.exe` of .NET Framework into `dir`, writes the `Run` value and starts the host. A host
- * already running is ended first: it holds the exe the compiler replaces.
+ * already running is ended first, and its exe removed once its process lets go of it: the compiler writes the same file.
  */
 export function installAutostart(root: string, node: string, data: string | null, dir: string): Autostart {
   const autostart: Autostart = { exe: win32.join(dir, LAUNCHER_EXE), root, node, data }
@@ -74,6 +107,7 @@ export function installAutostart(root: string, node: string, data: string | null
   const csc = win32.join(process.env.WINDIR ?? 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe')
   if (!existsSync(csc)) throw new Error(`${csc} is missing: the host needs .NET Framework 4, which comes with Windows`)
   mkdirSync(dir, { recursive: true })
+  removeHostExe(autostart.exe)
   const sources = SOURCES.map((file) => win32.join(root, 'service', file))
   attempt([csc, '-nologo', '-target:winexe', `-out:${autostart.exe}`, ...REFERENCES.map((dll) => `-reference:${dll}`), ...sources], 'csc')
   attempt(['reg.exe', 'add', RUN_KEY, '/v', RUN_VALUE, '/t', 'REG_SZ', '/d', runCommandOf(autostart), '/f'], 'reg add', true)
@@ -85,7 +119,7 @@ export function installAutostart(root: string, node: string, data: string | null
 export function uninstallAutostart(autostart: Autostart): void {
   quitHost(autostart.exe)
   attempt(['reg.exe', 'delete', RUN_KEY, '/v', RUN_VALUE, '/f'], 'reg delete', true)
-  rmSync(autostart.exe, { force: true })
+  removeHostExe(autostart.exe)
   const dir = win32.dirname(autostart.exe)
   if (existsSync(dir) && readdirSync(dir).length === 0) rmSync(dir, { recursive: true, force: true })
 }

@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { autostartOf, hostDirOf, runCommandOf } from './autostart.js'
+import { describe, expect, it, vi } from 'vitest'
+import { autostartOf, hostDirOf, removeHostExe, runCommandOf } from './autostart.js'
+
+const failure = (code: string) => Object.assign(new Error(`${code}, Permission denied`), { code })
 
 const PACKAGE = {
   exe: 'C:\\Users\\jdoe\\AppData\\Local\\even-keel\\service\\EvenKeel.exe',
@@ -35,5 +37,32 @@ describe('autostartOf', () => {
     expect(autostartOf(query(`"${PACKAGE.exe}" "${PACKAGE.root}"`))).toBeNull()
     expect(autostartOf('ERROR: The system was unable to find the specified registry key or value.\r\n')).toBeNull()
     expect(autostartOf('')).toBeNull()
+  })
+})
+
+describe('removeHostExe', () => {
+  it('retries while the quitting host still holds its exe', () => {
+    const remove = vi.fn()
+      .mockImplementationOnce(() => { throw failure('EPERM') })
+      .mockImplementationOnce(() => { throw failure('EBUSY') })
+      .mockImplementationOnce(() => undefined)
+    const wait = vi.fn()
+    removeHostExe(PACKAGE.exe, remove, wait)
+    expect(remove).toHaveBeenCalledTimes(3)
+    expect(remove).toHaveBeenCalledWith(PACKAGE.exe)
+    expect(wait).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after ten seconds of waiting with a message saying what to do', () => {
+    const remove = vi.fn(() => { throw failure('EPERM') })
+    const waits: number[] = []
+    expect(() => removeHostExe(PACKAGE.exe, remove, (ms) => waits.push(ms))).toThrow(/still in use after 10 s \(EPERM\): quit Even Keel/)
+    expect(waits.reduce((sum, ms) => sum + ms, 0)).toBe(10_000)
+  })
+
+  it('does not wait on any other error', () => {
+    const wait = vi.fn()
+    expect(() => removeHostExe(PACKAGE.exe, () => { throw failure('ENOTDIR') }, wait)).toThrow(/ENOTDIR/)
+    expect(wait).not.toHaveBeenCalled()
   })
 })
