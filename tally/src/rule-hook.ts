@@ -41,6 +41,8 @@ const STALE_MS = 30 * 24 * 3600 * 1000
 export function hookRuleFile(path: string, home: string): Pick<RuleFile, 'display' | 'kind'> | null {
   const file = ruleFileOf(path, home)
   if (file === null && isInstructionFile(path)) return { display: path.replaceAll('\\', '/'), kind: 'claude_md' }
+  // ruleFileOf takes any case of claude.md; the hook reminds only about the name every system loads.
+  if (file?.kind === 'claude_md' && !isInstructionFile(path)) return null
   return file === null || file.kind === 'memory' ? null : file
 }
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runHook } from './rule-hook.js'
+import { isInstructionFile } from './rule-hook-size.js'
 
 const session = 'instruction-size-check'
 const roots: string[] = []
@@ -82,6 +83,23 @@ describe('instruction size hook', () => {
     expect(f.stop()).toMatchObject({ decision: 'block' })
     f.edit('a'.repeat(13002), 'a'.repeat(13003))
     expect(f.stop()).toBeNull()
+  })
+
+  it.each(['docs/sessions/agents.md', 'claude.md', 'notes/Claude.md', 'nested/Agents.md'])(
+    'takes %s for a document: no journal reminder and no ceiling', (name) => {
+      const f = fixture(name)
+      expect(f.edit('a'.repeat(13000), 'a'.repeat(26000))).toBeNull()
+      expect(f.stop()).toBeNull()
+    },
+  )
+
+  it('recognizes only the canonical file names, whatever the case of the folders', () => {
+    for (const path of ['CLAUDE.md', 'AGENTS.md', 'd:\\work\\CLAUDE.md', 'D:/Work/.codex/AGENTS.md', 'D:\\Work\\.claude\\CLAUDE.md']) {
+      expect(isInstructionFile(path), path).toBe(true)
+    }
+    for (const path of ['docs/sessions/agents.md', 'claude.md', 'D:/Work/Claude.md', 'D:\\Work\\AGENTS.MD', 'D:/Work/MY-CLAUDE.md']) {
+      expect(isInstructionFile(path), path).toBe(false)
+    }
   })
 
   it('keeps the ceiling limited to instruction files', () => {

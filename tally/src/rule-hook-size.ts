@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import type { HookInput } from './rule-hook.js'
 
 export const INSTRUCTION_LIMIT = 13000
-export const isInstructionFile = (path: string) => /(?:^|[/\\])(?:CLAUDE|AGENTS)\.md$/i.test(path)
+// Exact case on purpose: Linux loads neither claude.md nor agents.md, and a lowercase agents.md is usually a document.
+export const isInstructionFile = (path: string) => /(?:^|[/\\])(?:CLAUDE|AGENTS)\.md$/.test(path)
 
 export function editedInstructionSize(input: HookInput, path: string): { before: number; after: number } | null {
   if (!isInstructionFile(path)) return null

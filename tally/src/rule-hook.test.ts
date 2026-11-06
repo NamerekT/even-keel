@@ -116,6 +116,12 @@ describe('afterEdit', () => {
     expect(afterEdit(edit('C:/Users/Jane/.claude-memory/x/a.md'), EMPTY_STATE, null, place)).toEqual({ state: EMPTY_STATE, context: null })
     expect(afterEdit({ ...edit('C:/Users/Jane/.claude/CLAUDE.md'), tool_name: 'Read' }, EMPTY_STATE, null, place).context).toBeNull()
   })
+
+  it('takes a lowercase agents.md or claude.md for a document, not an instruction file', () => {
+    expect(afterEdit(edit('D:/Work/app/docs/sessions/agents.md'), EMPTY_STATE, null, place)).toEqual({ state: EMPTY_STATE, context: null })
+    expect(afterEdit(edit('D:\\Work\\app\\notes\\claude.md'), EMPTY_STATE, null, place)).toEqual({ state: EMPTY_STATE, context: null })
+    expect(afterEdit(edit('d:\\work\\app\\AGENTS.md'), EMPTY_STATE, null, place).state.files).toEqual(['d:/work/app/AGENTS.md'])
+  })
 })
 
 describe('beforeStop', () => {
