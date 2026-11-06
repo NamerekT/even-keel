@@ -30,7 +30,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
-- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; time reports to GitLab and Jira 91 — EKR-36.
+- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Jira time reports 91 (a scoped token, time tracking deactivated) — no task yet, EKR-36 checked the rest.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
@@ -154,5 +154,5 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 87 | [Codex memory off in the CLI check](unverified/codex.md#codex-memory-off-in-the-cli-check-btn-724) | the maintainer raising a Codex pin | a Codex capture is refused until the memory flags are fixed |
 | 89 | [Writing Claude folder trust before launch](unverified/sessions.md#writing-claude-folder-trust-before-launch-ekr-59) | checkout/worktree prerequisite passed on Windows; integrated chain, manual recovery commands under another service user, macOS/Linux still open | a first launch or resume may still pause; a separate bypass-permissions disclaimer is unaffected |
 | 90 | [A fix session that finds nothing to fix](unverified/ci.md#a-fix-session-that-finds-nothing-to-fix-ekr-88) | a red main from a runner failure or a flake, rerun by the fix session | the fix session waits for the user although main is green; skip it |
-| 91 | [Task time written to GitLab and Jira](unverified/trackers.md#task-time-written-to-gitlab-and-jira-ekr-35) | GitLab and Jira projects with stats on | a done task gets no time or gets it twice, or the log repeats a refusal every run; log the time by hand |
+| 91 | [Task time written to GitLab and Jira](unverified/trackers.md#task-time-written-to-gitlab-and-jira-ekr-35) | Jira projects with stats on, on a scoped token or a site with time tracking deactivated | a done task gets no time, or the log repeats a refusal every run; log the time by hand |
 | 92 | [A commit already green, pushed again](unverified/ci.md#a-commit-already-green-pushed-again-ekr-90) | the maintainer pushing a release to `main` or fast-forwarding a branch | the push runs the whole check as before, or its verdict is not green; run the workflow by hand |
