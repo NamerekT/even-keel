@@ -356,7 +356,9 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       }
     },
 
-    // A 403 is the missing "Work on issues" right; a 400 naming time tracking — tracking off on the site.
+    // A refusal of the project — no "Work on issues", tracking off on the site — is a 403, or a 400 naming no field of
+    // the request: Jira words it in the account's language (EKR-91), so the text is never matched. A 400 naming a
+    // field (`started`, `timeSpentSeconds`) is our own request's fault and throws.
     async logTime(id, entry) {
       const seconds = entryMinutes(entry.hours) * 60
       const started = jiraTime(Date.parse(entry.at) - seconds * 1000)
@@ -364,7 +366,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
         await api.rest(`${issuePath(id)}/worklog?notifyUsers=false`, 'POST', { timeSpentSeconds: seconds, started, comment: markdownToAdf(entry.summary) })
         return true
       } catch (error) {
-        if (error instanceof JiraHttpError && (error.status === 403 || (error.status === 400 && /time ?tracking/i.test(error.message)))) return false
+        if (error instanceof JiraHttpError && (error.status === 403 || (error.status === 400 && error.fields.length === 0))) return false
         throw error
       }
     },

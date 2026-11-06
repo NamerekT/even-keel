@@ -24,8 +24,9 @@ export function siteUrl(values: Readonly<Record<string, string | undefined>>): s
 
 export const basicAuth = (email: string, token: string): string => Buffer.from(`${email}:${token}`).toString('base64')
 
+/** `fields` — the keys of the answer's `errors`: the request's own fields Jira refused, as opposed to `errorMessages`. */
 export class JiraHttpError extends Error {
-  constructor(readonly status: number, detail: string) {
+  constructor(readonly status: number, detail: string, readonly fields: readonly string[] = []) {
     super(`jira: HTTP ${status}${detail ? `: ${detail}` : ''}`)
   }
 }
@@ -76,17 +77,23 @@ export class JiraApi {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }, path)
     if (response.ok) return response
-    const detail = errorText(await response.json().catch(() => ({})))
+    const answer: unknown = await response.json().catch(() => ({}))
+    const detail = errorText(answer)
     if (response.status === 401) throw new CredentialsRefused(`jira: the e-mail and the API token are refused (HTTP 401)${detail ? `: ${detail}` : ''}`)
     if (response.status === 404) throw new TrackerNotFound(`jira: not found or the account cannot see it (HTTP 404)${detail ? `: ${detail}` : ''}`)
-    throw new JiraHttpError(response.status, detail)
+    throw new JiraHttpError(response.status, detail, Object.keys(fieldErrors(answer)))
   }
+}
+
+const fieldErrors = (body: unknown): object => {
+  const { errors } = (body ?? {}) as { errors?: unknown }
+  return errors !== null && typeof errors === 'object' ? errors : {}
 }
 
 /** Jira's error answer: `errorMessages` and the `errors` of fields. */
 function errorText(body: unknown): string {
-  const { errorMessages, errors } = (body ?? {}) as { errorMessages?: unknown; errors?: unknown }
+  const { errorMessages } = (body ?? {}) as { errorMessages?: unknown }
   const messages = Array.isArray(errorMessages) ? errorMessages.map(String) : []
-  const fields = errors !== null && typeof errors === 'object' ? Object.entries(errors).map(([field, message]) => `${field}: ${String(message)}`) : []
+  const fields = Object.entries(fieldErrors(body)).map(([field, message]) => `${field}: ${String(message)}`)
   return [...messages, ...fields].join('; ')
 }
