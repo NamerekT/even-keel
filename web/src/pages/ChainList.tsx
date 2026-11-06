@@ -4,7 +4,7 @@ import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
+import { blockMetered, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
@@ -501,7 +501,7 @@ function Block(props: BlockProps) {
           key={rail.family}
           className={`block__rail block__rail--${rail.part}`}
           style={{ '--lane': rail.lane, '--family': `var(--family-${rail.hue})` } as CSSProperties}
-          title={rail.part === 'start' ? t.chain.family(rail.family) : undefined}
+          title={rail.part === 'start' ? t.chain.family(rail.family, taskTitle(state?.tasks, project, rail.family)) : undefined}
           aria-hidden="true"
         />
       ))}

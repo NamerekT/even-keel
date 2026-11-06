@@ -148,6 +148,11 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
                 <button type="button" className="backlog__key" title={t.chain.openCard} onClick={() => onCard(task.id)}>
                   {task.id}
                 </button>
+                {task.parent !== null && (
+                  <span className="backlog__parent" title={t.card.parent}>
+                    ↳ {task.parent}
+                  </span>
+                )}
                 {mixed && <span className="backlog__status">{task.status.name}</span>}
                 <span
                   className={task.milestone === null ? 'backlog__milestone backlog__milestone--none' : 'backlog__milestone'}

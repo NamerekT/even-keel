@@ -450,6 +450,15 @@ export const noticesRu: NoticeTexts = {
     `${p.task}: заменяемого текста ${p.count === 0 ? 'нет в описании' : `в описании ${p.count} раз(а)`} — возьмите отрывок, который встречается ровно один раз`,
   'builtin.selfLink': (p) => `задачу ${p.task} нельзя связать с ней самой`,
   'builtin.parentCycle': (p) => `${p.parent} не может быть родителем ${p.task}: она сама подзадача ${p.task}`,
+  'builtin.selfParent': (p) => `задача ${p.task} не может быть родителем самой себе`,
+  'builtin.linkExists': (p) => `${p.task} и ${p.other} уже так связаны`,
+  'builtin.blockLoop': (p) => `${p.task} не может блокировать ${p.other}: ${p.other} уже блокирует её, прямо или через другие задачи, и цепь не упорядочит их`,
+  'builtin.blockerLater': (p) =>
+    `${p.task} в более поздней вехе (${p.milestone}), чем ${p.other}: как блокер она остановит цепь — сначала перенесите её в веху раньше`,
+  'builtin.removeBusy': (p) =>
+    p.why === 'current'
+      ? `${p.task} — текущая задача цепи: пропустите её или остановите цепь, потом удаляйте`
+      : `у ${p.task} живая сессия: остановите её, потом удаляйте задачу`,
   'builtin.emptyName': () => 'имя пустое',
   'builtin.noMilestone': () => 'такой вехи нет — возможно, страница устарела',
   'builtin.badStatus': (p) => `статуса «${p.status}» нет; статусы: ${list(p.statuses)}`,

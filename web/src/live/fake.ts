@@ -29,6 +29,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
+import { fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard } from './fakeBuiltin.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -132,7 +133,7 @@ function fakeState(
     { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство', { estimate: 3 }), question: true },
     task('ABC-14', 'Установка службы одним скриптом', 'Todo', 'ToDo', ['ABC-11'], 'v0.3 — служба', { priority: 'high', estimate: minutes(40) }),
     task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба', { priority: 'low', labels: ['Переделка', 'Bug', 'Claude | opus', 'OpenCode | router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix'], runLabels: [{ provider: 'claude', model: 'opus' }, { provider: 'opencode', model: 'router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix' }] }),
-    task('ABC-18', 'Тёмная тема для печати', 'Backlog', 'UnStarted', [], 'v0.2 — удобство'),
+    task('ABC-18', 'Тёмная тема для печати', 'Backlog', 'UnStarted', [], 'v0.2 — удобство', { parent: 'ABC-17' }),
     task('ABC-19', 'Импорт задач из CSV', 'Backlog', 'UnStarted', [], 'v0.3 — служба'),
     task('ABC-20', 'Подсказки по горячим клавишам', 'Backlog', 'UnStarted'),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
@@ -795,7 +796,9 @@ export function createFakeSource(search: string): LiveSource {
     },
     card: async (task) => {
       await answer()
-      return current.state === null ? null : fakeCard(current.state, task, params.get('card'))
+      const mode = params.get('card')
+      if (current.state === null) return null
+      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task) : fakeCard(current.state, task, mode)
     },
     vocabulary: async (projectId) => {
       await answer()
@@ -814,6 +817,13 @@ export function createFakeSource(search: string): LiveSource {
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
+      const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'))
+      if (builtin !== null) {
+        current = { ...current, state: builtin.state }
+        notify()
+        if (builtin.refusal !== undefined) throw builtin.refusal
+        return builtin.result as T
+      }
       if (name === 'project/trust') return { folder: 'D:/work/abc', trusted: params.get('trust') !== 'untrusted', platform: current.state.platform, user: 'evenkeel', service: asService } as T
       const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T

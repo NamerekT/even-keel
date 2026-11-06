@@ -163,8 +163,41 @@ describe('labels and links', () => {
     expect((await store.get(abc(2)))!.blockedBy).toEqual([{ project: XYZ, number: 1 }])
   })
 
+  it('labels changed by one editor keep the labels and links another added meanwhile', async () => {
+    // The person saw [Bug] and swaps it for Later; an agent added Question and a link in between.
+    await store.relabel(abc(1), { add: ['Question'], remove: [] })
+    await store.relate(abc(1), abc(2), 'relates')
+    expect(await store.relabel(abc(1), { add: ['Later'], remove: ['Bug'] })).toEqual(['Later', 'Question'])
+    expect((await store.get(abc(1)))!.related).toEqual([abc(2)])
+  })
+
   it('a task is not linked to itself', async () => {
     expect(await code(store.relate(abc(1), abc(1), 'blocks'))).toMatchObject({ code: 'builtin.selfLink' })
+  })
+
+  it('a block that closes a loop is refused, directly or through others and across projects', async () => {
+    await store.relate(abc(1), abc(2), 'blocks')
+    await store.relate(abc(2), { project: XYZ, number: 1 }, 'blocks')
+    expect(await code(store.relate({ project: XYZ, number: 1 }, abc(1), 'blocks'))).toEqual({
+      code: 'builtin.blockLoop',
+      params: { task: 'XYZ-1', other: 'ABC-1' },
+    })
+    expect(await code(store.relate(abc(2), abc(1), 'blocks'))).toMatchObject({ code: 'builtin.blockLoop' })
+    // A relation of no direction closes nothing.
+    await store.relate(abc(2), abc(1), 'relates')
+  })
+
+  it('a blocker of a later milestone than the task it holds is refused; a task without one fits anywhere', async () => {
+    await store.edit(abc(1), { field: 'milestone', from: null, to: 'v0.4' })
+    await store.relate(abc(1), abc(2), 'blocks')
+    await store.unrelate(abc(1), abc(2), 'blocks')
+    await store.edit(abc(2), { field: 'milestone', from: null, to: 'v0.3' })
+    expect(await code(store.relate(abc(1), abc(2), 'blocks'))).toEqual({
+      code: 'builtin.blockerLater',
+      params: { task: 'ABC-1', other: 'ABC-2', milestone: 'v0.4' },
+    })
+    await store.relate(abc(2), abc(1), 'blocks')
+    await store.relate(abc(1), abc(2), 'relates')
   })
 })
 
@@ -185,7 +218,27 @@ describe('parents', () => {
       code: 'builtin.parentCycle',
       params: { task: 'ABC-1', parent: 'ABC-3' },
     })
-    expect(await code(store.edit(abc(1), { field: 'parent', from: null, to: 1 }))).toMatchObject({ code: 'builtin.parentCycle' })
+    expect(await code(store.edit(abc(1), { field: 'parent', from: null, to: 1 }))).toEqual({ code: 'builtin.selfParent', params: { task: 'ABC-1' } })
+  })
+
+  it('the ancestors go from the root to the direct parent', async () => {
+    expect(await store.ancestors(abc(3))).toEqual([1, 2])
+    expect(await store.ancestors(abc(1))).toEqual([])
+  })
+})
+
+describe('search', () => {
+  beforeEach(async () => {
+    for (const title of ['Parse input', 'Write output', 'parser docs']) await store.create({ project: ABC, title })
+    await store.create({ project: XYZ, title: 'Parse logs' })
+  })
+
+  it('finds by a word of the title, ignoring case, or by the number, in the projects given', async () => {
+    expect((await store.search([ABC, XYZ], 'pars')).map((task) => [task.project === ABC ? 'ABC' : 'XYZ', task.number])).toEqual([
+      ['ABC', 1], ['ABC', 3], ['XYZ', 1],
+    ])
+    expect((await store.search([ABC], '2')).map((task) => task.number)).toEqual([2])
+    expect((await store.search([ABC], '')).map((task) => task.number)).toEqual([3, 2, 1])
   })
 })
 

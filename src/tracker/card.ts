@@ -17,6 +17,23 @@ export interface TrackerCard {
   related: TaskRef[]
   comments: TaskComment[]
   attachments: TaskAttachment[]
+  /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
+  edit?: CardEdit
+}
+
+/** A subtask as its parent's card lists it. */
+export interface SubtaskRef extends TaskRef {
+  milestone: string | null
+}
+
+/** What the card of a task Even Keel keeps itself offers to edit it with (BTN-771). */
+export interface CardEdit {
+  statuses: TaskStatus[]
+  /** The project's labels and the built-in ones (`builtin`: Even Keel gives them a meaning); run labels are left out. */
+  labels: { name: string; builtin: boolean }[]
+  /** The root first, the direct parent last. */
+  ancestors: TaskRef[]
+  subtasks: SubtaskRef[]
 }
 
 /** A file attached to the task or to one of its comments. */
@@ -54,8 +71,10 @@ export interface CardLabel {
   role: LabelRole | null
 }
 
-export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments'> {
+export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments' | 'edit'> {
   labels: CardLabel[]
+  /** `null` — the card only shows the task; its tracker is where it is edited. */
+  edit: (CardEdit & { milestoneRules: Pick<ChainRules, 'requiredMilestones' | 'excludedMilestones'> }) | null
   attachments: (TaskAttachment & { url: string })[]
   /** "Into the chain" has something to do: move the `UnStarted` task to `ToDo`, or put the missing required label on. */
   ready: boolean
@@ -81,9 +100,11 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, m
   const required = rules.requiredLabels.length > 0 && !labels.some((label) => label.role === 'required')
   const { category } = raw.status
   const open = category !== 'Won' && category !== 'Lost'
+  const { edit, ...rest } = raw
   return {
-    ...raw,
+    ...rest,
     labels,
+    edit: edit === undefined ? null : { ...edit, milestoneRules: { requiredMilestones: rules.requiredMilestones, excludedMilestones: rules.excludedMilestones } },
     attachments: raw.attachments.map((each) => ({
       ...each,
       url: each.url ?? `/api/tasks/${encodeURIComponent(raw.id)}/files/${encodeURIComponent(each.file)}`,

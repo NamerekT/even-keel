@@ -1,5 +1,6 @@
-import { fail } from '../notice/notice.js'
+import { fail, noticeOf } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
+import type { TaskRef } from '../tracker/card.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
@@ -7,6 +8,8 @@ import type { EvenKeelConfig } from '../config.js'
 import { BUILTIN, type RelationKind } from './model.js'
 import { BuiltinNames } from './source.js'
 import { BuiltinStore, type BuiltinTask, type FieldEdit, type TaskKey } from './store.js'
+
+const SEARCH_LIMIT = 20
 
 /** A task as the page gets it: every task named by its `<KEY>-<N>`. */
 export interface BuiltinView extends Omit<BuiltinTask, 'parent' | 'blockedBy' | 'blocks' | 'related'> {
@@ -49,7 +52,13 @@ export interface BuiltinControl {
   /** `blocks` — `task` blocks `other`; `on: false` removes the link. */
   relate(task: string, other: string, kind: RelationKind, on: boolean): Promise<BuiltinView>
   comment(task: string, body: string): Promise<{ id: string }>
+  /** Refused while the task is the chain's current one or a session of it is live. */
   remove(task: string): Promise<void>
+  /**
+   * Tasks to link or to make a parent: by id, a word of the title or a number; in `project` alone, or in every project of
+   * the built-in tracker when it is `null`.
+   */
+  search(text: string, project: string | null): Promise<TaskRef[]>
 }
 
 /** The projects on the built-in tracker with their keys, as the adapter gets them. */
@@ -64,9 +73,11 @@ export interface BuiltinControlDeps {
   /** The projects on the built-in tracker with their keys, read per call: the config is live. */
   places: () => Readonly<Record<string, TrackerPlace>>
   refresh: (project: string) => Promise<unknown>
+  /** Why the task cannot be deleted now: the chain's current task, or one a live session works on. */
+  busy?: (task: string) => 'current' | 'live' | null
 }
 
-export function builtinControl({ db, places, refresh }: BuiltinControlDeps): BuiltinControl {
+export function builtinControl({ db, places, refresh, busy = () => null }: BuiltinControlDeps): BuiltinControl {
   const open = () => {
     const names = new BuiltinNames(places())
     return { names, store: new BuiltinStore(db, (key) => names.name(key)) }
@@ -119,7 +130,12 @@ export function builtinControl({ db, places, refresh }: BuiltinControlDeps): Bui
     edit: (id, edit) =>
       write(id, (store, task, names) =>
         edit.field === 'parent'
-          ? store.edit(task, { field: 'parent', from: parentNumber(names, task, edit.from), to: parentNumber(names, task, edit.to) })
+          ? store.edit(task, { field: 'parent', from: parentNumber(names, task, edit.from), to: parentNumber(names, task, edit.to) }).catch((error: unknown) => {
+              // The store names the parent held by its number; the page knows it by its id.
+              const notice = noticeOf(error)
+              if (notice.code !== 'builtin.conflict' || notice.params.current === null) throw error
+              throw fail('builtin.conflict', { ...notice.params, current: names.name({ project: task.project, number: Number(notice.params.current) }) })
+            })
           : store.edit(task, edit),
       ),
     describe: (id, text, rev) => write(id, (store, task) => store.setDescription(task, text, rev)),
@@ -148,8 +164,22 @@ export function builtinControl({ db, places, refresh }: BuiltinControlDeps): Bui
     async remove(id) {
       const { names, store } = open()
       const task = await find(names, store, id)
+      const why = busy(names.name(task))
+      if (why !== null) throw fail('builtin.removeBusy', { task: names.name(task), why })
       await store.remove(task)
       await refresh(task.project)
+    },
+    async search(text, project) {
+      const { names, store } = open()
+      const projects = project === null ? Object.keys(places()) : [project]
+      const exact: BuiltinTask[] = []
+      for (const key of [...names.candidates(text.trim()), ...names.candidates(text.trim().toUpperCase())]) {
+        if (exact.some((each) => each.project === key.project && each.number === key.number)) continue
+        const task = projects.includes(key.project) ? await store.get(key) : undefined
+        if (task !== undefined) exact.push(task)
+      }
+      const found = [...exact, ...(await store.search(projects, text)).filter((task) => !exact.some((each) => each.project === task.project && each.number === task.number))]
+      return found.slice(0, SEARCH_LIMIT).map((task) => ({ id: names.name(task), title: task.title, status: task.status }))
     },
   }
 }

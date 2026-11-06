@@ -87,6 +87,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     requires: [],
     milestones: { current: task.milestone?.label ?? null, choices: fakeMilestones(state, id) },
     relabel: mode !== 'readonly',
+    edit: null,
   }
 }
 

@@ -499,6 +499,16 @@ export const en = {
     `${p.task}: the text to replace is ${p.count === 0 ? 'not in the description' : `in the description ${p.count} times`}; quote a passage found exactly once`,
   'builtin.selfLink': (p: { task: string }) => `${p.task} cannot be linked to itself`,
   'builtin.parentCycle': (p: { task: string; parent: string }) => `${p.parent} cannot be the parent of ${p.task}: it is a subtask of ${p.task} itself`,
+  'builtin.selfParent': (p: { task: string }) => `${p.task} cannot be its own parent`,
+  'builtin.linkExists': (p: { task: string; other: string }) => `${p.task} and ${p.other} are already linked so`,
+  'builtin.blockLoop': (p: { task: string; other: string }) =>
+    `${p.task} cannot block ${p.other}: ${p.other} already blocks it, directly or through other tasks, and the chain could not order them`,
+  'builtin.blockerLater': (p: { task: string; other: string; milestone: string }) =>
+    `${p.task} is in a later milestone (${p.milestone}) than ${p.other}: as its blocker it would stop the chain; move it to an earlier milestone first`,
+  'builtin.removeBusy': (p: { task: string; why: 'current' | 'live' }) =>
+    p.why === 'current'
+      ? `${p.task} is the chain's current task; skip it or stop the chain before deleting it`
+      : `${p.task} has a live session; stop it before deleting the task`,
   'builtin.emptyName': () => 'the name is empty',
   'builtin.noMilestone': () => 'there is no such milestone; the page may be out of date',
   'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,

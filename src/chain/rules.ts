@@ -56,7 +56,7 @@ export function missingLabel(rules: ChainRules, task: { status: TaskStatus; labe
 /** The required labels the task carries, as the tracker spells them: "To the backlog" takes them off. */
 export const requiredOn = (rules: ChainRules, task: { labels: string[] }): string[] => task.labels.filter((label) => listed(rules.requiredLabels, label))
 
-export function ownsMilestone(rules: ChainRules, task: { milestone: TaskMilestone | null }): boolean {
+export function ownsMilestone(rules: Pick<ChainRules, 'requiredMilestones' | 'excludedMilestones'>, task: { milestone: TaskMilestone | null }): boolean {
   const name = task.milestone?.label
   if (name !== undefined && listed(rules.excludedMilestones, name)) return false
   return rules.requiredMilestones.length === 0 || (name !== undefined && listed(rules.requiredMilestones, name))

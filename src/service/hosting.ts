@@ -518,6 +518,10 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       db: ctx.db,
       places: () => builtinPlaces(ctx.configStore.current),
       refresh: (project) => ctx.refreshProject(project),
+      busy: (task) =>
+        ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
+          ? 'current'
+          : ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished') ? 'live' : null,
     }),
     models: async (key) => {
       const home = ctx.homes.find(key)

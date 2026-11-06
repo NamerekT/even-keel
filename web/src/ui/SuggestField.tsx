@@ -25,6 +25,8 @@ interface SuggestFieldProps {
   mono?: boolean
   /** A key the list did not take: Enter with no option active, Escape with the list closed. */
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
+  /** An option taken from the list, by a click or Enter, as against a value typed. */
+  onPick?: (value: string) => void
 }
 
 /**
@@ -32,7 +34,7 @@ interface SuggestFieldProps {
  * replaces it; the list opened by focus, a click or an arrow shows every option and narrows only once the user types.
  * The list opens in the top layer like `Select`'s. Arrows move through it, Enter picks, Escape closes the list alone.
  */
-export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, onKeyDown }: SuggestFieldProps) {
+export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, onKeyDown, onPick }: SuggestFieldProps) {
   const [open, setOpen] = useState(false)
   // `null` until the user types: the list then shows every option, whatever the field holds.
   const [typed, setTyped] = useState<string | null>(null)
@@ -101,6 +103,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
     if (option === undefined) return
     if (option.value !== value) onChange(option.value)
     close()
+    onPick?.(option.value)
     const input = field.current
     if (input !== null) requestAnimationFrame(() => input.setSelectionRange(input.value.length, input.value.length))
   }

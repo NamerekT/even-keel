@@ -1,7 +1,7 @@
 import { fail } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
-import type { TaskRef, TrackerCard } from '../tracker/card.js'
-import { parseTaskId, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import type { CardEdit, TaskRef, TrackerCard } from '../tracker/card.js'
+import { parseTaskId, runLabelOf, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
 import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
@@ -85,6 +85,22 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     await store.edit(task, { field: 'status', from: task.status.name, to: to.name })
     return to
   }
+  const editOf = async (task: BuiltinTask): Promise<CardEdit> => {
+    const own = (await store.labels(task.project)).map((label) => label.name)
+    const labels = uniqueNames([...BUILTIN_LABELS, ...own]).filter((name) => runLabelOf(name) === null)
+    const builtin = new Set(BUILTIN_LABELS.map((name) => name.toLocaleLowerCase()))
+    return {
+      statuses: [...BUILTIN_STATUSES],
+      labels: labels.map((name) => ({ name, builtin: builtin.has(name.toLocaleLowerCase()) })),
+      ancestors: await refs((await store.ancestors(task)).map((number) => ({ project: task.project, number }))),
+      subtasks: (await store.children(task)).map((child) => ({
+        id: names.name(child),
+        title: child.title,
+        status: child.status,
+        milestone: child.milestone?.name ?? null,
+      })),
+    }
+  }
   const milestoneOf = async (task: string | null): Promise<string | null> => (task === null ? null : ((await find(task))?.milestone?.name ?? null))
 
   return {
@@ -146,6 +162,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         related: await refs(task.related),
         comments: (await store.comments(task)).map((each) => ({ author: AUTHORS[each.author], at: Date.parse(each.at), text: each.body })),
         attachments: [],
+        edit: await editOf(task),
       }
     },
     ready: (id) => move(id, TODO, ['UnStarted']),

@@ -8,6 +8,7 @@ import {
   BUILTIN_STATUSES, builtinStatus, compareBuiltinMilestones, labelColor, uniqueNames, TODO,
   type BuiltinMilestone, type CommentAuthor, type RelationKind,
 } from './model.js'
+import { closesLoop, laterBlocker } from './links.js'
 
 /** A task of the built-in tracker: its project's id and its number there. */
 export interface TaskKey {
@@ -142,6 +143,29 @@ export class BuiltinStore {
   async children(key: TaskKey): Promise<BuiltinTask[]> {
     const parent = await this.row(this.db, key)
     return parent === undefined ? [] : (await this.read([key.project])).filter((task) => task.parent === key.number)
+  }
+
+  /** The numbers of the task's ancestors, the root first and the direct parent last. */
+  async ancestors(key: TaskKey): Promise<number[]> {
+    const { rows } = await this.db.query<{ number: number; depth: number }>(
+      `with recursive up(id, parent_id, number, depth) as (
+         select id, parent_id, number, 0 from builtin_tasks where project_id = $1 and number = $2
+         union all select t.id, t.parent_id, t.number, up.depth + 1 from builtin_tasks t join up on t.id = up.parent_id
+       ) select number, depth from up where depth > 0 order by depth desc`,
+      [key.project, key.number],
+    )
+    return rows.map((row) => row.number)
+  }
+
+  /**
+   * Tasks of the projects whose title holds `text`, ignoring case, or whose number it is, by project and number; with no
+   * text, the newest first. At most `limit`.
+   */
+  async search(projects: readonly string[], text: string, limit = 20): Promise<BuiltinTask[]> {
+    const needle = text.trim().toLocaleLowerCase()
+    const number = /^\d+$/.test(needle) ? Number(needle) : null
+    const found = (await this.read(projects)).filter((task) => needle === '' || task.number === number || task.title.toLocaleLowerCase().includes(needle))
+    return (needle === '' ? found.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.number - a.number) : found).slice(0, limit)
   }
 
   /** The edited task. */
@@ -373,6 +397,7 @@ export class BuiltinStore {
       return
     }
     const task = this.nameOf({ project: row.project_id, number: row.number })
+    if (parent === row.number) throw fail('builtin.selfParent', { task })
     const target = await this.row(tx, { project: row.project_id, number: parent })
     if (target === undefined) throw fail('builtin.noTask', { task: this.nameOf({ project: row.project_id, number: parent }) })
     const { rows } = await tx.query<{ id: string }>(
@@ -386,6 +411,23 @@ export class BuiltinStore {
     await tx.query('update builtin_tasks set parent_id = $2 where id = $1', [row.id, target.id])
   }
 
+  /** Refuses `left` blocking `right` when the chain could not order it: a loop, or a blocker of a later milestone. */
+  private async checkBlock(tx: Transaction, left: TaskRow, right: TaskRow): Promise<void> {
+    const names = { task: this.nameOf({ project: left.project_id, number: left.number }), other: this.nameOf({ project: right.project_id, number: right.number }) }
+    const { rows } = await tx.query<{ from_id: string; to_id: string }>(`select from_id, to_id from builtin_relations where kind = 'blocks'`)
+    if (closesLoop(rows.map((row) => ({ from: row.from_id, to: row.to_id })), left.id, right.id)) throw fail('builtin.blockLoop', names)
+    if (left.project_id !== right.project_id || left.milestone_id === null || right.milestone_id === null) return
+    const milestones = await tx.query<{ id: string; name: string; date: number | null }>(
+      'select id, name, date::float8 as date from builtin_milestones where id = any($1)',
+      [[left.milestone_id, right.milestone_id]],
+    )
+    const of = (id: string) => milestones.rows.find((each) => each.id === id)!
+    const [blocker, held] = [of(left.milestone_id), of(right.milestone_id)]
+    if (laterBlocker({ label: blocker.name, targetDate: blocker.date }, { label: held.name, targetDate: held.date })) {
+      throw fail('builtin.blockerLater', { ...names, milestone: blocker.name })
+    }
+  }
+
   private async link(from: TaskKey, to: TaskKey, kind: RelationKind, on: boolean): Promise<void> {
     await inTransaction(this.db, async (tx) => {
       const left = await this.row(tx, from)
@@ -393,6 +435,7 @@ export class BuiltinStore {
       if (left === undefined) throw fail('builtin.noTask', { task: this.nameOf(from) })
       if (right === undefined) throw fail('builtin.noTask', { task: this.nameOf(to) })
       if (left.id === right.id) throw fail('builtin.selfLink', { task: this.nameOf(from) })
+      if (on && kind === 'blocks') await this.checkBlock(tx, left, right)
       // `relates` has no direction: one row, whichever way it was made.
       const [a, b] = kind === 'relates' && right.id < left.id ? [right.id, left.id] : [left.id, right.id]
       const { affectedRows } = on

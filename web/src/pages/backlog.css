@@ -128,6 +128,13 @@
   color: var(--fg-muted);
 }
 
+.backlog__parent {
+  flex: none;
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+}
+
 .backlog__milestone {
   display: inline-flex;
   align-items: center;

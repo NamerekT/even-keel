@@ -80,6 +80,36 @@ describe('the built-in tracker over HTTP', () => {
     expect((await post('labels', { task: 'XYZ-1', add: [] })).body.blocks).toEqual([])
   })
 
+  it('finds tasks by id or title in one project or all, and gives a task its ancestors, subtasks and labels', async () => {
+    const { post } = await fixture()
+    await post('create', { project: ABC, title: 'Root' })
+    await post('create', { project: ABC, title: 'Middle', parent: 'ABC-1', milestone: 'v0.3' })
+    await post('create', { project: XYZ, title: 'Rooted elsewhere' })
+    expect((await post('search', { text: 'root' })).body.map((task: { id: string }) => task.id)).toEqual(['ABC-1', 'XYZ-1'])
+    expect((await post('search', { text: 'root', project: ABC })).body.map((task: { id: string }) => task.id)).toEqual(['ABC-1'])
+    expect((await post('search', { text: 'abc-2' })).body).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' } }])
+    const source = (await import('./builtin/source.js')).builtinSource(db, builtinPlaces(CONFIG))
+    await post('create', { project: ABC, title: 'Leaf', parent: 'ABC-2', labels: ['Claude | opus', 'Later'] })
+    const leaf = await source.card!('ABC-3')
+    expect(leaf.edit!.ancestors.map((task) => task.id)).toEqual(['ABC-1', 'ABC-2'])
+    expect(leaf.edit!.labels).toEqual([
+      { name: 'Manual', builtin: true }, { name: 'Question', builtin: true }, { name: 'Bug', builtin: true }, { name: 'Rework', builtin: true },
+      { name: 'Later', builtin: false },
+    ])
+    expect((await source.card!('ABC-1')).edit!.subtasks).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v0.3' }])
+  })
+
+  it('refuses to delete the chain’s current task or one with a live session', async () => {
+    const refresh = vi.fn(async () => true)
+    const busy = (task: string) => (task === 'ABC-1' ? 'current' : task === 'ABC-2' ? 'live' : null)
+    const control = builtinControl({ db, places: () => builtinPlaces(CONFIG), refresh, busy })
+    for (const title of ['a', 'b', 'c']) await control.create(ABC, { title })
+    await expect(control.remove('ABC-1')).rejects.toMatchObject({ notice: { code: 'builtin.removeBusy', params: { task: 'ABC-1', why: 'current' } } })
+    await expect(control.remove('ABC-2')).rejects.toMatchObject({ notice: { code: 'builtin.removeBusy', params: { why: 'live' } } })
+    await control.remove('ABC-3')
+    expect((await control.search('', ABC)).map((task) => task.id)).toEqual(['ABC-2', 'ABC-1'])
+  })
+
   it('refuses a project on another tracker, a bad priority, and every command without the database', async () => {
     const { post } = await fixture()
     expect((await post('create', { project: HULY, title: 'x' })).body.notice.code).toBe('builtin.noProject')

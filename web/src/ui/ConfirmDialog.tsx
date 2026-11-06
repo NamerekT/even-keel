@@ -35,6 +35,8 @@ export function ConfirmDialog({ title, question, confirm, cancel, busy, failure,
       aria-labelledby={heading}
       onCancel={(event) => {
         event.preventDefault()
+        // React passes `cancel` up its own tree: a dialog opened from the task card would close the card too.
+        event.stopPropagation()
         onClose()
       }}
       {...backdrop}
