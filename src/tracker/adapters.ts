@@ -1,3 +1,4 @@
+import { builtin } from '../builtin/adapter.js'
 import { forgejo } from '../forgejo/adapter.js'
 import { github } from '../github/adapter.js'
 import { gitlab } from '../gitlab/adapter.js'
@@ -7,7 +8,7 @@ import { linear } from '../linear/adapter.js'
 import type { KeyRules } from '../packages/keys.js'
 import type { TrackerAdapter } from './source.js'
 
-export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear, gitlab, jira, forgejo }
+export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear, gitlab, jira, forgejo, builtin }
 
 /**
  * The tracker of a project whose entry names none: only a file of the current schema meets it, as `config-import` reads

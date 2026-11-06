@@ -56,6 +56,7 @@ import { stateValue } from './storage/service-state.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS } from './tracker/adapters.js'
+import { attachBuiltin } from './builtin/adapter.js'
 import type { TrackerLink } from './tracker/link.js'
 import { type Task } from './tracker/model.js'
 import { profileStatusesOf } from './tracker/statuses.js'
@@ -323,6 +324,7 @@ export const service = context
 
 const stateDb = keptDatabase()
 const db = stateDb.db
+attachBuiltin(db)
 /** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
 const writes = new Writes((line) => console.warn(line))
 /** What happened while nobody looked (BTN-350): the page's toasts and its /log come from it. */

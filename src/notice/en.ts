@@ -15,6 +15,10 @@ const list = (items: string[]) => items.join(', ')
 /** How many models of an account `chain.unknownModel` names; the rest are counted. */
 export const MODELS_NAMED = 8
 
+/** The short fields of a built-in tracker's task an edit checks one by one (`FieldEdit` of `src/builtin/store.ts`). */
+export type BuiltinField = 'title' | 'status' | 'priority' | 'milestone' | 'parent'
+const BUILTIN_FIELDS: Record<BuiltinField, string> = { title: 'title', status: 'status', priority: 'priority', milestone: 'milestone', parent: 'parent task' }
+
 /** Where a status move is set (BTN-554): its notices lead to that setting. */
 export type MoveLevel = 'profile' | 'source'
 type MoveWhen = 'start' | 'review'
@@ -487,6 +491,20 @@ export const en = {
   'tally.incomplete': (p: { names: string }) => `stats: your own Postgres needs ${p.names}`,
   'tally.port': (p: { value: string }) => `stats: the port ${p.value} is not a number from 1 to 65535`,
   'tally.unreachable': (p: { role: string; address: string }) => `stats: ${p.address} did not let ${p.role} in`,
+  'builtin.noTask': (p: { task: string }) => `there is no task ${p.task}; the page may be out of date`,
+  'builtin.conflict': (p: { task: string; field: BuiltinField; current: string | null }) =>
+    `${p.task}: its ${BUILTIN_FIELDS[p.field]} was changed meanwhile to ${p.current === null ? 'none' : `"${p.current}"`}; look at it and change it again`,
+  'builtin.descriptionConflict': (p: { task: string; rev: number }) => `${p.task}: its description was changed meanwhile; open it again and redo the edit`,
+  'builtin.patchMissing': (p: { task: string; count: number }) =>
+    `${p.task}: the text to replace is ${p.count === 0 ? 'not in the description' : `in the description ${p.count} times`}; quote a passage found exactly once`,
+  'builtin.selfLink': (p: { task: string }) => `${p.task} cannot be linked to itself`,
+  'builtin.parentCycle': (p: { task: string; parent: string }) => `${p.parent} cannot be the parent of ${p.task}: it is a subtask of ${p.task} itself`,
+  'builtin.emptyName': () => 'the name is empty',
+  'builtin.noMilestone': () => 'there is no such milestone; the page may be out of date',
+  'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,
+  'builtin.badPriority': (p: { priority: string }) => `there is no priority "${p.priority}"`,
+  'builtin.noProject': (p: { project: string }) => `the project ${p.project} does not keep its tasks in Even Keel`,
+  'builtin.off': () => 'Even Keel keeps no tasks of its own yet: its state database is not open',
   'profiles.unknownKind': (p: { kind: string }) => `there is no tracker "${p.kind}"`,
   'profiles.unknown': () => 'there is no such profile; the page may be out of date',
   'profiles.oauthAddress': () => 'Open Even Keel over HTTPS, or on localhost on the service machine, then connect MCP again.',

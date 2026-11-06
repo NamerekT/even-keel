@@ -62,9 +62,9 @@ export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' 
 
 export type ProfileKinds = Readonly<Record<string, ProfileKind>>
 
-/** The trackers' kinds in the adapters' order, then the CIs'. */
+/** The trackers' kinds in the adapters' order, then the CIs'; Even Keel's own tracker has no profiles. */
 export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): ProfileKinds {
-  const own = Object.entries(trackers).map(([kind, adapter]): [string, ProfileKind] => [
+  const own = Object.entries(trackers).filter(([, adapter]) => adapter.own !== true).map(([kind, adapter]): [string, ProfileKind] => [
     kind,
     {
       title: adapter.title,

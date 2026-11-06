@@ -158,7 +158,8 @@ select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum
   coalesce(max(st.spans), 0) as spans,
   coalesce(max(cp.compacts_auto), 0) as compacts_auto,
   coalesce(max(cp.compacts_manual), 0) as compacts_manual,
-  coalesce('Переделка' = any(t.labels), false) as rework,
+  -- Rework is the built-in tracker's label (BTN-767).
+  coalesce(t.labels && array['Переделка', 'Rework'], false) as rework,
   t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
   mode() within group (order by ${familyOf('c.model')}) as model
 from cur c

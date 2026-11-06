@@ -29,7 +29,7 @@ describe('session protection', () => {
     expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteHuly'] }).claude.some(rule => rule.includes('huly'))).toBe(false)
     expect(protectionRules({ ...DEFAULT_PROTECTION, disabled: ['deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira', 'deleteForgejo'] }).claude).toContain('mcp__plugin_huly_huly__delete_issue')
     expect(Object.values(TRACKER_GROUPS).every(group => PROTECTION_GROUPS.includes(group))).toBe(true)
-    expect(Object.keys(TRACKER_GROUPS).sort()).toEqual(Object.keys(ADAPTERS).sort())
+    expect(Object.keys(TRACKER_GROUPS).sort()).toEqual(Object.keys(ADAPTERS).filter(name => ADAPTERS[name]!.own !== true).sort())
   })
 
   it('knows a deleting call by a word of the tool name or by a delete method', () => {

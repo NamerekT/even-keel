@@ -171,7 +171,9 @@ export class Trackers {
       health: { state: 'off', lastOkAt: null, error: null },
       readAt: {},
     }
-    if (plan.profile === undefined) this.deps.log(`${title}: ${plan.projects.join(', ')} have no profile, tracker is off`)
+    if (plan.profile === undefined && adapter.own === true) {
+      if (setup === undefined) this.deps.log(`${title}: no state database, tracker is off`)
+    } else if (plan.profile === undefined) this.deps.log(`${title}: ${plan.projects.join(', ')} have no profile, tracker is off`)
     else if (setup === undefined && !failed) this.deps.log(`${title}: the profile has no credentials, tracker is off`)
     const handle = setup === undefined ? undefined : this.deps.start(view, setup)
     this.running.set(key, { projects, signature, view, handle })

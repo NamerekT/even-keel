@@ -58,8 +58,9 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
   return { projects, shared }
 }
 
-export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'title' | 'projectKey'>>> = ADAPTERS): TrackerChoice[] {
-  return Object.entries(adapters).map(([name, { title, projectKey }]) => ({
+/** The wizard's trackers; Even Keel's own is left out until the wizard offers it (BTN-769). */
+export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'title' | 'projectKey' | 'own'>>> = ADAPTERS): TrackerChoice[] {
+  return Object.entries(adapters).filter(([, adapter]) => adapter.own !== true).map(([name, { title, projectKey }]) => ({
     name,
     title,
     projectKey:

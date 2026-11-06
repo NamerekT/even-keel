@@ -1,3 +1,4 @@
+import type { StatusMoves } from '../chain/moves.js'
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
@@ -317,6 +318,13 @@ export interface TrackerAdapter {
   mcpValues?: Readonly<Record<string, DerivedKey>>
   /** Optional. Its connection moves a task to a named status and lists the statuses (`moveTo`, `statuses`; BTN-554). */
   moves?: true
+  /**
+   * Optional. Even Keel's own tracker (`builtin`, BTN-767): it runs without a profile, and the profile settings and the
+   * wizard's list of trackers leave it out.
+   */
+  own?: true
+  /** Optional, with `moves`. The status moves its tasks always take; neither a profile nor a project changes them. */
+  fixedMoves?: Readonly<StatusMoves>
   /** Optional. Its connection writes a task's time into the tracker (`logTime`): Tally hands it the done tasks' time (EKR-35). */
   logsTime?: true
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */

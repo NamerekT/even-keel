@@ -49,6 +49,7 @@ import { taskControl } from '../tracker/control.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runsAsService } from '../updates/control.js'
 import type { ServiceContext } from '../service.js'
+import { builtinControl, builtinPlaces } from '../builtin/control.js'
 
 type HostingContext = Pick<ServiceContext,
   | 'CONFIG_POLL_MS'
@@ -513,6 +514,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     vocabulary: (id) => (Object.hasOwn(ctx.readers().projects, id) ? ctx.vocabularies.get(id) : Promise.resolve(undefined)),
     profileStatuses: (id) => ctx.profileStatuses.get(id),
+    builtin: builtinControl({
+      db: ctx.db,
+      places: () => builtinPlaces(ctx.configStore.current),
+      refresh: (project) => ctx.refreshProject(project),
+    }),
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf } from './server-request.js'
+import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList } from './server-request.js'
 import type { NoticeKind } from './notice/kinds.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
@@ -62,6 +62,8 @@ import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
 import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
 import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
 export type { ProfilesControl } from './profiles/routes.js'
+import { BUILTIN_QUERIES } from './builtin/routes.js'
+import type { BuiltinControl } from './builtin/control.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
@@ -249,6 +251,8 @@ export interface ServerDeps {
   secrets: SecretsControl
   tally: TallyControl
   profiles: ProfilesControl
+  /** The page's commands on the built-in tracker's tasks (BTN-767); without it they are refused. */
+  builtin?: BuiltinControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
@@ -396,6 +400,7 @@ const COMMANDS: Record<string, Command> = {
 /** POST calls that answer with their own result rather than the state. */
 const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>> = {
   ...PROFILE_QUERIES,
+  ...BUILTIN_QUERIES,
   'changelog/open': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'open' }),
   'changelog/draft': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'draft' }),
   'changelog/again': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'again' }),
@@ -414,11 +419,6 @@ const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
 const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
-
-function labelList(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.some((label) => typeof label !== 'string' || label.trim() === '')) throw fail('request.required', { field })
-  return value as string[]
-}
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

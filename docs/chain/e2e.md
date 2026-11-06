@@ -21,7 +21,7 @@ The unit tests of `src/chain/` go through `setup()` of `dispatcher.fixture.ts`, 
   | the order, handovers, cleanup after Done, restarts | `chain`, `restarts`, `returns`, `turns`, `cleanup` |
   | the service's start, `src/service.ts` wiring | `huly-client`, `restarts` |
   | questions, chat mail, pauses | `questions`, `mail`, `pauses` |
-  | labels, statuses, the tracker adapters | `labels`, `statuses`, `feeds`, `intake` |
+  | labels, statuses, the tracker adapters | `labels`, `statuses`, `feeds`, `intake`, `builtin` |
   | the CI, a red `main`, a shared remote, the sync | `ci`, `ci-fix`, `ci-sessions`, `remote`, `remote-tasks` |
   | PR mode | `review`, `feedback`, `feedback-chain` |
   | carries of a release project | `carry`, `carry-agent` |
@@ -52,6 +52,7 @@ The unit tests of `src/chain/` go through `setup()` of `dispatcher.fixture.ts`, 
   - `accounts.test.ts`: a key account's session refused for credit — held 30 minutes with no stop, resume or next task, then on `account/switch` a new session in the same folder on the other account, `relay` with cause `credit`; a limit that names no reset — waited until the reset a later poll gives, the next task behind it; with `usage` telling of no windows — the same session resumed a quarter of an hour later, not held for good; switched to another account — a new session there at once; an account with no e-mail on a limit — no handovers while it waits, the same session resumed after the reset.
   - `feeds.test.ts`: the tasks of a feed in the project's chain beside its own — one on its `Claude | haiku` label (`modelLabels` on), the rest on the project's model; a feed task's question posted on the lane, not on the board, answered by a lane comment and resumed in the same session; each merge closing the task in its own tracker, the worktrees and `ghi-*` branches removed.
   - `intake.test.ts`: a labelled issue made a Todo task within a pass — its text quoted, the author's and an owner's earlier comments in the description, an outsider's (`CONTRIBUTOR`) left out with one log line, an unlabelled issue not taken; a later member's comment copied as `GitHub · @john · member — <link>`, an outsider's later one not, one log line each over several passes. A session's question on such a task not answered by a copied comment, before a restart or after it, and answered by a reply on the board. A task in Done — "Fixed; it ships in v0.1.0." with the milestone `v0.1` and the tag `v0.0.1`, "the next release." without a milestone; a draft and then a prerelease leave the issues open, the published release closes both as completed; a cancelled task let go with a log line and nothing on its issue.
+  - `builtin.test.ts` (BTN-767): a project on the built-in tracker (`Harness.project.tracker = 'builtin'`, the real adapter over the service's database, no board) — two tasks filed and linked through the page's `builtin/*` commands, the blocker launched first, each closed in the database by the chain after its merge.
 - **A chain bug found live gets a scenario here** besides its unit test, when the scripted agent reproduces it. A bug in the format of a CLI's output gets a sample instead (BTN-568); one in the live process of a particular CLI belongs to the level of real CLIs below.
 
 ## Real CLIs (`src/e2e-cli/`, BTN-572)

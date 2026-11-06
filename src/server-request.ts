@@ -251,6 +251,11 @@ export function linesOf(raw: unknown, field: string): string[] {
   return raw
 }
 
+export function labelList(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.some((label) => typeof label !== 'string' || label.trim() === '')) throw fail('request.required', { field })
+  return value as string[]
+}
+
 export function textOf(raw: unknown, field: string): string {
   if (typeof raw !== 'string') throw fail('request.required', { field })
   return raw

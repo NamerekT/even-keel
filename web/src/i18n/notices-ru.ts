@@ -1,9 +1,11 @@
-import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
 
 const list = (items: string[]) => items.join(', ')
+
+const BUILTIN_FIELDS: Record<BuiltinField, string> = { title: 'заголовок', status: 'статус', priority: 'приоритет', milestone: 'веху', parent: 'родительскую задачу' }
 
 const MOVE_LABELS = { start: '«При старте задачи»', review: '«При открытии PR»', done: '«При завершении задачи»' } as const
 const chats = (count: number) => `${count} ${plural('ru', count, { one: 'чат', few: 'чата', many: 'чатов', other: 'чата' })}`
@@ -440,6 +442,20 @@ export const noticesRu: NoticeTexts = {
   'tally.incomplete': (p) => `для своей базы Postgres нужны ${p.names}`,
   'tally.port': (p) => `порт ${p.value} — не число от 1 до 65535`,
   'tally.unreachable': (p) => `${p.address} не пустил ${p.role}`,
+  'builtin.noTask': (p) => `задачи ${p.task} нет — возможно, страница устарела`,
+  'builtin.conflict': (p) =>
+    `${p.task}: ${BUILTIN_FIELDS[p.field]} уже изменили на ${p.current === null ? '«нет»' : `«${p.current}»`} — посмотрите и измените снова`,
+  'builtin.descriptionConflict': (p) => `${p.task}: описание уже изменили — откройте его заново и повторите правку`,
+  'builtin.patchMissing': (p) =>
+    `${p.task}: заменяемого текста ${p.count === 0 ? 'нет в описании' : `в описании ${p.count} раз(а)`} — возьмите отрывок, который встречается ровно один раз`,
+  'builtin.selfLink': (p) => `задачу ${p.task} нельзя связать с ней самой`,
+  'builtin.parentCycle': (p) => `${p.parent} не может быть родителем ${p.task}: она сама подзадача ${p.task}`,
+  'builtin.emptyName': () => 'имя пустое',
+  'builtin.noMilestone': () => 'такой вехи нет — возможно, страница устарела',
+  'builtin.badStatus': (p) => `статуса «${p.status}» нет; статусы: ${list(p.statuses)}`,
+  'builtin.badPriority': (p) => `приоритета «${p.priority}» нет`,
+  'builtin.noProject': (p) => `проект ${p.project} не хранит задачи в Even Keel`,
+  'builtin.off': () => 'Even Keel пока не хранит своих задач: его база состояния не открыта',
   'profiles.unknownKind': (p) => `трекера «${p.kind}» нет`,
   'profiles.unknown': () => 'такого профиля нет — возможно, страница устарела',
   'profiles.oauthAddress': () => 'Откройте Even Keel через HTTPS или на localhost на машине сервиса, затем подключите MCP снова.',

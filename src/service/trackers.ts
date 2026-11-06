@@ -88,6 +88,8 @@ export function wireReaderMoves(ctx: TrackersContext): (reader: string) => MoveP
   return (reader) => {
     const tracker = ctx.readers().trackers[reader]
     if (tracker === undefined || ADAPTERS[tracker]?.moves === undefined) return undefined
+    const fixed = ADAPTERS[tracker]!.fixedMoves
+    if (fixed !== undefined) return { reader, rules: ctx.readerRules(reader), profile: { ...fixed } }
     const feed = ctx.feedOf(reader)
     const profile = profileFor(ctx.profiles.current(), reader, tracker)?.moves
     const source = feed === undefined ? ctx.configStore.current.moves[reader] : feed.moves
