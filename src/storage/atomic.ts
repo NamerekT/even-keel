@@ -1,4 +1,4 @@
-import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 const RENAME_RETRY_MS = 3000
@@ -7,15 +7,29 @@ const waitBuffer = new Int32Array(new SharedArrayBuffer(4))
 /**
  * Writes the file whole or not at all: into a temporary file next to it, then a rename over it.
  * In-process readers must use synchronous fs calls: a pending async close cannot run during rename's retry wait.
+ * Off Windows the file keeps the permissions of the one it replaces, so a 600 account file does not turn 644 under the
+ * umask (EKR-95); `mode` sets them instead, for a file that must stay private whether it is new or not.
  */
-export function writeAtomic(file: string, text: string): void {
+export function writeAtomic(file: string, text: string, mode?: number): void {
   mkdirSync(dirname(file), { recursive: true })
   const temp = `${file}.${process.pid}.tmp`
   try {
-    writeFileSync(temp, text)
+    const kept = process.platform === 'win32' ? undefined : mode ?? modeOf(file)
+    // Owner-only until the chmod, so a private file's text is never readable by others on the way.
+    writeFileSync(temp, text, kept === undefined ? {} : { mode: 0o600 })
+    if (kept !== undefined) chmodSync(temp, kept)
     renameOver(temp, file)
   } catch (error) {
     rmSync(temp, { force: true })
+    throw error
+  }
+}
+
+function modeOf(file: string): number | undefined {
+  try {
+    return statSync(file).mode & 0o7777
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
     throw error
   }
 }

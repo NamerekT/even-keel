@@ -1,7 +1,8 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { linkType } from '../account/share.js'
 import { noticeOf } from '../notice/notice.js'
 import { trustFolder } from './trust.js'
 
@@ -80,5 +81,78 @@ describe('trustFolder', () => {
     const text = readFileSync(target, 'utf8')
     trustFolder(target, folder, platform)
     expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  // The CLI looks trust up by its working folder's real path: getcwd resolves links (EKR-94).
+  const linked = () => {
+    const root = mkdtempSync(join(tmpdir(), 'ek-trust-link-'))
+    folders.push(root)
+    const repo = join(root, 'repo')
+    mkdirSync(repo)
+    const link = join(root, 'link')
+    symlinkSync(repo, link, linkType(process.platform))
+    return { repo: realpathSync.native(repo), link }
+  }
+
+  it('writes the real path of a linked folder on Linux, carrying the entry the link had', () => {
+    const target = file()
+    const { repo, link } = linked()
+    writeFileSync(target, JSON.stringify({ projects: { [link]: { keep: 3 } } }))
+    trustFolder(target, link, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects).toEqual({ [link]: { keep: 3 }, [repo]: { keep: 3, hasTrustDialogAccepted: true } })
+    const text = readFileSync(target, 'utf8')
+    trustFolder(target, link, 'linux')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  it('does not count trust under the link path as trust on Linux', () => {
+    const target = file()
+    const { repo, link } = linked()
+    writeFileSync(target, JSON.stringify({ projects: { [link]: { hasTrustDialogAccepted: true } } }))
+    trustFolder(target, link, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects[repo]).toEqual({ hasTrustDialogAccepted: true })
+  })
+
+  // The CLI on Windows resolves a junction as well: a key under the junction is refused (EKR-96, Windows Sandbox).
+  it.skipIf(process.platform !== 'win32')('writes the real path of a junction on Windows with forward slashes, carrying the entry the junction had', () => {
+    const target = file()
+    const { repo, link } = linked()
+    const linkKey = link.replaceAll('\\', '/')
+    writeFileSync(target, JSON.stringify({ projects: { [linkKey]: { keep: 3, hasTrustDialogAccepted: true } } }))
+    trustFolder(target, link, 'win32')
+    expect(JSON.parse(readFileSync(target, 'utf8')).projects).toEqual({
+      [linkKey]: { keep: 3, hasTrustDialogAccepted: true }, [repo.replaceAll('\\', '/')]: { keep: 3, hasTrustDialogAccepted: true },
+    })
+    const text = readFileSync(target, 'utf8')
+    trustFolder(target, link, 'win32')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  it.skipIf(process.platform !== 'win32')('counts trust under the real path as trust of a junction on Windows', () => {
+    const target = file()
+    const { repo, link } = linked()
+    const text = JSON.stringify({ projects: { [repo.replaceAll('\\', '/')]: { hasTrustDialogAccepted: true } } })
+    writeFileSync(target, text)
+    trustFolder(target, link, 'win32')
+    expect(readFileSync(target, 'utf8')).toBe(text)
+  })
+
+  it('writes a missing folder as it is on Linux', () => {
+    const target = file()
+    const folder = join(tmpdir(), 'ek-trust-missing', 'repo')
+    trustFolder(target, folder, 'linux')
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ projects: { [folder]: { hasTrustDialogAccepted: true } } })
+  })
+
+  it.skipIf(process.platform === 'win32')('keeps the account file private: a new one is 600, an existing one keeps its mode (EKR-95)', () => {
+    const fresh = file()
+    trustFolder(fresh, '/repo/a', 'linux')
+    expect(statSync(fresh).mode & 0o777).toBe(0o600)
+
+    const existing = file()
+    writeFileSync(existing, '{}')
+    chmodSync(existing, 0o640)
+    trustFolder(existing, '/repo/b', 'linux')
+    expect(statSync(existing).mode & 0o777).toBe(0o640)
   })
 })

@@ -10,6 +10,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 
+## [0.2.2] - 2026-11-06
+
+### Added
+
+- A done task's time is written to GitLab and Jira as it is to Huly. Sometimes Jira refuses the worklog for a reason that is not about a field, for example when the project does not take time. That is now read as a refusal by the project.
+
+### Changed
+
+- **Claude folder trust is written by Even Keel before every background session**, with the project's consent in the wizard, instead of a switch and a command to run by hand. If the write or the CLI still refuses, the pause shows one command to run, for the right CLI, account folder and user. On Windows under a service account it shows a `runas` line with a ready script.
+- Checked CLI versions: Claude Code 2.1.319, codex-cli 0.167.0, OpenCode 1.19.5 and Copilot CLI 1.0.106.
+- Pull request mode is no longer marked experimental.
+- Setting up the Claude plugin marketplace by hand has moved to Accounts.
+
+### Fixed
+
+- Claude trust is written under the path the CLI checks. That is a forward-slash key on Windows and the real path of a symlinked folder or a Windows junction, so such folders no longer pause on "Workspace not trusted". The write keeps the account's `.claude.json` permissions (600 stays 600).
+- Copilot: sign-in is checked in the session's own account folder, an unknown sign-in is shown as unknown, and a terminal login's token is kept apart from the accounts' own. Protection also catches a Copilot force push to the main branch written as a refspec.
+- A fix session that finds nothing to fix ends with `NO CHANGES`.
+- A chat reply sent to a session no longer repeats the session's instructions.
+- Windows: environment variables such as `%USERPROFILE%` in a project's folder are expanded.
+- Windows: uninstalling and installing over a running tray host no longer fails while the quitting host still holds its exe.
+- Session account pills show the account of the session's own agent.
+- New rows in settings tables are kept when switching tabs.
+- Tips close when the page scrolls or the window is resized.
+- The answer card's caret points at the question's first line.
+- Download size estimates of the checked CLI copies are up to date.
+
 ## [0.2.1] - 2026-11-04
 
 ### Fixed
