@@ -31,8 +31,12 @@ interface GithubStep {
 
 interface GithubJob extends GithubStep {
   id: number
+  runner_name?: string | null
   steps?: GithubStep[]
 }
+
+// A job no hosted runner took for ~15 minutes GitHub cancels ("not acquired by Runner"), and then fails the whole run.
+const notTaken = (job: GithubJob): boolean => job.conclusion === 'cancelled' && !job.runner_name && (job.steps ?? []).length === 0
 
 const TITLE = 'GitHub Actions'
 const API = 'https://api.github.com'
@@ -83,7 +87,7 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
 
     async jobs(run) {
       const { jobs } = await get<{ jobs: GithubJob[] }>(`/actions/runs/${run.id}/jobs?per_page=100`)
-      return jobs.map((job): CiJob => ({ id: job.id, ...stepOf(job), steps: (job.steps ?? []).map(stepOf) }))
+      return jobs.map((job): CiJob => ({ id: job.id, ...stepOf(job), steps: (job.steps ?? []).map(stepOf), ...(notTaken(job) ? { notTaken: true } : {}) }))
     },
 
     log(job) {

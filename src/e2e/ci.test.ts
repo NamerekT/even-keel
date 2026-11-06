@@ -88,6 +88,32 @@ describe('the CI of main end to end', { timeout: 60_000 }, () => {
     expect([...run.board.created.values()][0]).toMatchObject({ project: PROJECT_ID, title: `CI on main failed: ${commit}`, priority: 'high' })
   })
 
+  it('takes a run the CI failed for want of a runner for unchecked, files no fix, and still judges its rerun (BTN-761)', async () => {
+    run.project.ci = { fixTask: true }
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.agent.script('ABC-1', commitAndMerge('one.txt'))
+    run.agent.script('ABC-2', parked(new Gate(), commitAndMerge('two.txt')))
+    run.ci.outcome = (subject) => (subject.includes('ABC-1') ? 'queued' : 'success')
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    await run.until(() => run.board.status('ABC-1') === 'Done' && run.ci.runOf('ABC-1') !== undefined, 'the push of ABC-1 queued by the CI')
+    await run.until(() => chain()?.ciWait !== undefined, 'the chain waiting for the verdict')
+    run.ci.giveUp('ABC-1')
+    await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched past the run no runner took')
+    const commit = run.ci.runOf('ABC-1')!.commit.slice(0, 7)
+    expect(run.log).toContain(`ci: ABC: ${commit} stays unchecked: Forgejo: no runner took ${commit}`)
+    expect(run.log).not.toContain(`${commit} is red`)
+    expect(run.board.created.size).toBe(0)
+
+    run.ci.rerun('ABC-1')
+    await run.pass(30_000)
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => run.board.created.size === 1, 'the fix of the rerun that failed filed')
+    expect([...run.board.created.values()][0]).toMatchObject({ project: PROJECT_ID, title: `CI on main failed: ${commit}`, priority: 'high' })
+  })
+
   it('runs the commands after green once per push, and not again after a restart', async () => {
     const script = join(run.dir, 'after.js')
     const marks = join(run.dir, 'after.log')

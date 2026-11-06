@@ -58,14 +58,15 @@ function viewVerdict(view: CiView, commit: string, since: string, now: Date, nei
   if (view.checkedAt === null) return { state: 'pending' }
   const known = [...(view.current === null ? [] : [view.current.run]), ...view.history]
   const runs = known.filter((run, index) => run.commit === commit && known.findIndex((other) => other.id === run.id) === index)
-  const failed = runs.filter((run) => run.status === 'failure')
+  const failed = runs.filter((run) => run.status === 'failure' && run.notTaken !== true)
   if (failed.length > 0) return { state: 'red', failed: failed.map((run) => ({ kind: view.kind, run })) }
   const late = now.getTime() - Date.parse(since) >= STUCK_MS
   const notTaken: CiVerdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci, commit: shortCommit(commit) })] }
   if (runs.length === 0) return late ? notTaken : { state: 'pending' }
   if (runs.some((run) => run.status === 'running')) return { state: 'pending' }
   const queued = runs.filter((run) => run.status === 'queued')
-  if (queued.length === 0) return { state: 'green' }
+  // A run failed only for want of a runner (BTN-761) checked nothing: never green, though the CI took it.
+  if (queued.length === 0) return runs.some((run) => run.notTaken === true) ? notTaken : { state: 'green' }
   const runnerBusy = known.some((run) => run.status === 'running') || sharedRunnerBusy(view, neighbours)
   const stuck = queued.every((run) => now.getTime() - Date.parse(run.createdAt) >= STUCK_MS)
   return stuck && !runnerBusy ? notTaken : { state: 'pending' }

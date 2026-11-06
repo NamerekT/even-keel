@@ -299,6 +299,64 @@ describe('CiWatch', () => {
   })
 })
 
+describe('CiWatch and runs no runner took (BTN-761)', () => {
+  const passed: CiJob = { id: 1, name: 'lint', status: 'success', startedAt: null, stoppedAt: null, steps: [] }
+  const untaken: CiJob = { id: 2, name: 'e2e', status: 'cancelled', startedAt: null, stoppedAt: null, steps: [], notTaken: true }
+  const broken: CiJob = { id: 3, name: 'test', status: 'failure', startedAt: null, stoppedAt: null, steps: [] }
+
+  it('marks a failed run whose every unsuccessful job no runner took, asks for its jobs once, and leaves it out of the median', async () => {
+    const t = setup({ runs: [run(3, { status: 'failure' }), run(2, { status: 'failure', stoppedAt: '2026-10-12T11:15:10Z' })], jobs: [passed, untaken] })
+    await t.watch.tick()
+    expect(t.watch.view.history.map((each) => each.notTaken)).toEqual([true, true])
+    expect(t.watch.view.current?.run.notTaken).toBe(true)
+    expect(t.watch.view.medianMs).toBeNull()
+    expect(t.calls.jobs).toEqual([3, 2])
+
+    t.advance(POLL_MS)
+    t.watch.want()
+    await t.watch.tick()
+    expect(t.calls).toEqual({ runs: 2, jobs: [3, 2] })
+    expect(t.watch.view.history.map((each) => each.notTaken)).toEqual([true, true])
+  })
+
+  it('leaves a run red where a job really failed, even beside jobs no runner took', async () => {
+    const t = setup({ runs: [run(1), run(2, { status: 'failure' })], jobs: [untaken, broken] })
+    await t.watch.tick()
+    expect(t.watch.view.history.map((each) => each.notTaken)).toEqual([undefined, undefined])
+  })
+
+  it('asks again once the run ends anew, as after a rerun', async () => {
+    const t = setup({ runs: [run(1), run(2, { status: 'failure' })], jobs: [untaken] })
+    await t.watch.tick()
+    t.setRuns([run(1), run(2, { status: 'failure', stoppedAt: '2026-10-12T11:40:00Z' })])
+    t.advance(POLL_MS)
+    t.watch.want()
+    await t.watch.tick()
+    expect(t.calls.jobs).toEqual([1, 2, 2])
+  })
+
+  it('keeps a run red and the CI answering when its jobs cannot be read, and asks again at the next poll', async () => {
+    const t = setup()
+    const asked: number[] = []
+    t.watch.setSource({
+      runs: async () => [run(1), run(2, { status: 'failure' })],
+      jobs: async (each) => {
+        asked.push(each.id)
+        if (each.id === 2) throw fail('ci.http', { ci: 'Forgejo', status: 502 })
+        return [passed]
+      },
+    })
+    await t.watch.tick()
+    expect(t.watch.view.health).toBe('ok')
+    expect(t.watch.view.history[1]?.notTaken).toBeUndefined()
+    expect(t.logs).toEqual(['ci: origin of D:/repos/app: the jobs of run 2 are not read: Forgejo: the API answered HTTP 502'])
+    t.advance(POLL_MS)
+    t.watch.want()
+    await t.watch.tick()
+    expect(asked).toEqual([1, 2, 2])
+  })
+})
+
 describe('CiWatch.failed', () => {
   const red = run(2, { status: 'failure' })
   const failedJobs: CiJob[] = [

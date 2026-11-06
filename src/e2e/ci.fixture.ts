@@ -19,6 +19,8 @@ export class Ci {
   private readonly seen = new Set<string>()
   /** The branch each run is of, by its id. */
   private readonly branches = new Map<number, string>()
+  /** The runs given up for want of a runner, by id. */
+  private readonly untaken = new Set<number>()
 
   constructor(private readonly remote: () => string) {}
 
@@ -33,6 +35,20 @@ export class Ci {
     if (run === undefined) throw new Error(`ci: no run of "${subject}"`)
     const at = new Date().toISOString()
     Object.assign(run, { status, startedAt: run.startedAt ?? at, stoppedAt: at })
+  }
+
+  /** The CI gives a queued run up for want of a runner, as GitHub does (BTN-761): the run fails, its job is cancelled untaken. */
+  giveUp(subject: string): void {
+    this.finish(subject, 'failure')
+    this.untaken.add(this.runOf(subject)!.id)
+  }
+
+  /** The same run queued again, as a rerun on GitHub keeps the run's id. */
+  rerun(subject: string): void {
+    const run = this.runOf(subject)
+    if (run === undefined) throw new Error(`ci: no run of "${subject}"`)
+    this.untaken.delete(run.id)
+    Object.assign(run, { status: 'queued', startedAt: null, stoppedAt: null })
   }
 
   /** The adapter to put into `CI_SOURCES`: every project and token reads this CI. */
@@ -50,6 +66,7 @@ export class Ci {
   }
 
   private job(run: CiRun): CiJob {
+    if (this.untaken.has(run.id)) return { id: run.id, name: 'test', status: 'cancelled', startedAt: null, stoppedAt: run.stoppedAt, steps: [], notTaken: true }
     return { id: run.id, name: 'test', status: run.status, startedAt: run.startedAt, stoppedAt: run.stoppedAt, steps: null }
   }
 

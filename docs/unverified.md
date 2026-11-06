@@ -36,7 +36,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3, and 93 (not run yet) (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
-- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit). Not checked by choice: 63.
+- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
@@ -156,3 +156,4 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 90 | [A fix session that finds nothing to fix](unverified/ci.md#a-fix-session-that-finds-nothing-to-fix-ekr-88) | a red main from a runner failure or a flake, rerun by the fix session | the fix session waits for the user although main is green; skip it |
 | 92 | [A commit already green, pushed again](unverified/ci.md#a-commit-already-green-pushed-again-ekr-90) | the maintainer pushing a release to `main` or fast-forwarding a branch | the push runs the whole check as before, or its verdict is not green; run the workflow by hand |
 | 93 | [The event log on a live service](unverified/page.md#the-event-log-on-a-live-service-btn-350) | everyone with the page open | old events written again after a restart, a burst at a start, or a toast missed in a hidden tab; `/log` keeps every entry |
+| 94 | [A run failed because no runner took it](unverified/ci.md#a-run-failed-because-no-runner-took-it-btn-761) | projects on GitHub Actions or GitLab whose runners run short | the commit is red as before: a session stopped and an empty fix filed; skip the fix and rerun |

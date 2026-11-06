@@ -79,6 +79,17 @@ describe('Dispatcher and the CI of main', () => {
     expect(dispatcher.state.active[0]?.paused).toBe(false)
   })
 
+  it('keeps the CI looked at while an unchecked push waits for a late verdict, as for a rerun (BTN-761)', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'GitHub Actions', commit: 'bbbbbbb' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.looks.length = 0
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.looks).toContain('ABC')
+  })
+
   it('takes a late green of an unchecked push for green', async () => {
     const { dispatcher, ci } = await afterDone()
     ci.verdict = { state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'bbbbbbb' })] }

@@ -26,9 +26,13 @@ interface Job {
   id: number
   name: string
   status: string
+  failure_reason?: string
   started_at: string | null
   finished_at: string | null
 }
+
+// GitLab drops a job no runner took within an hour as stuck (BTN-761); the pipeline then fails.
+const notTaken = (job: Job): boolean => job.status === 'failed' && job.failure_reason === 'stuck_or_timeout_failure' && job.started_at === null
 
 const STATUSES: Readonly<Record<string, RunStatus>> = {
   created: 'queued', pending: 'queued', scheduled: 'queued', waiting_for_resource: 'queued', waiting_for_callback: 'queued',
@@ -84,6 +88,7 @@ export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchI
       }
       return jobs.map((job): CiJob => ({
         id: job.id, name: job.name, status: statusOf(job.status), startedAt: job.started_at, stoppedAt: job.finished_at, steps: null,
+        ...(notTaken(job) ? { notTaken: true } : {}),
       }))
     },
     async log(job) {

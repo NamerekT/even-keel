@@ -277,6 +277,9 @@ export class MainCheck {
       } else if (this.now().getTime() - Date.parse(push.at) >= LATE_MS) {
         this.late.delete(project)
         this.log(`ci: ${project}: ${shortCommit(push.commit)} was not judged within ${LATE_MS / 60_000} minutes; no longer watched`)
+      } else {
+        // A run GitHub failed for want of a runner is over (BTN-761): only a fresh look sees its rerun.
+        this.deps.lookAgain(project)
       }
     }
     return changed

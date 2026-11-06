@@ -56,6 +56,22 @@ describe('gitlabSource', () => {
     expect(asked).toHaveLength(2)
   })
 
+  it('marks a job GitLab dropped as stuck before any runner took it (BTN-761)', async () => {
+    const stuck = { id: 11, name: 'test', status: 'failed', failure_reason: 'stuck_or_timeout_failure', started_at: null, finished_at: PIPELINE.finished_at }
+    const { source } = fake({
+      '/pipelines/47/jobs?per_page=100&page=1': [
+        stuck,
+        { ...stuck, id: 12, started_at: PIPELINE.started_at },
+        { ...stuck, id: 13, failure_reason: 'script_failure' },
+      ],
+    })
+    expect((await source.jobs({ id: 47 } as never)).map((job) => [job.id, job.status, job.notTaken ?? false])).toEqual([
+      [11, 'failure', true],
+      [12, 'failure', false],
+      [13, 'failure', false],
+    ])
+  })
+
   it('reads a job trace as text with the token', async () => {
     const { asked, source } = fake({ '/jobs/11/trace': new Response('$ npm test\nFAIL', { status: 200 }) })
     expect(await source.log!({ id: 11 } as never)).toBe('$ npm test\nFAIL')

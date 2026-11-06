@@ -76,6 +76,23 @@ describe('verdictOf', () => {
     expect(verdictOf([view([queued])], 'B', PUSHED, LATE).state).toBe('unavailable')
   })
 
+  it('takes a run failed only for want of a runner for unchecked, not red (BTN-761)', () => {
+    const untaken = run(2, { status: 'failure', notTaken: true })
+    const verdict = verdictOf([view([untaken, run(1, { workflow: 'lint.yml' })])], 'B', PUSHED, LATE)
+    expect(verdict).toEqual({ state: 'unavailable', reasons: [notice('ci.notTaken', { ci: 'Forgejo', commit: 'B' })] })
+  })
+
+  it('is still red when a run of the commit really failed beside one no runner took', () => {
+    const failed = run(1, { status: 'failure' })
+    const verdict = verdictOf([view([run(2, { status: 'failure', notTaken: true }), failed])], 'B', PUSHED, LATE)
+    expect(verdict).toEqual({ state: 'red', failed: [{ kind: 'forgejo', run: failed }] })
+  })
+
+  it('waits for the rerun of a run no runner took', () => {
+    const rerun = run(2, { status: 'running', stoppedAt: null })
+    expect(verdictOf([view([rerun])], 'B', PUSHED, LATE)).toEqual({ state: 'pending' })
+  })
+
   it('waits for a queued run while the runner works on another', () => {
     const queued = run(2, { status: 'queued', startedAt: null, stoppedAt: null })
     const busy = run(1, { commit: 'A', status: 'running', stoppedAt: null })

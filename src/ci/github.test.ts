@@ -109,6 +109,27 @@ describe('githubActionsSource', () => {
     ])
   })
 
+  it('marks a job GitHub cancelled because no runner took it (BTN-761)', async () => {
+    const job = { name: 'e2e', status: 'completed', started_at: '2026-11-05T19:26:39Z', completed_at: '2026-11-05T19:41:40Z' }
+    const { source } = fake({
+      '/actions/runs/7/jobs?per_page=100': {
+        jobs: [
+          { ...job, id: 11, conclusion: 'cancelled', runner_name: '', steps: [] },
+          { ...job, id: 12, conclusion: 'cancelled', runner_name: null },
+          { ...job, id: 13, conclusion: 'cancelled', runner_name: 'GitHub Actions 5', steps: [] },
+          { ...job, id: 14, conclusion: 'failure', runner_name: '', steps: [] },
+        ],
+      },
+    })
+    const jobs = await source.jobs({ id: 7 } as never)
+    expect(jobs.map((each) => [each.id, each.status, each.notTaken ?? false])).toEqual([
+      [11, 'cancelled', true],
+      [12, 'cancelled', true],
+      [13, 'cancelled', false],
+      [14, 'failure', false],
+    ])
+  })
+
   it('reads a job log as text with the token', async () => {
     const asked: { url: string; auth: string | null }[] = []
     const fetchImpl = (async (input: string | URL, init?: RequestInit) => {

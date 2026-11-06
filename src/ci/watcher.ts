@@ -1,6 +1,6 @@
 import type { Git } from '../git/types.js'
 import { englishOf, notice, noticeOf, sameNotice } from '../notice/notice.js'
-import { currentRunOf, isFinished, medianDuration, taskIdsOf, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
+import { currentRunOf, failedUntaken, isFinished, medianDuration, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
 
@@ -14,6 +14,9 @@ export const WANT_MS = 2 * 60_000
 export const HISTORY = 10
 /** A run's tasks come from at most this many commits since the previous run. */
 const TASK_COMMITS = 50
+
+/** A failed run as it ended: a rerun keeps the run's id and ends with a new stop. */
+const failedKey = (run: CiRun): string => `${run.id}:${run.stoppedAt ?? ''}`
 
 export interface CiWatchDeps {
   target: CiTarget
@@ -47,6 +50,10 @@ export class CiWatch {
   private wantedAt = -Infinity
   private jobsOf: string | null = null
   private tasksOf: { run: number; tasks: string[] } | null = null
+  /** The jobs of each failed run, read once to tell a run no runner took (BTN-761); by `failedKey`. */
+  private readonly failedJobs = new Map<string, CiJob[]>()
+  /** The failed runs whose jobs could not be read, logged once each. */
+  private readonly unread = new Set<string>()
   private busy = false
   private source: CiSource | null
 
@@ -113,6 +120,7 @@ export class CiWatch {
         this.polledAt = -Infinity
         this.jobsOf = null
         this.tasksOf = null
+        this.failedJobs.clear()
         this.push = null
         this.view = { ...this.view, checkedAt: null, current: null, history: [], medianMs: null, pushed: null }
       }
@@ -139,7 +147,8 @@ export class CiWatch {
     if (source === null) return failed
     const current = this.view.current
     try {
-      await readFailure(source, failed, current?.run.id === run.id && current.run.status === run.status ? current.jobs : undefined)
+      const known = current?.run.id === run.id && current.run.status === run.status ? current.jobs : this.failedJobs.get(failedKey(run))
+      await readFailure(source, failed, known)
     } catch (error) {
       this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo}: run ${run.number} is reported without its ${failed.jobs === null ? 'jobs' : 'log'}: ${englishOf(noticeOf(error))}`)
     }
@@ -177,9 +186,11 @@ export class CiWatch {
 
   private async poll(source: CiSource, now: Date, branch: string): Promise<void> {
     try {
-      const runs = await source.runs(HISTORY, branch)
-      const run = currentRunOf(runs)
-      this.view.current = run === null ? null : await this.currentOf(source, run, runs)
+      const read = await source.runs(HISTORY, branch)
+      const run = currentRunOf(read)
+      const current = run === null ? null : await this.currentOf(source, run, read)
+      const runs = await this.markUntaken(source, read, current)
+      this.view.current = current === null ? null : { ...current, run: runs.find((each) => each.id === current.run.id) ?? current.run }
       this.view.history = runs
       this.view.medianMs = medianDuration(runs, now)
       const pushed = this.push
@@ -211,6 +222,40 @@ export class CiWatch {
     this.jobsOf = key
     if (this.tasksOf?.run !== run.id) this.tasksOf = { run: run.id, tasks: await this.tasksFor(run, runs) }
     return { run, tasks: this.tasksOf.tasks, jobs }
+  }
+
+  /**
+   * The runs with `notTaken` set on each failed one whose jobs show no job really failed (BTN-761). A failed run's jobs
+   * are read once, and again only when it ends anew; jobs that cannot be read leave the run failed until the next poll.
+   */
+  private async markUntaken(source: CiSource, runs: CiRun[], current: CurrentRun | null): Promise<CiRun[]> {
+    const seen = new Set<string>()
+    const marked: CiRun[] = []
+    for (const run of runs) {
+      if (run.status !== 'failure') {
+        marked.push(run)
+        continue
+      }
+      const key = failedKey(run)
+      seen.add(key)
+      const jobs = current?.run.id === run.id ? current.jobs : (this.failedJobs.get(key) ?? (await this.readJobs(source, run, key)))
+      if (jobs !== null) this.failedJobs.set(key, jobs)
+      marked.push(jobs !== null && failedUntaken(jobs) ? { ...run, notTaken: true } : run)
+    }
+    for (const known of [this.failedJobs, this.unread]) for (const key of known.keys()) if (!seen.has(key)) known.delete(key)
+    return marked
+  }
+
+  private async readJobs(source: CiSource, run: CiRun, key: string): Promise<CiJob[] | null> {
+    try {
+      const jobs = await source.jobs(run)
+      this.unread.delete(key)
+      return jobs
+    } catch (error) {
+      if (!this.unread.has(key)) this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo}: the jobs of run ${run.number} are not read: ${englishOf(noticeOf(error))}`)
+      this.unread.add(key)
+      return null
+    }
   }
 
   /** The ids in the subjects of the commits since the commit of the previous run. */

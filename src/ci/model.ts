@@ -24,6 +24,8 @@ export interface CiJob {
   stoppedAt: string | null
   /** `null` — the CI does not give steps through its API (Forgejo); they are on the run's page. */
   steps: CiStep[] | null
+  /** The CI gave the job up because no runner ever took it (GitHub Actions, BTN-761). */
+  notTaken?: boolean
 }
 
 export interface CiRun {
@@ -38,6 +40,11 @@ export interface CiRun {
   startedAt: string | null
   stoppedAt: string | null
   url: string
+  /**
+   * A failed run whose every unsuccessful job no runner took (BTN-761): it says nothing about the commit, which stays
+   * unchecked rather than red. `CiWatch` sets it from the run's jobs; the adapters never do.
+   */
+  notTaken?: boolean
 }
 
 /** The latest runs, newest first, the jobs of one run and a job's log. A branch scopes the project's main view; PR feedback omits it. */
@@ -88,10 +95,16 @@ export function runDurationMs(run: CiRun, now: Date): number | null {
   return Math.max(0, end - Date.parse(start))
 }
 
-/** Only runs that went to the end count: a cancelled or skipped run says nothing about the usual length. */
+/** Whether a failed run's jobs show it failed only for want of a runner: no job really failed. */
+export function failedUntaken(jobs: CiJob[]): boolean {
+  const unsuccessful = jobs.filter((job) => job.status !== 'success' && job.status !== 'skipped')
+  return unsuccessful.length > 0 && unsuccessful.every((job) => job.notTaken === true)
+}
+
+/** Only runs that went to the end count: a cancelled or skipped run, or one no runner took, says nothing about the usual length. */
 export function medianDuration(runs: CiRun[], now: Date): number | null {
   const lengths = runs
-    .filter((run) => run.status === 'success' || run.status === 'failure')
+    .filter((run) => (run.status === 'success' || run.status === 'failure') && run.notTaken !== true)
     .map((run) => runDurationMs(run, now))
     .filter((ms): ms is number => ms !== null)
     .sort((a, b) => a - b)
