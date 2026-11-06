@@ -80,15 +80,19 @@ describe('the built-in tracker as a task source', () => {
     expect(await source.complete('ABC-1')).toBe(false)
   })
 
-  it('answers with what a person or an agent wrote after a comment, never its own comments', async () => {
+  it('keeps the comments as the task\'s journal: who wrote each, the agent\'s model, no reply read from it', async () => {
     await store.create({ project: ABC, title: 'Asked' })
     const asked = await source.comment!('ABC-1', 'QUESTION: which one?')
-    await store.comment({ project: ABC, number: 1 }, 'person', 'The second.')
-    await source.comment!('ABC-1', 'Thanks.')
-    await store.comment({ project: ABC, number: 1 }, 'agent', 'Taken.')
-    expect((await source.commentsAfter!('ABC-1', asked)).map((each) => each.body)).toEqual(['The second.', 'Taken.'])
+    await store.comment({ project: ABC, number: 1 }, 'person', 'The second.', 'Claude | opus')
+    await store.comment({ project: ABC, number: 1 }, 'agent', 'Taken.', 'Claude | opus')
+    expect(source.journal).toBe(true)
+    expect(source.commentsAfter).toBeUndefined()
     const card = await source.card!('ABC-1')
-    expect(card.comments.map((each) => each.author)).toEqual(['Even Keel', null, 'Even Keel', 'Agent'])
+    expect(card.comments.map((each) => [each.author, each.text, each.journal])).toEqual([
+      ['Even Keel', 'QUESTION: which one?', { id: asked, by: 'service', model: null }],
+      [null, 'The second.', { id: expect.any(String), by: 'person', model: null }],
+      ['Agent', 'Taken.', { id: expect.any(String), by: 'agent', model: 'Claude | opus' }],
+    ])
   })
 
   it('gives a parent its children and a milestone its tasks with their last comment', async () => {

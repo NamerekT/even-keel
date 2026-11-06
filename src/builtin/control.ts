@@ -52,6 +52,13 @@ export interface BuiltinControl {
   /** `blocks` — `task` blocks `other`; `on: false` removes the link. */
   relate(task: string, other: string, kind: RelationKind, on: boolean): Promise<BuiltinView>
   comment(task: string, body: string): Promise<{ id: string }>
+  /** Deletes the person's own note; anyone else's comment is refused. */
+  uncomment(task: string, comment: string): Promise<void>
+  /**
+   * Writes the person's answer from the page's chat into the journal of a task of the project, when the project is on
+   * the built-in tracker and holds the task (BTN-774); `false` — it is not.
+   */
+  answered(project: string, task: string, body: string): Promise<boolean>
   /** Refused while the task is the chain's current one or a session of it is live. */
   remove(task: string): Promise<void>
   /**
@@ -160,6 +167,22 @@ export function builtinControl({ db, places, refresh, busy = () => null }: Built
       const comment = await store.comment(task, 'person', body)
       await refresh(task.project)
       return { id: comment }
+    },
+    async uncomment(id, comment) {
+      const { names, store } = open()
+      const task = await find(names, store, id)
+      if (!(await store.uncomment(task, comment))) throw fail('builtin.noNote', { task: names.name(task) })
+      await refresh(task.project)
+    },
+    async answered(project, id, body) {
+      const { names, store } = open()
+      if (!names.knows(project)) return false
+      const key = names.candidates(id).find((each) => each.project === project)
+      const task = key === undefined ? undefined : await store.get(key)
+      if (task === undefined) return false
+      await store.comment(task, 'person', body)
+      await refresh(project)
+      return true
     },
     async remove(id) {
       const { names, store } = open()

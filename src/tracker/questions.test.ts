@@ -58,7 +58,7 @@ describe('trackerReply', () => {
 })
 
 describe('TrackerQuestions', () => {
-  function fixture(sessions: AskingSession[], comments: TrackerComment[] = [], refuse?: string) {
+  function fixture(sessions: AskingSession[], comments: TrackerComment[] = [], refuse?: string, journal = false) {
     const store: PostedQuestion[][] = []
     const answers: { task: string; sessionId: string; ask: string; reply: TrackerReply }[] = []
     const bodies: string[] = []
@@ -69,7 +69,7 @@ describe('TrackerQuestions', () => {
         bodies.push(body)
         return 'c1'
       },
-      commentsAfter: async () => comments,
+      ...(journal ? { journal: true as const } : { commentsAfter: async () => comments }),
       file: async (_id, file) => (file === 'f1' ? { type: 'image/png', size: 3, body: Readable.from([Buffer.from('PNG')]) } : null),
       close: async () => {},
     }
@@ -105,6 +105,17 @@ describe('TrackerQuestions', () => {
     expect(answers[0]).toMatchObject({ task: 'ABC-1', sessionId: 's1', ask: 'toolu_1', reply: { answers: { 'Which color?': 'Red' }, text: '' } })
     expect(answers[0]!.reply.files.map((file) => [file.name, Buffer.from(file.data).toString()])).toEqual([['shot.png', 'PNG']])
     expect(bodies).toHaveLength(1)
+  })
+
+  it('records the question in a journal once and reads no reply from it (BTN-774)', async () => {
+    const { questions, store, answers, bodies } = fixture([asking()], [], undefined, true)
+    await questions.tick()
+    await questions.tick()
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toContain('1. Red\n2. Blue')
+    expect(bodies[0]).not.toContain('Reply with a comment')
+    expect(store.at(-1)).toEqual([posted({ done: true })])
+    expect(answers).toEqual([])
   })
 
   it('tries again while the session is busy', async () => {

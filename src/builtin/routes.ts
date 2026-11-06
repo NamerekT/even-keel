@@ -20,6 +20,10 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   'builtin/relate': (deps, body) => control(deps).relate(taskOf(body), textOf(body.other, 'other'), kindOf(body.kind), true),
   'builtin/unrelate': (deps, body) => control(deps).relate(taskOf(body), textOf(body.other, 'other'), kindOf(body.kind), false),
   'builtin/comment': (deps, body) => control(deps).comment(taskOf(body), textOf(body.text, 'text')),
+  'builtin/uncomment': async (deps, body) => {
+    await control(deps).uncomment(taskOf(body), textOf(body.comment, 'comment'))
+    return {}
+  },
   'builtin/search': (deps, body) =>
     control(deps).search(textOf(body.text ?? '', 'text'), body.project === null || body.project === undefined ? null : projectOf(body)),
   'builtin/delete': async (deps, body) => {

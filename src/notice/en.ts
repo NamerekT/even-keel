@@ -509,6 +509,7 @@ export const en = {
     p.why === 'current'
       ? `${p.task} is the chain's current task; skip it or stop the chain before deleting it`
       : `${p.task} has a live session; stop it before deleting the task`,
+  'builtin.noNote': (p: { task: string }) => `${p.task} has no such note of yours; only your own notes can be deleted, and the page may be out of date`,
   'builtin.emptyName': () => 'the name is empty',
   'builtin.noMilestone': () => 'there is no such milestone; the page may be out of date',
   'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,

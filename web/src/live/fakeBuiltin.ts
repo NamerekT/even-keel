@@ -4,6 +4,7 @@ import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { TaskCard, TaskRef } from '../../../src/tracker/card.js'
 import { runLabelOf, type TaskPriority } from '../../../src/tracker/model.js'
 import { fakeCard } from './fakeCards.js'
+import { fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
 /**
  * `?card=builtin`: every card is one Even Keel keeps itself and edits in place; `?card=conflict` — the first title edit
@@ -46,7 +47,7 @@ function withParents(state: EvenKeelState): ProjectTask[] {
   return [...state.tasks, ...madeUp]
 }
 
-export function fakeBuiltinCard(state: EvenKeelState, id: string): TaskCard | null {
+export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: string | null): TaskCard | null {
   const tasks = withParents(state)
   const task = tasks.find((each) => each.id === id)
   const base = fakeCard({ ...state, tasks }, id, 'builtin')
@@ -68,6 +69,7 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string): TaskCard | nu
       ...task.labels.map((name) => ({ name, role: runLabelOf(name) === null ? null : ('model' as const) })),
     ],
     parent: ancestors.at(-1) ?? null,
+    comments: fakeJournal(id, journal),
     related: tasks.filter((each) => related.has(pair(id, each.id))).map(refOf),
     edit: {
       statuses: [...BUILTIN_STATUSES],
@@ -83,8 +85,9 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string): TaskCard | nu
 type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
 
 /** A `builtin/*` query against the fake's tasks; `null` — not one of them. */
-export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Record<string, unknown>, mode: string | null): Answer | null {
+export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Record<string, unknown>, mode: string | null, journal: string | null): Answer | null {
   if (!name.startsWith('builtin/')) return null
+  if (fakeJournalQuery(name, body, journal)) return { state: { ...state }, result: {} }
   const task = String(body.task ?? '')
   const other = String(body.other ?? '')
   const change = (update: (each: ProjectTask) => ProjectTask, id = task): Answer => ({

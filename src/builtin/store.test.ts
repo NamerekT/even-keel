@@ -261,6 +261,22 @@ describe('comments and deletion', () => {
     expect(await store.comments(abc(1), '999')).toEqual([])
   })
 
+  it('keeps the model of an agent\'s comment only; a person deletes only their own notes', async () => {
+    await store.create({ project: ABC, title: 'a' })
+    const report = await store.comment(abc(1), 'agent', 'Done.', 'Claude | opus')
+    const question = await store.comment(abc(1), 'service', 'question', 'Claude | opus')
+    const note = await store.comment(abc(1), 'person', 'note')
+    const before = (await store.get(abc(1)))!.version
+    expect(await store.uncomment(abc(1), report)).toBe(false)
+    expect(await store.uncomment(abc(1), question)).toBe(false)
+    expect(await store.uncomment(abc(1), 'x')).toBe(false)
+    expect((await store.get(abc(1)))!.version).toBe(before)
+    expect(await store.uncomment(abc(1), note)).toBe(true)
+    expect(await store.uncomment(abc(1), note)).toBe(false)
+    expect((await store.get(abc(1)))!.version).toBe(before + 1)
+    expect((await store.comments(abc(1))).map((each) => [each.author, each.model])).toEqual([['agent', 'Claude | opus'], ['service', null]])
+  })
+
   it('a deleted task leaves no trace in links, parents or labels', async () => {
     for (const title of ['a', 'b', 'c']) await store.create({ project: ABC, title, labels: ['Bug'] })
     await store.relate(abc(1), abc(2), 'blocks')

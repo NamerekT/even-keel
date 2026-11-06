@@ -393,6 +393,90 @@ html:has(.task-card[open]) {
   font-size: var(--text-12);
 }
 
+/* The journal of a task Even Keel keeps (BTN-774): the person's own notes read apart from the agent's and Even Keel's. */
+
+.task-card__comment--mine .task-card__avatar {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface-muted));
+}
+
+.task-card__comment--mine .task-card__bubble {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.task-card__avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.task-card__comment-remove {
+  margin-left: auto;
+  font-size: var(--text-14);
+}
+
+.task-card__journal-more {
+  align-self: flex-start;
+  margin-bottom: var(--space-12);
+}
+
+.task-card__note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-16);
+}
+
+.task-card__note-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-8);
+}
+
+.task-card__note-field {
+  min-height: 56px;
+  padding: var(--space-8) var(--space-12);
+  resize: vertical;
+  font-size: var(--text-14);
+}
+
+.task-card__note-send {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.task-card__note-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg));
+}
+
+.task-card__note-send:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.task-card__note-send:disabled {
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.task-card__note-send svg {
+  width: 16px;
+  height: 16px;
+}
+
+.task-card__note-hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
 /* Side: action and properties */
 
 .task-card__ready {

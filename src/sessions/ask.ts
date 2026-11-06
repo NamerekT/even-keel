@@ -43,7 +43,17 @@ export interface Reply {
 
 const LABEL_SEPARATOR = ', '
 
-const TEXTS: Record<Language, { lost: string; files: string; question: (count: number) => string; how: (several: boolean) => string }> = {
+interface AskTexts {
+  lost: string
+  files: string
+  question: (count: number) => string
+  how: (several: boolean) => string
+  /** A journal's question (BTN-774): no comment answers it. */
+  chat: string
+  answer: string
+}
+
+const TEXTS: Record<Language, AskTexts> = {
   ru: {
     lost: 'Вопрос, который ты задал через AskUserQuestion, потерялся при перезапуске сессии:',
     files: 'Файлы от пользователя:',
@@ -52,6 +62,8 @@ const TEXTS: Record<Language, { lost: string; files: string; question: (count: n
       several
         ? 'Ответьте комментарием: по строке на вопрос, по порядку — номер варианта, несколько номеров через запятую или свой текст. Комментарий другого вида уйдёт сессии целиком.'
         : 'Ответьте комментарием: номер варианта (`2`), несколько через запятую (`1, 3`) или свой текст.',
+    chat: 'Ответ — в чате сессии на странице: заметка здесь сессии не дойдёт.',
+    answer: '**Ответ сессии**',
   },
   en: {
     lost: 'The question you asked through AskUserQuestion was lost when the session restarted:',
@@ -61,6 +73,8 @@ const TEXTS: Record<Language, { lost: string; files: string; question: (count: n
       several
         ? 'Reply with a comment: a line per question, in order — the option number, several numbers separated by commas, or your own text. A comment of another shape goes to the session as a whole.'
         : 'Reply with a comment: the option number (`2`), several separated by commas (`1, 3`), or your own text.',
+    chat: 'Answer in the session’s chat on the page: a note here does not reach the session.',
+    answer: '**Answer to the session**',
   },
 }
 
@@ -235,8 +249,21 @@ export function replyParts(prompt: string, ask: Ask | null): ReplyParts {
   return { answers, text: kept.join('\n').replace(/\n{3,}/g, '\n\n').trim(), files }
 }
 
-/** The tracker comment that puts the session's question to the user, with numbered options. */
-export function questionComment(ask: Ask, language: Language): string {
+/**
+ * The answer given from the page's chat as a journal comment (BTN-774): each question with its answer, then the text.
+ * `null` — nothing to record.
+ */
+export function answerComment(answers: AskAnswers, text: string, language: Language): string | null {
+  const lines = Object.entries(answers).map(([question, answer]) => `- ${question} — **${answer}**`)
+  const blocks = [lines.join('\n'), text.trim()].filter((block) => block !== '')
+  return blocks.length === 0 ? null : [TEXTS[language].answer, ...blocks].join('\n\n')
+}
+
+/**
+ * The tracker comment that puts the session's question to the user, with numbered options. In a `journal` it only
+ * records the question and points to the page's chat, where the answer is given.
+ */
+export function questionComment(ask: Ask, language: Language, journal = false): string {
   const text = TEXTS[language]
   const several = ask.questions.length > 1
   const blocks = [text.question(ask.questions.length)]
@@ -247,7 +274,7 @@ export function questionComment(ask: Ask, language: Language): string {
       blocks.push(question.options.map((option, number) => `${number + 1}. ${optionLine(option)}`).join('\n'))
     }
   })
-  blocks.push(text.how(several))
+  blocks.push(journal ? text.chat : text.how(several))
   return blocks.join('\n\n')
 }
 

@@ -80,6 +80,22 @@ describe('the built-in tracker over HTTP', () => {
     expect((await post('labels', { task: 'XYZ-1', add: [] })).body.blocks).toEqual([])
   })
 
+  it('deletes a person\'s own note only, and writes an answer from the chat into a built-in task\'s journal only', async () => {
+    const { post } = await fixture()
+    const control = builtinControl({ db, places: () => builtinPlaces(CONFIG), refresh: async () => true })
+    await post('create', { project: ABC, title: 'Asked' })
+    const note = (await post('comment', { task: 'ABC-1', text: 'A note.' })).body.id as string
+    expect(await control.answered(ABC, 'ABC-1', 'The answer.')).toBe(true)
+    expect(await control.answered(XYZ, 'ABC-1', 'Elsewhere.')).toBe(false)
+    expect(await control.answered(HULY, 'HUL-1', 'Not ours.')).toBe(false)
+    expect(await control.answered(ABC, 'ABC-9', 'No task.')).toBe(false)
+    expect((await post('uncomment', { task: 'ABC-1', comment: note })).status).toBe(200)
+    const again = await post('uncomment', { task: 'ABC-1', comment: note })
+    expect(again.body.notice).toEqual({ code: 'builtin.noNote', params: { task: 'ABC-1' } })
+    const rows = await db.query<{ author: string; body: string }>('select author, body from builtin_comments order by id')
+    expect(rows.rows).toEqual([{ author: 'person', body: 'The answer.' }])
+  })
+
   it('finds tasks by id or title in one project or all, and gives a task its ancestors, subtasks and labels', async () => {
     const { post } = await fixture()
     await post('create', { project: ABC, title: 'Root' })

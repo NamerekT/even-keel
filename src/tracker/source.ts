@@ -110,6 +110,11 @@ export interface TaskSource {
    */
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   /**
+   * Optional. The comments are the task's journal (the built-in tracker, BTN-774): a session's question is posted there
+   * for the record and no comment answers it — the answer comes from the page's chat, which writes it there too.
+   */
+  journal?: true
+  /**
    * Optional. Creates a task in the tracker's first `ToDo` status, so the chain takes it, and returns its id.
    * Even Keel creates the task to fix a red CI on `main` with it; without it the chain only stops.
    */
@@ -376,6 +381,7 @@ export interface Tracker {
   relabel?(id: string, change: LabelChange): Promise<string[]>
   comment?(id: string, body: string): Promise<string>
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
+  journal?: true
   create?(task: NewTask): Promise<string>
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   milestones?(id: string): Promise<MilestonePick>
@@ -412,6 +418,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.relabel !== undefined) tracker.relabel = (id, change) => source.relabel!(id, change)
   if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
+  if (source.journal === true) tracker.journal = true
   if (source.create !== undefined) tracker.create = (task) => source.create!(task)
   if (source.setMilestone !== undefined) tracker.setMilestone = (id, milestoneOf) => source.setMilestone!(id, milestoneOf)
   if (source.milestones !== undefined && source.moveMilestone !== undefined) {

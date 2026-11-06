@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answersIn, chosenLabels, otherAnswer, questionComment, questionsOf, replyParts, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
+import { answerComment, answersIn, chosenLabels, otherAnswer, questionComment, questionsOf, replyParts, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
 
 const ASK: Ask = {
   id: 'toolu_1',
@@ -159,6 +159,21 @@ describe('questionComment', () => {
     expect(comment).toContain('1. Red (Recommended) — Warm\n2. Blue')
     expect(comment).toContain('a line per question')
     expect(questionComment(ONE, 'en')).toContain('`1, 3`')
+  })
+
+  it('in a journal only records the question and points to the chat', () => {
+    const comment = questionComment(ONE, 'en', true)
+    expect(comment).toContain('1. Red')
+    expect(comment).not.toContain('Reply with a comment')
+    expect(comment).toContain('chat on the page')
+  })
+})
+
+describe('answerComment', () => {
+  it('lists each question with its answer, then the text; nothing to record gives none', () => {
+    expect(answerComment({ 'Which color?': 'Blue' }, ' and quickly ', 'en')).toBe('**Answer to the session**\n\n- Which color? — **Blue**\n\nand quickly')
+    expect(answerComment({}, 'Plain text.', 'ru')).toBe('**Ответ сессии**\n\nPlain text.')
+    expect(answerComment({}, '  ', 'en')).toBeNull()
   })
 })
 

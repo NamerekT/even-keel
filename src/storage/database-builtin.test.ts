@@ -21,7 +21,8 @@ it('step 30 keeps the built-in tracker\'s tasks, labels, milestones, links and c
       blocks: [{ project: ABC, number: 2 }],
     })
     expect(second).toMatchObject({ number: 2, parent: 1, labels: ['Bug'], blockedBy: [{ project: ABC, number: 1 }] })
-    expect((await store.comments({ project: ABC, number: 1 })).map((each) => [each.author, each.body])).toEqual([['agent', 'Done: the parser.']])
+    // The store reads the model step 31 added: the comments of step 30 are read by hand.
+    expect((await frozen.query('select author, body from builtin_comments order by id')).rows).toEqual([{ author: 'agent', body: 'Done: the parser.' }])
     await upgraded.exec(fixture(29))
     await upgraded.exec(STEPS[27]!)
     expect(await new BuiltinStore(upgraded).list([ABC])).toEqual([])

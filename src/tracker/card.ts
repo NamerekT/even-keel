@@ -61,6 +61,16 @@ export interface TaskComment {
   /** ms */
   at: number
   text: string
+  /** Only the built-in tracker's journal (BTN-774) gives the rest. */
+  journal?: JournalEntry
+}
+
+/** Who wrote a comment of the built-in tracker's journal, and what the card may do with it. */
+export interface JournalEntry {
+  id: string
+  by: 'person' | 'agent' | 'service'
+  /** `<Provider> | <model>` of an agent's session; `null` — not an agent, or not known. */
+  model: string | null
 }
 
 /** What a label means to Even Keel: picks the model, marks a question, keeps the task out of the chain or lets it in. */

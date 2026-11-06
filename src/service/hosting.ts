@@ -27,6 +27,7 @@ import { addProject } from '../projects/add.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { createEvenKeelServer } from '../server.js'
+import { answerComment, type AskAnswers } from '../sessions/ask.js'
 import { inboxImage } from '../sessions/inbox.js'
 import { sharedFile } from '../sessions/shareFile.js'
 import { deliveredMail, type SessionMail } from '../sessions/mail.js'
@@ -255,6 +256,23 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
   const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage())
+  const builtin = builtinControl({
+    db: ctx.db,
+    places: () => builtinPlaces(ctx.configStore.current),
+    refresh: (project) => ctx.refreshProject(project),
+    busy: (task) =>
+      ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
+        ? 'current'
+        : ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished') ? 'live' : null,
+  })
+  // The answer to a question goes into a built-in task's journal too, where the question was recorded (BTN-774).
+  const journalAnswer = (project: string, task: string, answers: AskAnswers, text: string) => {
+    const body = answerComment(answers, text, ctx.configStore.current.language ?? ctx.promptLanguage())
+    if (body === null) return
+    builtin.answered(project, task, body).catch((error: unknown) => {
+      console.log(`tracker: ${task}: the answer was not written into the task's journal: ${englishOf(noticeOf(error))}`)
+    })
+  }
   return createEvenKeelServer({
     cli: ctx.cliCopies,
     hulyClient,
@@ -265,7 +283,10 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     control: ctx.chainControl,
     account: ctx.account,
     sessions: {
-      answer: ({ project, task, sessionId, ask, answers, text, files, renew }) => ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }, renew),
+      answer: async ({ project, task, sessionId, ask, answers, text, files, renew }) => {
+        await ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }, renew)
+        if (ask !== null) journalAnswer(project, task, answers, text)
+      },
       dismissMail: (sessionId) => {
         ctx.mailbox.dismiss(sessionId)
         ctx.hub.broadcastSoon('state', ctx.getState)
@@ -514,15 +535,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     vocabulary: (id) => (Object.hasOwn(ctx.readers().projects, id) ? ctx.vocabularies.get(id) : Promise.resolve(undefined)),
     profileStatuses: (id) => ctx.profileStatuses.get(id),
-    builtin: builtinControl({
-      db: ctx.db,
-      places: () => builtinPlaces(ctx.configStore.current),
-      refresh: (project) => ctx.refreshProject(project),
-      busy: (task) =>
-        ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
-          ? 'current'
-          : ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished') ? 'live' : null,
-    }),
+    builtin,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

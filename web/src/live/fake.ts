@@ -798,7 +798,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('card')
       if (current.state === null) return null
-      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task) : fakeCard(current.state, task, mode)
+      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal')) : fakeCard(current.state, task, mode)
     },
     vocabulary: async (projectId) => {
       await answer()
@@ -817,7 +817,7 @@ export function createFakeSource(search: string): LiveSource {
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
-      const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'))
+      const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
         current = { ...current, state: builtin.state }
         notify()

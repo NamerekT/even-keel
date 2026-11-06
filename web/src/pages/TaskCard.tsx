@@ -8,7 +8,6 @@ import type { TaskWork } from '../../../src/state.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { CardLabel, TaskCard as Card } from '../../../src/tracker/card.js'
 import type { MilestonePick as MilestonePickView, TaskStatus } from '../../../src/tracker/model.js'
-import { formatMoment } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -31,6 +30,7 @@ import { TaskRunPick } from './TaskRunPick.js'
 import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
 import { useCardEdit, type CardEditor } from './useCardEdit.js'
+import { CardJournal } from './CardJournal.js'
 import './card.css'
 import './cardEdit.css'
 
@@ -59,9 +59,13 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const [error, setError] = useState<Notice | null>(null)
   const [round, setRound] = useState(0)
   const [removing, setRemoving] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  // A note typed into the journal is lost with the card: closing it asks first.
+  const drafting = useRef(false)
+  const close = () => (drafting.current ? setLeaving(true) : onClose())
   const dialog = useRef<HTMLDialogElement>(null)
   const frame = useRef<HTMLDivElement>(null)
-  const backdrop = useBackdropClose(dialog, onClose)
+  const backdrop = useBackdropClose(dialog, close)
   const reread = () => setRound((n) => n + 1)
   const editor = useCardEdit(task, reread)
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
@@ -111,7 +115,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
       aria-label={task}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        close()
       }}
       {...backdrop}
     >
@@ -135,7 +139,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
               {t.card.openIn(tracker)} <span aria-hidden="true">↗</span>
             </a>
           )}
-          <button type="button" className="task-card__close" aria-label={t.card.close} title={t.card.close} onClick={onClose}>
+          <button type="button" className="task-card__close" aria-label={t.card.close} title={t.card.close} onClick={close}>
             ×
           </button>
         </header>
@@ -154,11 +158,28 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
                 live={live}
                 onOpen={onOpen}
                 onChanged={reread}
+                onDraft={(on) => {
+                  drafting.current = on
+                }}
               />
             )}
           </Loading>
         </div>
       </div>
+      {leaving && (
+        <ConfirmDialog
+          title={t.card.journal.leaveTitle}
+          question={t.card.journal.leaveQuestion}
+          confirm={t.card.journal.leaveConfirm}
+          cancel={t.card.journal.leaveCancel}
+          busy={false}
+          onConfirm={() => {
+            setLeaving(false)
+            onClose()
+          }}
+          onClose={() => setLeaving(false)}
+        />
+      )}
       {editor.conflict !== null && <ConflictDialog editor={editor} conflict={editor.conflict} />}
       {removing && editable !== null && (
         <RemoveDialog
@@ -229,9 +250,10 @@ interface BodyProps {
   live: boolean
   onOpen: (task: string) => void
   onChanged: () => void
+  onDraft: (drafting: boolean) => void
 }
 
-function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged }: BodyProps) {
+function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged, onDraft }: BodyProps) {
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const labelsOn = runLabelsOn(state?.config, taskProject(state, card.id))
@@ -282,27 +304,14 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
             )}
           </section>
           {editable !== null && <Subtasks card={editable.card} project={project} editor={editable.editor} inWork={inWork} onOpen={onOpen} />}
-          {card.comments.length > 0 && (
-            <section className="task-card__section">
-              <h3 className="task-card__heading">{t.card.comments(card.comments.length)}</h3>
-              <ol className="task-card__comments">
-                {[...card.comments].sort((a, b) => b.at - a.at).map((comment, index) => (
-                  <li key={index} className="task-card__comment">
-                    <span className="task-card__avatar" aria-hidden="true">
-                      {(comment.author ?? '·').trim().charAt(0).toLocaleUpperCase()}
-                    </span>
-                    <div className="task-card__bubble">
-                      <div className="task-card__comment-head">
-                        <strong>{comment.author ?? t.card.noAuthor}</strong>
-                        <time dateTime={new Date(comment.at).toISOString()}>{formatMoment(new Date(comment.at).toISOString(), new Date())}</time>
-                      </div>
-                      <Text components={markdown}>{comment.text}</Text>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
+          <CardJournal
+            key={card.id}
+            task={card.id}
+            comments={card.comments}
+            editor={editable?.editor ?? null}
+            render={(text) => <Text components={markdown}>{text}</Text>}
+            onDraft={onDraft}
+          />
         </div>
         <aside className="task-card__side">
           {/* An edited card moves the task through its status pick, which takes these same actions. */}

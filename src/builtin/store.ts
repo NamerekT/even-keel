@@ -43,6 +43,8 @@ export interface BuiltinComment {
   author: CommentAuthor
   body: string
   at: string
+  /** `<Provider> | <model>` of the session an agent's comment came from; `null` — not an agent's, or not known. */
+  model: string | null
 }
 
 export interface NewBuiltinTask {
@@ -248,13 +250,13 @@ export class BuiltinStore {
     return this.link(from, to, kind, false)
   }
 
-  /** Posts a comment and returns its id. */
-  async comment(key: TaskKey, author: CommentAuthor, body: string): Promise<string> {
+  /** Posts a comment and returns its id; `model` — of the session an agent's comment came from. */
+  async comment(key: TaskKey, author: CommentAuthor, body: string, model: string | null = null): Promise<string> {
     let id = ''
     await this.change(key, async (tx, row) => {
       const { rows } = await tx.query<{ id: number }>(
-        'insert into builtin_comments (task_id, author, body, at) values ($1, $2, $3, $4) returning id',
-        [row.id, author, body, this.stamp()],
+        'insert into builtin_comments (task_id, author, body, at, model) values ($1, $2, $3, $4, $5) returning id',
+        [row.id, author, body, this.stamp(), author === 'agent' ? model : null],
       )
       id = String(rows[0]!.id)
       return true
@@ -262,12 +264,26 @@ export class BuiltinStore {
     return id
   }
 
+  /** Deletes a person's own comment; anyone else's stays. `false` — the task has no such comment of a person. */
+  async uncomment(key: TaskKey, id: string): Promise<boolean> {
+    let removed = false
+    await this.change(key, async (tx, row) => {
+      const { rows } = await tx.query<{ id: number }>(
+        "delete from builtin_comments where task_id = $1 and id = $2 and author = 'person' returning id",
+        [row.id, Number.isSafeInteger(Number(id)) ? Number(id) : -1],
+      )
+      removed = rows.length > 0
+      return removed
+    })
+    return removed
+  }
+
   /** The task's comments, oldest first; with `after`, those posted after it — `[]` when it is not the task's. */
   async comments(key: TaskKey, after?: string): Promise<BuiltinComment[]> {
     const row = await this.row(this.db, key)
     if (row === undefined) return []
-    const { rows } = await this.db.query<{ id: number; author: CommentAuthor; body: string; at: string }>(
-      'select id, author, body, at from builtin_comments where task_id = $1 order by id',
+    const { rows } = await this.db.query<{ id: number; author: CommentAuthor; body: string; at: string; model: string | null }>(
+      'select id, author, body, at, model from builtin_comments where task_id = $1 order by id',
       [row.id],
     )
     const list = rows.map((each) => ({ ...each, id: String(each.id) }))

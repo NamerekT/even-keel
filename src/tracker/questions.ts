@@ -103,11 +103,15 @@ export class TrackerQuestions {
   private async post(session: AskingSession): Promise<void> {
     const ask = session.ask!
     try {
-      const comment = await this.deps.tracker(session.project, session.task, async (tracker) =>
-        tracker.comment === undefined || tracker.commentsAfter === undefined ? null : tracker.comment(session.task, questionComment(ask, this.deps.language(session.project))),
-      )
-      if (comment == null) return
-      this.store([...this.posted, { task: session.task, sessionId: session.sessionId, ask: ask.id, comment }])
+      // A journal only records the question: no reply is read from it, so it is done once posted.
+      const posted = await this.deps.tracker(session.project, session.task, async (tracker) => {
+        const journal = tracker.journal === true
+        if (tracker.comment === undefined || (tracker.commentsAfter === undefined && !journal)) return null
+        return { journal, comment: await tracker.comment(session.task, questionComment(ask, this.deps.language(session.project), journal)) }
+      })
+      if (posted == null) return
+      const { comment, journal } = posted
+      this.store([...this.posted, { task: session.task, sessionId: session.sessionId, ask: ask.id, comment, ...(journal ? { done: true } : {}) }])
       this.deps.log(`tracker: ${session.task}: the session's question is posted as the comment ${comment}`)
     } catch (error) {
       this.deps.log(`tracker: ${session.task}: the session's question was not posted: ${englishOf(noticeOf(error))}`)

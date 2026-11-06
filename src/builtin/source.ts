@@ -160,7 +160,12 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         blockedBy: await refs(task.blockedBy),
         blocks: await refs(task.blocks),
         related: await refs(task.related),
-        comments: (await store.comments(task)).map((each) => ({ author: AUTHORS[each.author], at: Date.parse(each.at), text: each.body })),
+        comments: (await store.comments(task)).map((each) => ({
+          author: AUTHORS[each.author],
+          at: Date.parse(each.at),
+          text: each.body,
+          journal: { id: each.id, by: each.author, model: each.model },
+        })),
         attachments: [],
         edit: await editOf(task),
       }
@@ -173,13 +178,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     async comment(id, body) {
       return store.comment(await must(id), 'service', body)
     },
-    // Only what a person or an agent wrote: Even Keel's own comments answer nothing.
-    async commentsAfter(id, after) {
-      const task = await find(id)
-      if (task === undefined) return []
-      const list = await store.comments(task, after)
-      return list.filter((each) => each.author !== 'service').map((each) => ({ id: each.id, body: each.body, files: [] }))
-    },
+    journal: true,
     async create(task) {
       if (!names.knows(task.project)) throw fail('builtin.noProject', { project: task.project })
       const number = await store.create(

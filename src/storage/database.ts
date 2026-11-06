@@ -428,6 +428,10 @@ export const STEPS: readonly string[] = [
   );
   create index builtin_comments_task on builtin_comments (task_id, id);
   `,
+  // The model of the session an agent's comment came from (BTN-774), `<Provider> | <model>`; `null` for the rest.
+  `
+  alter table builtin_comments add column model text;
+  `,
 ]
 
 /** The version this code reads and writes. */
