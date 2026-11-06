@@ -17,8 +17,9 @@ export function trustFolder(file: string, folder: string, platform: NodeJS.Platf
     if (!isPlainObject(config) || (config.projects !== undefined && !isPlainObject(config.projects))) throw new Error('Invalid Claude configuration')
     if (isTrusted(config, folder, platform)) return
     const projects = config.projects === undefined ? {} : config.projects as Record<string, unknown>
-    const key = Object.keys(projects).find((key) => samePath(key, folder, platform)) ?? folder
-    const entry = projects[key]
+    const keys = Object.keys(projects).filter((key) => samePath(key, folder, platform))
+    const key = keys.find((key) => platform !== 'win32' || !key.includes('\\')) ?? (platform === 'win32' ? folder.replaceAll('\\', '/') : folder)
+    const entry = projects[keys.includes(key) ? key : keys[0] ?? key]
     if (entry !== undefined && !isPlainObject(entry)) throw new Error('Invalid Claude project configuration')
     writeAtomic(file, `${JSON.stringify({ ...config, projects: { ...projects, [key]: { ...entry as object, hasTrustDialogAccepted: true } } }, null, 2)}\n`)
   } catch (error) {
