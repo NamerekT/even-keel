@@ -51,12 +51,3 @@ A removed key also stops the global folder's daemon (`claude daemon stop --any` 
 ## A parent with over a page of sub-issues on GitHub (BTN-606)
 
 GitHub and Linear read the subtasks of a parent through `children`, and Even Keel closes the parent once they are all closed and one is done (`docs/trackers.md`). Checked live ([verified log](../verified/trackers.md)): on GitHub a parent closed after its two sub-issues of the same repository (2026-10-31) and after its only sub-issue of another repository (2026-11-02); on Linear a parent closed after its two subtasks (2026-11-01), a team's own parent auto-close next to Even Keel's closed the parent once with no error, and a parent whose subtasks were all canceled stayed open (2026-11-02). Covered by adapter tests only: a GitHub parent with more sub-issues than one page of the `subIssues` query. If the next page is misread, the parent closes while a sub-issue on it is still open, or stays open after all are done. **Workaround:** close or reopen the parent by hand.
-
-## Task time written to GitLab and Jira (EKR-35)
-
-Tally writes a done task's active time into GitLab's spent time and Jira's worklog (`docs/tally.md`, "Task time"). Checked live on 2026-11-06 (EKR-36, [verified log](../verified/trackers.md)): spent time on GitLab.com and a self-managed instance, Jira worklogs through the site's address, no second write on later runs, nothing for a task under a minute, nothing for GitHub and Linear, a GitLab Guest's 403 and Jira's 400 without "Work on issues" taken as refusals (the latter after EKR-91). GitLab 19.5 has no per-project switch for time tracking. Not seen live:
-
-- a Jira worklog through Atlassian's gateway (a profile on a scoped token): the same path under `api.atlassian.com/ex/jira/<cloud id>`;
-- what Jira answers when time tracking is deactivated for the site (the switch is site-wide, so the bench's was not touched; REST cannot switch it, `DELETE /rest/api/3/configuration/timetracking` → 405): taken, like the missing right, as a 403 or a 400 whose `errors` name no field of the request — a 400 naming a field, or any other status, is retried every run and logged each time instead of marking the task.
-
-If one is wrong, a task gets no time, or the log repeats a refusal every five minutes. **Workaround:** log the time by hand, or set `reportsSince` to `null` in `tally/tally.config.json`. To check: a Jira profile on a scoped token, a task of its project to Done, an hour's wait, the issue's worklog; then a Jira site of its own with time tracking deactivated, one more task, the log.
