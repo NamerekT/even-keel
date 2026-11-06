@@ -109,6 +109,53 @@ it("gives a failed run of the PR head the log tail of its failed job, once, and 
   expect(asked.filter((path) => path.includes('/jobs'))).toEqual([])
 })
 
+it('gives no feedback of a run that failed only because no runner took its jobs, reading its jobs once per ending (BTN-778)', async () => {
+  const at = '2026-11-05T10:00:00Z'
+  const asked: string[] = []
+  const runOf = (id: number, updated: string) => ({
+    id, head_sha: 'task-head', head_branch: 'abc-7/task', status: 'completed', conclusion: 'failure', run_number: id,
+    name: 'Tests', display_title: 'Test run', created_at: at, run_started_at: at, updated_at: updated,
+    html_url: `https://github.com/octo-org/app/actions/runs/${id}`,
+  })
+  const routes: Record<string, unknown> = {
+    '/pulls/7': { state: 'open', mergeable: true, head: { sha: 'task-head', ref: 'abc-7/task' } },
+    '/pulls/7/reviews?per_page=100': [],
+    [`/issues/7/comments?since=${encodeURIComponent(at)}&per_page=100`]: [],
+    '/actions/runs?per_page=20': { workflow_runs: [runOf(1, '2026-11-05T10:15:00Z'), runOf(2, at)] },
+    '/actions/runs/1/jobs?per_page=100': { jobs: [
+      { id: 10, name: 'ubuntu', status: 'completed', conclusion: 'success', started_at: at, completed_at: at, runner_name: 'GitHub Actions 1', steps: [{ name: 'test', status: 'completed', conclusion: 'success' }] },
+      { id: 11, name: 'macos', status: 'completed', conclusion: 'cancelled', started_at: at, completed_at: '2026-11-05T10:15:00Z', runner_name: '', steps: [] },
+    ] },
+    '/actions/runs/2/jobs?per_page=100': { jobs: [{ id: 21, name: 'test', status: 'completed', conclusion: 'failure', started_at: at, completed_at: at, runner_name: 'GitHub Actions 2' }] },
+  }
+  vi.stubGlobal('fetch', async (input: string | URL) => {
+    const path = String(input).replace('https://api.github.com/repos/octo-org/app', '')
+    asked.push(path)
+    return new Response(JSON.stringify(routes[path] ?? {}), { status: path in routes ? 200 : 404 })
+  })
+  const deps = reviewDeps({
+    git: async () => ({ code: 0, out: 'remote.origin.url https://github.com/octo-org/app.git' }),
+    repo: () => 'D:/repos/app', main: () => 'dev', on: () => true,
+    token: () => 'fake-token', complete: async () => {}, now: () => new Date(at), timeoutMs: 1_000,
+  })
+  const pull = {
+    task: 'ABC-7', remote: 'origin', number: 7, branch: 'abc-7/task',
+    url: 'https://github.com/octo-org/app/pull/7', at, pushedAt: at, markAt: null, seen: [] as string[],
+  }
+  expect((await deps.check('p1', pull)).failed.map(({ run }) => run.id)).toEqual([2])
+
+  asked.length = 0
+  expect((await deps.check('p1', { ...pull, seen: ['ci:2'] })).failed.map(({ run }) => run.id)).toEqual([2])
+  expect(asked.filter((path) => path.includes('/jobs'))).toEqual([])
+
+  // A rerun keeps the run's id and ends anew: its jobs are read again, and a real failure now goes to the session.
+  routes['/actions/runs?per_page=20'] = { workflow_runs: [runOf(1, '2026-11-05T11:00:00Z'), runOf(2, at)] }
+  routes['/actions/runs/1/jobs?per_page=100'] = { jobs: [{ id: 12, name: 'macos', status: 'completed', conclusion: 'failure', started_at: at, completed_at: at, runner_name: 'GitHub Actions 3' }] }
+  asked.length = 0
+  expect((await deps.check('p1', { ...pull, seen: ['ci:2'] })).failed.map(({ run }) => run.id)).toEqual([1, 2])
+  expect(asked.filter((path) => path.includes('/jobs?'))).toEqual(['/actions/runs/1/jobs?per_page=100'])
+})
+
 it('polls a GitLab merge request: its state, its notes and the failed pipelines of its head commit', async () => {
   const at = '2026-10-25T10:00:00Z'
   const later = '2026-10-25T11:00:00Z'

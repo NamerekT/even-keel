@@ -95,6 +95,9 @@ export function runDurationMs(run: CiRun, now: Date): number | null {
   return Math.max(0, end - Date.parse(start))
 }
 
+/** A failed run as it ended: a rerun keeps the run's id and ends with a new stop. */
+export const failedKey = (run: CiRun): string => `${run.id}:${run.stoppedAt ?? ''}`
+
 /** Whether a failed run's jobs show it failed only for want of a runner: no job really failed. */
 export function failedUntaken(jobs: CiJob[]): boolean {
   const unsuccessful = jobs.filter((job) => job.status !== 'success' && job.status !== 'skipped')

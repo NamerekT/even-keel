@@ -1,6 +1,6 @@
 import type { Git } from '../git/types.js'
 import { englishOf, notice, noticeOf, sameNotice } from '../notice/notice.js'
-import { currentRunOf, failedUntaken, isFinished, medianDuration, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
+import { currentRunOf, failedKey, failedUntaken, isFinished, medianDuration, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
 
@@ -14,9 +14,6 @@ export const WANT_MS = 2 * 60_000
 export const HISTORY = 10
 /** A run's tasks come from at most this many commits since the previous run. */
 const TASK_COMMITS = 50
-
-/** A failed run as it ended: a rerun keeps the run's id and ends with a new stop. */
-const failedKey = (run: CiRun): string => `${run.id}:${run.stoppedAt ?? ''}`
 
 export interface CiWatchDeps {
   target: CiTarget

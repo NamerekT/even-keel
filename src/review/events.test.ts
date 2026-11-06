@@ -69,6 +69,12 @@ describe('outcomeOf', () => {
     expect(found).toEqual({ kind: 'feedback', items: [{ kind: 'ci', run: run(1, 'failure'), log: 'TS2741' }] })
   })
 
+  it('takes no run that failed only because no runner took its jobs (BTN-778)', () => {
+    const untaken = failed(1, 'failure')
+    untaken.run.notTaken = true
+    expect(outcomeOf(PULL, check({ failed: [untaken] }))).toEqual({ kind: 'none' })
+  })
+
   it('takes a conflict with main once per head commit', () => {
     const conflicting = check({ state: { state: 'open', mergeable: false, head: HEAD } })
     expect(outcomeOf(PULL, conflicting)).toEqual({ kind: 'feedback', items: [{ kind: 'conflict', head: HEAD }] })

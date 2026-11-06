@@ -1,5 +1,5 @@
 import { ciSource } from '../ci/adapters.js'
-import type { CiKind } from '../ci/model.js'
+import { failedKey, failedUntaken, type CiKind } from '../ci/model.js'
 import type { CiTarget } from '../ci/remote.js'
 import { readFailure, type FailedRun } from '../ci/report.js'
 import type { ReviewDeps } from '../chain/model.js'
@@ -65,6 +65,8 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
   }
 
   const forgeOf = (target: CiTarget, token: string): Forge => FORGES[target.kind](target, token, timeoutMs)
+  /** By pull request, the `failedKey`s of its head's failed runs whose jobs show no runner took them. */
+  const untaken = new Map<string, Set<string>>()
 
   return {
     on: wiring.on,
@@ -86,6 +88,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       return opened === null ? null : { ...opened, remote: target.remote }
     },
     check: async (project, pull) => {
+      const pullKey = `${project}:${pull.remote}:${pull.number}`
       const target = await targetOf(project, pull.remote)
       const token = tokenOf(project, target)
       const forge = forgeOf(target, token)
@@ -93,6 +96,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const pushed = Date.parse(pull.pushedAt)
       const rechecking = target.kind === 'forgejo' && told.mergeable === false && wiring.now().getTime() - pushed < FORGEJO_RECHECK_MS
       const state = rechecking ? { ...told, mergeable: null } : told
+      if (state.state !== 'open') untaken.delete(pullKey)
       if (state.state === 'merged') return { state, remarks: [], failed: [] }
       // A pull request closed unmerged: the task's next session gets every remark made on it (BTN-223).
       if (state.state === 'closed') return { state, remarks: othersOnly(await forge.remarks(pull.number, pull.at, () => true)), failed: [] }
@@ -100,13 +104,20 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       // A CI that does not answer leaves the poll to the remarks and the conflict.
       const source = ciSource(target, token, timeoutMs)
       const runs = await (source?.runs(RUNS_POLLED) ?? Promise.resolve([])).catch(() => [])
+      const known = untaken.get(pullKey) ?? new Set<string>()
       const failed = runs
-        .filter((run) => run.commit === state.head && run.status === 'failure')
+        .filter((run) => run.commit === state.head && run.status === 'failure' && run.notTaken !== true && !known.has(failedKey(run)))
         .map((run): FailedRun => ({ kind: target.kind, run, jobs: null, log: null }))
       // Only a run the session has not been told of is worth its log; one that cannot be read goes with its link alone.
       const fresh = failed.filter(({ run }) => !pull.seen.includes(eventKey({ kind: 'ci', run, log: null })))
       if (source !== null) await Promise.all(fresh.map((each) => readFailure(source, each).catch(() => {})))
-      return { state, remarks, failed }
+      // A run that failed only for want of a runner is no failure of the task (BTN-778): it is left out, and kept until it ends anew.
+      const current = new Set(runs.map(failedKey))
+      const notTaken = new Set([...known].filter((key) => current.has(key)))
+      for (const { run, jobs } of fresh) if (jobs !== null && failedUntaken(jobs)) notTaken.add(failedKey(run))
+      if (notTaken.size === 0) untaken.delete(pullKey)
+      else untaken.set(pullKey, notTaken)
+      return { state, remarks, failed: failed.filter(({ run }) => !notTaken.has(failedKey(run))) }
     },
     complete: wiring.complete,
   }
