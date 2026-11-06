@@ -19,7 +19,7 @@ function entriesOf(drafts: EventDraft[], log: EventEntry[], now: Date): EventEnt
   return drafts.map((draft, index) => ({ id: String(last + index + 1), at: now.toISOString(), ...draft }))
 }
 
-/** A day of the log: the chain, its launches, a red main and its fix, a question, the settings, a CLI to check. */
+/** A day of the log: the chain, its launches, a red main and its fix, a question, the settings, a CLI to check, a package and an account. */
 export function fakeEventLog(projects: string[]): EventEntry[] {
   const [first = 'ABC', second = 'DEMO'] = projects
   const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000)
@@ -34,9 +34,18 @@ export function fakeEventLog(projects: string[]): EventEntry[] {
       {
         level: 'warning',
         notice: notice('agent.uncheckedVersion', { title: 'Claude Code', installed: '2.1.320', checked: '2.1.316' }),
-        place: null,
+        place: { view: 'settings', project: null },
       },
     ],
+    [
+      260,
+      {
+        level: 'warning',
+        notice: notice('eventLog.packages', { project: second, package: 'context7', problem: 'noKey', detail: 'CONTEXT7_API_KEY' }),
+        place: { view: 'packages', project: second },
+      },
+    ],
+    [180, { level: 'warning', notice: notice('eventLog.usageUnread', { account: 'global' }), place: { view: 'accounts' } }],
     [120, { level: 'warning', notice: notice('eventLog.ask', { task: `${second}-4` }), place: { view: 'ask', project: second, task: `${second}-4` } }],
     [
       45,

@@ -1,14 +1,16 @@
 import { isOwnName } from '../chain/fix.js'
 import { isLaunch } from '../chain/launches.js'
 import type { LaunchEntry } from '../chain/model.js'
+import type { LoggedPackageProblem } from '../notice/en.js'
 import { notice, type Notice } from '../notice/notice.js'
-import type { EvenKeelState } from '../state.js'
-import type { EventDraft } from './model.js'
+import type { EvenKeelState, PackageProblem, ProjectPackages } from '../state.js'
+import type { EventDraft, EventLevel } from './model.js'
 import { pageEvents, type EventsInput, type PageEvent } from './page-events.js'
 
 export type WatchInput = EventsInput &
   Pick<EvenKeelState, 'cliVersions' | 'configError'> & {
-    packages: Pick<EvenKeelState['packages'], 'gateway'>
+    packages: Pick<EvenKeelState['packages'], 'gateway' | 'projects'>
+    account: Pick<EvenKeelState['account'], 'accounts' | 'pool'>
   }
 
 /** A chain as the log tells its changes: its pause, and the error it is held on unless another entry says it. */
@@ -32,10 +34,28 @@ export interface Watched {
 export interface EventMemory {
   seen: Record<string, string>
   chains: Record<string, { paused: boolean; error: string | null }>
+  /** A key of `seen` not held now, by the first look without it: it is kept until `BLINK_MS` past that. */
+  gone?: Record<string, string>
 }
 
-/** An event gone and back within this is the same one: the state is read in parts, at a start above all. */
+/** The conditions remembered over a restart, held as seen until `until` (ms) though not seen: `GRACE_MS` after the start. */
+export interface Restored {
+  keys: ReadonlySet<string>
+  until: number
+}
+
+/** How long after a start the conditions remembered before it count as held: the state is read in parts then. */
 export const GRACE_MS = 10 * 60_000
+
+/**
+ * A condition gone and back within this is the same one: the state is built from parts read each on its own, and a
+ * failed or partial read may drop a condition from one or two builds (one each `EventHub.watch` window, 2 s). Longer —
+ * a new entry: a conflict back after five minutes is news.
+ */
+export const BLINK_MS = 5_000
+
+/** Problems that pass by themselves, and one that is the agent's, not a problem to fix: no entry. */
+const UNLOGGED = new Set<PackageProblem['kind']>(['installing', 'probing', 'unsupported'])
 
 /** A chain paused on the limit or a red main: its event says so (`pageEvents`), the chain's own entry would repeat it. */
 const toldElsewhere = (error: Notice) => error.code === 'chain.limitSpent' || (/^(ci|check)\./.test(error.code) && 'commit' in error.params)
@@ -47,7 +67,25 @@ export function watchedOf(state: WatchInput): Watched {
     if (event.kind === 'red') quiet.push(`${event.key}|ciRed`)
     conditions.set(event.kind === 'red' || event.kind === 'ciRed' ? `${event.key}|${event.kind}` : event.key, draftOf(event))
   }
-  for (const view of state.cliVersions) conditions.set(`cli|${view.agent}|${view.account ?? ''}|${view.installed}`, { level: 'warning', notice: view.notice, place: null })
+  // The installed CLI's way back to the checked version is its source in the settings; a daemon has none to press.
+  for (const view of state.cliVersions) {
+    const place = view.account === null ? { view: 'settings' as const, project: null } : null
+    conditions.set(`cli|${view.agent}|${view.account ?? ''}|${view.installed}`, { level: 'warning', notice: view.notice, place })
+  }
+  for (const [project, found] of Object.entries(state.packages.projects)) {
+    for (const [key, draft] of packageDrafts(project, found)) conditions.set(key, draft)
+  }
+  const pooled = new Set(state.account.pool.map((entry) => entry.account))
+  for (const entry of state.account.accounts) {
+    const { state: health, since, reason } = entry.usage
+    if (!pooled.has(entry.key) || entry.needsLogin || (health !== 'unread' && health !== 'off')) continue
+    const code = health === 'off' ? 'eventLog.usageOff' : 'eventLog.usageUnread'
+    conditions.set(`usage|${entry.key}|${health}:${since}`, {
+      level: health === 'off' ? 'error' : 'warning',
+      notice: notice(code, { account: entry.key }, reason === null ? {} : { cause: reason }),
+      place: { view: 'accounts' },
+    })
+  }
   const gateway = state.packages.gateway
   if (gateway !== null) conditions.set(`gateway|${JSON.stringify(gateway)}`, { level: 'error', notice: gateway, place: null })
   if (state.configError !== null) conditions.set(`config|${JSON.stringify(state.configError)}`, { level: 'error', notice: state.configError, place: { view: 'settings', project: null } })
@@ -59,6 +97,22 @@ export function watchedOf(state: WatchInput): Watched {
     else chains[chain.project] = { paused: chain.paused, error: chain.paused ? chain.error : null }
   }
   return { conditions, quiet, chains }
+}
+
+/** A project's package problems by their keys: of the set as a whole and of its enabled packages, as /tools counts them. */
+function packageDrafts(project: string, found: ProjectPackages): [string, EventDraft][] {
+  const level: EventLevel = found.blocked ? 'error' : 'warning'
+  const named: [string | null, PackageProblem][] = [
+    ...found.problems.map((problem): [null, PackageProblem] => [null, problem]),
+    ...Object.entries(found.cells).flatMap(([name, cell]) => (cell.enabled ? cell.problems.map((problem): [string, PackageProblem] => [name, problem]) : [])),
+  ]
+  return named.flatMap(([name, problem]) => {
+    if (UNLOGGED.has(problem.kind)) return []
+    const detail = problem.kind === 'noKey' ? problem.variables.join(', ') : problem.kind === 'noResponse' ? problem.servers.join(', ') : problem.kind === 'noTrackerMcp' ? problem.server : ''
+    const params = { project, ...(name !== null && { package: name }), problem: problem.kind as LoggedPackageProblem, detail }
+    const cause = problem.kind === 'installFailed' ? { cause: problem.notice } : {}
+    return [[`packages|${project}|${name ?? ''}|${JSON.stringify(problem)}`, { level, notice: notice('eventLog.packages', params, cause), place: { view: 'packages', project } }]]
+  })
 }
 
 function draftOf(event: PageEvent): EventDraft {
@@ -83,28 +137,49 @@ function draftOf(event: PageEvent): EventDraft {
 
 /**
  * The entries of the step from what the log remembers to what holds now. With nothing remembered yet everything is old
- * news, as a page's first state was. `changed` — whether the memory is worth saving: more than when things were seen.
+ * news, as a page's first state was. A condition not held now is kept a `BLINK_MS` from the first look without it, one
+ * of `restored` until its end. `changed` — whether the memory is worth saving: more than when things were seen.
  */
-export function observe(memory: EventMemory | null, watched: Watched, now: Date): { drafts: EventDraft[]; memory: EventMemory; changed: boolean } {
+export function observe(
+  memory: EventMemory | null,
+  watched: Watched,
+  now: Date,
+  restored?: Restored,
+): { drafts: EventDraft[]; memory: EventMemory; changed: boolean } {
   const stamp = now.toISOString()
+  const time = now.getTime()
   const chains = Object.fromEntries(Object.entries(watched.chains).map(([project, mark]) => [project, { paused: mark.paused, error: mark.error?.code ?? null }]))
+  const held = new Set([...watched.conditions.keys(), ...watched.quiet])
   const seen: Record<string, string> = {}
-  for (const [key, last] of Object.entries(memory?.seen ?? {})) if (now.getTime() - Date.parse(last) < GRACE_MS) seen[key] = last
+  const gone: Record<string, string> = {}
+  let changed = memory === null || JSON.stringify(chains) !== JSON.stringify(memory.chains)
+  const kept = (key: string, since: string) => (restored?.keys.has(key) === true && time < restored.until) || time - Date.parse(since) < BLINK_MS
+  for (const [key, last] of Object.entries(memory?.seen ?? {})) {
+    if (held.has(key)) continue
+    const since = memory?.gone?.[key] ?? stamp
+    if (kept(key, since)) {
+      seen[key] = last
+      gone[key] = since
+    } else changed = true
+  }
+  const known = (key: string) => {
+    const since = memory?.gone?.[key]
+    return memory?.seen[key] !== undefined && (since === undefined || kept(key, since))
+  }
   const drafts: EventDraft[] = []
   if (memory !== null) drafts.push(...chainDrafts(memory.chains, watched.chains))
-  let changed = memory === null || JSON.stringify(chains) !== JSON.stringify(memory.chains)
   for (const [key, draft] of watched.conditions) {
-    if (seen[key] === undefined) {
+    if (!known(key)) {
       changed = true
       if (memory !== null) drafts.push(draft)
     }
     seen[key] = stamp
   }
   for (const key of watched.quiet) {
-    if (seen[key] === undefined) changed = true
+    if (!known(key)) changed = true
     seen[key] = stamp
   }
-  return { drafts, memory: { seen, chains }, changed }
+  return { drafts, memory: { seen, chains, gone }, changed }
 }
 
 function chainDrafts(before: EventMemory['chains'], after: Record<string, ChainMark>): EventDraft[] {

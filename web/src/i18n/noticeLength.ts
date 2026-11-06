@@ -18,7 +18,7 @@ const stub: unknown = new Proxy(() => {}, {
   apply: () => stub,
 })
 // The parameters a template looks a text up by, where the stub finds none.
-const SAMPLES: Record<string, Record<string, unknown>> = { 'git.failed': { step: 'clean' } }
+const SAMPLES: Record<string, Record<string, unknown>> = { 'git.failed': { step: 'clean' }, 'eventLog.packages': { problem: 'noResponse' } }
 const paramsOf = (code: string): unknown => new Proxy({}, { get: (_, key) => (typeof key === 'string' ? SAMPLES[code]?.[key] : undefined) ?? stub })
 
 /** Each code's text length in each language. */

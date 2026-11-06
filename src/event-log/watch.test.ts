@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import type { EventsInput } from './page-events.js'
-import { GRACE_MS, launchDraft, observe, settingsDrafts, watchedOf, type WatchInput } from './watch.js'
+import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, watchedOf, type WatchInput } from './watch.js'
 
 const none: WatchInput = {
   config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {} },
@@ -13,7 +13,8 @@ const none: WatchInput = {
   forwards: {},
   works: {},
   cliVersions: [],
-  packages: { gateway: null },
+  packages: { gateway: null, projects: {} },
+  account: { accounts: [], pool: [] },
   configError: null,
 }
 const chain = (fields: object = {}) => ({ project: 'p1', current: null, paused: false, error: null, ...fields }) as EventsInput['chain']['active'][number]
@@ -60,13 +61,28 @@ describe('observe', () => {
     expect(observe(quiet.memory, watchedOf(asking('q2')), at(2)).drafts).toHaveLength(1)
   })
 
-  it('takes an event gone and back within the grace for the same one, and a later return for a new one', () => {
+  it('writes an event gone and back as a new one, unless it blinked out of one read', () => {
+    const conflict = { ...none, forwards: { p1: { into: 'p2', behind: 2, hold: notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] }), held: true } } } as WatchInput
     const first = observe(null, watchedOf(none), at(0))
-    const came = observe(first.memory, watchedOf(asking('q1')), at(1))
+    const came = observe(first.memory, watchedOf(conflict), at(1))
     const gone = observe(came.memory, watchedOf(none), at(2))
-    expect(observe(gone.memory, watchedOf(asking('q1')), at(3)).drafts).toEqual([])
-    const later = new Date(at(2).getTime() + GRACE_MS + 1)
-    expect(observe(gone.memory, watchedOf(asking('q1')), later).drafts).toHaveLength(1)
+    expect(observe(gone.memory, watchedOf(conflict), at(7)).drafts.map((each) => each.notice.code)).toEqual(['eventLog.conflict'])
+    const blink = new Date(at(2).getTime() + BLINK_MS - 1)
+    expect(observe(gone.memory, watchedOf(conflict), blink).drafts).toEqual([])
+    // A blink is counted from the first read without it, not from when it was last seen.
+    const later = observe(gone.memory, watchedOf(none), at(3))
+    expect(observe(later.memory, watchedOf(conflict), new Date(at(3).getTime() + 1)).drafts).toHaveLength(1)
+  })
+
+  it('gives the conditions remembered over a restart the grace after the start, and only them', () => {
+    const conflict = { ...none, forwards: { p1: { into: 'p2', behind: 2, hold: notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] }), held: true } } } as WatchInput
+    const restored = { keys: new Set(['conflict|p1|p2']), until: at(0).getTime() + GRACE_MS }
+    const start = observe({ seen: { 'conflict|p1|p2': at(0).toISOString() }, chains: {} }, watchedOf(none), at(0), restored)
+    expect(observe(start.memory, watchedOf(conflict), at(9), restored).drafts).toEqual([])
+    const after = observe(start.memory, watchedOf(none), at(10), restored)
+    expect(observe(after.memory, watchedOf(conflict), at(11), restored).drafts).toHaveLength(1)
+    const ask = observe(observe(start.memory, watchedOf(asking('q1')), at(1), restored).memory, watchedOf(none), at(2), restored)
+    expect(observe(ask.memory, watchedOf(asking('q1')), at(3), restored).drafts).toHaveLength(1)
   })
 
   it('writes a CI that comes to hold the chain once more, as an error', () => {
@@ -101,11 +117,46 @@ describe('observe', () => {
     const cli = { agent: 'claude', account: null, installed: '2.2.0', checked: '2.1.0', notice: notice('text', { text: 'claude 2.2.0' }) }
     const gateway = notice('text', { text: 'gateway down' })
     const config = notice('text', { text: 'broken' })
-    expect(step(none, { ...none, cliVersions: [cli], packages: { gateway }, configError: config })).toEqual([
-      { level: 'warning', notice: cli.notice, place: null },
+    const daemon = { ...cli, account: 'global', notice: notice('text', { text: 'daemon 2.2.0' }) }
+    expect(step(none, { ...none, cliVersions: [cli, daemon], packages: { gateway, projects: {} }, configError: config })).toEqual([
+      { level: 'warning', notice: cli.notice, place: { view: 'settings', project: null } },
+      { level: 'warning', notice: daemon.notice, place: null },
       { level: 'error', notice: gateway, place: null },
       { level: 'error', notice: config, place: { view: 'settings', project: null } },
     ])
+  })
+
+  it('writes the problems of a project\'s packages that do not pass by themselves, as errors while they hold the chain', () => {
+    const cell = (problems: object[], enabled = true) => ({ choice: null, enabled, settings: {}, problems })
+    const packages = (blocked: boolean, cells: object, problems: object[] = []) =>
+      ({ ...none, packages: { gateway: null, projects: { p1: { cells, problems, blocked, tracker: null } } } }) as unknown as WatchInput
+    const place = { view: 'packages', project: 'p1' }
+    expect(step(none, packages(true, { huly: cell([{ kind: 'notInstalled' }]) }, [{ kind: 'noTrackerMcp', server: 'huly' }]))).toEqual([
+      { level: 'error', notice: notice('eventLog.packages', { project: 'p1', problem: 'noTrackerMcp', detail: 'huly' }), place },
+      { level: 'error', notice: notice('eventLog.packages', { project: 'p1', package: 'huly', problem: 'notInstalled', detail: '' }), place },
+    ])
+    expect(step(none, packages(false, { kb: cell([{ kind: 'noKey', variables: ['KB_TOKEN', 'KB_URL'] }]) }))).toEqual([
+      { level: 'warning', notice: notice('eventLog.packages', { project: 'p1', package: 'kb', problem: 'noKey', detail: 'KB_TOKEN, KB_URL' }), place },
+    ])
+    const failed = notice('text', { text: 'npm failed' })
+    expect(step(none, packages(true, { kb: cell([{ kind: 'installFailed', notice: failed }]) }))[0]!.notice).toEqual(
+      notice('eventLog.packages', { project: 'p1', package: 'kb', problem: 'installFailed', detail: '' }, { cause: failed }),
+    )
+    const passing = { a: cell([{ kind: 'installing' }]), b: cell([{ kind: 'probing' }]), c: cell([{ kind: 'unsupported', agent: 'codex' }]), d: cell([{ kind: 'notInstalled' }], false) }
+    expect(step(none, packages(true, passing))).toEqual([])
+  })
+
+  it('writes the accounts of a pool whose limits are not read, as the usage banner tones them', () => {
+    const entry = (key: string, state: string, fields: object = {}) => ({ key, needsLogin: false, usage: { state, reason: null, since: '2026-11-05T11:00:00Z' }, ...fields })
+    const accounts = (list: object[], pool = ['a', 'b', 'c', 'd', 'e']) => ({ ...none, account: { accounts: list, pool: pool.map((account) => ({ account })) } }) as unknown as WatchInput
+    const reason = notice('text', { text: 'no answer' })
+    const list = [entry('a', 'unread', { usage: { state: 'unread', reason, since: '2026-11-05T11:00:00Z' } }), entry('b', 'off'), entry('c', 'ok'), entry('d', 'unread', { needsLogin: true }), entry('x', 'off')]
+    expect(step(none, accounts(list))).toEqual([
+      { level: 'warning', notice: notice('eventLog.usageUnread', { account: 'a' }, { cause: reason }), place: { view: 'accounts' } },
+      { level: 'error', notice: notice('eventLog.usageOff', { account: 'b' }), place: { view: 'accounts' } },
+    ])
+    const again = [entry('a', 'unread', { usage: { state: 'unread', reason: null, since: '2026-11-05T12:00:00Z' } })]
+    expect(step(accounts([entry('a', 'unread')]), accounts(again))).toHaveLength(1)
   })
 
   it('says whether what it remembers changed, not only when it was last seen', () => {
