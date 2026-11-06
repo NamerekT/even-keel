@@ -6,6 +6,7 @@ import type { Transport } from '../account/transport.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { cliCopy } from '../agent/copy.js'
 import { PinnedCli } from '../agent/pinned.js'
+import { cliVersionOf } from '../agent/versions.js'
 import { parseUsage } from '../limits/usage.js'
 import { findBinary } from '../paths.js'
 import { DEFAULT_LANGUAGE } from '../settings/defaults.js'
@@ -19,6 +20,7 @@ import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
 import { agentsFallback } from './instructions.js'
 import { CLAUDE } from './name.js'
+import { hasOAuthTokens, oauthTransition, otherOAuthFolders, readOAuthShape, type OAuthShape } from './oauth.js'
 import { claudeBinaryIn, claudeLatest, fetchClaude } from './release.js'
 import { SdkSessions } from './sdk/host.js'
 import { SDK_KIND } from './sdk/registry.js'
@@ -55,6 +57,26 @@ export const claude: AgentAdapter = {
     const system = () => resolveClaudeBinary(env())
     const onMachine = () => findBinary(system(), env())
     const cli = new ClaudeCli(bin, timeoutMs, envOf)
+    const oauthShapes = new Map<string, OAuthShape>()
+    const observeOAuth = async (home: AccountHome) => {
+      const current = await readOAuthShape(home.dir)
+      if (current === null) return
+      const previous = oauthShapes.get(home.key)
+      oauthShapes.set(home.key, current)
+      const others = otherOAuthFolders(oauthShapes, home.key, current)
+      let version: string | null = null
+      let pids: number[] | null = null
+      if (previous !== undefined && hasOAuthTokens(previous) && !hasOAuthTokens(current)) {
+        const [cliVersion, livePids] = await Promise.all([
+          cli.version(envOf(home)).then(cliVersionOf, () => null),
+          liveRecords(home).then((records) => records.map((record) => record.pid).sort((a, b) => a - b), () => null),
+        ])
+        version = cliVersion
+        pids = livePids
+      }
+      const line = oauthTransition(previous, current, { key: home.key, version, pids, others })
+      if (line !== null) log(line)
+    }
     const projects = (home: AccountHome) => join(home.dir, 'projects')
     const remoteAt = async (home: AccountHome) => remoteAtStartup(await readText(join(home.dir, 'settings.json')))
     const sdkVersion = sdkVersionOf(version)
@@ -123,6 +145,7 @@ export const claude: AgentAdapter = {
       authStatus: async (home) => {
         const swept = await sweepRefreshLeftovers(home.dir, Date.now())
         if (swept > 0) log(`account: removed ${swept} abandoned .oauth_refresh.lock.owner.tmp.* files in ${home.key}`)
+        await observeOAuth(home)
         return cli.authStatus(home)
       },
       login: (home) => cli.authLogin(home),

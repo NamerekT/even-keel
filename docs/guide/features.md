@@ -304,6 +304,8 @@ Your own skills (`~/.claude/skills`, Codex's skills folder) reach only their own
 
 ## Accounts
 
+If Claude Code unexpectedly asks you to sign in again, `logs/even-keel.log` records observed changes of its credential file: tokens emptied, renewed or restored, with the file's write time. An emptying also includes expiry dates, the selected CLI version, live session PIDs and nearby changes in other account folders. Token values are never logged. The first check after a service restart establishes a baseline and reports already empty tokens once. Preserve the log before signing in again; it helps investigation but does not determine the cause. See [account diagnostics](../accounts.md#oauth-token-diagnostics-btn-763).
+
 The account row's menu opens at the horizontal position you click, below the row (above it when space is short), and stays inside the window. Enter/Space opens it at the row's default position.
 
 On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, including while the chain is paused or stopped. Hover or focus shows up to three distinct accounts in order: the task, the project's default and Even Keel's default. A coloured border and stack count mark a cascade; on phones the chip keeps the tightest usage window. Other pages show only Even Keel's account. Pressing the chip opens the full Accounts panel. Accounts without readable limits show token counts instead of empty limit rows.
