@@ -1,6 +1,6 @@
 ---
 name: task
-description: Work a GitLab issue through the gitlab MCP server: read the brief, record decisions, file blockers and questions, leave a closing comment and merge into the project's main branch. Use for task ids such as APP-12 in projects tracked in GitLab Issues, or before creating an issue there.
+description: "Work a GitLab issue through the gitlab MCP server: read the brief, record decisions, file blockers and questions, leave a closing comment and merge into the project's main branch. Use for task ids such as APP-12 in projects tracked in GitLab Issues, or before creating an issue there."
 ---
 
 # Working a GitLab issue
