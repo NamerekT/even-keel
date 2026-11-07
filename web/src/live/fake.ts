@@ -43,6 +43,7 @@ import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSe
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 import { fakeRecord, fakeTranscript } from './fakeTranscript.js'
 import { withTrustPause } from './fakeTrust.js'
+import { withLongNames } from './fakeLong.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -310,6 +311,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   const builtinTracker = params.get('tracker') === 'builtin'
   if (builtinTracker && current.state !== null) current.state = withBuiltinTracker(current.state)
+  if (params.get('long') === 'on' && current.state !== null) current.state = withLongNames(current.state)
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent

@@ -50,6 +50,7 @@ export function ProjectName({ project, form }: { project: string; form: ProjectF
       ) : (
         <input
           className="project__name-input"
+          autoComplete="off"
           aria-label={t.project.name}
           maxLength={NAME_LENGTH}
           autoFocus

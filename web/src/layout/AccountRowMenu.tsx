@@ -108,7 +108,7 @@ function RenameAccount({ entry, name, send, sending, onClose }: { entry: Account
         <header className="add-package__head"><h2 id={heading} className="add-package__title">{t.account.renameAction}</h2></header>
         <div className="add-package__body">
           <label className="account-rename">{t.account.keyName}
-            <input autoFocus className="account__input" maxLength={80} value={text} placeholder={name} onChange={(event) => setText(event.target.value)} />
+            <input autoFocus className="account__input" autoComplete="off" maxLength={80} value={text} placeholder={name} onChange={(event) => setText(event.target.value)} />
           </label>
         </div>
         <footer className="add-package__foot">

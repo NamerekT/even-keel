@@ -78,6 +78,15 @@ export function OutOfChainIcon() {
   )
 }
 
+/** Go to where an entry happened: an arrow to the right. */
+export function GoToIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h9.5M9 4.5 12.5 8 9 11.5" />
+    </svg>
+  )
+}
+
 export function StackIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">

@@ -364,6 +364,7 @@ function LinkField({ value, onApply, onCancel }: { value: string; onApply: (href
       <input
         className="description__link-field"
         type="url"
+        autoComplete="off"
         value={href}
         placeholder="https://"
         aria-label={words.linkUrl}
