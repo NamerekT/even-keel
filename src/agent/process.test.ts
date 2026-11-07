@@ -1,5 +1,4 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { isAlive, killTree, parseProcessTable, stopTree, treeTargets } from './process.js'
 
@@ -30,14 +29,14 @@ describe('treeTargets', () => {
 
 const setsid = process.platform === 'linux' && spawnSync('setsid', ['--version']).status === 0
 
-/** In a CI container PID 1 may never reap orphans: the killed command stays a zombie that `kill(pid, 0)` still finds. */
+/**
+ * In a CI container PID 1 may never reap orphans: the killed command stays a zombie that `kill(pid, 0)` still finds.
+ * The state comes from `ps`, not `/proc`: macOS has no `/proc`.
+ */
 function running(pid: number): boolean {
   if (!isAlive(pid)) return false
-  try {
-    return readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ').at(-1)![0] !== 'Z'
-  } catch {
-    return false
-  }
+  const state = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).stdout.trim()
+  return state !== '' && !state.startsWith('Z')
 }
 
 describe.runIf(setsid)('killTree on Linux', () => {
