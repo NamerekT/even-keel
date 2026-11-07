@@ -153,6 +153,8 @@ export interface ProjectSettings {
   cacheTtl: CacheTtl | null
   /** Claude chain sessions' compaction window in tokens; null inherits the account's window. */
   autoCompactWindow: number | null
+  /** Codex chain sessions' context window in tokens (BTN-810); null keeps the model's own window. */
+  codexAutoCompactWindow: number | null
   /** The resolved native deny rules; omitted by older clients. */
   protection?: Protection
   /** The checkpoint hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
@@ -181,6 +183,7 @@ export interface OwnValues {
   promptLanguage?: Language
   cacheTtl?: CacheTtl | null
   autoCompactWindow?: number | null
+  codexAutoCompactWindow?: number | null
   contextHandoffs?: boolean
   'stats.checkpointTokens'?: number | null
   'stats.checkpointShares.first'?: number
@@ -278,6 +281,7 @@ export interface SharedForm {
   hiddenSkills: string[]
   cacheTtl: CacheTtl | null
   autoCompactWindow: number | null
+  codexAutoCompactWindow: number | null
   /** For every project without its own (BTN-255); `false` — no handoffs by context size. */
   contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */

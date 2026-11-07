@@ -20,6 +20,7 @@ import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
+import { chainWindowOf } from '../codex/window.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
 import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
@@ -691,13 +692,19 @@ export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string
   }
 }
 
-export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, project: string | undefined, task: string) => Pick<SessionStart, "bypassSandbox" | "mcp" | "plugins" | "protection" | "mainBranch"> {
-  return (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch'> => ({
-    protection: (project === undefined ? undefined : ctx.configStore.current.settings[project]?.protection) ?? ctx.configStore.current.protection,
-    ...(project === undefined ? {} : { mainBranch: ctx.branchOf(project) }),
-    ...(home.agent !== CLAUDE && ctx.configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
-    ...(project === undefined ? {} : ctx.packages.startOf(project, task, home.agent)),
-  })
+type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow'>
+
+export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, project: string | undefined, task: string) => AgentExtras {
+  return (home: AccountHome, project: string | undefined, task: string): AgentExtras => {
+    const window = home.agent === CODEX ? chainWindowOf(ctx.configStore.current, project) : undefined
+    return {
+      protection: (project === undefined ? undefined : ctx.configStore.current.settings[project]?.protection) ?? ctx.configStore.current.protection,
+      ...(project === undefined ? {} : { mainBranch: ctx.branchOf(project) }),
+      ...(home.agent !== CLAUDE && ctx.configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
+      ...(project === undefined ? {} : ctx.packages.startOf(project, task, home.agent)),
+      ...(window === undefined ? {} : { contextWindow: window }),
+    }
+  }
 }
 
 export function wireNoAccountFor(ctx: AccountsContext): (task: string, fallback: string, provider: string) => Notice {

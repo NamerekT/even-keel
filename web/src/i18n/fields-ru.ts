@@ -46,6 +46,7 @@ export const fieldsRu: FieldTexts = {
   'config.hiddenSkills': () => 'По имени навыка на строку',
   'config.cacheTtl': () => '5 мин, 1 ч или пусто',
   'config.autoCompactWindow': () => 'Положительное целое число токенов или пусто — окно аккаунта',
+  'config.codexAutoCompactWindow': () => 'Положительное целое число токенов или пусто — собственное окно модели',
   'config.parallel': (p) => `Целое число от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
   'config.attachmentLimit': (p) => `Целое число мегабайт от 1 до ${p.max}, а не ${p.value}`,

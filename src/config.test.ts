@@ -110,7 +110,7 @@ describe('parseConfig', () => {
       moves: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -129,6 +129,7 @@ describe('parseConfig', () => {
       protection: DEFAULT_PROTECTION,
       cacheTtl: null,
       autoCompactWindow: null,
+      codexAutoCompactWindow: null,
       contextHandoffs: true,
       parallel: 1,
       keepWarm: 0,
@@ -345,6 +346,7 @@ describe('parseConfig', () => {
         promptLanguage: 'en',
         cacheTtl: null,
         autoCompactWindow: null,
+        codexAutoCompactWindow: null,
         contextHandoffs: true,
         protection: DEFAULT_PROTECTION,
         checkpointTokens: null,
@@ -354,7 +356,7 @@ describe('parseConfig', () => {
       },
       XYZ: {
         ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, changelog: 'CHANGELOG.md', standards: [] },
-        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} },
+        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} },
       },
     })
   })

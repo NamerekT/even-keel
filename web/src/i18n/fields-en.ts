@@ -50,6 +50,7 @@ export const fieldsEn = {
   'config.hiddenSkills': () => 'A skill name per line',
   'config.cacheTtl': () => '5 min, 1 h, or empty',
   'config.autoCompactWindow': () => 'Positive whole tokens, or empty for the account window',
+  'config.codexAutoCompactWindow': () => "Positive whole tokens, or empty for the model's own window",
   'config.parallel': (p) => `A whole number from 1, not ${p.value}`,
   'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
   'config.attachmentLimit': (p) => `Whole megabytes from 1 to ${p.max}, not ${p.value}`,

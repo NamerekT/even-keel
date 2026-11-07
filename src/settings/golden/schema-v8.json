@@ -107,6 +107,7 @@
       "modelLabels": null,
       "cacheTtl": null,
       "autoCompactWindow": null,
+      "codexAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -161,6 +162,7 @@
       "modelLabels": false,
       "cacheTtl": null,
       "autoCompactWindow": null,
+      "codexAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -247,6 +249,7 @@
   },
   "cacheTtl": null,
   "autoCompactWindow": null,
+  "codexAutoCompactWindow": null,
   "contextHandoffs": true,
   "ci": {
     "guard": true,

@@ -82,7 +82,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm', 'codexAutoCompactWindow'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
@@ -117,6 +117,7 @@ const valuesOf = (form: SharedForm): Values => ({
   hiddenSkills: form.hiddenSkills.join('\n'),
   cacheTtl: form.cacheTtl ?? '',
   autoCompactWindow: form.autoCompactWindow === null ? '' : String(form.autoCompactWindow),
+  codexAutoCompactWindow: form.codexAutoCompactWindow === null ? '' : String(form.codexAutoCompactWindow),
   keepWarm: String(form.keepWarm),
   attachmentLimit: String(form.attachmentLimit),
   allowedHosts: form.allowedHosts.join('\n'),
@@ -153,7 +154,8 @@ function formOf(values: Values): SharedForm | undefined {
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
   const autoCompactWindow = text('autoCompactWindow').trim() === '' ? null : wholeOf(text('autoCompactWindow'), 1)
-  if (autoCompactWindow === undefined) return undefined
+  const codexAutoCompactWindow = text('codexAutoCompactWindow').trim() === '' ? null : wholeOf(text('codexAutoCompactWindow'), 1)
+  if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
@@ -180,6 +182,7 @@ function formOf(values: Values): SharedForm | undefined {
     hiddenSkills: linesOf(text('hiddenSkills')),
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
     autoCompactWindow,
+    codexAutoCompactWindow,
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     attachmentLimit: attachmentLimit!,
@@ -330,6 +333,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const kinds = draft.edit.kinds as readonly CiKind[]
   const unguarded = !(draft.edit.guard as boolean)
   const handoffsOff = !(draft.edit.contextHandoffs as boolean)
+  const codexWindowBad = text('codexAutoCompactWindow').trim() !== '' && wholeOf(text('codexAutoCompactWindow'), 1) === undefined
   const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
 
   const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
@@ -557,6 +561,17 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             t.shared.cacheTtlHint,
           )}
           {numberRow('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
+        </Section>
+        <Section title={t.shared.codex}>
+          <Row
+            className={marks.box('codexAutoCompactWindow')}
+            label={t.shared.autoCompactWindow}
+            hint={t.shared.codexAutoCompactWindowHint}
+            htmlFor={fieldId('codexAutoCompactWindow')}
+            mark={marks.note('codexAutoCompactWindow', (value) => ((value as string).trim() === '' ? t.shared.codexAutoCompactWindowModel : (value as string)))}
+            control={numberInput('codexAutoCompactWindow', codexWindowBad, { placeholder: t.shared.codexAutoCompactWindowModel })}
+            error={codexWindowBad ? { code: 'config.codexAutoCompactWindow', params: { value: text('codexAutoCompactWindow') } } : errorOf('codexAutoCompactWindow')}
+          />
         </Section>
       </>
     ),

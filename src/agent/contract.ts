@@ -98,6 +98,11 @@ export interface SessionStart {
    * is saved as a sample (BTN-724). Codex reads it; Claude's is off by the check's environment and `--settings`.
    */
   noMemory?: boolean
+  /**
+   * Optional. Codex: the context window of a new chain session in tokens (`codexAutoCompactWindow`, BTN-810), kept
+   * by the session for its later turns. Claude's window goes in `settings`.
+   */
+  contextWindow?: number
 }
 
 /** `Agent.models`' answer. */

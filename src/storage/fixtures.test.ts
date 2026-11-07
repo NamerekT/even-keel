@@ -42,6 +42,10 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.autoCompactWindow).toBe(300_000)
     expect(config.settings[ABC]?.autoCompactWindow).toBe(400_000)
     expect(config.settings[XYZ]?.autoCompactWindow).toBeNull()
+    expect(config.codexAutoCompactWindow).toBe(250_000)
+    expect(config.settings[ABC]?.codexAutoCompactWindow).toBe(250_000)
+    expect(config.settings[ABC]?.own.codexAutoCompactWindow).toBeUndefined()
+    expect(config.settings[XYZ]?.codexAutoCompactWindow).toBe(400_000)
     expect(config.ownRules[ABC]).toEqual({ excludedLabels: ['Later', 'Manual', 'Вручную'] })
     expect(config.rules[XYZ]?.excludedLabels).toEqual(['Manual', 'Вручную'])
     expect(config.feeds[ABC]?.map((feed) => feed.chain)).toEqual([{ requiredLabels: ['agent'] }])
@@ -58,7 +62,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
 
   it('reads the record of a Codex session', () => {
     const session = parseSession(readFileSync(sample('state/codex/sessions/00000000-0000-4000-8000-0000000000c1.json'), 'utf8'))
-    expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000c1', name: 'XYZ-7', account: 'codex', pid: 4242 })
+    expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000c1', name: 'XYZ-7', account: 'codex', pid: 4242, contextWindow: 400_000 })
   })
 
   // The chain, the questions and the launches are read the way the service gets them: imported into the database.

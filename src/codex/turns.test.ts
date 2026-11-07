@@ -72,6 +72,11 @@ describe('entryOf', () => {
     expect(entry.pid).toBeUndefined()
   })
 
+  it('compacts where its launch window says', () => {
+    expect(entryOf({ ...session, contextWindow: 250_000 }, false).compactAt).toBe(218_000)
+    expect(entryOf(session, false).compactAt).toBeUndefined()
+  })
+
   it('is stopped once stopped', () => {
     const entry = entryOf({ ...session, stopped: true }, false)
     expect(entry).toMatchObject({ state: 'stopped' })
@@ -83,6 +88,8 @@ describe('parseSession', () => {
   it('reads a saved session and refuses a broken one', () => {
     expect(parseSession(JSON.stringify({ version: 6, ...session }))).toEqual(session)
     expect(parseSession(JSON.stringify({ ...session, stopped: true }))?.stopped).toBe(true)
+    expect(parseSession(JSON.stringify({ ...session, contextWindow: 250_000 }))?.contextWindow).toBe(250_000)
+    expect(parseSession(JSON.stringify({ ...session, contextWindow: 'x' }))).toEqual(session)
     expect(parseSession(JSON.stringify({ ...session, pid: 'x' }))).toBeUndefined()
     expect(parseSession('{')).toBeUndefined()
   })

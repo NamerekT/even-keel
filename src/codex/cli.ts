@@ -19,6 +19,7 @@ import { type CodexPlugins, UntrustedHooks } from './plugins.js'
 import { APPEAR_TIMEOUT_MS, polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
 import { foldRollout, RolloutFold } from './rollout.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
+import { windowArgs } from './window.js'
 
 const run = promisify(execFile)
 
@@ -51,7 +52,7 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv, pinned?: string): str
  * Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`.
  * A project with a `CLAUDE.md` and no `AGENTS.md` still gives the session its rules (BTN-340, checked on 0.164.0).
  */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
+export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
@@ -61,6 +62,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
     'project_doc_fallback_filenames=["CLAUDE.md"]',
     // The keys as `config/read` of 0.166.0 shows them (BTN-724).
     ...(start.noMemory === true ? ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false'] : []),
+    ...windowArgs(start.contextWindow),
     ...(model === null ? [] : ['-m', model]),
     ...mcpArgs(mcp),
     ...plugins,
@@ -74,7 +76,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
  * servers and plugins, so that its prompt is the session's and reads its cache. Read-only refuses a tool call; the
  * hooks are off, so that a package's Stop hook takes no mail meant for the waiting session (checked on 0.164.0, BTN-677).
  */
-export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp'>, sessionId: string, plugins: string[] = []): string[] {
+export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp' | 'contextWindow'>, sessionId: string, plugins: string[] = []): string[] {
   const { model, mcp = [] } = start
   return [
     'exec',
@@ -86,6 +88,7 @@ export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp'>, sessionId: 
     'hooks',
     '-c',
     'project_doc_fallback_filenames=["CLAUDE.md"]',
+    ...windowArgs(start.contextWindow),
     ...(model === null ? [] : ['-m', model]),
     ...mcpArgs(mcp),
     ...plugins,
@@ -196,17 +199,19 @@ export class CodexCli {
     if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
-    await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
+    const window = start.contextWindow === undefined ? {} : { contextWindow: start.contextWindow }
+    await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out, ...window })
     return turn.thread
   }
 
-  /** Codex resumes in the process's folder: the session's own, whatever `start.cwd` says. */
+  /** Codex resumes in the process's folder: the session's own, whatever `start.cwd` says; with its own window too. */
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
     if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
     const plugins = await this.pluginArgs(home, start, cwd)
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
+    const own = { ...start, contextWindow: session.contextWindow }
+    const turn = await this.turn(home, start, turnArgs(own, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })
     const { stopped: _, ...kept } = session
     await this.saveTurn({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
@@ -218,12 +223,12 @@ export class CodexCli {
    * the fork, which adds it to its own usage; the session waits, so no turn of its own moves it meanwhile.
    */
   async warm(home: AccountHome, sessionId: string, start: SessionStart): Promise<TurnSpend> {
-    const { cwd } = await this.known(sessionId)
+    const { cwd, contextWindow } = await this.known(sessionId)
     const source = await foldRollout(home.dir, sessionId, new RolloutFold(0))
     if (source === undefined) throw new Error(`no rollout of ${sessionId} in ${home.dir}`)
     const plugins = await this.pluginArgs(home, start, cwd)
     const started = Date.now()
-    const stdout = await runWithInput(this.bin(), warmArgs(start, sessionId, plugins), start.prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS })
+    const stdout = await runWithInput(this.bin(), warmArgs({ ...start, contextWindow }, sessionId, plugins), start.prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS })
     return forkSpend(parseWriteAnswer(stdout, start.model, Date.now() - started).spend, source.tokens)
   }
 

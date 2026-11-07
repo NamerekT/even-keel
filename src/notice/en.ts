@@ -623,6 +623,7 @@ export const en = {
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,
   'config.autoCompactWindow': (p: { value: string }) => `config: autoCompactWindow ${p.value} must be a positive whole number of tokens, or null for the account's window`,
+  'config.codexAutoCompactWindow': (p: { value: string }) => `config: codexAutoCompactWindow ${p.value} must be a positive whole number of tokens, or null for the model's own window`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.keepWarm': (p: { value: string; max: string }) => `config: keepWarm must be a whole number of hours from 0 to ${p.max}, got ${p.value}`,
   'config.attachmentLimit': (p: { value: string; max: string }) => `config: attachmentLimit must be a whole number of megabytes from 1 to ${p.max}, got ${p.value}`,

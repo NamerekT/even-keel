@@ -45,6 +45,17 @@ retain `settings` across reconnects. The cache separates account, model and laun
 windows cannot share a measurement. Old records without launch settings use the account's window. The measured
 window feeds `withinWindow`: the checkpoint shares and the margins before Claude's own compaction move with it.
 
+`codexAutoCompactWindow` (BTN-810) is the same setting for Codex chain sessions, shared and per project, with the same
+inheritance; `null` keeps the model's own window. `wireAgentExtras` puts the number into `SessionStart.contextWindow`
+of a Codex launch, and `windowArgs` (`src/codex/window.ts`) turns it into `-c model_context_window=<W>` and
+`-c model_auto_compact_token_limit=<W − 32000>`: Codex then compacts where Claude does with the same window
+(`CLAUDE_COMPACTION_GAP`). Codex has no process between turns, so the window is written into the session's record
+(`CodexSession.contextWindow`) at launch; every `resume` and keep-warm `fork` takes it from there, never from the
+current settings, and a running session keeps its window through a live edit. Hand sessions and `config.toml` are
+not touched. The record's window gives `AgentEntry.compactAt`, which `withinWindow` takes as the compaction point
+over the agent's measured gap: with a window set, Codex's late and hard thresholds stay before its compaction as
+Claude's do; without one they are only shares of the window the rollout reports.
+
 - **Codex** writes it into the rollout: `model_context_window` of `task_started` and of every `token_count` (`RolloutFold`, 258400 for `gpt-6.1-sol` on 0.163.0). A finished session's record carries it too.
 - **Claude** gives it to `claude -p /context --output-format json --no-session-persistence --model <model>`, a local command with no turn: the `result` has the line `**Tokens:** 23.8k / 250k (10%)` (`parseContextWindow` in `src/claude/context.ts`). It answers the window the account's settings make, `autoCompactWindow` included: with 250k in `~/.claude/settings.json` every model answered 250k on 2.1.303, `opus[1m]` too. It runs spawned directly, never through Git Bash (`docs/accounts.md`), in the account's environment with the `--settings` of a chain session of the task's project.
 - The model asked about is the `--model` the session was started with, from `respawnFlags` of its `jobs/<id>/state.json` (`launchedModel`): the transcript names `claude-opus-5-5` for an `opus[1m]` launch. A session without a job file or a `--model` is asked about the transcript's model.

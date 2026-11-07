@@ -70,7 +70,8 @@ export const DEFAULT_SHARES: Readonly<CheckpointShares> = Object.freeze({ first:
  * 56 auto-compactions of a 250k window at 216–227k and on a 400k window at a median 369k. An agent not here keeps
  * the shares alone until its point is measured.
  */
-const COMPACTION_GAP: Readonly<Record<string, number>> = { [CLAUDE]: 32_000 }
+export const CLAUDE_COMPACTION_GAP = 32_000
+const COMPACTION_GAP: Readonly<Record<string, number>> = { [CLAUDE]: CLAUDE_COMPACTION_GAP }
 /** How far before that point the thresholds come at most: room for a large tool result and the note. */
 const BEFORE_COMPACTION = { first: 30_000, late: 30_000, hard: 15_000 } as const
 
@@ -81,19 +82,22 @@ const shareOf = (window: number, percent: number) => thousands((window * percent
  * The thresholds of one session: a default or calibrated one over the share of its window goes down to it, and
  * it, the late and the hard ones are capped by theirs and, for an agent whose compaction is measured, by that
  * point less their margin. One pinned in the settings stays as it is, past the window too, with the hook's own
- * later thresholds: whoever pinned it meant it.
+ * later thresholds: whoever pinned it meant it. `compactAt` — where Even Keel set the session to compact (a Codex
+ * session started with `codexAutoCompactWindow`), over the agent's measured gap.
  */
 export function withinWindow(
   threshold: Pick<SessionCheckpoint, 'first' | 'source'>,
   window: number | null,
   shares: CheckpointShares = DEFAULT_SHARES,
   agent: string | null = null,
+  compactAt: number | null = null,
 ): Pick<SessionCheckpoint, 'first' | 'source' | 'late' | 'hard'> {
   if (window === null || threshold.source === 'config') return { ...threshold, late: null, hard: null }
   const gap = agent === null ? undefined : COMPACTION_GAP[agent]
+  const point = compactAt ?? (gap === undefined ? undefined : window - gap)
   const capped = (key: keyof typeof BEFORE_COMPACTION) => {
     const share = shareOf(window, shares[key])
-    return gap === undefined ? share : Math.min(share, thousands(window - gap - BEFORE_COMPACTION[key]))
+    return point === undefined ? share : Math.min(share, thousands(point - BEFORE_COMPACTION[key]))
   }
   const cap = capped('first')
   const first = threshold.first > cap ? { first: cap, source: 'window' as const } : threshold

@@ -15,7 +15,7 @@ export const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
+    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'ownCodexCompact', 'codexAutoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
   // Applied at once, as "Don't show again" on a banner is (BTN-759): no draft.

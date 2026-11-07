@@ -130,6 +130,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       promptLanguage: 'en',
       cacheTtl: null,
       autoCompactWindow: null,
+      codexAutoCompactWindow: null,
       contextHandoffs: true,
       checkpointTokens: null,
       checkpointShares: { first: 72, late: 85, hard: 95 },

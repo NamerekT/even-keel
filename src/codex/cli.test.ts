@@ -50,6 +50,10 @@ describe('warmArgs', () => {
     ])
     expect(warmArgs({ model: null }, ID).slice(-4)).toEqual(['project_doc_fallback_filenames=["CLAUDE.md"]', 'fork', ID, '-'])
   })
+
+  it('forks with the window the session was started with', () => {
+    expect(warmArgs({ model: null, contextWindow: 250_000 }, ID).slice(-7)).toEqual(['-c', 'model_context_window=250000', '-c', 'model_auto_compact_token_limit=218000', 'fork', ID, '-'])
+  })
 })
 
 describe('forkSpend', () => {
@@ -147,6 +151,16 @@ describe('turnArgs', () => {
   it('keeps the memory out, neither read nor written, when the start asks so', () => {
     const off = ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false']
     expect(turnArgs({ model: null, noMemory: true }, 'go on', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...off, 'resume', 'thread-1', 'go on'])
+  })
+
+  it('sets the window and compacts where Claude would with the same window', () => {
+    const window = ['-c', 'model_context_window=250000', '-c', 'model_auto_compact_token_limit=218000']
+    expect(turnArgs({ model: null, contextWindow: 250_000 }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, 'BTN-1'])
+    expect(turnArgs({ model: null, contextWindow: 250_000 }, 'go on', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, 'resume', 'thread-1', 'go on'])
+  })
+
+  it("leaves the model's own window without one", () => {
+    expect(turnArgs({ model: null }, 'BTN-1').join(' ')).not.toContain('model_context_window')
   })
 
   it('puts the model, the gateway servers and every other flag before resume', () => {

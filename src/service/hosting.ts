@@ -498,7 +498,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const { first, source } = await ctx.stats.checkpoint(ctx.configStore.current.keys[run.project] ?? run.project, pinned)
       const settings = ctx.configStore.current.settings[run.project]
       const shares = settings?.checkpointShares ?? ctx.configStore.current.stats.checkpointShares
-      const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null)
+      const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null, ctx.monitor.compactAtOf(sessionId))
       const off = !(settings?.contextHandoffs ?? ctx.configStore.current.contextHandoffs)
       return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context: ctx.monitor.contextOf(sessionId) ?? null }
     },

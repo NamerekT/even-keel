@@ -44,6 +44,7 @@ The remaining JSON files written through `writeAtomic` (`src/storage/atomic.ts`)
 
 ## Schema steps
 
+- File schema v30 (BTN-810) adds nullable `codexAutoCompactWindow` at the shared and project levels and an optional `contextWindow` to Codex session records (`state/codex/sessions/`). Migration only restamps older files: an omitted value keeps the model's own window. The definition is mirrored from the registry at startup, so there is no database step. The frozen sample is `test/fixtures/schema-v30/`.
 - Step 33 and file schema v29 (BTN-206): optional project-only `testProject`, default `false`. The step registers its definition on an existing project database; the normal definition mirror handles fresh databases. There are no history rewrites or deletions. Frozen samples are `test/fixtures/database-v33/` and `test/fixtures/schema-v29/`; `database-test-project.test.ts` checks the step, including repeat application.
 
 - Step 19 and file schema v20 (BTN-541) split Protection's one tracker group `deleteTracker` into a group per tracker (`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`): a disabled `deleteTracker` disables all five, at the shared and the project level. The step rewrites the `protection` rows of `setting_values`; the file migration (`trackerGroupsOwned`) does the same on import. The frozen v19 sample holds a shared and a project row with the old group; `database-protection.test.ts` checks both paths.

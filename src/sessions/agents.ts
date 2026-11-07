@@ -38,6 +38,8 @@ export interface AgentEntry {
   model?: string
   /** Original launch settings, retained so a window probe does not apply later project edits to this session. */
   settings?: string
+  /** The context size Even Keel set the session to compact at (a Codex session with a window, BTN-810). */
+  compactAt?: number
 }
 
 /** A live session has a process, or rests between turns without one. */

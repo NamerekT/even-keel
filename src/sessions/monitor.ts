@@ -93,6 +93,12 @@ export class SessionMonitor {
     return this.compactions.get(sessionId) ?? 0
   }
 
+  /** Where Even Keel set the session to compact (`AgentEntry.compactAt`); `null` — the agent's own point. */
+  compactAtOf(sessionId: string): number | null {
+    for (const { agent } of this.tracked.values()) if (agent.sessionId === sessionId) return agent.compactAt ?? null
+    return null
+  }
+
   handoff(task: string): HandoffSession | undefined {
     const tracked = this.tracked.get(task)
     if (tracked === undefined) return undefined

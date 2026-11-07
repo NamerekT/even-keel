@@ -551,6 +551,7 @@ export const noticesRu: NoticeTexts = {
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
   'config.cacheTtl': (p) => `cacheTtl: ${p.value} — должно быть "5m" или "1h", либо ключа нет`,
   'config.autoCompactWindow': (p) => `Окно автокомпакта: ${p.value} — нужно положительное целое число токенов или null для окна аккаунта`,
+  'config.codexAutoCompactWindow': (p) => `Окно автокомпакта Codex: ${p.value} — нужно положительное целое число токенов или null для собственного окна модели`,
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `keepWarm должен быть целым числом часов от 0 до ${p.max}, а не ${p.value}`,
   'config.attachmentLimit': (p) => `attachmentLimit должен быть целым числом мегабайт от 1 до ${p.max}, а не ${p.value}`,

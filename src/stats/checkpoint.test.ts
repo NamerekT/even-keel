@@ -31,6 +31,13 @@ describe('withinWindow', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400, DEFAULT_SHARES, 'claude')).toMatchObject({ late: 196_000, hard: 211_000 })
   })
 
+  it('keeps the thresholds of a Codex session before the compaction point Even Keel set, and only the shares without one', () => {
+    const claude = withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'claude')
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'codex', 218_000)).toEqual(claude)
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 237_500, DEFAULT_SHARES, 'codex', 218_000)).toMatchObject({ late: 188_000, hard: 203_000 })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, DEFAULT_SHARES, 'codex')).toMatchObject({ late: 212_000, hard: 237_000 })
+  })
+
   it('takes the share when it comes before the compaction', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 400_000, DEFAULT_SHARES, 'claude')).toMatchObject({ late: 338_000, hard: 353_000 })
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 400_000, { first: 50, late: 60, hard: 70 }, 'claude')).toMatchObject({ late: 240_000, hard: 280_000 })

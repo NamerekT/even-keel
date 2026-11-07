@@ -7,6 +7,7 @@ import { JsonFolder } from '../storage/json-folder.js'
 import { SCHEMA_VERSION } from '../storage/schema.js'
 import { CODEX } from './name.js'
 import { turnStartedAt } from './process.js'
+import { compactionLimit } from './window.js'
 
 /**
  * A Codex session Even Keel started. Codex has no list of its background sessions: each turn is a `codex exec`
@@ -24,6 +25,8 @@ export interface CodexSession {
   pid: number
   /** The `--json` output of the last turn. */
   out: string
+  /** The window it was started with (`codexAutoCompactWindow`); every later turn and fork keeps it. */
+  contextWindow?: number
   stopped?: boolean
 }
 
@@ -96,16 +99,17 @@ export function parseSession(raw: string): CodexSession | undefined {
     return undefined
   }
   if (typeof value !== 'object' || value === null) return undefined
-  const { sessionId, name, cwd, account, startedAt, pid, out, stopped } = value as Record<string, unknown>
+  const { sessionId, name, cwd, account, startedAt, pid, out, contextWindow, stopped } = value as Record<string, unknown>
   if (typeof sessionId !== 'string' || typeof name !== 'string' || typeof cwd !== 'string' || typeof account !== 'string') return undefined
   if (typeof startedAt !== 'number' || typeof pid !== 'number' || typeof out !== 'string') return undefined
-  return { sessionId, name, cwd, account, startedAt, pid, out, ...(stopped === true ? { stopped } : {}) }
+  const window = typeof contextWindow === 'number' && Number.isSafeInteger(contextWindow) && contextWindow > 0 ? { contextWindow } : {}
+  return { sessionId, name, cwd, account, startedAt, pid, out, ...window, ...(stopped === true ? { stopped } : {}) }
 }
 
 /** The session as the chain sees it: busy while its turn runs, resting and idle between turns. OpenCode keeps its sessions the same way. */
 export function entryOf(session: CodexSession, live: boolean, kind = CODEX): AgentEntry {
   const { sessionId, name, cwd, account, startedAt } = session
-  const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt }
+  const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt, ...(session.contextWindow !== undefined && { compactAt: compactionLimit(session.contextWindow) }) }
   if (session.stopped === true) return { ...entry, state: 'stopped' }
   if (live) return { ...entry, pid: session.pid, processStartedAt: turnStartedAt(session.out) ?? startedAt, status: 'busy', state: 'working' }
   return { ...entry, status: 'idle', state: 'working', resting: true }

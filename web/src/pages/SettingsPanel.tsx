@@ -296,6 +296,23 @@ export function SettingsPanel({
       onChange={(event) => onChange(event.target.value)}
     />
   )
+  // An agent's compaction window: the project's own or the shared one, empty for the agent's own window.
+  const windowRow = (flag: string, key: 'autoCompactWindow' | 'codexAutoCompactWindow', empty: string, hint: string) => {
+    const sharedText = shared[key] === null ? '' : String(shared[key])
+    const invalid = on(flag) && compactWindowOf(text(key)) === undefined
+    return (
+      <Row
+        className={marks.box([flag, key])}
+        label={t.shared.autoCompactWindow}
+        hint={hint}
+        htmlFor={fieldId(key)}
+        inherit={ownInherit(flag, { [key]: sharedText }, sharedText || empty)}
+        mark={flagNote(flag, [key], (value) => ((value as string).trim() === '' ? empty : (value as string)))}
+        control={number(key, on(flag) ? text(key) : sharedText, invalid, (value) => ownEdit(flag, { [key]: sharedText })(key, value), { placeholder: empty })}
+        error={invalid ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)}
+      />
+    )
+  }
 
   const groups: Record<GroupId, () => ReactNode> = {
     repo: () => (
@@ -637,22 +654,6 @@ export function SettingsPanel({
         </Section>
         <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => editInherited('protection', value, protectionText(shared.protection ?? DEFAULT_PROTECTION))} error={errorOf('protection')} mark={marks.note('protection')} />
         <Section title={t.settings.sections.context}>
-          <Row
-            className={marks.box(['ownAutoCompact', 'autoCompactWindow'])}
-            label={t.shared.autoCompactWindow}
-            hint={t.shared.autoCompactWindowHint}
-            htmlFor={fieldId('autoCompactWindow')}
-            inherit={ownInherit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) }, shared.autoCompactWindow === null ? t.shared.autoCompactWindowAccount : String(shared.autoCompactWindow))}
-            mark={flagNote('ownAutoCompact', ['autoCompactWindow'], (value) => ((value as string).trim() === '' ? t.shared.autoCompactWindowAccount : (value as string)))}
-            control={number(
-              'autoCompactWindow',
-              on('ownAutoCompact') ? text('autoCompactWindow') : shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow),
-              on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined,
-              (value) => ownEdit('ownAutoCompact', { autoCompactWindow: shared.autoCompactWindow === null ? '' : String(shared.autoCompactWindow) })('autoCompactWindow', value),
-              { placeholder: t.shared.autoCompactWindowAccount },
-            )}
-            error={on('ownAutoCompact') && compactWindowOf(text('autoCompactWindow')) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
-          />
           {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
           <Row
             className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
@@ -689,6 +690,9 @@ export function SettingsPanel({
             </div>
             <FieldNote error={errorOf('checkpointShares')} />
           </div>
+        </Section>
+        <Section title={t.shared.claude}>
+          {windowRow('ownAutoCompact', 'autoCompactWindow', t.shared.autoCompactWindowAccount, t.shared.autoCompactWindowHint)}
           {pick(
             'cacheTtl',
             t.shared.cacheTtl,
@@ -700,6 +704,9 @@ export function SettingsPanel({
             ],
             { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
           )}
+        </Section>
+        <Section title={t.shared.codex}>
+          {windowRow('ownCodexCompact', 'codexAutoCompactWindow', t.shared.codexAutoCompactWindowModel, t.shared.codexAutoCompactWindowHint)}
         </Section>
       </>
     ),
