@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -470,6 +470,8 @@ export const noticesRu: NoticeTexts = {
     p.why === 'current'
       ? `${p.task} — текущая задача цепи: пропустите её или остановите цепь, потом удаляйте`
       : `у ${p.task} живая сессия: остановите её, потом удаляйте задачу`,
+  'builtin.fileTooLarge': (p) => `${p.name} больше ${megabytes(p.limit)} МБ — предела размера вложения: поднимите «Предел размера вложения, МБ» (Настройки → Интерфейс) или приложите файл поменьше`,
+  'builtin.noFile': (p) => `у ${p.task} нет такого вложения, страница, возможно, устарела`,
   'builtin.noNote': (p) => `у ${p.task} нет такой вашей заметки: удалить можно только свою, а страница, возможно, устарела`,
   'builtin.emptyName': () => 'имя пустое',
   'builtin.noMilestone': () => 'такой вехи нет — возможно, страница устарела',
@@ -551,6 +553,7 @@ export const noticesRu: NoticeTexts = {
   'config.autoCompactWindow': (p) => `Окно автокомпакта: ${p.value} — нужно положительное целое число токенов или null для окна аккаунта`,
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `keepWarm должен быть целым числом часов от 0 до ${p.max}, а не ${p.value}`,
+  'config.attachmentLimit': (p) => `attachmentLimit должен быть целым числом мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
   'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,
   'config.intakeLabel': (p) => `${p.where} — имя метки GitHub или null`,

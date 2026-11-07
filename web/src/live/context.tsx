@@ -8,7 +8,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -28,6 +28,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     vocabulary: (projectId) => source.vocabulary(projectId),
     checkProject: (draft, askTracker) => activity.track(source.checkProject(draft, askTracker)),
     query: (name, body) => activity.track(source.query(name, body)),
+    attach: (task, file) => activity.track(source.attach(task, file)),
     statsHistory: (filter) => source.statsHistory(filter),
     statsPeriod: (query) => source.statsPeriod(query),
     statsSteps: (query) => source.statsSteps(query),

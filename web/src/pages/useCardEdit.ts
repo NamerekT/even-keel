@@ -23,6 +23,8 @@ export interface CardEditor {
   edit: (field: BuiltinField, from: string | null, to: string | null) => Promise<boolean>
   /** "Take the new one": drop the conflict and read the card. */
   settle: () => void
+  /** Read the card anew after a write that went by another way (an upload). */
+  reload: () => void
 }
 
 export function useCardEdit(task: string, onChanged: () => void): CardEditor {
@@ -73,5 +75,5 @@ export function useCardEdit(task: string, onChanged: () => void): CardEditor {
     onChanged()
   }
 
-  return { busy, failure, conflict, run, call, edit, settle }
+  return { busy, failure, conflict, run, call, edit, settle, reload: onChanged }
 }

@@ -29,9 +29,26 @@
 }
 
 .description {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
+}
+
+/* Files dragged over the editor: the whole editor is the drop zone, as the chat's window. */
+.description__drop {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--fg);
+  font-size: var(--text-16);
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .description .description__head {

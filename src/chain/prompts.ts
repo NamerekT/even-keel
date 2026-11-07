@@ -51,6 +51,8 @@ export interface PromptTexts {
   worktree: (path: string) => string
   branch: (branch: string) => string
   brief: (title: string) => string
+  /** The head of the brief's list of attachments (the built-in tracker), each `- name — path` below it. */
+  files: string
   tracker: (title: string, project: string) => string
   shared: (text: string) => string
   project: (text: string) => string
@@ -141,6 +143,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
     brief: (title) => fill`Задача из трекера: ${title}`,
+    files: 'Вложения задачи — открой их через Read:',
     tracker: (title, project) => fill`Трекер: ${title}, проект ${project}.`,
     shared: (text) => fill`Указания для всех проектов:\n${text}`,
     project: (text) => fill`Указания для этого проекта:\n${text}`,
@@ -257,6 +260,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
     brief: (title) => fill`Task from the tracker: ${title}`,
+    files: "The task's attachments — open them with Read:",
     tracker: (title, project) => fill`Tracker: ${title}, project ${project}.`,
     shared: (text) => fill`Instructions for every project:\n${text}`,
     project: (text) => fill`Instructions for this project:\n${text}`,

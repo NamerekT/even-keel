@@ -54,6 +54,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'review.denied': PROFILES,
   'config.token': PAGE,
   'config.tokenShape': PAGE,
+  'builtin.fileTooLarge': PAGE,
   'claude.untrusted': { to: 'resume' },
   'claude.trustWriteFailed': { to: 'resume' },
   'git.missing': { to: 'resume' },
@@ -93,7 +94,7 @@ const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   models: ['provider', 'models', 'accounts', 'execution', 'cli', 'cliCheck', 'modelLabels', 'modelPrompts', 'promptLanguage'],
   sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'autoCompactWindow', 'keepWarm'],
   ci: ['ci'],
-  page: ['language', 'allowedHosts'],
+  page: ['language', 'allowedHosts', 'attachmentLimit'],
   stats: ['stats'],
 }
 

@@ -121,6 +121,67 @@
   opacity: 0.8;
 }
 
+/* Under each tile: its name on one line, its size (BTN-773). */
+.tiles__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tile__caption {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-11);
+  line-height: 1.3;
+}
+
+.tile__caption-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile__size {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The record is there, the file is not: no picture to open, the tip says why. */
+.tile--missing {
+  border-style: dashed;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  cursor: help;
+}
+
+.tile--missing .tile__name {
+  color: inherit;
+}
+
+/* Delete sits on the tile's corner; shown on pointing or focus, always on a touch screen. */
+.tile__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.tiles__item:hover .tile__remove,
+.tiles__item:focus-within .tile__remove {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .tile__remove {
+    opacity: 1;
+  }
+}
+
 /* Chat: thumbnails of the pictures a session read and the user sent */
 
 .thumbs {

@@ -352,6 +352,17 @@ describe('withBrief', () => {
     expect(brief(prompt, undefined)).toBe(prompt)
   })
 
+  it('lists the attachments by their paths after the description', () => {
+    const files = [{ name: 'screen.png', path: 'D:\\state\\files\\ab12' }, { name: 'log.txt', path: 'D:\\state\\files\\cd34' }]
+    expect(brief(prompt, { title: 'Add a button', description: 'Text', files }).slice(prompt.length)).toBe(
+      '\nЗадача из трекера: Add a button\n\nText\n\nВложения задачи — открой их через Read:\n- screen.png — D:\\state\\files\\ab12\n- log.txt — D:\\state\\files\\cd34\n',
+    )
+    expect(withBrief('ABC-1\n', { title: 'T', description: '', files: [files[0]!] }, 'en')).toBe(
+      'ABC-1\n\nTask from the tracker: T\n\nThe task\'s attachments — open them with Read:\n- screen.png — D:\\state\\files\\ab12\n',
+    )
+    expect(brief(prompt, { title: 'Add a button', description: '', files: [] })).toBe(`${prompt}\nЗадача из трекера: Add a button\n`)
+  })
+
   it('fails on a task without a title', () => {
     expect(() => brief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
   })

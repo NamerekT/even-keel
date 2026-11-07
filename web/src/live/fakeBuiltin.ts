@@ -4,6 +4,7 @@ import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { TaskCard, TaskRef } from '../../../src/tracker/card.js'
 import { runLabelOf, type TaskPriority } from '../../../src/tracker/model.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
+import type { AttachedFile } from './connection.js'
 import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
 import { fakeCard } from './fakeCards.js'
 import { fakeJournal, fakeJournalQuery } from './fakeJournal.js'
@@ -26,6 +27,25 @@ const related = new Set<string>()
 const descriptions = new Map<string, string>()
 let conflicted = false
 let descriptionConflicted = false
+/** Files uploaded into a card and the attachments deleted from it (`<task> <id>`): kept until the page reloads. */
+const uploaded = new Map<string, TaskCard['attachments']>()
+const detached = new Set<string>()
+let uploads = 0
+
+/** An upload into a built-in card (BTN-773): the file stays in the browser, its address is the browser's own. */
+export function fakeAttach(task: string, file: File): AttachedFile {
+  const url = URL.createObjectURL(file)
+  const id = `upload-${++uploads}`
+  uploaded.set(task, [...(uploaded.get(task) ?? []), { file: id, id, name: file.name, type: file.type, size: file.size, url }])
+  return { name: file.name, type: file.type, url }
+}
+
+/** `?files=missing`: one more attachment whose file is gone from the disk, as the card shows it. */
+function fakeAttachments(id: string, base: TaskCard['attachments'], files: string | null): TaskCard['attachments'] {
+  const gone = { file: 'gone', id: 'gone', name: 'old-screen.png', type: 'image/png', size: 48_213, url: '', missing: true as const }
+  const all = [...base.map((each) => ({ ...each, id: each.file })), ...(files === 'missing' ? [gone] : []), ...(uploaded.get(id) ?? [])]
+  return all.filter((each) => !detached.has(`${id} ${each.id}`))
+}
 
 const pair = (a: string, b: string) => [a, b].sort().join(' ')
 const refOf = (task: ProjectTask): TaskRef => ({ id: task.id, title: task.title, status: task.status })
@@ -65,7 +85,7 @@ function fakeDescription(described: string | null, base: string): string {
   return markdown
 }
 
-export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: string | null, described: string | null = null): TaskCard | null {
+export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: string | null, described: string | null = null, files: string | null = null): TaskCard | null {
   const tasks = withParents(state)
   const task = tasks.find((each) => each.id === id)
   const base = fakeCard({ ...state, tasks }, id, 'builtin')
@@ -90,6 +110,7 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
     ],
     parent: ancestors.at(-1) ?? null,
     comments: fakeJournal(id, journal),
+    attachments: fakeAttachments(id, base.attachments, files),
     related: tasks.filter((each) => related.has(pair(id, each.id))).map(refOf),
     edit: {
       statuses: [...BUILTIN_STATUSES],
@@ -208,6 +229,9 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
       }
       return { state: placed({ ...state, tasks: [...state.tasks, created] }, created), result: { id: created.id } }
     }
+    case 'builtin/detach':
+      detached.add(`${task} ${String(body.file)}`)
+      return { state: { ...state }, result: {} }
     case 'builtin/delete':
       return {
         state: {

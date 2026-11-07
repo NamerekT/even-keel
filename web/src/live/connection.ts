@@ -13,6 +13,13 @@ import { applyPatch } from './patch.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
+/** A file the service took as an attachment of a built-in task (BTN-773): `type` is what it found in the bytes. */
+export interface AttachedFile {
+  name: string
+  type: string
+  url: string
+}
+
 export interface LiveSnapshot {
   state: EvenKeelState | null
   link: Link
@@ -52,6 +59,8 @@ export interface LiveSource {
   checkProject(draft: ProjectDraft, askTracker?: boolean): Promise<ProjectCheck>
   /** A request that answers with its own result instead of the state (`profiles/check` and the like); changes no state. */
   query<T>(name: string, body: Record<string, unknown>): Promise<T>
+  /** Uploads `file` as an attachment of built-in task `task`. */
+  attach(task: string, file: File): Promise<AttachedFile>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
@@ -75,6 +84,7 @@ export interface LiveDeps {
   fetchVocabulary: (projectId: string) => Promise<TrackerVocabulary | null>
   checkProject: (draft: ProjectDraft, askTracker: boolean) => Promise<ProjectCheck>
   sendQuery: (name: string, body: Record<string, unknown>) => Promise<unknown>
+  sendFile: (task: string, file: File) => Promise<AttachedFile>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
@@ -182,6 +192,10 @@ export class LiveConnection implements LiveSource {
 
   async query<T>(name: string, body: Record<string, unknown>): Promise<T> {
     return (await this.deps.sendQuery(name, body)) as T
+  }
+
+  attach(task: string, file: File): Promise<AttachedFile> {
+    return this.deps.sendFile(task, file)
   }
 
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {

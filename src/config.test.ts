@@ -132,6 +132,7 @@ describe('parseConfig', () => {
       contextHandoffs: true,
       parallel: 1,
       keepWarm: 0,
+      attachmentLimit: 25,
       cliCheck: false,
       updates: { check: true, notify: true },
       unattended: false,

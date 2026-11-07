@@ -62,7 +62,7 @@ import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
 import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
 import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
 export type { ProfilesControl } from './profiles/routes.js'
-import { BUILTIN_QUERIES } from './builtin/routes.js'
+import { BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
 import type { BuiltinControl } from './builtin/control.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
@@ -717,6 +717,18 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
+  if (request.method === 'POST' && path === BUILTIN_UPLOAD) {
+    let attached: unknown
+    try {
+      attached = await builtinUpload(deps, url.searchParams, request)
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    sendJson(response, 200, attached)
+    return
+  }
+
   const query = request.method === 'POST' ? QUERIES[path.slice('/api/'.length)] : undefined
   if (query !== undefined) {
     let result: unknown
@@ -779,7 +791,7 @@ async function sendFile(response: ServerResponse, file: TaskFile): Promise<void>
   response.writeHead(200, {
     'content-type': file.type || 'application/octet-stream',
     ...(file.size === null ? {} : { 'content-length': String(file.size) }),
-    'content-disposition': shown ? 'inline' : 'attachment',
+    'content-disposition': `${shown ? 'inline' : 'attachment'}${file.name === undefined ? '' : `; filename*=UTF-8''${encodeURIComponent(file.name)}`}`,
     'x-content-type-options': 'nosniff',
     'cache-control': 'private, max-age=3600',
     ...(shown ? {} : { 'content-security-policy': 'sandbox' }),

@@ -47,12 +47,12 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
     notices: config.notices,
   }
   return { projects, shared }
@@ -302,6 +302,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('autoCompactWindow', 'autoCompactWindow', form.autoCompactWindow),
     value('contextHandoffs', 'contextHandoffs', form.contextHandoffs),
     value('keepWarm', 'keepWarm', form.keepWarm),
+    value('attachmentLimit', 'attachmentLimit', form.attachmentLimit),
     value('cliCheck', 'cliCheck', form.cliCheck),
     value('ci', 'ci.guard', form.ci.guard),
     value('ci', 'ci.kinds', CI_KINDS.filter((kind) => form.ci.kinds.includes(kind))),

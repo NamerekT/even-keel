@@ -74,6 +74,8 @@ export const sharedEn = {
   keepWarmHint:
     'While the current session of a chain waits for your answer, Even Keel asks a copy of it for one word shortly before its cache expires, so your answer does not pay for reading the whole context anew. The session itself gets nothing. Counted from its last answer; 0 turns it off. Each ping spends the account’s limits, and a missed cache stops the pings for that session.',
   hiddenSkillsAdd: 'Add a skill',
+  attachmentLimit: 'Attachment size limit, MB',
+  attachmentLimitHint: 'The largest file a task Even Keel keeps itself takes, pasted or dropped into its description.',
   page: 'Interface',
   models: 'Providers and models',
   allowedHosts: 'Other names of the page',

@@ -12,6 +12,8 @@ export interface TaskFile {
   /** bytes; `null` when unknown */
   size: number | null
   body: AsyncIterable<Uint8Array>
+  /** The file's own name, for a download; absent when the tracker gives none. */
+  name?: string
 }
 
 /**
@@ -213,6 +215,8 @@ export interface TrackerTasks {
 export interface TaskBrief {
   title: string
   description: string
+  /** The task's attachments as files of this machine (the built-in tracker, BTN-773): a session reads them by path. */
+  files?: { name: string; path: string }[]
 }
 
 export interface TrackerSetup {

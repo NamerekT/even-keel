@@ -9,6 +9,7 @@ import { NOTICE_KINDS, PROJECT_KINDS } from '../notice/kinds.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
+import { ATTACHMENT_LIMIT_MB, MAX_ATTACHMENT_LIMIT_MB } from '../builtin/model.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { promptPatternOf } from '../sessions/model-prompts.js'
 import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
@@ -205,6 +206,13 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   { key: 'keepWarm', kind: 'integer', scopes: ['global'], lands: ['keepWarm'], default: 0, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > MAX_KEEP_WARM_HOURS) {
       throw fail('config.keepWarm', { value: json(value), max: String(MAX_KEEP_WARM_HOURS) })
+    }
+    return value
+  } },
+  // The largest attachment of a built-in task, megabytes (BTN-773).
+  { key: 'attachmentLimit', kind: 'integer', scopes: ['global'], lands: ['attachmentLimit'], default: ATTACHMENT_LIMIT_MB, check: (value) => {
+    if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_ATTACHMENT_LIMIT_MB) {
+      throw fail('config.attachmentLimit', { value: json(value), max: String(MAX_ATTACHMENT_LIMIT_MB) })
     }
     return value
   } },

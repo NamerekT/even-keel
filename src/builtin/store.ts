@@ -47,6 +47,17 @@ export interface BuiltinComment {
   model: string | null
 }
 
+/** An attachment of a task (BTN-773): its bytes are `files/<sha256>` of the state database's folder. */
+export interface BuiltinFile {
+  id: string
+  name: string
+  /** What the browser declared; shown only, never served as. */
+  type: string
+  size: number
+  sha256: string
+  at: string
+}
+
 export interface NewBuiltinTask {
   project: string
   title: string
@@ -91,6 +102,11 @@ interface TaskRow {
 }
 
 const TASK_COLUMNS = 'id, project_id, number, title, description, description_rev, status, priority, milestone_id, parent_id, version, created_at, updated_at'
+const FILE_COLUMNS = 'id, name, type, size::float8 as size, sha256, at'
+
+type FileRow = BuiltinFile
+
+const fileOf = (row: FileRow): BuiltinFile => ({ id: row.id, name: row.name, type: row.type, size: Number(row.size), sha256: row.sha256, at: row.at })
 
 /**
  * The built-in tracker's tasks in the state database (BTN-767, step 30). A task is named by its project's id and number;
@@ -310,7 +326,63 @@ export class BuiltinStore {
     return index < 0 ? [] : list.slice(index + 1)
   }
 
-  /** Deletes the task with its labels, links and comments; its subtasks lose the parent. `false` — no such task. */
+  /**
+   * Records an attachment whose bytes are already on disk; the same bytes in the same task give the record it has.
+   * Moves the task's version only for a new record.
+   */
+  async addFile(key: TaskKey, file: Omit<BuiltinFile, 'id' | 'at'>): Promise<BuiltinFile> {
+    let made: BuiltinFile | undefined
+    await this.change(key, async (tx, row) => {
+      const { rows } = await tx.query<FileRow>(
+        `insert into builtin_files (id, task_id, name, type, size, sha256, at) values ($1, $2, $3, $4, $5, $6, $7)
+          on conflict (task_id, sha256) do nothing returning ${FILE_COLUMNS}`,
+        [randomUUID(), row.id, file.name, file.type, file.size, file.sha256, this.stamp()],
+      )
+      if (rows[0] !== undefined) {
+        made = fileOf(rows[0])
+        return true
+      }
+      const { rows: had } = await tx.query<FileRow>(`select ${FILE_COLUMNS} from builtin_files where task_id = $1 and sha256 = $2`, [row.id, file.sha256])
+      made = fileOf(had[0]!)
+      return false
+    })
+    return made!
+  }
+
+  /** Deletes the task's attachment record; the bytes stay for the sweep. `false` — the task has no such attachment. */
+  async removeFile(key: TaskKey, id: string): Promise<boolean> {
+    let removed = false
+    await this.change(key, async (tx, row) => {
+      const { rows } = await tx.query('delete from builtin_files where task_id = $1 and id = $2 returning id', [row.id, id])
+      removed = rows.length > 0
+      return removed
+    })
+    return removed
+  }
+
+  /** The task's attachments, oldest first. */
+  async files(key: TaskKey): Promise<BuiltinFile[]> {
+    const row = await this.row(this.db, key)
+    if (row === undefined) return []
+    const { rows } = await this.db.query<FileRow>(`select ${FILE_COLUMNS} from builtin_files where task_id = $1 order by at, id`, [row.id])
+    return rows.map(fileOf)
+  }
+
+  /** The name an attachment of these bytes has in the task, if any. */
+  async fileName(key: TaskKey, sha256: string): Promise<string | undefined> {
+    const row = await this.row(this.db, key)
+    if (row === undefined) return undefined
+    const { rows } = await this.db.query<{ name: string }>('select name from builtin_files where task_id = $1 and sha256 = $2', [row.id, sha256])
+    return rows[0]?.name
+  }
+
+  /** The hashes some record still points at: what the sweep keeps. */
+  async fileHashes(): Promise<Set<string>> {
+    const { rows } = await this.db.query<{ sha256: string }>('select distinct sha256 from builtin_files')
+    return new Set(rows.map((each) => each.sha256))
+  }
+
+  /** Deletes the task with its labels, links, comments and attachment records; its subtasks lose the parent. `false` — no such task. */
   remove(key: TaskKey): Promise<boolean> {
     return inTransaction(this.db, async (tx) => {
       const row = await this.row(tx, key)
@@ -326,6 +398,7 @@ export class BuiltinStore {
       await tx.query('delete from builtin_relations where from_id = $1 or to_id = $1', [row.id])
       await tx.query('delete from builtin_task_labels where task_id = $1', [row.id])
       await tx.query('delete from builtin_comments where task_id = $1', [row.id])
+      await tx.query('delete from builtin_files where task_id = $1', [row.id])
       await tx.query('delete from builtin_tasks where id = $1', [row.id])
       return true
     })

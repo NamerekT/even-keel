@@ -57,6 +57,8 @@ import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { attachBuiltin } from './builtin/adapter.js'
+import { attachmentsDirOf, SWEEP_EVERY_MS, sweepAttachments } from './builtin/files.js'
+import { BuiltinStore } from './builtin/store.js'
 import type { TrackerLink } from './tracker/link.js'
 import { type Task } from './tracker/model.js'
 import { profileStatusesOf } from './tracker/statuses.js'
@@ -324,7 +326,10 @@ export const service = context
 
 const stateDb = keptDatabase()
 const db = stateDb.db
-attachBuiltin(db)
+const attachmentsDir = attachmentsDirOf(stateDirOf())
+attachBuiltin(db, attachmentsDir)
+const sweepFiles = () => void sweepAttachments(new BuiltinStore(db), attachmentsDir)
+sweepFiles()
 /** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
 const writes = new Writes((line) => console.warn(line))
 /** What happened while nobody looked (BTN-350): the page's toasts and its /log come from it. */
@@ -791,6 +796,7 @@ setInterval(() => settleMail(mailRelay), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
+setInterval(sweepFiles, SWEEP_EVERY_MS).unref()
 setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 

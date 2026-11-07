@@ -105,6 +105,7 @@ describe('LiveConnection', () => {
       fetchVocabulary: async () => null,
       checkProject: async () => ({ repo: { root: null, current: null, suggested: null, branches: null, notice: null }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32', user: 'svc', service: true }),
       sendQuery: async () => null,
+      sendFile: async (_task, file) => ({ name: file.name, type: file.type, url: '/f' }),
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {
         commands.push({ name, body })

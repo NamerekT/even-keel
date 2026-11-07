@@ -280,6 +280,8 @@ export interface SharedForm {
   contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */
   keepWarm: number
+  /** The largest attachment of a built-in task, megabytes (BTN-773). */
+  attachmentLimit: number
   /** The service checks a new CLI version and the checked one weekly (BTN-569). */
   cliCheck: boolean
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */

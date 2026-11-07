@@ -5,6 +5,7 @@ import { parseTaskId, runLabelOf, type MilestonePick, type TaskStatus, type Trac
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
 import { builtinEditor } from './editor.js'
+import { BuiltinFiles } from './files.js'
 import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
 
 /** How the built-in tracker names its tasks: `<KEY>-<N>` by the key of each of its projects. */
@@ -41,11 +42,14 @@ const AUTHORS: Record<CommentAuthor, string | null> = { person: null, agent: 'Ag
 
 /**
  * The built-in tracker as a `TaskSource` (BTN-767): its projects' tasks in the state database, through `BuiltinStore`.
- * A link or a blocker of a project it no longer serves is left out: nothing names that task any more.
+ * A link or a blocker of a project it no longer serves is left out: nothing names that task any more. The attachments
+ * are the files of `filesDir` (BTN-773); without it a task has none.
  */
-export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPlace>>): TaskSource {
+export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPlace>>, filesDir?: string): TaskSource {
   const names = new BuiltinNames(places)
   const store = new BuiltinStore(db, (key) => names.name(key))
+  const files = filesDir === undefined ? undefined : new BuiltinFiles(store, filesDir)
+  const listed = async (task: BuiltinTask) => (files === undefined ? [] : files.list(task, names.name(task)))
 
   const find = async (id: string): Promise<BuiltinTask | undefined> => {
     for (const key of names.candidates(id)) {
@@ -122,7 +126,8 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     },
     async brief(id) {
       const task = await must(id)
-      return { title: task.title, description: task.description }
+      const present = (await listed(task)).filter((file) => !file.missing).map((file) => ({ name: file.name, path: file.path }))
+      return { title: task.title, description: task.description, ...(present.length === 0 ? {} : { files: present }) }
     },
     async complete(id, status) {
       const target = status === undefined ? DONE : builtinStatus(status)
@@ -142,6 +147,10 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       return target
     },
     statuses: async () => [...BUILTIN_STATUSES],
+    async file(id, sha256) {
+      const task = await find(id)
+      return task === undefined || files === undefined ? null : ((await files.read(task, sha256)) ?? null)
+    },
     async children(id) {
       const task = await must(id)
       return (await store.children(task)).map(trackerTask)
@@ -167,7 +176,10 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
           text: each.body,
           journal: { id: each.id, by: each.author, model: each.model },
         })),
-        attachments: [],
+        attachments: (await listed(task)).map((file) => ({
+          file: file.sha256, id: file.id, name: file.name, type: file.type, size: file.size, url: null, path: file.path,
+          ...(file.missing ? { missing: true as const } : {}),
+        })),
         edit: await editOf(task),
       }
     },

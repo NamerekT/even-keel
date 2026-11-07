@@ -319,6 +319,7 @@
   "fillMilestone": false,
   "parallel": 1,
   "keepWarm": 0,
+  "attachmentLimit": 25,
   "cliCheck": false,
   "unattended": false,
   "trimTools": true,

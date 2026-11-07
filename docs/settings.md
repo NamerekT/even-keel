@@ -64,6 +64,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer (including a temporary model error awaiting retry) that its cache is kept warm (BTN-437, `docs/chain/exceptions.md`); 0 — off | page, hand | 0: checked live (BTN-446), still off for a fresh install |
 | `cliCheck` | G | — the service runs the live CLI check on a new version of an agent's CLI and weekly on the checked one, in the account folder the projects run on (BTN-569, `docs/releases.md`, "The automatic run in the service") | page, hand | false: it spends the account's limits |
 | `allowedHosts` | G | — | page, hand | `[]` |
+| `attachmentLimit` | G | — whole megabytes 1–1024, the largest file a built-in tracker's task takes, read per upload (BTN-773, `docs/trackers.md`, "Attachments") | page, hand | 25 |
 | `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions/models.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
 | `contextHandoffs` | G, P | P over G; `false` — the `checkpoint` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions/checkpoint.md`) | page, hand | `true` |

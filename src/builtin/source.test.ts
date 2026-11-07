@@ -1,8 +1,12 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
 import { openDatabase } from '../storage/database.js'
 import type { TaskSource } from '../tracker/source.js'
+import { BuiltinFiles } from './files.js'
 import { builtinSource } from './source.js'
 import { BuiltinStore } from './store.js'
 
@@ -30,7 +34,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments')
+  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
   source = builtinSource(db, PLACES)
   store = new BuiltinStore(db)
 })
@@ -106,5 +110,24 @@ describe('the built-in tracker as a task source', () => {
     ])
     const { labels } = await source.vocabulary!(ABC)
     expect(labels).toEqual(['Manual', 'Question', 'Bug', 'Rework'])
+  })
+
+  it('gives the attachments on the card with their paths, in the brief while their files are there, and serves them', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'ek-source-')), 'files')
+    const withFiles = builtinSource(db, PLACES, dir)
+    await store.create({ project: ABC, title: 'With a picture' })
+    const files = new BuiltinFiles(new BuiltinStore(db), dir, () => {})
+    const picture = await files.add({ project: ABC, number: 1 }, { name: 'screen.png', type: 'image/png', bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47, 13, 10]) })
+    const path = join(dir, picture.sha256)
+    expect((await withFiles.card!('ABC-1')).attachments).toEqual([
+      { file: picture.sha256, id: picture.id, name: 'screen.png', type: 'image/png', size: 6, url: null, path },
+    ])
+    expect(await withFiles.brief('ABC-1')).toEqual({ title: 'With a picture', description: '', files: [{ name: 'screen.png', path }] })
+    expect(await withFiles.file!('ABC-1', picture.sha256)).toMatchObject({ type: 'image/png', name: 'screen.png' })
+    expect(await withFiles.file!('ABC-9', picture.sha256)).toBeNull()
+    rmSync(path)
+    expect((await withFiles.card!('ABC-1')).attachments[0]?.missing).toBe(true)
+    expect(await withFiles.brief('ABC-1')).toEqual({ title: 'With a picture', description: '' })
+    expect((await source.card!('ABC-1')).attachments).toEqual([])
   })
 })

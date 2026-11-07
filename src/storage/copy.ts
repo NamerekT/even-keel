@@ -1,7 +1,7 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { cpSync, existsSync, readdirSync } from 'node:fs'
 import type { PGlite } from '@electric-sql/pglite'
 import { insertList, inTransaction, openDatabase, refuseNewer, SQLITE_VERSIONS, STEPS, type Db, type Queryable } from './database.js'
-import { dataDirOf } from './owner.js'
+import { dataDirOf, filesDirOf } from './owner.js'
 
 /** The rows of a database, by table: what a copy carries over. */
 export type Rows = Record<string, Record<string, unknown>[]>
@@ -35,8 +35,10 @@ export async function insertRows(db: Db, rows: Rows): Promise<void> {
 /**
  * A copy of the database into the new folder `dir`, laid out as the database folder of the state folder: to restore it,
  * stop the service and put it in place of `state/even-keel`. The source is of this code's version (`checkVersion`).
+ * `files` — the source's folder of attachments' bytes, copied after the rows: a record is written after its file, so
+ * every record of the copy finds its bytes.
  */
-export async function backupDatabase(source: Queryable, dir: string): Promise<void> {
+export async function backupDatabase(source: Queryable, dir: string, files?: string): Promise<void> {
   if (existsSync(dir) && readdirSync(dir).length > 0) throw new Error(`storage: ${dir} exists; give a new folder`)
   const rows = await rowsOf(source)
   const copy = await openDatabase(dataDirOf(dir))
@@ -45,6 +47,7 @@ export async function backupDatabase(source: Queryable, dir: string): Promise<vo
   } finally {
     await copy.close()
   }
+  if (files !== undefined && existsSync(files)) cpSync(files, filesDirOf(dir), { recursive: true, filter: (path) => !/\.tmp$/.test(path) })
 }
 
 /**

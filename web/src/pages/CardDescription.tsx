@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { diffSection } from '../../../src/changelog/diff.js'
 import type { Notice } from '../../../src/notice/notice.js'
+import { ATTACHMENT_LIMIT_MB } from '../../../src/builtin/model.js'
 import { t } from '../i18n/index.js'
+import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { DiffLines } from '../ui/DiffLines.js'
 import { Loading } from '../ui/Loader.js'
@@ -35,6 +37,7 @@ export function CardDescription({ task, text, editor, render, onDraft }: Props) 
   // Mine after "take the new one": kept until the card closes.
   const [kept, setKept] = useState<string | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
+  const { state, attach } = useLive()
   const dirty = editing !== null && editing.text !== editing.start
 
   useEffect(() => onDraft(dirty), [dirty])
@@ -86,7 +89,13 @@ export function CardDescription({ task, text, editor, render, onDraft }: Props) 
             revision={editing.revision}
             busy={editor.busy}
             failure={failure}
+            limit={(state?.config.shared.attachmentLimit ?? ATTACHMENT_LIMIT_MB) * 1024 * 1024}
             onText={(next) => setEditing((now) => (now === null ? now : { ...now, text: next }))}
+            onUpload={async (file) => {
+              const done = await attach(task, file)
+              editor.reload()
+              return done
+            }}
             onSave={() => void save(editing.start, editing.text)}
             onClose={close}
           />

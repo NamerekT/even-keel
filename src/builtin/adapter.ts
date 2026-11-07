@@ -3,10 +3,15 @@ import type { TrackerAdapter } from '../tracker/source.js'
 import { BUILTIN_MOVES } from './model.js'
 
 let database: Db | undefined
+let attachments: string | undefined
 
-/** The service hands the built-in tracker its state database at start; without it the tracker is off. */
-export function attachBuiltin(db: Db | undefined): void {
+/**
+ * The service hands the built-in tracker its state database and the folder of the attachments' bytes at start; without
+ * the database the tracker is off.
+ */
+export function attachBuiltin(db: Db | undefined, filesDir?: string): void {
   database = db
+  attachments = filesDir
 }
 
 /**
@@ -29,9 +34,10 @@ export const builtin: TrackerAdapter = {
   projects: async () => [],
   setup(_env, places) {
     const db = database
+    const filesDir = attachments
     if (db === undefined) return undefined
     return {
-      connect: async () => (await import('./source.js')).builtinSource(db, places),
+      connect: async () => (await import('./source.js')).builtinSource(db, places, filesDir),
       issueUrl: () => null,
     }
   },

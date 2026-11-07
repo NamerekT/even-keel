@@ -84,7 +84,7 @@ const GROUPS = [
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
-  { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
+  { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -118,6 +118,7 @@ const valuesOf = (form: SharedForm): Values => ({
   cacheTtl: form.cacheTtl ?? '',
   autoCompactWindow: form.autoCompactWindow === null ? '' : String(form.autoCompactWindow),
   keepWarm: String(form.keepWarm),
+  attachmentLimit: String(form.attachmentLimit),
   allowedHosts: form.allowedHosts.join('\n'),
   window: String(form.context.window),
   warn: String(form.context.warn),
@@ -148,13 +149,13 @@ function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
   const protection = protectionOf(text('protection'))
   if (protection === undefined) return undefined
-  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm'].map((key) => wholeOf(text(key), 0))
+  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
   const autoCompactWindow = text('autoCompactWindow').trim() === '' ? null : wholeOf(text('autoCompactWindow'), 1)
   if (autoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
-  const [parallel, window, minTasks, minSessions, days, keepWarm] = numbers
+  const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
   const checkpointShares = sharesOf(values)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
@@ -181,6 +182,7 @@ function formOf(values: Values): SharedForm | undefined {
     autoCompactWindow,
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
+    attachmentLimit: attachmentLimit!,
     cliCheck: values.cliCheck as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
@@ -600,6 +602,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
           {check('updatesCheck', t.shared.updatesCheck, t.shared.updatesCheckHint, false, 'updates')}
           {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
+          {numberRow('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
         </Section>
         <Section title={t.shared.sections.access}>
           <PageToken state={state} />

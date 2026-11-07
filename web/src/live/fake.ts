@@ -29,7 +29,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
-import { builtinVocabulary, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
+import { builtinVocabulary, fakeAttach, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -770,7 +770,11 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('card')
       if (current.state === null) return null
-      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description')) : fakeCard(current.state, task, mode)
+      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description'), params.get('files')) : fakeCard(current.state, task, mode)
+    },
+    attach: async (task, file) => {
+      await answer()
+      return fakeAttach(task, file)
     },
     vocabulary: async (projectId) => {
       await answer()

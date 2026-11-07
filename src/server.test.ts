@@ -172,6 +172,7 @@ describe('Even Keel HTTP server', () => {
       autoCompactWindow: 300_000,
       contextHandoffs: false,
       keepWarm: 2,
+      attachmentLimit: 25,
       cliCheck: true,
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },

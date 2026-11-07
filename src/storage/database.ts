@@ -31,7 +31,7 @@ export interface Queryable {
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -431,6 +431,21 @@ export const STEPS: readonly string[] = [
   // The model of the session an agent's comment came from (BTN-774), `<Provider> | <model>`; `null` for the rest.
   `
   alter table builtin_comments add column model text;
+  `,
+  // The attachments of the built-in tracker's tasks (BTN-773): a record per file of a task; the bytes are
+  // `files/<sha256>` next to `pgdata/`, one copy for the same bytes. `type` is what the browser declared, shown only.
+  `
+  create table builtin_files (
+    id      text primary key,
+    task_id text not null references builtin_tasks (id) on delete cascade deferrable initially deferred,
+    name    text not null,
+    type    text not null,
+    size    bigint not null,
+    sha256  text not null,
+    at      text not null,
+    unique (task_id, sha256)
+  );
+  create index builtin_files_sha on builtin_files (sha256);
   `,
 ]
 

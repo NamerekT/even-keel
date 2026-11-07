@@ -35,7 +35,7 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
     },
     {
       name: 'task_read',
-      description: 'A task as Markdown: a short head with the description revision, then the description; comments on request.',
+      description: 'A task as Markdown: a short head with the description revision, then the description, the attachments as file paths to open with Read; comments on request.',
       inputSchema: { type: 'object', properties: { key: text, comments: { type: 'boolean' } }, required: ['key'], additionalProperties: false },
     },
     {

@@ -62,6 +62,8 @@ GitHub, Linear, GitLab and Forgejo profiles have nothing to set for MCP: their *
 
 Even Keel has a tracker of its own, kept in its state database: no account, no token, nothing to connect. It is the first choice of the tracker in the setup and in **Add project**, and the one picked when you have no tracker profile; you give the project only its key (`APP` for `APP-12`). **Status** and **Settings** → **Trackers and CI** always show it. In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save. A project that has tasks in the built-in tracker stays on it, and a project with another tracker's tasks cannot move to it: moving tasks between trackers is not supported yet.
 
+A screenshot or any file pasted (Ctrl+V) or dropped into a task's description while you edit it becomes the task's attachment: a picture shows in the text, every file is listed under **Attachments** in the card, and the task's session gets their paths to open. The files lie next to the state database, in `state/even-keel/files`, and `npm run storage -- backup` copies them. A file over 25 MB is refused; the limit is **Attachment size limit, MB** in **Settings** → **Interface**.
+
 For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — turn the package `tasks@even-keel` on in the project's packages on **Tools**. Each session keeps its own task in the prompt and gets five short tools for the others; nothing can be deleted through them. A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`): see [`plugins/tasks/README.md`](../../plugins/tasks/README.md).
 
 ### Minimum: the adapter only
@@ -415,7 +417,7 @@ A new version may store the files of `state/` in a newer format: at startup, bef
 
 The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too). An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`. The config file `even-keel.config.json` is imported the same way, once, and kept as `even-keel.config.json.imported`; a file put there later is not read (the log says so). A database written by a newer version leaves the service with only the page, like a newer file.
 
-This copies the database, also while Even Keel runs; with `.env` it is what a move to another machine needs:
+This copies the database and the built-in tracker's attachments, also while Even Keel runs; with `.env` it is what a move to another machine needs:
 
 ```sh
 npm run storage -- backup <new folder>

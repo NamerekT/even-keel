@@ -9,7 +9,7 @@ import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
 import type { TrackerVocabulary } from '../../src/tracker/source.js'
 import { App } from './App.js'
-import { LiveConnection, type LiveSource } from './live/connection.js'
+import { LiveConnection, type AttachedFile, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import './styles.css'
@@ -69,6 +69,15 @@ async function sendQuery(name: string, body: object): Promise<unknown> {
 
 const checkProject = (draft: ProjectDraft, askTracker: boolean) => sendQuery('project/check', { ...draft, askTracker }) as Promise<ProjectCheck>
 
+/** The bytes go as the body itself: no form encoding, the service writes them to disk as they come. */
+async function sendFile(task: string, file: File): Promise<AttachedFile> {
+  const path = `/api/builtin/attach?${new URLSearchParams({ task, name: file.name })}`
+  const response = await fetch(path, { method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file })
+  const answer = (await response.json().catch(() => null)) as (AttachedFile & { error?: string; notice?: unknown }) | null
+  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `${path} answered ${response.status}`))
+  return answer!
+}
+
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
   const answer = (await response.json().catch(() => null)) as (StatsAnswer<T> & { error?: string }) | null
@@ -90,6 +99,7 @@ async function createSource(): Promise<LiveSource> {
     fetchVocabulary,
     checkProject,
     sendQuery,
+    sendFile,
     fetchStats,
   })
   const buildSeen = watchBuild({

@@ -431,7 +431,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               </Prop>
             )}
           </dl>
-          {card.attachments.length > 0 && <Attachments items={card.attachments} />}
+          {card.attachments.length > 0 && <Attachments task={card.id} items={card.attachments} editor={editable?.editor ?? null} />}
           <Relations card={card} editor={editable?.editor ?? null} onOpen={onOpen} />
         </aside>
       </div>

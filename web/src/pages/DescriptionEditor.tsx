@@ -1,14 +1,19 @@
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import { Extension } from '@tiptap/core'
 import { Placeholder } from '@tiptap/extensions'
-import { useDeferredValue, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useDeferredValue, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
+import type { AttachedFile } from '../live/connection.js'
 import { Segmented } from '../stats/common.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Tipped } from '../ui/Tipped.js'
 import { descriptionExtensions, editorMarkdown, htmlToMarkdown, previewLoss, toDoc, type PreviewLoss } from './descriptionDoc.js'
-import { meaningfulHtml, pastedPicture } from './descriptionPaste.js'
+import { meaningfulHtml } from './descriptionPaste.js'
+import { takenFiles } from './chatFiles.js'
+import { NoticeFixButton } from './FixButtons.js'
+import { useFileDrop } from './useFileDrop.js'
+import { useUploads } from './useUploads.js'
 import '../stats/overview.css'
 import './description.css'
 
@@ -32,7 +37,10 @@ interface Props {
   revision: number
   busy: boolean
   failure: Notice | null
+  /** The largest file the service takes, bytes: a larger one is refused here, before its bytes go anywhere. */
+  limit: number
   onText: (text: string) => void
+  onUpload: (file: File) => Promise<AttachedFile>
   onSave: () => void
   onClose: () => void
 }
@@ -41,10 +49,12 @@ interface Props {
  * The description's editor (BTN-772), in its own chunk so TipTap is loaded only when a description is edited. The text is
  * always Markdown: the visual editor writes it only on a real edit, so opening and closing it changes nothing.
  */
-export function DescriptionEditor({ start, text, revision, busy, failure, onText, onSave, onClose }: Props) {
+export function DescriptionEditor({ start, text, revision, busy, failure, limit, onText, onUpload, onSave, onClose }: Props) {
   const [look, setLook] = useState<Look>(() => (previewLoss(text) === null ? storedLook() : 'markdown'))
   const [asking, setAsking] = useState(false)
-  const [picture, setPicture] = useState(false)
+  const field = useRef<HTMLTextAreaElement>(null)
+  const uploads = useUploads({ text, limit, onText, onUpload, field })
+  const drop = useFileDrop(true, (files) => attach(files))
   const checked = useDeferredValue(text)
   const loss = useMemo(() => (look === 'markdown' ? previewLoss(checked) : null), [look, checked])
   const dirty = text !== start
@@ -58,18 +68,24 @@ export function DescriptionEditor({ start, text, revision, busy, failure, onText
       // A browser that keeps no storage keeps the choice until the page reloads.
     }
   }
-  const change = (next: string) => {
-    setPicture(false)
-    onText(next)
-  }
+  const change = (next: string) => uploads.write(next)
   const leave = () => (dirty ? setAsking(true) : onClose())
+  const save = () => {
+    if (!busy && uploads.pending === 0) onSave()
+  }
+  // The visual editor has no pictures: a file pasted or dropped there opens the Markdown, the mark goes at its end.
+  const attach = (files: File[]) => {
+    if (look === 'markdown') return uploads.start(files, field.current)
+    setLook('markdown')
+    uploads.start(files, null)
+  }
 
   // Before the visual editor's own keys: its Mod-Enter would put a line break in first.
   const saveKey = (event: KeyboardEvent) => {
     if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return
     event.preventDefault()
     event.stopPropagation()
-    if (!busy) onSave()
+    save()
   }
   // The card's dialog closes on Escape: here it leaves the editor instead. ProseMirror marks Escape as handled, so
   // `defaultPrevented` says nothing; the link's field stops its own Escape before it gets here.
@@ -79,14 +95,36 @@ export function DescriptionEditor({ start, text, revision, busy, failure, onText
     event.stopPropagation()
     leave()
   }
-  const notePicture = (event: ClipboardEvent) => {
-    const files = Array.from(event.clipboardData.items, (item) => (item.kind === 'file' ? item.type : ''))
-    if (pastedPicture(files, event.clipboardData.getData('text/html'))) setPicture(true)
+  // Taken before the field and the visual editor see it: neither would do anything with a file.
+  const pasteFiles = (event: ClipboardEvent) => {
+    const files = takenFiles(event.clipboardData.items, new Date())
+    if (files.length === 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    attach(files)
+  }
+  const dropFiles = (event: DragEvent<HTMLElement>) => {
+    drop.handlers.onDrop(event)
+    if (event.defaultPrevented) event.stopPropagation()
   }
 
   return (
     <>
-      <div className="description" onKeyDownCapture={saveKey} onKeyDown={escapeKey} onPasteCapture={notePicture}>
+      <div
+        className="description"
+        onKeyDownCapture={saveKey}
+        onKeyDown={escapeKey}
+        onPasteCapture={pasteFiles}
+        onDragEnter={drop.handlers.onDragEnter}
+        onDragOver={drop.handlers.onDragOver}
+        onDragLeave={drop.handlers.onDragLeave}
+        onDropCapture={dropFiles}
+      >
+        {drop.over && (
+          <div className="description__drop" aria-hidden="true">
+            {t.card.edit.describe.drop}
+          </div>
+        )}
         <div className="description__head">
           <h3 className="task-card__heading">{t.card.description}</h3>
           <Tipped tip={loss === null ? '' : t.card.edit.describe.blocked[loss]} off={loss === null} focusable={loss !== null}>
@@ -96,17 +134,21 @@ export function DescriptionEditor({ start, text, revision, busy, failure, onText
         {look === 'preview' ? (
           <VisualEditor key={revision} start={start} text={text} onText={change} />
         ) : (
-          <MarkdownEditor text={text} onText={change} />
+          <MarkdownEditor field={field} text={text} onText={change} />
         )}
-        {picture && <p className="notice notice--warn description__note">{t.card.edit.describe.noPictures}</p>}
+        {uploads.failure !== null && (
+          <p className="notice notice--error description__note">
+            {say(uploads.failure)} <NoticeFixButton project={null} notice={uploads.failure} />
+          </p>
+        )}
         {failure !== null && <p className="notice notice--error description__note">{say(failure)}</p>}
         <div className="description__foot">
-          <span className="description__hint">{t.card.edit.describe.saveTip}</span>
+          <span className="description__hint">{uploads.pending > 0 ? t.card.edit.describe.uploadWait : t.card.edit.describe.saveTipFiles}</span>
           <span className="description__spacer" />
           <button type="button" className="button" disabled={busy} onClick={leave}>
             {t.card.edit.cancel}
           </button>
-          <button type="button" className="button button--primary" disabled={busy} aria-busy={busy} onClick={onSave}>
+          <button type="button" className="button button--primary" disabled={busy || uploads.pending > 0} aria-busy={busy || uploads.pending > 0} onClick={save}>
             {t.card.edit.describe.save}
           </button>
         </div>
@@ -146,11 +188,11 @@ function LookSwitch({ look, blocked, onChange }: { look: Look; blocked: PreviewL
 }
 
 /** The Markdown itself; HTML pasted from a page, a tracker or Word comes in as Markdown, a code editor's copy as its text. */
-function MarkdownEditor({ text, onText }: { text: string; onText: (text: string) => void }) {
+function MarkdownEditor({ field, text, onText }: { field: RefObject<HTMLTextAreaElement | null>; text: string; onText: (text: string) => void }) {
   const paste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const html = event.clipboardData.getData('text/html')
     if (!meaningfulHtml(html)) {
-      // A picture alone has no text: nothing goes in, and the note above says why.
+      // A picture of a web page comes as HTML with no file: there are no bytes to attach, nothing goes in.
       if (event.clipboardData.getData('text/plain') === '') event.preventDefault()
       return
     }
@@ -165,6 +207,7 @@ function MarkdownEditor({ text, onText }: { text: string; onText: (text: string)
   }
   return (
     <textarea
+      ref={field}
       className="description__box description__source"
       value={text}
       placeholder={t.card.edit.describe.placeholder}

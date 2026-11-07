@@ -52,6 +52,10 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('config.tokenShape', {}))).toEqual({ to: 'shared', tab: 'page' })
   })
 
+  it('sends a file over the attachment limit to Interface, where the limit is', () => {
+    expect(noticeFixOf(notice('builtin.fileTooLarge', { name: 'big.zip', limit: 25 * 1024 * 1024 }))).toEqual({ to: 'shared', tab: 'page' })
+  })
+
   it('finds the fix of a reason in the items or the cause', () => {
     const empty = notice('chain.empty', { project: 'ABC' }, { items: [notice('chain.emptyNone', {}), notice('chain.emptyLabels', { labels: ['ready'] })] })
     expect(noticeFixOf(empty)).toEqual({ to: 'project', tab: 'tracker' })

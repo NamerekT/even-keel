@@ -1,4 +1,7 @@
+import { mkdtempSync, readdirSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { builtinControl, builtinPlaces } from './builtin/control.js'
@@ -17,15 +20,16 @@ beforeAll(async () => {
   db = await openDatabase(undefined)
 }, 120_000)
 afterAll(() => db.close())
-beforeEach(() => db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments'))
+beforeEach(() => db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files'))
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))))
 })
 
-async function fixture(withBuiltin = true) {
+async function fixture(withBuiltin = true, files?: { dir: string; limit: number }) {
   const refresh = vi.fn(async () => true)
+  const control = builtinControl({ db, places: () => builtinPlaces(CONFIG), refresh, ...(files === undefined ? {} : { filesDir: files.dir, limit: () => files.limit }) })
   const server = createEvenKeelServer({
-    ...(withBuiltin ? { builtin: builtinControl({ db, places: () => builtinPlaces(CONFIG), refresh }) } : {}),
+    ...(withBuiltin ? { builtin: control } : {}),
     hub: new EventHub(), getState: () => ({}),
     guard: () => ({ hosts: new Set(['127.0.0.1']), token: null }),
   } as unknown as ServerDeps)
@@ -36,7 +40,11 @@ async function fixture(withBuiltin = true) {
     const response = await fetch(base + command, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     return { status: response.status, body: await response.json() }
   }
-  return { refresh, post }
+  const upload = async (query: string, bytes: Uint8Array, type = 'image/png') => {
+    const response = await fetch(`${base}attach?${query}`, { method: 'POST', headers: { 'content-type': type }, body: bytes })
+    return { status: response.status, body: await response.json() }
+  }
+  return { refresh, post, upload }
 }
 
 describe('the built-in tracker over HTTP', () => {
@@ -143,5 +151,24 @@ describe('the built-in tracker over HTTP', () => {
     expect((await post('edit', { task: 'ABC-1', field: 'labels', from: 'a', to: 'b' })).body.notice).toEqual({ code: 'request.required', params: { field: 'field' } })
     const off = await fixture(false)
     expect((await off.post('create', { project: ABC, title: 'x' })).body.notice.code).toBe('builtin.off')
+  })
+
+  it('takes an upload as raw bytes up to the limit, and deletes the attachment by its record', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'ek-attach-')), 'files')
+    const { post, upload, refresh } = await fixture(true, { dir, limit: 8 })
+    await post('create', { project: ABC, title: 'with a picture' })
+    refresh.mockClear()
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])
+    const taken = await upload('task=ABC-1&name=' + encodeURIComponent('экран 1.png'), bytes, 'image/png; charset=binary')
+    expect(taken.status).toBe(200)
+    expect(taken.body).toMatchObject({ name: 'экран 1.png', type: 'image/png', size: 8, url: expect.stringMatching(/^\/api\/tasks\/ABC-1\/files\/[0-9a-f]{64}$/) })
+    expect(refresh).toHaveBeenCalledWith(ABC)
+    expect(readdirSync(dir)).toEqual([taken.body.url.split('/').at(-1)])
+    const big = await upload('task=ABC-1&name=big.png', new Uint8Array(9))
+    expect(big.body.notice).toEqual({ code: 'builtin.fileTooLarge', params: { name: 'big.png', limit: 8 } })
+    expect((await upload('task=ABC-1', bytes)).body.notice).toEqual({ code: 'request.required', params: { field: 'name' } })
+    expect((await upload('task=ABC-9&name=a.png', bytes)).body.notice.code).toBe('builtin.noTask')
+    expect((await post('detach', { task: 'ABC-1', file: taken.body.file })).status).toBe(200)
+    expect((await post('detach', { task: 'ABC-1', file: taken.body.file })).body.notice).toEqual({ code: 'builtin.noFile', params: { task: 'ABC-1' } })
   })
 })

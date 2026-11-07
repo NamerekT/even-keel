@@ -5,7 +5,8 @@ import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import type { EvenKeelConfig } from '../config.js'
-import { BUILTIN, type RelationKind } from './model.js'
+import { BuiltinFiles, fileUrl, readLimited } from './files.js'
+import { ATTACHMENT_LIMIT_MB, BUILTIN, type RelationKind } from './model.js'
 import { BuiltinNames } from './source.js'
 import { BuiltinStore, type BuiltinTask, type FieldEdit, type TaskKey } from './store.js'
 
@@ -68,6 +69,25 @@ export interface BuiltinControl {
   search(text: string, project: string | null): Promise<TaskRef[]>
   /** The project has a task in the built-in tracker, whatever its status: its tracker is not swapped for another (BTN-769). */
   holds(project: string): Promise<boolean>
+  /** Takes an upload as the task's attachment (BTN-773); refused past the attachment size limit. */
+  attach(task: string, upload: BuiltinUpload): Promise<BuiltinAttached>
+  /** Deletes the attachment record `file`; its bytes stay for a day, so an undone edit still shows the picture. */
+  detach(task: string, file: string): Promise<void>
+}
+
+export interface BuiltinUpload {
+  name: string
+  type: string
+  body: AsyncIterable<Uint8Array>
+}
+
+/** An attachment taken: `file` — its record, `url` — where the page and the description reach its bytes. */
+export interface BuiltinAttached {
+  file: string
+  name: string
+  type: string
+  size: number
+  url: string
 }
 
 /** The projects on the built-in tracker with their keys, as the adapter gets them. */
@@ -84,12 +104,22 @@ export interface BuiltinControlDeps {
   refresh: (project: string) => Promise<unknown>
   /** Why the task cannot be deleted now: the chain's current task, or one a live session works on. */
   busy?: (task: string) => 'current' | 'live' | null
+  /** The folder of the attachments' bytes; without it an upload is refused as the tracker being off. */
+  filesDir?: string
+  /** The attachment size limit in bytes, read per upload: the setting is live. */
+  limit?: () => number
 }
 
-export function builtinControl({ db, places, refresh, busy = () => null }: BuiltinControlDeps): BuiltinControl {
+export function builtinControl({
+  db, places, refresh, busy = () => null, filesDir, limit = () => ATTACHMENT_LIMIT_MB * 1024 * 1024,
+}: BuiltinControlDeps): BuiltinControl {
   const open = () => {
     const names = new BuiltinNames(places())
     return { names, store: new BuiltinStore(db, (key) => names.name(key)) }
+  }
+  const filesOf = (store: BuiltinStore) => {
+    if (filesDir === undefined) throw fail('builtin.off', {})
+    return new BuiltinFiles(store, filesDir)
   }
   const find = async (names: BuiltinNames, store: BuiltinStore, id: string): Promise<BuiltinTask> => {
     for (const key of names.candidates(id)) {
@@ -208,6 +238,21 @@ export function builtinControl({ db, places, refresh, busy = () => null }: Built
     },
     async holds(project) {
       return (await open().store.list([project])).length > 0
+    },
+    async attach(id, upload) {
+      const { names, store } = open()
+      const files = filesOf(store)
+      const task = await find(names, store, id)
+      const bytes = await readLimited(upload.body, limit(), upload.name)
+      const file = await files.add(task, { name: upload.name, type: upload.type, bytes })
+      await refresh(task.project)
+      return { file: file.id, name: file.name, type: file.type, size: file.size, url: fileUrl(names.name(task), file.sha256) }
+    },
+    async detach(id, file) {
+      const { names, store } = open()
+      const task = await find(names, store, id)
+      if (!(await filesOf(store).remove(task, file))) throw fail('builtin.noFile', { task: names.name(task) })
+      await refresh(task.project)
     },
   }
 }

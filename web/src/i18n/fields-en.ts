@@ -52,6 +52,7 @@ export const fieldsEn = {
   'config.autoCompactWindow': () => 'Positive whole tokens, or empty for the account window',
   'config.parallel': (p) => `A whole number from 1, not ${p.value}`,
   'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
+  'config.attachmentLimit': (p) => `Whole megabytes from 1 to ${p.max}, not ${p.value}`,
   'config.allowedHosts': () => 'A host name per line',
   'config.contextWindow': (p) => `A whole number of tokens from 1, not ${p.value}`,
   'config.contextPercents': () => 'Percents with 0 < Warning < Danger ≤ 100',

@@ -3,7 +3,7 @@ import { fail } from '../notice/notice.js'
 import type { ServerDeps } from '../server.js'
 import { labelList, numberOf, projectOf, taskOf, textOf } from '../server-request.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
-import type { BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
+import type { BuiltinAttached, BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
 import type { RelationKind } from './model.js'
 
 type Query = (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>
@@ -30,6 +30,21 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
     await control(deps).remove(taskOf(body))
     return {}
   },
+  'builtin/detach': async (deps, body) => {
+    await control(deps).detach(taskOf(body), textOf(body.file, 'file'))
+    return {}
+  },
+}
+
+/** An attachment's upload (BTN-773): the bytes are the raw body, the task and the name are in the query. */
+export const BUILTIN_UPLOAD = '/api/builtin/attach'
+
+export function builtinUpload(deps: ServerDeps, params: URLSearchParams, request: IncomingMessage): Promise<BuiltinAttached> {
+  const task = taskOf({ task: params.get('task') ?? '' })
+  const name = textOf(params.get('name') ?? '', 'name').trim()
+  if (name === '') throw fail('request.required', { field: 'name' })
+  const type = (request.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase()
+  return control(deps).attach(task, { name, type, body: request as AsyncIterable<Uint8Array> })
 }
 
 function control({ builtin }: ServerDeps): BuiltinControl {

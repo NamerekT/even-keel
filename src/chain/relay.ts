@@ -60,6 +60,8 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined, language
   const lines = ['', PROMPTS[language].brief(brief.title.trim())]
   const description = brief.description.trim()
   if (description !== '') lines.push('', description)
+  const files = brief.files ?? []
+  if (files.length > 0) lines.push('', PROMPTS[language].files, ...files.map((file) => fill`- ${file.name} — ${file.path}`))
   return prompt + lines.join('\n') + '\n'
 }
 

@@ -1,3 +1,4 @@
+import { megabytes } from '../../../src/notice/en.js'
 import { plural } from './plural.js'
 import type { ContextResets } from '../state.js'
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
@@ -359,6 +360,14 @@ export const cardRU = {
     unreadyHint: 'Убирает задачу из цепочки: возвращает в статус бэклога и снимает ярлыки, которые требует цепочка.',
     attachments: 'Вложения',
     download: (name: string) => `Скачать ${name}`,
+    attachment: {
+      remove: (name: string) => `Удалить ${name}`,
+      removeTitle: 'Удалить вложение?',
+      removeQuestion: (name: string) => `${name} пропадёт из задачи. Ссылка на него в описании перестанет открываться.`,
+      size: (bytes: number) => (bytes < 1024 ? `${bytes} Б` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} КБ` : `${megabytes(bytes)} МБ`),
+      missing: 'Файла нет',
+      missingTip: (name: string) => `${name}: запись о вложении есть, а файла на диске службы нет — его удалили или не восстановили из бэкапа.`,
+    },
     viewer: {
       close: 'Закрыть',
       prev: 'Предыдущее',
@@ -449,7 +458,10 @@ export const cardRU = {
         placeholder: 'О чём задача. Агенты читают текст как есть',
         save: 'Сохранить',
         saveTip: 'Ctrl+Enter сохраняет, Esc выходит из правки',
-        noPictures: 'Картинки в описание пока не вставляются: они появятся вместе с вложениями.',
+        saveTipFiles: 'Ctrl+Enter сохраняет, Esc выходит из правки. Картинку можно вставить Ctrl+V или перетащить сюда',
+        uploading: (name: string) => `Загружается ${name}…`,
+        uploadWait: 'Файлы ещё загружаются: сохранить можно, когда вместо заглушек встанут ссылки',
+        drop: 'Отпустите, чтобы вложить файлы в задачу',
         discardTitle: 'Отбросить правки?',
         discardQuestion: 'В описании есть несохранённые правки.',
         discard: 'Отбросить',

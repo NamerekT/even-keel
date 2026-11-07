@@ -525,6 +525,7 @@
   "fillMilestone": false,
   "parallel": 2,
   "keepWarm": 3,
+  "attachmentLimit": 50,
   "cliCheck": true,
   "unattended": true,
   "trimTools": false,

@@ -1,5 +1,9 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { BuiltinFiles } from '../builtin/files.js'
 import { builtinSource } from '../builtin/source.js'
 import { BuiltinStore } from '../builtin/store.js'
 import { openDatabase } from '../storage/database.js'
@@ -43,7 +47,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments')
+  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
   tracker = trackerOf(builtinSource(db, PLACES))
   store = new BuiltinStore(db)
   tools = new TasksTools(deps())
@@ -173,6 +177,17 @@ describe('the rest', () => {
     await call('task_comment', { key: 'ABC-1', text: 'noted' }, HAND)
     const [comment] = (await tracker.card!('ABC-1')).comments
     expect(comment!.journal).toMatchObject({ by: 'agent', model: null })
+  })
+
+  it('task_read lists the attachments by their absolute paths and marks a missing file', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'ek-taskmcp-')), 'files')
+    tracker = trackerOf(builtinSource(db, PLACES, dir))
+    const files = new BuiltinFiles(store, dir, () => {})
+    const picture = await files.add({ project: ABC, number: 1 }, { name: 'screen.png', type: 'image/png', bytes: Buffer.alloc(2048) })
+    const gone = await files.add({ project: ABC, number: 1 }, { name: 'old.log', type: 'text/plain', bytes: Buffer.from('x') })
+    rmSync(join(dir, gone.sha256))
+    const card = await call('task_read', { key: 'ABC-1' })
+    expect(card).toContain(`## Attachments\n\n- screen.png (2 KB) — ${join(dir, picture.sha256)}\n- old.log (1 B) — file missing`)
   })
 
   it('has no tool that deletes', async () => {

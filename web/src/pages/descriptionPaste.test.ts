@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { htmlToMarkdown } from './descriptionDoc.js'
-import { meaningfulHtml, pastedPicture } from './descriptionPaste.js'
+import { meaningfulHtml } from './descriptionPaste.js'
 
 describe('meaningfulHtml', () => {
   it('takes clipboard HTML that holds Markdown meaning', () => {
@@ -14,14 +14,6 @@ describe('meaningfulHtml', () => {
     expect(meaningfulHtml('<div style="color: red"><span>const a = 1</span><br></div>')).toBe(false)
     expect(meaningfulHtml('<span>a</span><img src="x.png">')).toBe(false)
     expect(meaningfulHtml('')).toBe(false)
-  })
-})
-
-describe('pastedPicture', () => {
-  it('sees a picture file or a picture inside the HTML', () => {
-    expect(pastedPicture(['image/png'], '')).toBe(true)
-    expect(pastedPicture([], '<p>text <img src="a.png"></p>')).toBe(true)
-    expect(pastedPicture(['text/plain'], '<p>text</p>')).toBe(false)
   })
 })
 

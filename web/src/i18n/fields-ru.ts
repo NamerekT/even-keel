@@ -48,6 +48,7 @@ export const fieldsRu: FieldTexts = {
   'config.autoCompactWindow': () => 'Положительное целое число токенов или пусто — окно аккаунта',
   'config.parallel': (p) => `Целое число от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
+  'config.attachmentLimit': (p) => `Целое число мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.allowedHosts': () => 'По имени хоста на строку',
   'config.contextWindow': (p) => `Целое число токенов от 1, а не ${p.value}`,
   'config.contextPercents': () => 'Проценты, 0 < Предупреждение < Опасно ≤ 100',

@@ -12,6 +12,11 @@ export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', code
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 
 const list = (items: string[]) => items.join(', ')
+/** Bytes as whole megabytes, at least one decimal for less than ten. */
+export const megabytes = (bytes: number) => {
+  const value = bytes / 1024 / 1024
+  return value >= 10 ? String(Math.round(value)) : String(Math.round(value * 10) / 10)
+}
 /** How many models of an account `chain.unknownModel` names; the rest are counted. */
 export const MODELS_NAMED = 8
 
@@ -521,6 +526,8 @@ export const en = {
       ? `${p.task} is the chain's current task; skip it or stop the chain before deleting it`
       : `${p.task} has a live session; stop it before deleting the task`,
   'builtin.noNote': (p: { task: string }) => `${p.task} has no such note of yours; only your own notes can be deleted, and the page may be out of date`,
+  'builtin.fileTooLarge': (p: { name: string; limit: number }) => `${p.name} is larger than ${megabytes(p.limit)} MB, the attachment size limit: raise “Attachment size limit, MB” in Settings → Interface or attach a smaller file`,
+  'builtin.noFile': (p: { task: string }) => `${p.task} has no such attachment; the page may be out of date`,
   'builtin.emptyName': () => 'the name is empty',
   'builtin.noMilestone': () => 'there is no such milestone; the page may be out of date',
   'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,
@@ -618,6 +625,7 @@ export const en = {
   'config.autoCompactWindow': (p: { value: string }) => `config: autoCompactWindow ${p.value} must be a positive whole number of tokens, or null for the account's window`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.keepWarm': (p: { value: string; max: string }) => `config: keepWarm must be a whole number of hours from 0 to ${p.max}, got ${p.value}`,
+  'config.attachmentLimit': (p: { value: string; max: string }) => `config: attachmentLimit must be a whole number of megabytes from 1 to ${p.max}, got ${p.value}`,
   'config.mergeInto': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,
   'config.mergeIntoValue': (p: { where: string }) => `config: ${p.where} must be a project key or null`,

@@ -1,3 +1,4 @@
+import { megabytes } from '../../../src/notice/en.js'
 import { plural } from './plural.js'
 import type { ContextResets } from '../state.js'
 const forms = (one: string, other: string) => (count: number) => plural('en', count, { one, other })
@@ -357,6 +358,14 @@ export const cardEN: Messages['card'] = {
     unreadyHint: 'Takes the task out of the chain: back to a backlog status, the labels the chain requires off.',
     attachments: 'Attachments',
     download: (name: string) => `Download ${name}`,
+    attachment: {
+      remove: (name: string) => `Delete ${name}`,
+      removeTitle: 'Delete the attachment?',
+      removeQuestion: (name: string) => `${name} leaves the task. A link to it in the description stops opening.`,
+      size: (bytes: number) => (bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${megabytes(bytes)} MB`),
+      missing: 'No file',
+      missingTip: (name: string) => `${name}: the attachment is recorded, but its file is not on the service's disk — deleted, or not restored from a backup.`,
+    },
     viewer: {
       close: 'Close',
       prev: 'Previous',
@@ -445,7 +454,10 @@ export const cardEN: Messages['card'] = {
         placeholder: 'What the task is about. Agents read it as written',
         save: 'Save',
         saveTip: 'Ctrl+Enter saves, Esc leaves the editor',
-        noPictures: 'Pictures cannot go into the description yet: they will come with attachments.',
+        saveTipFiles: 'Ctrl+Enter saves, Esc leaves the editor. Paste a picture with Ctrl+V or drop it here',
+        uploading: (name: string) => `Uploading ${name}…`,
+        uploadWait: 'Files are still uploading: saving opens once their links replace the placeholders',
+        drop: 'Drop to attach the files to the task',
         discardTitle: 'Drop the changes?',
         discardQuestion: 'The description has changes that are not saved.',
         discard: 'Drop',

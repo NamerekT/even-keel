@@ -74,3 +74,14 @@ Even Keel's own tasks server for the built-in tracker (`docs/trackers.md`, "The 
 - Filing and splitting tasks costs fewer calls and tokens than through the Huly MCP server.
 
 If one is wrong, a session cannot file or edit tasks of the built-in tracker, or does it at Huly's cost. **Workaround:** file and edit the tasks on the project's page. To check (BTN-795): a chain session on a bench project with the `tasks@even-keel` package on — the tools seen at once, a split picked up by the chain, a patch refused for an `old` found twice; a hand session with the plugin; Codex and OpenCode listing the tools; Tally's calls and tokens per task filed, Huly before against the built-in tracker after.
+
+## Attachments of the built-in tracker (BTN-773)
+
+A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:
+
+- A real paste from the clipboard (a screenshot tool, a browser's copied image) and a drop from the file manager reach the editor as files in Chrome, Edge and Firefox, also on a phone over the HTTPS address, and the raw-body upload of a large file is not cut by a proxy in front of the service.
+- The pasted picture shows in the saved description and opens from its tile on the live service.
+- A chain session reads an attachment by the path in its brief or in `task_read` (Claude's Read takes the picture; Codex, OpenCode and Copilot open the path their own way).
+- On Windows the hourly sweep removes unreferenced bytes once nothing has them open, and a restored backup serves every picture.
+
+If one is wrong, a picture is not taken or not shown, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): paste a screenshot into a bench project's task, save, reload the card; start the task on Claude and on Codex and see the session open the picture; delete it, wait a day, see the bytes gone from `state/even-keel/files/`.

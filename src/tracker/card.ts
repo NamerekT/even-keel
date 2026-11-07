@@ -47,6 +47,12 @@ export interface TaskAttachment {
   size: number
   /** A link the browser opens itself; `null` — the file goes through the service (`TaskSource.file`). */
   url: string | null
+  /** The file's absolute path on this machine: only the built-in tracker gives it, for sessions to read (BTN-773). */
+  path?: string
+  /** The record outlived its file: the card says so instead of a picture. */
+  missing?: true
+  /** The attachment's record, by which the card deletes it; only the built-in tracker gives it. */
+  id?: string
 }
 
 export interface TaskRef {

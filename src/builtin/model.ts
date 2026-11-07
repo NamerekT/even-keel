@@ -3,6 +3,10 @@ import type { TaskPriority, TaskStatus } from '../tracker/model.js'
 /** The tracker's name in `ADAPTERS` and in a project's `tracker`. */
 export const BUILTIN = 'builtin'
 
+/** The `attachmentLimit` setting: the largest attachment of a task, megabytes (BTN-773). */
+export const ATTACHMENT_LIMIT_MB = 25
+export const MAX_ATTACHMENT_LIMIT_MB = 1024
+
 /** The fixed statuses of the built-in tracker (BTN-767), in their order; nothing configures them. */
 export const BUILTIN_STATUSES: readonly TaskStatus[] = [
   { name: 'Backlog', category: 'UnStarted' },

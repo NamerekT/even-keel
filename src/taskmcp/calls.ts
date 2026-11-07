@@ -1,3 +1,4 @@
+import { megabytes } from '../notice/en.js'
 import { englishOf, NoticeError } from '../notice/notice.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
@@ -316,6 +317,11 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean): str
     `rev ${rev}`,
   ]
   const parts = [`# ${card.id} ${card.title}`, head.join(' · '), card.description.trim() === '' ? '(no description)' : card.description.trim()]
+  const files = card.attachments.filter((each) => each.path !== undefined)
+  if (files.length > 0) {
+    const lines = files.map((each) => `- ${each.name} (${sizeText(each.size)}) — ${each.missing ? 'file missing' : each.path}`)
+    parts.push(`## Attachments\n\n${lines.join('\n')}`)
+  }
   if (comments) {
     const list = card.comments.map((each) => {
       const who = each.author ?? 'Person'
@@ -325,6 +331,12 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean): str
     parts.push(list.length === 0 ? '## Comments\n\nnone' : `## Comments\n\n${list.join('\n\n')}`)
   }
   return parts.join('\n\n')
+}
+
+function sizeText(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${megabytes(bytes)} MB`
 }
 
 /** The reason of a failed write in a line for the agent. */

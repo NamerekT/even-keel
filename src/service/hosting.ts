@@ -33,7 +33,7 @@ import { sharedFile } from '../sessions/shareFile.js'
 import { deliveredMail, type SessionMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
 import { noteAtEnd } from '../sessions/note.js'
-import { root, source } from '../locations.js'
+import { root, source, stateDirOf } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
 import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
 import { checkMoves } from '../chain/moves.js'
@@ -51,6 +51,7 @@ import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runsAsService } from '../updates/control.js'
 import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
+import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
 
 type HostingContext = Pick<ServiceContext,
@@ -261,6 +262,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     db: ctx.db,
     places: () => builtinPlaces(ctx.configStore.current),
     refresh: (project) => ctx.refreshProject(project),
+    filesDir: attachmentsDirOf(stateDirOf()),
+    limit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
     busy: (task) =>
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
