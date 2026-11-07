@@ -1,8 +1,10 @@
-import { BUILTIN_LABELS, BUILTIN_STATUSES } from '../../../src/builtin/model.js'
+import { BUILTIN, BUILTIN_LABELS, BUILTIN_STATUSES } from '../../../src/builtin/model.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { TaskCard, TaskRef } from '../../../src/tracker/card.js'
 import { runLabelOf, type TaskPriority } from '../../../src/tracker/model.js'
+import type { TrackerVocabulary } from '../../../src/tracker/source.js'
+import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
 import { fakeCard } from './fakeCards.js'
 import { fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
@@ -99,6 +101,37 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
   }
 }
 
+/** `?tracker=builtin` (BTN-770): the fake's Huly profile is Even Keel's own tracker, so the project page offers the add ghosts. */
+export function withBuiltinTracker(state: EvenKeelState): EvenKeelState {
+  return { ...state, trackers: state.trackers.map((view) => (view.name === FAKE_HULY_PROFILE ? { ...view, kind: BUILTIN, title: 'Even Keel' } : view)) }
+}
+
+/** ABC's milestone made a moment ago with no task yet, so the chain shows it as an empty group with its ghost. */
+const EMPTY_MILESTONE = 'v0.4 — выпуск'
+
+/** A built-in project's vocabulary: its statuses and the milestones its tasks carry, ABC's with one more that none does. */
+export function builtinVocabulary(state: EvenKeelState, project: string, base: TrackerVocabulary): TrackerVocabulary {
+  const carried = state.tasks.filter((each) => each.project === project).flatMap((each) => (each.milestone === null ? [] : [each.milestone.label]))
+  const milestones = [...new Set(carried), ...(project === 'ABC' ? [EMPTY_MILESTONE] : [])]
+  return { ...base, statuses: [...BUILTIN_STATUSES], milestones }
+}
+
+/**
+ * A new top-level task where the chain would put it (BTN-770): a backlog task on top of the backlog, a Todo one after the
+ * last chain task of its milestone, or at the chain's end when its milestone has none.
+ */
+function placed(state: EvenKeelState, task: ProjectTask): EvenKeelState {
+  const chain = state.chain.projects[task.project]
+  if (chain === undefined || task.parent !== null) return state
+  const same = (id: string) => state.tasks.find((each) => each.id === id)?.milestone?.label === task.milestone?.label
+  const last = task.milestone === null ? -1 : chain.order.findLastIndex(same)
+  const at = last < 0 ? chain.order.length : last + 1
+  const next = task.status.category === 'UnStarted'
+    ? { ...chain, backlog: [task.id, ...chain.backlog] }
+    : { ...chain, order: [...chain.order.slice(0, at), task.id, ...chain.order.slice(at)] }
+  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [task.project]: next } } }
+}
+
 /** `refusal`: the service refused, after `state` changed (the conflict's other edit). */
 type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
 
@@ -143,14 +176,16 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
     case 'builtin/create': {
       const parent = typeof body.parent === 'string' ? body.parent : null
       const template = state.tasks.find((each) => each.project === String(body.project)) ?? state.tasks[0]!
-      const project = prefix(template.id)
+      const project = typeof body.project === 'string' ? body.project : prefix(template.id)
       const number = Math.max(0, ...withParents(state).filter((each) => prefix(each.id) === project).map((each) => Number(each.id.split('-')[1]))) + 1
-      const milestone = state.tasks.find((each) => each.milestone?.label === body.milestone)?.milestone ?? null
+      const named = typeof body.milestone === 'string' ? body.milestone : null
+      const milestone = named === null ? null : (state.tasks.find((each) => each.milestone?.label === named)?.milestone ?? { label: named, targetDate: null })
       const created: ProjectTask = {
         ...template,
         id: `${project}-${number}`,
+        project,
         title: String(body.title),
-        status: { name: 'Todo', category: 'ToDo' },
+        status: BUILTIN_STATUSES.find((each) => each.name === body.status) ?? { name: 'Todo', category: 'ToDo' },
         parent,
         milestone,
         blockedBy: [],
@@ -160,7 +195,7 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
         subtasks: 0,
         priority: 'none',
       }
-      return { state: { ...state, tasks: [...state.tasks, created] }, result: { id: created.id } }
+      return { state: placed({ ...state, tasks: [...state.tasks, created] }, created), result: { id: created.id } }
     }
     case 'builtin/delete':
       return {

@@ -260,6 +260,14 @@ export const chainRU = {
     blocker: 'блокирует',
     dependent: 'ждёт её',
     ghost: 'встанет сюда',
+    add: {
+      task: 'Добавить задачу',
+      toMilestone: (milestone: string) => `Добавить задачу в веху ${milestone}`,
+      title: 'Заголовок задачи',
+      placeholder: 'Заголовок задачи: Enter добавит, Ctrl+Enter откроет карточку, Esc закроет',
+      empty: 'Сначала введите заголовок',
+      queued: 'Цепочка запущена: новую задачу она возьмёт в свою очередь.',
+    },
     resets: (count: number) => `сбросов контекста: ${count}`,
     resetsOf: (resets: ContextResets) => {
       const sessions = [

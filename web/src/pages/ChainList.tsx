@@ -16,7 +16,9 @@ import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
 import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
-import { milestoneView, type Section } from '../ui/milestones.js'
+import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
+import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
+import { AddGhost } from './AddGhost.js'
 import { placeLeaving, type Mark } from '../ui/motion.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
@@ -51,6 +53,16 @@ interface Props {
   /** The task has the "To the backlog" button. */
   unready: (block: ChainBlock) => boolean
   onCard: (task: string) => void
+  /** The built-in tracker's add ghosts (BTN-770); `null` — the project is on another tracker. */
+  adding?: Adding | null
+}
+
+export interface Adding {
+  rules: MilestoneRules
+  /** The project's milestones no task carries: empty groups, each with its ghost. */
+  empty: EmptyMilestones
+  /** The chain runs: the ghost's tip says the new task is taken in its turn. */
+  running: boolean
 }
 
 const NO_MARKS: ReadonlyMap<Mark, number> = new Map()
@@ -65,7 +77,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard }: Props) {
+export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null }: Props) {
   const { ghost, leaving } = useLingering(aimed, chain)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -79,8 +91,9 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
   const ordered = pending === null ? chain : withOrder(chain, pending)
   const target = ghost?.id ?? arrival?.id ?? focus
   const archive = archiveView(withGhost(ordered, ghost), pages, target)
-  const view = milestoneView(archive.visible, revealed, target)
-  const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus).sections.length
+  const empty = adding?.empty
+  const view = milestoneView(archive.visible, revealed, target, empty)
+  const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus, empty).sections.length
   const blocks = view.sections.flatMap((section) => section.blocks)
   const shown = new Set([...archive.archived, ...blocks].map((block) => block.id))
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
@@ -124,7 +137,7 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
   }
   const foldMilestones = (kept: number) => {
     setRevealed(kept)
-    unfocus(milestoneView(archive.visible, kept).sections.flatMap((section) => section.blocks))
+    unfocus(milestoneView(archive.visible, kept, '', empty).sections.flatMap((section) => section.blocks))
   }
 
   const { drag, landing, settling, movable } = useChainDrag({
@@ -247,10 +260,26 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
                   />
                 ),
               )}
+              {adding !== null && index < settled && takesGhost(section, adding.rules) && (
+                <li className="chain__add">
+                  <AddGhost
+                    project={project}
+                    place={chainPlace(section.milestone)}
+                    label={section.milestone === null ? t.chain.add.task : t.chain.add.toMilestone(section.milestone)}
+                    tip={adding.running ? t.chain.add.queued : null}
+                    onCard={onCard}
+                  />
+                </li>
+              )}
             </ol>
           </section>
         ))}
       </div>
+      {adding !== null && looseGhost(view.sections, adding.rules) && (
+        <div className="chain__loose">
+          <AddGhost project={project} place={chainPlace(null)} label={t.chain.add.task} tip={adding.running ? t.chain.add.queued : null} onCard={onCard} />
+        </div>
+      )}
       {view.next !== null && (
         <Divider
           name={view.next.milestone ?? t.chain.noMilestone}

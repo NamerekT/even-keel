@@ -85,3 +85,34 @@ describe('milestoneView', () => {
     expect(milestoneView([block('A-1', 'v0.1', false), block('A-2', null)], 1)).toMatchObject({ fixed: 2, revealed: 0 })
   })
 })
+
+describe('milestoneView with empty milestones', () => {
+  const order = ['v0.1', 'v0.2', 'v0.3', 'v0.4']
+  const labels = (view: ReturnType<typeof milestoneView<ReturnType<typeof block>>>) => [...view.sections, ...(view.next === null ? [] : [view.next])].map((section) => section.milestone)
+
+  it('puts an empty milestone before the first later one, as a section of no tasks', () => {
+    const view = milestoneView([block('A-1', 'v0.1', false), block('A-2', 'v0.3')], 0, '', { names: ['v0.2'], order })
+    expect(ids(view)).toEqual([
+      ['v0.1', ['A-1']],
+      ['v0.2', []],
+      ['v0.3', ['A-2']],
+    ])
+  })
+
+  it('puts one later than every milestone after the last of them, ahead of tasks without one, behind the fold', () => {
+    const view = milestoneView([block('A-1', 'v0.1'), block('A-2', null)], 0, '', { names: ['v0.4'], order })
+    expect(labels(view)).toEqual(['v0.1', 'v0.4'])
+    expect(view.next).toEqual({ milestone: 'v0.4', blocks: [] })
+    expect(labels(milestoneView([block('A-1', 'v0.1'), block('A-2', null)], 2, '', { names: ['v0.4'], order }))).toEqual(['v0.1', 'v0.4', null])
+  })
+
+  it('shows empty milestones alone, titled, in an empty chain', () => {
+    const view = milestoneView([], 0, '', { names: ['v0.2', 'v0.3'], order })
+    expect(labels(view)).toEqual(['v0.2', 'v0.3'])
+    expect(view.titled).toBe(true)
+  })
+
+  it('puts a milestone missing from the order at the end of the milestones', () => {
+    expect(labels(milestoneView([block('A-1', 'v0.1', false)], 0, '', { names: ['New'], order }))).toEqual(['v0.1', 'New'])
+  })
+})

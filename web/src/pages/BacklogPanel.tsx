@@ -8,6 +8,8 @@ import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { WorkChip } from '../ui/WorkChip.js'
+import { BACKLOG_PLACE } from '../ui/addGhost.js'
+import { AddGhost } from './AddGhost.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './backlog.css'
 
@@ -26,11 +28,13 @@ interface ChipProps {
   look?: ChipLook
   /** One of the backlog's tasks has work in its folder that main does not (BTN-298): a red dot. */
   work?: boolean
+  /** Shown at a count of 0 too: the built-in tracker's backlog is where its tasks are made (BTN-770). */
+  always?: boolean
   onToggle: () => void
 }
 
-export function BacklogChip({ count, open, look = 'tag', work = false, onToggle }: ChipProps) {
-  if (count === 0) return null
+export function BacklogChip({ count, open, look = 'tag', work = false, always = false, onToggle }: ChipProps) {
+  if (count === 0 && !always) return null
   const seg = look === 'seg'
   return (
     <button
@@ -64,14 +68,19 @@ interface Props {
   onMove: (task: Task) => void
   /** The Todo command for the task has been answered. */
   onSettled: (task: string) => void
+  /** The project's GUID when it is on the built-in tracker: a ghost on top makes a backlog task; `null` — another tracker. */
+  adding?: string | null
 }
 
-export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled, adding = null }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
   point.current = onPoint
   const [out, setOut] = useState<{ task: Task; index: number } | null>(null)
+  // The tasks there as the panel opened: one that comes later unfolds into its place, as a new block of the chain does.
+  const known = useRef<ReadonlySet<string> | null>(null)
+  known.current ??= new Set(tasks.map((task) => task.id))
   const mixed = new Set(tasks.map((task) => task.status.name)).size > 1
   // The row finishes sliding out even when the chain takes the task before it is gone.
   const rows =
@@ -121,12 +130,20 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
         onMouseLeave={() => onPoint(null)}
         onBlur={() => onPoint(null)}
       >
+        {adding !== null && (
+          <li className="backlog__add">
+            <AddGhost project={adding} place={BACKLOG_PLACE} label={t.chain.add.task} onCard={onCard} />
+          </li>
+        )}
         {rows.map((task) => {
           const button = buttonOf(task)
           const reason = button?.refused ?? null
           const gone = task.id === leaving || task.id === out?.task.id
           return (
-            <li key={task.id} className={`backlog__row backlog__row--${task.priority}${gone ? ' backlog__row--leaving' : ''}`}>
+            <li
+              key={task.id}
+              className={`backlog__row backlog__row--${task.priority}${gone ? ' backlog__row--leaving' : known.current?.has(task.id) === false ? ' backlog__row--new' : ''}`}
+            >
               {button !== null && (
                 <button
                   type="button"

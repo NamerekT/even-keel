@@ -1,0 +1,94 @@
+/* The add ghost of the built-in tracker (BTN-770): a dashed half-clear row, and the title field it turns into, of one height. */
+
+.add-ghost {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: var(--space-4) var(--space-12);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--text-13);
+  opacity: 0.7;
+  cursor: pointer;
+  transition:
+    opacity var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.add-ghost:hover,
+.add-ghost:focus-visible {
+  border-color: var(--accent);
+  color: var(--fg);
+  opacity: 1;
+}
+
+.add-ghost:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.add-ghost .icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.add-ghost__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-ghost__tipped {
+  display: block;
+}
+
+/* The field keeps the ghost's box: the same height and place, a solid edge and the card's background. */
+.add-ghost.add-ghost--field {
+  display: block;
+  height: 34px;
+  border-style: solid;
+  border-color: var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: var(--text-14);
+  text-align: start;
+  opacity: 1;
+  cursor: text;
+}
+
+.add-ghost--field::placeholder {
+  color: var(--fg-muted);
+}
+
+.add-ghost--field:focus-visible {
+  outline: none;
+}
+
+.add-ghost--field[aria-invalid='true'] {
+  border-color: var(--lamp-error);
+}
+
+.add-ghost--field[aria-busy='true'] {
+  color: var(--fg-muted);
+}
+
+/* The chain's loose ghost, of an empty project or one of closed tasks only, stands under the list as one more row. */
+.chain__loose {
+  margin-top: var(--space-8);
+}

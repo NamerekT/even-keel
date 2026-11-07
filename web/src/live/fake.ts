@@ -29,7 +29,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
-import { fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard } from './fakeBuiltin.js'
+import { builtinVocabulary, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -338,6 +338,8 @@ export function createFakeSource(search: string): LiveSource {
     entry.name = params.get('limit') === 'codexLong' ? 'Build account for the documentation and integration project with a deliberately long display name' : 'Build account'
   }
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
+  const builtinTracker = params.get('tracker') === 'builtin'
+  if (builtinTracker && current.state !== null) current.state = withBuiltinTracker(current.state)
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent
@@ -804,7 +806,8 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('vocabulary')
       if (mode === 'fail') throw new Error('huly: not connected')
-      return mode === 'none' || !FAKE_PROJECTS.includes(projectId) ? null : FAKE_VOCABULARY
+      if (mode === 'none' || !FAKE_PROJECTS.includes(projectId) || current.state === null) return null
+      return builtinTracker ? builtinVocabulary(current.state, projectId, FAKE_VOCABULARY) : FAKE_VOCABULARY
     },
     checkProject: async (draft, askTracker = true) => {
       await answer()

@@ -42,7 +42,11 @@ import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
 import { chainWaits } from '../waits.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
-import { ChainList } from './ChainList.js'
+import { ChainList, type Adding } from './ChainList.js'
+import { BUILTIN } from '../../../src/builtin/model.js'
+import { DEFAULT_RULES } from '../../../src/chain/rules.js'
+import { emptyMilestones } from '../ui/addGhost.js'
+import { useProjectMilestones } from './useProjectMilestones.js'
 import { ChainWaits } from './ChainWaits.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
@@ -101,14 +105,25 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const narrow = useNarrow()
   const settings = state.config.projects[key]
   const settingsDirty = useSettingsDirty(key, settings)
+  const builtin = state.trackers.some((view) => view.kind === BUILTIN && view.projects.includes(key))
+  const ownTasks = projectTasks(state, key)
+  const milestones = useProjectMilestones(key, builtin, ownTasks.map((task) => task.milestone?.label ?? '').join('\u0000'))
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
+  const adding: Adding | null = !builtin
+    ? null
+    : {
+        rules: settings?.chain ?? DEFAULT_RULES,
+        empty: { names: emptyMilestones(milestones, [...ownTasks.map((task) => task.milestone?.label ?? null), ...blocks.map((block) => block.milestone)]), order: milestones },
+        running: chainStatus(state.chain, key).kind === 'running',
+      }
 
   const order = state.chain.projects[key]
   const flight = arrival.flight
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogWorks = backlogWork(state, key)
-  const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
+  // The built-in tracker's backlog always has its tab: its ghost makes the first task there.
+  const backlogOpen = focus === BACKLOG_HASH && (backlog.length > 0 || builtin)
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
   const ci = state.ci[key]
   const ciAt = ciFocus(focus)
@@ -126,6 +141,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
       {ci !== undefined && <CiChip views={ci} open={ciOpen} look={look} onToggle={toggle(CI_HASH, ciOpen)} />}
       <BacklogChip
         count={backlog.length}
+        always={builtin}
         open={backlogOpen}
         look={look}
         work={Object.keys(backlogWorks).length > 0}
@@ -170,9 +186,10 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           </ChainControls>
         </header>
         <ProjectNotices key={`notices-${key}`} state={state} project={key} settingsOpen={settingsOpen} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
-        <EmptyCall state={state} project={key} />
+        {/* The built-in tracker's empty state is the chain's own ghost. */}
+        {!builtin && <EmptyCall state={state} project={key} />}
         <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
-          {blocks.length === 0 ? (
+          {blocks.length === 0 && (adding === null || order === undefined) ? (
             emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
           ) : (
             <ChainList
@@ -188,6 +205,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               ready={(block) => readyButton(state, key, block)}
               unready={(block) => block.open && !block.locked && canUnready(state, key, block)}
               onCard={openCard}
+              adding={adding}
             />
           )}
         </Loading>
@@ -211,6 +229,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               leaving={arrival.leaving}
               onMove={(task) => arrival.move(task.id, task.title)}
               onSettled={arrival.settle}
+              adding={builtin ? key : null}
             />
           )}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}

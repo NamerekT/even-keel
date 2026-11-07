@@ -258,6 +258,14 @@ export const chainEN: Messages['chain'] = {
     blocker: 'blocks',
     dependent: 'waits for it',
     ghost: 'will stand here',
+    add: {
+      task: 'Add task',
+      toMilestone: (milestone: string) => `Add task to the milestone ${milestone}`,
+      title: 'Task title',
+      placeholder: 'Task title: Enter adds it, Ctrl+Enter opens its card, Esc closes',
+      empty: 'Type a title first',
+      queued: 'The chain is running: it takes the new task in its turn.',
+    },
     resets: (count: number) => `context resets: ${count}`,
     resetsOf: (resets: ContextResets) => {
       const sessions = [

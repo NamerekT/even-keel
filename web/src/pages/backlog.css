@@ -360,11 +360,24 @@
   white-space: nowrap;
 }
 
+/* A task made by the ghost on top (BTN-770) unfolds under it and glows, as a new block of the chain does. */
+.backlog__row.backlog__row--new {
+  interpolate-size: allow-keywords;
+  overflow: hidden;
+  animation:
+    block-enter 0.5s ease-out both,
+    block-glow var(--motion-mark) ease-out 0.4s both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chain .block.block--ghost,
   .chain__section--ghost,
   .backlog__row.backlog__row--leaving {
     transition: none;
+  }
+
+  .backlog__row.backlog__row--new {
+    animation: none;
   }
 
   .block--landed {
