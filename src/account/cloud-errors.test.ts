@@ -5,6 +5,15 @@ const whose = { user: 'john', home: 'C:\\Users\\john' }
 
 describe('cloudErrorNotice', () => {
   it.each([
+    ['Failed to get token from azureADTokenProvider: ChainedTokenCredential authentication failed.', 'cloud.azureCredentials'],
+    ['CredentialUnavailableError: ChainedTokenCredential failed to retrieve a token from the included credentials.', 'cloud.azureCredentials'],
+    ["AzureCliCredential: ERROR: Please run 'az login' to setup account.", 'cloud.azureCredentials'],
+    ['API Error: 404 {"error":{"code":"DeploymentNotFound","message":"The API deployment for this resource does not exist. If you created the deployment within the last 5 minutes, please wait a moment and try again."}}', 'cloud.foundryDeployment'],
+    ['API Error: 400 {"error":{"code":"MarketplacePurchaseEligibilityFailed","message":"Marketplace subscription purchase eligibility check failed."}}', 'cloud.foundrySubscription'],
+    ['API Error: 401 {"error":{"code":"401","message":"Access denied due to invalid subscription key or wrong API endpoint. Make sure to provide a valid key for an active subscription and use a correct regional API endpoint for your resource."}}', 'cloud.foundryRefused'],
+    ['API Error: 401 · Please refresh your Foundry credential (ANTHROPIC_FOUNDRY_AUTH_TOKEN) · if credentials are current, check access to the Foundry resource', 'cloud.foundryRefused'],
+    ['API Error: 403 {"error":{"code":"PermissionDenied","message":"The principal `00000000-0000-0000-0000-000000000000` lacks the required data action `Microsoft.CognitiveServices/accounts/MaaS/chat/completions/action` to perform `POST /anthropic/v1/messages` operation."}}', 'cloud.foundryRefused'],
+    ['API Error: 429 {"error":{"code":"RateLimitReached","message":"Your requests to claude-sonnet have exceeded the token rate limit for your current AIServices S0 pricing tier."}}', 'cloud.foundryThrottled'],
     ['API Error: 403 You don\'t have access to the model with the specified model id.', 'cloud.bedrockModelDenied'],
     ['API Error (us.anthropic.claude-opus-fake): anthropic.claude-opus-fake is not available for this account', 'cloud.bedrockModelDenied'],
     ['AccessDeniedException: Model access is denied due to IAM user or service role is not authorized to perform the required AWS Marketplace actions', 'cloud.bedrockModelDenied'],
@@ -58,6 +67,15 @@ describe('cloudErrorNotice', () => {
     expect(cloudErrorNotice('No AWS credentials found.', whose)?.params).toEqual(whose)
     expect(cloudErrorNotice('No AWS credentials found.')?.params).toEqual({ user: '', home: '' })
     expect(cloudErrorNotice('Could not load the default credentials.', whose)?.params).toEqual(whose)
+    expect(cloudErrorNotice('ChainedTokenCredential authentication failed', whose)?.params).toEqual(whose)
+  })
+
+  it('reads a connection error as an unreachable Foundry resource only for a Foundry account (BTN-824)', () => {
+    const text = 'API Error: Connection error. getaddrinfo ENOTFOUND wrong-name.services.ai.azure.com'
+    expect(cloudErrorNotice(text, whose, 'foundry')?.code).toBe('cloud.foundryUnreachable')
+    expect(cloudErrorNotice(text, whose, 'bedrock')).toBeUndefined()
+    expect(cloudErrorNotice(text, whose)).toBeUndefined()
+    expect(cloudErrorNotice('DeploymentNotFound', whose, 'foundry')?.code).toBe('cloud.foundryDeployment')
   })
 
   it('leaves the errors of Anthropic’s own API alone', () => {

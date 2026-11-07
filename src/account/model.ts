@@ -10,7 +10,7 @@ import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 import type { Transport } from './transport.js'
-import type { AwsProfiles, CloudSummary, GcloudCredentials } from './cloud.js'
+import type { AwsProfiles, AzureCredentials, CloudSummary, GcloudCredentials } from './cloud.js'
 import type { AccountLevel } from './header-levels.js'
 
 export const GLOBAL_ACCOUNT = 'global'
@@ -102,6 +102,8 @@ export interface AccountView {
   aws?: AwsProfiles
   /** The Google Cloud credentials the service's user has, read when the Vertex form asks (`account/gcloud`). */
   gcloud?: GcloudCredentials
+  /** The Azure sign-in the service's user has, read when the Foundry form asks (`account/azure`). */
+  azure?: AzureCredentials
   /** The account holding the Even Keel role: the shared provider's entry of the shared pool, Claude's or Codex's. */
   active: string
   accounts: AccountEntry[]

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { cloudConnectionOf, cloudEnv, cloudOf, isCloudVariable } from './cloud.js'
+import { cloudConnectionOf, cloudEnv, cloudOf, foundryEndpointOf, isCloudVariable } from './cloud.js'
 
 function codeOf(run: () => unknown): string | undefined {
   try {
@@ -94,8 +94,7 @@ describe('cloudConnectionOf', () => {
     expect(cloudConnectionOf({ cloud: 'bedrock', way: 'environment', profile: 'ignored' })).toEqual({ cloud: 'bedrock', auth: { way: 'environment' } })
   })
 
-  it('refuses a cloud not made yet, an unknown cloud or way and a missing field', () => {
-    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'environment' }))).toBe('account.cloudNotReady')
+  it('refuses an unknown cloud or way and a missing field', () => {
     expect(codeOf(() => cloudConnectionOf({ cloud: 'elsewhere', way: 'environment' }))).toBe('request.required')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'password' }))).toBe('request.required')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'apiKey', key: '  ' }))).toBe('request.required')
@@ -168,8 +167,98 @@ describe('Vertex AI', () => {
   })
 })
 
+describe('foundryEndpointOf (BTN-824)', () => {
+  it('takes a bare resource name', () => {
+    expect(foundryEndpointOf(' my-resource ')).toEqual({ resource: 'my-resource' })
+    expect(foundryEndpointOf('ab')).toEqual({ resource: 'ab' })
+  })
+
+  it('takes the full address of a Foundry host and keeps it to the origin and /anthropic', () => {
+    expect(foundryEndpointOf('https://my-resource.services.ai.azure.com/anthropic/')).toEqual({ baseUrl: 'https://my-resource.services.ai.azure.com/anthropic' })
+    expect(foundryEndpointOf('https://my-resource.openai.azure.us/anthropic')).toEqual({ baseUrl: 'https://my-resource.openai.azure.us/anthropic' })
+  })
+
+  it.each([
+    ['my-resource.services.ai.azure.com', 'host'],
+    ['my-resource.services.ai.azure.com/anthropic', 'host'],
+    ['http://my-resource.services.ai.azure.com/anthropic', 'http'],
+    ['https://gateway.example.com/anthropic', 'foreign'],
+    ['https://my-resource.services.ai.azure.com', 'path'],
+    ['https://my-resource.services.ai.azure.com/anthropic/v1/messages', 'path'],
+    ['https://my-resource.services.ai.azure.com/anthropic?x=1', 'path'],
+    ['-resource', 'name'],
+    ['my resource', 'name'],
+    ['', 'name'],
+  ])('%s → %s', (value, problem) => {
+    expect(foundryEndpointOf(value)).toEqual({ problem })
+  })
+})
+
+describe('Microsoft Foundry (BTN-824)', () => {
+  it('writes the resource, the key and the deployments', () => {
+    expect(cloudEnv({ cloud: 'foundry', endpoint: { resource: 'my-resource' }, auth: { way: 'apiKey', key: 'fake-key' }, models: { sonnet: 'my-sonnet', haiku: 'my-haiku' } })).toEqual({
+      CLAUDE_CODE_USE_FOUNDRY: '1',
+      ANTHROPIC_FOUNDRY_RESOURCE: 'my-resource',
+      ANTHROPIC_FOUNDRY_API_KEY: 'fake-key',
+      ANTHROPIC_DEFAULT_SONNET_MODEL: 'my-sonnet',
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'my-haiku',
+    })
+  })
+
+  it('writes the address instead of the name, a token, and nothing of the credentials for Entra ID', () => {
+    const baseUrl = 'https://my-resource.services.ai.azure.com/anthropic'
+    expect(cloudEnv({ cloud: 'foundry', endpoint: { baseUrl }, auth: { way: 'token', token: 'fake-token' }, models: { opus: 'my-opus' } })).toEqual({
+      CLAUDE_CODE_USE_FOUNDRY: '1',
+      ANTHROPIC_FOUNDRY_BASE_URL: baseUrl,
+      ANTHROPIC_FOUNDRY_AUTH_TOKEN: 'fake-token',
+      ANTHROPIC_DEFAULT_OPUS_MODEL: 'my-opus',
+    })
+    expect(cloudEnv({ cloud: 'foundry', endpoint: { resource: 'r1' }, auth: { way: 'entra' }, models: { opus: 'o' } })).toEqual({
+      CLAUDE_CODE_USE_FOUNDRY: '1',
+      ANTHROPIC_FOUNDRY_RESOURCE: 'r1',
+      ANTHROPIC_DEFAULT_OPUS_MODEL: 'o',
+    })
+  })
+
+  it('reads the connection back in the CLI’s order of ways, short-lived for a token', () => {
+    const env = { CLAUDE_CODE_USE_FOUNDRY: '1', ANTHROPIC_FOUNDRY_RESOURCE: 'my-resource', ANTHROPIC_FOUNDRY_API_KEY: 'k', ANTHROPIC_DEFAULT_SONNET_MODEL: 'my-sonnet' }
+    expect(cloudOf(env)).toEqual({ cloud: 'foundry', region: null, way: 'apiKey', resource: 'my-resource', models: { sonnet: 'my-sonnet' }, shortLived: false })
+    expect(cloudOf({ ...env, ANTHROPIC_FOUNDRY_AUTH_TOKEN: 't' })).toMatchObject({ way: 'token', shortLived: true })
+    expect(cloudOf({ CLAUDE_CODE_USE_FOUNDRY: '1', ANTHROPIC_FOUNDRY_RESOURCE: 'r1' })?.way).toBe('entra')
+    expect(cloudOf({ CLAUDE_CODE_USE_FOUNDRY: '1', ANTHROPIC_FOUNDRY_BASE_URL: 'https://my-resource.services.ai.azure.com/anthropic' })?.resource).toBe('my-resource.services.ai.azure.com')
+  })
+
+  it('takes the way, the endpoint and the deployments from a request', () => {
+    expect(cloudConnectionOf({ cloud: 'foundry', way: 'apiKey', key: ' fake-key ', resource: ' my-resource ', models: { sonnet: ' my-sonnet ', opus: '' } })).toEqual({
+      cloud: 'foundry',
+      endpoint: { resource: 'my-resource' },
+      auth: { way: 'apiKey', key: 'fake-key' },
+      models: { sonnet: 'my-sonnet' },
+    })
+    expect(cloudConnectionOf({ cloud: 'foundry', way: 'entra', key: 'ignored', resource: 'https://r1.services.ai.azure.com/anthropic', models: { haiku: 'h' } })).toEqual({
+      cloud: 'foundry',
+      endpoint: { baseUrl: 'https://r1.services.ai.azure.com/anthropic' },
+      auth: { way: 'entra' },
+      models: { haiku: 'h' },
+    })
+  })
+
+  it('refuses a request without a resource, a key or a token, with an address for a name, or without a deployment', () => {
+    const models = { sonnet: 'my-sonnet' }
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'adc', resource: 'r1', models }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'entra', models }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'apiKey', resource: 'r1', models }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'token', resource: 'r1', models }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'entra', resource: 'r1.services.ai.azure.com', models }))).toBe('account.foundryEndpoint')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'entra', resource: 'r1' }))).toBe('account.foundryModels')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'entra', resource: 'r1', models: { opus: ' ' } }))).toBe('account.foundryModels')
+  })
+})
+
 describe('isCloudVariable', () => {
-  it('knows both clouds’ variables and any region of a model', () => {
+  it('knows every cloud’s variables and any region of a model', () => {
+    expect(isCloudVariable('CLAUDE_CODE_USE_FOUNDRY')).toBe(true)
+    expect(isCloudVariable('ANTHROPIC_FOUNDRY_API_KEY')).toBe(true)
     expect(isCloudVariable('CLAUDE_CODE_USE_VERTEX')).toBe(true)
     expect(isCloudVariable('AWS_PROFILE')).toBe(true)
     expect(isCloudVariable('GOOGLE_APPLICATION_CREDENTIALS')).toBe(true)

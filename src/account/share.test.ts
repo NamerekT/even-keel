@@ -370,6 +370,14 @@ describe('mergeSettings', () => {
       env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'fake-project', VERTEX_REGION_CLAUDE_4_5_OPUS: 'europe-west1' },
     })
   })
+
+  it("keeps a Foundry folder's resource, key and deployments, not the global ones (BTN-824)", () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', ANTHROPIC_FOUNDRY_AUTH_TOKEN: 'other-token', ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-fake' } }
+    const folder = { env: { CLAUDE_CODE_USE_FOUNDRY: '1', ANTHROPIC_FOUNDRY_RESOURCE: 'my-resource', ANTHROPIC_FOUNDRY_API_KEY: 'fake-key', ANTHROPIC_DEFAULT_OPUS_MODEL: 'my-opus' } }
+    expect(mergeSettings(global, folder)).toEqual({
+      env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_USE_FOUNDRY: '1', ANTHROPIC_FOUNDRY_RESOURCE: 'my-resource', ANTHROPIC_FOUNDRY_API_KEY: 'fake-key', ANTHROPIC_DEFAULT_OPUS_MODEL: 'my-opus' },
+    })
+  })
 })
 
 describe('shareProjects', () => {

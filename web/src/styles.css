@@ -43,6 +43,7 @@
   --owner-github: var(--series-7);
   --owner-aws: var(--series-4);
   --owner-google: var(--series-5);
+  --owner-microsoft: var(--series-6);
 
   /* Shares that are not projects (model, entrypoint, reason): one slate hue, the biggest share the strongest, so a project's colour means only the project. */
   --tone-1: #2c3544;

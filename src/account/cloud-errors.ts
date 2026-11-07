@@ -1,4 +1,5 @@
 import { notice, type Notice } from '../notice/notice.js'
+import type { Cloud } from './cloud.js'
 
 /** Who Even Keel runs as and their home: empty where it is not known, as in a transcript the page reads too. */
 export interface Whose {
@@ -44,9 +45,41 @@ const VERTEX_ERRORS: Array<[RegExp, (whose: Whose) => Notice]> = [
   [/Permission '?aiplatform\.\S+'? denied/i, () => notice('cloud.vertexPermission', {})],
 ]
 
-const CLOUD_ERRORS = [...VERTEX_ERRORS, ...BEDROCK_ERRORS]
+/**
+ * Microsoft Foundry's refusals (BTN-824): the Azure SDK's chain and the CLI's own Foundry wording in 2.1.319, and Azure's
+ * error bodies. Every pattern names Azure's or the CLI's Foundry words, never a bare 401, 404 or 429.
+ */
+const FOUNDRY_ERRORS: Array<[RegExp, (whose: Whose) => Notice]> = [
+  [
+    /Failed to get token from azureADTokenProvider|ChainedTokenCredential authentication failed|CredentialUnavailableError|Please run 'az login'/i,
+    (whose) => notice('cloud.azureCredentials', whose),
+  ],
+  [/DeploymentNotFound|The API deployment for this resource does not exist/i, () => notice('cloud.foundryDeployment', {})],
+  [
+    /MarketplacePurchaseEligibilityFailed|marketplace (offer|purchase|subscription).*(not eligible|failed|not available)|subscription is not (eligible|supported) for|not available (for|in) (this|your) (Azure )?subscription/i,
+    () => notice('cloud.foundrySubscription', {}),
+  ],
+  [
+    /refresh your Foundry credential|Access denied due to invalid subscription key|Access token is missing, invalid, audience is incorrect|lacks the required data action/i,
+    () => notice('cloud.foundryRefused', {}),
+  ],
+  [/RateLimitReached|have exceeded (the )?(token|call) rate limit/i, () => notice('cloud.foundryThrottled', {})],
+]
 
-/** What a cloud refusal means and what to do, by the error's text; undefined for any other error. */
-export function cloudErrorNotice(text: string, whose: Whose = NOBODY): Notice | undefined {
-  return CLOUD_ERRORS.find(([pattern]) => pattern.test(text))?.[1](whose)
+/**
+ * The first message of a Foundry account that cannot reach its resource: the CLI retries the connection and gives up.
+ * Only a Foundry account's check reads it so: the words are the same for any host.
+ */
+const FOUNDRY_UNREACHABLE = /Connection error|ENOTFOUND|EAI_AGAIN|getaddrinfo|ECONNREFUSED|Unable to connect to API/i
+
+const CLOUD_ERRORS = [...FOUNDRY_ERRORS, ...VERTEX_ERRORS, ...BEDROCK_ERRORS]
+
+/**
+ * What a cloud refusal means and what to do, by the error's text; undefined for any other error. `cloud` is the
+ * account's cloud where it is known, as at the check of a new account, for the errors only that cloud words so.
+ */
+export function cloudErrorNotice(text: string, whose: Whose = NOBODY, cloud?: Cloud): Notice | undefined {
+  const known = CLOUD_ERRORS.find(([pattern]) => pattern.test(text))?.[1](whose)
+  if (known === undefined && cloud === 'foundry' && FOUNDRY_UNREACHABLE.test(text)) return notice('cloud.foundryUnreachable', {})
+  return known
 }

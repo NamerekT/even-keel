@@ -11,7 +11,7 @@ import {
   type PoolEntry,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
-import { cloudConnectionOf, cloudEnv, cloudOf, type AwsProfiles, type GcloudCredentials } from '../../../src/account/cloud.js'
+import { cloudConnectionOf, cloudEnv, cloudOf, type AwsProfiles, type AzureCredentials, type GcloudCredentials } from '../../../src/account/cloud.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
@@ -139,6 +139,14 @@ const FAKE_GCLOUD: GcloudCredentials = {
   adcType: 'authorized_user',
   environmentFile: null,
   projects: ['example-vertex-prod', 'example-sandbox'],
+}
+
+const FAKE_AZURE: AzureCredentials = {
+  user: 'john',
+  home: 'C:\\Users\\john',
+  profileFile: 'C:\\Users\\john\\.azure\\azureProfile.json',
+  signedIn: true,
+  environment: false,
 }
 
 /** No limits, with why (`UsageAnswer` of kind `missing`). */
@@ -352,6 +360,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     return { ...signedIn, active: 'jane.roe', accounts, pool }
   }
   if (mode === 'api-noAdc') return { ...fakeAccount('api', idle, limits), gcloud: { ...FAKE_GCLOUD, adcType: null } }
+  if (mode === 'api-noAz') return { ...fakeAccount('api', idle, limits), azure: { ...FAKE_AZURE, signedIn: false } }
   if (mode === 'api' || mode === 'spend' || mode === 'spendUnknown') {
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
     const spendingLimit = mode === 'api' ? null : { resetsAt: mode === 'spendUnknown' ? null : '2026-11-01T00:00:00.000Z' }
@@ -369,7 +378,16 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
       cloud: { cloud: 'vertex', region: 'global', way: 'keyFile', project: 'example-vertex-prod', models: {}, shortLived: false },
       status: { loggedIn: true, authMethod: 'third_party', email: 'vertex', orgName: null, subscriptionType: null },
     })
-    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'], spendingLimit }), lost, bedrock, vertex] }
+    const foundry = apiEntry('foundry', {
+      name: 'Foundry team',
+      apiKey: false,
+      keyReplaceable: false,
+      cloud: { cloud: 'foundry', region: null, way: 'apiKey', resource: 'example-foundry', models: { sonnet: 'my-sonnet', haiku: 'my-haiku' }, shortLived: false },
+      checkedModel: 'my-sonnet',
+      status: { loggedIn: true, authMethod: 'third_party', email: 'foundry', orgName: null, subscriptionType: null },
+    })
+    const accounts = [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'], spendingLimit }), lost, bedrock, vertex, foundry]
+    return { ...signedIn, active: 'ci-key', accounts }
   }
   if (mode === 'codex') {
     const codex = codexEntry('codex', 'john.doe@example.com', 'free', {
@@ -522,14 +540,18 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   }
   if (name === 'account/aws') return { ...account, aws: FAKE_AWS }
   if (name === 'account/gcloud') return { ...account, gcloud: account.gcloud ?? FAKE_GCLOUD }
+  if (name === 'account/azure') return { ...account, azure: account.azure ?? FAKE_AZURE }
   if (name === 'account/cloud') {
-    // The service checks with one turn: a profile or a project named "missing" fails as the cloud answers when it finds no credentials.
+    // The service checks with one turn: a profile, a project or a resource named "missing" fails as the cloud answers when it finds no credentials.
     const connection = cloudConnectionOf(body)
     if (connection.cloud === 'bedrock' && connection.auth.way === 'profile' && connection.auth.profile === 'missing') {
       throw new NoticeError(notice('cloud.awsCredentials', { user: FAKE_AWS.user, home: FAKE_AWS.home }))
     }
     if (connection.cloud === 'vertex' && connection.projectId === 'missing') {
       throw new NoticeError(notice('cloud.gcpCredentials', { user: FAKE_GCLOUD.user, home: FAKE_GCLOUD.home }))
+    }
+    if (connection.cloud === 'foundry' && 'resource' in connection.endpoint && connection.endpoint.resource === 'missing') {
+      throw new NoticeError(notice('cloud.azureCredentials', { user: FAKE_AZURE.user, home: FAKE_AZURE.home }))
     }
     const given = String(body.name ?? '').trim()
     const folder = folderName(given || connection.cloud, account.accounts.map((entry) => entry.key))
@@ -538,7 +560,10 @@ export function accountCommand(account: AccountView, name: string, body: Record<
       (profile) => FAKE_AWS.profiles.some((each) => each.name === profile && each.shortLived),
       (keyFile) => keyFile === null && FAKE_GCLOUD.adcType === 'authorized_user',
     )!
-    const checkedModel = connection.cloud === 'vertex' ? 'claude-sonnet-4-5@20250929' : 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
+    const checkedModel =
+      connection.cloud === 'vertex' ? 'claude-sonnet-4-5@20250929'
+      : connection.cloud === 'foundry' ? (connection.models.sonnet ?? connection.models.opus ?? connection.models.haiku)
+      : 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
     const entry = apiEntry(folder, { name: given || null, apiKey: false, keyReplaceable: false, cloud, checkedModel,
       status: { loggedIn: true, authMethod: 'third_party', email: folder, orgName: null, subscriptionType: null } })
     return { ...account, accounts: [...account.accounts, entry] }

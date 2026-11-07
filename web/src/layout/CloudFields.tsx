@@ -1,5 +1,16 @@
 import { useEffect, useId } from 'react'
-import { CLOUD_WAYS, CLOUDS_READY, VERTEX_REGION_MODELS, type AwsProfiles, type Cloud, type CloudWay, type GcloudCredentials } from '../../../src/account/cloud.js'
+import {
+  CLOUD_WAYS,
+  CLOUDS_READY,
+  foundryEndpointOf,
+  VERTEX_REGION_MODELS,
+  type AwsProfiles,
+  type AzureCredentials,
+  type Cloud,
+  type CloudWay,
+  type FoundryEndpointProblem,
+  type GcloudCredentials,
+} from '../../../src/account/cloud.js'
 import { cloudShortLived, withCloud, type CloudDraft } from '../cloudDraft.js'
 import { t } from '../i18n/index.js'
 import { HelpTip } from '../pages/settingsParts.js'
@@ -22,9 +33,15 @@ interface Props {
   gcloud: GcloudCredentials | undefined
   /** Asks the service to read them (`account/gcloud`). */
   readGcloud: () => void
+  /** The Azure sign-in of the user the service runs as; undefined until the service read it. */
+  azure: AzureCredentials | undefined
+  /** Asks the service to read it (`account/azure`). */
+  readAzure: () => void
 }
 
 const ADC_LOGIN = 'gcloud auth application-default login'
+const AZ_LOGIN = 'az login'
+const FAMILIES = ['opus', 'sonnet', 'haiku'] as const
 
 /** A way's label or note: each cloud names its own ways, and `environment` is in both. */
 function wayWord(words: Record<Cloud, Partial<Record<CloudWay, string>>>, cloud: Cloud, way: CloudWay): string {
@@ -32,18 +49,20 @@ function wayWord(words: Record<Cloud, Partial<Record<CloudWay, string>>>, cloud:
 }
 
 /**
- * The cloud way of a new Claude account (BTN-822, BTN-823): the clouds as cards — only the ones that can be added — then
- * the picked cloud's fields. Foundry gets a card of its own here.
+ * The cloud way of a new Claude account (BTN-822, BTN-823, BTN-824): the clouds as cards — only the ones that can be
+ * added — then the picked cloud's fields.
  */
-export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud }: Props) {
+export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud, azure, readAzure }: Props) {
   const group = useId()
   const set = (change: Partial<CloudDraft>) => onDraft({ ...draft, ...change })
   const vertex = draft.cloud === 'vertex'
+  const foundry = draft.cloud === 'foundry'
   useEffect(() => {
     if (draft.cloud === 'bedrock' && draft.way === 'profile') readAws()
     if (vertex) readGcloud()
+    if (foundry && draft.way === 'entra') readAzure()
   }, [draft.cloud, draft.way])
-  const profile = vertex ? undefined : aws?.profiles.find((each) => each.name === draft.profile.trim())
+  const profile = draft.cloud === 'bedrock' ? aws?.profiles.find((each) => each.name === draft.profile.trim()) : undefined
   const words = t.addAccount.cloud
   return (
     <>
@@ -79,28 +98,90 @@ export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud }
         />
       </div>
       <p className="add-package__note">{wayWord(words.wayNotes, draft.cloud, draft.way)}</p>
-      {vertex ? <VertexAuthFields draft={draft} set={set} gcloud={gcloud} /> : <BedrockAuthFields draft={draft} set={set} aws={aws} />}
-      <Text
-        label={words.region}
-        value={draft.region}
-        onChange={(region) => set({ region })}
-        placeholder={vertex ? words.regionVertex : profile?.region != null ? words.regionFromProfile(profile.region) : words.regionDefault}
-        mono
-      />
+      {vertex ? (
+        <VertexAuthFields draft={draft} set={set} gcloud={gcloud} />
+      ) : foundry ? (
+        <FoundryAuthFields draft={draft} set={set} azure={azure} />
+      ) : (
+        <BedrockAuthFields draft={draft} set={set} aws={aws} />
+      )}
+      {!foundry && (
+        <Text
+          label={words.region}
+          value={draft.region}
+          onChange={(region) => set({ region })}
+          placeholder={vertex ? words.regionVertex : profile?.region != null ? words.regionFromProfile(profile.region) : words.regionDefault}
+          mono
+        />
+      )}
       {cloudShortLived(draft, aws, gcloud) && <p className="notice notice--warn">{words.shortLived[draft.cloud]}</p>}
-      <Fold className="account-add__models" summary={<>{words.models}</>}>
-        <div className="account-add__models-body">
-          <p className="add-package__note">{words.modelsNote[draft.cloud]}</p>
-          {(['opus', 'sonnet', 'haiku'] as const).map((family) => (
-            <Text key={family} label={words.model[family]} value={draft[family]} onChange={(value) => set({ [family]: value })} mono />
-          ))}
-          {vertex ? (
-            <ModelRegions draft={draft} set={set} />
-          ) : (
-            <Text label={words.regionPrefix} value={draft.regionPrefix} onChange={(regionPrefix) => set({ regionPrefix })} placeholder={words.regionPrefixHint} mono />
-          )}
+      {foundry ? (
+        <fieldset className="add-package__field">
+          <legend className="add-package__label add-package__legend">{words.deployments}</legend>
+          <div className="account-add__models-body">
+            <p className="add-package__note">{words.modelsNote.foundry}</p>
+            {FAMILIES.map((family) => (
+              <Text key={family} label={words.deployment[family]} value={draft[family]} onChange={(value) => set({ [family]: value })} mono />
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        <Fold className="account-add__models" summary={<>{words.models}</>}>
+          <div className="account-add__models-body">
+            <p className="add-package__note">{words.modelsNote[draft.cloud]}</p>
+            {FAMILIES.map((family) => (
+              <Text key={family} label={words.model[family]} value={draft[family]} onChange={(value) => set({ [family]: value })} mono />
+            ))}
+            {vertex ? (
+              <ModelRegions draft={draft} set={set} />
+            ) : (
+              <Text label={words.regionPrefix} value={draft.regionPrefix} onChange={(regionPrefix) => set({ regionPrefix })} placeholder={words.regionPrefixHint} mono />
+            )}
+          </div>
+        </Fold>
+      )}
+    </>
+  )
+}
+
+/**
+ * The Foundry resource, then the way's own field. The resource field tells at once a value the CLI would refuse at the
+ * first message: a host name, an address that is not Foundry's.
+ */
+function FoundryAuthFields({ draft, set, azure }: FieldsProps & { azure: AzureCredentials | undefined }) {
+  const resourceId = useId()
+  const words = t.addAccount.cloud
+  const endpoint = draft.resource.trim() === '' ? null : foundryEndpointOf(draft.resource)
+  const problem: FoundryEndpointProblem | null = endpoint !== null && 'problem' in endpoint ? endpoint.problem : null
+  return (
+    <>
+      <div className="add-package__field">
+        <label className="add-package__label" htmlFor={resourceId}>
+          {words.resource}
+        </label>
+        <FieldStrip line={problem === null ? null : { tone: 'error', text: words.resourceProblems[problem] }} fold wide>
+          <input
+            id={resourceId}
+            className="add-package__input add-package__input--mono"
+            value={draft.resource}
+            placeholder={words.resourceHint}
+            aria-invalid={problem !== null}
+            onChange={(event) => set({ resource: event.target.value })}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </FieldStrip>
+      </div>
+      {draft.way === 'apiKey' && <Secret label={words.foundryKey} value={draft.key} onChange={(key) => set({ key })} />}
+      {draft.way === 'token' && <Secret label={words.token} value={draft.token} onChange={(token) => set({ token })} />}
+      {draft.way === 'entra' && azure !== undefined && !azure.signedIn && !azure.environment && (
+        <div className="notice notice--warn account-add__adc">
+          <p>{words.noAzure(azure.user)}</p>
+          <CommandBlock command={AZ_LOGIN} />
         </div>
-      </Fold>
+      )}
+      {draft.way === 'entra' && azure?.environment === true && <p className="add-package__note">{words.azureEnvironment}</p>}
+      {draft.way === 'entra' && azure !== undefined && !azure.environment && azure.signedIn && <p className="add-package__note">{words.azureOf(azure.user)}</p>}
     </>
   )
 }

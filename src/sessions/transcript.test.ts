@@ -421,6 +421,13 @@ describe('TranscriptFold', () => {
     expect(summary.action).toMatchObject({ kind: 'error', notice: { code: 'cloud.vertexQuota' } })
   })
 
+  it('stops on a Foundry rate limit with its own message instead of waiting it out as a limit (BTN-824)', () => {
+    const message = 'API Error: 429 {"error":{"code":"RateLimitReached","message":"Your requests to my-sonnet have exceeded the token rate limit for your current AIServices S0 pricing tier."}}'
+    const summary = fold([apiError('rate_limit', message)]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'error', notice: { code: 'cloud.foundryThrottled' } })
+    expect(summary.action).toMatchObject({ kind: 'error', notice: { code: 'cloud.foundryThrottled' } })
+  })
+
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
     expect(failed.summary().apiError).toMatchObject({ kind: 'error' })

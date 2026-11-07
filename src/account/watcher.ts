@@ -8,7 +8,7 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
-import type { AwsProfiles, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
+import type { AwsProfiles, AzureCredentials, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
 import {
@@ -90,6 +90,8 @@ export interface AccountWatcherOptions {
   awsProfiles: () => AwsProfiles
   /** The Google Cloud credentials of the user the service runs as (`readGcloud`). */
   gcloud: () => GcloudCredentials
+  /** The Azure sign-in of the user the service runs as (`readAzure`). */
+  azure: () => AzureCredentials
   /** Who the service runs as, for a cloud's credential refusal to name. */
   whose: () => Whose
   /** Whether the agent's provider takes the key. */
@@ -141,6 +143,7 @@ export class AccountWatcher {
   private readonly keys: KeyChecks
   private aws: AwsProfiles | undefined
   private gcloud: GcloudCredentials | undefined
+  private azure: AzureCredentials | undefined
   /** The model each cloud account's check turn answered with, by folder key (BTN-822). */
   private readonly checkedModels = new Map<string, string | null>()
   private readonly credit: CreditChecks
@@ -201,6 +204,7 @@ export class AccountWatcher {
       ...(this.globalCheck !== undefined && { globalCheck: this.globalCheck }),
       ...(this.aws !== undefined && { aws: this.aws }),
       ...(this.gcloud !== undefined && { gcloud: this.gcloud }),
+      ...(this.azure !== undefined && { azure: this.azure }),
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
       pool: this.options.pool().filter((entry) => accounts.some((account) => account.key === entry.account && account.agent === entry.provider)),
@@ -325,6 +329,12 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
+  /** Reads the Azure sign-in of the service's user for the Foundry form's Entra ID way, into `view.azure` (BTN-824). */
+  readAzure(): void {
+    this.azure = this.options.azure()
+    this.options.onChange()
+  }
+
   /**
    * A cloud account (BTN-822): the folder is made, one short turn runs on it, and a refusal removes it again with the
    * cloud's own reason (`cloudErrorNotice`), so no account is added that cannot run a session.
@@ -337,7 +347,7 @@ export class AccountWatcher {
     } catch (reason) {
       await this.options.homes.remove(home)
       const text = reason instanceof Error ? reason.message : String(reason)
-      const known = cloudErrorNotice(text, this.options.whose())
+      const known = cloudErrorNotice(text, this.options.whose(), connection.cloud)
       throw known === undefined ? fail('account.cloudCheckFailed', { reason: text.slice(0, 500) }) : new NoticeError(known)
     }
     this.checkedModels.set(home.key, model)
