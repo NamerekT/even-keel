@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import type { ModelList, SessionHandle } from '../agent/contract.js'
+import type { ModelList, OneTurn, OneTurnAnswer, SessionHandle } from '../agent/contract.js'
 import { Gate, SCRIPT_PID, ScriptedAgent as ScriptCore, type Turn, type TurnEnd } from '../agent/scripted.js'
 import { runGit } from '../git/run.js'
 import type { RateLimits } from '../limits/model.js'
@@ -58,6 +58,14 @@ export class ScriptedAgent extends ScriptCore {
   get models(): ((home: AccountHome) => Promise<ModelList>) | undefined {
     const models = this.modelList
     return models === null ? undefined : async () => ({ models: [...models], complete: true })
+  }
+
+  /** A one-off turn, as the check of a new cloud account runs; `null` — the agent runs none. */
+  oneTurn: ((home: AccountHome, turn: OneTurn) => Promise<OneTurnAnswer>) | null = null
+
+  /** Set by `oneTurn`: an agent without one-off turns leaves the method out. */
+  get write(): ((home: AccountHome, turn: OneTurn) => Promise<OneTurnAnswer>) | undefined {
+    return this.oneTurn ?? undefined
   }
 
   /** Set by `windows`: an agent without a source of limits leaves the method out. */

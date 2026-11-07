@@ -96,6 +96,18 @@ describe('AccountHomes.addCloud (BTN-822)', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  it('names a Foundry folder after its cloud and reads its resource and deployments back (BTN-824)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const homes = new AccountHomes(env, root)
+      const home = homes.addCloud('', { cloud: 'foundry', endpoint: { resource: 'my-resource' }, auth: { way: 'token', token: 'fake-token' }, models: { sonnet: 'my-sonnet' } })
+      expect(home.key).toBe('foundry')
+      expect(homes.cloudOf(home)).toEqual({ cloud: 'foundry', region: null, way: 'token', resource: 'my-resource', models: { sonnet: 'my-sonnet' }, shortLived: true })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('AccountHomes.apiKeyOf', () => {

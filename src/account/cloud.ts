@@ -2,12 +2,12 @@ import { fail } from '../notice/notice.js'
 
 /**
  * A Claude account on a cloud (BTN-822): the CLI reaches the models through the cloud's own API, paid by the cloud's
- * bill. Every cloud is one of `CLOUDS`; only the ones of `CLOUDS_READY` can be added yet (Foundry follows).
+ * bill. Every cloud is one of `CLOUDS`; only the ones of `CLOUDS_READY` can be added.
  * Its whole connection is the `env` of the folder's `settings.json`, the way an API account holds its key.
  */
 export const CLOUDS = ['bedrock', 'vertex', 'foundry'] as const
 export type Cloud = (typeof CLOUDS)[number]
-export const CLOUDS_READY: readonly Cloud[] = ['bedrock', 'vertex']
+export const CLOUDS_READY: readonly Cloud[] = ['bedrock', 'vertex', 'foundry']
 
 /** How a Bedrock account finds its AWS credentials. */
 export const BEDROCK_WAYS = ['profile', 'apiKey', 'keys', 'environment'] as const
@@ -20,9 +20,16 @@ export type BedrockWay = (typeof BEDROCK_WAYS)[number]
 export const VERTEX_WAYS = ['adc', 'keyFile', 'environment'] as const
 export type VertexWay = (typeof VERTEX_WAYS)[number]
 
-export type CloudWay = BedrockWay | VertexWay
+/**
+ * How a Foundry account signs in (BTN-824): an API key of the resource, Microsoft Entra ID through the Azure SDK's
+ * chain (`az login` of the service's user, its environment, the machine's identity), or a Bearer token of about an hour.
+ */
+export const FOUNDRY_WAYS = ['apiKey', 'entra', 'token'] as const
+export type FoundryWay = (typeof FOUNDRY_WAYS)[number]
 
-export const CLOUD_WAYS: Record<Cloud, readonly CloudWay[]> = { bedrock: BEDROCK_WAYS, vertex: VERTEX_WAYS, foundry: [] }
+export type CloudWay = BedrockWay | VertexWay | FoundryWay
+
+export const CLOUD_WAYS: Record<Cloud, readonly CloudWay[]> = { bedrock: BEDROCK_WAYS, vertex: VERTEX_WAYS, foundry: FOUNDRY_WAYS }
 
 export interface CloudModels {
   opus?: string
@@ -60,7 +67,20 @@ export interface VertexConnection {
   modelRegions?: Record<string, string>
 }
 
-export type CloudConnection = BedrockConnection | VertexConnection
+export type FoundryAuth = { way: 'apiKey'; key: string } | { way: 'entra' } | { way: 'token'; token: string }
+
+/** The resource's bare name (`ANTHROPIC_FOUNDRY_RESOURCE`) or its full address (`ANTHROPIC_FOUNDRY_BASE_URL`). */
+export type FoundryEndpoint = { resource: string } | { baseUrl: string }
+
+export interface FoundryConnection {
+  cloud: 'foundry'
+  endpoint: FoundryEndpoint
+  auth: FoundryAuth
+  /** Deployment names: Foundry has no model check at start, so a request without them simply fails. */
+  models: CloudModels
+}
+
+export type CloudConnection = BedrockConnection | VertexConnection | FoundryConnection
 
 /** What the page shows of a cloud account: never a secret. */
 export interface CloudSummary {
@@ -71,6 +91,8 @@ export interface CloudSummary {
   profile?: string
   /** The Google Cloud project of a Vertex account. */
   project?: string
+  /** The Foundry resource: its name, or the host of its address. */
+  resource?: string
   /** Pinned models by family. */
   models: CloudModels
   /** The credentials expire within hours or may ask for a new sign-in: a chain left alone stops (`shortLivedKey`). */
@@ -105,6 +127,18 @@ export interface GcloudCredentials {
   environmentFile: string | null
   /** The projects of the gcloud configurations and the ADC's quota project, for the project field to offer. */
   projects: string[]
+}
+
+/** The Azure sign-in of the user Even Keel runs as, read when the Foundry form asks for Entra ID (`readAzure`). */
+export interface AzureCredentials {
+  user: string
+  home: string
+  /** The `azureProfile.json` of that user's Azure CLI folder. */
+  profileFile: string
+  /** `az login` was done: the profile lists a subscription. */
+  signedIn: boolean
+  /** The service's own environment holds a service principal (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and a secret). */
+  environment: boolean
 }
 
 /**
@@ -149,14 +183,55 @@ const BEDROCK_VARIABLES = {
 } as const
 const VERTEX_VARIABLES = { projectId: 'ANTHROPIC_VERTEX_PROJECT_ID', region: 'CLOUD_ML_REGION', keyFile: 'GOOGLE_APPLICATION_CREDENTIALS' } as const
 const MODEL_REGION = /^VERTEX_REGION_CLAUDE_[A-Z0-9_]+$/
+export const FOUNDRY_SWITCH = 'CLAUDE_CODE_USE_FOUNDRY'
+const FOUNDRY_VARIABLES = {
+  resource: 'ANTHROPIC_FOUNDRY_RESOURCE',
+  baseUrl: 'ANTHROPIC_FOUNDRY_BASE_URL',
+  apiKey: 'ANTHROPIC_FOUNDRY_API_KEY',
+  token: 'ANTHROPIC_FOUNDRY_AUTH_TOKEN',
+} as const
 
 const CLOUD_VARIABLES: readonly string[] = [
   BEDROCK_SWITCH,
   VERTEX_SWITCH,
+  FOUNDRY_SWITCH,
   ...Object.values(BEDROCK_VARIABLES),
   ...Object.values(VERTEX_VARIABLES),
+  ...Object.values(FOUNDRY_VARIABLES),
   ...Object.values(MODEL_VARIABLES),
 ]
+
+/** A resource name as the CLI takes it in 2.1.319: 2–64 letters, digits and hyphens, no hyphen at either end. */
+const FOUNDRY_RESOURCE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])$/i
+/** The hosts the CLI counts as Foundry's own in 2.1.319; another one it treats as a gateway and may refuse. */
+const FOUNDRY_HOST = /^[a-z0-9-]{2,64}\.(?:services\.ai|cognitiveservices|openai)\.azure\.(?:com|us|cn)$/
+
+/**
+ * Why a value is no Foundry endpoint: `host` — a host name or an address without `https://`, which the CLI rejects at
+ * the first message; `http` — not https; `foreign` — not one of Foundry's hosts; `path` — an address not ending in
+ * `/anthropic`; `name` — not a resource name at all.
+ */
+export type FoundryEndpointProblem = 'host' | 'http' | 'foreign' | 'path' | 'name'
+
+/**
+ * The Foundry field's value as the CLI takes it: a bare resource name, or a full `https://…/anthropic` address of a
+ * Foundry host. One field takes both, since the portal shows the address and the CLI refuses it as a name.
+ */
+export function foundryEndpointOf(value: string): FoundryEndpoint | { problem: FoundryEndpointProblem } {
+  const given = value.trim()
+  if (FOUNDRY_RESOURCE.test(given)) return { resource: given }
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(given)) return { problem: /[./:]/.test(given) ? 'host' : 'name' }
+  let url: URL
+  try {
+    url = new URL(given)
+  } catch {
+    return { problem: 'name' }
+  }
+  if (url.protocol !== 'https:') return { problem: 'http' }
+  if (!FOUNDRY_HOST.test(url.hostname)) return { problem: 'foreign' }
+  if (url.pathname.replace(/\/+$/, '') !== '/anthropic' || url.search !== '' || url.hash !== '') return { problem: 'path' }
+  return { baseUrl: `${url.origin}/anthropic` }
+}
 
 /**
  * A variable a cloud folder may hold. The transfer of the shared configuration takes them from the folder only, so
@@ -178,6 +253,16 @@ export function cloudEnv(connection: CloudConnection): Record<string, string> {
   const env: Record<string, string> = {}
   const set = (name: string, value: string | undefined) => {
     if (value !== undefined && value !== '') env[name] = value
+  }
+  if (connection.cloud === 'foundry') {
+    env[FOUNDRY_SWITCH] = '1'
+    const { endpoint, auth } = connection
+    if ('resource' in endpoint) set(FOUNDRY_VARIABLES.resource, endpoint.resource)
+    else set(FOUNDRY_VARIABLES.baseUrl, endpoint.baseUrl)
+    if (auth.way === 'apiKey') set(FOUNDRY_VARIABLES.apiKey, auth.key)
+    if (auth.way === 'token') set(FOUNDRY_VARIABLES.token, auth.token)
+    for (const family of FAMILIES) set(MODEL_VARIABLES[family], connection.models[family])
+    return env
   }
   if (connection.cloud === 'vertex') {
     env[VERTEX_SWITCH] = '1'
@@ -240,6 +325,20 @@ export function cloudOf(
       shortLived: userCredentials(keyFile ?? null),
     }
   }
+  if (truthy(env[FOUNDRY_SWITCH])) {
+    // The CLI's own order: a token, then a key, then the Azure SDK's chain.
+    const way: FoundryWay = text(FOUNDRY_VARIABLES.token) !== undefined ? 'token' : text(FOUNDRY_VARIABLES.apiKey) !== undefined ? 'apiKey' : 'entra'
+    const baseUrl = text(FOUNDRY_VARIABLES.baseUrl)
+    let resource = text(FOUNDRY_VARIABLES.resource)
+    if (baseUrl !== undefined) {
+      try {
+        resource = new URL(baseUrl).hostname
+      } catch {
+        resource = baseUrl
+      }
+    }
+    return { cloud: 'foundry', region: null, way, ...(resource !== undefined && { resource }), models, shortLived: way === 'token' }
+  }
   return null
 }
 
@@ -278,7 +377,20 @@ export function cloudConnectionOf(body: Record<string, unknown>): CloudConnectio
   const cloud = body.cloud
   if (!CLOUDS.includes(cloud as Cloud)) throw fail('request.required', { field: 'cloud' })
   if (!CLOUDS_READY.includes(cloud as Cloud)) throw fail('account.cloudNotReady', { cloud: String(cloud) })
-  return cloud === 'vertex' ? vertexConnectionOf(body) : bedrockConnectionOf(body)
+  return cloud === 'vertex' ? vertexConnectionOf(body) : cloud === 'foundry' ? foundryConnectionOf(body) : bedrockConnectionOf(body)
+}
+
+function foundryConnectionOf(body: Record<string, unknown>): FoundryConnection {
+  const way = body.way
+  if (!FOUNDRY_WAYS.includes(way as FoundryWay)) throw fail('request.required', { field: 'way' })
+  const given = text(body.resource)
+  if (given === undefined) throw fail('request.required', { field: 'resource' })
+  const endpoint = foundryEndpointOf(given)
+  if ('problem' in endpoint) throw fail('account.foundryEndpoint', {})
+  const auth: FoundryAuth = way === 'apiKey' ? { way, key: need(body.key, 'key') } : way === 'token' ? { way, token: need(body.token, 'token') } : { way: 'entra' }
+  const models = modelsOf(body)
+  if (models === undefined) throw fail('account.foundryModels', {})
+  return { cloud: 'foundry', endpoint, auth, models }
 }
 
 function bedrockConnectionOf(body: Record<string, unknown>): BedrockConnection {

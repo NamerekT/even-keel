@@ -113,6 +113,8 @@ export interface AccountControl {
   readAws(): void
   /** The Google Cloud credentials of the service's user into `AccountView.gcloud`, for the Vertex form (BTN-823). */
   readGcloud(): void
+  /** The Azure sign-in of the service's user into `AccountView.azure`, for the Foundry form (BTN-824). */
+  readAzure(): void
   /** A new key in the folder of an API account, its name, roles and pools kept (BTN-418). */
   replaceApiKey(account: string, key: string): Promise<void>
   renew(account: string): void
@@ -380,6 +382,7 @@ const COMMANDS: Record<string, Command> = {
   'account/cloud': ({ account }, body) => account.addCloud(typeof body.name === 'string' ? body.name : '', cloudConnectionOf(body)),
   'account/aws': ({ account }) => account.readAws(),
   'account/gcloud': ({ account }) => account.readGcloud(),
+  'account/azure': ({ account }) => account.readAzure(),
   'account/key': ({ account }, body) => account.replaceApiKey(accountOf(body), textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),

@@ -338,6 +338,20 @@ export const noticesRu: NoticeTexts = {
   'cloud.vertexApi': () => 'в проекте не включён Vertex AI API (aiplatform.googleapis.com): включите его в консоли Google Cloud и попробуйте снова',
   'cloud.vertexPermission': () =>
     'учётным данным Google Cloud нельзя вызывать Vertex AI в этом проекте: выдайте им роль Vertex AI User (aiplatform.endpoints.predict)',
+  'account.foundryEndpoint': () =>
+    'укажите ресурс Foundry только именем (my-resource) или полным адресом https://my-resource.services.ai.azure.com/anthropic',
+  'account.foundryModels': () => 'аккаунту Foundry нужна хотя бы одна модель: имя деплоя из портала Foundry',
+  'cloud.azureCredentials': (p) =>
+    `нет входа Microsoft Entra ID у пользователя, под которым работает Even Keel${whose(p)}: выполните под ним az login или укажите аккаунту ключ API`,
+  'cloud.foundryRefused': () =>
+    'Microsoft Foundry отвергает учётные данные аккаунта: укажите новый ключ API или токен либо выдайте входу роль Cognitive Services User на ресурсе',
+  'cloud.foundryDeployment': () =>
+    'Microsoft Foundry не находит такой деплой: укажите в моделях аккаунта имена деплоев точно как в портале Foundry',
+  'cloud.foundrySubscription': () =>
+    'подписке Azure Claude недоступен: нужна pay-as-you-go с доступом к Marketplace (не пробная, студенческая, кредитная или CSP), регион East US 2 или Sweden Central',
+  'cloud.foundryUnreachable': () => 'Microsoft Foundry не ответил: проверьте имя ресурса в портале Azure или укажите его полный адрес',
+  'cloud.foundryThrottled': () =>
+    'Microsoft Foundry ограничивает частоту запросов без известного времени сброса, поэтому сессия встала: ответьте ей позже из чата или поднимите квоту деплоя',
   'account.chainRunning': (p) => `цепочка ${p.project} работает — остановите её перед сменой аккаунта`,
   'account.sessionsBusy': (p) => `сессии посреди хода (${list(p.sessions)}) — смените аккаунт, когда они закончат`,
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,

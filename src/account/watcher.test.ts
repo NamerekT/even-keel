@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { CloudConnection } from './cloud.js'
 import { AccountHomes } from './homes.js'
 import type { KeyVerdict } from './keycheck.js'
 import { AccountWatcher, type AccountWatcherOptions } from './watcher.js'
@@ -191,6 +192,7 @@ describe('AccountWatcher.addCloud (BTN-822)', () => {
       checkCloud: check,
       awsProfiles: () => ({ profiles: [{ name: 'work', region: null, shortLived: false }], user: 'john', home: 'C:\\Users\\john' }),
       gcloud: () => ({ user: 'john', home: 'C:\Users\john', adcFile: 'C:\Users\john\AppData\Roaming\gcloud\application_default_credentials.json', adcType: null, environmentFile: null, projects: ['fake-project'] }),
+      azure: () => ({ user: 'john', home: 'C:\\Users\\john', profileFile: 'C:\\Users\\john\\.azure\\azureProfile.json', signedIn: false, environment: false }),
       whose: () => ({ user: 'john', home: 'C:\\Users\\john' }),
       checkKey: async () => ({ state: 'ok' }),
       keyCheckMs: 60 * 60_000,
@@ -250,5 +252,20 @@ describe('AccountWatcher.addCloud (BTN-822)', () => {
     expect(accounts.view.gcloud).toBeUndefined()
     accounts.readGcloud()
     expect(accounts.view.gcloud).toMatchObject({ user: 'john', adcType: null, projects: ['fake-project'] })
+  })
+
+  it("puts the service user's Azure sign-in into the view when the Foundry form asks (BTN-824)", () => {
+    const { accounts } = watcher(async () => ({ model: null }))
+    expect(accounts.view.azure).toBeUndefined()
+    accounts.readAzure()
+    expect(accounts.view.azure).toMatchObject({ user: 'john', signedIn: false, environment: false })
+  })
+
+  it('reads a connection error at the check of a Foundry account as an unreachable resource (BTN-824)', async () => {
+    const { accounts } = watcher(async () => {
+      throw new Error('API Error: Connection error. getaddrinfo ENOTFOUND wrong-name.services.ai.azure.com')
+    })
+    const foundry: CloudConnection = { cloud: 'foundry', endpoint: { resource: 'wrong-name' }, auth: { way: 'entra' }, models: { sonnet: 'my-sonnet' } }
+    await expect(accounts.addCloud('', foundry)).rejects.toThrow(expect.objectContaining({ notice: { code: 'cloud.foundryUnreachable', params: {} } }))
   })
 })

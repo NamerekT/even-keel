@@ -388,6 +388,21 @@ export const en = {
   'cloud.vertexApi': () => 'The Vertex AI API (aiplatform.googleapis.com) is not enabled in the project: enable it in the Google Cloud console, then try again',
   'cloud.vertexPermission': () =>
     'The Google Cloud credentials may not call Vertex AI in this project: grant them the Vertex AI User role (aiplatform.endpoints.predict)',
+  'account.foundryEndpoint': () =>
+    'claude: give the Foundry resource as its bare name (my-resource) or its full address https://my-resource.services.ai.azure.com/anthropic',
+  'account.foundryModels': () => 'claude: a Foundry account needs at least one model: the deployment name from the Foundry portal',
+  'cloud.azureCredentials': (p: { user: string; home: string }) =>
+    `No Microsoft Entra ID sign-in for the user Even Keel runs as${whose(p)}: run az login as that user, or give the account an API key`,
+  'cloud.foundryRefused': () =>
+    "Microsoft Foundry refuses the account's credentials: give a new API key or token, or grant the sign-in the Cognitive Services User role on the resource",
+  'cloud.foundryDeployment': () =>
+    "Microsoft Foundry finds no such deployment: give the account's models the deployment names exactly as the Foundry portal shows them",
+  'cloud.foundrySubscription': () =>
+    'The Azure subscription cannot use Claude: it needs pay-as-you-go with Marketplace access (not trial, student, credit or CSP), in East US 2 or Sweden Central',
+  'cloud.foundryUnreachable': () =>
+    'Microsoft Foundry did not answer: check the resource name in the Azure portal, or give its full address',
+  'cloud.foundryThrottled': () =>
+    'Microsoft Foundry throttles the requests with no known reset time, so the session stopped: answer it later from the chat, or raise the deployment\'s quota',
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
