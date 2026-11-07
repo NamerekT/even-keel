@@ -62,10 +62,6 @@ Run live on Windows and Linux: restarts with a question open and mid-turn, unatt
 
 Out of unattended mode, a tool call the CLI puts to `canUseTool` waits as a question with "Allow" and "Deny", and an answer allows it with its own input or refuses it (`docs/sessions.md`). Covered by tests only: no live session has asked for an approval yet. Assumed: that the CLI in `auto` mode asks for one at all and only for calls its classifier leaves to a human; that `allow` with the unchanged input runs the call; that an approval already waiting is refused within a poll once unattended mode goes on. If the CLI never asks, nothing changes against before; if an allowed call does not run, the session gets an error for it and goes on without it; if a waiting one is not refused, the chain stands on it. **Workaround:** answer "Deny" from the page, or "New session" on the task.
 
-## A lone AGENTS.md in a resumed or SDK Claude session (BTN-340)
-
-Claude Code does not read an `AGENTS.md` by itself, so in a project with no `CLAUDE.md` Even Keel appends the file to a Claude session's system prompt (`docs/sessions/protection.md`, "Project rules for every agent"). Seen live only for a fresh `claude -p` and `claude --bg` launch (CLI 2.1.309). Assumed: that a reply or a limit resume of a saved `--bg` job, which passes no flags and keeps the job's own options, keeps `--append-system-prompt-file` among them; and that an Agent SDK session takes the file from the preset's `systemPrompt.append` (covered by a test only). If either is wrong, that session works without the project's rules. **Workaround:** write a `CLAUDE.md` with the one line `@AGENTS.md`, which Claude Code reads by itself.
-
 ## A permission dialog answered from the page (BTN-269)
 
 A `--bg` session waiting on a permission dialog has the call as its question while the `checkpoint` plugin's `PermissionRequest` hook holds it, and the answer goes to the hook, not by a resume (`docs/sessions/chat.md`, "Permission dialogs"). Seen live on CLI 2.1.308 with a hook of the same protocol written by hand: the hook runs beside the open dialog, its `allow` and `deny` are taken there without a stop, and a decision from elsewhere leaves it running. Not run: the whole path through the service — a chain session, its question on the page, the answer from the chat or a tracker comment; an answer through Remote Control while the hook waits (assumed to leave the hook running too, so the service closes the call once the session stops waiting); a hook held for the full 29 minutes against its 1800 s `timeout`; a dialog the `auto` classifier opens rather than an `ask` rule; Codex taking the hook for its own approvals (it skips them by `turn_id`). If the answer does not reach the dialog, the session keeps waiting and the page shows the question as answered; if a closed call lingers, the page shows a question the session no longer has. **Workaround:** answer the dialog through Remote Control; "New session" on the task.
@@ -173,11 +169,6 @@ Claude Code's compaction in chain sessions was seen live in the week of BTN-254:
 ## The context window a chain session gets (BTN-187)
 
 Even Keel takes the window Claude's `/context` answers as the one a chain session gets. The probe runs with the account's environment and the `--settings` of the task's project, and is asked about the `--model` of the session's job file. Assumed: nothing else of a `--bg` launch (the plugins, `--strict-mcp-config`) changes the window, and the job's `respawnFlags` keep the model of the last launch after a `--resume` on another model. If not, the meter and the cap read a wrong window. **Workaround:** set `context.window` and pin `stats.checkpointTokens` for the project.
-
-
-## The instruction size ceiling in a Claude session (BTN-468)
-
-The hook executable has been checked with supplied PostToolUse and Stop payloads, including persisted state, but not called by a live Claude session for this ceiling. Check in a scratch project with the existing global hook: grow a `CLAUDE.md` or nested `AGENTS.md` beyond 13,000 bytes with Edit and Write, log the session's reason, then end the turn. The edit should succeed, the model should receive the guidance, and Stop should block once despite the journal row. Reduce an already oversized file and confirm no size reminder or size block. If a future CLI omits `tool_response.originalFile`, the size check stays silent; the Vitest ceiling test still covers Even Keel's two instruction files.
 
 
 ## Protection across agent transports and remote servers
