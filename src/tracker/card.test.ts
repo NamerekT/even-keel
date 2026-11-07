@@ -81,8 +81,18 @@ describe('cardOf', () => {
       { id: 'm2', label: 'Later', targetDate: 1 },
     ]
     const card = cardOf(raw(), DEFAULT_RULES, ALL, { current: 'm1', choices })
-    expect(card.milestones).toEqual({ current: 'm1', choices: [choices[1], choices[0], choices[2]] })
+    expect(card.milestones).toEqual({ current: 'm1', choices: [choices[2], choices[1], choices[0]] })
     expect(cardOf(raw(), DEFAULT_RULES, ALL).milestones).toBeNull()
+  })
+
+  it('orders milestone choices by their tracker positions before date and name', () => {
+    const choices = [
+      { id: 'ga', label: 'GA', targetDate: 1, trackerOrder: { source: 'linear:p1', value: 2 } },
+      { id: 'mvp', label: 'MVP', targetDate: null, trackerOrder: { source: 'linear:p1', value: 0 } },
+      { id: 'beta', label: 'Beta', targetDate: 2, trackerOrder: { source: 'linear:p1', value: 1 } },
+    ]
+    expect(cardOf(raw(), DEFAULT_RULES, ALL, { current: 'mvp', choices }).milestones?.choices.map((each) => each.id))
+      .toEqual(['mvp', 'beta', 'ga'])
   })
 
   it('sends a file without its own link through the service', () => {

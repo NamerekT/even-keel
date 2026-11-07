@@ -10,6 +10,8 @@ export interface TaskStatus {
 export interface TaskMilestone {
   label: string
   targetDate: number | null
+  /** A position within one tracker project's ordered catalog; never comparable across sources. */
+  trackerOrder?: { source: string; value: number }
 }
 
 /** A milestone a task can be put into from its card; `id` is the tracker's own. */

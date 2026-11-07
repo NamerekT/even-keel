@@ -42,6 +42,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 102 | [Automatic milestone order](unverified/trackers.md#automatic-milestone-order-btn-791) | Jira and Linear projects using native milestone positions; live check BTN-835 | a wrong milestone runs first, a task waits or a milestone-order conflict stops the chain; correct tracker dates/names or blockers and refresh |
 | 1b | [Paid subscription usage stops](unverified/accounts.md#paid-subscription-usage-stops) | managed chain sessions with credits or permitted extra usage | detection may lag, stop may fail, or recovery may relaunch into paid usage |
 | 1a | [Subscription extra usage](unverified/accounts.md#subscription-extra-usage-btn-532) | subscriptions with credits or paid overage | a chip may infer spending incorrectly, or credit data may lag |
 | 46a | [Header account after a labelled task closes](unverified/page.md#header-account-after-a-labelled-task-closes-btn-539) | project chains using run labels | the header may lag behind the next launch choice |

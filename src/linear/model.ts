@@ -1,5 +1,22 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
-import type { StatusCategory, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
+import type { StatusCategory, TaskMilestone, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
+
+export interface LinearMilestone {
+  name: string
+  targetDate: string | null
+  sortOrder?: number | null
+  project?: { id: string }
+}
+
+export function milestoneOf(milestone: LinearMilestone | null): TaskMilestone | null {
+  return milestone === null ? null : {
+    label: milestone.name,
+    targetDate: milestone.targetDate === null ? null : Date.parse(milestone.targetDate),
+    ...(milestone.project === undefined || !Number.isFinite(milestone.sortOrder) ? {} : {
+      trackerOrder: { source: `linear:${milestone.project.id}`, value: milestone.sortOrder! },
+    }),
+  }
+}
 
 export interface LinearState {
   name: string
@@ -16,7 +33,7 @@ export interface LinearIssue {
   children: { nodes: { id: string }[] }
   inverseRelations: { nodes: { type: string; issue: { identifier: string } }[] }
   labels: { nodes: { name: string }[] }
-  projectMilestone: { id: string; name: string; targetDate: string | null } | null
+  projectMilestone: (LinearMilestone & { id: string }) | null
 }
 
 export interface LinearRef {
@@ -35,7 +52,7 @@ export interface LinearCardIssue {
   relations: { nodes: { type: string; relatedIssue: LinearRef }[] }
   inverseRelations: { nodes: { type: string; issue: LinearRef }[] }
   labels: { nodes: { name: string }[] }
-  projectMilestone: { name: string; targetDate: string | null } | null
+  projectMilestone: LinearMilestone | null
   comments: { nodes: { user: { name: string } | null; createdAt: string; body: string }[] }
 }
 
@@ -91,7 +108,7 @@ export function toCard(issue: LinearCardIssue): TrackerCard {
     status: linearStatus(issue.state),
     priority: linearPriority(issue.priority),
     labels: issue.labels.nodes.map((label) => label.name),
-    milestone: milestone === null ? null : { label: milestone.name, targetDate: milestone.targetDate === null ? null : Date.parse(milestone.targetDate) },
+    milestone: milestoneOf(milestone),
     parent: issue.parent === null ? null : refOf(issue.parent),
     blockedBy: unique(issue.inverseRelations.nodes.filter((relation) => relation.type === 'blocks').map((relation) => refOf(relation.issue))),
     blocks: unique(issue.relations.nodes.filter((relation) => relation.type === 'blocks').map((relation) => refOf(relation.relatedIssue))),
@@ -131,7 +148,7 @@ export function toTrackerTask(issue: LinearIssue): TrackerTask {
     blockedBy: issue.inverseRelations.nodes.filter((relation) => relation.type === 'blocks').map((relation) => relation.issue.identifier),
     parent: issue.parent?.identifier ?? null,
     subtasks: issue.children.nodes.length,
-    milestone: milestone === null ? null : { label: milestone.name, targetDate: milestone.targetDate === null ? null : Date.parse(milestone.targetDate) },
+    milestone: milestoneOf(milestone),
     priority: linearPriority(issue.priority),
     labels: issue.labels.nodes.map((label) => label.name),
     estimate: 0,

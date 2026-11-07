@@ -163,14 +163,24 @@ export function precedence(tasks: Task[]): Map<string, string[]> {
   return new Map([...plan.blockers].map(([id, deps]) => [id, [...deps, ...plan.earlier.get(id)!]]))
 }
 
+/** Choose one ordering policy for the complete set, so missing or foreign positions cannot introduce cycles. */
+export function milestoneComparator(milestones: readonly TaskMilestone[]): typeof compareMilestones {
+  const source = milestones[0]?.trackerOrder?.source
+  const native = source !== undefined && milestones.every((each) => each.trackerOrder?.source === source && Number.isFinite(each.trackerOrder.value))
+  return native ? (a, b) => a.trackerOrder!.value - b.trackerOrder!.value || compareMilestones(a, b) : compareMilestones
+}
+
+/** The total fallback order, also used when native positions tie. */
 export function compareMilestones(a: TaskMilestone, b: TaskMilestone): number {
   const left = versionOf(a.label)
   const right = versionOf(b.label)
   const byVersion = left === null || right === null ? Number(left === null) - Number(right === null) : compareVersions(left, right)
-  return byVersion || byDate(a.targetDate, b.targetDate) || byNumber(a.label, b.label)
+  return byDate(a.targetDate, b.targetDate) || byVersion || byNumber(a.label, b.label)
 }
 
 function byDate(a: number | null, b: number | null): number {
+  a = Number.isFinite(a) ? a : null
+  b = Number.isFinite(b) ? b : null
   if (a === null || b === null) return Number(a === null) - Number(b === null)
   return a - b
 }
@@ -195,13 +205,13 @@ function planOf(tasks: Task[]): Plan {
 }
 
 function milestoneRanks(tasks: Task[]): Map<string, number> {
-  const planned = tasks
-    .flatMap((task) => (task.milestone === null ? [] : [{ id: task.id, milestone: task.milestone }]))
-    .sort((a, b) => compareMilestones(a.milestone, b.milestone))
+  const planned = tasks.flatMap((task) => (task.milestone === null ? [] : [{ id: task.id, milestone: task.milestone }]))
+  const compare = milestoneComparator(planned.map((each) => each.milestone))
+  planned.sort((a, b) => compare(a.milestone, b.milestone))
   const ranks = new Map<string, number>()
   let rank = 0
   for (const [index, { id, milestone }] of planned.entries()) {
-    if (index > 0 && compareMilestones(planned[index - 1]!.milestone, milestone) !== 0) rank++
+    if (index > 0 && compare(planned[index - 1]!.milestone, milestone) !== 0) rank++
     ranks.set(id, rank)
   }
   return ranks

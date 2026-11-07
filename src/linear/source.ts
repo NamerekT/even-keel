@@ -5,7 +5,7 @@ import { trackedFetch } from '../tracker/diagnostics.js'
 import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
-import { backlogState, linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
+import { backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
   token: string
@@ -43,7 +43,7 @@ const ISSUE = `id identifier title priority
   children(first: 25) { nodes { id } }
   inverseRelations(first: 25) { nodes { type issue { identifier } } }
   labels(first: 25) { nodes { name } }
-  projectMilestone { id name targetDate }`
+  projectMilestone { id name targetDate sortOrder project { id } }`
 
 const TEAM = `query($team: String!) {
   team(id: $team) { id states(first: 100) { nodes { id name type } } }
@@ -97,7 +97,7 @@ const ISSUE_CARD = `query($filter: IssueFilter!) {
       relations(first: 25) { nodes { type relatedIssue { ${CARD_REF} } } }
       inverseRelations(first: 25) { nodes { type issue { ${CARD_REF} } } }
       labels(first: 25) { nodes { name } }
-      projectMilestone { name targetDate }
+      projectMilestone { name targetDate sortOrder project { id } }
       comments(first: 100) { nodes { user { name } createdAt body } }
     }
   }
@@ -135,7 +135,7 @@ const ISSUE_PLACE = `query($filter: IssueFilter!) {
 }`
 
 const MILESTONE_CHOICES = `query($filter: IssueFilter!) {
-  issues(first: 1, filter: $filter) { nodes { projectMilestone { id } project { projectMilestones(first: 100) { nodes { id name targetDate } } } } }
+  issues(first: 1, filter: $filter) { nodes { projectMilestone { id } project { projectMilestones(first: 100) { nodes { id name targetDate sortOrder project { id } } } } } }
 }`
 
 const PLACE_ISSUE = `mutation($id: String!, $input: IssueUpdateInput!) {
@@ -371,14 +371,13 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     // Linear's milestones have no closed state: all of the project's are offered.
     async milestones(id) {
-      type Choice = { id: string; name: string; targetDate: string | null }
+      type Choice = LinearMilestone & { id: string }
       const issue = await oneIssue<{ projectMilestone: { id: string } | null; project: { projectMilestones: { nodes: Choice[] } } | null }>(id, MILESTONE_CHOICES)
       return {
         current: issue.projectMilestone?.id ?? null,
         choices: (issue.project?.projectMilestones.nodes ?? []).map((each) => ({
           id: each.id,
-          label: each.name,
-          targetDate: each.targetDate === null ? null : Date.parse(each.targetDate),
+          ...milestoneOf(each)!,
         })),
       }
     },

@@ -12,6 +12,7 @@ import {
   earliestVersion,
   hasChildIssues,
   jiraStatus,
+  milestoneOf,
   priorityFor,
   TASK_FIELDS,
   toCard,
@@ -87,6 +88,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   async function converted(issues: JiraIssue[], catalogs?: Map<string, Promise<JiraStatus[]>>): Promise<TrackerTask[]> {
     const names = await order()
     await resolveStatuses(issues, catalogs)
+    await resolveVersions(issues)
     const epics = issues.filter(hasChildIssues).map((issue) => issue.key)
     const children = new Map<string, number>()
     for (let at = 0; at < epics.length; at += PARENTS_CHUNK) {
@@ -120,6 +122,38 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   }
 
   const versionsOf = (key: string) => api.rest<JiraVersion[]>(`/project/${encodeURIComponent(key)}/versions`)
+  async function orderedVersionsOf(key: string): Promise<JiraVersion[]> {
+    const versions: JiraVersion[] = []
+    for (let startAt = 0; ; ) {
+      const page = await api.rest<{ values: JiraVersion[]; isLast?: boolean; total?: number }>(`/project/${encodeURIComponent(key)}/version?orderBy=sequence&startAt=${startAt}&maxResults=${PAGE}`)
+      versions.push(...page.values)
+      startAt += page.values.length
+      if (page.values.length === 0 || page.isLast === true || (page.total !== undefined && startAt >= page.total)) break
+    }
+    return versions.map((version, value) => ({ ...version, trackerOrder: { source: `jira:${key}`, value } }))
+  }
+
+  const rankedVersions = (versions: readonly JiraVersion[], catalog: readonly JiraVersion[]) =>
+    versions.map((version) => ({ ...version, ...catalog.find((each) => each.id === version.id) }))
+
+  async function resolveVersions(issues: readonly JiraIssue[]): Promise<void> {
+    const catalogs = new Map<string, JiraVersion[]>()
+    for (const issue of issues) {
+      if (!issue.fields.fixVersions?.length) continue
+      const key = parseTaskId(issue.key)!.project
+      let catalog = catalogs.get(key)
+      if (catalog === undefined) {
+        catalog = await orderedVersionsOf(key)
+        catalogs.set(key, catalog)
+      }
+      issue.fields.fixVersions = rankedVersions(issue.fields.fixVersions, catalog)
+    }
+  }
+
+  async function fixVersionOf(id: string): Promise<JiraVersion | null> {
+    const versions = (await issueOf(id, ['fixVersions'])).fields.fixVersions ?? []
+    return earliestVersion(versions.length > 1 ? rankedVersions(versions, await orderedVersionsOf(parseTaskId(id)!.project)) : versions)
+  }
   const openVersions = (versions: JiraVersion[]) => versions.filter((version) => version.released !== true && version.archived !== true)
   const issueOf = (id: string, fields: readonly string[]) => api.rest<JiraIssue>(`${issuePath(id)}?fields=${fields.join(',')}`)
   const transitionsOf = async (id: string) => (await api.rest<{ transitions: Transition[] }>(`${issuePath(id)}/transitions`)).transitions
@@ -227,7 +261,9 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const [issue, comments] = await Promise.all([issueOf(id, CARD_FIELDS), commentsOf(id)])
       const links = issue.fields.issuelinks ?? []
       await resolveStatuses([issue, ...[issue.fields.parent, ...links.flatMap((link) => [link.inwardIssue, link.outwardIssue])].filter((ref): ref is JiraRef => ref != null)])
-      return toCard(issue, comments, await order())
+      const names = await order()
+      await resolveVersions([issue])
+      return toCard(issue, comments, names)
     },
 
     async file(id, file) {
@@ -286,7 +322,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const type = types.find((each) => sameName(each.untranslatedName ?? each.name, 'Task')) ?? types[0]
       if (type === undefined) throw new Error(`jira: project ${key} has no issue type to create a task with`)
       const priority = priorityFor(task.priority, await prioritiesOf())
-      const like = task.milestoneOf !== null && parseTaskId(task.milestoneOf)?.project === key ? earliestVersion((await issueOf(task.milestoneOf, ['fixVersions'])).fields.fixVersions) : null
+      const like = task.milestoneOf !== null && parseTaskId(task.milestoneOf)?.project === key ? await fixVersionOf(task.milestoneOf) : null
       const fields = {
         project: { key },
         issuetype: { id: type.id },
@@ -304,19 +340,21 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     async setMilestone(id, milestoneOf) {
       if (parseTaskId(id)?.project !== parseTaskId(milestoneOf)?.project) return false
       if ((await issueOf(id, ['fixVersions'])).fields.fixVersions?.length) return false
-      const version = earliestVersion((await issueOf(milestoneOf, ['fixVersions'])).fields.fixVersions)
+      const version = await fixVersionOf(milestoneOf)
       if (version === null) return false
       await setVersions(id, [version.id])
       return true
     },
 
     async milestones(id) {
-      const own = earliestVersion((await issueOf(id, ['fixVersions'])).fields.fixVersions)
-      const choices = openVersions(await versionsOf(parseTaskId(id)!.project))
+      const versions = (await issueOf(id, ['fixVersions'])).fields.fixVersions ?? []
+      const catalog = await orderedVersionsOf(parseTaskId(id)!.project)
+      const own = earliestVersion(rankedVersions(versions, catalog))
+      const choices = openVersions(catalog)
       if (own !== null && !choices.some((each) => each.id === own.id)) choices.push(own)
       return {
         current: own?.id ?? null,
-        choices: choices.map((version) => ({ id: version.id, label: version.name, targetDate: version.releaseDate ? Date.parse(version.releaseDate) : null })),
+        choices: choices.map((version) => ({ id: version.id, ...milestoneOf(version)! })),
       }
     },
 
