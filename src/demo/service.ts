@@ -49,6 +49,7 @@ export class DemoService {
   readonly repo: string
   private readonly agent: DemoAgent
   private finished = false
+  private found: { projects: EvenKeelConfig['projects']; id: string | undefined } | undefined
   private busy: Promise<unknown> = Promise.resolve()
 
   constructor(private readonly deps: DemoDeps) {
@@ -58,10 +59,14 @@ export class DemoService {
     deps.homes.setDemo(this.home())
   }
 
-  /** The demo project's id; `undefined` — there is no demo. */
+  /**
+   * The demo project's id; `undefined` — there is no demo. Found once per config: a change replaces the config's
+   * `projects` whole, and the state is built with a lookup per task, too many for a real path each (BTN-848).
+   */
   project(): string | undefined {
     const { projects } = this.deps.config()
-    return Object.keys(projects).find((id) => samePath(projects[id]!, this.repo))
+    if (this.found?.projects !== projects) this.found = { projects, id: Object.keys(projects).find((id) => samePath(projects[id]!, this.repo)) }
+    return this.found.id
   }
 
   owns(project: string | undefined): boolean {
