@@ -96,6 +96,7 @@ export function AddGhost({ project, place, label, tip = null, onCard }: Props) {
     <FieldStrip line={line} fold wide>
       <input
         className="add-ghost add-ghost--field"
+        autoComplete="off"
         aria-label={t.chain.add.title}
         placeholder={t.chain.add.placeholder}
         value={text}

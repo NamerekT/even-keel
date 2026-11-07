@@ -709,8 +709,10 @@ html:has(.task-card[open]) {
   outline-offset: -2px;
 }
 
+/* By the first line of a title that wraps, level with the key. */
 .task-card__ref .task-card__status {
-  align-self: center;
+  align-self: start;
+  height: calc(var(--text-13) * 1.4);
 }
 
 .task-card__ref-key {

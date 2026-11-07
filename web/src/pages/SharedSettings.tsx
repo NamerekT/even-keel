@@ -46,6 +46,8 @@ import {
   type RuleKey,
 } from './settingsParts.js'
 import { TrackerIcon } from '../ui/icons.js'
+import { TokensInput } from '../ui/TokensInput.js'
+import { countFrom, tokensShown } from '../ui/tokens.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
@@ -150,11 +152,13 @@ function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
   const protection = protectionOf(text('protection'))
   if (protection === undefined) return undefined
-  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit'].map((key) => wholeOf(text(key), 0))
+  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit'].map((key) =>
+    key === 'window' ? (countFrom(text(key), 0) ?? undefined) : wholeOf(text(key), 0),
+  )
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
-  const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
-  const autoCompactWindow = text('autoCompactWindow').trim() === '' ? null : wholeOf(text('autoCompactWindow'), 1)
-  const codexAutoCompactWindow = text('codexAutoCompactWindow').trim() === '' ? null : wholeOf(text('codexAutoCompactWindow'), 1)
+  const checkpointTokens = countFrom(text('checkpointTokens'), 0)
+  const autoCompactWindow = countFrom(text('autoCompactWindow'), 1)
+  const codexAutoCompactWindow = countFrom(text('codexAutoCompactWindow'), 1)
   if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit] = numbers
@@ -272,6 +276,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       id={fieldId(key)}
       className="settings__text settings__number"
       inputMode="numeric"
+      autoComplete="off"
       value={text(key)}
       placeholder={extra.placeholder}
       disabled={extra.disabled}
@@ -279,11 +284,15 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       onChange={(event) => edit(key, event.target.value)}
     />
   )
+  const tokensInput = (key: string, invalid: boolean, extra: { placeholder?: string; disabled?: boolean } = {}) => (
+    <TokensInput id={fieldId(key)} value={text(key)} invalid={invalid} placeholder={extra.placeholder} disabled={extra.disabled} onChange={(value) => edit(key, value)} />
+  )
+  const tokensNote = (key: string, empty: string) => marks.note(key, (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))
   // A number among others of one setting: its name above it.
-  const number = (key: string, label: string, invalid: boolean, disabled = false) => (
+  const number = (key: string, label: string, invalid: boolean, disabled = false, tokens = false) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} htmlFor={fieldId(key)} mark={marks.note(key)} />
-      {numberInput(key, invalid, { disabled })}
+      {tokens ? tokensInput(key, invalid, { disabled }) : numberInput(key, invalid, { disabled })}
     </div>
   )
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
@@ -333,7 +342,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const kinds = draft.edit.kinds as readonly CiKind[]
   const unguarded = !(draft.edit.guard as boolean)
   const handoffsOff = !(draft.edit.contextHandoffs as boolean)
-  const codexWindowBad = text('codexAutoCompactWindow').trim() !== '' && wholeOf(text('codexAutoCompactWindow'), 1) === undefined
+  const codexWindowBad = countFrom(text('codexAutoCompactWindow'), 1) === undefined
+  const claudeWindowBad = countFrom(text('autoCompactWindow'), 1) === undefined
   const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
 
   const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
@@ -511,7 +521,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <div className="settings__field">
             <FieldHead label={t.shared.context} hint={t.shared.contextHint} />
             <div className="settings__row">
-              {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined)}
+              {number('window', t.shared.contextWindow, (countFrom(text('window'), 1) ?? undefined) === undefined, false, true)}
               {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}
               {number('danger', t.shared.contextDanger, amountOf(text('danger')) === undefined)}
             </div>
@@ -523,8 +533,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.shared.checkpointTokens}
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
-            mark={marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
-            control={numberInput('checkpointTokens', text('checkpointTokens').trim() !== '' && wholeOf(text('checkpointTokens'), 0) === undefined, {
+            mark={tokensNote('checkpointTokens', t.shared.checkpointTokensPlaceholder)}
+            control={tokensInput('checkpointTokens', countFrom(text('checkpointTokens'), 0) === undefined, {
               placeholder: t.shared.checkpointTokensPlaceholder,
               disabled: handoffsOff,
             })}
@@ -546,9 +556,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.shared.autoCompactWindow}
             hint={t.shared.autoCompactWindowHint}
             htmlFor={fieldId('autoCompactWindow')}
-            mark={marks.note('autoCompactWindow', shown)}
-            control={numberInput('autoCompactWindow', text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined, { placeholder: t.shared.autoCompactWindowAccount })}
-            error={text('autoCompactWindow').trim() !== '' && wholeOf(text('autoCompactWindow'), 1) === undefined ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
+            mark={tokensNote('autoCompactWindow', t.shared.autoCompactWindowAccount)}
+            control={tokensInput('autoCompactWindow', claudeWindowBad, { placeholder: t.shared.autoCompactWindowAccount })}
+            error={claudeWindowBad ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
           />
           {select(
             'cacheTtl',
@@ -568,8 +578,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             label={t.shared.autoCompactWindow}
             hint={t.shared.codexAutoCompactWindowHint}
             htmlFor={fieldId('codexAutoCompactWindow')}
-            mark={marks.note('codexAutoCompactWindow', (value) => ((value as string).trim() === '' ? t.shared.codexAutoCompactWindowModel : (value as string)))}
-            control={numberInput('codexAutoCompactWindow', codexWindowBad, { placeholder: t.shared.codexAutoCompactWindowModel })}
+            mark={tokensNote('codexAutoCompactWindow', t.shared.codexAutoCompactWindowModel)}
+            control={tokensInput('codexAutoCompactWindow', codexWindowBad, { placeholder: t.shared.codexAutoCompactWindowModel })}
             error={codexWindowBad ? { code: 'config.codexAutoCompactWindow', params: { value: text('codexAutoCompactWindow') } } : errorOf('codexAutoCompactWindow')}
           />
         </Section>

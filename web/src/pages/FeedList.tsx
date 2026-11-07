@@ -165,6 +165,7 @@ function FeedAdd({ state, project, onClose }: { state: EvenKeelState; project: s
             <input
               id={key}
               className="settings__text settings__text--mono settings__short"
+              autoComplete="off"
               spellCheck={false}
               value={fields.key}
               placeholder="ABCGH"

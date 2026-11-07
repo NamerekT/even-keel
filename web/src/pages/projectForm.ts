@@ -8,6 +8,7 @@ import { effectiveRules } from './ruleRows.js'
 import type { Value, Values } from './settingsDraft.js'
 import { linesOf, minutesOf, RULE_KEYS, rulesOf, rulesText, sharesOf, sharesText, wholeOf } from './settingsParts.js'
 import { providerMap, providerValues } from './settingsRun.js'
+import { countFrom } from '../ui/tokens.js'
 
 /** The project's settings form as the panel's draft holds it, and back: what `SettingsPanel` edits and sends. */
 
@@ -72,9 +73,9 @@ const switchText = (value: boolean | undefined) => (value === undefined ? '' : S
 export const switchOf = (text: string) => (text === '' ? undefined : text === 'true')
 /** The choice of the cache lifetime that leaves it to Claude Code, as against '' — as shared. */
 export const CLI_TTL = 'cli'
-/** Empty — calibrated; `undefined` — not a whole number. */
-export const tokensOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
-export const compactWindowOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 1))
+/** Empty — calibrated; `undefined` — no token count. */
+export const checkpointOf = (text: string): number | null | undefined => countFrom(text, 0)
+export const compactWindowOf = (text: string): number | null | undefined => countFrom(text, 1)
 
 /** A standard as the editor holds it: the masks as typed, a comma between them. */
 export interface StandardRow {
@@ -98,7 +99,7 @@ function ownOf(values: Values): OwnValues | undefined {
   const text = (key: string) => values[key] as string
   const on = (key: string) => values[key] as boolean
   const waitMinutes = on('ownWait') ? minutesOf(text('wait')) : null
-  const checkpointTokens = on('ownCheckpoint') ? tokensOf(text('checkpointTokens')) : null
+  const checkpointTokens = on('ownCheckpoint') ? checkpointOf(text('checkpointTokens')) : null
   const autoCompactWindow = on('ownAutoCompact') ? compactWindowOf(text('autoCompactWindow')) : null
   const codexWindow = on('ownCodexCompact') ? compactWindowOf(text('codexAutoCompactWindow')) : null
   const shares = on('ownShares') ? sharesOf(values) : null

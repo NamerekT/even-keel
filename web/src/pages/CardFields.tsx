@@ -49,6 +49,7 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     <h2 className="task-card__title">
       <input
         className="task-card__title-input"
+        autoComplete="off"
         aria-label={t.card.edit.title}
         value={draft}
         autoFocus

@@ -7,6 +7,7 @@ import { localized, t } from '../i18n/index.js'
 import { lastId, markRead, placePath, readMark } from '../layout/eventLog.js'
 import { useNow } from '../layout/useNow.js'
 import { Card, EmptyState, PageHead } from '../ui/blocks.js'
+import { GoToIcon } from '../ui/icons.js'
 import { Said } from '../ui/ProjectLinks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
@@ -71,7 +72,7 @@ function EntryList({ entries, state, read }: { entries: EventEntry[]; state: Eve
         const path = placePath(entry.place, state)
         const fresh = entry.level !== 'info' && Number(entry.id) > read
         return (
-          <li key={entry.id} className={`event-log__row event-log__row--${entry.level}`}>
+          <li key={entry.id} className={`event-log__row event-log__row--${entry.level} row-action-host`}>
             <Tipped tip={formatFullTime(entry.at)} inline className="event-log__time">
               {marks[index] ? formatLineTime(entry.at) : ''}
             </Tipped>
@@ -83,8 +84,8 @@ function EntryList({ entries, state, read }: { entries: EventEntry[]; state: Eve
               {fresh && <span className="chip event-log__fresh">{t.events.fresh}</span>}
             </span>
             {path !== null && (
-              <Link to={path} className="button button--small event-log__open">
-                {t.events.open}
+              <Link to={path} className="row-action event-log__open" aria-label={t.events.open} title={t.events.open}>
+                <GoToIcon />
               </Link>
             )}
           </li>

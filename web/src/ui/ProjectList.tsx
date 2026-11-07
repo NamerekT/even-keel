@@ -60,6 +60,7 @@ export function ProjectList({
           <input
             type="search"
             className="projects__search"
+            autoComplete="off"
             placeholder={t.stats.projects.find}
             aria-label={t.stats.projects.findLabel}
             value={query}

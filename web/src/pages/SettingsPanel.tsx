@@ -60,7 +60,9 @@ import { offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
-import { CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, tokensOf, valuesOf } from './projectForm.js'
+import { checkpointOf, CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, valuesOf } from './projectForm.js'
+import { TokensInput } from '../ui/TokensInput.js'
+import { tokensShown } from '../ui/tokens.js'
 import { ProjectStandards } from './ProjectStandards.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
@@ -216,6 +218,7 @@ export function SettingsPanel({
         <input
           id={fieldId(key)}
           className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
+          autoComplete="off"
           spellCheck={false}
           value={text(key)}
           placeholder={placeholder}
@@ -288,6 +291,7 @@ export function SettingsPanel({
       id={fieldId(key)}
       className="settings__text settings__number"
       inputMode="numeric"
+      autoComplete="off"
       aria-label={extra.label}
       value={value}
       placeholder={extra.placeholder}
@@ -306,9 +310,17 @@ export function SettingsPanel({
         label={t.shared.autoCompactWindow}
         hint={hint}
         htmlFor={fieldId(key)}
-        inherit={ownInherit(flag, { [key]: sharedText }, sharedText || empty)}
-        mark={flagNote(flag, [key], (value) => ((value as string).trim() === '' ? empty : (value as string)))}
-        control={number(key, on(flag) ? text(key) : sharedText, invalid, (value) => ownEdit(flag, { [key]: sharedText })(key, value), { placeholder: empty })}
+        inherit={ownInherit(flag, { [key]: sharedText }, tokensShown(sharedText) || empty)}
+        mark={flagNote(flag, [key], (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))}
+        control={
+          <TokensInput
+            id={fieldId(key)}
+            value={on(flag) ? text(key) : sharedText}
+            invalid={invalid}
+            placeholder={empty}
+            onChange={(value) => ownEdit(flag, { [key]: sharedText })(key, value)}
+          />
+        }
         error={invalid ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)}
       />
     )
@@ -324,6 +336,7 @@ export function SettingsPanel({
               <input
                 id={fieldId('repo')}
                 className="settings__text settings__text--mono"
+                autoComplete="off"
                 spellCheck={false}
                 value={text('repo')}
                 aria-invalid={errorOf('repo') !== null}
@@ -660,15 +673,18 @@ export function SettingsPanel({
             label={t.shared.checkpointTokens}
             hint={t.shared.checkpointTokensHint}
             htmlFor={fieldId('checkpointTokens')}
-            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder, handoffsOff)}
-            mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
-            control={number(
-              'checkpointTokens',
-              on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint,
-              on('ownCheckpoint') && tokensOf(text('checkpointTokens')) === undefined,
-              (value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value),
-              { placeholder: t.shared.checkpointTokensPlaceholder, disabled: handoffsOff },
-            )}
+            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, tokensShown(sharedCheckpoint) || t.shared.checkpointTokensPlaceholder, handoffsOff)}
+            mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : tokensShown(value as string)))}
+            control={
+              <TokensInput
+                id={fieldId('checkpointTokens')}
+                value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
+                invalid={on('ownCheckpoint') && checkpointOf(text('checkpointTokens')) === undefined}
+                placeholder={t.shared.checkpointTokensPlaceholder}
+                disabled={handoffsOff}
+                onChange={(value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value)}
+              />
+            }
             error={errorOf('stats.checkpointTokens')}
           />
           <div className={marks.box('ownShares')}>

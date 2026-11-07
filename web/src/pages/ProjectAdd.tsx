@@ -271,6 +271,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               <input
                 id="wizard-repo"
                 className="settings__text settings__text--mono"
+                autoComplete="off"
                 spellCheck={false}
                 autoFocus
                 value={fields.repo}
@@ -344,6 +345,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   <input
                     id="wizard-key"
                     className="settings__text settings__text--mono project-add__key"
+                    autoComplete="off"
                     spellCheck={false}
                     maxLength={5}
                     value={fields.key}
@@ -364,6 +366,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 <input
                   id="wizard-name"
                   className="settings__text"
+                  autoComplete="off"
                   value={fields.name}
                   placeholder={fields.key || t.wizard.namePlaceholder}
                   onChange={(event) => setFields((before) => typedIn(before, 'name', event.target.value))}
@@ -414,6 +417,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   <input
                     id="wizard-slots"
                     className="settings__text"
+                    autoComplete="off"
                     type="number"
                     min={1}
                     step={1}

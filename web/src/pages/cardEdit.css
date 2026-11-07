@@ -175,12 +175,21 @@ button.task-card__status-pick[aria-expanded='true'] {
   margin: -4px -8px;
 }
 
+/* A title that wraps keeps the cross and the status by its first line. */
 .task-card__ref-row,
 .task-card__subtask {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: var(--space-4);
+}
+
+.task-card__ref-row > .task-card__remove {
+  margin-top: calc(6px + var(--text-13) * 0.7 - 12px);
+}
+
+.task-card__subtask {
+  align-items: baseline;
 }
 
 .task-card__remove {

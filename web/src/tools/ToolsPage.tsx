@@ -87,6 +87,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
                 <input
                   type="search"
                   className="tools__find"
+                  autoComplete="off"
                   placeholder={t.tools.find}
                   aria-label={t.tools.find}
                   value={query}

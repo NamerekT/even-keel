@@ -600,10 +600,26 @@ button.block__key {
   outline-offset: 2px;
 }
 
+/* A long name wraps: the swatch, plaques and tracker icon stand by its first line. */
 .card__head {
+  --head-line: 24px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.card__head > .card__swatch {
+  margin-top: calc((var(--head-line) - 10px) / 2);
+}
+
+.card__head > .chip,
+.card__head > .tag {
+  margin-top: calc((var(--head-line) - 20px) / 2);
+}
+
+.card__head > .card__tracker {
+  align-items: center;
+  height: var(--head-line);
 }
 
 .card__swatch,
@@ -622,6 +638,7 @@ button.block__key {
   font-family: var(--mono);
   font-size: var(--text-16);
   font-weight: 600;
+  line-height: var(--head-line);
   text-decoration: none;
 }
 
