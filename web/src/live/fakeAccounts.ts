@@ -148,10 +148,10 @@ function codexEntry(key: string, email: string, plan: string, patch: Partial<Acc
   })
 }
 
-/** A Claude account runs its sessions the way a real one does by default: an API key through the Agent SDK, a subscription through `--bg`. */
+/** A Claude account runs its sessions the way a real one does by default: an API key or a cloud through the Agent SDK, a subscription through `--bg`. */
 function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
   const entry = rawEntry(patch)
-  return entry.agent === 'claude' && entry.transport === undefined ? { ...entry, transport: entry.apiKey ? 'sdk' : 'bg' } : entry
+  return entry.agent === 'claude' && entry.transport === undefined ? { ...entry, transport: entry.apiKey || entry.cloud ? 'sdk' : 'bg' } : entry
 }
 
 function rawEntry(patch: Partial<AccountEntry>): AccountEntry {

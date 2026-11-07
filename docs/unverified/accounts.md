@@ -2,6 +2,10 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: Accounts](../verified/accounts.md).
 
+## Claude on Amazon Bedrock (BTN-822)
+
+A cloud account (`docs/accounts.md`, "Cloud accounts") writes the Bedrock variables into the folder's `settings.json` `env`, checks them with one `claude -p` turn and runs its sessions like an API key. Covered by unit tests (the env and its read-back, AWS profiles, short-lived detection, the refusal texts, the shared-settings merge, `addCloud` with a failing check, Bedrock throttling in a transcript) and the fake page (`?account=api&addAccount=claude&addWay=cloud`, profile `missing` for the error). Never run live: on 2026-11-05 AWS refused the test account access to Anthropic's models, and no paid check is made. Assumed: the CLI reads `CLAUDE_CODE_USE_BEDROCK` and the AWS variables from the folder's `settings.json` at a session's start through `--bg` and the Agent SDK alike; `auth status` of such a folder says `third_party`; the refusals and throttling come with the texts `cloudErrorNotice` matches; the check turn costs a few tokens. If wrong, a Bedrock account is added but its sessions sign in to claude.ai or fail, a refusal shows the CLI's raw text, or a throttled session is not told apart from another error. **Check:** an AWS account with Bedrock model access, one profile way and one Bedrock API key way; add each, run a chain task to Done through the SDK and through `--bg`, then an SSO profile left past its expiry. **Workaround:** an Anthropic API key account.
+
 ## Subscription extra usage (BTN-532)
 
 The parsers and freshness/working-session guards have fixture tests; dark desktop/mobile, light desktop, the drawer, long names and unknown-source rows were inspected with fake accounts ([live log](../verified/accounts.md)). Read-only live probes found zero ChatGPT credits, Copilot extra usage disabled, and no extra-usage line in Claude CLI 2.1.310 `/usage`. No actual paid session or positive credit balance was available. Still to check in BTN-531:

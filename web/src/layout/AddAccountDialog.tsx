@@ -394,6 +394,11 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
   const key = way.kind === 'key'
   const cloud = way.kind === 'cloud'
   const ready = !sending && (key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
+  // The cloud form is taller than the dialog: its check's answer lands below the fold unless brought into view.
+  const alert = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (failure !== null) alert.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [failure])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -469,7 +474,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
           </p>
         )}
         {failure !== null && !key && (
-          <p className="notice notice--error" role="alert">
+          <p ref={alert} className="notice notice--error" role="alert">
             {failure}
           </p>
         )}
