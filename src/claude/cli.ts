@@ -13,6 +13,8 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { binaryPath, samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { rareEvents } from '../sessions/rare.js'
+import { TranscriptTail } from '../sessions/tail.js'
 import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls } from './calls.js'
 import { contextArgs } from './context.js'
@@ -154,7 +156,10 @@ export class ClaudeCli {
     const kept = existsSync(join(home.dir, 'jobs', agentId, 'state.json'))
     const args = resumeArgs(sessionId, prompt, kept, task, model, extras)
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
-    return this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
+    const found = await this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
+    if (found.sessionId !== sessionId) rareEvents.copy(sessionId, { ...found, task }, resumedAt,
+      await new TranscriptTail(join(home.dir, 'projects'), found).exists())
+    return found
   }
 
   /**
@@ -496,7 +501,18 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
       const model = launchedModel(job)
       const settings = launchedSettings(job)
       const ask = agent.status === 'waiting' ? blockedAsk(job, id) : null
-      return { ...agent, ...(model !== null && { model }), ...(settings !== null && { settings }), ...(ask !== null && { ask }) }
+      let backgroundBlock: AgentEntry['backgroundBlock']
+      if (agent.status === 'shell' && agent.state === 'blocked' && job !== undefined) {
+        try {
+          const end = JSON.parse(job) as Record<string, unknown>
+          if (end.state === 'blocked') backgroundBlock = {
+            event: JSON.stringify([id, end.updatedAt, end.detail]),
+            detail: typeof end.detail === 'string' ? end.detail : null,
+          }
+        } catch { /* An unreadable job is not evidence of a blocked command. */ }
+      }
+      return { ...agent, ...(model !== null && { model }), ...(settings !== null && { settings }), ...(ask !== null && { ask }),
+        ...(backgroundBlock === undefined ? {} : { backgroundBlock }) }
     }),
   )
 }

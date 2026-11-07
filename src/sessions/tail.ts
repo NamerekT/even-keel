@@ -28,6 +28,11 @@ export class TranscriptTail {
     return this.file
   }
 
+  /** Checks the same locations as a read, without loading the transcript. */
+  async exists(): Promise<boolean> {
+    return (await this.find()) !== undefined
+  }
+
   summary(): TranscriptSummary {
     return this.held ?? this.fold.summary()
   }

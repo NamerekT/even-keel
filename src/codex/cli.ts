@@ -12,6 +12,7 @@ import { isAlive, killTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { TokenTotals } from '../sessions/transcript.js'
+import { rareEvents } from '../sessions/rare.js'
 import type { TurnSpend } from '../state.js'
 import { mcpArgs } from './mcp.js'
 import { writeProtection } from './protection.js'
@@ -317,8 +318,13 @@ export class CodexCli {
   }
 
   private async turnLive(session: CodexSession): Promise<boolean> {
-    return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
-      && processBelongsToTurn(await polledProcessStartedAt(session.pid), turnStartedAt(session.out))
+    if (!isAlive(session.pid) || turnEnded(await outputTail(session.out))) return false
+    const processAt = await polledProcessStartedAt(session.pid)
+    const turnAt = turnStartedAt(session.out)
+    const belongs = processBelongsToTurn(processAt, turnAt)
+    if (!belongs) rareEvents.once('29', `${session.out}:${session.pid}:${processAt}`, session,
+      `pid-reused pid=${session.pid} turnAt=${turnAt} processAt=${processAt}; treating the turn as ended and preserving the foreign process`)
+    return belongs
   }
 
   /**

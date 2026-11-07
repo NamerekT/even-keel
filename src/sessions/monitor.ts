@@ -9,6 +9,7 @@ import { WARM_CACHE_MS } from './cache.js'
 import { ResumeHolds } from './holds.js'
 import { remoteLink } from './remote.js'
 import { TurnActivity } from './activity.js'
+import { rareEvents } from './rare.js'
 
 export interface SessionMonitorOptions {
   /** The agent of an account folder, by `AccountHome.agent`. */
@@ -190,6 +191,14 @@ export class SessionMonitor {
       for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 
       const views = this.views()
+      for (const view of views) {
+        rareEvents.observe(view, this.tails.get(view.sessionId)?.path !== undefined)
+        const agent = byTask.get(view.task)
+        if (view.lamp === 'waiting' && agent?.backgroundBlock !== undefined) {
+          rareEvents.once('46', agent.backgroundBlock.event, view,
+            `background-blocked detail=${JSON.stringify(agent.backgroundBlock.detail)}; treating the session as waiting`)
+        }
+      }
       const snapshot = JSON.stringify([views, [...this.compactions]])
       if (snapshot !== this.lastSnapshot) {
         this.lastSnapshot = snapshot

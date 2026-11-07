@@ -40,6 +40,8 @@ export interface AgentEntry {
   settings?: string
   /** The context size Even Keel set the session to compact at (a Codex session with a window, BTN-810). */
   compactAt?: number
+  /** The CLI's blocked end-of-turn while a background command still runs. */
+  backgroundBlock?: { event: string; detail: string | null }
 }
 
 /** A live session has a process, or rests between turns without one. */

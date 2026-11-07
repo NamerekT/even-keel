@@ -17,6 +17,7 @@ export interface LeftFolder {
 
 interface Kept {
   task: string
+  project?: string
   retry?: StopRetry
 }
 
@@ -32,8 +33,8 @@ export class Lingering {
   private readonly folders = new Map<string, LeftFolder>()
   private running = false
 
-  keep(task: string, sessionId: string, retry?: StopRetry): void {
-    this.sessions.set(sessionId, retry === undefined ? { task } : { task, retry })
+  keep(task: string, sessionId: string, retry?: StopRetry, project?: string): void {
+    this.sessions.set(sessionId, { task, ...(retry === undefined ? {} : { retry }), ...(project === undefined ? {} : { project }) })
   }
 
   leave(folder: LeftFolder): void {
@@ -41,13 +42,13 @@ export class Lingering {
   }
 
   /** The kept sessions whose turn has ended, to stop now, forgotten as they are given; a session gone meanwhile is forgotten too. */
-  due(agents: AgentEntry[], busy: (agent: AgentEntry) => boolean): { task: string; agent: AgentEntry; retry?: StopRetry }[] {
-    const due: { task: string; agent: AgentEntry; retry?: StopRetry }[] = []
-    for (const [sessionId, { task, retry }] of this.sessions) {
+  due(agents: AgentEntry[], busy: (agent: AgentEntry) => boolean): (Kept & { agent: AgentEntry })[] {
+    const due: (Kept & { agent: AgentEntry })[] = []
+    for (const [sessionId, kept] of this.sessions) {
       const agent = agents.find((each) => each.sessionId === sessionId)
       if (agent !== undefined && isLive(agent) && busy(agent)) continue
       this.sessions.delete(sessionId)
-      if (agent !== undefined && isLive(agent)) due.push(retry === undefined ? { task, agent } : { task, agent, retry })
+      if (agent !== undefined && isLive(agent)) due.push({ ...kept, agent })
     }
     return due
   }

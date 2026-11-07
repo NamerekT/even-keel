@@ -22,6 +22,8 @@ Checked with a fake key: `codex login --with-api-key` writes the `auth.json` Eve
 
 ## A crashed turn and a service restart mid-turn
 
+**Log check (29):** search `rare: 29` for `pid-reused`, with the last turn's pid, `turnAt` and the newer `processAt`. The line confirms the creation-time check rejected a live pid whose output had no terminal event: the session rests and the foreign process is preserved. It is emitted once per observed turn/process identity, including after a service restart. Unknown creation times keep the prior liveness rule and give no reuse line; command lines are not probed or logged.
+
 Liveness is the pid of the last turn: a pid reused by another process after a crash would keep the session busy.
 
 A service restart mid-turn was checked live with the real service on Windows (BTN-284, 2026-10-22, Windows Sandbox, the service `EvenKeel` under a local user that is not an administrator): an update restarted the service while a chain session's Codex turn ran. `codex.exe` outlived its dead parent, the new service showed the session working, and once the turn ended it showed it waiting; an answer from the page's chat resumed the thread in about a second, the session merged its branch and Even Keel closed the task.

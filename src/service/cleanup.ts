@@ -5,6 +5,7 @@ import { removeLeftFolder, taskPlace, type Git } from '../git/worktree.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
+import { rareEvents } from '../sessions/rare.js'
 import type { ChainContext } from './chain.js'
 
 /** How long a cleanup after Done keeps trying a stop that timed out in the folder's queue before it warns (EKR-99). */
@@ -34,8 +35,9 @@ export async function stopTaskSessions(
   let retrying = false
   for (const agent of sessions) {
     if (midTurn(agent)) {
-      ctx.lingering.keep(task, agent.sessionId)
-      console.log(`cleanup: the session ${agent.sessionId} of ${task} is mid-turn, it will be stopped once its turn ends`)
+      ctx.lingering.keep(task, agent.sessionId, undefined, project)
+      rareEvents.once('17c', 'deferred', { ...agent, task, project },
+        `cleanup-deferred status=${agent.status}; will stop the session once its turn ends`)
       continue
     }
     try {
@@ -73,10 +75,11 @@ export function deferLeftFolder(ctx: ChainContext, project: string, repo: string
  */
 export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<void> {
   return ctx.lingering.alone(async () => {
-    for (const { task, agent, retry } of ctx.lingering.due(ctx.agents, midTurn)) {
+    for (const { task, agent, retry, project } of ctx.lingering.due(ctx.agents, midTurn)) {
       if (agent.id === undefined) continue
       try {
         await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
+        if (project !== undefined) rareEvents.once('17c', 'stop-result', { ...agent, task, project }, 'cleanup-stop result=stopped; the turn after Done ended')
         console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, ${retry === undefined ? 'its turn after Done ended' : 'its stop tried again'}`)
       } catch (error) {
         if (retry !== undefined && isCallTimeout(error) && Date.now() < retry.until) {
@@ -84,6 +87,8 @@ export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<voi
           continue
         }
         console.warn(`cleanup: the session ${agent.sessionId} of ${task} was not stopped: ${englishOf(noticeOf(error))}`)
+        if (project !== undefined) rareEvents.once('17c', 'stop-result', { ...agent, task, project },
+          `cleanup-stop result=failed detail=${JSON.stringify(englishOf(noticeOf(error)))}; leaving the session as before`)
         if (retry !== undefined) ctx.dispatcher.leftover(retry.project, task, notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
       }
     }

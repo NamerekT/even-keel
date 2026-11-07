@@ -1,3 +1,5 @@
+import { BOOT_WAIT_MS, idleBeforePrompt } from '../../src/sessions/boot.js'
+export { idleBeforePrompt } from '../../src/sessions/boot.js'
 export { accountBadge, entryBadge, headerAccounts, loginLeft, limitedUntil, canWork, accountOrder, type AccountBadge } from './account-state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
@@ -102,8 +104,6 @@ export interface SessionStart {
 
 export type StartPhase = 'launch' | 'handover' | 'boot' | 'answer'
 
-const BOOT_WAIT_MS = 5 * 60_000
-
 export type ContextLevel = 'ok' | 'warn' | 'danger'
 
 export const PROJECT_SLOTS = PROJECT_COLORS
@@ -112,22 +112,6 @@ const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: t
 
 export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: string): ProjectTask[] {
   return state.tasks.filter((task) => task.project === project)
-}
-
-/**
- * A fresh session idling before its prompt lands: the CLI's idle reads as waiting, yet nothing is asked and nobody has
- * to answer. Past the boot wait it is waiting again: a prompt that never landed is the user's to see.
- */
-export function idleBeforePrompt(view: SessionView, now: Date): boolean {
-  return (
-    view.lamp === 'waiting' &&
-    view.contextTokens === 0 &&
-    view.feed.length === 0 &&
-    !view.asking &&
-    view.startupDialog === null &&
-    view.apiError === null &&
-    now.getTime() - Date.parse(view.startedAt) <= BOOT_WAIT_MS
-  )
 }
 
 export function waitingSessions(sessions: SessionView[], tasks: Task[], refused: ReadonlySet<string> = new Set(), now = new Date()): SessionView[] {

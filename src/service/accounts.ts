@@ -36,6 +36,8 @@ import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
 import { TRACKER_GROUPS } from '../sessions/protection.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from '../sessions/launch.js'
 import { SessionMonitor } from '../sessions/monitor.js'
+import { rareEvents } from '../sessions/rare.js'
+import { isInside } from '../paths.js'
 import { TranscriptOwners } from '../sessions/owners.js'
 import { home as dataHome, root, source } from '../locations.js'
 import { keyPool, profileFor, serverProfile } from '../profiles/model.js'
@@ -56,6 +58,7 @@ import { firstRun } from '../setup.js'
 import type { ServiceContext } from '../service.js'
 
 type AccountsContext = Pick<ServiceContext,
+  | 'launches'
   | 'ACCOUNT_POLL_MS'
   | 'AGENT_TIMEOUT_MS'
   | 'CLI_VERSION_POLL_MS'
@@ -574,6 +577,12 @@ export function wireContextWindows(ctx: AccountsContext): ContextWindows {
 }
 
 export function wireMonitor(ctx: AccountsContext): SessionMonitor {
+  rareEvents.projectOf = (session) => {
+    const launched = ctx.launches.find((entry) => entry.sessionId === session.sessionId)
+    const candidates = Object.entries(ctx.configStore.current.projects).filter(([, repo]) => isInside(session.cwd, repo))
+    const project = launched?.project ?? (candidates.length === 1 ? candidates[0]![0] : undefined)
+    return project === undefined ? undefined : projectLabel(ctx.configStore.current, project)
+  }
   return new SessionMonitor({
     agentOf: ctx.agentOf,
     homes: () => ctx.homes.list(),
