@@ -1,5 +1,5 @@
 import { TrackerNotFound } from '../tracker/source.js'
-import { ForgejoHttpError, type ForgejoApi } from './api.js'
+import { ForgejoHttpError, ForgejoScopeError, type ForgejoApi } from './api.js'
 
 /** The access levels of `/collaborators/{user}/permission` that count as the repository's own people. */
 const TRUSTED_ACCESS: ReadonlySet<string> = new Set(['write', 'admin', 'owner'])
@@ -14,7 +14,8 @@ const TRUSTED_ACCESS: ReadonlySet<string> = new Set(['write', 'admin', 'owner'])
 export function forgejoTrust(api: ForgejoApi, owner: string, repo: string, viewer: string | null): (login: string | null | undefined) => Promise<boolean> {
   const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators`
   const answers = new Map<string, Promise<boolean>>()
-  const refused = (error: unknown) => error instanceof TrackerNotFound || (error instanceof ForgejoHttpError && error.status >= 400 && error.status < 500)
+  const refused = (error: unknown) =>
+    error instanceof TrackerNotFound || error instanceof ForgejoScopeError || (error instanceof ForgejoHttpError && error.status >= 400 && error.status < 500)
 
   async function ask(login: string): Promise<boolean> {
     try {

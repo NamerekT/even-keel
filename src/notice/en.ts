@@ -83,6 +83,8 @@ export const en = {
     `The tracker has no status "${p.status}" for ${MOVE_LABELS[p.setting]}: the move would fail when it comes. Pick a status from the list.`,
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
+  'forgejo.scope': (p: { scope: string }) =>
+    `The Forgejo token lacks the ${p.scope} scope. Make a token with write:issue on Forgejo's Applications page and save it in the Forgejo profile in Trackers and CI, or add a profile with it.`,
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',
   'jira.incomplete': () => 'Fill in the site address, the e-mail and the API token of the Jira profile in Trackers and CI.',
   'jira.mcpSite': () => 'The MCP token cannot see this Jira site. Enable API token authentication for the Atlassian MCP server in your organization’s admin settings, then create a new Atlassian MCP V2 token.',

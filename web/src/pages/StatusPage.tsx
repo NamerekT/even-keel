@@ -15,7 +15,8 @@ import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { FixButton, useFix } from './FixButtons.js'
 import { HelpTip } from './settingsParts.js'
-import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
+import { openTasks, problemsOf, refreshedProjects, staleReaders } from './status.js'
+import { trackerDownText } from './trackerDown.js'
 import './settings.css'
 import './status.css'
 
@@ -191,8 +192,9 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
       />
       {health.state === 'down' && health.error !== null && (
         <p className="status-connection__error">
-          {own ? t.system.lost : t.statusPage.trackerProblem[trackerProblem(health.error)]}
-          <HelpTip text={health.error} />
+          {own ? t.system.lost : trackerDownText(health)}
+          {/* A notice is the error itself, said in the page's language: no tip repeats it. */}
+          {health.notice === undefined && <HelpTip text={health.error} />}
         </p>
       )}
       {readers.length === 0 ? (

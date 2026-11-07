@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GitlabApi } from '../gitlab/api.js'
+import { fail } from '../notice/notice.js'
 import type { TrackerHealth } from './health.js'
 import { errorText, TrackerLink } from './link.js'
 import { TrackerNotFound, type Tracker } from './source.js'
@@ -223,6 +224,16 @@ describe('TrackerLink', () => {
     const link = new TrackerLink({ name: 'huly',connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000 })
     await expect(link.run(async () => 1)).rejects.toThrow()
     expect(link.health).toEqual({ state: 'down', lastOkAt: null, error: 'refused' })
+  })
+
+  it('keeps the notice of an error that has one, for the page to say it in its own language (BTN-788)', async () => {
+    const link = new TrackerLink({ name: 'forgejo', connect: async () => fakeSource(), timeoutMs: 1000 })
+    await expect(link.run(async () => Promise.reject(fail('forgejo.scope', { scope: 'read:issue' })))).rejects.toThrow()
+    expect(link.health.notice).toEqual({ code: 'forgejo.scope', params: { scope: 'read:issue' } })
+    expect(link.health.error).toContain('read:issue')
+
+    await link.run(async () => 1)
+    expect(link.health.notice).toBeUndefined()
   })
 
   it('names the cause of a failed fetch, which alone says only "fetch failed"', async () => {

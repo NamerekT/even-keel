@@ -6,6 +6,8 @@ export interface TrackerHealth {
   state: TrackerLinkState
   lastOkAt: string | null
   error: string | null
+  /** The error's notice where it has one (`NoticeError`): the page says it in its own language, with its fix (BTN-788). */
+  notice?: Notice
 }
 
 export interface TrackerView {

@@ -1,4 +1,5 @@
 import { forgejoBase } from '../ci/host.js'
+import { notice, NoticeError } from '../notice/notice.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 
@@ -6,6 +7,24 @@ export class ForgejoHttpError extends Error {
   constructor(readonly status: number) {
     super(`forgejo: HTTP ${status}`)
   }
+}
+
+/**
+ * Forgejo's 403 for a token made without a scope the call needs (BTN-788): the token itself is alive — a CI's token
+ * that has no issue scope reads the Actions on and is refused the issues — so it is no `CredentialsRefused`.
+ */
+export class ForgejoScopeError extends NoticeError {
+  readonly status = 403
+
+  constructor(scope: string) {
+    super(notice('forgejo.scope', { scope }))
+  }
+}
+
+/** The scopes of Forgejo's `token does not have at least one of required scope(s): [read:issue]`, comma-separated; `null` — another refusal. */
+function missingScope(body: string): string | null {
+  const scopes = /required scope\(s\): \[([^\]]*)\]/.exec(body)?.[1]?.trim()
+  return scopes === undefined || scopes === '' ? null : scopes.split(/[\s,]+/).join(', ')
 }
 
 /**
@@ -28,7 +47,10 @@ export class ForgejoApi {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }, path.replace(/\?.*$/, ''))
     if (response.ok) return response
-    await response.body?.cancel()
+    if (response.status === 403) {
+      const scope = missingScope(await response.text().catch(() => ''))
+      if (scope !== null) throw new ForgejoScopeError(scope)
+    } else await response.body?.cancel()
     if (response.status === 401) throw new CredentialsRefused('forgejo: the token is refused (HTTP 401)')
     if (response.status === 404) throw new TrackerNotFound('forgejo: not found or the token cannot see it (HTTP 404)')
     throw new ForgejoHttpError(response.status)

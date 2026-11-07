@@ -61,7 +61,9 @@ import { SettingsChip } from './SettingsChip.js'
 import { SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { SETTINGS_HASH } from './settingsStore.js'
 import { ProjectNotices } from './ProjectNotices.js'
-import { NoticeFixButton } from './FixButtons.js'
+import { FixButton, NoticeFixButton } from './FixButtons.js'
+import { noticeFixOf, PROFILES } from './noticeFix.js'
+import { trackerDownText } from './trackerDown.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
@@ -190,7 +192,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         {!builtin && <EmptyCall state={state} project={key} />}
         <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
           {blocks.length === 0 && (adding === null || order === undefined) ? (
-            emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
+            emptyCall(state, key) === null && (order === undefined ? <NotLoaded project={key} tracker={tracker} /> : <p className="placeholder">{t.project.chainEmpty}</p>)
           ) : (
             <ChainList
               key={key}
@@ -297,6 +299,20 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
         <span className="project__read-at">{at === undefined ? t.project.notRead : t.project.readAt(formatAgo(at, now))}</span>
       )}
     </span>
+  )
+}
+
+/** Tasks not read yet; while the project's tracker is down, why, with the place it is fixed at (BTN-788). */
+function NotLoaded({ project, tracker }: { project: string; tracker: TrackerView | undefined }) {
+  const why = tracker === undefined ? null : trackerDownText(tracker.health)
+  if (tracker === undefined || why === null) return <p className="placeholder">{t.project.chainNotLoaded}</p>
+  const own = tracker.kind === BUILTIN
+  const fix = noticeFixOf(tracker.health.notice) ?? (own ? null : PROFILES)
+  return (
+    <div className="project__unread">
+      <p className="project__error">{t.project.notLoadedBecause(own ? t.system.lost : why)}</p>
+      {fix !== null && <FixButton project={project} fix={fix} />}
+    </div>
   )
 }
 

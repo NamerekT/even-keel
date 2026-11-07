@@ -97,7 +97,7 @@ function trackerCheck(tracker: TrackerView, now: Date): Check {
   if (health.state === 'off') return { ...base, level: 'off', text: t.system.off, details: [] }
   if (health.state === 'live') return { ...base, level: 'ok', text: own ? t.statusPage.builtinReady : t.system.live, details: [] }
   if (health.state === 'connecting') return { ...base, level: 'warn', text: t.system.connecting, details: [] }
-  const details = [health.lastOkAt === null ? null : t.system.lastOk(formatAgo(health.lastOkAt, now)), health.error]
+  const details = [health.lastOkAt === null ? null : t.system.lastOk(formatAgo(health.lastOkAt, now)), health.notice === undefined ? health.error : say(health.notice)]
   return { ...base, level: 'error', text: t.system.lost, details: details.filter((line) => line !== null), ...(own ? {} : { fix: PROFILES }) }
 }
 

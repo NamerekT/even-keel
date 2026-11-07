@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import type { Check, Level } from '../layout/system.js'
-import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
+import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem, trackerReason } from './status.js'
 
 const now = new Date('2026-10-24T12:00:00Z')
 const live: TrackerHealth = { state: 'live', lastOkAt: '2026-10-24T12:00:00Z', error: null }
@@ -82,5 +82,19 @@ describe('trackerProblem', () => {
     expect(trackerProblem('getaddrinfo ENOTFOUND huly.example.com')).toBe('unreachable')
     expect(trackerProblem('fetch failed')).toBe('unreachable')
     expect(trackerProblem('huly: unknown project ABC')).toBe('other')
+  })
+})
+
+describe('trackerReason', () => {
+  const down = (error: string, notice?: TrackerHealth['notice']): TrackerHealth => ({ state: 'down', lastOkAt: null, error, ...(notice && { notice }) })
+
+  it('says a token without the issue scope by its notice, a 401 still as a refused key (BTN-788)', () => {
+    const scope = { code: 'forgejo.scope', params: { scope: 'read:issue' } } as const
+    expect(trackerReason(down('The Forgejo token lacks the read:issue scope.', scope))).toEqual(scope)
+    expect(trackerReason(down('forgejo: the token is refused (HTTP 401)'))).toBe('denied')
+  })
+
+  it('has nothing to say about a tracker that is not down', () => {
+    expect(trackerReason(live)).toBeNull()
   })
 })

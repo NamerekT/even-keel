@@ -1,3 +1,4 @@
+import { NoticeError } from '../notice/notice.js'
 import type { TrackerHealth } from './health.js'
 import { TrackerNotFound, type Tracker } from './source.js'
 import { callDiagnostics, longestRequest, type CallDiagnostics } from './diagnostics.js'
@@ -73,7 +74,7 @@ export class TrackerLink {
         throw error
       }
       this.drop(pending)
-      this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: errorText(error) })
+      this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: errorText(error), ...(error instanceof NoticeError && { notice: error.notice }) })
       throw error
     }
   }

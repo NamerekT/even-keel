@@ -1,5 +1,6 @@
 import type { EvenKeelState } from '../../../src/state.js'
-import type { TrackerView } from '../../../src/tracker/health.js'
+import type { Notice } from '../../../src/notice/notice.js'
+import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import { isOpen } from '../../../src/tracker/model.js'
 import type { Check } from '../layout/system.js'
 
@@ -47,4 +48,10 @@ export function trackerProblem(error: string): TrackerProblem {
   if (/timed? ?out|timeout|ETIMEDOUT/i.test(error)) return 'timeout'
   if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN|EHOSTUNREACH|fetch failed|getaddrinfo|socket hang up/i.test(error)) return 'unreachable'
   return 'other'
+}
+
+/** Why a tracker is down: its error's notice where the server gave one (BTN-788), otherwise what the error means; `null` — it is not down. */
+export function trackerReason(health: TrackerHealth): Notice | TrackerProblem | null {
+  if (health.state !== 'down' || health.error === null) return null
+  return health.notice ?? trackerProblem(health.error)
 }

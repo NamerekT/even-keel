@@ -1,3 +1,5 @@
+import { englishOf, notice } from '../../../src/notice/notice.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.js'
 import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE } from './fakeProfiles.js'
 import { ago } from './fakeSessions.js'
@@ -32,4 +34,24 @@ export function fakeTrackerProblems(trackers: TrackerView[]): TrackerView[] {
   })
   const spare: TrackerView = { name: 'github-spare', kind: 'github', title: 'GitHub · spare', projects: [], ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} }
   return [...changed, spare]
+}
+
+/**
+ * `?trackers=scope` (BTN-788): XYZ reads on a Forgejo profile whose token was made for the CI, without the issue scope;
+ * Forgejo refused its first read, so XYZ has no tasks yet.
+ */
+export function withScopeRefusal(state: EvenKeelState): EvenKeelState {
+  const scope = notice('forgejo.scope', { scope: 'read:issue' })
+  const forgejo: TrackerView = {
+    name: 'forgejo-ci',
+    kind: 'forgejo',
+    title: 'Forgejo · ci',
+    projects: ['XYZ'],
+    ready: true,
+    health: { state: 'down', lastOkAt: null, error: englishOf(scope), notice: scope },
+    readAt: {},
+  }
+  const trackers = state.trackers.map((tracker) => (tracker.name === FAKE_HULY_PROFILE ? { ...tracker, projects: tracker.projects.filter((project) => project !== 'XYZ') } : tracker))
+  const { XYZ: _, ...projects } = state.chain.projects
+  return { ...state, trackers: [...trackers, forgejo], tasks: state.tasks.filter((task) => task.project !== 'XYZ'), chain: { ...state.chain, projects } }
 }

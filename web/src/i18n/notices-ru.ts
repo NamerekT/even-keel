@@ -66,6 +66,8 @@ export const noticesRu: NoticeTexts = {
   'statusMoves.unknown': (p) => `В трекере нет статуса «${p.status}» для ${MOVE_LABELS[p.setting]}: перевод не пройдёт, когда до него дойдёт. Выберите статус из списка.`,
   'gitlab.url': () => 'В «Трекеры и CI» укажите веб-адрес сервера GitLab без /api/v4.',
   'gitlab.token': () => 'Добавьте профиль GitLab в «Трекеры и CI» с личным токеном со scope api.',
+  'forgejo.scope': (p) =>
+    `Токену Forgejo не хватает scope ${p.scope}. Создайте токен с write:issue на странице «Приложения» в Forgejo и сохраните его в профиле Forgejo в «Трекеры и CI» или заведите с ним новый профиль.`,
   'jira.url': () => 'В «Трекеры и CI» укажите адрес сайта Jira в виде https://<site>.atlassian.net, без пути.',
   'jira.incomplete': () => 'Заполните в профиле Jira («Трекеры и CI») адрес сайта, почту и API-токен.',
   'jira.mcpSite': () => 'Токен MCP не видит этот сайт Jira. В настройках организации включите аутентификацию API-токенами для сервера Atlassian MCP, затем создайте токен Atlassian MCP V2 заново.',

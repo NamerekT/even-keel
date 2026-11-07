@@ -156,6 +156,7 @@ export const projectEN: Messages['project'] = {
     start: 'Start',
     enqueue: 'Queue',
     chainNotLoaded: 'Tasks are not loaded yet.',
+    notLoadedBecause: (why: string) => `Tasks are not loaded. ${why}`,
     chainLoading: 'Reading the tasks…',
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,

@@ -154,6 +154,7 @@ export const projectRU = {
     start: 'Запустить',
     enqueue: 'В очередь',
     chainNotLoaded: 'Задачи ещё не загружены.',
+    notLoadedBecause: (why: string) => `Задачи не загружены. ${why}`,
     chainLoading: 'Читаю задачи…',
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,

@@ -23,7 +23,7 @@ export type NoticeFix =
   | { to: 'tracker'; task: string }
   | { to: 'moves'; level: MoveLevel; task: string }
 
-const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
+export const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
 const ACCOUNTS: NoticeFix = { to: 'accounts' }
 
