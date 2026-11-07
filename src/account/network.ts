@@ -1,15 +1,20 @@
 import { CODEX } from '../codex/name.js'
 import { COPILOT } from '../copilot/name.js'
+import { keyVendor } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 
 const CLAUDE_API = 'https://api.anthropic.com'
 const OPENAI_API = 'https://api.openai.com'
 const OPENCODE_API = 'https://opencode.ai'
 const GITHUB_API = 'https://api.github.com'
+const OPENROUTER_API = 'https://openrouter.ai'
 
-/** The API the agent's sign-in renews its tokens against: account calls wait until it answers (EKR-15). */
-export function providerUrl(agent: string): string {
-  if (agent === OPENCODE) return OPENCODE_API
+/**
+ * The API the agent's sign-in renews its tokens against: account calls wait until it answers (EKR-15). An OpenCode
+ * folder on an OpenRouter key, `key`, talks only to OpenRouter (BTN-843).
+ */
+export function providerUrl(agent: string, key: string | null = null): string {
+  if (agent === OPENCODE) return key !== null && keyVendor(key) === 'openrouter' ? OPENROUTER_API : OPENCODE_API
   if (agent === COPILOT) return GITHUB_API
   return agent === CODEX ? OPENAI_API : CLAUDE_API
 }

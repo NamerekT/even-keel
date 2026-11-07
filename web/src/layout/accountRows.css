@@ -23,6 +23,7 @@
 }
 .account-access--anthropic { --owner: var(--owner-anthropic); }
 .account-access--openai { --owner: var(--owner-openai); }
+.account-access--openrouter { --owner: var(--owner-openrouter); }
 .account-access--zen { --owner: var(--owner-zen); }
 .account-access--github { --owner: var(--owner-github); }
 .account-access--aws { --owner: var(--owner-aws); }

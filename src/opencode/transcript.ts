@@ -45,7 +45,8 @@ const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota|too many requests/i
 const LIMIT_TYPE = /FreeUsageLimitError/
-const CREDIT_TEXT = /insufficient_quota|exceeded your current quota|credit balance|no credits remaining|credit_balance_exhausted/i
+// OpenRouter's 402: "Insufficient credits" for no money, "requires more credits" for less than the turn may cost.
+const CREDIT_TEXT = /insufficient_quota|exceeded your current quota|credit balance|no credits remaining|credit_balance_exhausted|insufficient credits|requires more credits/i
 const MODEL_REFUSAL = /is not supported when using Codex with a ChatGPT account/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 

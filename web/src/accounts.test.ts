@@ -114,6 +114,7 @@ describe('accessOf', () => {
     expect(accessOf(of('opencode', {}, 'anthropic'))).toBe('claudeSubscription')
     expect(accessOf(of('opencode', { apiKey: true }, 'anthropic'))).toBe('anthropicKey')
     expect(accessOf(of('opencode', { apiKey: true }, 'openai'))).toBe('openaiKey')
+    expect(accessOf(of('opencode', { apiKey: true }, 'openrouter'))).toBe('openrouterKey')
   })
 
   it("takes an OpenCode folder with no sign-in or with OpenCode's own key for Zen", () => {
@@ -138,7 +139,7 @@ describe('accessGroups', () => {
   })
 
   it('names who bills each connection', () => {
-    expect(ACCESS_OWNER).toMatchObject({ claudeSubscription: 'anthropic', anthropicKey: 'anthropic', chatgpt: 'openai', openaiKey: 'openai', zen: 'zen', github: 'github' })
+    expect(ACCESS_OWNER).toMatchObject({ claudeSubscription: 'anthropic', anthropicKey: 'anthropic', chatgpt: 'openai', openaiKey: 'openai', openrouterKey: 'openrouter', zen: 'zen', github: 'github' })
   })
 })
 

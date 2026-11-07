@@ -35,13 +35,14 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
-- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
+- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 104 | [OpenCode on an OpenRouter key](unverified/opencode.md#opencode-on-an-openrouter-key-btn-843) | OpenCode accounts on an `sk-or-` key | a working key is refused, or a session out of money is not held for credit |
 | 103 | [Lightweight commands and tray polling](unverified/page.md#lightweight-commands-and-tray-polling-btn-826) | a phone over Tailscale, long-running pages, the Windows tray and old tabs during updates | updates may arrive late or a tray count may be wrong; reload the page and inspect its chain/question controls |
 | 102 | [Automatic milestone order](unverified/trackers.md#automatic-milestone-order-btn-791) | Jira and Linear projects using native milestone positions; live check BTN-835 | a wrong milestone runs first, a task waits or a milestone-order conflict stops the chain; correct tracker dates/names or blockers and refresh |
 | 1b | [Paid subscription usage stops](unverified/accounts.md#paid-subscription-usage-stops) | managed chain sessions with credits or permitted extra usage | detection may lag, stop may fail, or recovery may relaunch into paid usage |

@@ -372,6 +372,16 @@ describe('AccountHomes.replaceApiKey (BTN-418)', () => {
       expect(homes.apiKeyOf(home)).toBe('sk-ant-fake.example.com.0000')
     }))
 
+  it('takes an OpenRouter key for an OpenRouter account, not an OpenAI one (BTN-843)', () =>
+    withRoot((_root, homes) => {
+      const home = homes.addApiKey('Router', 'sk-or-v1-fake.example.com.0000', 'opencode')
+      expect(() => homes.replaceApiKey(home, 'sk-proj-fake-0000000000000000-new')).toThrow(
+        expect.objectContaining({ notice: expect.objectContaining({ code: 'account.keyOtherProvider', params: { provider: 'openrouter' } }) }),
+      )
+      homes.replaceApiKey(home, 'sk-or-v1-fake.example.com.1111')
+      expect(json(join(home.dir, 'data', 'opencode', 'auth.json'))).toEqual({ openrouter: { type: 'api', key: 'sk-or-v1-fake.example.com.1111' } })
+    }))
+
   it('refuses a malformed key as adding does, and a folder that holds no key of its own', () =>
     withRoot((root, homes) => {
       const home = homes.addApiKey('Work', old)

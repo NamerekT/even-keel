@@ -73,9 +73,9 @@ export const addAccount = {
       },
       apiKey: {
         title: 'API-ключ',
-        gets: 'Ключ Anthropic или OpenAI, оплата за токены',
-        tip: 'API-ключ Anthropic (sk-ant-…) или OpenAI — в auth.json новой папки OpenCode: чей это ключ, видно по его началу. Сессии на нём платят за токены; модель укажите в профиле запуска, вроде anthropic/claude-sonnet-4-5.',
-        next: 'Ключ Anthropic (sk-ant-…) или OpenAI (sk-…).',
+        gets: 'Ключ Anthropic, OpenAI или OpenRouter, оплата за токены',
+        tip: 'API-ключ Anthropic (sk-ant-…), OpenRouter (sk-or-…) или OpenAI — в auth.json новой папки OpenCode: чей это ключ, видно по его началу. Сессии на нём платят за токены; модель укажите в профиле запуска, вроде anthropic/claude-sonnet-4-5 или openrouter/minimax/minimax-m3.1-flash.',
+        next: 'Ключ Anthropic (sk-ant-…), OpenAI (sk-…) или OpenRouter (sk-or-…).',
         rule: 'Claude через OpenCode — только по ключу: подписку Claude Anthropic разрешает только в Claude Code.',
         action: 'Проверить и добавить ключ',
       },

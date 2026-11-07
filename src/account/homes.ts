@@ -372,8 +372,13 @@ export function assertApiKey(key: string, agent: string = CLAUDE): string {
  */
 const COPILOT_TOKEN = /^(github_pat_|gho_|ghu_)/
 
-/** Whose key an API account of the agent holds: Codex's is OpenAI's, OpenCode's either, by its prefix, Copilot's GitHub's. */
-export function keyProvider(agent: string, key: string): 'anthropic' | 'openai' | 'github' {
+export type KeyProvider = 'anthropic' | 'openai' | 'openrouter' | 'github'
+
+/**
+ * Whose key an API account of the agent holds: Codex's is OpenAI's, OpenCode's Anthropic's, OpenAI's or OpenRouter's, by
+ * its prefix, Copilot's GitHub's.
+ */
+export function keyProvider(agent: string, key: string): KeyProvider {
   if (agent === COPILOT) return 'github'
   if (agent === OPENCODE) return keyVendor(key)
   return agent === CODEX ? 'openai' : 'anthropic'

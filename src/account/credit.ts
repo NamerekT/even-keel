@@ -10,6 +10,8 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const OPENAI_OUT_OF_MONEY = 'insufficient_quota'
 // Models of the list that take no text input through `/v1/responses`.
 const NOT_TEXT = /tts|transcribe|audio|realtime|search|image|embedding/
+const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models'
+const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 export type CreditVerdict = { state: 'ok' } | { state: 'empty' } | { state: 'unknown'; reason: string }
 
@@ -23,7 +25,10 @@ export function checkCredit(key: string, timeoutMs: number, fetchImpl: typeof fe
       modelsUrl: MODELS_URL,
       url: MESSAGES_URL,
       headers: { 'x-api-key': key, 'anthropic-version': API_VERSION, 'content-type': 'application/json' },
-      pick: (ids) => ids.find((id) => id.includes('haiku')) ?? ids[0] ?? null,
+      pick: (models) => {
+        const ids = models.map((model) => model.id)
+        return ids.find((id) => id.includes('haiku')) ?? ids[0] ?? null
+      },
       body: (model) => ({ model, max_tokens: 1, messages: [{ role: 'user', content: '.' }] }),
       empty: (status, text) => status === 400 && (text.toLowerCase().includes(OUT_OF_CREDIT) || isSpendingLimit(text)),
     },
@@ -43,8 +48,8 @@ export function checkOpenAiCredit(key: string, timeoutMs: number, fetchImpl: typ
       modelsUrl: OPENAI_MODELS_URL,
       url: OPENAI_RESPONSES_URL,
       headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-      pick: (ids) => {
-        const text = ids.filter((id) => id.startsWith('gpt-') && !NOT_TEXT.test(id))
+      pick: (models) => {
+        const text = models.map((model) => model.id).filter((id) => id.startsWith('gpt-') && !NOT_TEXT.test(id))
         return text.find((id) => id.includes('nano')) ?? text.find((id) => id.includes('mini')) ?? null
       },
       body: (model) => ({ model, input: '.', max_output_tokens: 16, store: false }),
@@ -55,11 +60,56 @@ export function checkOpenAiCredit(key: string, timeoutMs: number, fetchImpl: typ
   )
 }
 
+/**
+ * The same question to OpenRouter for an OpenCode key (BTN-843): one output token from the cheapest paid text model it
+ * lists — a free one answers even with no money, and `openrouter/auto` has no price (`-1`). A key out of money answers
+ * 402; its balance itself only a management key may read.
+ */
+export function checkOpenRouterCredit(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<CreditVerdict> {
+  return askCredit(
+    {
+      modelsUrl: OPENROUTER_MODELS_URL,
+      url: OPENROUTER_CHAT_URL,
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      pick: cheapestPaidText,
+      body: (model) => ({ model, max_tokens: 1, messages: [{ role: 'user', content: '.' }] }),
+      empty: (status) => status === 402,
+    },
+    timeoutMs,
+    fetchImpl,
+  )
+}
+
+function cheapestPaidText(models: ListedModel[]): string | null {
+  let best: { id: string; price: number } | null = null
+  for (const model of models) {
+    const architecture = record(model.architecture)
+    if (!listHas(architecture.input_modalities, 'text') || !listHas(architecture.output_modalities, 'text')) continue
+    const pricing = record(model.pricing)
+    const prices = [pricing.prompt, pricing.completion, pricing.request ?? '0'].map(Number)
+    if (prices.some((price) => !Number.isFinite(price) || price < 0)) continue
+    const price = prices.reduce((sum, each) => sum + each, 0)
+    if (price > 0 && (best === null || price < best.price)) best = { id: model.id, price }
+  }
+  return best?.id ?? null
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function listHas(value: unknown, item: string): boolean {
+  return Array.isArray(value) && value.includes(item)
+}
+
+/** An entry of a models list: its id and whatever else the provider tells of it. */
+type ListedModel = Record<string, unknown> & { id: string }
+
 interface CreditAsk {
   modelsUrl: string
   url: string
   headers: Record<string, string>
-  pick: (ids: string[]) => string | null
+  pick: (models: ListedModel[]) => string | null
   body: (model: string) => unknown
   empty: (status: number, text: string) => boolean
 }
@@ -71,7 +121,7 @@ async function askCredit(ask: CreditAsk, timeoutMs: number, fetchImpl: typeof fe
       await listed.body?.cancel()
       return { state: 'unknown', reason: `models HTTP ${listed.status}` }
     }
-    const model = ask.pick(modelIds(await listed.json()))
+    const model = ask.pick(listedModels(await listed.json()))
     if (model === null) return { state: 'unknown', reason: 'the key lists no models' }
     const response = await fetchImpl(ask.url, {
       method: 'POST',
@@ -88,9 +138,9 @@ async function askCredit(ask: CreditAsk, timeoutMs: number, fetchImpl: typeof fe
   }
 }
 
-function modelIds(body: unknown): string[] {
-  const data = (body as { data?: unknown } | null)?.data
-  return Array.isArray(data) ? data.map((model) => (model as { id?: unknown })?.id).filter((id) => typeof id === 'string') : []
+function listedModels(body: unknown): ListedModel[] {
+  const data = record(body).data
+  return Array.isArray(data) ? data.map(record).filter((model): model is ListedModel => typeof model.id === 'string') : []
 }
 
 interface Wanted {
