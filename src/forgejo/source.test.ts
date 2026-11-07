@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSource } from '../tracker/source.js'
+import { ForgejoScopeError } from './api.js'
 import { comment, forgejoFetch, issue, milestone, WEB, type Route } from './fixture.js'
 import { connectForgejo } from './source.js'
 
@@ -155,6 +156,27 @@ describe('connectForgejo', () => {
     })
     expect(await source.create!({ project: 'id-app', title: 'New', description: '', priority: 'low', milestoneOf: 'XYZ-1' })).toBe('APP-13')
     expect(calls.at(-1)!.body).toEqual({ title: 'New', body: '' })
+  })
+
+  const noOrgScope = { status: 403, body: { message: 'token does not have at least one of required scope(s): [read:organization]' } }
+
+  it('creates an issue on a user\'s repository with a token that has no organization scope', async () => {
+    const { source } = await connect({
+      [`GET ${BASE}/labels`]: { body: [{ id: 6, name: 'priority: high' }] },
+      [`GET /orgs/example-org/labels`]: noOrgScope,
+      [`GET ${BASE}/teams`]: { status: 405, body: { message: 'repo is not owned by an organization' } },
+      [`POST ${BASE}/issues`]: (body) => ({ status: 201, body: issue({ number: 14, labels: [{ id: (body!.labels as number[])[0]!, name: 'priority: high' }] }) }),
+    })
+    expect(await source.create!({ project: 'id-app', title: 'New', description: '', priority: 'high' })).toBe('APP-14')
+  })
+
+  it('names the missing organization scope on an organization\'s repository', async () => {
+    const { source } = await connect({
+      [`GET ${BASE}/labels`]: { body: [] },
+      [`GET /orgs/example-org/labels`]: noOrgScope,
+      [`GET ${BASE}/teams`]: { body: [{ id: 1, name: 'Owners' }] },
+    })
+    await expect(source.create!({ project: 'id-app', title: 'New', description: '', priority: 'high' })).rejects.toBeInstanceOf(ForgejoScopeError)
   })
 
   it('lists the open milestones with the issue\'s own, and moves the issue to one or to none', async () => {

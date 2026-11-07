@@ -4,7 +4,7 @@ import { limitedMap } from '../gitlab/batch.js'
 import { resolveLabels } from '../tracker/labels.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
-import { ForgejoApi } from './api.js'
+import { ForgejoApi, ForgejoHttpError, ForgejoScopeError } from './api.js'
 import { FORGEJO_STATUSES, forgejoPriority, forgejoStatus, labelNames, toCard, toTrackerTask, type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone } from './model.js'
 import { forgejoTrust } from './trust.js'
 
@@ -48,11 +48,25 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
   const labelsOf = async (repo: Repo): Promise<ForgejoLabel[]> => {
     const own = await api.collect<ForgejoLabel>(`${repoBase(repo)}/labels`)
     // An organization's labels go on its repositories' issues too; a user's repository has none such (404).
-    const org = await api.collect<ForgejoLabel>(`/orgs/${encodeURIComponent(repo.owner)}/labels`).catch((error: unknown) => {
+    const org = await api.collect<ForgejoLabel>(`/orgs/${encodeURIComponent(repo.owner)}/labels`).catch(async (error: unknown) => {
       if (error instanceof TrackerNotFound) return []
+      if (error instanceof ForgejoScopeError && !(await ownedByOrganization(repo))) return []
       throw error
     })
     return [...own, ...org]
+  }
+  /**
+   * Forgejo refuses a token without `read:organization` on `/orgs/…` before it looks whether the owner is an
+   * organization (BTN-820). A repository's `/teams` needs only the repository's scope and answers 405 for a user's one.
+   */
+  const ownedByOrganization = async (repo: Repo): Promise<boolean> => {
+    try {
+      await (await api.request(`${repoBase(repo)}/teams`)).body?.cancel()
+      return true
+    } catch (error) {
+      if (error instanceof ForgejoHttpError && error.status === 405) return false
+      return true
+    }
   }
   const openMilestones = (repo: Repo) => api.collect<ForgejoMilestone>(`${repoBase(repo)}/milestones?state=open`)
   const trustIn = (repo: Repo) => forgejoTrust(api, repo.owner, repo.name, viewer)
