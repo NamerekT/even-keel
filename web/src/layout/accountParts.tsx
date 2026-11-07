@@ -157,9 +157,15 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
   )
 }
 
-/** The word of the card's head after the name: the plan of a subscription (`pro`, `free`), "API key" for a key, else none. */
+/**
+ * The word of the card's head after the name: the plan of a subscription (`pro`, `free`), "API key" for a key, a cloud
+ * account's region or, on Foundry, which has none, its resource; else none.
+ */
 export function planText(entry: AccountEntry): string | null {
-  if (entry.cloud !== undefined) return entry.cloud.region === null ? null : t.account.cloudRegion(entry.cloud.region)
+  if (entry.cloud !== undefined) {
+    if (entry.cloud.region !== null) return t.account.cloudRegion(entry.cloud.region)
+    return entry.cloud.resource === undefined ? null : t.account.cloudResource(entry.cloud.resource)
+  }
   if (entry.apiKey) return t.account.connections.apiKey
   return entry.status?.subscriptionType ?? null
 }

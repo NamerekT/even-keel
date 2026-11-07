@@ -97,3 +97,36 @@ describe('cloudDirty', () => {
     expect(cloudDirty({ ...vertex, modelRegions: [{ variable: 'VERTEX_REGION_CLAUDE_HAIKU_4_5', region: 'us-east5' }] })).toBe(true)
   })
 })
+
+describe('Microsoft Foundry (BTN-824)', () => {
+  const foundry = { ...withCloud(EMPTY_CLOUD, 'foundry'), resource: 'my-resource', sonnet: 'my-sonnet' }
+
+  it('starts on the API key and needs a valid resource, a deployment and the secret of the way', () => {
+    expect(withCloud(EMPTY_CLOUD, 'foundry')).toMatchObject({ cloud: 'foundry', way: 'apiKey' })
+    expect(cloudReady(foundry)).toBe(false)
+    expect(cloudReady({ ...foundry, key: 'fake-key' })).toBe(true)
+    expect(cloudReady({ ...foundry, key: 'fake-key', sonnet: ' ' })).toBe(false)
+    expect(cloudReady({ ...foundry, key: 'fake-key', resource: 'my-resource.services.ai.azure.com' })).toBe(false)
+    expect(cloudReady({ ...foundry, key: 'fake-key', resource: 'https://my-resource.services.ai.azure.com/anthropic' })).toBe(true)
+    expect(cloudReady({ ...foundry, way: 'entra' })).toBe(true)
+    expect(cloudReady({ ...foundry, way: 'token' })).toBe(false)
+    expect(cloudReady({ ...foundry, way: 'token', token: 'fake-token' })).toBe(true)
+  })
+
+  it('sends only the secret of the way and no field of another cloud, and the server reads it back', () => {
+    const draft = { ...foundry, way: 'token' as const, token: 'fake-token', key: 'typed-before', profile: 'typed before', region: 'eu-west-1', projectId: 'typed before' }
+    const body = cloudBody('Foundry', draft)
+    for (const field of ['key', 'profile', 'region', 'projectId', 'regionPrefix', 'modelRegions']) expect(body).not.toHaveProperty(field)
+    expect(cloudConnectionOf(body)).toEqual({ cloud: 'foundry', endpoint: { resource: 'my-resource' }, auth: { way: 'token', token: 'fake-token' }, models: { sonnet: 'my-sonnet' } })
+    expect(cloudConnectionOf(cloudBody('Foundry', { ...draft, way: 'apiKey' }))).toMatchObject({ auth: { way: 'apiKey', key: 'typed-before' } })
+    expect(cloudBody('Foundry', { ...draft, way: 'entra' })).not.toHaveProperty('token')
+  })
+
+  it('warns of a token only, and counts a typed token as lost on close', () => {
+    expect(cloudShortLived({ ...foundry, way: 'token', token: 't' }, undefined)).toBe(true)
+    expect(cloudShortLived({ ...foundry, key: 'k' }, undefined)).toBe(false)
+    expect(cloudShortLived({ ...foundry, way: 'entra' }, undefined)).toBe(false)
+    expect(cloudDirty({ ...EMPTY_CLOUD, token: 't' })).toBe(true)
+    expect(cloudDirty({ ...EMPTY_CLOUD, resource: 'my-resource' })).toBe(true)
+  })
+})

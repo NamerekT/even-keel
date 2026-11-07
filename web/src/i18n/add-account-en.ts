@@ -29,7 +29,7 @@ export const addAccount = {
       },
       cloud: {
         title: 'Cloud',
-        gets: "Your cloud's bill: Amazon Bedrock, Google Vertex AI",
+        gets: "Your cloud's bill: Amazon Bedrock, Google Vertex AI, Microsoft Foundry",
         tip: "Claude Code reaches the models through your cloud's own API, and the cloud bills you per token: no plan limits, no Remote Control. The connection is kept in the new folder's settings.json.",
         next: 'Pick the cloud and how Even Keel finds its credentials: one short turn checks them before the account is added.',
         rule: '',
@@ -109,13 +109,14 @@ export const addAccount = {
     tips: {
       bedrock: 'Claude models on Amazon Bedrock, through your AWS account. Bedrock has no web search: WebSearch does not work in its sessions.',
       vertex: 'Claude models on Google Cloud Vertex AI, through your Google Cloud project: each model is enabled in Model Garden first, and the project needs a paid billing account.',
-      foundry: 'Claude models on Microsoft Foundry, through your Azure subscription.',
+      foundry:
+        'Claude models on Microsoft Foundry, through your Azure subscription: a pay-as-you-go one with Azure Marketplace access — trial, student, credit and CSP subscriptions do not run Claude. Regions: East US 2 and Sweden Central.',
     },
     way: { bedrock: 'AWS credentials', vertex: 'Google Cloud credentials', foundry: 'Azure credentials' },
     ways: {
       bedrock: { profile: 'AWS profile', apiKey: 'Bedrock API key', keys: 'Access key and secret', environment: "Even Keel's environment" },
       vertex: { adc: 'gcloud sign-in (ADC)', keyFile: 'Key file', environment: "Even Keel's environment" },
-      foundry: {},
+      foundry: { apiKey: 'Foundry API key', entra: 'Microsoft Entra ID (az login)', token: 'Bearer token' },
     },
     wayNotes: {
       bedrock: {
@@ -129,8 +130,27 @@ export const addAccount = {
         keyFile: "The path to a service account's JSON key or to a Workload Identity Federation config: only the path is kept, the file stays where it is.",
         environment: "Nothing is kept: the CLI takes the Google Cloud credentials Even Keel itself runs with — a key file its environment names, the ADC file, the machine's account.",
       },
-      foundry: {},
+      foundry: {
+        apiKey: "A key of the Foundry resource, from Keys and Endpoint in the Azure portal: kept in the new folder's settings.json, as an API account's key.",
+        entra: "Nothing is kept: the CLI takes the Azure credentials Even Keel itself runs with — a service principal of its environment, its user's az login, the machine's managed identity.",
+        token: "A Microsoft Entra ID access token for the resource, kept in the new folder's settings.json. It lives about an hour.",
+      },
     },
+    resource: 'Resource name or address',
+    resourceHint: 'my-resource',
+    resourceProblems: {
+      host: 'A host name is not a resource name: type only the name, like my-resource, or the whole address with https:// and /anthropic.',
+      http: 'The address must start with https://.',
+      foreign: 'Not a Foundry address: the host ends in .services.ai.azure.com.',
+      path: 'The address must end in /anthropic, like https://my-resource.services.ai.azure.com/anthropic.',
+      name: 'A resource name is 2 to 64 letters, digits and hyphens, with no hyphen at either end.',
+    },
+    foundryKey: 'Foundry API key',
+    token: 'Bearer token',
+    azureOf: (user: string) => `The Azure CLI sign-in of ${user}, the user Even Keel runs as.`,
+    azureEnvironment: "Even Keel's environment holds a service principal: the CLI takes it before any az login.",
+    noAzure: (user: string) =>
+      `No Azure CLI sign-in found for ${user}, the user Even Keel runs as: run this command as that user. A service under another Windows account does not see your own sign-in.`,
     profile: 'Profile',
     profilesOf: (user: string) => `Profiles of ${user}, the user Even Keel runs as`,
     noProfiles: (user: string) =>
@@ -151,12 +171,15 @@ export const addAccount = {
     regionDefault: 'From the profile, else us-east-1',
     regionVertex: 'global, us or eu; us-east5 by default',
     models: 'Models (optional)',
+    deployments: 'Deployments',
     modelsNote: {
       bedrock: 'Without them Claude Code picks the models the account has access to itself. An inference profile id, like us.anthropic.…, or its ARN.',
       vertex: 'Without them Claude Code picks the models the project has access to itself. A Vertex model id, like claude-sonnet-4-5@20250929.',
-      foundry: 'Without them Claude Code picks the models the account has access to itself.',
+      foundry:
+        "The deployment names from the Foundry portal, at least one: Foundry has no model check at start, and a request without a deployment fails. A deployment named otherwise than its model's id gets a 200K context window: name it after the model, like claude-sonnet-4-5, to keep the model's full window.",
     },
     model: { opus: 'Opus model', sonnet: 'Sonnet model', haiku: 'Haiku model' },
+    deployment: { opus: 'Opus deployment', sonnet: 'Sonnet deployment', haiku: 'Haiku deployment' },
     regionPrefix: 'Inference profile prefix',
     regionPrefixHint: 'us, eu, apac or global',
     modelRegions: 'Regions for models',
@@ -170,7 +193,7 @@ export const addAccount = {
         'These credentials expire within hours and are renewed in a browser: a chain left alone overnight stops. For unattended work — a profile with a long-lived key, or a long-term API key.',
       vertex:
         "A user's gcloud sign-in may ask for a new sign-in under the organization's session policy: a chain left alone then stops. For unattended work — a service account's key file.",
-      foundry: 'These credentials may expire: a chain left alone overnight stops.',
+      foundry: 'A Bearer token lives about an hour: a chain left alone stops once it expires. For unattended work — an API key or Microsoft Entra ID.',
     },
     checking: 'Checking: one short turn on the cloud, up to two minutes…',
     added: 'Checked and added',

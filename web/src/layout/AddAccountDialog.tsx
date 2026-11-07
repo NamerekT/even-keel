@@ -13,7 +13,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, TerminalIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
-import type { AwsProfiles, GcloudCredentials } from '../../../src/account/cloud.js'
+import type { AwsProfiles, AzureCredentials, GcloudCredentials } from '../../../src/account/cloud.js'
 import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
 import { CloudFields } from './CloudFields.js'
@@ -264,6 +264,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             readAws={() => void send('account/aws')}
             gcloud={account.gcloud}
             readGcloud={() => void send('account/gcloud')}
+            azure={account.azure}
+            readAzure={() => void send('account/azure')}
             onSubmit={async (way, draft) => {
               before.current = account.accounts.map((entry) => entry.key)
               if (way.kind === 'cloud') {
@@ -388,11 +390,13 @@ interface WaysProps {
   readAws: () => void
   gcloud: GcloudCredentials | undefined
   readGcloud: () => void
+  azure: AzureCredentials | undefined
+  readAzure: () => void
   onSubmit: (way: Way, draft: Draft) => Promise<void>
 }
 
 /** The ways a provider's account signs in, as cards to pick one from, what the picked one needs under them, and its one action. */
-function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, gcloud, readGcloud, onSubmit }: WaysProps) {
+function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, gcloud, readGcloud, azure, readAzure, onSubmit }: WaysProps) {
   const group = useId()
   const text = wayText(provider, way)
   const key = way.kind === 'key'
@@ -459,7 +463,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             </label>
           </>
         )}
-        {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} gcloud={gcloud} readGcloud={readGcloud} />}
+        {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} gcloud={gcloud} readGcloud={readGcloud} azure={azure} readAzure={readAzure} />}
         {(key || cloud) && (
           <label className="add-package__field">
             <span className="add-package__label">{t.addAccount.name}</span>

@@ -1,4 +1,4 @@
-import { CLOUD_WAYS, shortBedrockKey, type AwsProfiles, type Cloud, type CloudWay, type GcloudCredentials } from '../../src/account/cloud.js'
+import { CLOUD_WAYS, foundryEndpointOf, shortBedrockKey, type AwsProfiles, type Cloud, type CloudWay, type GcloudCredentials } from '../../src/account/cloud.js'
 
 /** A model's own region on Vertex, typed as a row of the form: the `VERTEX_REGION_CLAUDE_*` variable and its region. */
 export interface ModelRegion {
@@ -6,12 +6,19 @@ export interface ModelRegion {
   region: string
 }
 
-/** What is typed for a cloud account (BTN-822, BTN-823); its secrets stay in the page's memory only, as an API key does. */
+/**
+ * What is typed for a cloud account (BTN-822, BTN-823, BTN-824); its secrets stay in the page's memory only, as an API
+ * key does. `key` is a Bedrock API key or a Foundry resource's key.
+ */
 export interface CloudDraft {
   cloud: Cloud
   way: CloudWay
   profile: string
   key: string
+  /** A Foundry Bearer token. */
+  token: string
+  /** A Foundry resource's name or its full address. */
+  resource: string
   accessKeyId: string
   secretAccessKey: string
   sessionToken: string
@@ -30,6 +37,8 @@ export const EMPTY_CLOUD: CloudDraft = {
   way: 'profile',
   profile: '',
   key: '',
+  token: '',
+  resource: '',
   accessKeyId: '',
   secretAccessKey: '',
   sessionToken: '',
@@ -52,6 +61,10 @@ const filled = (value: string) => value.trim() !== ''
 
 /** Whether every field the way needs is filled. */
 export function cloudReady(draft: CloudDraft): boolean {
+  if (draft.cloud === 'foundry') {
+    const secret = draft.way === 'apiKey' ? filled(draft.key) : draft.way === 'token' ? filled(draft.token) : true
+    return secret && !('problem' in foundryEndpointOf(draft.resource)) && [draft.opus, draft.sonnet, draft.haiku].some(filled)
+  }
   if (draft.cloud === 'vertex') return filled(draft.projectId) && (draft.way !== 'keyFile' || filled(draft.keyFile))
   if (draft.way === 'profile') return filled(draft.profile)
   if (draft.way === 'apiKey') return filled(draft.key)
@@ -62,6 +75,10 @@ export function cloudReady(draft: CloudDraft): boolean {
 /** The body of `account/cloud`: only what the way uses, so a secret typed for another way is not sent. */
 export function cloudBody(name: string, draft: CloudDraft): Record<string, unknown> {
   const models = { opus: draft.opus, sonnet: draft.sonnet, haiku: draft.haiku }
+  if (draft.cloud === 'foundry') {
+    const secret = draft.way === 'apiKey' ? { key: draft.key } : draft.way === 'token' ? { token: draft.token } : {}
+    return { name, cloud: draft.cloud, way: draft.way, ...secret, resource: draft.resource, models }
+  }
   if (draft.cloud === 'vertex') {
     const modelRegions = Object.fromEntries(draft.modelRegions.filter((row) => filled(row.variable) && filled(row.region)).map((row) => [row.variable, row.region]))
     return {
@@ -88,9 +105,11 @@ export function cloudBody(name: string, draft: CloudDraft): Record<string, unkno
 
 /**
  * The credentials expire or may ask for a new sign-in, so a chain left alone stops: the form warns. On Vertex that is a
- * user's ADC sign-in; a key file the service's environment names is taken for a service account's.
+ * user's ADC sign-in; a key file the service's environment names is taken for a service account's. On Foundry it is a
+ * Bearer token, which lives about an hour.
  */
 export function cloudShortLived(draft: CloudDraft, aws: AwsProfiles | undefined, gcloud?: GcloudCredentials): boolean {
+  if (draft.cloud === 'foundry') return draft.way === 'token'
   if (draft.cloud === 'vertex') {
     if (draft.way === 'keyFile' || gcloud === undefined) return false
     if (draft.way === 'environment' && gcloud.environmentFile !== null) return false
@@ -105,6 +124,6 @@ export function cloudShortLived(draft: CloudDraft, aws: AwsProfiles | undefined,
 /** Whether closing loses something typed into the cloud fields. */
 export function cloudDirty(draft: CloudDraft | undefined): boolean {
   if (draft === undefined) return false
-  const typed = [draft.key, draft.accessKeyId, draft.secretAccessKey, draft.sessionToken, draft.opus, draft.sonnet, draft.haiku, draft.keyFile]
+  const typed = [draft.key, draft.token, draft.resource, draft.accessKeyId, draft.secretAccessKey, draft.sessionToken, draft.opus, draft.sonnet, draft.haiku, draft.keyFile]
   return typed.some(filled) || draft.modelRegions.some((row) => filled(row.region))
 }

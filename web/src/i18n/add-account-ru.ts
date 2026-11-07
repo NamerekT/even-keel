@@ -29,7 +29,7 @@ export const addAccount = {
       },
       cloud: {
         title: 'Облако',
-        gets: 'Счёт вашего облака: Amazon Bedrock, Google Vertex AI',
+        gets: 'Счёт вашего облака: Amazon Bedrock, Google Vertex AI, Microsoft Foundry',
         tip: 'Claude Code ходит к моделям через API вашего облака, а облако берёт плату за токены: лимитов плана нет, Remote Control нет. Подключение хранится в settings.json новой папки.',
         next: 'Выберите облако и откуда Even Keel берёт его учётные данные: перед добавлением их проверит один короткий ход.',
         rule: '',
@@ -109,13 +109,14 @@ export const addAccount = {
     tips: {
       bedrock: 'Модели Claude в Amazon Bedrock, через ваш аккаунт AWS. У Bedrock нет веб-поиска: WebSearch в его сессиях не работает.',
       vertex: 'Модели Claude в Google Cloud Vertex AI, через ваш проект Google Cloud: каждую модель сначала включают в Model Garden, а проекту нужен платный billing account.',
-      foundry: 'Модели Claude в Microsoft Foundry, через вашу подписку Azure.',
+      foundry:
+        'Модели Claude в Microsoft Foundry, через вашу подписку Azure: pay-as-you-go с доступом к Azure Marketplace — на пробных, студенческих, кредитных и CSP-подписках Claude не работает. Регионы: East US 2 и Sweden Central.',
     },
     way: { bedrock: 'Учётные данные AWS', vertex: 'Учётные данные Google Cloud', foundry: 'Учётные данные Azure' },
     ways: {
       bedrock: { profile: 'Профиль AWS', apiKey: 'API-ключ Bedrock', keys: 'Ключ доступа и секрет', environment: 'Окружение Even Keel' },
       vertex: { adc: 'Вход gcloud (ADC)', keyFile: 'Файл ключа', environment: 'Окружение Even Keel' },
-      foundry: {},
+      foundry: { apiKey: 'API-ключ Foundry', entra: 'Microsoft Entra ID (az login)', token: 'Bearer-токен' },
     },
     wayNotes: {
       bedrock: {
@@ -129,8 +130,27 @@ export const addAccount = {
         keyFile: 'Путь к JSON-ключу сервисного аккаунта или к конфигу Workload Identity Federation: хранится только путь, файл остаётся на месте.',
         environment: 'Ничего не хранится: CLI берёт учётные данные Google Cloud, с которыми работает сам Even Keel, — файл ключа из его окружения, файл ADC, аккаунт машины.',
       },
-      foundry: {},
+      foundry: {
+        apiKey: 'Ключ ресурса Foundry из раздела Keys and Endpoint портала Azure: хранится в settings.json новой папки, как ключ API-аккаунта.',
+        entra: 'Ничего не хранится: CLI берёт учётные данные Azure, с которыми работает сам Even Keel, — сервисный принципал из его окружения, az login его пользователя, управляемое удостоверение машины.',
+        token: 'Токен доступа Microsoft Entra ID для ресурса, хранится в settings.json новой папки. Живёт около часа.',
+      },
     },
+    resource: 'Имя или адрес ресурса',
+    resourceHint: 'my-resource',
+    resourceProblems: {
+      host: 'Имя хоста — не имя ресурса: впишите только имя, вроде my-resource, или весь адрес с https:// и /anthropic.',
+      http: 'Адрес должен начинаться с https://.',
+      foreign: 'Это не адрес Foundry: хост кончается на .services.ai.azure.com.',
+      path: 'Адрес должен кончаться на /anthropic, вроде https://my-resource.services.ai.azure.com/anthropic.',
+      name: 'Имя ресурса — от 2 до 64 латинских букв, цифр и дефисов, без дефиса по краям.',
+    },
+    foundryKey: 'API-ключ Foundry',
+    token: 'Bearer-токен',
+    azureOf: (user: string) => `Вход Azure CLI пользователя ${user}, под которым работает Even Keel.`,
+    azureEnvironment: 'В окружении Even Keel есть сервисный принципал: CLI возьмёт его раньше любого az login.',
+    noAzure: (user: string) =>
+      `У пользователя ${user}, под которым работает Even Keel, входа Azure CLI не найдено: выполните эту команду под ним. Служба под другой учётной записью Windows ваш вход не видит.`,
     profile: 'Профиль',
     profilesOf: (user: string) => `Профили пользователя ${user}, под которым работает Even Keel`,
     noProfiles: (user: string) =>
@@ -151,12 +171,15 @@ export const addAccount = {
     regionDefault: 'Из профиля, иначе us-east-1',
     regionVertex: 'global, us или eu; без него us-east5',
     models: 'Модели (необязательно)',
+    deployments: 'Деплои',
     modelsNote: {
       bedrock: 'Без них Claude Code сам выберет модели, к которым у аккаунта есть доступ. Id inference profile вида us.anthropic.… или его ARN.',
       vertex: 'Без них Claude Code сам выберет модели, к которым у проекта есть доступ. Id модели Vertex вида claude-sonnet-4-5@20250929.',
-      foundry: 'Без них Claude Code сам выберет модели, к которым у аккаунта есть доступ.',
+      foundry:
+        'Имена деплоев из портала Foundry, хотя бы одно: у Foundry нет проверки моделей при старте, и запрос без деплоя падает. Деплою с именем не как id модели CLI даёт окно контекста 200K: назови деплой как модель, например claude-sonnet-4-5, чтобы получить её полное окно.',
     },
     model: { opus: 'Модель Opus', sonnet: 'Модель Sonnet', haiku: 'Модель Haiku' },
+    deployment: { opus: 'Деплой Opus', sonnet: 'Деплой Sonnet', haiku: 'Деплой Haiku' },
     regionPrefix: 'Префикс inference profile',
     regionPrefixHint: 'us, eu, apac или global',
     modelRegions: 'Регионы для моделей',
@@ -170,7 +193,7 @@ export const addAccount = {
         'Эти учётные данные истекают через несколько часов и обновляются в браузере: цепочка, оставленная на ночь, встанет. Для работы без присмотра — профиль с постоянным ключом или долгий API-ключ.',
       vertex:
         'Вход пользователя в gcloud может потребовать повторного входа по политике сессий организации: цепочка без присмотра тогда встанет. Для работы без присмотра — файл ключа сервисного аккаунта.',
-      foundry: 'Эти учётные данные могут истечь: цепочка, оставленная на ночь, встанет.',
+      foundry: 'Bearer-токен живёт около часа: цепочка без присмотра встанет, когда он истечёт. Для работы без присмотра — API-ключ или Microsoft Entra ID.',
     },
     checking: 'Проверяем: один короткий ход в облаке, до двух минут…',
     added: 'Проверено и добавлено',
