@@ -30,7 +30,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
-- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-477.
+- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477).
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
@@ -113,9 +113,9 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 37h2 | [Statuses on actions](unverified/trackers.md#statuses-on-actions-btn-554) | projects in PR mode with a pull request move, a chosen done status or a feed's own moves (the start move and the automatic close checked) | a task is not moved, moved where its workflow forbids, or a merged task stays open; move or close it in the tracker |
 | 37h3 | [Profiles after a restart of the service](unverified/trackers.md#profiles-after-a-restart-of-the-service-btn-678) | everyone, after each restart of the service | profiles stay "not answering" for up to 15 minutes; press Check on the profile |
 | 37h1 | [Scheduled break-label assignment](unverified/sessions.md#scheduled-break-label-assignment) | operators scheduling the compaction experiment | the scheduler may not launch the script or retain its output |
-| 37i1 | [Forgejo Issues](unverified/trackers.md#forgejo-issues-btn-476) | projects on Forgejo, Gitea or Codeberg issues | the tracker goes down on a route that answers otherwise, the chain runs out of order, or a collaborator's answer is skipped |
-| 37i2 | [A stored Forgejo profile as a tracker](unverified/trackers.md#a-stored-forgejo-profile-as-a-tracker-btn-476) | installs with a Forgejo profile from before the update | the CI or PR mode stops after the update, or a project on an old token fails its first issue read |
-| 37i3 | [The Forgejo MCP plugin](unverified/trackers.md#the-forgejo-mcp-plugin-btn-476) | projects with `forgejo@even-keel` | sessions get no Forgejo tools, or a delete goes through |
+| 37i1 | [Forgejo Issues](unverified/trackers.md#forgejo-issues-btn-476) | projects on Forgejo, Gitea or Codeberg issues | a label or milestone change from the page is refused, a pull request shows up as a task, or an organization member's answer is skipped |
+| 37i2 | [A stored Forgejo profile as a tracker](unverified/trackers.md#a-stored-forgejo-profile-as-a-tracker-btn-476) | installs with a Forgejo profile from before the update | PR mode stops after the update, or the `.env` values are not imported on the first start |
+| 37i3 | [The Forgejo MCP plugin](unverified/trackers.md#the-forgejo-mcp-plugin-btn-476) | projects with `forgejo@even-keel` | a session's write through the Forgejo tools fails, or a host with a path prefix is not reached |
 | 39a | [A conflict resolved by an agent](unverified/ci.md#a-conflict-resolved-by-an-agent-btn-369) | release projects with a conflict, on a real agent | the session merges something else and the carry row stays open; skip it |
 | 39b | [A conflict given to the agent by itself](unverified/ci.md#a-conflict-given-to-the-agent-by-itself-btn-370) | release projects with the switch on or unattended, on the live service | a conflict gets no session; press the button instead |
 | 41 | [Task feeds from another tracker](unverified/trackers.md#task-feeds-from-another-tracker-btn-66) | the `/status` page's Tally tile when Tally failed or halted (PR mode and a second Huly workspace checked) | the tile does not show a failing or halted Tally; read the log |
