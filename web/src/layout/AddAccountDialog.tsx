@@ -13,7 +13,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, TerminalIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
-import type { AwsProfiles } from '../../../src/account/cloud.js'
+import type { AwsProfiles, GcloudCredentials } from '../../../src/account/cloud.js'
 import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
 import { CloudFields } from './CloudFields.js'
@@ -262,6 +262,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             failure={failure === null ? null : say(failure)}
             aws={account.aws}
             readAws={() => void send('account/aws')}
+            gcloud={account.gcloud}
+            readGcloud={() => void send('account/gcloud')}
             onSubmit={async (way, draft) => {
               before.current = account.accounts.map((entry) => entry.key)
               if (way.kind === 'cloud') {
@@ -327,7 +329,7 @@ function CloudAdded({ account, before, onDone }: { account: AccountView; before:
               ? t.addAccount.cloud.answered(added.checkedModel)
               : t.addAccount.cloud.answeredNoModel}
         </p>
-        {added?.cloud?.shortLived === true && <p className="notice notice--warn">{t.addAccount.cloud.shortLived}</p>}
+        {added?.cloud?.shortLived === true && <p className="notice notice--warn">{t.addAccount.cloud.shortLived[added.cloud.cloud]}</p>}
       </div>
       <footer className="add-package__foot">
         <span className="add-package__spacer" />
@@ -384,11 +386,13 @@ interface WaysProps {
   failure: string | null
   aws: AwsProfiles | undefined
   readAws: () => void
+  gcloud: GcloudCredentials | undefined
+  readGcloud: () => void
   onSubmit: (way: Way, draft: Draft) => Promise<void>
 }
 
 /** The ways a provider's account signs in, as cards to pick one from, what the picked one needs under them, and its one action. */
-function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, onSubmit }: WaysProps) {
+function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, gcloud, readGcloud, onSubmit }: WaysProps) {
   const group = useId()
   const text = wayText(provider, way)
   const key = way.kind === 'key'
@@ -455,7 +459,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             </label>
           </>
         )}
-        {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} />}
+        {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} gcloud={gcloud} readGcloud={readGcloud} />}
         {(key || cloud) && (
           <label className="add-package__field">
             <span className="add-package__label">{t.addAccount.name}</span>

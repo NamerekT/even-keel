@@ -8,7 +8,7 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
-import type { AwsProfiles, CloudConnection, CloudSummary } from './cloud.js'
+import type { AwsProfiles, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
 import {
@@ -88,6 +88,8 @@ export interface AccountWatcherOptions {
   checkCloud: (home: AccountHome) => Promise<{ model: string | null }>
   /** The AWS profiles of the user the service runs as (`readAwsProfiles`). */
   awsProfiles: () => AwsProfiles
+  /** The Google Cloud credentials of the user the service runs as (`readGcloud`). */
+  gcloud: () => GcloudCredentials
   /** Who the service runs as, for a cloud's credential refusal to name. */
   whose: () => Whose
   /** Whether the agent's provider takes the key. */
@@ -138,6 +140,7 @@ export class AccountWatcher {
   private timer: NodeJS.Timeout | undefined
   private readonly keys: KeyChecks
   private aws: AwsProfiles | undefined
+  private gcloud: GcloudCredentials | undefined
   /** The model each cloud account's check turn answered with, by folder key (BTN-822). */
   private readonly checkedModels = new Map<string, string | null>()
   private readonly credit: CreditChecks
@@ -197,6 +200,7 @@ export class AccountWatcher {
       login: this.current,
       ...(this.globalCheck !== undefined && { globalCheck: this.globalCheck }),
       ...(this.aws !== undefined && { aws: this.aws }),
+      ...(this.gcloud !== undefined && { gcloud: this.gcloud }),
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
       pool: this.options.pool().filter((entry) => accounts.some((account) => account.key === entry.account && account.agent === entry.provider)),
@@ -312,6 +316,12 @@ export class AccountWatcher {
   /** Reads the AWS profiles of the service's user for the cloud form; the page gets them in `view.aws`. */
   readAws(): void {
     this.aws = this.options.awsProfiles()
+    this.options.onChange()
+  }
+
+  /** Reads the Google Cloud credentials of the service's user for the Vertex form, into `view.gcloud` (BTN-823). */
+  readGcloud(): void {
+    this.gcloud = this.options.gcloud()
     this.options.onChange()
   }
 

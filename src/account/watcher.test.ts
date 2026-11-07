@@ -190,6 +190,7 @@ describe('AccountWatcher.addCloud (BTN-822)', () => {
       usage: () => ({ state: 'ok' }),
       checkCloud: check,
       awsProfiles: () => ({ profiles: [{ name: 'work', region: null, shortLived: false }], user: 'john', home: 'C:\\Users\\john' }),
+      gcloud: () => ({ user: 'john', home: 'C:\Users\john', adcFile: 'C:\Users\john\AppData\Roaming\gcloud\application_default_credentials.json', adcType: null, environmentFile: null, projects: ['fake-project'] }),
       whose: () => ({ user: 'john', home: 'C:\\Users\\john' }),
       checkKey: async () => ({ state: 'ok' }),
       keyCheckMs: 60 * 60_000,
@@ -243,5 +244,11 @@ describe('AccountWatcher.addCloud (BTN-822)', () => {
     expect(accounts.view.aws).toBeUndefined()
     accounts.readAws()
     expect(accounts.view.aws).toEqual({ profiles: [{ name: 'work', region: null, shortLived: false }], user: 'john', home: 'C:\\Users\\john' })
+  })
+  it("puts the service user's Google Cloud credentials into the view when the Vertex form asks", () => {
+    const { accounts } = watcher(async () => ({ model: null }))
+    expect(accounts.view.gcloud).toBeUndefined()
+    accounts.readGcloud()
+    expect(accounts.view.gcloud).toMatchObject({ user: 'john', adcType: null, projects: ['fake-project'] })
   })
 })

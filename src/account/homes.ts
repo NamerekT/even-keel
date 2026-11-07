@@ -10,6 +10,7 @@ import { keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
 import { shortLivedProfile } from './aws.js'
+import { userCredentials } from './gcloud.js'
 import { cloudEnv, cloudOf, type CloudConnection, type CloudSummary } from './cloud.js'
 import { KeychainCredentials, keychainService } from './keychain.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
@@ -233,7 +234,11 @@ export class AccountHomes {
   cloudOf(home: AccountHome): CloudSummary | null {
     if (home.agent !== CLAUDE) return null
     const env = objectOf(readObject(join(home.dir, 'settings.json')).env)
-    return cloudOf(env, (profile) => shortLivedProfile(this.env, profile))
+    return cloudOf(
+      env,
+      (profile) => shortLivedProfile(this.env, profile),
+      (keyFile) => userCredentials(this.env, keyFile),
+    )
   }
 
   /**

@@ -414,6 +414,13 @@ describe('TranscriptFold', () => {
     expect(denied.apiError).toMatchObject({ kind: 'error', notice: { code: 'cloud.bedrockModelDenied' } })
   })
 
+  it('stops on a Vertex quota refusal with its own message instead of waiting it out as a limit (BTN-823)', () => {
+    const message = 'API Error: 429 {"error":{"code":429,"message":"Quota exceeded for aiplatform.googleapis.com/online_prediction_requests_per_base_model with base model: anthropic-claude-sonnet-4-5.","status":"RESOURCE_EXHAUSTED"}}'
+    const summary = fold([apiError('rate_limit', message)]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'error', notice: { code: 'cloud.vertexQuota' } })
+    expect(summary.action).toMatchObject({ kind: 'error', notice: { code: 'cloud.vertexQuota' } })
+  })
+
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
     expect(failed.summary().apiError).toMatchObject({ kind: 'error' })

@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { CLOUD_VARIABLES, cloudOf } from './cloud.js'
+import { cloudOf, isCloudVariable } from './cloud.js'
 import { pathKey, sameSpelling } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 
@@ -52,8 +52,8 @@ export function mergeSettings(global: Json, folder: Json | undefined): Json {
   const key = own[API_KEY_VARIABLE]
   if (typeof key === 'string') merged.env = { ...objectOf(global.env), [API_KEY_VARIABLE]: key }
   if (cloudOf(own) !== null) {
-    const shared = Object.fromEntries(Object.entries(objectOf(merged.env ?? global.env)).filter(([name]) => !CLOUD_VARIABLES.includes(name)))
-    const cloud = Object.fromEntries(Object.entries(own).filter(([name]) => CLOUD_VARIABLES.includes(name)))
+    const shared = Object.fromEntries(Object.entries(objectOf(merged.env ?? global.env)).filter(([name]) => !isCloudVariable(name)))
+    const cloud = Object.fromEntries(Object.entries(own).filter(([name]) => isCloudVariable(name)))
     merged.env = { ...shared, ...cloud }
   }
   if (folder?.apiKeyHelper !== undefined) merged.apiKeyHelper = folder.apiKeyHelper

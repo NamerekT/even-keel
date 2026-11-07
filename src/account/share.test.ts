@@ -362,6 +362,14 @@ describe('mergeSettings', () => {
       env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_USE_BEDROCK: '1', AWS_PROFILE: 'work', AWS_REGION: 'eu-central-1' },
     })
   })
+
+  it("keeps a Vertex folder's project, key file and model regions, not the global ones", () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', GOOGLE_APPLICATION_CREDENTIALS: '/other.json', VERTEX_REGION_CLAUDE_HAIKU_4_5: 'us-east5', CLAUDE_CODE_USE_BEDROCK: '1' } }
+    const folder = { env: { CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'fake-project', VERTEX_REGION_CLAUDE_4_5_OPUS: 'europe-west1' } }
+    expect(mergeSettings(global, folder)).toEqual({
+      env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'fake-project', VERTEX_REGION_CLAUDE_4_5_OPUS: 'europe-west1' },
+    })
+  })
 })
 
 describe('shareProjects', () => {

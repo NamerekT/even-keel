@@ -141,7 +141,8 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
       {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
       {entry.cloud !== undefined && <span>{t.account.cloudTip}</span>}
       {entry.cloud?.cloud === 'bedrock' && <span>{t.account.cloudBedrockTip}</span>}
-      {entry.cloud?.shortLived === true && <span>{t.account.cloudShortLived}</span>}
+      {entry.cloud?.project !== undefined && <span>{t.account.cloudProject(entry.cloud.project)}</span>}
+      {entry.cloud?.shortLived === true && <span>{t.account.cloudShortLived[entry.cloud.cloud]}</span>}
       <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
       {entry.configPending && <span className="tip__muted">{t.account.configPending}</span>}
     </>

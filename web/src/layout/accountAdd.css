@@ -132,6 +132,27 @@
   padding-top: var(--space-8);
 }
 
+/* A Vertex model's own region (BTN-823): the model, its region, the remove button on one line. */
+.account-add__model-region {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.account-add__model-region-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.account-add__adc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
 .account-add__way-check .icon {
   width: 12px;
   height: 12px;
