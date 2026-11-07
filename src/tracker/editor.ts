@@ -1,0 +1,114 @@
+import type { LabelChange } from './labels.js'
+import type { TaskPriority, TrackerTask } from './model.js'
+
+/** A new task with every field at once (`TaskEditor.create`); names, not ids, everywhere. */
+export interface TaskDraft {
+  title: string
+  /** Markdown. */
+  description: string
+  /** `null` — the tracker's default for a new task. */
+  status: string | null
+  priority: TaskPriority | null
+  milestone: string | null
+  labels: string[]
+  /** The parent's id, of the same project. */
+  parent: string | null
+}
+
+/** A short field set to a value, whatever it holds now: a field changed by someone else meanwhile is no conflict. */
+export type TaskField =
+  | { field: 'title'; to: string }
+  | { field: 'status'; to: string }
+  | { field: 'priority'; to: TaskPriority }
+  | { field: 'milestone'; to: string | null }
+  /** The parent's id; `null` — no parent. */
+  | { field: 'parent'; to: string | null }
+
+/** `blocks` — the task blocks the other; `blockedBy` — the other blocks it; `relates` has no direction. */
+export type TaskLink = 'blocks' | 'blockedBy' | 'relates'
+
+/** `old` is replaced with `new`; `old` must be in the text exactly once. */
+export interface TextPatch {
+  old: string
+  new: string
+}
+
+/**
+ * The writes an agent makes through the tasks MCP server (BTN-768, `src/taskmcp/`): optional for an adapter, the tools
+ * are served only for a tracker that has it. Everything is named as the tracker names it — a task by its id, a status, a
+ * label, a milestone by its name; checking a label or a milestone against the project's vocabulary is the server's.
+ */
+export interface TaskEditor {
+  /** Every task of the project, whatever its status. */
+  list(project: string): Promise<TrackerTask[]>
+  /** Creates the task and returns its id. */
+  create(project: string, draft: TaskDraft): Promise<string>
+  /** `false` — the field held the value already. */
+  set(id: string, field: TaskField): Promise<boolean>
+  /** The description's revision: it grows only with a change of the description, not of any other field. */
+  revision(id: string): Promise<number>
+  /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */
+  describe(id: string, text: string, rev: number): Promise<boolean>
+  /**
+   * Applies the patches and the appended section by `patchText`, all or none, against the description as it is when
+   * written: no revision needed. `false` — it is so already.
+   */
+  patch(id: string, patches: readonly TextPatch[], append: string | null): Promise<boolean>
+  /** Adds or removes a link to another task; adding one there already, or removing one not there, is nothing. */
+  link(id: string, other: string, link: TaskLink, on: boolean): Promise<void>
+  /** Removes, then adds labels, ignoring case; returns the task's labels. */
+  relabel(id: string, change: LabelChange): Promise<string[]>
+  /** Posts the agent's comment and returns its id; `model` — `<Provider> | <model>` of its session, if known. */
+  comment(id: string, body: string, model: string | null): Promise<string>
+}
+
+/** A write the tools refuse with a reason the agent can act on; the message is English and complete. */
+export class EditRefused extends Error {}
+
+/**
+ * The description after the patches and the appended section, `null` when nothing changes. Each `old` must be found
+ * exactly once, compared literally but for line ends (`\r\n` is `\n`); one refusal refuses the whole batch. A patch
+ * already applied — its `old` gone and its `new` there, or its `old` found only inside its `new` — is skipped, so
+ * a repeated call is no error; a section the text already ends with is not appended again.
+ */
+export function patchText(text: string, patches: readonly TextPatch[], append: string | null): string | null {
+  const crlf = text.includes('\r\n')
+  const start = lf(text)
+  let work = start
+  patches.forEach((patch, index) => {
+    const old = lf(patch.old)
+    const next = lf(patch.new)
+    const which = patches.length === 1 ? 'the patch' : `patch ${index + 1}`
+    if (old === '') throw new EditRefused(`${which}: "old" is empty; to add text, use "append" or a patch around a piece of the text`)
+    const at = occurrences(work, old)
+    if (at.length === 1) {
+      if (!within(work, at[0]!, old, next)) work = work.slice(0, at[0]) + next + work.slice(at[0]! + old.length)
+      return
+    }
+    if (at.length === 0) {
+      if (next !== '' && work.includes(next)) return
+      throw new EditRefused(`${which}: "old" is not in the description; nothing was changed. The description now:\n\n${work}`)
+    }
+    throw new EditRefused(`${which}: "old" is found ${at.length} times; take a longer piece so it is found once. Nothing was changed`)
+  })
+  const section = append === null ? '' : lf(append).trim()
+  if (section !== '' && !work.trimEnd().endsWith(section)) work = work.trim() === '' ? section : `${work.trimEnd()}\n\n${section}`
+  if (work === start) return null
+  return crlf ? work.replace(/\n/g, '\r\n') : work
+}
+
+function lf(text: string): string {
+  return text.replace(/\r\n/g, '\n')
+}
+
+function occurrences(text: string, part: string): number[] {
+  const found: number[] = []
+  for (let at = text.indexOf(part); at >= 0; at = text.indexOf(part, at + 1)) found.push(at)
+  return found
+}
+
+/** The one `old` at `at` sits inside a `new` that holds it: the patch was applied already. */
+function within(text: string, at: number, old: string, next: string): boolean {
+  for (const offset of occurrences(next, old)) if (at >= offset && text.startsWith(next, at - offset)) return true
+  return false
+}

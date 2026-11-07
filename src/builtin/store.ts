@@ -228,6 +228,19 @@ export class BuiltinStore {
     })
   }
 
+  /**
+   * Rewrites the description by `change` of the text as it is inside the transaction; `null` — nothing changes. A throw
+   * of `change` leaves it as it was. Needs no revision.
+   */
+  rewriteDescription(key: TaskKey, change: (text: string) => string | null): Promise<BuiltinTask> {
+    return this.change(key, async (tx, row) => {
+      const text = change(row.description)
+      if (text === null || text === row.description) return false
+      await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, text])
+      return true
+    })
+  }
+
   /** Removes, then adds labels, ignoring case; a label the project lacks is created. Returns the task's labels. */
   async relabel(key: TaskKey, change: LabelChange): Promise<string[]> {
     const task = await this.change(key, async (tx, row) => {

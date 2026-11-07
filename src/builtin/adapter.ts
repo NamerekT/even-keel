@@ -21,6 +21,9 @@ export const builtin: TrackerAdapter = {
   own: true,
   moves: true,
   fixedMoves: BUILTIN_MOVES,
+  // Sessions edit its tasks through Even Keel's own tasks server, the `tasks` plugin (BTN-768).
+  mcpServer: 'tasks',
+  keepsBrief: true,
   profileName: () => 'Even Keel',
   account: async () => ({ login: 'Even Keel', name: 'Even Keel', expiresAt: null }),
   projects: async () => [],

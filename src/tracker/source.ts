@@ -2,6 +2,7 @@ import type { StatusMoves } from '../chain/moves.js'
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
+import type { TaskEditor } from './editor.js'
 import type { LabelChange } from './labels.js'
 import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
@@ -154,6 +155,11 @@ export interface TaskSource {
    * off, no right to log work): the task needs no report. Any other failure throws and the next run tries again.
    */
   logTime?(id: string, entry: TimeEntry): Promise<boolean>
+  /**
+   * Optional. The writes an agent makes through Even Keel's tasks MCP server (BTN-768, `src/taskmcp/`): with it the
+   * server serves the project's sessions; without it the tracker's own MCP server is theirs.
+   */
+  editor?: TaskEditor
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -312,6 +318,11 @@ export interface TrackerAdapter {
    */
   mcpServer?: string
   /**
+   * Optional. `brief` stays on even when the project's set brings `mcpServer`: the session's own task is in its prompt and
+   * the server is for the other tasks (Even Keel's tasks server, BTN-768).
+   */
+  keepsBrief?: true
+  /**
    * Optional. By placeholder of the tracker plugin's `.mcp.json`, the adapter's variable that holds its value
    * (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`): the MCP gateway fills it from the same pool of keys.
    */
@@ -389,6 +400,7 @@ export interface Tracker {
   milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
   vocabulary?(project: string): Promise<TrackerVocabulary>
   isPublic?(project: string): Promise<boolean>
+  editor?: TaskEditor
   close(): Promise<void>
 }
 
@@ -428,5 +440,6 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.milestoneTasks !== undefined) tracker.milestoneTasks = (project, milestone) => source.milestoneTasks!(project, milestone)
   if (source.vocabulary !== undefined) tracker.vocabulary = (project) => source.vocabulary!(project)
   if (source.isPublic !== undefined) tracker.isPublic = (project) => source.isPublic!(project)
+  if (source.editor !== undefined) tracker.editor = source.editor
   return tracker
 }

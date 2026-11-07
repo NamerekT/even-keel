@@ -1,0 +1,9 @@
+{
+  "name": "tasks",
+  "version": "0.1.0",
+  "description": "Even Keel's own tasks server for sessions on its built-in tracker: five tools (tasks_list, task_read, tasks_create, task_update, task_comment) with short Markdown answers, tasks by key and labels, milestones and statuses by name, description patches instead of resending it, no deletes; and the task and split skills. Even Keel's MCP gateway answers it in the service: a chain session gets it through the project's packages with its own task in the prompt, a session started by hand reaches http://127.0.0.1:4748/tasks and names the project by its key.",
+  "author": {
+    "name": "Even Keel"
+  },
+  "keywords": ["tasks", "tracker", "even-keel", "mcp"]
+}

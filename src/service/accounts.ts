@@ -45,7 +45,9 @@ import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS } from '../storage/database.js
 import { SCHEMA_VERSION } from '../storage/schema.js'
 import { TALLY_SCHEMA_VERSION } from '../stats/tally-schema.js'
 import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
+import { EditRefused } from '../tracker/editor.js'
 import { runLabelText } from '../tracker/model.js'
+import { TasksMcp, TASKS_SERVER } from '../taskmcp/server.js'
 import { stateUrlOf, Updater } from '../updates/updater.js'
 import { runsAsService } from '../updates/control.js'
 import { installed, UpdateWatcher } from '../updates/watcher.js'
@@ -102,6 +104,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'limitRetries'
   | 'limits'
   | 'limitsFile'
+  | 'linkOf'
   | 'listen'
   | 'liveView'
   | 'lockedReaders'
@@ -122,6 +125,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'pullRefusals'
   | 'pullRequestsOn'
   | 'readers'
+  | 'refreshProject'
   | 'release'
   | 'remotes'
   | 'requireModel'
@@ -177,6 +181,26 @@ export function wirePackages(ctx: AccountsContext): Packages {
       const group = tracker === undefined ? undefined : TRACKER_GROUPS[tracker]
       return group === undefined || disabled.includes(group) ? undefined : adapter!.title
     },
+    tasks: new TasksMcp(
+      {
+        run: async (project, call) => {
+          const link = ctx.linkOf(project)
+          if (link === undefined) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
+          return link.run(call)
+        },
+        projectOfKey: (key) => {
+          const { keys, trackers } = ctx.configStore.current
+          return Object.keys(keys).find((project) => keys[project]?.toUpperCase() === key && ADAPTERS[trackers[project]!]?.mcpServer === TASKS_SERVER) ?? null
+        },
+        modelOf: (_project, task) => {
+          const live = ctx.sessions.find((each) => each.task === task)
+          return live === undefined ? null : runLabelText({ provider: live.agent, model: live.model })
+        },
+        refresh: (project) => ctx.refreshProject(project),
+      },
+      // `ctx.release` is set after the packages are wired.
+      installed(root).version,
+    ),
     port: ctx.mcpPort,
     log: (line) => console.log(line),
     onChange: () => {
@@ -190,8 +214,8 @@ export function briefOn(ctx: AccountsContext, project: string, reader = project)
   const own = ctx.configStore.current.briefs[project]
   if (own === true || (own === false && reader === project)) return own
   const tracker = ctx.readers().trackers[reader]!
-  const server = ADAPTERS[tracker]!.mcpServer
-  if (server === undefined || !ctx.packages.bringsServer(project, server)) return true
+  const { mcpServer: server, keepsBrief } = ADAPTERS[tracker]!
+  if (server === undefined || keepsBrief === true || !ctx.packages.bringsServer(project, server)) return true
   if (reader === project) return false
   const { trackers, feeds } = ctx.configStore.current
   const set = ctx.profiles.current()

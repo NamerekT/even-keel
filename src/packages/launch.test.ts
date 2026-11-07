@@ -58,6 +58,15 @@ describe('sessionPackages', () => {
     ])
   })
 
+  it("gives Even Keel's tasks server the session's task in its address (BTN-768)", () => {
+    const file = catalog()
+    const tasks = { ...install('t1', []), servers: { tasks: { entry: { type: 'http', url: 'http://127.0.0.1:4748/tasks' }, npm: null } } }
+    file.packages['tasks@even-keel'] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'even-keel' }, default: false, settings: {}, installs: [tasks] }
+    file.projects.ABC!.on.push('tasks@even-keel')
+    const got = sessionPackages(file, 'ABC', 'ABC-1', places)
+    expect(got.mcp.find((each) => each.name === 'tasks')?.url).toBe(`http://127.0.0.1:4748${routeOf(places.projectId, 'tasks@even-keel', 't1', 'tasks')}?task=ABC-1`)
+  })
+
   it('keeps a task on the installs it is pinned to', () => {
     const file = catalog()
     file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a', strata: 's1' } }

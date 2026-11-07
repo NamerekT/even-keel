@@ -63,3 +63,14 @@ A Forgejo profile saved before BTN-476 (a CI's, its token without `write:issue`)
 ## A parent with over a page of sub-issues on GitHub (BTN-606)
 
 GitHub and Linear read the subtasks of a parent through `children`, and Even Keel closes the parent once they are all closed and one is done (`docs/trackers.md`). Checked live ([verified log](../verified/trackers.md)): on GitHub a parent closed after its two sub-issues of the same repository (2026-10-31) and after its only sub-issue of another repository (2026-11-02); on Linear a parent closed after its two subtasks (2026-11-01), a team's own parent auto-close next to Even Keel's closed the parent once with no error, and a parent whose subtasks were all canceled stayed open (2026-11-02). Covered by adapter tests only: a GitHub parent with more sub-issues than one page of the `subIssues` query. If the next page is misread, the parent closes while a sub-issue on it is still open, or stays open after all are done. **Workaround:** close or reopen the parent by hand.
+
+## The tasks server in a live session (BTN-768)
+
+Even Keel's own tasks server for the built-in tracker (`docs/trackers.md`, "The tasks server") is checked by tests against the state database in memory (`src/taskmcp/calls.test.ts`), the gateway's route by `src/packages/gateway.test.ts`, and a split through the package by the scripted agent (`src/e2e/builtin.test.ts`); no real CLI has called it. Assumed:
+
+- Claude Code takes the gateway's JSON-only Streamable HTTP answers (no `Mcp-Session-Id`, 405 on `GET`) and loads the five tools at once, without deferring their schemas behind ToolSearch; Codex, OpenCode and Copilot reach them as their other gateway servers.
+- An agent follows the `tasks:task` and `tasks:split` skills: it does not read its own task, files a batch in one `tasks_create` with `#N` and `retry`, and edits descriptions by patches rather than whole.
+- A session started by hand with the `tasks` plugin reaches `http://127.0.0.1:4748/tasks` and names the project by its key.
+- Filing and splitting tasks costs fewer calls and tokens than through the Huly MCP server.
+
+If one is wrong, a session cannot file or edit tasks of the built-in tracker, or does it at Huly's cost. **Workaround:** file and edit the tasks on the project's page. To check (BTN-795): a chain session on a bench project with the `tasks@even-keel` package on — the tools seen at once, a split picked up by the chain, a patch refused for an `old` found twice; a hand session with the plugin; Codex and OpenCode listing the tools; Tally's calls and tokens per task filed, Huly before against the built-in tracker after.

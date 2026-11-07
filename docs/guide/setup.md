@@ -62,6 +62,8 @@ GitHub, Linear, GitLab and Forgejo profiles have nothing to set for MCP: their *
 
 Even Keel has a tracker of its own, kept in its state database: no account, no token, nothing to connect. It is the first choice of the tracker in the setup and in **Add project**, and the one picked when you have no tracker profile; you give the project only its key (`APP` for `APP-12`). **Status** and **Settings** → **Trackers and CI** always show it. In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save. A project that has tasks in the built-in tracker stays on it, and a project with another tracker's tasks cannot move to it: moving tasks between trackers is not supported yet.
 
+For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — turn the package `tasks@even-keel` on in the project's packages on **Tools**. Each session keeps its own task in the prompt and gets five short tools for the others; nothing can be deleted through them. A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`): see [`plugins/tasks/README.md`](../../plugins/tasks/README.md).
+
 ### Minimum: the adapter only
 
 After a tracker read times out, Even Keel retries that read with an increasing delay, from 20 seconds to five minutes. Saving a changed profile clears the delay. Repeated timeouts produce one diagnostic line and a recovery line with their count in the service log.

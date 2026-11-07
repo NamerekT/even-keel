@@ -4,6 +4,7 @@ import type { CardEdit, TaskRef, TrackerCard } from '../tracker/card.js'
 import { parseTaskId, runLabelOf, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
+import { builtinEditor } from './editor.js'
 import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
 
 /** How the built-in tracker names its tasks: `<KEY>-<N>` by the key of each of its projects. */
@@ -220,6 +221,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         milestones: (await store.milestones(project)).map((each) => each.name),
       }
     },
+    editor: builtinEditor({ store, names, must, trackerTask }),
     close: async () => {},
   }
 }

@@ -132,6 +132,26 @@ describe('McpGateway', () => {
   const post = (url: string, body: unknown, session?: string) =>
     fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...(session === undefined ? {} : { 'mcp-session-id': session }) }, body: JSON.stringify(body) })
 
+  it('answers its own tasks server itself, by the hand path and by a package route with the task (BTN-768)', async () => {
+    const scopes: unknown[] = []
+    const tasks = {
+      handle: async (message: Record<string, unknown>, scope: unknown) => {
+        scopes.push(scope)
+        return message.id === undefined ? null : { jsonrpc: '2.0', id: message.id, result: { method: message.method } }
+      },
+    }
+    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: 'http://127.0.0.1:4748/tasks' }, npm: null, env: {} }), baseEnv: () => ({}), log: () => {}, tasks })
+    await gateway.listen(0)
+    const routed = `${gateway.origin}${routeOf('p-1', 'tasks', 'i1', 'tasks')}?task=ABC-1`
+    expect(await (await post(routed, { jsonrpc: '2.0', id: 1, method: 'initialize' })).json()).toEqual({ jsonrpc: '2.0', id: 1, result: { method: 'initialize' } })
+    const batch = await post(`${gateway.origin}/tasks`, [{ jsonrpc: '2.0', id: 2, method: 'tools/list' }, { jsonrpc: '2.0', method: 'notifications/initialized' }])
+    expect(await batch.json()).toEqual([{ jsonrpc: '2.0', id: 2, result: { method: 'tools/list' } }])
+    expect((await post(`${gateway.origin}/tasks/p-2`, { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202)
+    expect(scopes).toEqual([{ project: 'p-1', task: 'ABC-1' }, { project: null, task: null }, { project: null, task: null }, { project: 'p-2', task: null }])
+    expect((await fetch(`${gateway.origin}/tasks`)).status).toBe(405)
+    expect((await fetch(`${gateway.origin}/tasks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{' })).status).toBe(400)
+  })
+
   it('bridges a stdio server: a process per MCP session, replies matched by id', async () => {
     const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: { KEY: 'secret' } })
     const first = await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })

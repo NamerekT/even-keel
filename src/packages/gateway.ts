@@ -5,6 +5,8 @@ import { createServer as createNetServer } from 'node:net'
 import { Readable } from 'node:stream'
 import { fail } from '../notice/notice.js'
 import { deletesRecord } from '../sessions/protection.js'
+import type { TasksScope } from '../taskmcp/calls.js'
+import { isTasksUrl, tasksProjectOf } from '../taskmcp/server.js'
 import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
 
@@ -61,6 +63,13 @@ export interface GatewayDeps {
   /** The environment of a server process before its own variables: the service's, without the credentials. */
   baseEnv: () => NodeJS.ProcessEnv
   log: (line: string) => void
+  /** Even Keel's own tasks server (BTN-768), answered in the service: `/tasks[/<project id>]` and package routes to it. */
+  tasks?: LocalMcp
+}
+
+/** An MCP server answered in the gateway itself: a reply to one JSON-RPC message, `null` for none. */
+export interface LocalMcp {
+  handle(message: Record<string, unknown>, scope: TasksScope): Promise<Record<string, unknown> | null>
 }
 
 /** Why a request is refused before its route is looked at, or `null`: the gateway has no token, a browser must not reach it. */
@@ -126,9 +135,15 @@ export class McpGateway {
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const refused = refusal(req.method ?? 'GET', req.headers)
     if (refused !== null) return void res.writeHead(refused).end()
-    const route = parseRoute(new URL(req.url ?? '/', 'http://127.0.0.1').pathname)
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+    const own = tasksProjectOf(url.pathname)
+    if (own !== undefined && this.deps.tasks !== undefined) return this.local(req, res, this.deps.tasks, { project: own, task: null })
+    const route = parseRoute(url.pathname)
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
+    if (isTasksUrl(target.entry.url) && this.deps.tasks !== undefined) {
+      return this.local(req, res, this.deps.tasks, { project: route.project, task: url.searchParams.get('task') })
+    }
     const label = `${route.name}/${route.server}`
     const key = `${route.project}\u0000${label}`
     const started = Date.now()
@@ -167,6 +182,32 @@ export class McpGateway {
       if (!res.headersSent) res.writeHead(502)
       res.end()
     }
+  }
+
+  /** Streamable HTTP with JSON replies only: no stream to open (GET) and no MCP session to end (DELETE). */
+  private async local(req: IncomingMessage, res: ServerResponse, server: LocalMcp, scope: TasksScope): Promise<void> {
+    if (req.method !== 'POST') return void res.writeHead(405, { allow: 'POST' }).end()
+    let parsed: unknown
+    try {
+      parsed = JSON.parse((await readBody(req)).toString('utf8'))
+    } catch {
+      return void res.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }))
+    }
+    const batch = Array.isArray(parsed)
+    const messages = (batch ? (parsed as unknown[]) : [parsed]).filter((each): each is Record<string, unknown> => typeof each === 'object' && each !== null)
+    const replies: Record<string, unknown>[] = []
+    try {
+      for (const message of messages) {
+        const reply = await server.handle(message, scope)
+        if (reply !== null) replies.push(reply)
+      }
+    } catch (error) {
+      this.deps.log(`mcp gateway: tasks: ${(error as Error).message}`)
+      if (!res.headersSent) res.writeHead(500)
+      return void res.end()
+    }
+    if (replies.length === 0) return void res.writeHead(202).end()
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(batch ? replies : replies[0]))
   }
 
   /** One process per server and its settings: another value of a setting is another process. */

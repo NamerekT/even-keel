@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
+import { isTasksUrl } from '../taskmcp/server.js'
 import { current, enabledPackages, installsFor, pluginKey, type PackagesFile, type SessionReach } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
@@ -85,8 +86,10 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
         servers: Object.keys(install.servers),
       })
     }
-    for (const server of Object.keys(install.servers)) {
-      mcp.push({ name: server, plugin: record.plugin?.name ?? null, url: `${places.gateway}${routeOf(places.projectId, name, id, server)}` })
+    for (const [server, entry] of Object.entries(install.servers)) {
+      // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768).
+      const own = isTasksUrl(entry.entry.url) ? `?task=${encodeURIComponent(task)}` : ''
+      mcp.push({ name: server, plugin: record.plugin?.name ?? null, url: `${places.gateway}${routeOf(places.projectId, name, id, server)}${own}` })
     }
   }
   return { mcp, plugins, installs }

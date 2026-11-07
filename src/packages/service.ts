@@ -6,7 +6,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
-import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget } from './gateway.js'
+import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -58,6 +58,8 @@ export interface PackagesDeps {
   oauth?: (project: string, server: string, url: unknown) => GatewayOAuth | undefined
   /** The tracker whose deletes the project's Protection refuses, when the server is that tracker's. */
   refuseDeletes?: (project: string, server: string) => string | undefined
+  /** Even Keel's own tasks server, answered by the gateway (BTN-768). */
+  tasks?: LocalMcp
   port: number
   log: (line: string) => void
   /** The view or what a project is held on changed. */
@@ -82,7 +84,7 @@ export class Packages {
     const loaded = loadPackages(deps.file)
     this.file = loaded ?? this.seed()
     if (loaded === undefined) savePackages(deps.file, this.file)
-    this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log })
+    this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(project, name, install, server)}`,
       now: () => Date.now(),

@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import type { Agent, AgentAdapter, AgentOptions, ModelList, SessionHandle, SessionStart } from '../agent/contract.js'
+import type { Agent, AgentAdapter, AgentOptions, ModelList, SessionHandle, SessionMcp, SessionStart } from '../agent/contract.js'
 import { runGit } from '../git/run.js'
 import type { RateLimits, SessionLimits } from '../limits/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
@@ -31,6 +31,8 @@ export interface TurnContext {
   background(): void
   /** Reports the account's windows mid-turn, as a Claude SDK session's `rate_limit_event` does (`AgentOptions.onLimits`). */
   limits(reported: SessionLimits): void
+  /** Calls a tool of the session's gateway server `server`, as the CLI does over HTTP; the text of its answer, thrown when an error. */
+  tool(server: string, name: string, args: Record<string, unknown>): Promise<string>
 }
 
 /** The windows a `usage` answer gives; its time and source are the call's. */
@@ -75,6 +77,8 @@ interface Session {
   turn: number
   /** When the running turn last wrote to its transcript: its start. */
   wroteAt: number
+  /** The gateway's servers of its last start. */
+  mcp: SessionMcp[]
 }
 
 const PID = 4242
@@ -200,7 +204,7 @@ export class ScriptedAgent implements Agent {
     const sessionId = randomUUID()
     const summary = new TranscriptFold().summary()
     const entry: AgentEntry = { id: sessionId, cwd: start.cwd, kind: 'script', startedAt: Date.now(), sessionId, name: start.name, account: home.key }
-    this.sessions_.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, turn: 0, wroteAt: Date.now() })
+    this.sessions_.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, turn: 0, wroteAt: Date.now(), mcp: start.mcp ?? [] })
     this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
     this.play(sessionId, start.prompt)
     return sessionId
@@ -209,6 +213,7 @@ export class ScriptedAgent implements Agent {
   async resume(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string> {
     const known = this.sessions_.get(session.sessionId)
     if (known === undefined) throw new Error(`script: no session ${session.sessionId}`)
+    known.mcp = start.mcp ?? []
     this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
     this.play(session.sessionId, start.prompt)
     return session.sessionId
@@ -313,6 +318,20 @@ export class ScriptedAgent implements Agent {
       },
       background: () => void (background = true),
       limits: (reported) => this.onLimits?.(session.entry.account!, reported),
+      tool: async (server, name, args) => {
+        const url = session.mcp.find((each) => each.name === server)?.url
+        if (url === undefined) throw new Error(`script: the session has no server ${server}`)
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+        })
+        if (!response.ok) throw new Error(`script: ${server}/${name}: ${response.status}`)
+        const { result } = (await response.json()) as { result: { content: { text: string }[]; isError?: boolean } }
+        const text = result.content.map((each) => each.text).join('\n')
+        if (result.isError === true) throw new Error(`script: ${server}/${name} refused: ${text}`)
+        return text
+      },
     }
     const running = turn(context)
       .catch((error: unknown): TurnEnd => {
