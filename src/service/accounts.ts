@@ -193,7 +193,8 @@ export function wirePackages(ctx: AccountsContext): Packages {
           return Object.keys(keys).find((project) => keys[project]?.toUpperCase() === key && ADAPTERS[trackers[project]!]?.mcpServer === TASKS_SERVER) ?? null
         },
         modelOf: (_project, task) => {
-          const live = ctx.sessions.find((each) => each.task === task)
+          const ofTask = ctx.sessions.filter((each) => each.task === task)
+          const live = ofTask.find((each) => each.lamp !== 'finished') ?? ofTask[0]
           return live === undefined ? null : runLabelText({ provider: live.agent, model: live.model })
         },
         refresh: (project) => ctx.refreshProject(project),

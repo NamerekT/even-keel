@@ -165,6 +165,14 @@ describe('the rest', () => {
     expect(await call('task_comment', { key: 'ABC-1', text: 'done' })).toBe('ABC-1: comment added')
     const card = await call('task_read', { key: 'ABC-1', comments: true })
     expect(card).toMatch(/## Comments\n\n### .*\(Claude \| opus\)/)
+    const [comment] = (await tracker.card!('ABC-1')).comments
+    expect(comment!.journal).toMatchObject({ by: 'agent', model: 'Claude | opus' })
+  })
+
+  it('a comment of a hand session is the agent with no model', async () => {
+    await call('task_comment', { key: 'ABC-1', text: 'noted' }, HAND)
+    const [comment] = (await tracker.card!('ABC-1')).comments
+    expect(comment!.journal).toMatchObject({ by: 'agent', model: null })
   })
 
   it('has no tool that deletes', async () => {
