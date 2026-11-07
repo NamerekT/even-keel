@@ -54,16 +54,17 @@ export function paysPerToken(entry: AccountEntry): boolean {
  * What the account reaches the models through and who bills it, the group of the accounts page inside an agent's block
  * (BTN-576). Keys of different providers are different groups; the plan (pro, max, free) does not split one.
  */
-export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'bedrock', 'other'] as const
+export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'bedrock', 'vertex', 'other'] as const
 export type Access = (typeof ACCESSES)[number]
 
-export type Owner = 'anthropic' | 'openai' | 'zen' | 'github' | 'aws'
+export type Owner = 'anthropic' | 'openai' | 'zen' | 'github' | 'aws' | 'google'
 
 /** Who bills a connection, the colour of its group's stripe; none for an agent the page does not know. */
 export const ACCESS_OWNER: Record<Access, Owner | null> = {
   claudeSubscription: 'anthropic',
   anthropicKey: 'anthropic',
   bedrock: 'aws',
+  vertex: 'google',
   chatgpt: 'openai',
   openaiKey: 'openai',
   zen: 'zen',
@@ -77,7 +78,7 @@ export const ACCESS_OWNER: Record<Access, Owner | null> = {
  */
 export function accessOf(entry: AccountEntry): Access {
   if (entry.agent === COPILOT) return 'github'
-  if (entry.cloud !== undefined) return entry.cloud.cloud === 'bedrock' ? 'bedrock' : 'other'
+  if (entry.cloud !== undefined) return entry.cloud.cloud === 'foundry' ? 'other' : entry.cloud.cloud
   if (entry.agent === CLAUDE) return entry.apiKey ? 'anthropicKey' : 'claudeSubscription'
   if (entry.agent === CODEX) return entry.apiKey ? 'openaiKey' : 'chatgpt'
   if (entry.agent !== OPENCODE) return 'other'

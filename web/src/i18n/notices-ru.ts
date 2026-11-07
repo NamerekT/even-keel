@@ -329,11 +329,11 @@ export const noticesRu: NoticeTexts = {
   'cloud.throttled': () =>
     'Amazon Bedrock ограничивает частоту запросов (ThrottlingException). У облака нет известного времени сброса, поэтому сессия встала и не ждётся: ответьте ей позже из чата или поднимите квоту в AWS Service Quotas',
   'cloud.gcpCredentials': (p) =>
-    `нет действующих учётных данных Google Cloud у пользователя, под которым работает Even Keel${whose(p)}: выполните gcloud auth application-default login от его имени или укажите файл ключа сервисного аккаунта. Файлы другого пользователя Windows служба не видит`,
+    `нет учётных данных Google Cloud у пользователя, под которым работает Even Keel${whose(p)}: выполните под ним gcloud auth application-default login или укажите файл ключа. Файлы другого пользователя Windows служба не видит`,
   'cloud.vertexModel': () =>
     'Vertex AI не находит такую модель Claude в регионе аккаунта: включите её в Model Garden или выберите регион global либо собственный регион модели в регионах моделей аккаунта',
   'cloud.vertexQuota': () =>
-    'Vertex AI отказывает по квоте (429), а времени её сброса облако не сообщает, поэтому сессия встала. У нового проекта квота на Claude часто нулевая: поднимите её в Cloud Quotas. Пробные кредиты на модели партнёров не тратятся — нужен платный billing account',
+    'Vertex AI отказывает по квоте (429) без времени сброса, сессия встала. У нового проекта квота на Claude часто нулевая: поднимите её в Cloud Quotas. Пробные кредиты на Claude не идут — нужен платный billing account',
   'cloud.vertexBilling': () => 'у проекта Google Cloud не включена оплата: привяжите к нему платный billing account и попробуйте снова',
   'cloud.vertexApi': () => 'в проекте не включён Vertex AI API (aiplatform.googleapis.com): включите его в консоли Google Cloud и попробуйте снова',
   'cloud.vertexPermission': () =>

@@ -379,11 +379,11 @@ export const en = {
   'cloud.throttled': () =>
     'Amazon Bedrock throttles the requests and has no known reset time, so the session stopped: answer it later from the chat, or raise the quota in AWS Service Quotas',
   'cloud.gcpCredentials': (p: { user: string; home: string }) =>
-    `No valid Google Cloud credentials for the user Even Keel runs as${whose(p)}: run gcloud auth application-default login as that user, or give a service account key file. The service does not see another Windows user's files`,
+    `No valid Google Cloud credentials for the user Even Keel runs as${whose(p)}: run gcloud auth application-default login as that user or give a key file. The service doesn't see another Windows user's files`,
   'cloud.vertexModel': () =>
     "Vertex AI finds no such Claude model in the account's region: enable it in Model Garden, or pick the global region or the model's own one in the account's model regions",
   'cloud.vertexQuota': () =>
-    "Vertex AI refuses for quota (429) and has no known reset time, so the session stopped. A new project's Claude quota is often zero: raise it in Cloud Quotas. Trial credits do not pay for partner models; a paid billing account does",
+    "Vertex AI refuses for quota (429) with no reset time: the session stopped. A new project's Claude quota is often zero: raise it in Cloud Quotas. Trial credits don't pay for Claude, a paid billing does",
   'cloud.vertexBilling': () => 'The Google Cloud project has no billing enabled: link a paid billing account to it, then try again',
   'cloud.vertexApi': () => 'The Vertex AI API (aiplatform.googleapis.com) is not enabled in the project: enable it in the Google Cloud console, then try again',
   'cloud.vertexPermission': () =>
