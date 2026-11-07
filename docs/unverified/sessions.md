@@ -168,7 +168,7 @@ Claude Code's compaction in chain sessions was seen live in the week of BTN-254:
 
 ## The context window a chain session gets (BTN-187)
 
-Even Keel takes the window Claude's `/context` answers as the one a chain session gets. The probe runs with the account's environment and the `--settings` of the task's project, and is asked about the `--model` of the session's job file. Assumed: nothing else of a `--bg` launch (the plugins, `--strict-mcp-config`) changes the window, and the job's `respawnFlags` keep the model of the last launch after a `--resume` on another model. If not, the meter and the cap read a wrong window. **Workaround:** set `context.window` and pin `stats.checkpointTokens` for the project.
+Even Keel takes the window Claude's `/context` answers as the one a chain session gets. The probe runs with the account's environment and the `--settings` of the task's project, and is asked about the `--model` of the session's job file. Seen live ([verified](../verified/sessions.md)): with the auto-compaction window at 250000, thirteen auto-compactions of chain sessions from 2026-10-30 to 2026-11-07, `--bg` and SDK alike, came at 215–221k tokens, where a 250k window compacts; and the window moved to 300000 showed on the meter of the next session. Assumed: the job's `respawnFlags` keep the model of the last launch after a `--resume` on another model. If not, the meter and the cap read a wrong window. **Workaround:** set `context.window` and pin `stats.checkpointTokens` for the project.
 
 
 ## Protection across agent transports and remote servers
