@@ -1,6 +1,12 @@
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
+import { isOpen } from '../../../src/tracker/model.js'
 import type { Check } from '../layout/system.js'
+
+/** The open tasks of the given projects: the built-in tracker's card says how many it holds (BTN-769). */
+export function openTasks(state: Pick<EvenKeelState, 'tasks'>, projects: readonly string[]): number {
+  return state.tasks.filter((task) => projects.includes(task.project) && isOpen(task.status)).length
+}
 
 /** The trackers are read every 30 seconds: a reader not read for longer than this is marked on its connection's card. */
 export const STALE_READ_MS = 3 * 60_000

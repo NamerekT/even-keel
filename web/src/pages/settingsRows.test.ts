@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from '../../../src/tracker/model.js'
-import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf, sourceTasks, withoutListed } from './settingsRows.js'
+import { lineOf, linesText, newMilestones, pairOf, ruleChoicesOf, rowsOf, sourceTasks, withoutListed } from './settingsRows.js'
 
 describe('rows of a list field', () => {
   it('keeps an empty row being typed, and has none for an empty text', () => {
@@ -11,6 +11,16 @@ describe('rows of a list field', () => {
   it('joins rows back line by line', () => {
     expect(linesText(['a', '', 'b'])).toBe('a\n\nb')
     expect(linesText([])).toBe('')
+  })
+})
+
+describe('milestones the built-in tracker lacks', () => {
+  it('names each milestone of the rules it has not got, once, whatever the case', () => {
+    expect(newMilestones({ requiredMilestones: ['v0.3', 'v0.4'], excludedMilestones: ['V0.4', 'later', ' '] }, ['V0.3'])).toEqual(['v0.4', 'later'])
+  })
+
+  it('has none when the rules name only what it has', () => {
+    expect(newMilestones({ requiredMilestones: [], excludedMilestones: ['v1'] }, ['v1'])).toEqual([])
   })
 })
 

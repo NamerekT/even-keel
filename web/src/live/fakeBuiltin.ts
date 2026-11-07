@@ -101,9 +101,20 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
   }
 }
 
-/** `?tracker=builtin` (BTN-770): the fake's Huly profile is Even Keel's own tracker, so the project page offers the add ghosts. */
+/**
+ * `?tracker=builtin` (BTN-770): the fake's Huly profile is Even Keel's own tracker, so the project page offers the add
+ * ghosts and the settings of its projects show the built-in tracker (BTN-769).
+ */
 export function withBuiltinTracker(state: EvenKeelState): EvenKeelState {
-  return { ...state, trackers: state.trackers.map((view) => (view.name === FAKE_HULY_PROFILE ? { ...view, kind: BUILTIN, title: 'Even Keel' } : view)) }
+  const own = new Set(state.trackers.find((view) => view.name === FAKE_HULY_PROFILE)?.projects ?? [])
+  const projects = Object.fromEntries(
+    Object.entries(state.config.projects).map(([id, form]) => [id, own.has(id) ? { ...form, tracker: BUILTIN, trackerProject: null } : form]),
+  )
+  return {
+    ...state,
+    config: { ...state.config, projects },
+    trackers: state.trackers.map((view) => (view.name === FAKE_HULY_PROFILE ? { ...view, kind: BUILTIN, title: 'Even Keel' } : view)),
+  }
 }
 
 /** ABC's milestone made a moment ago with no task yet, so the chain shows it as an empty group with its ghost. */

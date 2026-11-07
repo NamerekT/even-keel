@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
@@ -13,8 +14,9 @@ export const trackerProfiles = (state: EvenKeelState) => {
 }
 
 /**
- * The setup's tracker (BTN-346): a card per tracker the adapters know, with its profiles and their state, and
- * "Connect" or "Add another", which opens the profile dialog on that tracker at once.
+ * The setup's tracker (BTN-346): the built-in tracker first, with nothing to connect (BTN-769), then a card per
+ * tracker the adapters know, with its profiles and their state, and "Connect" or "Add another", which opens the
+ * profile dialog on that tracker at once.
  */
 export function TrackerStep({ state }: { state: EvenKeelState }) {
   const [open, setOpen] = useState<{ kind: string; profile?: ProfileView } | null>(null)
@@ -24,6 +26,13 @@ export function TrackerStep({ state }: { state: EvenKeelState }) {
     <>
       <p className="setup__lead">{t.setup.trackerLead}</p>
       <ul className="setup-trackers">
+        <li className="setup-tracker">
+          <span className="setup-tracker__head">
+            <TrackerIcon kind={BUILTIN} />
+            {t.profiles.builtin}
+          </span>
+          <span className="setup-tracker__note">{t.profiles.builtinNote}</span>
+        </li>
         {kinds.map((kind) => {
           const has = added.some((profile) => profile.kind === kind.kind)
           return (

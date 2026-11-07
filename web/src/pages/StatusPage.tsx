@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
 import { formatAgo } from '../format.js'
@@ -14,7 +15,7 @@ import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { FixButton, useFix } from './FixButtons.js'
 import { HelpTip } from './settingsParts.js'
-import { problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
+import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
 import './settings.css'
 import './status.css'
 
@@ -33,7 +34,10 @@ export function StatusPage({ state }: { state: EvenKeelState }) {
   const [params] = useSearchParams()
   const [focus] = useState(() => params.get('item'))
   const plain = checks.filter((check) => check.tracker === undefined)
-  const connections = checks.filter((check) => check.tracker !== undefined)
+  const found = checks.filter((check) => check.tracker !== undefined)
+  // The built-in tracker is always there, first: a newcomer without another tracker sees it, not an empty list (BTN-769).
+  const own = found.find((check) => check.tracker!.kind === BUILTIN)
+  const connections = [own ?? idleBuiltin(), ...found.filter((check) => check !== own)]
 
   useEffect(() => {
     if (focus !== null) document.getElementById(anchorOf(focus))?.scrollIntoView({ block: 'center' })
@@ -54,16 +58,19 @@ export function StatusPage({ state }: { state: EvenKeelState }) {
         <h2 id="status-connections" className="status-connections__title">
           {t.statusPage.connections}
         </h2>
-        {connections.length === 0 ? (
-          <Card>
-            <EmptyState action={<AddProject />}>{t.statusPage.noConnections}</EmptyState>
-          </Card>
-        ) : (
-          connections.map((check) => <Connection key={check.key} state={state} tracker={check.tracker!} now={now} className={lit(check.key)} />)
-        )}
+        {connections.map((check) => (
+          <Connection key={check.key} state={state} tracker={check.tracker!} now={now} className={lit(check.key)} />
+        ))}
       </section>
     </div>
   )
+}
+
+/** The built-in tracker no project runs on: the service has no connection for it, the database is its own. */
+function idleBuiltin(): Check {
+  const name = `none:${BUILTIN}`
+  const tracker: TrackerView = { name, kind: BUILTIN, title: t.system.builtin, projects: [], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }
+  return { key: name, name: t.system.builtin, level: 'ok', text: t.statusPage.builtinReady, details: [], tracker }
 }
 
 /** "All is well", or the count of problems with the first of them and what fixes it. */
@@ -167,6 +174,8 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
   const level = health.state === 'live' ? 'ok' : health.state === 'down' ? 'error' : health.state === 'connecting' ? 'warn' : 'off'
   const id = `${anchorOf(tracker.name)}-title`
   const check = () => void Promise.all(refreshed.map((project) => send('chain/refresh', { project })))
+  // The built-in tracker is the state database: no profile to open, nothing remote to check.
+  const own = tracker.kind === BUILTIN
 
   return (
     <Card id={anchorOf(tracker.name)} aria-labelledby={id} className={`status-connection system__row--${level}${className}`}>
@@ -175,19 +184,19 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
         title={
           <span className="status-connection__name">
             <TrackerIcon kind={tracker.kind} />
-            {tracker.title}
+            {own ? t.system.builtin : tracker.title}
           </span>
         }
-        actions={<LinkState tracker={tracker} now={now} />}
+        actions={<LinkState tracker={tracker} now={now} open={own ? openTasks(state, tracker.projects) : null} />}
       />
       {health.state === 'down' && health.error !== null && (
         <p className="status-connection__error">
-          {t.statusPage.trackerProblem[trackerProblem(health.error)]}
+          {own ? t.system.lost : t.statusPage.trackerProblem[trackerProblem(health.error)]}
           <HelpTip text={health.error} />
         </p>
       )}
       {readers.length === 0 ? (
-        <EmptyState action={<AddProject />}>{t.statusPage.noProjects}</EmptyState>
+        <EmptyState action={<AddProject />}>{own ? t.statusPage.builtinNoProjects : t.statusPage.noProjects}</EmptyState>
       ) : (
         <div className="status-connection__foot">
           <ul className="status-readers" aria-label={t.statusPage.readers}>
@@ -195,7 +204,7 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
               <Reader key={reader} name={name} stale={stale.has(reader)} read={stale.get(reader) ?? null} now={now} />
             ))}
           </ul>
-          <div className="status-connection__actions">
+          {!own && <div className="status-connection__actions">
             {failure !== null && <span className="status-connection__failure">{say(failure)}</span>}
             {refreshed.length > 0 && health.state !== 'off' && (
               <button type="button" className="button button--small" title={t.statusPage.checkHint} disabled={sending} onClick={check}>
@@ -203,19 +212,21 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
               </button>
             )}
             <ProfileButton primary={health.state === 'down'} />
-          </div>
+          </div>}
         </div>
       )}
     </Card>
   )
 }
 
-/** The dot and word of a connection, and when it last answered. */
-function LinkState({ tracker, now }: { tracker: TrackerView; now: Date }) {
+/** The dot and word of a connection, and when it last answered; the built-in tracker's, its open tasks (`open`). */
+function LinkState({ tracker, now, open }: { tracker: TrackerView; now: Date; open: number | null }) {
   const { health } = tracker
   const ago = health.lastOkAt === null ? null : formatAgo(health.lastOkAt, now)
   const [word, tail] =
-    health.state === 'live'
+    health.state === 'live' && open !== null
+      ? [t.statusPage.builtinReady, tracker.projects.length === 0 ? null : t.statusPage.openTasks(open)]
+      : health.state === 'live'
       ? [t.system.live, ago === null ? null : t.statusPage.polled(ago)]
       : health.state === 'down'
         ? [t.system.lost, ago === null ? t.statusPage.neverAnswered : t.statusPage.lastAnswer(ago)]

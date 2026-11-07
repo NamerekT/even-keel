@@ -24,8 +24,9 @@ describe('formsOf', () => {
     expect(formOf({ projects: [abc()] }, 'id-abc')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
   })
 
-  it('names the project key of each tracker', () => {
+  it('names the project key of each tracker, the built-in one first', () => {
     expect(trackerChoices()).toEqual([
+      { name: 'builtin', title: 'Even Keel', projectKey: null },
       { name: 'huly', title: 'Huly', projectKey: { key: 'huly', example: 'ABC', optional: true, alias: true } },
       { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false, alias: false } },
       { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true, alias: false } },

@@ -321,6 +321,13 @@
   margin-top: auto;
 }
 
+/* The built-in tracker's card: nothing to connect, a quiet line where the others have their button. */
+.setup-tracker__note {
+  margin-top: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
 @media (max-width: 760px) {
   .setup__card {
     padding: var(--space-16);

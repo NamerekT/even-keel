@@ -40,7 +40,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (notice.code === 'config.repoEmpty') return { project: notice.params.key, field: 'repo' }
   if (notice.code === 'config.slot') return { project: notice.params.key, field: 'slot' }
   if (notice.code === 'config.color') return { project: notice.params.key, field: 'color' }
-  if (notice.code === 'config.trackerLocked') return { project: notice.params.key, field: 'tracker' }
+  if (notice.code === 'config.trackerLocked' || notice.code === 'config.builtinLocked') return { project: notice.params.key, field: 'tracker' }
   if (notice.code === 'config.statusBoth') return { project: notice.params.project, field: 'chain.terminal' }
   if (notice.code === 'config.labelBoth') return { project: notice.params.project, field: 'chain.excludedLabels' }
   if (notice.code === 'config.milestoneBoth') return { project: notice.params.project, field: 'chain.excludedMilestones' }

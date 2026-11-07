@@ -573,6 +573,8 @@ export const en = {
     `config: execution.${p.provider}: ${p.mode} runs only on the checked CLI, set cli.${p.provider} to checked`,
   'config.trackerLocked': (p: { key: string }) =>
     `config: the chain has started tasks of ${p.key}, so its tracker and profile stay; tasks of another tracker come in through a task feed`,
+  'config.builtinLocked': (p: { key: string }) =>
+    `config: ${p.key} has tasks in the built-in tracker, so it stays on it: moving them to another tracker is not supported yet`,
   'config.feeds': (p: { where: string }) => `config: ${p.where} must be a list of task feeds, each an object with its id, tracker and key`,
   'config.feedField': (p: { where: string; field: string }) => `config: ${p.where} needs its ${p.field}`,
   'config.feedRules': (p: { where: string; keys: string[] }) =>

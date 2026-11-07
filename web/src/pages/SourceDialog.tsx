@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -59,7 +60,8 @@ export function SourceLine({ kind, title, sourceKey, own, dirty, onConfigure, me
             {title}
           </span>
         </span>
-        <span className="source-line__rules">{own ? t.settings.sourceRulesOwn : t.settings.sourceRulesInherited}</span>
+        {/* The built-in tracker has no profile: its project tasks come from the shared settings (BTN-769). */}
+        <span className="source-line__rules">{own ? t.settings.sourceRulesOwn : kind === BUILTIN ? t.settings.sourceRulesShared : t.settings.sourceRulesInherited}</span>
       </span>
       <span className="source-line__actions">
         {dirty && <UnsavedDot />}
@@ -116,10 +118,16 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, c
             ×
           </button>
         </header>
-        <div className="source-dialog__tabs">
-          <GroupTabs groups={tabs} open={tab.id} dirty={(id) => tabs.find((each) => each.id === id)?.dirty === true} onOpen={setOpen} label={t.settings.sourceParts} />
-        </div>
-        <div className="add-package__body source-dialog__body" role="tabpanel" aria-labelledby={`settings-tab-${tab.id}`}>
+        {tabs.length > 1 && (
+          <div className="source-dialog__tabs">
+            <GroupTabs groups={tabs} open={tab.id} dirty={(id) => tabs.find((each) => each.id === id)?.dirty === true} onOpen={setOpen} label={t.settings.sourceParts} />
+          </div>
+        )}
+        <div
+          className="add-package__body source-dialog__body"
+          role={tabs.length > 1 ? 'tabpanel' : undefined}
+          aria-labelledby={tabs.length > 1 ? `settings-tab-${tab.id}` : undefined}
+        >
           {tab.render()}
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
