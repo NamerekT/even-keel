@@ -13,6 +13,28 @@
   list-style: none;
 }
 
+.event-log__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.event-log__filters > .select {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.event-log__reset {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .event-log__filters > .select {
+    flex-basis: 100%;
+  }
+}
+
 .event-log__row {
   display: grid;
   grid-template-columns: 5ch 16px minmax(0, 1fr) auto;

@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import type { EventEntry } from '../../../src/event-log/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatFullTime, formatLineTime, minuteMarks } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { lastId, markRead, placePath, readMark } from '../layout/eventLog.js'
+import { EVENT_CATEGORIES, filtered, filterOf, projectOf, searchOf, type EventFilter } from '../layout/eventLogFilter.js'
 import { useNow } from '../layout/useNow.js'
+import { projectLabel } from '../state.js'
 import { Card, EmptyState, PageHead } from '../ui/blocks.js'
 import { GoToIcon } from '../ui/icons.js'
 import { Said } from '../ui/ProjectLinks.js'
+import { Select } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import './eventLog.css'
@@ -40,18 +43,43 @@ export function daysOf(entries: readonly EventEntry[]): Day[] {
  */
 export function EventLogPage({ state }: { state: EvenKeelState }) {
   const now = useNow(CLOCK_MS)
+  const [search, setSearch] = useSearchParams()
+  const parsed = filterOf(search)
+  const filter = { ...parsed, project: parsed.project !== null && state.projects.includes(parsed.project) ? parsed.project : null }
+  const change = (next: EventFilter) => setSearch(searchOf(next), { replace: true })
+  const reset = () => change({ level: null, category: null, project: null })
+  const hasFilter = Object.values(filter).some((value) => value !== null)
+  const projects = new Set(state.eventLog.map(projectOf))
   const [read] = useState(() => readMark() ?? lastId(state.eventLog))
   const newest = lastId(state.eventLog)
   useEffect(() => markRead(newest), [newest])
-  const days = daysOf(state.eventLog)
+  const days = daysOf(filtered(state.eventLog, filter))
   const today = now.toDateString()
 
   return (
     <div className="page event-log">
       <PageHead title={t.events.title} help={<HelpTip text={t.events.help} />} />
-      {days.length === 0 ? (
+      {state.eventLog.length > 0 && (
+        <div className="event-log__filters">
+          <Select className="button" label={t.events.filters.level} value={filter.level ?? ''}
+            options={[{ value: '', label: t.events.filters.allLevels }, ...(['info', 'warning', 'error'] as const).map((value) => ({ value, label: t.events.levels[value] }))]}
+            onChange={(value) => change({ ...filter, level: filterOf(new URLSearchParams({ level: value })).level })} />
+          <Select className="button" label={t.events.filters.category} value={filter.category ?? ''}
+            options={[{ value: '', label: t.events.filters.allCategories }, ...EVENT_CATEGORIES.map((value) => ({ value, label: t.events.categories[value] }))]}
+            onChange={(value) => change({ ...filter, category: filterOf(new URLSearchParams({ category: value })).category })} />
+          <Select className="button" label={t.events.filters.project} value={filter.project ?? ''}
+            options={[{ value: '', label: t.events.filters.allProjects }, ...state.projects.filter((id) => projects.has(id) || id === filter.project).map((value) => ({ value, label: projectLabel(state, value) }))]}
+            onChange={(value) => change({ ...filter, project: value || null })} />
+          {hasFilter && <button type="button" className="button event-log__reset" onClick={reset}>{t.events.filters.reset}</button>}
+        </div>
+      )}
+      {state.eventLog.length === 0 ? (
         <Card>
           <EmptyState action={<Link to="/" className="button button--primary">{t.events.emptyAction}</Link>}>{t.events.empty}</EmptyState>
+        </Card>
+      ) : days.length === 0 ? (
+        <Card>
+          <EmptyState action={<button type="button" className="button button--primary" onClick={reset}>{t.events.filters.emptyAction}</button>}>{t.events.filters.empty}</EmptyState>
         </Card>
       ) : (
         days.map((day) => (

@@ -19,6 +19,15 @@ export const eventsEn = {
   empty: 'Nothing has happened yet. Start a chain and its launches will show here.',
   emptyAction: 'To the projects',
   levels: { info: 'Info', warning: 'Warning', error: 'Error' },
+  filters: {
+    level: 'Level', category: 'Category', project: 'Project',
+    allLevels: 'All levels', allCategories: 'All categories', allProjects: 'All projects',
+    reset: 'Reset', empty: 'No entries match these filters', emptyAction: 'Reset filters',
+  },
+  categories: {
+    sessions: 'Sessions', chain: 'Chain', questions: 'Questions', main: 'Main and CI',
+    limits: 'Accounts and limits', packages: 'Packages', settings: 'Settings', system: 'System',
+  },
   today: 'Today',
   fresh: 'new',
 }

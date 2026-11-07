@@ -18,6 +18,15 @@ export const eventsRu = {
   empty: 'Пока ничего не случилось. Запустите цепочку, и её запуски появятся здесь.',
   emptyAction: 'К проектам',
   levels: { info: 'Сведения', warning: 'Предупреждение', error: 'Ошибка' },
+  filters: {
+    level: 'Уровень', category: 'Категория', project: 'Проект',
+    allLevels: 'Все уровни', allCategories: 'Все категории', allProjects: 'Все проекты',
+    reset: 'Сбросить', empty: 'Под эти фильтры записей нет', emptyAction: 'Сбросить фильтры',
+  },
+  categories: {
+    sessions: 'Сессии', chain: 'Цепочка', questions: 'Вопросы', main: 'Main и CI',
+    limits: 'Аккаунты и лимиты', packages: 'Пакеты', settings: 'Настройки', system: 'Система',
+  },
   today: 'Сегодня',
   fresh: 'новое',
 }
