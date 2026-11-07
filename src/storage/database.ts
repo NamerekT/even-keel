@@ -454,6 +454,18 @@ export const STEPS: readonly string[] = [
     where exists (select 1 from projects)
     on conflict (key) do nothing;
   `,
+  // The keys of the reported `rare:` diagnostics and their open pairs (BTN-814), so a restart repeats no line.
+  `
+  create table rare_events (
+    entry      text not null,
+    event      text not null,
+    session_id text not null,
+    seen_at    text not null,
+    waiting    text,
+    primary key (entry, event, session_id)
+  );
+  create index rare_events_seen on rare_events (seen_at);
+  `,
 ]
 
 /** The version this code reads and writes. */

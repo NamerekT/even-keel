@@ -36,7 +36,7 @@ A handoff from a session that failed before its first answer carries the steps, 
 
 ## A session left mid-turn by the cleanup (BTN-616)
 
-**Log check (17c):** search `rare: 17c` for `cleanup-deferred status=busy` or `status=waiting`, then `cleanup-stop result=stopped` for the same session. A failed stop has `result=failed` and its reason. Repeated polls do not repeat the deferral or result. A session that exits on its own needs no stop and has no stop-result line; a restart forgets the deferred stop, as before. The code lives in `src/service/cleanup.ts` and `src/sessions/lingering.ts`.
+**Log check (17c):** search `rare: 17c` for `cleanup-deferred status=busy` or `status=waiting`, then `cleanup-stop result=stopped` for the same session. A failed stop has `result=failed` and its reason. Repeated polls and service restarts do not repeat the deferral or result. A session that exits on its own needs no stop and has no stop-result line; a restart forgets the deferred stop, as before. The code lives in `src/service/cleanup.ts` and `src/sessions/lingering.ts`.
 
 A session in a done task's folder that the cleanup found `busy`/`waiting` is stopped once its turn ends (`docs/chain/worktrees.md`, "A session left mid-turn"). An end-to-end scenario with the scripted agent covers a second session in the task's folder. Not run live: a real Codex or Claude session caught that way — the mismatch between the task's view and the listing that leaves one behind cannot be made on purpose — so whether a real stop of such a session lands is assumed from the usual cleanup's stop. A restart before its turn ends forgets it, as before. **Workaround:** stop the session from the page or kill its pid.
 
@@ -46,7 +46,7 @@ A cleanup after Done whose stop of the session timed out in the account folder's
 
 ## A resume that starts a copy
 
-**Log check (18):** search `rare: 18` for `resume-copy`, with `oldSession`, the adopted session id, `transcript=true/false` and `elapsedMs` since resume began. If initially missing, `transcript-appeared` records the first monitor observation of its file, with the old id and elapsed time. A copy that never gets a followed transcript has no appearance line; an in-place resume has no copy line. The elapsed time measures observation, not the file's exact creation time.
+**Log check (18):** search `rare: 18` for `resume-copy`, with `oldSession`, the adopted session id, `transcript=true/false` and `elapsedMs` since resume began. If initially missing, `transcript-appeared` records the first monitor observation of its file, with the old id and elapsed time, also when the service restarted in between. A copy that never gets a followed transcript has no appearance line; an in-place resume has no copy line. The elapsed time measures observation, not the file's exact creation time.
 
 A resumed session in place was seen to show a fresh session id for under a second before it takes its old one, and the chain now waits for the old id (`docs/sessions.md`). When the CLI starts a copy instead (a new job), the chain takes the first session of that new job; whether a copy also passes through a throwaway id first was not seen. If it does, the chain follows an id with no transcript: the chat says the transcript is not found and the card shows "Session booting" for 5 minutes. The workaround is "New session".
 
@@ -140,7 +140,7 @@ Covered by adapter tests: `unchecked`, `checking`, `preparing` and `cannot_be_me
 
 ## A session waiting on you behind a monitor
 
-**Log check (46):** search `rare: 46` for `background-blocked detail=...; treating the session as waiting`. This requires a background command, a CLI job end marked `state: blocked`, and the monitor's resulting waiting lamp. The CLI's detail is JSON-quoted on one line (`null` when absent). Each distinct job end is reported once per service process; an API error taking precedence over waiting is not reported as this event.
+**Log check (46):** search `rare: 46` for `background-blocked detail=...; treating the session as waiting`. This requires a background command, a CLI job end marked `state: blocked`, and the monitor's resulting waiting lamp. The CLI's detail is JSON-quoted on one line (`null` when absent). Each distinct job end is reported once, through service restarts too; an API error taking precedence over waiting is not reported as this event.
 
 A turn that ends with a background command or a `Monitor` still running leaves the session in `shell`, which the chain takes for work for up to an hour; since 2026-10-22 a job the CLI's turn summary marked `state: blocked` is taken for waiting instead (`docs/chain/unattended.md`, "Background command"). Covered by tests only, from one case seen that day: a session that ended on "waiting for you to press Start" with a monitor on the service log, marked `blocked` with that detail. Not seen: the fixed build showing "waiting" at once, and whether the CLI ever marks `blocked` a turn that waits for its own build or test run. If it does, such a session shows "waiting" while it works: a chat reply goes by `--resume`, which stops the session and its command, and unattended mode stops waiting for it after 10 minutes. **Workaround:** do not reply until the build is done; for a long run, leave unattended mode off.
 

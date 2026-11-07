@@ -5,6 +5,7 @@ import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { loadSavedLimits } from './limits/saved.js'
+import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
 import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
 import { EventLog, loadEventLog, pruneEventLog, saveEventEntry, saveEventMemory } from './event-log/log.js'
 import type { EvenKeelState } from './state.js'
@@ -361,6 +362,14 @@ const keyOrganizations = await loadKeyOrganizations(db)
 const savedLimits = await loadSavedLimits(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
+/** The `rare:` lines already written and the pairs still open (BTN-814); unreadable rows only risk a repeated line. */
+rareEvents.restore(await loadRareEvents(db).catch((error: unknown) => {
+  console.warn(`storage: the rare events not read: ${error instanceof Error ? error.message : String(error)}`)
+  return []
+}), {
+  save: (record) => writes.add(`the rare event ${record.entry}`, saveRareEvent(db, record)),
+  prune: (before) => writes.add('the old rare events', pruneRareEvents(db, before)),
+})
 const envFile = loadEnv()
 /** What a profile is made for: the trackers, Forgejo's among them, which serves its CI too (BTN-201, BTN-476). */
 const profileKindsOf = profileKinds(ADAPTERS)

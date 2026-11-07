@@ -25,7 +25,7 @@ A new entry goes into the file of its area, under a `##` heading that names the 
 
 Every entry, ordered by how many people it reaches and how badly it hurts them if the assumption is wrong: the lower the number, the sooner it should be checked and the more a run into it costs. Each row links to the entry.
 
-Waiting-list entries 86, 18, 17c, 29 and 46 can be checked after a natural occurrence with `grep "rare:" logs/even-keel.log` (on PowerShell, `Select-String 'rare:' logs/even-keel.log`). Match the observation and its outcome; an absent line proves nothing. Observation keys are held in memory, so a service restart can report a still-current event again. These diagnostics do not change session control.
+Waiting-list entries 86, 18, 17c, 29 and 46 can be checked after a natural occurrence with `grep "rare:" logs/even-keel.log` (on PowerShell, `Select-String 'rare:' logs/even-keel.log`). Match the observation and its outcome; an absent line proves nothing. Observation keys and open pairs are kept in the state database (`rare_events`, `docs/storage.md`) for 30 days, so a service restart reports no event twice and still writes the second line of a pair; only a failed database write can repeat a line. These diagnostics do not change session control.
 
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
