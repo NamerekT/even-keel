@@ -354,6 +354,14 @@ describe('mergeSettings', () => {
   it('adds no env to a folder with a key helper of its own when the global settings have none', () => {
     expect(mergeSettings({ model: 'opus' }, { apiKeyHelper: 'folder-helper' })).toEqual({ model: 'opus', apiKeyHelper: 'folder-helper' })
   })
+
+  it("keeps a cloud folder's connection and takes none of the cloud's variables from the global env", () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-fake', AWS_PROFILE: 'other' } }
+    const folder = { env: { CLAUDE_CODE_USE_BEDROCK: '1', AWS_PROFILE: 'work', AWS_REGION: 'eu-central-1', OLD: '1' } }
+    expect(mergeSettings(global, folder)).toEqual({
+      env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_USE_BEDROCK: '1', AWS_PROFILE: 'work', AWS_REGION: 'eu-central-1' },
+    })
+  })
 })
 
 describe('shareProjects', () => {

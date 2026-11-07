@@ -3,6 +3,7 @@ import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
 import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList } from './server-request.js'
 import type { NoticeKind } from './notice/kinds.js'
+import { cloudConnectionOf, type CloudConnection } from './account/cloud.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
@@ -106,6 +107,10 @@ export interface AccountControl {
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
   addApiKey(name: string, key: string, agent: string): Promise<void>
+  /** A Claude account on a cloud, checked by one short turn before it is kept (BTN-822). */
+  addCloud(name: string, connection: CloudConnection): Promise<void>
+  /** The AWS profiles of the service's user into `AccountView.aws`, for the cloud form. */
+  readAws(): void
   /** A new key in the folder of an API account, its name, roles and pools kept (BTN-418). */
   replaceApiKey(account: string, key: string): Promise<void>
   renew(account: string): void
@@ -370,6 +375,8 @@ const COMMANDS: Record<string, Command> = {
       textOf(body.key, 'key'),
       body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
     ),
+  'account/cloud': ({ account }, body) => account.addCloud(typeof body.name === 'string' ? body.name : '', cloudConnectionOf(body)),
+  'account/aws': ({ account }) => account.readAws(),
   'account/key': ({ account }, body) => account.replaceApiKey(accountOf(body), textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),

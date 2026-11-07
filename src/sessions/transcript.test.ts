@@ -406,6 +406,14 @@ describe('TranscriptFold', () => {
     expect(fold([apiError('unknown', 'API Error: 400 Invalid request')]).summary().apiError).toMatchObject({ kind: 'error' })
   })
 
+  it('stops on Bedrock throttling with its own message instead of waiting it out as a limit (BTN-822)', () => {
+    const summary = fold([apiError('rate_limit', 'API Error: 429 ThrottlingException: Too many tokens, please wait before trying again.')]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'error', notice: { code: 'cloud.throttled' } })
+    expect(summary.action).toMatchObject({ kind: 'error', notice: { code: 'cloud.throttled' } })
+    const denied = fold([apiError('unknown', "API Error: 403 You don't have access to the model with the specified model id.")]).summary()
+    expect(denied.apiError).toMatchObject({ kind: 'error', notice: { code: 'cloud.bedrockModelDenied' } })
+  })
+
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
     expect(failed.summary().apiError).toMatchObject({ kind: 'error' })

@@ -8,6 +8,8 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
+import type { AwsProfiles, CloudConnection, CloudSummary } from './cloud.js'
+import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
 import {
   cleanOutput,
@@ -17,6 +19,7 @@ import {
   loginUrls,
   missingNotice,
   needsLogin,
+  paysPerToken,
   removeProblem,
   secondFreeProblem,
   switchProblem,
@@ -81,6 +84,12 @@ export interface AccountWatcherOptions {
   limitsOutdated?: (key: string) => boolean
   /** Optional. When an account whose limit nothing tells last hit it (`LimitRetries`). */
   lastLimit?: (key: string) => string | null
+  /** One short turn on a new cloud account, answering with the model that answered (`Agent.write`). */
+  checkCloud: (home: AccountHome) => Promise<{ model: string | null }>
+  /** The AWS profiles of the user the service runs as (`readAwsProfiles`). */
+  awsProfiles: () => AwsProfiles
+  /** Who the service runs as, for a cloud's credential refusal to name. */
+  whose: () => Whose
   /** Whether the agent's provider takes the key. */
   checkKey: (agent: string, key: string) => Promise<KeyVerdict>
   keyCheckMs: number
@@ -108,6 +117,8 @@ interface Known {
   error: Notice | null
   /** The folder keeps its key itself, so the page may replace it (`AccountHomes.replacement`). */
   keyHeld: boolean
+  /** The cloud the folder's `settings.json` connects to (BTN-822). */
+  cloud: CloudSummary | null
 }
 
 interface Running {
@@ -126,6 +137,9 @@ export class AccountWatcher {
   private output = ''
   private timer: NodeJS.Timeout | undefined
   private readonly keys: KeyChecks
+  private aws: AwsProfiles | undefined
+  /** The model each cloud account's check turn answered with, by folder key (BTN-822). */
+  private readonly checkedModels = new Map<string, string | null>()
   private readonly credit: CreditChecks
 
   constructor(private readonly options: AccountWatcherOptions) {
@@ -142,12 +156,12 @@ export class AccountWatcher {
 
   get view(): AccountView {
     const now = this.options.now()
-    const accounts = this.known.map(({ home, status, error, keyHeld }): AccountEntry => {
+    const accounts = this.known.map(({ home, status, error, keyHeld, cloud }): AccountEntry => {
       const times = this.options.homes.times(home)
-      const transport = this.options.transportOf(home, isApiKey(status))
+      const transport = this.options.transportOf(home, paysPerToken(status))
       const seen = this.options.signedInAs?.(home.key)
       const signedOut = this.needsLogin(home.key)
-      const terminalLogin = signedOut && !isApiKey(status) ? this.options.agentOf(home).terminalLogin?.(home) : undefined
+      const terminalLogin = signedOut && !paysPerToken(status) ? this.options.agentOf(home).terminalLogin?.(home) : undefined
       return {
         key: home.key,
         name: this.options.nameOf(home.key),
@@ -167,6 +181,8 @@ export class AccountWatcher {
         configPending: this.options.configPending(home.key),
         apiKey: isApiKey(status),
         keyReplaceable: isApiKey(status) && keyHeld,
+        ...(cloud !== null && { cloud }),
+        ...(this.checkedModels.has(home.key) && { checkedModel: this.checkedModels.get(home.key) ?? null }),
         ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
@@ -180,6 +196,7 @@ export class AccountWatcher {
       accounts,
       login: this.current,
       ...(this.globalCheck !== undefined && { globalCheck: this.globalCheck }),
+      ...(this.aws !== undefined && { aws: this.aws }),
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
       pool: this.options.pool().filter((entry) => accounts.some((account) => account.key === entry.account && account.agent === entry.provider)),
@@ -199,8 +216,9 @@ export class AccountWatcher {
     return this.known.find((known) => known.home.key === key)?.status?.email ?? null
   }
 
+  /** The account pays per token, with a key or on a cloud: no plan limits to poll or wait out. */
   apiKey(key: string): boolean {
-    return isApiKey(this.known.find((known) => known.home.key === key)?.status ?? null)
+    return paysPerToken(this.known.find((known) => known.home.key === key)?.status ?? null)
   }
 
   /** When an API key can pay again after a credit or spending refusal at `at`; asking keeps it checked. */
@@ -286,6 +304,33 @@ export class AccountWatcher {
     const verdict = await this.accepted(agent, value)
     const home = this.options.homes.addApiKey(name, value, agent)
     this.noteKey(home.key, verdict)
+    this.options.name(home.key, name)
+    this.claimShared(home)
+    await this.refresh()
+  }
+
+  /** Reads the AWS profiles of the service's user for the cloud form; the page gets them in `view.aws`. */
+  readAws(): void {
+    this.aws = this.options.awsProfiles()
+    this.options.onChange()
+  }
+
+  /**
+   * A cloud account (BTN-822): the folder is made, one short turn runs on it, and a refusal removes it again with the
+   * cloud's own reason (`cloudErrorNotice`), so no account is added that cannot run a session.
+   */
+  async addCloud(name: string, connection: CloudConnection): Promise<void> {
+    const home = this.options.homes.addCloud(name, connection)
+    let model: string | null
+    try {
+      model = (await this.options.checkCloud(home)).model
+    } catch (reason) {
+      await this.options.homes.remove(home)
+      const text = reason instanceof Error ? reason.message : String(reason)
+      const known = cloudErrorNotice(text, this.options.whose())
+      throw known === undefined ? fail('account.cloudCheckFailed', { reason: text.slice(0, 500) }) : new NoticeError(known)
+    }
+    this.checkedModels.set(home.key, model)
     this.options.name(home.key, name)
     this.claimShared(home)
     await this.refresh()
@@ -422,11 +467,12 @@ export class AccountWatcher {
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
-    if (!home.global && status?.loggedIn === true && !isApiKey(status)) await this.options.agentOf(home).logout(home)
+    if (!home.global && status?.loggedIn === true && !paysPerToken(status)) await this.options.agentOf(home).logout(home)
     await this.options.homes.remove(home)
     this.options.forget(key)
     this.keys.forget(key)
     this.credit.forget(key)
+    this.checkedModels.delete(key)
     this.options.organizations.forget(key)
   }
 
@@ -449,13 +495,14 @@ export class AccountWatcher {
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
     const keyHeld = !home.global && this.options.homes.apiKeyOf(home) !== null
-    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld }
+    const cloud = this.options.homes.cloudOf(home)
+    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, cloud }
     try {
-      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld }
+      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, cloud }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
-      return { home, status: before?.status ?? null, error, keyHeld }
+      return { home, status: before?.status ?? null, error, keyHeld, cloud }
     }
   }
 

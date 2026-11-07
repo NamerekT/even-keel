@@ -14,6 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { CLOUD_VARIABLES, cloudOf } from './cloud.js'
 import { pathKey, sameSpelling } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 
@@ -41,11 +42,20 @@ export interface SharedSources {
   config: string
 }
 
-/** The global settings win, except the folder's own API key: it is what makes an API account (`docs/accounts.md`). */
+/**
+ * The global settings win, except the folder's own API key and cloud connection: they are what makes an API or a cloud
+ * account (`docs/accounts.md`). A cloud folder takes none of the cloud's variables from the global settings.
+ */
 export function mergeSettings(global: Json, folder: Json | undefined): Json {
   const merged = { ...folder, ...global }
-  const key = objectOf(folder?.env)[API_KEY_VARIABLE]
+  const own = objectOf(folder?.env)
+  const key = own[API_KEY_VARIABLE]
   if (typeof key === 'string') merged.env = { ...objectOf(global.env), [API_KEY_VARIABLE]: key }
+  if (cloudOf(own) !== null) {
+    const shared = Object.fromEntries(Object.entries(objectOf(merged.env ?? global.env)).filter(([name]) => !CLOUD_VARIABLES.includes(name)))
+    const cloud = Object.fromEntries(Object.entries(own).filter(([name]) => CLOUD_VARIABLES.includes(name)))
+    merged.env = { ...shared, ...cloud }
+  }
   if (folder?.apiKeyHelper !== undefined) merged.apiKeyHelper = folder.apiKeyHelper
   return merged
 }

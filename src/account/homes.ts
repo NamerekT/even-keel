@@ -9,6 +9,8 @@ import { fail } from '../notice/notice.js'
 import { keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
+import { shortLivedProfile } from './aws.js'
+import { cloudEnv, cloudOf, type CloudConnection, type CloudSummary } from './cloud.js'
 import { KeychainCredentials, keychainService } from './keychain.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
@@ -213,6 +215,25 @@ export class AccountHomes {
     const approved = { customApiKeyResponses: { approved: [value.slice(-APPROVED_SUFFIX)], rejected: [] } }
     writeFileSync(join(home.dir, '.claude.json'), JSON.stringify(approved, null, 2))
     return home
+  }
+
+  /**
+   * A cloud account (BTN-822): a Claude folder whose `settings.json` `env` holds the whole connection, its secrets kept
+   * there as an API account's key is. Named like an API account, after the cloud when the name is blank.
+   */
+  addCloud(name: string, connection: CloudConnection): AccountHome {
+    const home = this.home(CLAUDE, folderName(name.trim() === '' ? connection.cloud : name, this.taken()))
+    mkdirSync(home.dir, { recursive: true })
+    this.forget()
+    writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: cloudEnv(connection) }, null, 2))
+    return home
+  }
+
+  /** The cloud a Claude folder's `settings.json` connects to; null for any other folder. */
+  cloudOf(home: AccountHome): CloudSummary | null {
+    if (home.agent !== CLAUDE) return null
+    const env = objectOf(readObject(join(home.dir, 'settings.json')).env)
+    return cloudOf(env, (profile) => shortLivedProfile(this.env, profile))
   }
 
   /**

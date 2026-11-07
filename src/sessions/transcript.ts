@@ -1,3 +1,4 @@
+import { cloudErrorNotice } from '../account/cloud-errors.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import type { Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
@@ -287,8 +288,11 @@ export class TranscriptFold {
 
     if (entry.isApiErrorMessage === true) {
       const text = flatten(blocks.map((block) => block.text ?? '').join(' '), TEXT_LIMIT) || String(entry.error)
-      this.apiError = { kind: isSpendingLimit(text) ? 'spend' : API_ERROR_KINDS.get(entry.error) ?? (isTransientError(text) ? 'transient' : 'error'), text, at }
-      this.addAction({ at, kind: 'error', text })
+      // A cloud's refusal, its throttling too, is an error with its own message: a cloud has no reset to wait out (BTN-822).
+      const cloud = cloudErrorNotice(text)
+      const kind = cloud !== undefined ? 'error' : isSpendingLimit(text) ? 'spend' : API_ERROR_KINDS.get(entry.error) ?? (isTransientError(text) ? 'transient' : 'error')
+      this.apiError = { kind, text, at, ...(cloud !== undefined && { notice: cloud }) }
+      this.addAction({ at, kind: 'error', text, ...(cloud !== undefined && { notice: cloud }) })
       return
     }
     if (entry.message?.model === '<synthetic>') return

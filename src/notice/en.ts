@@ -12,6 +12,8 @@ export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', code
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 
 const list = (items: string[]) => items.join(', ')
+/** The service's user and home in brackets, when known (`cloudErrorNotice`). */
+export const whose = (p: { user: string; home: string }) => (p.user === '' ? '' : ` (${p.user}, ${p.home})`)
 /** Bytes as whole megabytes, at least one decimal for less than ten. */
 export const megabytes = (bytes: number) => {
   const value = bytes / 1024 / 1024
@@ -361,6 +363,21 @@ export const en = {
     `opencode: the account holds a key of ${PROVIDER_NAMES[p.provider] ?? p.provider}; a key of another provider is another account: add it as one`,
   'account.keyOtherOrganization': (p: { agent: string }) =>
     `${p.agent}: the key is of another organization than the account's, so it is another account: add it as one; the old key stays`,
+  'account.cloudNotReady': (p: { cloud: string }) => `claude: accounts on ${p.cloud} are not supported yet`,
+  'account.cloudFieldInvalid': (p: { field: string }) => `claude: ${p.field} is one word, without spaces`,
+  'account.cloudCheckFailed': (p: { reason: string }) => `claude: the check turn on the cloud failed, nothing was added: ${p.reason}`,
+  'cloud.bedrockModelDenied': () =>
+    "Amazon Bedrock refuses the model to this AWS account: access to Anthropic's models is not granted. Request it in the Bedrock console (Model access) in the account's region; AWS may refuse a new account with no payment history itself, and then only AWS Support opens it",
+  'cloud.bedrockPayment': () =>
+    'AWS finds no valid payment method on this account (INVALID_PAYMENT_INSTRUMENT): add one in the AWS Billing console, then try again',
+  'cloud.awsCredentials': (p: { user: string; home: string }) =>
+    `AWS credentials are not found or have expired for the user Even Keel runs as${whose(p)}: sign in again (aws sso login, aws login) or give the keys in the account. Another Windows user's ~/.aws is not seen by the service`,
+  'cloud.awsTimeout': (p: { user: string; home: string }) =>
+    `AWS credentials took too long to resolve (AWS default-chain credential resolve timed out) for the user Even Keel runs as${whose(p)}: check the profile, the network and the proxy, or give the keys in the account`,
+  'cloud.bedrockRegion': () =>
+    "Amazon Bedrock does not serve this model on demand in the account's region: pin an inference profile (us.anthropic.…) or its ARN in the account's models, or pick a region that serves it",
+  'cloud.throttled': () =>
+    'Amazon Bedrock throttles the requests (ThrottlingException). A cloud has no known reset time, so the session stopped and is not waited out: answer it later from the chat, or raise the quota in AWS Service Quotas',
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
