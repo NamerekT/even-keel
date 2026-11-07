@@ -2,7 +2,8 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { BranchDriftBand, BranchField, BranchMoveLine, useRepoBranches } from './BranchField.js'
-import { protectionText, sameProtection } from './protectionDraft.js'
+import { protectionText } from './protectionDraft.js'
+import { GROUPS, keysOf, labelOf, onOff, same, standardsShown, STATUS_KEYS, ttlLabel, type GroupId, type Option } from './projectSettingsDraft.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -37,7 +38,6 @@ import {
   type RuleKey,
   rulesOf,
   rulesText,
-  sameBy,
   SaveBar,
   Section,
   SHARE_KEYS,
@@ -74,37 +74,7 @@ import { FORGES } from '../../../src/notice/en.js'
 import { NoticeSettings } from './NoticeSettings.js'
 import './settings.css'
 
-// Related fields share a group, so a save of one group never leaves another half-agreeing with it.
-const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'] },
-  { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
-  {
-    id: 'sessions',
-    keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
-  },
-  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
-  // Applied at once, as "Don't show again" on a banner is (BTN-759): no draft.
-  { id: 'notices', keys: [] },
-] as const
-type GroupId = (typeof GROUPS)[number]['id']
-const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
-const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
-const sameLines = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
-const same = (key: string, a: Value, b: Value) => (key === 'protection' ? sameProtection(a as string, b as string) : sameLines(key, a, b))
-const STATUS_KEYS: readonly RuleKey[] = ['active', 'terminal']
-
-const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
-const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
-const standardsShown = (value: Value) => shown(standardRows(value as string).map((row) => row.doc || '—'))
-type Option = { value: string; label: string }
-const labelOf = (options: readonly Option[]) => (value: Value) => options.find((option) => option.value === value)?.label ?? String(value)
-
-/** Whether a group of the project's settings holds changes nobody saved yet: the Settings tab shows it even with the panel closed. */
-export function useSettingsDirty(project: string, form: ProjectForm | undefined): boolean {
-  const { state } = useLive()
-  const [draft] = useDraft(scopeOf(project), form === undefined ? undefined : valuesOf(form, profileOf(state, project, form.tracker)?.rules ?? {}), same)
-  return draft !== undefined && changed(draft, KEYS, same).length > 0
-}
+export { useSettingsDirty } from './projectSettingsDraft.js'
 
 export function SettingsPanel({
   project,
