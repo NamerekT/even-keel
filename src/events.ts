@@ -20,9 +20,10 @@ interface Watcher {
   windowMs: number
   /** When it was last handed data. */
   at: number
-  pending: { produce: () => unknown; since: number } | null
-  /** The data a page's build made last, while the watcher waits. */
-  built: { data: unknown; at: number } | null
+  /** `call` — the number of the event's latest `broadcastSoon` the watcher waits for. */
+  pending: { produce: () => unknown; call: number } | null
+  /** The data a build made last while the watcher waits — a page's or another watcher's — and the call it is of. */
+  built: { data: unknown; call: number } | null
 }
 
 /** The JSON of each part last sent, a keyed part's by its entries. */
@@ -38,7 +39,9 @@ export class EventHub {
   private readonly sent = new Map<string, Sent>()
   private readonly soon = new Map<string, { produce: () => unknown }>()
   private readonly builtAt = new Map<string, number>()
-  private readonly watchers = new Map<string, Watcher>()
+  private readonly watchers = new Map<string, Watcher[]>()
+  /** How many times `broadcastSoon` ran per event: a build of the latest producer serves every call up to it. */
+  private readonly calls = new Map<string, number>()
 
   /** `parted` — the events whose object data goes in parts after the first frame, with their keyed parts. */
   constructor(private readonly parted: Record<string, KeyedParts> = {}) {}
@@ -129,6 +132,7 @@ export class EventHub {
    * only the last producer once. With no page listening nothing is built.
    */
   broadcastSoon(event: string, produce: () => unknown): void {
+    this.calls.set(event, (this.calls.get(event) ?? 0) + 1)
     this.watchSoon(event, produce)
     const pending = this.soon.get(event)
     if (pending !== undefined) {
@@ -157,35 +161,53 @@ export class EventHub {
     }
     this.builtAt.set(event, Date.now())
     const data = produce()
-    const watcher = this.watchers.get(event)
-    if (watcher !== undefined) watcher.built = { data, at: Date.now() }
+    this.keepBuilt(event, data)
     this.broadcast(event, data)
+  }
+
+  /** Each build is of the latest producer, so it serves every call made so far. */
+  private keepBuilt(event: string, data: unknown): void {
+    const call = this.calls.get(event) ?? 0
+    for (const watcher of this.watchers.get(event) ?? []) watcher.built = { data, call }
   }
 
   /**
    * Hands `watch` the data of `broadcastSoon` at most once per `windowMs`, also while no page listens (BTN-350): the
    * event log looks at the state the service builds for the page. A page's build since the call is taken as it is.
+   * Each watcher of an event keeps its own window (BTN-842: the demo's watcher had replaced the event log's).
    */
   watch(event: string, watch: (data: unknown) => void, windowMs: number): void {
-    this.watchers.set(event, { watch, windowMs, at: -Infinity, pending: null, built: null })
+    const watchers = this.watchers.get(event) ?? []
+    watchers.push({ watch, windowMs, at: -Infinity, pending: null, built: null })
+    this.watchers.set(event, watchers)
   }
 
   private watchSoon(event: string, produce: () => unknown): void {
-    const watcher = this.watchers.get(event)
-    if (watcher === undefined) return
+    for (const watcher of this.watchers.get(event) ?? []) this.watchOne(event, watcher, produce)
+  }
+
+  private watchOne(event: string, watcher: Watcher, produce: () => unknown): void {
+    const call = this.calls.get(event) ?? 0
     if (watcher.pending !== null) {
       watcher.pending.produce = produce
+      watcher.pending.call = call
       return
     }
-    const slot = { produce, since: Date.now() }
+    const slot = { produce, call }
     watcher.pending = slot
     setTimeout(() => {
       watcher.pending = null
       watcher.at = Date.now()
       const built = watcher.built
-      watcher.built = null
       try {
-        watcher.watch(built !== null && built.at >= slot.since ? built.data : slot.produce())
+        let data: unknown
+        if (built !== null && built.call >= slot.call) data = built.data
+        else {
+          data = slot.produce()
+          // The other watchers of the event take this build instead of making their own.
+          this.keepBuilt(event, data)
+        }
+        watcher.watch(data)
       } catch (error) {
         console.error(`events: the watcher of ${event} failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
       }

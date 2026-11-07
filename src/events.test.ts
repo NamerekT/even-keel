@@ -149,6 +149,46 @@ describe('EventHub', () => {
       expect(seen).toEqual([{ n: 1 }])
     })
 
+    it('hands the data to every watcher of the event, each on its own window (BTN-842)', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const log: unknown[] = []
+      const demo: unknown[] = []
+      hub.watch('state', (data) => log.push(data), 2000)
+      hub.watch('state', (data) => demo.push(data), 500)
+      const produce = vi.fn(() => 'a')
+      hub.broadcastSoon('state', produce)
+      vi.advanceTimersByTime(0)
+      expect(log).toEqual(['a'])
+      expect(demo).toEqual(['a'])
+      expect(produce).toHaveBeenCalledTimes(1)
+      hub.broadcastSoon('state', () => 'b')
+      vi.advanceTimersByTime(500)
+      expect(demo).toEqual(['a', 'b'])
+      expect(log).toEqual(['a'])
+      vi.advanceTimersByTime(1500)
+      expect(log).toEqual(['a', 'b'])
+    })
+
+    it('takes no build of another watcher that came before a newer call', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const first: unknown[] = []
+      const second: unknown[] = []
+      hub.watch('state', (data) => first.push(data), 100)
+      hub.broadcastSoon('state', () => 'a')
+      vi.advanceTimersByTime(0)
+      hub.watch('state', (data) => second.push(data), 100)
+      vi.advanceTimersByTime(50)
+      hub.broadcastSoon('state', () => 'b')
+      vi.advanceTimersByTime(0)
+      expect(second).toEqual(['b'])
+      vi.advanceTimersByTime(10)
+      hub.broadcastSoon('state', () => 'c')
+      vi.advanceTimersByTime(40)
+      expect(first).toEqual(['a', 'c'])
+    })
+
     it('keeps watching after a watcher throws', () => {
       vi.useFakeTimers()
       const hub = new EventHub()
