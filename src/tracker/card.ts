@@ -1,4 +1,4 @@
-import { compareMilestones } from '../chain/order.js'
+import { milestoneComparator } from '../chain/order.js'
 import { missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
 import { QUESTION_LABELS, runLabelOf, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
 
@@ -128,7 +128,7 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, m
     ready: (can.ready && category === 'UnStarted') || (can.relabel && missingLabel(rules, raw) !== null),
     unready: (can.unready && (category === 'ToDo' || category === 'Active')) || (can.relabel && open && requiredOn(rules, raw).length > 0),
     requires: required ? rules.requiredLabels : [],
-    milestones: milestones === null ? null : { ...milestones, choices: [...milestones.choices].sort(compareMilestones) },
+    milestones: milestones === null ? null : { ...milestones, choices: [...milestones.choices].sort(milestoneComparator(milestones.choices)) },
     relabel: can.relabel,
   }
 }

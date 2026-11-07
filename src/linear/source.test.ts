@@ -126,7 +126,7 @@ describe('linear source', () => {
 
   it('reads tasks by id team by team, leaving out what is gone and what is not a task id', async () => {
     const { source, calls } = await connect([
-      { body: { data: { t0: { nodes: [issue('ENG-12', { state: { name: 'Canceled', type: 'canceled' } })] }, t1: { nodes: [issue('OPS-1')] } } } },
+      { body: { data: { t0: { nodes: [issue('ENG-12', { state: { name: 'Canceled', type: 'canceled' }, projectMilestone: { id: 'm1', name: 'MVP', targetDate: null, sortOrder: 0, project: { id: 'p1' } } })] }, t1: { nodes: [issue('OPS-1')] } } } },
     ])
     const tasks = await source.tasks(['ENG-12', 'ENG-99', 'OPS-1', 'junk'])
     expect(tasks.map((task) => [task.id, task.status.name])).toEqual([
@@ -134,6 +134,8 @@ describe('linear source', () => {
       ['OPS-1', 'Todo'],
     ])
     expect(calls[1]!.query).toContain('t0: issues(')
+    expect(calls[1]!.query).toContain('sortOrder project { id }')
+    expect(tasks[0]!.milestone?.trackerOrder).toEqual({ source: 'linear:p1', value: 0 })
     expect(calls[1]!.variables).toEqual({
       f0: { team: { key: { eq: 'ENG' } }, number: { in: [12, 99] } },
       f1: { team: { key: { eq: 'OPS' } }, number: { in: [1] } },
@@ -297,20 +299,24 @@ describe('linear source', () => {
     expect(calls).toHaveLength(6)
   })
 
-  it('offers the milestones of the issue project, none for an issue without one', async () => {
-    const nodes = [{ id: 'milestone-1', name: 'v0.1', targetDate: '2026-10-21' }, { id: 'milestone-2', name: 'v0.2', targetDate: null }]
-    const { source } = await connect([
+  it('offers the milestones of the issue project with native positions, none for an issue without one', async () => {
+    const nodes = [
+      { id: 'milestone-1', name: 'v0.1', targetDate: '2026-10-21', sortOrder: 2, project: { id: 'project-web' } },
+      { id: 'milestone-2', name: 'v0.2', targetDate: null, sortOrder: 1, project: { id: 'project-web' } },
+    ]
+    const { source, calls } = await connect([
       { body: { data: { issues: { nodes: [{ projectMilestone: { id: 'milestone-2' }, project: { projectMilestones: { nodes } } }] } } } },
       { body: { data: { issues: { nodes: [{ projectMilestone: null, project: null }] } } } },
     ])
     expect(await source.milestones!('ENG-9')).toEqual({
       current: 'milestone-2',
       choices: [
-        { id: 'milestone-1', label: 'v0.1', targetDate: Date.parse('2026-10-21') },
-        { id: 'milestone-2', label: 'v0.2', targetDate: null },
+        { id: 'milestone-1', label: 'v0.1', targetDate: Date.parse('2026-10-21'), trackerOrder: { source: 'linear:project-web', value: 2 } },
+        { id: 'milestone-2', label: 'v0.2', targetDate: null, trackerOrder: { source: 'linear:project-web', value: 1 } },
       ],
     })
     expect(await source.milestones!('ENG-9')).toEqual({ current: null, choices: [] })
+    expect(calls[1]!.query).toContain('sortOrder project { id }')
   })
 
   it('moves an issue into a milestone or out of any', async () => {

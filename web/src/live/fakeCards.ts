@@ -1,4 +1,4 @@
-import { compareMilestones } from '../../../src/chain/order.js'
+import { milestoneComparator } from '../../../src/chain/order.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
@@ -104,7 +104,8 @@ function fakeMilestones(state: EvenKeelState, id: string): MilestoneChoice[] {
   const project = id.split('-')[0]!
   const found = new Map<string, TaskMilestone>()
   for (const task of state.tasks) if (task.id.startsWith(`${project}-`) && task.milestone !== null) found.set(task.milestone.label, task.milestone)
-  return [...found.values()].sort(compareMilestones).map((milestone) => ({ id: milestone.label, ...milestone }))
+  const milestones = [...found.values()]
+  return milestones.sort(milestoneComparator(milestones)).map((milestone) => ({ id: milestone.label, ...milestone }))
 }
 
 export function fakeMoveMilestone(state: EvenKeelState, id: string, milestone: string | null): EvenKeelState {

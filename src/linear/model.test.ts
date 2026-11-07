@@ -46,6 +46,15 @@ describe('linear priority', () => {
 })
 
 describe('linear issue to task', () => {
+  it('carries zero and fractional positions scoped to the Linear project', () => {
+    for (const sortOrder of [0, -1.5, 2.25]) {
+      const task = toTrackerTask(issue('ENG-7', { projectMilestone: { id: 'm1', name: 'MVP', targetDate: null, sortOrder, project: { id: 'p1' } } }))
+      expect(task.milestone).toEqual({ label: 'MVP', targetDate: null, trackerOrder: { source: 'linear:p1', value: sortOrder } })
+    }
+    const task = toTrackerTask(issue('ENG-7', { projectMilestone: { id: 'm1', name: 'MVP', targetDate: null, sortOrder: NaN, project: { id: 'p1' } } }))
+    expect(task.milestone?.trackerOrder).toBeUndefined()
+  })
+
   it('takes the fields the chain needs', () => {
     const raw = issue('ENG-7', {
       title: 'Add login',
@@ -111,6 +120,8 @@ describe('linear card', () => {
   })
 
   it('takes the text, labels, priority, milestone and status of the issue', () => {
+    expect(toCard(raw({ projectMilestone: { name: 'MVP', targetDate: null, sortOrder: 0, project: { id: 'p1' } } })).milestone)
+      .toEqual({ label: 'MVP', targetDate: null, trackerOrder: { source: 'linear:p1', value: 0 } })
     expect(toCard(raw())).toMatchObject({
       id: 'ENG-5',
       description: 'Body',

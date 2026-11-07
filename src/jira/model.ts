@@ -1,4 +1,5 @@
 import { sameName } from '../chain/rules.js'
+import { milestoneComparator } from '../chain/order.js'
 import type { TaskAttachment, TaskRef, TrackerCard } from '../tracker/card.js'
 import type { TaskMilestone, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
 import { adfToMarkdown, type AdfNode, type MediaLink } from './adf.js'
@@ -25,6 +26,8 @@ export interface JiraLink {
 export interface JiraVersion {
   id: string
   name: string
+  /** Added from the project's sequence-ordered version catalog, not the issue response. */
+  trackerOrder?: TaskMilestone['trackerOrder']
   releaseDate?: string
   released?: boolean
   archived?: boolean
@@ -111,14 +114,20 @@ export function priorityFor<T extends { name: string }>(level: TaskPriority, pri
   return named ?? priorities.find((each) => jiraPriority(each, order) === level)
 }
 
-/** The earliest version by release date; one without a date goes after the dated ones. */
+/** The first fix version in the same order the chain uses. */
 export function earliestVersion(versions: readonly JiraVersion[] | undefined): JiraVersion | null {
-  const dated = (version: JiraVersion) => (version.releaseDate ? Date.parse(version.releaseDate) : Number.POSITIVE_INFINITY)
-  return [...(versions ?? [])].sort((a, b) => dated(a) - dated(b))[0] ?? null
+  const milestones = (versions ?? []).map((version) => milestoneOf(version)!)
+  const compare = milestoneComparator(milestones)
+  return (versions ?? []).map((version, index) => ({ version, milestone: milestones[index]! }))
+    .sort((a, b) => compare(a.milestone, b.milestone))[0]?.version ?? null
 }
 
 export function milestoneOf(version: JiraVersion | null): TaskMilestone | null {
-  return version === null ? null : { label: version.name, targetDate: version.releaseDate ? Date.parse(version.releaseDate) : null }
+  return version === null ? null : {
+    label: version.name,
+    targetDate: version.releaseDate ? Date.parse(version.releaseDate) : null,
+    ...(version.trackerOrder === undefined ? {} : { trackerOrder: version.trackerOrder }),
+  }
 }
 
 const isBlocks = (link: JiraLink) => sameName(link.type.name, BLOCKS)

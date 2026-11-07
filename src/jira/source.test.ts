@@ -53,6 +53,7 @@ describe('Jira task source', () => {
       { body: { issues: [issue('ABC-1', { status: todo, fixVersions: [{ id: '20', name: 'v1' }] })] } },
       { body: { issues: [issue('ABC-2', { status: backlog })] } },
       PRIORITIES,
+      { body: { values: [{ id: '20', name: 'v1' }], isLast: true } },
     ])
     const result = await source.chainTasks('project-id', notTerminal)
     expect(calls[3]!.body).toMatchObject({ jql: 'project = "ABC" AND status in (10001) ORDER BY key' })
@@ -114,6 +115,7 @@ describe('Jira task source', () => {
       { body: { issues: [epic] } },
       { body: { issues: [issue('ABC-2', { status: DONE, fixVersions: [{ id: '20', name: 'v1.0' }] })] } },
       PRIORITIES,
+      { body: { values: [{ id: '20', name: 'v1.0' }], isLast: true } },
       { body: { issues: [issue('ABC-5', { parent: { key: 'ABC-4', fields: { summary: 'Epic', status: TODO } } }), issue('ABC-6', { parent: { key: 'ABC-4', fields: { summary: 'Epic', status: TODO } } })] } },
     ])
     const result = await source.chainTasks('project-id', notTerminal)
@@ -124,7 +126,7 @@ describe('Jira task source', () => {
     expect(calls[3]!.body).toMatchObject({ jql: 'project = "ABC" AND status in (10001, 3) ORDER BY key' })
     expect(calls[4]!.body).toMatchObject({ nextPageToken: 'next' })
     expect(calls[5]!.body).toMatchObject({ jql: 'project = "ABC" AND status in (10000, 10002) AND fixVersion in (20) ORDER BY key' })
-    expect(calls[7]!.body).toMatchObject({ jql: 'parent in (ABC-4)', fields: ['parent'] })
+    expect(calls[8]!.body).toMatchObject({ jql: 'parent in (ABC-4)', fields: ['parent'] })
     expect(remaining()).toBe(0)
   })
 
@@ -248,11 +250,12 @@ describe('Jira task source', () => {
       { body: { issueTypes: [{ id: '1', name: 'Epic', hierarchyLevel: 1 }, { id: '2', name: 'Sub-task', subtask: true, hierarchyLevel: -1 }, { id: '3', name: 'Task', hierarchyLevel: 0 }] } },
       PRIORITIES,
       { body: { fields: { fixVersions: [{ id: '21', name: 'v1.1', releaseDate: '2026-12-01' }, { id: '20', name: 'v1.0', releaseDate: '2026-11-01' }] } } },
+      { body: { values: [{ id: '20', name: 'v1.0' }, { id: '21', name: 'v1.1' }], isLast: true } },
       { body: { key: 'ABC-10' } },
       { body: { fields: { status: TODO } } },
     ])
     expect(await source.create!({ project: 'project-id', title: 'Fix main', description: 'Red', priority: 'high', milestoneOf: 'ABC-1' })).toBe('ABC-10')
-    expect(calls[5]!.body).toEqual({
+    expect(calls[6]!.body).toEqual({
       fields: { project: { key: 'ABC' }, issuetype: { id: '3' }, summary: 'Fix main', description: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Red' }] }] }, priority: { id: '2' }, fixVersions: [{ id: '20' }] },
     })
   })
@@ -297,7 +300,7 @@ describe('Jira task source', () => {
       { body: { fields: { fixVersions: [{ id: '20', name: 'v1.0' }] } } },
       { status: 204 },
       { body: { fields: { fixVersions: [{ id: '19', name: 'v0.9', released: true }] } } },
-      { body: [{ id: '19', name: 'v0.9', released: true }, { id: '20', name: 'v1.0', releaseDate: '2026-11-01' }, { id: '18', name: 'old', archived: true }] },
+      { body: { values: [{ id: '19', name: 'v0.9', released: true }, { id: '20', name: 'v1.0', releaseDate: '2026-11-01' }, { id: '18', name: 'old', archived: true }], isLast: true } },
       { status: 204 },
     ])
     expect(await source.setMilestone!('ABC-1', 'ABC-2')).toBe(true)
@@ -305,7 +308,10 @@ describe('Jira task source', () => {
     expect(await source.setMilestone!('ABC-1', 'XYZ-2')).toBe(false)
     expect(await source.milestones!('ABC-1')).toEqual({
       current: '19',
-      choices: [{ id: '20', label: 'v1.0', targetDate: Date.parse('2026-11-01') }, { id: '19', label: 'v0.9', targetDate: null }],
+      choices: [
+        { id: '20', label: 'v1.0', targetDate: Date.parse('2026-11-01'), trackerOrder: { source: 'jira:ABC', value: 1 } },
+        { id: '19', label: 'v0.9', targetDate: null, trackerOrder: { source: 'jira:ABC', value: 0 } },
+      ],
     })
     await source.moveMilestone!('ABC-1', null)
     expect(calls[7]!.body).toEqual({ fields: { fixVersions: [] } })

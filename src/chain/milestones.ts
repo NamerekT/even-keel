@@ -1,5 +1,5 @@
 import type { Task } from '../tracker/model.js'
-import { byNumber, chainOrder, compareMilestones } from './order.js'
+import { byNumber, chainOrder, milestoneComparator } from './order.js'
 
 export interface ChainView {
   /** The tasks in the chain. */
@@ -27,9 +27,10 @@ export interface MilestoneFillerOptions {
 /** The task that carries the active milestone: the current one, else the one with the earliest milestone in the chain. */
 export function activeMilestone(tasks: Task[], current: string | undefined): Task | undefined {
   const planned = tasks.filter((task) => task.milestone !== null)
+  const compare = milestoneComparator(planned.map((task) => task.milestone!))
   return (
     planned.find((task) => task.id === current) ??
-    [...planned].sort((a, b) => compareMilestones(a.milestone!, b.milestone!) || byNumber(a.id, b.id))[0]
+    [...planned].sort((a, b) => compare(a.milestone!, b.milestone!) || byNumber(a.id, b.id))[0]
   )
 }
 

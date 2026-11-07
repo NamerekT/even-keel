@@ -7,7 +7,7 @@ import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, prec
 const task = (id: string, ...blockedBy: string[]): Task => fakeTask(id, { blockedBy })
 
 const milestone = (label: string, targetDate = 0): TaskMilestone => ({ label, targetDate })
-const v1 = milestone('v0.1 — first slice', 300)
+const v1 = milestone('v0.1 — first slice', 100)
 const v2 = milestone('v0.2 — second slice', 200)
 const inMilestone = (m: TaskMilestone, id: string, ...blockedBy: string[]): Task => ({ ...task(id, ...blockedBy), milestone: m })
 const withPriority = (priority: TaskPriority, id: string, ...blockedBy: string[]): Task => ({ ...task(id, ...blockedBy), priority })
@@ -214,8 +214,8 @@ describe('compareMilestones', () => {
     expect(sorted(['v0.10', 0], ['v0.2', 0], ['v1', 0], ['0.1 beta', 0])).toEqual(['0.1 beta', 'v0.2', 'v0.10', 'v1'])
   })
 
-  it('puts milestones without a version after numbered ones, by target date', () => {
-    expect(sorted(['Later', 100], ['Sooner', 50], ['v0.3', 900])).toEqual(['v0.3', 'Sooner', 'Later'])
+  it('compares dates before numbers in the name', () => {
+    expect(sorted(['Later', 100], ['Sooner', 50], ['v0.3', 900])).toEqual(['Sooner', 'Later', 'v0.3'])
   })
 
   it('breaks a version tie by target date', () => {
