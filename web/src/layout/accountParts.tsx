@@ -245,6 +245,7 @@ export function AccountName({ entry, accounts, whole = false, send, sending = fa
   return (
     <input
       className="accounts__name-input"
+      autoComplete="off"
       aria-label={t.account.keyName}
       placeholder={accountName({ ...entry, name: null }, accounts)}
       maxLength={NAME_LENGTH}

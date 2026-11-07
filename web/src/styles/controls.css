@@ -231,6 +231,57 @@ a:focus-visible {
   font-weight: 600;
 }
 
+/* A quiet icon button of a list row: hidden until the row is hovered or focused, the accent only on itself. */
+.row-action {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.row-action::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.row-action .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.75;
+}
+
+.row-action-host:hover .row-action,
+.row-action-host:focus-within .row-action {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .row-action {
+    opacity: 1;
+  }
+}
+
+.row-action:hover,
+.row-action:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
 .lamp {
   flex: none;
   width: 10px;

@@ -150,6 +150,7 @@ function AddSubtask({ card, project, editor, confirmFirst }: { card: Editable; p
     <div className="task-card__add">
       <input
         className="task-card__field"
+        autoComplete="off"
         aria-label={t.card.edit.subtaskTitle}
         placeholder={t.card.edit.subtaskTitle}
         value={draft}

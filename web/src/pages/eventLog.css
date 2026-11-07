@@ -72,13 +72,6 @@
   vertical-align: 1px;
 }
 
-@media (max-width: 760px) {
-  .event-log__row {
-    grid-template-columns: 5ch 16px minmax(0, 1fr);
-  }
-
-  .event-log__open {
-    grid-column: 3;
-    justify-self: start;
-  }
+.event-log__open {
+  justify-self: end;
 }
