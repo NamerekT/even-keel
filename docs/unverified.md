@@ -34,7 +34,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546; the demo, 99 — BTN-815.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
-- The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
+- The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d and 93 (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers, and for 93 a browser by hand: a hidden tab and a second one).
@@ -112,7 +112,6 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 34 | [Plugins from a git URL marketplace](unverified/updating.md#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 36 | ["Add to Claude Code" on /tools](unverified/packages.md#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 36a | [Secret fields and the browser's password manager](unverified/page.md#secret-fields-and-the-browsers-password-manager-btn-633) | Firefox and Opera users typing a key or a password on the page | the browser still offers to save it; decline with "Never" |
-| 36c | [A chain paused for a tracker its sessions would not see](unverified/page.md#a-chain-paused-for-a-tracker-its-sessions-would-not-see-btn-656) | projects with the task description off and no tracker package | the chain stays paused after the fix until Resume |
 | 36d | [A chain paused for packages that are not ready](unverified/page.md#a-chain-paused-for-packages-that-are-not-ready-btn-657) | projects with a package lacking its key or its install | the chain stays paused after the fix until Resume |
 | 37f2 | [MCP through OAuth on a tracker profile](unverified/trackers.md#mcp-through-oauth-on-a-tracker-profile-btn-475) | Jira profiles connected through OAuth | the connection does not complete, or sessions lose tracker tools; use the MCP token |
 | 37f3 | [The person of a Jira MCP grant](unverified/trackers.md#the-person-of-a-jira-mcp-grant-btn-590) | Jira profiles connected through OAuth on a site with several people | a grant of another person goes unnoticed, or a correct one is warned about |
