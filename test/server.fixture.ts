@@ -59,6 +59,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     hub,
     publicDir,
     getState: () => ({ chain: [] }),
+    getTray: () => ({ language: null, asking: 0, paused: 0 }),
     control,
     account,
     sessions: {

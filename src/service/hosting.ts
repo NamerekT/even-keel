@@ -291,6 +291,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,
+    getTray: () => ({
+      language: ctx.configStore.current.language,
+      asking: ctx.sessions.filter((session) => session.asking).length,
+      paused: ctx.dispatcher.state.active.filter((chain) => chain.paused).length,
+    }),
     control: ctx.chainControl,
     account: ctx.account,
     sessions: {

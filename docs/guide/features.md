@@ -2,6 +2,8 @@
 
 Help tips close when you scroll the page or another area outside the tip, or resize the window. Scrolling inside a tip keeps it open.
 
+The page loads its initial data through its live connection and then receives only changes. A button's busy mark ends when the service acknowledges the command; its result appears when the live update arrives. If the connection breaks, the page keeps its last data and reconnects. Reloading and reconnecting fetch a complete snapshot; commands are never repeated automatically. Large data responses and live updates are compressed when the browser supports gzip.
+
 ## CLI copies
 
 During first-run setup, CLI downloads and sign-in state appear on the agent cards. Usage limit warnings appear after setup; a CLI on a version Even Keel was not checked against is an entry of the event log (**Log** in the header), not a banner. Usage warnings name each affected account in a shared or project account pool, including accounts of other providers; accounts that need sign-in show that on their card instead.

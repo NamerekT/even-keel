@@ -86,10 +86,10 @@ function state(startedAt: string): EvenKeelState {
 
 describe('LiveConnection', () => {
   let streams: FakeStream[]
-  let fetched: { resolve: (value: EvenKeelState) => void; reject: (error: Error) => void }
+  let fetchState: ReturnType<typeof vi.fn<() => Promise<EvenKeelState>>>
   let live: LiveConnection
   let commands: { name: string; body: Record<string, unknown> }[]
-  let answer: () => Promise<EvenKeelState>
+  let answer: () => Promise<void>
 
   const last = () => streams.at(-1)!
 
@@ -97,7 +97,8 @@ describe('LiveConnection', () => {
     vi.useFakeTimers()
     streams = []
     commands = []
-    answer = async () => state('commanded')
+    answer = async () => {}
+    fetchState = vi.fn(async () => state('diagnostic'))
     live = new LiveConnection({
       fetchSession: async () => null,
       fetchTranscript: async () => null,
@@ -112,10 +113,7 @@ describe('LiveConnection', () => {
         commands.push({ name, body })
         return answer()
       },
-      fetchState: () =>
-        new Promise<EvenKeelState>((resolve, reject) => {
-          fetched = { resolve, reject }
-        }),
+      fetchState,
       openEvents: () => {
         const stream = new FakeStream()
         streams.push(stream)
@@ -135,21 +133,18 @@ describe('LiveConnection', () => {
     expect(streams).toHaveLength(1)
   })
 
-  it('shows the fetched state until the stream delivers a newer one', async () => {
-    fetched.resolve(state('fetched'))
-    await vi.advanceTimersByTimeAsync(0)
-    expect(live.snapshot()).toEqual({ state: state('fetched'), link: 'live' })
-
+  it('loads the first state only through the stream', async () => {
+    expect(fetchState).not.toHaveBeenCalled()
     last().emit('state', state('streamed'))
     expect(live.snapshot()).toEqual({ state: state('streamed'), link: 'live' })
   })
 
-  it('ignores a fetch that answers after the stream', async () => {
-    last().open()
-    last().emit('state', state('streamed'))
-    fetched.resolve(state('fetched'))
+  it('uses a plain request only to diagnose a closed stream, without replacing state', async () => {
+    last().emit('state', state('before'))
+    last().fail(2)
     await vi.advanceTimersByTimeAsync(0)
-    expect(live.snapshot().state).toEqual(state('streamed'))
+    expect(fetchState).toHaveBeenCalledOnce()
+    expect(live.snapshot()).toEqual({ state: state('before'), link: 'stale' })
   })
 
   it('holds the reason a service that started nothing sends, without going stale on its silence', async () => {
@@ -161,9 +156,9 @@ describe('LiveConnection', () => {
     expect(live.snapshot().link).toBe('live')
   })
 
-  it('stays connecting when the first fetch fails', async () => {
-    fetched.reject(new Error('offline'))
+  it('stays connecting while the first stream frame is missing', async () => {
     await vi.advanceTimersByTimeAsync(0)
+    expect(fetchState).not.toHaveBeenCalled()
     expect(live.snapshot()).toEqual({ state: null, link: 'connecting' })
   })
 
@@ -259,11 +254,11 @@ describe('LiveConnection', () => {
     expect(streams).toHaveLength(2)
   })
 
-  it('sends a command and shows the state it answers with right away', async () => {
+  it('acknowledges a command without replacing state before the stream patch', async () => {
     last().emit('state', state('before'))
     await live.command('start', { project: 'ABC' })
     expect(commands).toEqual([{ name: 'start', body: { project: 'ABC' } }])
-    expect(live.snapshot()).toEqual({ state: state('commanded'), link: 'live' })
+    expect(live.snapshot()).toEqual({ state: state('before'), link: 'live' })
   })
 
   it('lays a patch over the last state the stream sent, not over a command answer', async () => {
@@ -274,10 +269,8 @@ describe('LiveConnection', () => {
   })
 
   it('ignores a patch before the stream sent a whole state', async () => {
-    fetched.resolve(state('fetched'))
-    await vi.waitFor(() => expect(live.snapshot().state).toEqual(state('fetched')))
     last().emit('statePatch', { parts: { unattended: true } })
-    expect(live.snapshot().state).toEqual(state('fetched'))
+    expect(live.snapshot().state).toBeNull()
   })
 
   it('passes a failed command on to the caller and keeps the state', async () => {
@@ -285,6 +278,28 @@ describe('LiveConnection', () => {
     answer = () => Promise.reject(new Error('ABC is not a configured project'))
     await expect(live.command('start', { project: 'ABC' })).rejects.toThrow('not a configured project')
     expect(live.snapshot().state).toEqual(state('before'))
+  })
+
+  it('keeps a newer stream frame when an older command finishes later', async () => {
+    let finish!: () => void
+    answer = () => new Promise<void>((resolve) => { finish = resolve })
+    last().emit('state', state('before'))
+    const pending = live.command('start', { project: 'ABC' })
+    last().emit('statePatch', { parts: { unattended: true } })
+    finish()
+    await pending
+    expect(live.snapshot().state).toEqual({ ...state('before'), unattended: true })
+  })
+
+  it('replaces the patch base with a complete frame after reconnecting', async () => {
+    last().emit('state', state('old'))
+    last().fail(2)
+    live.retryNow()
+    last().emit('statePatch', { parts: { unattended: true } })
+    expect(live.snapshot().state).toEqual(state('old'))
+    last().emit('state', state('restarted'))
+    last().emit('statePatch', { parts: { trimTools: false } })
+    expect(live.snapshot().state).toEqual({ ...state('restarted'), trimTools: false })
   })
 
   it('closes the stream and fires no timers after stop', () => {

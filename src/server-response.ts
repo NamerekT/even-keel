@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { constants, createGzip } from 'node:zlib'
 import { englishOf, fail, noticeOf } from './notice/notice.js'
 import type { TaskFile } from './tracker/source.js'
 
@@ -28,8 +29,55 @@ export function sendFailure(response: ServerResponse, error: unknown): void {
 }
 
 export function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-  response.end(JSON.stringify(body))
+  const json = JSON.stringify(body)
+  const compressed = json !== undefined && Buffer.byteLength(json) >= 1024 && acceptsGzip(response)
+  response.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    vary: 'Accept-Encoding',
+    ...(compressed ? { 'content-encoding': 'gzip' } : {}),
+  })
+  if (!compressed) {
+    response.end(json)
+    return
+  }
+  void pipeline(Readable.from([json]), createGzip({ level: constants.Z_BEST_SPEED }), response).catch(() => response.destroy())
+}
+
+function acceptsGzip(response: ServerResponse): boolean {
+  const accepted = new Map<string, number>()
+  for (const entry of (response.req.headers['accept-encoding'] ?? '').split(',')) {
+    const [name, ...parameters] = entry.trim().toLowerCase().split(';')
+    const q = parameters.find((parameter) => parameter.trim().startsWith('q='))?.trim().slice(2)
+    const quality = q === undefined ? 1 : Number(q)
+    accepted.set(name!, Number.isFinite(quality) && quality >= 0 && quality <= 1 ? quality : 0)
+  }
+  return (accepted.get('gzip') ?? accepted.get('*') ?? 0) > 0
+}
+
+export function eventWriter(response: ServerResponse): { write(frame: string): void; end(): void } {
+  const compressed = acceptsGzip(response)
+  response.writeHead(200, {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-store',
+    connection: 'keep-alive',
+    vary: 'Accept-Encoding',
+    ...(compressed ? { 'content-encoding': 'gzip' } : {}),
+  })
+  response.flushHeaders()
+  if (!compressed) return { write: (frame) => { response.write(frame) }, end: () => { response.end() } }
+  const gzip = createGzip({ level: constants.Z_BEST_SPEED })
+  gzip.on('error', () => response.destroy())
+  response.once('close', () => gzip.destroy())
+  gzip.pipe(response)
+  return {
+    write: (frame) => {
+      if (gzip.destroyed || gzip.writableEnded) return
+      gzip.write(frame)
+      gzip.flush(constants.Z_SYNC_FLUSH)
+    },
+    end: () => { gzip.end() },
+  }
 }
 
 export async function sendFile(response: ServerResponse, file: TaskFile): Promise<void> {

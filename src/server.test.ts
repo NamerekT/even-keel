@@ -379,7 +379,7 @@ describe('Even Keel HTTP server', () => {
   const post = (path: string, body?: unknown) =>
     fetch(base + path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
 
-  it('drives the chain through POST commands and answers with the state', async () => {
+  it('drives the chain through legacy POST commands and answers with the state', async () => {
     const response = await post('/api/chain/start', { project: 'ABC' })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ chain: [] })

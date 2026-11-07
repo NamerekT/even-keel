@@ -76,7 +76,7 @@ export interface LiveSource {
 export interface LiveDeps {
   fetchState: () => Promise<EvenKeelState>
   openEvents: () => EventStream
-  sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
+  sendCommand: (name: string, body: Record<string, unknown>) => Promise<void>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
   fetchTranscript: (sessionId: string, after: number) => Promise<Feed | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
@@ -100,7 +100,6 @@ export class LiveConnection implements LiveSource {
   private readonly listeners = new Set<() => void>()
   private readonly transcriptListeners = new Map<string, Set<() => void>>()
   private stream: EventStream | null = null
-  private streamed = false
   private retryMs = FIRST_RETRY_MS
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private silenceTimer: ReturnType<typeof setTimeout> | undefined
@@ -109,12 +108,6 @@ export class LiveConnection implements LiveSource {
   constructor(private readonly deps: LiveDeps) {}
 
   start(): void {
-    this.deps.fetchState().then(
-      (state) => {
-        if (!this.streamed && !this.stopped) this.update({ state, link: 'live' })
-      },
-      () => {},
-    )
     this.open()
   }
 
@@ -141,8 +134,7 @@ export class LiveConnection implements LiveSource {
   }
 
   async command(name: string, body: Record<string, unknown> = {}): Promise<void> {
-    const state = await this.deps.sendCommand(name, body)
-    if (!this.stopped) this.update({ ...this.current, state })
+    await this.deps.sendCommand(name, body)
   }
 
   session(sessionId: string): Promise<SessionRecord | null> {
@@ -262,7 +254,6 @@ export class LiveConnection implements LiveSource {
 
     stream.addEventListener('state', (event) => {
       if (stream !== this.stream) return
-      this.streamed = true
       this.retryMs = FIRST_RETRY_MS
       this.watchSilence()
       this.base = JSON.parse(event.data as string) as EvenKeelState
@@ -278,7 +269,6 @@ export class LiveConnection implements LiveSource {
     // The service started nothing and only says why; it sends no pings, so its silence is no sign of a lost link.
     stream.addEventListener('blocked', (event) => {
       if (stream !== this.stream) return
-      this.streamed = true
       clearTimeout(this.silenceTimer)
       this.update({ state: null, link: 'live', blocked: JSON.parse(event.data as string) as Notice })
     })

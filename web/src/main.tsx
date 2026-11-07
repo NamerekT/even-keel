@@ -22,15 +22,14 @@ async function fetchState(): Promise<EvenKeelState> {
   return (await response.json()) as EvenKeelState
 }
 
-async function sendCommand(name: string, body: Record<string, unknown>): Promise<EvenKeelState> {
+async function sendCommand(name: string, body: Record<string, unknown>): Promise<void> {
   const response = await fetch(`/api/${name}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-even-keel-command': 'ack' },
     body: JSON.stringify(body),
   })
-  const answer = (await response.json().catch(() => null)) as (EvenKeelState & { error?: string; notice?: unknown }) | null
+  const answer = (await response.json().catch(() => null)) as { error?: string; notice?: unknown } | null
   if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/${name} answered ${response.status}`))
-  return answer!
 }
 
 async function fetchOrNull<T>(path: string): Promise<T | null> {

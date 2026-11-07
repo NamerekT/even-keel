@@ -1,4 +1,4 @@
-import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic } from './server-response.js'
+import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic, eventWriter } from './server-response.js'
 import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
 import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList } from './server-request.js'
@@ -248,6 +248,7 @@ export interface ServerDeps {
   hub: EventHub
   publicDir: string
   getState: () => unknown
+  getTray: () => { language: Language | null; asking: number; paused: number }
   control: ChainControl
   account: AccountControl
   sessions: SessionControl
@@ -445,8 +446,7 @@ export function createBlockedServer(deps: { guard: () => GuardSettings; publicDi
   return guardedServer(deps.guard, async (request, response) => {
     const path = new URL(request.url ?? '/', 'http://localhost').pathname
     if (request.method === 'GET' && path === '/api/events') {
-      response.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
-      response.write(formatEvent('blocked', deps.reason))
+      eventWriter(response).write(formatEvent('blocked', deps.reason))
       return
     }
     if (path.startsWith('/api/')) sendJson(response, 503, { error: englishOf(deps.reason), notice: deps.reason })
@@ -463,6 +463,11 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   if (request.method === 'GET' && path === '/api/state') {
     sendJson(response, 200, deps.getState())
+    return
+  }
+
+  if (request.method === 'GET' && path === '/api/tray') {
+    sendJson(response, 200, deps.getTray())
     return
   }
 
@@ -761,12 +766,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       sendFailure(response, error)
       return
     }
-    sendJson(response, 200, deps.getState())
+    // A page awaiting a safe build reload still expects the old response shape.
+    sendJson(response, 200, request.headers['x-even-keel-command'] === 'ack' ? { ok: true } : deps.getState())
+    setImmediate(() => deps.hub.broadcastSoon('state', deps.getState))
     return
   }
 
   if (request.method === 'GET' && path === '/api/events') {
-    streamEvents(deps, request, response)
+    streamEvents(deps, response)
     return
   }
 
@@ -780,18 +787,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
 
 
-function streamEvents(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): void {
-  response.writeHead(200, {
-    'content-type': 'text/event-stream; charset=utf-8',
-    'cache-control': 'no-store',
-    connection: 'keep-alive',
-  })
+function streamEvents(deps: ServerDeps, response: ServerResponse): void {
+  const writer = eventWriter(response)
   const unsubscribe = deps.hub.join(
     'state',
     deps.getState(),
-    (frame) => response.write(frame),
-    () => response.end(),
+    writer.write,
+    writer.end,
   )
-  request.on('close', unsubscribe)
+  response.once('close', unsubscribe)
 }
 

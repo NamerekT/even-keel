@@ -5,7 +5,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -13,7 +12,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 // The autostart at sign-in (BTN-372): the host with an icon in the tray instead of a Windows service. The icon shows
-// what GET /api/state says, read on loopback as the update's answer step reads it.
+// what GET /api/tray says, read on loopback.
 sealed class EvenKeelTray : ApplicationContext
 {
     enum Status { Starting, Running, Paused, Asking, Stopped, Down }
@@ -86,7 +85,7 @@ sealed class EvenKeelTray : ApplicationContext
             client.CancelAsync();
             return;
         }
-        client.DownloadStringAsync(new Uri(Base() + "api/state"));
+        client.DownloadStringAsync(new Uri(Base() + "api/tray"));
     }
 
     void Show(string json)
@@ -108,29 +107,14 @@ sealed class EvenKeelTray : ApplicationContext
             object language;
             if (state.TryGetValue("language", out language) && language is string) russian = (string)language == "ru";
             Name();
-            int asking = Items(state, "sessions").Count(session => Flag(session, "asking"));
-            object chain;
-            state.TryGetValue("chain", out chain);
-            int paused = chain is Dictionary<string, object> ? Items((Dictionary<string, object>)chain, "active").Count(active => Flag(active, "paused")) : 0;
+            int asking = Convert.ToInt32(state["asking"]);
+            int paused = Convert.ToInt32(state["paused"]);
             Show(asking > 0 ? Status.Asking : paused > 0 ? Status.Paused : Status.Running, asking > 0 ? asking : paused);
         }
         catch (Exception)
         {
             Show(Status.Down, 0);
         }
-    }
-
-    static IEnumerable<object> Items(Dictionary<string, object> map, string key)
-    {
-        object items;
-        return map.TryGetValue(key, out items) && items is object[] ? (object[])items : new object[0];
-    }
-
-    static bool Flag(object item, string key)
-    {
-        var map = item as Dictionary<string, object>;
-        object value;
-        return map != null && map.TryGetValue(key, out value) && value is bool && (bool)value;
     }
 
     void Show(Status status, int count)
