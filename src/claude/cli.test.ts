@@ -57,6 +57,19 @@ describe('ClaudeCli.usage', () => {
     expect(usage).toBeGreaterThanOrEqual(4 * context!)
     expect(usage).toBeLessThan(5 * 60_000)
   })
+
+  // BTN-805: the model weeks come only in the `usage_report` of the stream's `/usage` message, not in the `result`.
+  it('asks for the stream of messages, local and without a transcript', async () => {
+    let seen: string[] = []
+    const calls = new (class extends FolderCalls {
+      override run(_folder: string, _file: string, args: string[]): Promise<CallOutput> {
+        seen = args
+        return Promise.resolve({ stdout: '', stderr: '' })
+      }
+    })()
+    await new ClaudeCli(() => 'claude', 30_000, () => ({}), calls).usage(home, '/work')
+    expect(seen).toEqual(['-p', '/usage', '--output-format', 'stream-json', '--verbose', '--no-session-persistence'])
+  })
 })
 
 describe('callFailure', () => {

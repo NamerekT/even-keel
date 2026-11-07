@@ -147,6 +147,40 @@ describe('newestLimits', () => {
     expect(newestLimits(at(RECEIVED_AT), undefined)).toEqual(at(RECEIVED_AT))
     expect(newestLimits(undefined, undefined)).toBeUndefined()
   })
+
+  it('keeps the model weeks of a poll under a newer snapshot that does not tell them, as a statusline does not', () => {
+    const models = { weeks: [{ model: 'Fable', usedPercentage: 40, resetsAt: null }], updatedAt: '2026-01-01T12:00:00.000Z' }
+    const polled = { ...at('2026-01-01T12:00:00.000Z'), models }
+    const later = { ...at('2026-01-01T12:00:30.000Z'), source: 'statusline' as const }
+
+    expect(newestLimits(polled, later)).toEqual({ ...later, models })
+    expect(newestLimits(later, polled)).toEqual({ ...later, models })
+  })
+
+  it('takes the model weeks of the newer poll, an empty list too', () => {
+    const old = { ...at('2026-01-01T12:00:00.000Z'), models: { weeks: [{ model: 'Fable', usedPercentage: 40, resetsAt: null }], updatedAt: '2026-01-01T12:00:00.000Z' } }
+    const fresh = { ...at('2026-01-01T12:05:00.000Z'), models: { weeks: [], updatedAt: '2026-01-01T12:05:00.000Z' } }
+
+    expect(newestLimits(old, fresh)).toEqual(fresh)
+  })
+})
+
+describe('model weeks in currentLimits', () => {
+  const base = { fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'usage' as const }
+  const week = (resetsAt: string | null) => ({ model: 'Fable', usedPercentage: 100, resetsAt })
+
+  it('drops a model week once its reset has passed and keeps one without a known reset', () => {
+    const limits = { ...base, models: { weeks: [week('2026-01-03T00:00:00.000Z'), week(null)], updatedAt: RECEIVED_AT } }
+
+    expect(currentLimits(limits, new Date('2026-01-02T00:00:00.000Z'))).toEqual(limits)
+    expect(currentLimits(limits, new Date('2026-01-03T00:00:00.000Z'))?.models).toEqual({ weeks: [week(null)], updatedAt: RECEIVED_AT })
+  })
+
+  it('drops model weeks read before the account was switched, under a newer snapshot', () => {
+    const limits = { ...base, updatedAt: '2026-01-01T14:00:00.000Z', models: { weeks: [week(null)], updatedAt: '2026-01-01T12:00:00.000Z' } }
+
+    expect(currentLimits(limits, new Date('2026-01-01T14:30:00.000Z'), '2026-01-01T13:00:00.000Z')).not.toHaveProperty('models')
+  })
 })
 
 describe('exhaustedReset', () => {
@@ -360,5 +394,12 @@ describe('withSessionLimits', () => {
 
     const fiveHour = { usedPercentage: 5, resetsAt: '2026-01-01T15:00:00.000Z' }
     expect(withSessionLimits(ultra, { fiveHour }, RECEIVED_AT)).toEqual({ fiveHour, sevenDay: polled.sevenDay, updatedAt: RECEIVED_AT, source: 'sdk' })
+  })
+
+  it('keeps the model weeks a poll read: a session event does not tell them', () => {
+    const models = { weeks: [{ model: 'Fable', usedPercentage: 60, resetsAt: null }], updatedAt: '2026-01-01T12:00:00.000Z' }
+    const fiveHour = { usedPercentage: 25, resetsAt: '2026-01-01T15:00:00.000Z' }
+
+    expect(withSessionLimits({ ...polled, models }, { fiveHour }, '2026-01-01T12:03:00.000Z').models).toEqual(models)
   })
 })

@@ -16,6 +16,8 @@
 
 `?account=mixup` supplies the sign-in mix-ups of BTN-528: a folder named after another account than the one in it, a second folder of the global account, and two signed-out folders, one with its last e-mail and one without. Use it on `/accounts` for the problem band and the rows.
 
+`?account=model-weeks` supplies the models' own weeks of BTN-805: Max with five hours, the week and a spent Fable week without a reset, a verified Ultra with the week and Fable, a Team seat with five hours and Fable with a reset, and Pro whose answer listed no model week. Use it on `/accounts` and in the drawer of `/p/ABC`.
+
 Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.

@@ -249,6 +249,22 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     ]
     return { ...signedIn, accounts, pool: [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'codex' }] }
   }
+  if (mode === 'model-weeks') {
+    // BTN-805: the models' own weeks of the plans in `test/fixtures/limits/` — Max with all three, a verified Ultra
+    // without five hours, a Team seat without the all-models week; the reset of a model week may be unknown.
+    const fable = (usedPercentage: number, resetsAt: string | null) => ({ weeks: [{ model: 'Fable', usedPercentage, resetsAt }], updatedAt: ago(1) })
+    const claude = (key: string, email: string, plan: string, patch: Partial<RateLimits>) => fakeEntry({
+      key, global: false, loginExpiresAt: inDays(20), status: { ...FAKE_ACCOUNT, email, subscriptionType: plan },
+      limits: { ...limits, updatedAt: ago(1), ...patch },
+    })
+    const accounts = [
+      { ...global, limits: { ...limits, models: fable(100, null) } },
+      claude('ultra', 'sam.roe@example.com', 'max', { fiveHour: null, sevenDay: { usedPercentage: 4, resetsAt: inDays(5) }, absent: ['fiveHour'], models: fable(0, null) }),
+      claude('team', 'alex.doe@example.com', 'team', { sevenDay: null, absent: ['sevenDay'], models: fable(41, inDays(2)) }),
+      { ...work, limits: { ...limits, models: { weeks: [], updatedAt: ago(1) } } },
+    ]
+    return { ...signedIn, accounts }
+  }
   if (mode === 'out') {
     const out = { ...global, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true }
     return { ...signedIn, accounts: [out, work] }

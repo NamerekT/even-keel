@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { parseUsage } from './usage.js'
+import { modelWeeksOf, parseUsage } from './usage.js'
 import { englishOf, notice } from '../notice/notice.js'
 
 const AT = '2026-09-27T15:00:00.000Z'
@@ -114,5 +115,91 @@ describe('parseUsage', () => {
     expect(parseUsage(answer(TEXT, { is_error: true }), AT)).toEqual({ kind: 'unknown', reason: notice('usage.isError', {}) })
     expect(parseUsage('Error: unknown option', AT)).toEqual({ kind: 'unknown', reason: notice('usage.notJson', {}) })
     expect(parseUsage('[]', AT)).toEqual({ kind: 'unknown', reason: notice('usage.notObject', {}) })
+  })
+})
+
+const sample = (name: string) => JSON.parse(readFileSync(new URL(`../../test/fixtures/limits/${name}`, import.meta.url), 'utf8')) as { limits: unknown }
+
+describe('modelWeeksOf', () => {
+  it('reads the model week of a Max plan, named by the server, without a reset the answer did not give', () => {
+    expect(modelWeeksOf(sample('claude-max-oauth-usage.json').limits)).toEqual([{ model: 'Fable', usedPercentage: 100, resetsAt: null }])
+  })
+
+  it.each(['claude-ultra-oauth-usage.json', 'claude-team-oauth-usage.json'])('reads the model week of %s, whose rows carry only a kind, a percent and a scope', (file) => {
+    expect(modelWeeksOf(sample(file).limits)).toEqual([{ model: 'Fable', usedPercentage: 0, resetsAt: null }])
+  })
+
+  it('takes the reset of a row that has one', () => {
+    const rows = [{ kind: 'weekly_scoped', percent: 37.5, resets_at: '2030-01-10T16:00:00.000000+00:00', scope: { model: { display_name: 'Fable' } } }]
+
+    expect(modelWeeksOf(rows)).toEqual([{ model: 'Fable', usedPercentage: 37.5, resetsAt: '2030-01-10T16:00:00.000Z' }])
+  })
+
+  it('finds no model week in rows that have none: the plan has none', () => {
+    expect(modelWeeksOf([{ kind: 'session', percent: 22 }, { kind: 'weekly_all', percent: 61 }])).toEqual([])
+    expect(modelWeeksOf([])).toEqual([])
+  })
+
+  it('skips a scoped row of a surface, or one without a model name or a percent', () => {
+    const rows = [
+      { kind: 'weekly_scoped', percent: 10, scope: { surface: { display_name: 'Cowork' } } },
+      { kind: 'weekly_scoped', percent: 10, scope: { model: { display_name: '' } } },
+      { kind: 'weekly_scoped', scope: { model: { display_name: 'Fable' } } },
+    ]
+
+    expect(modelWeeksOf(rows)).toEqual([])
+  })
+
+  it('knows nothing without the rows', () => {
+    expect(modelWeeksOf(null)).toBeUndefined()
+    expect(modelWeeksOf(undefined)).toBeUndefined()
+  })
+})
+
+describe('parseUsage on the stream', () => {
+  const report = (limits: unknown) => ({ session: {}, rate_limits: limits === undefined ? null : { limits } })
+  const stream = (usageReport?: unknown) => [
+    JSON.stringify({ type: 'system', subtype: 'init', session_id: 'x' }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: TEXT }] }, local_command_source: 'usage', ...(usageReport !== undefined && { usage_report: usageReport }) }),
+    answer(TEXT),
+  ].join('\n')
+
+  it('reads the windows from the result line and the model weeks from the usage report', () => {
+    const parsed = parseUsage(stream(report(sample('claude-max-oauth-usage.json').limits)), AT)
+
+    expect(parsed).toEqual({
+      kind: 'limits',
+      limits: {
+        fiveHour: { usedPercentage: 33, resetsAt: '2026-09-27T17:49:00.000Z' },
+        sevenDay: { usedPercentage: 19, resetsAt: '2026-10-03T12:59:00.000Z' },
+        models: { weeks: [{ model: 'Fable', usedPercentage: 100, resetsAt: null }], updatedAt: AT },
+        updatedAt: AT,
+        source: 'usage',
+      },
+    })
+  })
+
+  it('says the plan has no model week when the report lists no such row', () => {
+    const parsed = parseUsage(stream(report([{ kind: 'session', group: 'session', percent: 33, resets_at: null, severity: 'normal', is_active: true }])), AT)
+
+    expect(parsed.kind === 'limits' && parsed.limits.models).toEqual({ weeks: [], updatedAt: AT })
+  })
+
+  it('knows no model weeks without a report, or with a report the CLI could not fill', () => {
+    for (const output of [stream(), stream(report(undefined)), stream({ session: {}, rate_limits: { limits: null } }), answer(TEXT)]) {
+      const parsed = parseUsage(output, AT)
+      expect(parsed.kind).toBe('limits')
+      expect(parsed.kind === 'limits' && parsed.limits).not.toHaveProperty('models')
+    }
+  })
+
+  it('reads the same messages printed as one array', () => {
+    const messages = stream(report([])).split('\n').map((line) => JSON.parse(line) as unknown)
+
+    expect(parseUsage(JSON.stringify(messages), AT)).toEqual(parseUsage(stream(report([])), AT))
+  })
+
+  it('does not know a stream without its result line', () => {
+    expect(parseUsage(stream(report([])).split('\n').slice(0, 2).join('\n'), AT)).toEqual({ kind: 'unknown', reason: notice('usage.notObject', {}) })
   })
 })

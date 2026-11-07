@@ -22,4 +22,4 @@ Samples of the subscription limit answers of plans the author does not have (EKR
 
 - `src/limits/chatgpt.test.ts` — the Pro sample through `chatGptLimits`.
 - `src/codex/rollout.test.ts` — the 429 body as the error of a failed turn.
-- The three Claude samples are read by no one yet: Even Keel does not ask `/api/oauth/usage` and reads no model week yet (the Agent SDK's usage answer carries the same week as `rate_limits.model_scoped`). They are kept for the collector of the model week (Fable) in the account's limits.
+- `src/limits/usage.test.ts` — the `limits[]` of the three Claude samples through `modelWeeksOf`, alone and as the `usage_report` of a `/usage` stream: Even Keel does not ask `/api/oauth/usage` itself, but the CLI's `/usage` message carries the same rows (BTN-805).

@@ -100,7 +100,7 @@ export class ClaudeCli {
 
   async usage(home: AccountHome, cwd: string): Promise<string> {
     try {
-      const args = ['-p', '/usage', '--output-format', 'json', '--no-session-persistence']
+      const args = ['-p', '/usage', '--output-format', 'stream-json', '--verbose', '--no-session-persistence']
       return (await this.call(home, args, cwd, undefined, USAGE_TIMEOUT_MS, true)).stdout
     } catch (error) {
       throw new Error(callFailure(error), { cause: error })

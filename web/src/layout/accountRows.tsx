@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import type { PackagesView } from '../../../src/state.js'
 import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
-import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
+import { limitSpans, type LimitSpan, type LimitWindow, type ModelWeek } from '../../../src/limits/model.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { ACCESS_OWNER, accessGroups, accessOf, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
@@ -143,7 +143,10 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {spendsByKey(entry) || counted ? (['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>
           {named && <span className="account-meter__name">{period === 'day' ? t.account.tokensToday : t.account.tokensMonth}</span>}
           <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
-        </Tipped>) : limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
+        </Tipped>) : <>
+          {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
+          {entry.limits?.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} />)}
+        </>}
       </div>
       {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
@@ -155,21 +158,40 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
 
 /** One window, named in its own row: the plan decides which windows a row has (variant 2 of BTN-575). */
 function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSpan; now: Date }) {
-  const window = entry.limits?.[span] ?? null
+  const { label, title } = spanNames(span)
+  return <Meter entry={entry} now={now} window={entry.limits?.[span] ?? null} label={label} short={t.limits.short[span]} title={title} />
+}
+
+/** A model's own week (BTN-805), after the plan's windows and named by the model the server gave. */
+function ModelMeter({ entry, week, now }: { entry: AccountEntry; week: ModelWeek; now: Date }) {
+  return <Meter entry={entry} now={now} window={week} label={t.limits.modelWeek(week.model)} short={week.model} title={t.limits.modelWeekTitle(week.model)} />
+}
+
+interface MeterProps {
+  entry: AccountEntry
+  now: Date
+  window: (Pick<LimitWindow, 'usedPercentage' | 'left' | 'used'> & { resetsAt: string | null }) | null
+  label: string
+  short: string
+  title: string
+}
+
+function Meter({ entry, now, window, label, short, title }: MeterProps) {
   const percent = window === null ? 0 : Math.round(Math.max(0, Math.min(100, window.usedPercentage)))
   const heat = entry.limitsOutdated ? ' account-value--outdated' : percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
-  const reset = window === null ? '' : formatSpan(window.resetsAt, now)
+  const reset = window?.resetsAt == null ? '' : formatSpan(window.resetsAt, now)
   const source = entry.limits === null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
   const count = window === null || (window.left === undefined && window.used === undefined) ? null : windowValue(window, percent)
-  const tip = [window === null ? t.account.noLimits : t.limits.reset(spanNames(span).title, reset, ''), count, source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
+  const when = window === null ? t.account.noLimits : window.resetsAt === null ? t.limits.noReset(title) : t.limits.reset(title, reset, '')
+  const tip = [when, count, source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
   return <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">
-        <span className="account-meter__long">{spanNames(span).label}</span><span className="account-meter__short">{t.limits.short[span]}</span>
+        <span className="account-meter__long">{label}</span><span className="account-meter__short">{short}</span>
       </span><strong>{window === null ? t.limits.noData : <>
         <span className="account-meter__long">{windowValue(window, percent)}</span><span className="account-meter__short">{windowValue(window, percent, true)}</span>
       </>}</strong></span>
-      {window !== null && <span>{reset}</span>}
+      {reset !== '' && <span>{reset}</span>}
     </span>
     <span className="account-meter__bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
   </Tipped>

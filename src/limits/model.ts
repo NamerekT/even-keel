@@ -22,6 +22,8 @@ export interface RateLimits {
    * all-models week. Their value is `null`; without this mark a `null` is a window with no data, or not started.
    */
   absent?: SessionSpan[]
+  /** The models' own weeks (BTN-805); absent — not known from this source, `weeks: []` — the plan has none. */
+  models?: ModelWeeks
   updatedAt: string
   /**
    * `sdk` — a `rate_limit_event` of a Claude session run through the SDK (`limitsOfRateLimitInfo`); `api` — asked of the
@@ -34,6 +36,24 @@ export interface RateLimits {
   overage?: Overage
   /** ChatGPT's answer says whether the account may send now (`rate_limit.allowed` and not `limit_reached`, BTN-530). */
   open?: boolean
+}
+
+/**
+ * A model's own weekly limit beside the all-models week (Fable on Max, Ultra and Team), from the structured rows of a
+ * Claude `/usage` answer (`modelWeeksOf`). Shown only: a spent one does not hold the chain.
+ */
+export interface ModelWeek {
+  /** The server's label: which models get a week is not known ahead. */
+  model: string
+  usedPercentage: number
+  /** `null` — the answer gave none. */
+  resetsAt: string | null
+}
+
+/** Only a `/usage` poll reads them, so they carry their own time and outlive newer snapshots of other sources. */
+export interface ModelWeeks {
+  weeks: ModelWeek[]
+  updatedAt: string
 }
 
 /** The windows a session reported: one it did not name stays as it was known. */
@@ -75,6 +95,7 @@ export function withSessionLimits(known: RateLimits | undefined, reported: Sessi
     fiveHour: reported.fiveHour ?? known?.fiveHour ?? null,
     sevenDay: reported.sevenDay ?? known?.sevenDay ?? null,
     ...(absent.length > 0 && { absent }),
+    ...(known?.models !== undefined && { models: known.models }),
     updatedAt: at,
     source: 'sdk',
     ...(reported.overage !== undefined ? { overage: { ...reported.overage, updatedAt: at } } : known?.overage !== undefined ? { overage: known.overage } : {}),
@@ -125,15 +146,30 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
   const live = (window: LimitWindow | null) => (window !== null && Date.parse(window.resetsAt) > now.getTime() ? window : null)
   const current = { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
   if (notBefore !== null && current.overage !== undefined && Date.parse(current.overage.updatedAt) < Date.parse(notBefore)) delete current.overage
+  if (current.models !== undefined) {
+    const weeks = current.models.weeks.filter((week) => week.resetsAt === null || Date.parse(week.resetsAt) > now.getTime())
+    if (notBefore !== null && Date.parse(current.models.updatedAt) < Date.parse(notBefore)) delete current.models
+    else if (weeks.length < current.models.weeks.length) current.models = { ...current.models, weeks }
+  }
   return limits.month === undefined ? current : { ...current, month: live(limits.month) }
 }
 
 export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefined): RateLimits | undefined {
   if (a === undefined || b === undefined) return a ?? b
   const latest = Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
-  const extra = a.overage === undefined ? b.overage : b.overage === undefined ? a.overage :
-    Date.parse(b.overage.updatedAt) > Date.parse(a.overage.updatedAt) ? b.overage : a.overage
-  return extra === undefined ? latest : { ...latest, overage: extra }
+  const extra = newer(a.overage, b.overage)
+  const models = newer(a.models, b.models)
+  return {
+    ...latest,
+    ...(extra !== undefined && { overage: extra }),
+    ...(models !== undefined && { models }),
+  }
+}
+
+/** Of two parts with their own time, the newer one, or whichever is there. */
+function newer<T extends { updatedAt: string }>(a: T | undefined, b: T | undefined): T | undefined {
+  if (a === undefined || b === undefined) return a ?? b
+  return Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
 }
 
 /** A refusal that names the month's allowance spent: Copilot's `quota_exceeded` says "You have exceeded your monthly quota". */
