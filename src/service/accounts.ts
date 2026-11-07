@@ -25,6 +25,7 @@ import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
 import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
+import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
 import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -93,6 +94,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'contextWindows'
   | 'daemons'
   | 'db'
+  | 'demo'
   | 'dispatcher'
   | 'emailAt'
   | 'envFile'
@@ -689,13 +691,13 @@ export function wireHasAccount(ctx: AccountsContext): (provider: string, key: st
 
 export function wireChoiceFor(ctx: AccountsContext): (project: string | undefined, task?: string) => RunChoice {
   return (project: string | undefined, task?: string): RunChoice =>
-    runChoice(task === undefined ? undefined : ctx.knownTask(task), runSettings(ctx.configStore.current, project), ctx.hasAccount)
+    runChoice(task === undefined ? undefined : ctx.knownTask(task), runOf(ctx, project), ctx.hasAccount)
 }
 
 export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
     const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project))
-    const plan = launchPlan(ctx.knownTask(task), full, runSettings(ctx.configStore.current, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
+    const plan = launchPlan(ctx.knownTask(task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
     if (plan.warning !== null) console.warn(plan.warning)
     return plan
   }

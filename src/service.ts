@@ -73,6 +73,7 @@ import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import * as lifecycleService from './service/lifecycle.js'
 import * as cliCheckService from './service/cli-check.js'
+import * as demoService from './service/demo.js'
 import { AccountLease } from './cli-check/lease.js'
 import type { CheckHistory } from './cli-check/scheduler.js'
 
@@ -175,6 +176,7 @@ const context = {
   get contextWindows() { return contextWindows },
   get daemons() { return daemons },
   get db() { return db },
+  get demo() { return demo },
   get dismissedUpdate() { return dismissedUpdate },
   set dismissedUpdate(value: typeof dismissedUpdate) { dismissedUpdate = value },
   get dismissedNotices() { return dismissedNotices },
@@ -463,6 +465,8 @@ const transcriptWatch = new TranscriptWatch(
   (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
 )
 const homes = await openAccountHomes(db, process.env)
+/** The demo on the first run (BTN-776): its account folder is listed from here on, before anything reads the folders. */
+const demo = demoService.wireDemo(context)
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */

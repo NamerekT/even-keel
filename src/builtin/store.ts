@@ -404,6 +404,17 @@ export class BuiltinStore {
     })
   }
 
+  /** Deletes every task of the project, its counter, labels and milestones: nothing of it is left (the demo's removal, BTN-776). */
+  forget(project: string): Promise<void> {
+    return inTransaction(this.db, async (tx) => {
+      const tasks = 'select id from builtin_tasks where project_id = $1'
+      await tx.query(`delete from builtin_relations where from_id in (${tasks}) or to_id in (${tasks})`, [project])
+      for (const table of ['builtin_task_labels', 'builtin_comments', 'builtin_files']) await tx.query(`delete from ${table} where task_id in (${tasks})`, [project])
+      await tx.query('update builtin_tasks set parent_id = null where project_id = $1', [project])
+      for (const table of ['builtin_tasks', 'builtin_counters', 'builtin_labels', 'builtin_milestones']) await tx.query(`delete from ${table} where project_id = $1`, [project])
+    })
+  }
+
   /** The project's milestones in their order. */
   async milestones(project: string): Promise<(BuiltinMilestone & { id: string })[]> {
     const { rows } = await this.db.query<{ id: string; name: string; date: number | null }>(

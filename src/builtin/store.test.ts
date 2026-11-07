@@ -61,6 +61,22 @@ describe('numbers', () => {
   })
 })
 
+describe('forgetting a project', () => {
+  it('leaves nothing of it and keeps the other projects whole', async () => {
+    await store.create({ project: ABC, title: 'a', milestone: 'v1', labels: ['Bug'] })
+    await store.create({ project: ABC, title: 'b', parent: 1 })
+    await store.relate(abc(1), abc(2), 'blocks')
+    await store.comment(abc(1), 'person', 'Note')
+    await store.create({ project: XYZ, title: 'c', labels: ['Bug'] })
+    await store.forget(ABC)
+    expect(await store.list([ABC])).toEqual([])
+    expect(await store.milestones(ABC)).toEqual([])
+    expect(await store.labels(ABC)).not.toContainEqual(expect.objectContaining({ name: 'Bug' }))
+    expect(await store.create({ project: ABC, title: 'again' })).toBe(1)
+    expect((await store.list([XYZ])).map((task) => [task.title, task.labels])).toEqual([['c', ['Bug']]])
+  })
+})
+
 describe('field edits', () => {
   beforeEach(async () => {
     await store.create({ project: ABC, title: 'Parse input' })

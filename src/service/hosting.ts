@@ -53,6 +53,8 @@ import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
 import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
+import { DEMO_ACCOUNT } from '../demo/model.js'
+import { runOf } from './demo.js'
 
 type HostingContext = Pick<ServiceContext,
   | 'CONFIG_POLL_MS'
@@ -81,6 +83,7 @@ type HostingContext = Pick<ServiceContext,
   | 'configuredProject'
   | 'daemons'
   | 'db'
+  | 'demo'
   | 'dismissedUpdate'
   | 'dismissedNotices'
   | 'dispatcher'
@@ -153,6 +156,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     projectKeys: ctx.configStore.current.keys,
     projectLabels: projectLabels(ctx.configStore.current),
     taskPrefixes: Object.fromEntries(Object.keys(ctx.configStore.current.keys).map((project) => [project, idPrefixOf(ctx.configStore.current, project)])),
+    demo: ctx.demo.view(),
     config: ctx.configStore.view(ctx.lockedReaders()),
     branchDrift: ctx.branches.view(),
     chain: {
@@ -177,11 +181,13 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     usage: ctx.limits.usage(ctx.activeAccount()),
     account: {
       ...ctx.account.view,
+      // The demo's account is no account of the person's: the accounts' lists and pickers never show it (BTN-776).
+      accounts: ctx.account.view.accounts.filter((entry) => entry.key !== DEMO_ACCOUNT),
       // Read with `cliCopies` below, so the page never sees a CLI as found there and missing here.
       missing: ctx.account.missingNow(),
       headerLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, headerLevels({
         shared: runSettings(ctx.configStore.current, undefined),
-        project: runSettings(ctx.configStore.current, project),
+        project: runOf(ctx, project),
         tasks: ctx.tasksByProject.get(project) ?? [],
         order: orders[project]?.order ?? [],
         current: ctx.dispatcher.state.active.find((chain) => chain.project === project)?.current ?? null,
@@ -281,6 +287,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     cli: ctx.cliCopies,
     hulyClient,
     git: gitSetup,
+    demo: ctx.demo,
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,

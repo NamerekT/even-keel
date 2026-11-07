@@ -420,6 +420,8 @@ export interface EvenKeelState {
   projectLabels: Record<string, string>
   /** The prefix of each project's task ids (`idPrefixOf`): its key, or its tracker project's where that is another one. */
   taskPrefixes: Record<string, string>
+  /** The demo on the first run (BTN-776); `null` — there is none. Its project is in `projects` like any. */
+  demo: import('./demo/model.js').DemoView | null
   config: ConfigView
   /** The projects whose main checkout stood off their main branch when last read: the settings opened or the chain started (BTN-754). */
   branchDrift: Record<string, BranchDrift>

@@ -190,10 +190,15 @@ export class ConfigStore {
     if (this.current.tally !== mode) this.write(withTally(this.raw(), mode))
   }
 
-  /** Adds the wizard's project last, with a new id, by the same rule as `saveProject`; returns the id. */
-  addProject(draft: ProjectDraft): string {
+  /**
+   * Adds the wizard's project last, with a new id, by the same rule as `saveProject`; returns the id. `own` — settings
+   * the project's entry carries from the start, as the demo's `testProject` (BTN-776).
+   */
+  addProject(draft: ProjectDraft, own: Record<string, unknown> = {}): string {
     const id = randomUUID()
-    this.write(withNewProject(this.raw(), draft, id))
+    const next = withNewProject(this.raw(), draft, id)
+    Object.assign((next.projects as Record<string, unknown>[]).at(-1)!, own)
+    this.write(next)
     return id
   }
 

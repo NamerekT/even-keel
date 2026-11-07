@@ -23,6 +23,8 @@ export interface TurnContext {
   park(gate: Gate): Promise<void>
   /** Waits `ms` on the service's clock, mid-turn, the way `park` does. */
   pause(ms: number): Promise<void>
+  /** The turn is still the session's own: no stop or forget has let it go. */
+  live(): boolean
   /** Shows a step of the turn, as a transcript line would: the action, the stage and how full the context is. */
   show(step: TurnStep): void
   /** Asks the service for the chat's mail on `event`, as the `checkpoint` plugin's mailbox hook does; `null` — none. */
@@ -291,6 +293,7 @@ export class ScriptedAgent implements Agent {
       },
       park: (gate) => waiting(gate.passed),
       pause: (ms) => waiting(new Promise((resolve) => setTimeout(resolve, ms))),
+      live: () => session.turn === id && this.known.get(sessionId) === session,
       show: (step) => {
         if (session.turn !== id) return
         this.writeLine(session, { at: at(), kind: step.tool === undefined ? 'text' : 'tool', text: step.text, ...(step.tool === undefined ? {} : { name: step.tool }) }, step)

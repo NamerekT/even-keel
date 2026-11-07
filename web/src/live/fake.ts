@@ -115,6 +115,7 @@ function fakeState(
   ]
   return {
     startedAt: ago(180),
+    demo: null,
     platform: 'win32',
     projects: FAKE_PROJECTS,
     ...fakeProjectMaps(),

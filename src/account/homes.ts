@@ -103,7 +103,19 @@ export class AccountHomes {
       ...codex.map((name) => this.home(CODEX, name)),
       ...openCode.map((name) => this.home(OPENCODE, name)),
       ...copilot.map((name) => this.home(COPILOT, name)),
+      ...(this.demo !== null && existsSync(this.demo.dir) ? [this.demo] : []),
     ]
+  }
+
+  private demo: AccountHome | null = null
+
+  /**
+   * The demo's account folder (BTN-776): listed while it exists, so the chain finds the demo project's account the way
+   * it finds any. No project but the demo's names it: an account is always named in a project's settings.
+   */
+  setDemo(home: AccountHome): void {
+    this.demo = home
+    this.forget()
   }
 
   find(key: string): AccountHome | undefined {

@@ -34,6 +34,11 @@ export class MergeMarks {
     this.save(mark)
   }
 
+  /** Drops the project's marks in memory; their rows go with `forgetProjectRows`. */
+  forget(project: string): void {
+    for (const [key, mark] of this.marks) if (mark.project === project) this.marks.delete(key)
+  }
+
   /** Takes commits merged while the chain did not hold the reopened task as old ones (BTN-694); the close time stays. */
   absorb(project: string, task: string, commits: string[]): void {
     const before = this.marks.get(keyOf(project, task))

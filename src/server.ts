@@ -240,6 +240,8 @@ export interface ServerDeps {
   hulyClient?: { install(): void }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
+  /** The demo on the first run (BTN-776): its project goes into the state's `demo`. */
+  demo?: { start(): Promise<unknown>; again(): Promise<unknown>; remove(): Promise<void> }
   hub: EventHub
   publicDir: string
   getState: () => unknown
@@ -354,6 +356,9 @@ const COMMANDS: Record<string, Command> = {
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
+  'demo/start': async ({ demo }) => void (await demo?.start()),
+  'demo/again': async ({ demo }) => void (await demo?.again()),
+  'demo/remove': async ({ demo }) => demo?.remove(),
   'git/check': ({ git }) => git?.check(),
   'git/identity': ({ git }, body) => git?.identity(textOf(body.name, 'name'), textOf(body.email, 'email')),
   'git/init': ({ git }, body) => git?.init(textOf(body.repo, 'repo').trim(), textOf(body.branch, 'branch').trim() || DEFAULT_BRANCH),

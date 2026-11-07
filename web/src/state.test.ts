@@ -98,6 +98,7 @@ function task(id: string, category: StatusCategory = 'Active', blockedBy: string
 function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
+    demo: null,
     platform: 'win32',
     projects: ['ABC', 'XYZ'],
     projectKeys: { ABC: 'ABC', XYZ: 'XYZ' },
