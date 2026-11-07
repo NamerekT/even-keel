@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { windowOf } from './adapter.js'
-import { keyOf, keyVendor, openCodeEnv, parseAuth, writeKey } from './home.js'
+import { keyOf, keyVendor, openCodeEnv, parseAuth, replaceKey, writeKey } from './home.js'
 
 describe('parseAuth', () => {
   it('takes a folder with no credential as signed in for the free models', () => {
@@ -21,6 +21,21 @@ describe('the key of an OpenCode folder', () => {
   it('goes under the provider its start names', () => {
     expect(keyVendor('sk-ant-api03-FAKE')).toBe('anthropic')
     expect(keyVendor('sk-proj-FAKE')).toBe('openai')
+    expect(keyVendor('sk-or-v1-FAKE')).toBe('openrouter')
+  })
+
+  it("goes under OpenRouter's entry for an sk-or- key, and a new one replaces it there", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'even-keel-opencode-'))
+    const file = join(dir, 'data', 'opencode', 'auth.json')
+    try {
+      writeKey(dir, 'sk-or-v1-fake.example.com.0000')
+      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ openrouter: { type: 'api', key: 'sk-or-v1-fake.example.com.0000' } })
+      replaceKey(dir, 'sk-or-v1-fake.example.com.1111')
+      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ openrouter: { type: 'api', key: 'sk-or-v1-fake.example.com.1111' } })
+      expect(keyOf(dir)).toBe('sk-or-v1-fake.example.com.1111')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('is written the way opencode providers login writes it and read back', () => {

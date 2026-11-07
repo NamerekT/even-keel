@@ -54,10 +54,10 @@ export function paysPerToken(entry: AccountEntry): boolean {
  * What the account reaches the models through and who bills it, the group of the accounts page inside an agent's block
  * (BTN-576). Keys of different providers are different groups; the plan (pro, max, free) does not split one.
  */
-export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'bedrock', 'vertex', 'foundry', 'other'] as const
+export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'openrouterKey', 'bedrock', 'vertex', 'foundry', 'other'] as const
 export type Access = (typeof ACCESSES)[number]
 
-export type Owner = 'anthropic' | 'openai' | 'zen' | 'github' | 'aws' | 'google' | 'microsoft'
+export type Owner = 'anthropic' | 'openai' | 'openrouter' | 'zen' | 'github' | 'aws' | 'google' | 'microsoft'
 
 /** Who bills a connection, the colour of its group's stripe; none for an agent the page does not know. */
 export const ACCESS_OWNER: Record<Access, Owner | null> = {
@@ -68,6 +68,7 @@ export const ACCESS_OWNER: Record<Access, Owner | null> = {
   foundry: 'microsoft',
   chatgpt: 'openai',
   openaiKey: 'openai',
+  openrouterKey: 'openrouter',
   zen: 'zen',
   github: 'github',
   other: null,
@@ -84,7 +85,11 @@ export function accessOf(entry: AccountEntry): Access {
   if (entry.agent === CODEX) return entry.apiKey ? 'openaiKey' : 'chatgpt'
   if (entry.agent !== OPENCODE) return 'other'
   const held = entry.status?.subscriptionType?.split(',').map((name) => name.trim()) ?? []
-  if (entry.apiKey) return held.includes('anthropic') ? 'anthropicKey' : held.includes('openai') ? 'openaiKey' : 'zen'
+  if (entry.apiKey) {
+    if (held.includes('anthropic')) return 'anthropicKey'
+    if (held.includes('openai')) return 'openaiKey'
+    return held.includes('openrouter') ? 'openrouterKey' : 'zen'
+  }
   if (held.includes('openai')) return 'chatgpt'
   if (held.includes('github-copilot')) return 'github'
   return held.includes('anthropic') ? 'claudeSubscription' : 'zen'

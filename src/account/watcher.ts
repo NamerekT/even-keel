@@ -36,8 +36,18 @@ import {
 const MAX_OUTPUT_CHARS = 16 * 1024
 const SHOWN_OUTPUT_CHARS = 2 * 1024
 /** What a key refused or not checked says, by whose key it is (`keyProvider`). */
-const REJECTED = { anthropic: 'account.apiKeyRejected', openai: 'account.codexKeyRejected', github: 'account.copilotTokenRejected' } as const
-const UNCHECKED = { anthropic: 'account.apiKeyUnchecked', openai: 'account.codexKeyUnchecked', github: 'account.copilotTokenUnchecked' } as const
+const REJECTED = {
+  anthropic: 'account.apiKeyRejected',
+  openai: 'account.codexKeyRejected',
+  openrouter: 'account.openRouterKeyRejected',
+  github: 'account.copilotTokenRejected',
+} as const
+const UNCHECKED = {
+  anthropic: 'account.apiKeyUnchecked',
+  openai: 'account.codexKeyUnchecked',
+  openrouter: 'account.openRouterKeyUnchecked',
+  github: 'account.copilotTokenUnchecked',
+} as const
 
 export type AccountAgent = Pick<Agent, 'authStatus' | 'login' | 'logout' | 'terminalLogin'>
 

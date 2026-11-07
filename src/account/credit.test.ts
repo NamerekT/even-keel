@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkCredit, checkOpenAiCredit, CreditChecks } from './credit.js'
+import { checkCredit, checkOpenAiCredit, checkOpenRouterCredit, CreditChecks } from './credit.js'
 
 const KEY = 'sk-ant-fake-0000000000000000'
 const MODELS = { data: [{ id: 'claude-opus-fake' }, { id: 'claude-haiku-fake' }, { id: 'claude-sonnet-fake' }] }
@@ -112,6 +112,44 @@ describe('checkOpenAiCredit', () => {
     expect(await checkOpenAiCredit(OPENAI_KEY, 1000, openAi({ status: 429, body: rate }).fetchImpl)).toEqual({ state: 'unknown', reason: 'HTTP 429' })
     const none = { status: 200, body: { data: [{ id: 'whisper-fake' }, { id: 'gpt-fake-mini-tts' }] } }
     expect(await checkOpenAiCredit(OPENAI_KEY, 1000, openAi({ status: 200, body: {} }, none).fetchImpl)).toEqual({
+      state: 'unknown',
+      reason: 'the key lists no models',
+    })
+  })
+})
+
+describe('checkOpenRouterCredit (BTN-843)', () => {
+  const ROUTER_KEY = 'sk-or-v1-fake-0000'
+  const text = { input_modalities: ['text'], output_modalities: ['text'] }
+  const ROUTER_MODELS = {
+    data: [
+      { id: 'openrouter/auto', pricing: { prompt: '-1', completion: '-1' }, architecture: text },
+      { id: 'fake/free-model:free', pricing: { prompt: '0', completion: '0' }, architecture: text },
+      { id: 'fake/dear-model', pricing: { prompt: '0.00001', completion: '0.00003' }, architecture: text },
+      { id: 'fake/cheap-image', pricing: { prompt: '0.00000001', completion: '0.00000001' }, architecture: { input_modalities: ['text'], output_modalities: ['image'] } },
+      { id: 'fake/cheap-per-request', pricing: { prompt: '0.00000001', completion: '0.00000001', request: '0.01' }, architecture: text },
+      { id: 'fake/cheap-model', pricing: { prompt: '0.0000001', completion: '0.0000002' }, architecture: text },
+    ],
+  }
+
+  it('sends one output token to the cheapest paid text model OpenRouter lists', async () => {
+    const { seen, fetchImpl } = api({ status: 200, body: { choices: [] } }, { status: 200, body: ROUTER_MODELS })
+    expect(await checkOpenRouterCredit(ROUTER_KEY, 1000, fetchImpl)).toEqual({ state: 'ok' })
+    expect(seen[0]!.url).toBe('https://openrouter.ai/api/v1/models')
+    expect(seen[1]).toMatchObject({ url: 'https://openrouter.ai/api/v1/chat/completions', method: 'POST' })
+    expect(seen[1]!.body).toMatchObject({ model: 'fake/cheap-model', max_tokens: 1 })
+    expect(seen[1]!.headers.get('authorization')).toBe(`Bearer ${ROUTER_KEY}`)
+  })
+
+  it('says the key is still out of credit on 402 and knows nothing from any other answer', async () => {
+    const empty = { error: { message: 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', code: 402 } }
+    expect(await checkOpenRouterCredit(ROUTER_KEY, 1000, api({ status: 402, body: empty }, { status: 200, body: ROUTER_MODELS }).fetchImpl)).toEqual({ state: 'empty' })
+    expect(await checkOpenRouterCredit(ROUTER_KEY, 1000, api({ status: 429, body: {} }, { status: 200, body: ROUTER_MODELS }).fetchImpl)).toEqual({
+      state: 'unknown',
+      reason: 'HTTP 429',
+    })
+    const free = { data: [ROUTER_MODELS.data[1]] }
+    expect(await checkOpenRouterCredit(ROUTER_KEY, 1000, api({ status: 200, body: {} }, { status: 200, body: free }).fetchImpl)).toEqual({
       state: 'unknown',
       reason: 'the key lists no models',
     })

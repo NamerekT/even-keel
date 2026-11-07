@@ -14,6 +14,7 @@ export const accountRu = {
       anthropicKey: 'Ключ Anthropic',
       chatgpt: 'ChatGPT',
       openaiKey: 'Ключ OpenAI',
+      openrouterKey: 'Ключ OpenRouter',
       zen: 'OpenCode Zen',
       github: 'GitHub',
       bedrock: 'Amazon Bedrock',

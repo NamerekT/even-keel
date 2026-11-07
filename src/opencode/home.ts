@@ -38,9 +38,13 @@ export function keepOwnInstructions(dir: string): void {
   writeFileSync(file, '')
 }
 
-/** The provider an API key is of, by its prefix: OpenCode takes a key per provider, and the page asks only for the key. */
-export function keyVendor(key: string): 'anthropic' | 'openai' {
-  return key.startsWith('sk-ant-') ? 'anthropic' : 'openai'
+/**
+ * The provider an API key is of, by its prefix: OpenCode takes a key per provider, and the page asks only for the key.
+ * The name is OpenCode's provider id, the key of its `auth.json` entry.
+ */
+export function keyVendor(key: string): 'anthropic' | 'openai' | 'openrouter' {
+  if (key.startsWith('sk-ant-')) return 'anthropic'
+  return key.startsWith('sk-or-') ? 'openrouter' : 'openai'
 }
 
 /** The key into `auth.json` the way `opencode providers login` writes it: `{ "<provider>": { "type": "api", "key" } }`. */

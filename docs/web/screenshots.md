@@ -6,7 +6,7 @@
 
 `?header=sessionAccounts` supplies Claude and Codex accounts with the same e-mail and distinct names, with ABC-5 running on Codex by e-mail. Open ABC-5's session list, its session record and its chat to check account pills. Suffixes `-long`, `-missing` and `-empty` exercise a long OpenAI name, a missing Codex account and a session without an account.
 
-`?account=connections` supplies every connection of every agent at once (BTN-576): Claude Max and Pro, an Anthropic key, ChatGPT Plus, Pro without five hours and Free with a month, OpenAI keys without credits (the problem band's paths), two Zen folders, OpenCode on ChatGPT, on Copilot and on both keys, and both Copilot sign-ins. Use it for the agent cards and connection groups on `/accounts` and in the drawer.
+`?account=connections` supplies every connection of every agent at once (BTN-576): Claude Max and Pro, an Anthropic key, ChatGPT Plus, Pro without five hours and Free with a month, OpenAI keys without credits (the problem band's paths), two Zen folders, OpenCode on ChatGPT, on Copilot, on both keys and on an OpenRouter key, and both Copilot sign-ins. Use it for the agent cards and connection groups on `/accounts` and in the drawer.
 
 `?account=copilot-out` supplies a Copilot folder whose CLI explicitly reports no sign-in, beside a working token folder. Use it on `/accounts` to check the copyable sh sign-in command in the problem band; `copilot-out-cmd` supplies the Windows cmd command. `copilot-unknown` shows "Could not check" with launches allowed, including the mobile row; `copilot` shows the signed-in state.
 

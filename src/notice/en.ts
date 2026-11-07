@@ -5,7 +5,7 @@ type ClaudeRecovery = { binary: string; configDir: string | null }
 
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 /** Whose key an API account holds, by `keyProvider`. */
-export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
+export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', openrouter: 'OpenRouter', github: 'GitHub' }
 /** The agents of the account folders by their registry name, as their adapters' `title`. */
 export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot', demo: 'Demo' }
 
@@ -353,6 +353,8 @@ export const en = {
   'account.codexKeyInvalid': () => 'codex: an OpenAI API key is one word of more than 20 characters, like sk-proj-…',
   'account.codexKeyRejected': () => "codex: OpenAI doesn't accept this key: it is wrong, revoked or its project is disabled",
   'account.codexKeyUnchecked': (p: { reason: string }) => `codex: could not check the key with OpenAI (${p.reason}); try again later`,
+  'account.openRouterKeyRejected': () => "opencode: OpenRouter doesn't accept this key: it is wrong, revoked or disabled",
+  'account.openRouterKeyUnchecked': (p: { reason: string }) => `opencode: could not check the key with OpenRouter (${p.reason}); try again later`,
   'account.copilotTokenInvalid': () =>
     'copilot: Copilot CLI takes a fine-grained personal access token (github_pat_…) with the Copilot Requests permission, or an OAuth token (gho_…); a classic ghp_ one it refuses',
   'account.copilotTokenRejected': () => "copilot: GitHub doesn't accept this token: it is wrong, expired or revoked",

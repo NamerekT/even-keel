@@ -73,9 +73,9 @@ export const addAccount = {
       },
       apiKey: {
         title: 'API key',
-        gets: 'An Anthropic or OpenAI key, pay per token',
-        tip: "An Anthropic (sk-ant-…) or OpenAI API key, in a new OpenCode folder's auth.json: whose key it is, is told by its start. Sessions on it pay per token; name the model in the run profile, like anthropic/claude-sonnet-4-5.",
-        next: 'An Anthropic (sk-ant-…) or OpenAI (sk-…) key.',
+        gets: 'An Anthropic, OpenAI or OpenRouter key, pay per token',
+        tip: "An Anthropic (sk-ant-…), OpenRouter (sk-or-…) or OpenAI API key, in a new OpenCode folder's auth.json: whose key it is, is told by its start. Sessions on it pay per token; name the model in the run profile, like anthropic/claude-sonnet-4-5 or openrouter/minimax/minimax-m3.1-flash.",
+        next: 'An Anthropic (sk-ant-…), OpenAI (sk-…) or OpenRouter (sk-or-…) key.',
         rule: 'Claude through OpenCode — with a key only: Anthropic allows a Claude subscription only in Claude Code.',
         action: 'Check and add key',
       },

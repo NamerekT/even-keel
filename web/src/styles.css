@@ -39,6 +39,7 @@
   /* Who bills an account's connection, the stripe of its group on the accounts page: series hues, so both themes follow. */
   --owner-anthropic: var(--series-2);
   --owner-openai: var(--series-3);
+  --owner-openrouter: var(--series-8);
   --owner-zen: var(--series-1);
   --owner-github: var(--series-7);
   --owner-aws: var(--series-4);

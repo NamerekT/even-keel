@@ -13,6 +13,7 @@ import { providerUrl } from './account/network.js'
 import type { SessionStart } from './agent/contract.js'
 import { copies } from './agent/copies.js'
 import { CLAUDE } from './claude/name.js'
+import { OPENCODE } from './opencode/name.js'
 import { type LaunchEntry } from './chain/dispatcher.js'
 import { launchedProjects } from './chain/launches.js'
 import { type HandoffSession, type TrackerPlace } from './chain/relay.js'
@@ -556,7 +557,7 @@ const homeOf = (key: string): AccountHome => {
 }
 
 const reach = accountsService.wireReach(context)
-const online = (home: AccountHome) => reach.up(providerUrl(home.agent))
+const online = (home: AccountHome) => reach.up(providerUrl(home.agent, home.agent === OPENCODE ? homes.apiKeyOf(home) : null))
 const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   homeOf: (key) => homes.find(key),
   agentOf,

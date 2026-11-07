@@ -305,6 +305,8 @@ export const noticesRu: NoticeTexts = {
   'account.codexKeyInvalid': () => 'API-ключ OpenAI — одно слово длиннее 20 символов, вроде sk-proj-…',
   'account.codexKeyRejected': () => 'OpenAI не принимает этот ключ: он неверный, отозван или проект отключён',
   'account.codexKeyUnchecked': (p) => `не удалось проверить ключ у OpenAI (${p.reason}) — попробуйте позже`,
+  'account.openRouterKeyRejected': () => 'OpenRouter не принимает этот ключ: он неверный, отозван или отключён',
+  'account.openRouterKeyUnchecked': (p) => `не удалось проверить ключ у OpenRouter (${p.reason}) — попробуйте позже`,
   'account.copilotTokenInvalid': () =>
     'Copilot CLI принимает мелкозернистый личный токен (github_pat_…) с правом Copilot Requests или OAuth-токен (gho_…); классический ghp_ он не берёт',
   'account.copilotTokenRejected': () => 'GitHub не принимает этот токен: он неверный, истёк или отозван',

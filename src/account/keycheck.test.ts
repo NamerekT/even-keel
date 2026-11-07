@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkApiKey, checkOpenAiKey, KeyChecks } from './keycheck.js'
+import { checkApiKey, checkOpenAiKey, checkOpenRouterKey, KeyChecks } from './keycheck.js'
 
 const answer = (status: number): typeof fetch => async () => new Response('{}', { status })
 
@@ -57,6 +57,27 @@ describe('checkOpenAiKey', () => {
     expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(401))).toEqual({ state: 'rejected' })
     expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(403))).toEqual({ state: 'rejected' })
     expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(503))).toEqual({ state: 'unknown', reason: 'HTTP 503' })
+  })
+})
+
+describe('checkOpenRouterKey (BTN-843)', () => {
+  const KEY = 'sk-or-v1-fake-0000'
+
+  it("asks OpenRouter's key endpoint with the key as a bearer token", async () => {
+    const seen: { url: string; headers: Headers }[] = []
+    const fetchImpl: typeof fetch = async (url, init) => {
+      seen.push({ url: String(url), headers: new Headers(init?.headers) })
+      return new Response(JSON.stringify({ data: { label: 'sk-or-v1-fak...000', usage: 0, limit: null, is_free_tier: false } }), { status: 200 })
+    }
+    expect(await checkOpenRouterKey(KEY, 1000, fetchImpl)).toEqual({ state: 'ok' })
+    expect(seen.map((request) => request.url)).toEqual(['https://openrouter.ai/api/v1/key'])
+    expect(seen[0]!.headers.get('authorization')).toBe(`Bearer ${KEY}`)
+  })
+
+  it('takes 401 and 403 for a refused key and anything else for no verdict', async () => {
+    expect(await checkOpenRouterKey(KEY, 1000, answer(401))).toEqual({ state: 'rejected' })
+    expect(await checkOpenRouterKey(KEY, 1000, answer(403))).toEqual({ state: 'rejected' })
+    expect(await checkOpenRouterKey(KEY, 1000, answer(502))).toEqual({ state: 'unknown', reason: 'HTTP 502' })
   })
 })
 

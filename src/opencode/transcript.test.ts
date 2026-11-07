@@ -119,6 +119,8 @@ describe('foldSession', () => {
     ['the message alone', 'You have no credits remaining. Add credits to continue.', undefined],
     ['the quota type in the response body', 'Something went wrong.', { type: 'insufficient_quota' }],
     ['the balance code before a transient message', 'Service unavailable.', { code: 'credit_balance_exhausted' }],
+    ["OpenRouter's empty balance", 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', { code: 402 }],
+    ["OpenRouter's balance short of the turn", 'This request requires more credits, or fewer max_tokens. You requested up to 32000 tokens, but can only afford 1200.', { code: 402 }],
   ])('recognizes exhausted credits from %s before retryable HTTP 429', (_source, text, body) => {
     const error = {
       name: 'APIError',

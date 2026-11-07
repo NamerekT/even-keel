@@ -273,6 +273,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
       opencode('opencode-copilot', 'OpenCode 2', 'github-copilot', { limits: { fiveHour: null, sevenDay: null, month: month(17, 166), updatedAt: ago(2), source: 'api' } }),
       key('opencode-anthropic', OPENCODE, { name: 'OpenCode keys', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'anthropic' } }),
       key('opencode-openai', OPENCODE, { name: 'Test API', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'openai' }, spendingLimit: { resetsAt: null } }),
+      key('opencode-openrouter', OPENCODE, { name: 'OpenRouter', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'openrouter' } }),
       ...fakeAccount('copilot', idle, limits).accounts.filter((entry) => entry.agent === COPILOT),
     ]
     return { ...signedIn, accounts, pool: [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'codex' }] }

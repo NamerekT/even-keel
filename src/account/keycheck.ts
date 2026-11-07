@@ -2,6 +2,7 @@ const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=1'
 const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models'
 const OPENAI_ME_URL = 'https://api.openai.com/v1/me'
 const GITHUB_USER_URL = 'https://api.github.com/user'
+const OPENROUTER_KEY_URL = 'https://openrouter.ai/api/v1/key'
 const API_VERSION = '2023-06-01'
 
 /**
@@ -25,6 +26,14 @@ export async function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: 
   if (verdict.state !== 'ok' || verdict.organization !== undefined) return verdict
   const me = await askModels(OPENAI_ME_URL, headers, timeoutMs, fetchImpl, 'openai-organization')
   return me.state === 'ok' && me.organization !== undefined ? me : verdict
+}
+
+/**
+ * Whether OpenRouter takes an OpenCode account's key (BTN-843): `/api/v1/key` describes the key for free. OpenRouter has
+ * no organization header.
+ */
+export function checkOpenRouterKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+  return askModels(OPENROUTER_KEY_URL, { authorization: `Bearer ${key}` }, timeoutMs, fetchImpl)
 }
 
 /**

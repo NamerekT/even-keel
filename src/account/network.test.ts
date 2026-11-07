@@ -41,4 +41,10 @@ describe('Reachability', () => {
     expect(providerUrl('claude')).toBe('https://api.anthropic.com')
     expect(providerUrl('codex')).toBe('https://api.openai.com')
   })
+
+  it("takes OpenRouter's for an OpenCode folder on an OpenRouter key, OpenCode's for any other (BTN-843)", () => {
+    expect(providerUrl('opencode', 'sk-or-v1-fake-0000')).toBe('https://openrouter.ai')
+    expect(providerUrl('opencode', 'sk-ant-fake-0000')).toBe('https://opencode.ai')
+    expect(providerUrl('opencode')).toBe('https://opencode.ai')
+  })
 })
