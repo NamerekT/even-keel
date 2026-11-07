@@ -1,6 +1,6 @@
 ---
 name: task
-description: Work a Forgejo issue (Gitea and Codeberg too) through the forgejo MCP server: read the brief, record decisions, file blockers and questions, leave a closing comment and merge into the project's main branch. Use for task ids such as APP-12 in projects tracked in Forgejo Issues, or before creating an issue there.
+description: "Work a Forgejo issue (Gitea and Codeberg too) through the forgejo MCP server: read the brief, record decisions, file blockers and questions, leave a closing comment and merge into the project's main branch. Use for task ids such as APP-12 in projects tracked in Forgejo Issues, or before creating an issue there."
 ---
 
 # Working a Forgejo issue

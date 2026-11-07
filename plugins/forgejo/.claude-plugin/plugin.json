@@ -1,6 +1,6 @@
 {
   "name": "forgejo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Forgejo Issues for Even Keel sessions (Gitea and Codeberg too): the official gitea-mcp server signed in with the profile's token, and the task skill.",
   "author": { "name": "Even Keel" },
   "keywords": ["forgejo", "gitea", "codeberg", "issues", "tracker", "even-keel", "mcp"]

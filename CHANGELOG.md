@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 
+### Fixed
+
+- The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
+- The GitLab plugin's `gitlab:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on GitLab projects get the skill (plugin 0.1.3).
+
 ## [0.2.2] - 2026-11-06
 
 ### Added
