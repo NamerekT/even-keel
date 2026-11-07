@@ -39,7 +39,7 @@ with places as materialized (
   cross join lateral (
     select coalesce(lower(regexp_replace(replace(p.project_dir, '\\', '/'), '^[a-zA-Z]:', '')), d.dir) as dir
   ) e
-), base as (
+), project_base as (
   select c.message_id, c.session_id, coalesce(c.agent_id, '') as agent_id, t.task, c.at, c.cost, c.model, c.entrypoint,
     s.launch_reason,
     coalesce(
@@ -54,6 +54,13 @@ with places as materialized (
   left join places pl on pl.project_dir = coalesce(s.project_dir, c.project_dir)
   cross join lateral (select coalesce(pl.task, c.task) as task) t
   where ($4::text = 'all' or s.launch_reason is not null) and ($5::text is null or c.account = $5::text)
+), base as (
+  select * from project_base
 ), seven as (
   select message_id, sum(share) as share from limit_shares where span = '7d' group by message_id
 )`
+
+/** Bind the excluded keys after a query's existing parameters, once project attribution is complete. */
+export function excludingProjects(sql: string, parameter: number): string {
+  return sql.replace('select * from project_base', `select * from project_base where not (project = any($${parameter}::text[]))`)
+}

@@ -97,6 +97,7 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     remoteProfiles: mapOf<string>(remoteProfiles ?? {}, 'remoteProfiles', (value) => typeof value === 'string'),
   }
   if (typeof pullRequests !== 'boolean') throw fail('request.required', { field: 'pullRequests' })
+  if (body.testProject !== undefined && typeof body.testProject !== 'boolean') throw fail('request.required', { field: 'testProject' })
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
   // A page open since before release projects sends none.
   if (mergeInto !== undefined && mergeInto !== null && typeof mergeInto !== 'string') throw fail('request.required', { field: 'mergeInto' })
@@ -116,6 +117,7 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     ...settings,
     name: name ?? null,
     pullRequests,
+    testProject: body.testProject === true,
     intakeLabel: intakeLabel?.trim() || null,
     mergeInto: mergeInto?.trim() || null,
     carryAgent: carryAgent ?? false,

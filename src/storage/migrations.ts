@@ -152,6 +152,7 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   // v23 → v24: a project's `statusMoves` and a feed's `moves` (BTN-554) are optional; the restamp above is all it takes.
   // v24 → v25: optional project consent `trustClaude`; omitted means false, so existing projects keep manual trust.
   // v26 → v27: optional `notices`, Even Keel's and a project's (BTN-759); the restamp above is all it takes.
+  // v28 → v29: optional project `testProject` (BTN-206), false when omitted; only the version changes.
   const feeds = version < 23 ? feedsRuled(sdk) : sdk
   const trusted = version < 26 ? automaticTrust(feeds) : feeds
   return version < 28 ? manualKept(trusted) : trusted

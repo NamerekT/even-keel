@@ -329,6 +329,7 @@ export class LiveConnection implements LiveSource {
 
 function filterSearch(filter: StatsFilter): URLSearchParams {
   const search = new URLSearchParams({ scope: filter.scope, tz: filter.tz })
+  if (filter.includeTests) search.set('tests', '1')
   if (filter.account !== null) search.set('account', filter.account)
   return search
 }

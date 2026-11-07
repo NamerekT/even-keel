@@ -334,6 +334,8 @@ The windows of every subscription account are read every 5 minutes: Claude Code'
 
 ## Statistics (optional)
 
+Mark a sandbox as **Test project** in its **Repository** settings. Its card gets a small test tag, and its entire history disappears from the home launch chart and the default statistics. Collection and task chains continue. Turn on **Include test projects** on the statistics page to see that history again; the choice stays in the page's link. Opening statistics from the project's own strip includes it automatically. Removing the flag restores its history everywhere. If several projects share one key, marking any of them hides that key from aggregate statistics. Account usage and spending still show the real totals.
+
 A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)) or your own: spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
 
 Statistics include history from existing account folders, including the global Claude and Codex folders even if you have not added those accounts in Even Keel. A folder left out of a scan keeps its reading progress while its files still exist, so changing the scan does not force that history to reload.

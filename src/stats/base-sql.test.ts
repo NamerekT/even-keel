@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SESSION_FOLDERS } from '../../tally/src/db.js'
 import { migrate, pgliteDb } from '../../tally/src/migrations.js'
-import { BASE, familyOf } from './base-sql.js'
+import { BASE, excludingProjects, familyOf } from './base-sql.js'
 
 // The project and task of a message on the whole schema in an in-memory PGlite.
 const REPO = 'D:\\Projects\\even-keel'
@@ -105,6 +105,14 @@ describe('stats base SQL', () => {
   it('keeps a session that ran cd in the folder it started in', async () => {
     const rows = await found()
     expect([rows.w1?.project, rows.w2?.project]).toEqual(['App', 'App'])
+  })
+
+  it('excludes resolved projects without reassigning their folders to other groups', async () => {
+    const sql = excludingProjects(`${BASE} select message_id, project, $3::text as zone from base`, 8)
+    const params = [['BTN'], ['/projects/even-keel'], 'UTC', 'all', null, ['/work/app'], ['App']]
+    const hidden = await db.query(sql, [...params, ['BTN']])
+    expect(hidden.rows.map(row => row.project)).toEqual(['App', 'App'])
+    expect((await db.query(sql, [...params, []])).rows).toHaveLength(4)
   })
 
   it('gives a session in the temp folder of another one its task and project', async () => {

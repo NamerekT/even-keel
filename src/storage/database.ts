@@ -447,6 +447,13 @@ export const STEPS: readonly string[] = [
   );
   create index builtin_files_sha on builtin_files (sha256);
   `,
+  // Aggregate views may hide a project; recording and chain operation stay unchanged (BTN-206).
+  `
+  insert into setting_definitions (key, kind, spec, default_value, scopes, qualifier)
+    select 'testProject', 'boolean', '{}'::jsonb, 'false'::jsonb, 'project', null
+    where exists (select 1 from projects)
+    on conflict (key) do nothing;
+  `,
 ]
 
 /** The version this code reads and writes. */

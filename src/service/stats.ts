@@ -73,6 +73,7 @@ export function wireStats(ctx: StatsContext): StatsReader {
     () => Object.fromEntries(Object.entries(firstByKey(ctx.configStore.current)).map(([key, project]) => [key, ctx.configStore.current.projects[project]!])),
     () => ctx.configStore.current.stats,
     (key) => ctx.pinnedCheckpoint(firstByKey(ctx.configStore.current)[key]),
+    () => [...new Set(Object.entries(ctx.configStore.current.settings).filter(([, settings]) => settings.testProject).map(([id]) => ctx.configStore.current.keys[id]!))],
   )
 }
 

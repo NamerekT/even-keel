@@ -1,0 +1,8 @@
+/* Keep the repository's settings reachable when all five group names exceed the panel's width. */
+.settings__head .settings-tabs {
+  overflow-x: auto;
+}
+
+.settings__head .settings-tab {
+  flex-shrink: 0;
+}

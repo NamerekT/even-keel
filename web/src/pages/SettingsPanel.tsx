@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import './projectSettingsTabs.css'
 import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { BranchDriftBand, BranchField, BranchMoveLine, useRepoBranches } from './BranchField.js'
@@ -328,6 +329,16 @@ export function SettingsPanel({
             {drift !== undefined && <BranchDriftBand project={project} drift={drift} />}
           </Row>
           {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
+          <SwitchField
+            className={marks.box('testProject')}
+            label={t.settings.testProject}
+            hint={t.settings.testProjectHint}
+            checked={on('testProject')}
+            mark={marks.note('testProject')}
+            onChange={(checked) => edit('testProject', checked)}
+          >
+            {notes('testProject')}
+          </SwitchField>
           <Row
             className={marks.box('slot')}
             label={t.settings.slot}

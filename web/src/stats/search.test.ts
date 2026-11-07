@@ -4,6 +4,11 @@ import { DEFAULT_VIEW, parseView, viewSearch } from './search.js'
 const parse = (text: string) => parseView(new URLSearchParams(text))
 
 describe('parseView', () => {
+  it('keeps the test-project choice in shared and reloaded URLs', () => {
+    expect(parse('tests=1').includeTests).toBe(true)
+    expect(viewSearch({ ...DEFAULT_VIEW, includeTests: true })).toBe('tests=1')
+    expect(parse('tests=0').includeTests).not.toBe(true)
+  })
   it('defaults to 30 sliding days over all projects and sessions', () => {
     expect(parse('')).toEqual(DEFAULT_VIEW)
     expect(DEFAULT_VIEW).toEqual({ period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null, places: null })

@@ -202,7 +202,7 @@ const importOf = (row: Row): RuleImport => ({
   source: String(row.source),
 })
 
-export async function readRules(db: RulesDb, query: RulesQuery, settings: CompareSettings): Promise<StatsRules> {
+export async function readRules(db: RulesDb, query: RulesQuery, settings: CompareSettings, excluded: string[] = []): Promise<StatsRules> {
   const [changeRows, editRows, importRows, starts, places] = await Promise.all([
     db.plain(CHANGES, []),
     db.plain(EDITS, []),
@@ -230,6 +230,8 @@ export async function readRules(db: RulesDb, query: RulesQuery, settings: Compar
   const info = ids.length === 0 ? [] : await db.plain(SESSION_INFO, [ids])
   const sessions = new Map(info.map((row) => [String(row.session_id), { task: row.task === null ? null : String(row.task), title: row.title === null ? null : String(row.title) }]))
   const filtered = filterSets(withImports(ruleSets(changes, edits, sessions), importRows.map(importOf), places), query)
+    .map(set => ({ ...set, files: set.files.filter(file => file.project === null || !excluded.includes(file.project)) }))
+    .filter(set => set.files.length > 0)
   const hashes = netHashes(filtered, changes)
   const texts = hashes.length === 0 ? [] : await db.plain(TEXTS, [hashes])
   const sets = withNetLines(filtered, changes, new Map(texts.map((row) => [String(row.hash), String(row.content)])))

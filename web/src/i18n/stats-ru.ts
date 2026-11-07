@@ -5,6 +5,7 @@ const tasks = counted('задача', 'задачи', 'задач')
 const launches = counted('запуск', 'запуска', 'запусков')
 export const statsRU = {
     title: 'Статистика',
+    includeTests: 'Показать тестовые',
     reading: 'Читаю статистику…',
     failed: (error: string) => `Even Keel не ответил: ${error}`,
     off: (names: string) => `Статистика Tally выключена: в .env не заданы ${names}.`,

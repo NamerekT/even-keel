@@ -6,6 +6,7 @@ const launches = counted('launch', 'launches')
 import type { Messages } from './ru.js'
 export const statsEN: Messages['stats'] = {
     title: 'Stats',
+    includeTests: 'Show test projects',
     reading: 'Reading stats…',
     failed: (error: string) => `Even Keel didn't answer: ${error}`,
     off: (names: string) => `Tally stats are off: ${names} not set in .env.`,

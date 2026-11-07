@@ -3,6 +3,14 @@
   padding: 5px 8px;
 }
 
+.card__head--test {
+  flex-wrap: wrap;
+}
+
+.card__head--test .card__key {
+  flex-basis: 40%;
+}
+
 .home__groups {
   display: flex;
   flex-direction: column;

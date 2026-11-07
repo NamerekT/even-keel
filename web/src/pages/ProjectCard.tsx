@@ -51,11 +51,12 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
 
   return (
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
-      <header className="card__head">
+      <header className={`card__head${state.config.projects[project]?.testProject ? ' card__head--test' : ''}`}>
         <span className="card__swatch" aria-hidden="true" />
         <Link to={projectPath(project)} className="card__key">
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
+        {state.config.projects[project]?.testProject && <span className="tag">{t.settings.testProjectTag}</span>}
         {(status.kind === 'paused' || status.kind === 'queued' || waits.length > 0) && <StatusChip status={status} wait={waits[0]} reason={false} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
         {tracker !== null && (

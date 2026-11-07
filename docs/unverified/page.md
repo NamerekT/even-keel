@@ -2,6 +2,10 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## Test projects on a live service (BTN-206)
+
+Unit and database tests cover filtering after project attribution, the live reader cache, explicit hidden selections, the URL switch, defaults and migration. Fake-page screenshots cover the tag, repository switch and stats filter. Not yet watched on the HIN bench: saving the flag on a running service removes its recorded launches and stats immediately in another open tab; removing it restores the same history, and the flag survives a service restart. The collector must keep recording throughout. Restore the bench's original setting after the check. **If it is wrong:** open the project's own stats strip or turn on **Include test projects**, then remove the flag; this setting never deletes collected data.
+
 ## Header account after a labelled task closes (BTN-539)
 
 The server selector and fake page cover a saved session account, changed project settings, paused/stopped chains, fallback, deduplication, skipped/held tasks and the next ordered task after Done. The real service has not been watched while a labelled task closes and the next labelled task waits to start. Check that the header switches immediately on the tracker update, before launch, and keeps the current session's original folder after a settings change. **Workaround:** read the session's account and the project's Providers and models settings until this live check passes.

@@ -14,7 +14,7 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
-import { BASE, familyOf } from './base-sql.js'
+import { BASE, excludingProjects, familyOf } from './base-sql.js'
 import { mapCalibration, type Calibration } from './calibration.js'
 import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold } from './checkpoint.js'
 import { folderGroups, repoTail } from './model.js'
@@ -433,6 +433,7 @@ export class StatsReader {
     private readonly statsConfig: () => StatsConfig,
     /** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
     private readonly pinnedOf: (project: string) => number | null = () => statsConfig().checkpointTokens,
+    private readonly testProjects: () => string[] = () => [],
   ) {
     this.setReader(settings)
   }
@@ -462,18 +463,18 @@ export class StatsReader {
   }
 
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {
-    return this.cached(`history|${filter.scope}|${filter.account}|${filter.tz}`, async (pool) => {
+    return this.cached(`history|${JSON.stringify(filter)}`, async (pool) => {
       const [rows, accounts, limits] = await Promise.all([
         this.query(pool, HISTORY, filter),
         pool.query<Row>(ACCOUNTS).then((result) => result.rows),
         pool.query<Row>(COVERAGE, [filter.tz, filter.account]).then((result) => result.rows),
       ])
-      return mapHistory(rows, accounts, limits, this.keys, new Date())
+      return mapHistory(rows, accounts, limits, this.keys.filter(key => filter.includeTests || !this.testProjects().includes(key)), new Date())
     })
   }
 
   period(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>> {
-    const key = `period|${query.scope}|${query.account}|${query.tz}|${query.from}|${query.to}|${query.projects?.join(',') ?? '*'}`
+    const key = `period|${JSON.stringify(query)}`
     return this.cached(key, async (pool) => {
       const extra = [query.from, query.to, query.projects]
       const plain = (sql: string, params: unknown[]) => pool.query<Row>(sql, params).then((result) => result.rows)
@@ -568,13 +569,13 @@ export class StatsReader {
   }
 
   steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>> {
-    const key = `steps|${query.scope}|${query.account}|${query.tz}|${query.from}|${query.to}|${query.projects?.join(',') ?? '*'}`
+    const key = `steps|${JSON.stringify(query)}`
     return this.cached(key, (pool) => readSteps(this.db(pool), query))
   }
 
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
     const settings = this.statsConfig().compare
-    return this.cached(rulesKey(query, settings), (pool) => readRules(this.db(pool), query, settings))
+    return this.cached(rulesKey(query, settings), (pool) => readRules(this.db(pool), query, settings, query.includeTests ? [] : this.testProjects()))
   }
 
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>> {
@@ -603,13 +604,14 @@ export class StatsReader {
 
   private async query(pool: pg.Pool, sql: string, filter: StatsFilter, extra: unknown[] = []): Promise<Row[]> {
     const { dirs, labels } = await this.groups(pool)
-    const result = await pool.query<Row>(sql, [this.keys, this.dirs, filter.tz, filter.scope, filter.account, dirs, labels, ...extra])
+    const params = [this.keys, this.dirs, filter.tz, filter.scope, filter.account, dirs, labels, ...extra]
+    const result = await pool.query<Row>(excludingProjects(sql, params.length + 1), [...params, filter.includeTests ? [] : this.testProjects()])
     return result.rows
   }
 
   private groups(pool: pg.Pool): Promise<Folders> {
     const { moves, otherBelow } = this.statsConfig()
-    const key = JSON.stringify([moves, otherBelow])
+    const key = JSON.stringify([this.projects(), moves, otherBelow])
     if (this.folders !== null && this.folders.key === key && Date.now() - this.folders.at < CACHE_MS) return this.folders.groups
     const tracked = this.keys.map((each, index) => ({ key: each, dir: this.dirs[index]! }))
     const groups = pool.query<{ dir: string; raw: string; cost: string | number }>(FOLDERS).then((result) => {
@@ -623,6 +625,7 @@ export class StatsReader {
   }
 
   private async cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
+    key = `${JSON.stringify([this.projects(), this.statsConfig(), this.testProjects()])}|${key}`
     const now = Date.now()
     for (const [each, entry] of this.cache) if (now - entry.at >= CACHE_MS) this.cache.delete(each)
     const hit = this.cache.get(key)

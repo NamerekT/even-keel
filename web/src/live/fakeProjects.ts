@@ -183,6 +183,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
   // A fake project's id is its key, but for one whose key another project has.
   const id = state.projects.includes(key) ? crypto.randomUUID() : key
   const form: ProjectForm = {
+    testProject: false,
     name: draft.name.trim() || null,
     repo: draft.repo.trim().replace(/\\/g, '/'),
     branch: draft.branch.trim() || 'main',

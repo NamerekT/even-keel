@@ -5,6 +5,7 @@ import { MARK_KINDS } from './marks.js'
 import { isPreset, type PeriodChoice, type Step } from './period.js'
 
 export interface StatsView {
+  includeTests?: boolean
   period: PeriodChoice
   projects: string[] | null
   scope: StatsScope
@@ -48,6 +49,7 @@ export function parseView(params: URLSearchParams): StatsView {
   const listed = params.get('projects')
   return {
     period: readPeriod(params),
+    ...(params.get('tests') === '1' ? { includeTests: true } : {}),
     projects: listed === null ? null : listed.split(',').filter((each) => each !== ''),
     scope: params.get('scope') === 'chain' ? 'chain' : 'all',
     account: params.get('account') || null,
@@ -62,6 +64,7 @@ export function parseView(params: URLSearchParams): StatsView {
 
 export function viewSearch(view: StatsView): string {
   const params = new URLSearchParams()
+  if (view.includeTests) params.set('tests', '1')
   if ('preset' in view.period) {
     if (view.period.preset !== '30d') params.set('range', view.period.preset)
   } else {

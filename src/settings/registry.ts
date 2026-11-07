@@ -368,6 +368,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   // A release project's carry conflict goes to the agent's session by itself (BTN-370); unattended mode does so too.
   { key: 'carryAgent', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('carryAgent') },
+  { key: 'testProject', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('testProject') },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
   // The GitHub label whose issues the project takes into its tracker (BTN-262); `null` — none.
   { key: 'intakeLabel', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {

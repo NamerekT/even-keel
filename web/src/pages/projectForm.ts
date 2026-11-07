@@ -41,6 +41,7 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   recheck: switchText(form.own['ci.recheckMain']),
   fixTask: switchText(form.own['ci.fixTask']),
   pullRequests: form.pullRequests,
+  testProject: form.testProject,
   intakeLabel: form.intakeLabel ?? '',
   mergeInto: form.mergeInto ?? '',
   carryAgent: form.carryAgent,
@@ -136,6 +137,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
   const labels = text('modelLabels')
   return {
     name,
+    testProject: on('testProject'),
     repo: text('repo').trim(),
     branch: text('branch').trim(),
     tracker: text('tracker'),

@@ -11,7 +11,7 @@ import { projectScope as scopeOf, useDraft } from './settingsStore.js'
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 export const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'] },
+  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color', 'testProject'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',

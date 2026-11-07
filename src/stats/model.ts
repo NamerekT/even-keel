@@ -3,6 +3,7 @@ import type { StatsTaskStep } from './steps.js'
 export type StatsScope = 'all' | 'chain'
 
 export interface StatsFilter {
+  includeTests?: boolean
   scope: StatsScope
   account: string | null
   tz: string
@@ -178,7 +179,7 @@ export function parseStatsFilter(params: URLSearchParams): StatsFilter {
   const account = params.get('account') || null
   const tz = params.get('tz') || 'UTC'
   if (!ZONE.test(tz)) throw new Error('tz must be a time zone name')
-  return { scope, account, tz }
+  return { scope, account, tz, ...(params.get('tests') === '1' ? { includeTests: true } : {}) }
 }
 
 export function parsePeriodQuery(params: URLSearchParams): PeriodQuery {

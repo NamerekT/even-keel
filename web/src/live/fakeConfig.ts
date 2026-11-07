@@ -85,6 +85,7 @@ export const FAKE_SHARED: SharedForm = {
 }
 
 const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
+  testProject: false,
   name: null,
   repo,
   branch: 'main',
@@ -129,6 +130,7 @@ export function fakeConfig(account?: string | null): ConfigView {
       ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true, own: { fillMilestone: true },
         standards: [{ doc: 'docs/design.md', files: INTERFACE_FILES, except: DEFAULT_EXCEPT, shots: true }, { doc: 'docs/api-style.md', files: ['src/api/**/*.ts'], except: [], shots: false }] }),
       DEMO: project('D:/Projects/demo', {
+        testProject: true,
         color: 2,
         branch: 'master',
         tracker: 'github',

@@ -146,6 +146,7 @@ function rows(filter: StatsFilter): { day: string; project: string; cost: number
   const limitFrom = limitCoverage().from
   const list = []
   for (const profile of PROFILES) {
+    if (profile.project === 'DEMO' && !filter.includeTests) continue
     const factor = scale(filter, profile.project)
     if (factor === 0) continue
     const next = random(profile.project.length * 7919 + profile.weight * 31)
@@ -177,7 +178,7 @@ export function fakeHistory(mode: string | null, filter: StatsFilter): StatsAnsw
     data: {
       at: new Date().toISOString(),
       accounts: ['global', 'work'],
-      tracked: TRACKED,
+      tracked: TRACKED.filter(project => filter.includeTests || project !== 'DEMO'),
       projects,
       days,
       cells,

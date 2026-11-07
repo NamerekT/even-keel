@@ -21,11 +21,11 @@ export type StripData = ReturnType<typeof useStrip>
 
 /**
  * The project's last 30 days from the stats, drawn in its `slot`; the page reads it once for the strip and the idle panel.
- * The tasks come from the same period query as `/stats?projects=<key>` behind "More →", so both share the server's cache.
+ * The tasks use the period query behind "More →", including test projects on this project's own page.
  */
 export function useStrip(project: string, slot: number | null) {
   const { statsHistory, statsPeriod } = useLive()
-  const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }), [])
+  const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, includeTests: true }), [])
   const historyKey = JSON.stringify(filter)
   const fetched = useStatsAnswer(historyKey, () => statsHistory(filter))
   if (fetched !== null) historyMemory = fetched
@@ -87,7 +87,7 @@ export function StatsStrip({ project, strip: { loaded, summary, range, tasks }, 
           {tasks !== null && <TaskFacts tasks={tasks} onCard={onCard} />}
         </>
       )}
-      <Link className="strip__more" to={`/stats?projects=${encodeURIComponent(project)}`}>
+      <Link className="strip__more" to={`/stats?projects=${encodeURIComponent(project)}&tests=1`}>
         {t.strip.more}
       </Link>
     </section>

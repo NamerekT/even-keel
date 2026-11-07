@@ -19,6 +19,7 @@ import { PeriodPicker } from './PeriodPicker.js'
 import { PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { Select } from '../ui/Select.js'
+import { Switch } from '../pages/settingsParts.js'
 import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
@@ -42,14 +43,16 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const slots = keySlots(state)
   const slotsKey = JSON.stringify(slots)
 
-  const filter: StatsFilter = { scope: view.scope, account: view.account, tz }
-  const historyKey = JSON.stringify(filter)
+  const tests = state.projects.filter(id => state.config.projects[id]?.testProject).map(id => state.projectKeys[id]!)
+  const filter: StatsFilter = { scope: view.scope, account: view.account, tz, ...(view.includeTests ? { includeTests: true } : {}) }
+  const visibilityKey = JSON.stringify(tests)
+  const historyKey = JSON.stringify(filter) + visibilityKey
   const historyLoaded = useStatsAnswer(historyKey, () => statsHistory(filter))
   const history = loadedData(historyLoaded)
   const range = resolvePeriod(view.period, today, history === null ? null : firstDay(history))
   const waitsHistory = 'preset' in view.period && view.period.preset === 'all' && history === null
   const query: PeriodQuery = { ...filter, ...range, projects: view.projects }
-  const periodKey = waitsHistory ? null : JSON.stringify(query)
+  const periodKey = waitsHistory ? null : JSON.stringify(query) + visibilityKey
   const periodLoaded = useStatsAnswer(periodKey, () => statsPeriod(query))
   const period = loadedData(periodLoaded)
   const stepsLoaded = useStatsAnswer(periodKey, () => statsSteps(query))
@@ -57,7 +60,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const step = view.step ?? autoStep(range)
   const [picked, setPicked] = useState<string[]>([])
   const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes, places: view.places }
-  const rulesKey = JSON.stringify(rulesQuery)
+  const rulesKey = JSON.stringify(rulesQuery) + visibilityKey
   const rulesLoaded = useStatsAnswer(rulesKey, () => statsRules(rulesQuery))
   const folds = useFolds()
   const fold = (id: Fold): FoldControl => ({ open: folds.open.includes(id), onToggle: (on) => folds.setFold(id, on) })
@@ -117,6 +120,10 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
           onChange={choose}
         />
         <div className="stats-page__filters">
+          <label className="stats-page__filter">
+            {t.stats.includeTests}
+            <Switch checked={view.includeTests === true} onChange={includeTests => setView({ includeTests })} label={t.stats.includeTests} />
+          </label>
           <span className="stats-page__filter">
             {t.stats.sessions}
             <Segmented
@@ -192,7 +199,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               <>
                 <div className="stats-page__group">
                 <EstimateSection fold={fold('estimate')} tasks={period.tasks} />
-                {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints} projects={view.projects} />}
+                {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints.filter(each => view.includeTests || !tests.includes(each.project))} projects={view.projects} />}
                 </div>
                 <div className="stats-page__group">
                 <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />

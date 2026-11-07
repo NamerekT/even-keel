@@ -10,6 +10,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { Typed, Typists } from '../ui/Typed.js'
 import { type BlockLayout, GROUPINGS, type Grouping, homeBlocks, laidOut, zoneOf } from './homeGroups.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
+import { testLaunches } from './testLaunches.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
 import { firstRun } from '../../../src/setup.js'
 import { SETUP, stepPath } from './setupSteps.js'
@@ -97,7 +98,7 @@ export function Home({ state }: { state: EvenKeelState }) {
           </div>
         )}
       </Typists>
-      <LaunchChart days={state.launches} slots={projectSlots(state)} />
+      <LaunchChart {...testLaunches(state.launches, projectSlots(state), state.projects.filter(id => state.config.projects[id]?.testProject))} />
     </section>
   )
 }

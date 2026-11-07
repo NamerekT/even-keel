@@ -43,6 +43,19 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
   /** The stored settings of a database nothing was imported into. */
   const fresh = (raw: Record<string, unknown>) => ({ version: SCHEMA_VERSION, ...raw })
 
+  it('keeps the test-project flag across a repeated save and reopening the store', async () => {
+    await seed({ projects: [abc()] })
+    const store = await open()
+    const base = store.view().projects['id-abc']!
+    const next = { ...base, testProject: true }
+    store.saveProject('id-abc', next, base)
+    await writes.settled()
+    expect(store.current.settings['id-abc']!.testProject).toBe(true)
+    store.saveProject('id-abc', next, next)
+    await writes.settled()
+    expect((await open()).view().projects['id-abc']!.testProject).toBe(true)
+  })
+
   it('applies settings written past it at the next look, and keeps the last working ones while the stored ones do not parse', async () => {
     await seed({ projects: [abc()] })
     const config = await open()
@@ -105,6 +118,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       mergeInto: null,
       carryAgent: true,
       pullRequests: false,
+      testProject: false,
       intakeLabel: null,
       fillMilestone: true,
       changelog: 'CHANGELOG.md',

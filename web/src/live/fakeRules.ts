@@ -185,6 +185,7 @@ export function fakeRules(mode: string | null, rules: string | null, query: Rule
       session++
       const files = set.files
         .map((each) => ({ each, id: ids[seed++]! }))
+        .filter(({ each }) => query.includeTests || each.project !== 'DEMO')
         .filter(({ each }) => query.kinds === null || query.kinds.includes(each.kind))
         .filter(({ each }) => query.places === null || query.places.includes(placeOf(each.project)))
         .filter(({ each }) => each.project === null || query.projects === null || query.projects.includes(each.project))
