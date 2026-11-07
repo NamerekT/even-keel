@@ -87,6 +87,10 @@ export const CLOUD_VARIABLES: readonly string[] = [BEDROCK_SWITCH, ...Object.val
 /** A short-term Bedrock API key is a presigned URL and lives up to 12 hours; a long-term one starts with `ABSK`. */
 const SHORT_BEDROCK_KEY = /^bedrock-api-key-/
 
+export function shortBedrockKey(key: string): boolean {
+  return SHORT_BEDROCK_KEY.test(key.trim())
+}
+
 /** The `env` the folder's `settings.json` gets: only what is set, so the CLI's own order fills the rest. */
 export function cloudEnv(connection: CloudConnection): Record<string, string> {
   const env: Record<string, string> = { [BEDROCK_SWITCH]: '1' }

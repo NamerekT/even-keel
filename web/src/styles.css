@@ -41,6 +41,7 @@
   --owner-openai: var(--series-3);
   --owner-zen: var(--series-1);
   --owner-github: var(--series-7);
+  --owner-aws: var(--series-4);
 
   /* Shares that are not projects (model, entrypoint, reason): one slate hue, the biggest share the strongest, so a project's colour means only the project. */
   --tone-1: #2c3544;

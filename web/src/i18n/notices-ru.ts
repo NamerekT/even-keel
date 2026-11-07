@@ -317,7 +317,7 @@ export const noticesRu: NoticeTexts = {
   'account.cloudFieldInvalid': (p) => `${p.field} — одно слово, без пробелов`,
   'account.cloudCheckFailed': (p) => `проверочный ход в облаке не прошёл, ничего не добавлено: ${p.reason}`,
   'cloud.bedrockModelDenied': () =>
-    'Amazon Bedrock не даёт модель этому аккаунту AWS: доступ к моделям Anthropic не выдан. Запросите его в консоли Bedrock (Model access) в регионе аккаунта; новому аккаунту без истории оплат AWS может отказать сам — тогда открывает только поддержка AWS',
+    'Amazon Bedrock не даёт этому аккаунту AWS модели Anthropic: запросите доступ в консоли Bedrock в его регионе. Новому аккаунту без истории оплат доступ открывает только поддержка AWS',
   'cloud.bedrockPayment': () =>
     'у аккаунта AWS нет действующего способа оплаты (INVALID_PAYMENT_INSTRUMENT): добавьте его в консоли AWS Billing и попробуйте снова',
   'cloud.awsCredentials': (p) =>

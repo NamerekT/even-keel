@@ -367,17 +367,17 @@ export const en = {
   'account.cloudFieldInvalid': (p: { field: string }) => `claude: ${p.field} is one word, without spaces`,
   'account.cloudCheckFailed': (p: { reason: string }) => `claude: the check turn on the cloud failed, nothing was added: ${p.reason}`,
   'cloud.bedrockModelDenied': () =>
-    "Amazon Bedrock refuses the model to this AWS account: access to Anthropic's models is not granted. Request it in the Bedrock console (Model access) in the account's region; AWS may refuse a new account with no payment history itself, and then only AWS Support opens it",
+    "Amazon Bedrock refuses Anthropic's models to this AWS account: request access in the Bedrock console in its region. A new account with no payment history only AWS Support opens",
   'cloud.bedrockPayment': () =>
     'AWS finds no valid payment method on this account (INVALID_PAYMENT_INSTRUMENT): add one in the AWS Billing console, then try again',
   'cloud.awsCredentials': (p: { user: string; home: string }) =>
-    `AWS credentials are not found or have expired for the user Even Keel runs as${whose(p)}: sign in again (aws sso login, aws login) or give the keys in the account. Another Windows user's ~/.aws is not seen by the service`,
+    `No valid AWS credentials for the user Even Keel runs as${whose(p)}: sign in again (aws sso login) or give the keys. The service does not see another Windows user's files`,
   'cloud.awsTimeout': (p: { user: string; home: string }) =>
-    `AWS credentials took too long to resolve (AWS default-chain credential resolve timed out) for the user Even Keel runs as${whose(p)}: check the profile, the network and the proxy, or give the keys in the account`,
+    `AWS credentials took too long to resolve for the user Even Keel runs as${whose(p)}: check the profile, the network and the proxy, or give the keys in the account`,
   'cloud.bedrockRegion': () =>
     "Amazon Bedrock does not serve this model on demand in the account's region: pin an inference profile (us.anthropic.…) or its ARN in the account's models, or pick a region that serves it",
   'cloud.throttled': () =>
-    'Amazon Bedrock throttles the requests (ThrottlingException). A cloud has no known reset time, so the session stopped and is not waited out: answer it later from the chat, or raise the quota in AWS Service Quotas',
+    'Amazon Bedrock throttles the requests and has no known reset time, so the session stopped: answer it later from the chat, or raise the quota in AWS Service Quotas',
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,

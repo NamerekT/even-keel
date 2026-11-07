@@ -25,6 +25,7 @@
 .account-access--openai { --owner: var(--owner-openai); }
 .account-access--zen { --owner: var(--owner-zen); }
 .account-access--github { --owner: var(--owner-github); }
+.account-access--aws { --owner: var(--owner-aws); }
 .account-access__title { color: var(--fg); font-size: var(--text-14); font-weight: 600; text-transform: none; letter-spacing: normal; min-width: 0; }
 .account-access__count { color: var(--fg-muted); font-size: var(--text-13); font-weight: 400; }
 .account-rows { margin: 0; padding: 0; list-style: none; }
