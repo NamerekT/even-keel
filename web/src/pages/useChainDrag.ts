@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import type { ChainBlock } from '../state.js'
-import { inOrder, withOrder } from '../ui/chainOrder.js'
+import { inOrder, pinnedHead, withOrder } from '../ui/chainOrder.js'
 import { moveItem } from '../ui/drag.js'
 import { stillMotion } from '../ui/landing.js'
 import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops, type Bounds, type Box, type Point } from '../ui/reorder.js'
@@ -186,7 +186,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
         const box = items.find((item) => item.dataset.block === id)!.getBoundingClientRect()
         return { left: box.left - rect.left, top: box.top - rect.top, width: box.width, height: box.height }
       })
-      const pinned = open[0]?.current ? 1 : 0
+      const pinned = pinnedHead(open)
       const state: Active = {
         pointerId: current.pointerId,
         id: current.id,
@@ -313,9 +313,12 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   return { drag, landing, settling, movable }
 }
 
-/** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
+/**
+ * Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. The task a
+ * running fix interrupted stays under the fix, as the current one stays first.
+ */
 export function reorderable(block: ChainBlock): boolean {
-  return inOrder(block) && !block.current
+  return inOrder(block) && !block.current && !block.interrupted
 }
 
 function positions(list: HTMLElement): Map<string, Point> {

@@ -2,7 +2,7 @@
 
 ## Fake states (`npm run dev:fake`)
 
-Chain drag previews and optimistic drops share `withOrder` in `web/src/ui/chainOrder.ts`: `withWaiting` places each locked external blocker before its first dependent in the proposed order. `useChainDrag` measures every displayed row for `stackedTops`, including locked blockers and closed rows; drop targets and the submitted order still contain only chain tasks.
+Chain drag previews and optimistic drops share `withOrder` in `web/src/ui/chainOrder.ts`: `withWaiting` places each locked external blocker before its first dependent in the proposed order, and the fix and carry rows hold to the neighbour `chainBlocks` put them by (BTN-808): a fix right above the task it interrupted, a carry asked for right after the interrupted task, else the current one; a fix that interrupted nothing and a running carry stay on top. `pinnedHead` keeps the current task or the interrupted one first, and `reorderable` does not let either be picked up. `useChainDrag` measures every displayed row for `stackedTops`, including locked blockers and closed rows; drop targets and the submitted order still contain only chain tasks.
 
 Layout work on a fake state, without a tracker or sessions. The fake history starts in November 2023 and has several projects and folders without a project.
 
