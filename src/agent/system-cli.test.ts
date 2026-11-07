@@ -22,6 +22,7 @@ vi.mock('node:child_process', async (original) => {
 vi.mock('../paths.js', async (original) => ({ ...await original<typeof import('../paths.js')>(), findBinary: (bin: string) => bin.startsWith(state.copies) }))
 
 const { AGENTS } = await import('./adapters.js')
+const { isProvider } = await import('./providers.js')
 
 let dir = ''
 
@@ -37,7 +38,8 @@ afterEach(async () => {
 })
 
 describe('the CLI on the machine', () => {
-  it.each(Object.entries(AGENTS))('%s is asked apart from the checked copy sessions run on', async (_name, adapter) => {
+  // The providers with a CLI; the demo's scripted agent has none on the machine.
+  it.each(Object.entries(AGENTS).filter(([name]) => isProvider(name)))('%s is asked apart from the checked copy sessions run on', async (_name, adapter) => {
     const agent = adapter.setup({ env: () => ({ PATH: '' }), workDir: dir, timeoutMs: 100, checkedCli: () => true, log: () => {}, onCliChange: () => {} })
     expect(agent.installed?.()).toBe(true)
     expect(agent.system?.installed()).toBe(false)

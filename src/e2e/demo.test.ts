@@ -10,6 +10,7 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
   beforeEach(() => {
     run = new Harness()
     run.realAgents = ['demo']
+    tasks = []
   })
 
   afterEach(async () => {
@@ -75,10 +76,15 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
     await run.pass(30_000)
     expect(existsSync(demo().dir)).toBe(false)
 
-    await run.post('demo/again', {})
+    // Started again in the page's other language: the tasks and the agent's work take it, whatever the settings say.
+    await run.post('demo/again', { language: 'ru' })
     expect(project()).not.toBe(first)
+    tasks = []
     await run.until(() => statusOf(1) === 'Done', 'DEMO-1 of the new demo done')
-    expect(tasks.map((task) => task.number)).toEqual([1, 2, 3])
+    const made = await new BuiltinStore(run.service.db).list([project()])
+    expect(made.map((task) => task.number).sort()).toEqual([1, 2, 3])
+    expect(made.find((task) => task.number === 1)!.title).toBe('Добавить приветствие в README')
+    expect(run.gitIn(demo().repo, 'show', 'HEAD:README.md')).toContain('Добро пожаловать на борт')
   })
 
   it('refuses without git and says so', async () => {

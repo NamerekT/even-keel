@@ -7,7 +7,7 @@ export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forg
 /** Whose key an API account holds, by `keyProvider`. */
 export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', github: 'GitHub' }
 /** The agents of the account folders by their registry name, as their adapters' `title`. */
-export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' }
+export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot', demo: 'Demo' }
 
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 

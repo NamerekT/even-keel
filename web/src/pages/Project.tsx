@@ -61,6 +61,7 @@ import { SettingsChip } from './SettingsChip.js'
 import { SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { SETTINGS_HASH } from './settingsStore.js'
 import { ProjectNotices } from './ProjectNotices.js'
+import { DemoNotice } from './Demo.js'
 import { FixButton, NoticeFixButton } from './FixButtons.js'
 import { noticeFixOf, PROFILES } from './noticeFix.js'
 import { trackerDownText } from './trackerDown.js'
@@ -188,6 +189,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           </ChainControls>
         </header>
         <ProjectNotices key={`notices-${key}`} state={state} project={key} settingsOpen={settingsOpen} rows={blocks.flatMap((block) => (block.leftovers === undefined ? [] : [block.id]))} />
+        <DemoNotice state={state} project={key} />
         {/* The built-in tracker's empty state is the chain's own ghost. */}
         {!builtin && <EmptyCall state={state} project={key} />}
         <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>

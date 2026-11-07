@@ -8,6 +8,7 @@ import { helpEn } from './help-en.js'
 import { sessionEn } from './session-en.js'
 import { ciEn, ciKindsEn } from './ci-en.js'
 import { profilesEn } from './profiles-en.js'
+import { demoEn } from './demo-en.js'
 import { noticesEn } from './notices-en.js'
 import { eventsEn } from './events-en.js'
 import { plural } from './plural.js'
@@ -389,6 +390,7 @@ export const en: Messages = {
     },
   },
   profiles: profilesEn,
+  demo: demoEn,
   basement: {
     tapes: ['CAUTION', 'DO NOT ENTER', 'WORK IN PROGRESS', 'NO ENTRY'],
     stats: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],

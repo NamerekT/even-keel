@@ -8,7 +8,7 @@ import { say, t } from '../i18n/index.js'
 import { requestCli } from '../layout/CliCopies.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { projectPath } from '../state.js'
+import { ownProjects, projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
@@ -111,6 +111,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const [added, setAdded] = useState<{ key: string; before: string[] } | null>(null)
   const [branchOpen, setBranchOpen] = useState(false)
   const [milestonesOpen, setMilestonesOpen] = useState(false)
+  // The demo goes once the person's own project is in (BTN-776): on by default, never by itself.
+  const [dropDemo, setDropDemo] = useState(true)
   const choice = state.config.trackers.find((each) => each.name === fields.tracker)
   const shape = shapeOf(choice)
   const profile = state.profiles.profiles.find((each) => each.id === fields.profile)
@@ -212,6 +214,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     if (draft === undefined || !readyToAdd(check)) return
     const before = state.projects
     if (!(await send('project/add', { ...draft }))) return
+    if (dropDemo && state.demo !== null) void send('demo/remove')
     kept = null
     keptTables = { base: {}, edit: {} }
     setAdded({ key: draft.key.trim(), before })
@@ -226,7 +229,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     const mark = marks[WIZARD_STEPS.indexOf(step)]!
     return <StepDot mark={mark} label={t.wizard.marks[mark]} />
   }
-  const first = state.projects.length === 0
+  const first = ownProjects(state).length === 0
 
   return (
     <div className="page project-add">
@@ -420,6 +423,15 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     onChange={(event) => set({ slots: event.target.value })}
                   />
                 }
+              />
+            )}
+            {state.demo !== null && (
+              <Row
+                className="settings__field"
+                label={t.demo.wizardRemove}
+                hint={t.demo.wizardRemoveHint}
+                htmlFor="wizard-drop-demo"
+                control={<input id="wizard-drop-demo" type="checkbox" checked={dropDemo} onChange={(event) => setDropDemo(event.target.checked)} />}
               />
             )}
           </Section>

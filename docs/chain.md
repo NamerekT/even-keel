@@ -17,3 +17,4 @@ The area is split by subtopic, a file each in `docs/chain/`: read this table, th
 | [`state.md`](chain/state.md) | What the dispatcher owns; State files and the schema version |
 | [`unattended.md`](chain/unattended.md) | Unattended mode |
 | [`e2e.md`](chain/e2e.md) | End-to-end tests |
+| [`demo.md`](chain/demo.md) | The demo on the first run: its folder, project, agent, scenario, page and removal |

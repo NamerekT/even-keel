@@ -8,6 +8,7 @@ import { helpRu } from './help-ru.js'
 import { sessionRu } from './session-ru.js'
 import { ciRu, ciKindsRu } from './ci-ru.js'
 import { profilesRu } from './profiles-ru.js'
+import { demoRu } from './demo-ru.js'
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
@@ -399,6 +400,7 @@ export const ru = {
     } as Record<string, string>,
   },
   profiles: profilesRu,
+  demo: demoRu,
   basement: {
     tapes: ['ОСТОРОЖНО', 'НЕ ВХОДИТЬ', 'ИДУТ РАБОТЫ', 'ПРОХОД ЗАКРЫТ'],
     stats: ['Что ты тут забыл?', 'Мы ещё работаем над страницей, не мешай!'],

@@ -5,6 +5,7 @@ import { readinessOf } from '../accounts.js'
 import { accountName } from '../accountName.js'
 import { language, say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { ownProjects } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { Card } from '../ui/blocks.js'
 import { Row } from './settingsParts.js'
@@ -40,7 +41,8 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const save: Save = (change) => send('settings', { ...shared, ...change, base: shared } as unknown as Record<string, unknown>)
   const previous = stepBeside(step, -1)
   const next = stepBeside(step, 1)
-  const done = () => void navigate(state.projects.length === 0 ? ADD_PROJECT : '/', { replace: true })
+  const own = ownProjects(state).length
+  const done = () => void navigate(own === 0 ? ADD_PROJECT : '/', { replace: true })
 
   // The page's language shown is only a guess until it is written: "Next" keeps it.
   const onward = async () => {
@@ -51,7 +53,7 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
   // The stats step goes on by its cards; skipped, it is asked again once there is a project, so with one it is not skipped.
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
-  const skippable = OPTIONAL_STEPS.includes(step) && ahead === null && !(step === 'stats' && state.projects.length > 0)
+  const skippable = OPTIONAL_STEPS.includes(step) && ahead === null && !(step === 'stats' && own > 0)
   const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
   const held =
     (step === 'git' && !gitReady(state.git)) ||

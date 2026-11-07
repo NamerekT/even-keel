@@ -369,6 +369,8 @@ export function createFakeSource(search: string): LiveSource {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
   if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
+  // The demo's band (`running`) or its end card (`finished`) over ABC (BTN-776).
+  if ((params.get('demo') === 'running' || params.get('demo') === 'finished') && current.state !== null) current.state.demo = { project: 'ABC', finished: params.get('demo') === 'finished' }
   if (params.has('tally') && current.state !== null) {
     const mode = params.get('tally')
     current.state.tally = isTallyMode(mode) ? mode : null

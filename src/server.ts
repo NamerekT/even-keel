@@ -42,7 +42,7 @@ import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { DEFAULT_CI } from './settings/defaults.js'
 import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
-import type { Language } from './language.js'
+import { isLanguage, type Language } from './language.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
 import type { HookMail } from './sessions/mailRelay.js'
@@ -241,7 +241,7 @@ export interface ServerDeps {
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
   /** The demo on the first run (BTN-776): its project goes into the state's `demo`. */
-  demo?: { start(): Promise<unknown>; again(): Promise<unknown>; remove(): Promise<void> }
+  demo?: { start(language?: Language): Promise<unknown>; again(language?: Language): Promise<unknown>; remove(): Promise<void> }
   hub: EventHub
   publicDir: string
   getState: () => unknown
@@ -356,8 +356,9 @@ const COMMANDS: Record<string, Command> = {
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
-  'demo/start': async ({ demo }) => void (await demo?.start()),
-  'demo/again': async ({ demo }) => void (await demo?.again()),
+  // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
+  'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
+  'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),
   'demo/remove': async ({ demo }) => demo?.remove(),
   'git/check': ({ git }) => git?.check(),
   'git/identity': ({ git }, body) => git?.identity(textOf(body.name, 'name'), textOf(body.email, 'email')),

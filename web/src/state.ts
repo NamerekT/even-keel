@@ -447,6 +447,11 @@ export function projectPath(project: string): string {
   return `/p/${encodeURIComponent(project)}`
 }
 
+/** The person's own projects: the demo's is none of theirs, so it neither ends the first run nor asks about the stats (BTN-776). */
+export function ownProjects(state: Pick<EvenKeelState, 'projects' | 'demo'>): string[] {
+  return state.projects.filter((id) => id !== state.demo?.project)
+}
+
 /**
  * The project a page address names: by its id, or by its key in a link from before ids (`byKey`, to be redirected) —
  * the first project of the key.

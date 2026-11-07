@@ -12,7 +12,7 @@ function setup() {
   const planning = {
     dispatcher: { state: { unattended: true } },
     promptLanguage: () => 'en', projectOf: () => undefined,
-    knownTask: () => undefined, hasAccount: () => true,
+    knownTask: () => undefined, hasAccount: () => true, demo: { owns: () => false },
     configStore: { current: {
       provider: 'claude', models: { claude: 'sonnet' }, accounts: { claude: 'test' },
       modelLabels: false, modelPrompts: { 'Claude | *': instructions }, settings: {},

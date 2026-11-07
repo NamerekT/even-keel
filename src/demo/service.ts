@@ -88,15 +88,15 @@ export class DemoService {
   }
 
   /** Makes the repository and the project and starts the chain; a demo already there is refused. */
-  start(): Promise<string> {
-    return this.serial(() => this.make())
+  start(language?: Language): Promise<string> {
+    return this.serial(() => this.make(language ?? this.deps.language()))
   }
 
   /** The demo from scratch: the old one goes whole, a new one starts. */
-  again(): Promise<string> {
+  again(language?: Language): Promise<string> {
     return this.serial(async () => {
       await this.drop()
-      return this.make()
+      return this.make(language ?? this.deps.language())
     })
   }
 
@@ -111,9 +111,8 @@ export class DemoService {
     return next
   }
 
-  private async make(): Promise<string> {
+  private async make(language: Language): Promise<string> {
     if (this.project() !== undefined) throw fail('demo.exists', {})
-    const language = this.deps.language()
     await this.initRepo(language)
     mkdirSync(demoAccountOf(this.dir), { recursive: true })
     this.deps.homes.setDemo(this.home())

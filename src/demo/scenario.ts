@@ -87,6 +87,14 @@ export function roleOf(prompt: string): DemoRole {
   return 'added'
 }
 
+/** The language a demo task was made in, by its title in the launch prompt; `undefined` — a task the person added. */
+export function languageOf(prompt: string): Language | undefined {
+  for (const [language, texts] of Object.entries(TEXTS) as [Language, Texts][]) {
+    if (Object.values(texts.tasks).some((task) => prompt.includes(task.title))) return language
+  }
+  return undefined
+}
+
 /** The turn a demo task's session plays next: `plays` turns of it have begun before. */
 export function demoTurn(role: DemoRole, plays: number, language: () => Language): Turn {
   return async (turn) => {

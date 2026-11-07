@@ -354,7 +354,8 @@ export function wireUpdates(ctx: AccountsContext): UpdateWatcher {
   return new UpdateWatcher({
     repo: ctx.release.repo,
     current: ctx.release.version,
-    enabled: () => ctx.configStore.current.updates.check && !firstRun(ctx.tallyMode(), Object.keys(ctx.configStore.current.projects).length),
+    // The demo's project is none of the person's: the first run lasts through the demo (BTN-776).
+    enabled: () => ctx.configStore.current.updates.check && !firstRun(ctx.tallyMode(), Object.keys(ctx.configStore.current.projects).filter((id) => !ctx.demo.owns(id)).length),
     intervalMs: ctx.UPDATE_POLL_MS,
     onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (line) => console.log(line),

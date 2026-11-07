@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
-import { openQuestions, projectSlots, questionPath } from '../state.js'
+import { openQuestions, ownProjects, projectSlots, questionPath } from '../state.js'
 import { EmptyState, PageHead } from '../ui/blocks.js'
 import { ClonesIcon, ColumnsIcon, GridIcon, NestedIcon } from '../ui/icons.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
@@ -12,8 +12,8 @@ import { type BlockLayout, GROUPINGS, type Grouping, homeBlocks, laidOut, zoneOf
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { testLaunches } from './testLaunches.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
-import { firstRun } from '../../../src/setup.js'
-import { SETUP, stepPath } from './setupSteps.js'
+import { DemoWelcome } from './Demo.js'
+import { stepPath } from './setupSteps.js'
 import { useGrouping } from './useGrouping.js'
 import './home.css'
 
@@ -41,11 +41,11 @@ export function Home({ state }: { state: EvenKeelState }) {
   const turnOf = new Map(order.map((key, index) => [key, turns[index]!]))
 
   // A config that does not parse has its projects unknown, not none: the banner speaks, the wizard waits.
-  // The first run walks the setup (BTN-310); the stats alone are asked about once there are projects: until then
-  // nothing is collected (BTN-247).
-  if (state.tally === null && state.configError === null)
-    return <Navigate to={firstRun(state.tally, state.projects.length) ? SETUP : stepPath('stats')} replace />
-  if (state.projects.length === 0 && state.configError === null) return <Navigate to={ADD_PROJECT} replace />
+  // With no project at all the page offers the demo or one's own (BTN-776); the first run's setup is the second way.
+  // The stats alone are asked about once there are projects of the person's own: until then nothing is collected
+  // (BTN-247), and the demo is none of them.
+  if (state.configError === null && state.projects.length === 0) return <DemoWelcome state={state} />
+  if (state.tally === null && state.configError === null && ownProjects(state).length > 0) return <Navigate to={stepPath('stats')} replace />
 
   return (
     <section className="page">

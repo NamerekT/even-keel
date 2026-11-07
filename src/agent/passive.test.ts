@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AGENTS } from './adapters.js'
+import { isProvider } from './providers.js'
 import { VersionWatcher } from './versions.js'
 
 vi.mock('../paths.js', async (original) => ({ ...await original<typeof import('../paths.js')>(), findBinary: () => false }))
@@ -10,7 +11,8 @@ vi.mock('../paths.js', async (original) => ({ ...await original<typeof import('.
 afterEach(() => vi.unstubAllGlobals())
 
 describe('passive adapter probes', () => {
-  it.each(Object.entries(AGENTS))('%s never downloads from setup, availability, version sweeps or SDK readiness', async (name, adapter) => {
+  // The providers with a CLI; the demo's scripted agent has none to download.
+  it.each(Object.entries(AGENTS).filter(([name]) => isProvider(name)))('%s never downloads from setup, availability, version sweeps or SDK readiness', async (name, adapter) => {
     const dir = await mkdtemp(join(tmpdir(), 'cli-passive-'))
     const fetch = vi.fn(() => { throw new Error('Unconsented download') })
     vi.stubGlobal('fetch', fetch)

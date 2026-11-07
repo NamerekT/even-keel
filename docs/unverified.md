@@ -31,7 +31,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
-- First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546.
+- First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546; the demo, 99 — BTN-815.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
@@ -68,6 +68,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 7a | [The schema hint on a deferred MCP call](unverified/codex.md#the-schema-hint-on-a-deferred-mcp-call-btn-625) | Claude chain sessions calling a tracker tool before loading its schema; Copilot with the checkpoint package | the task is left without its estimate as before; Copilot loses the package's hooks |
 | 8 | [Claude daemon replacement from the service](unverified/sessions.md#claude-daemon-replacement-from-the-service-btn-250) | Claude accounts on a Windows service | sessions run on an unchecked CLI version |
 | 8a | [The automatic CLI check in the service](unverified/sessions.md#the-automatic-cli-check-in-the-service-btn-569) | machines with "Check new CLI versions" on (off by default) | a false failure on the banner; the account's chains wait a few minutes for nothing |
+| 99 | [The demo on the first run](unverified/page.md#the-demo-on-the-first-run-btn-776) | everyone who presses «Watch the demo» on a fresh install | the demo stalls, does not go on after a restart, or leaves its folder; remove it in the band's ⋯ or delete `<state>/demo` |
 | 9 | [The wizard's trust check](unverified/page.md#the-wizards-trust-check) | trusted/pending UI checked on fake data; fresh-folder chain launch passed on Windows after EKR-92; access failure, other service users and non-Windows hosts open | trust status or recovery may be wrong on untested hosts |
 | 10 | [A Codex chain session reaching its own compaction](unverified/sessions.md#a-codex-chain-session-reaching-its-own-compaction) | Codex users | a session that skips the first nudge compacts before the hard one |
 | 10a | [A task label selecting compaction](unverified/sessions.md#a-task-label-selecting-compaction) | tasks using the compaction label | the session may still receive a handoff nudge |

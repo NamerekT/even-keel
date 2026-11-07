@@ -7,7 +7,7 @@ import { ScriptedAgent, type ScriptedSession, type Turn } from '../agent/scripte
 import type { Language } from '../language.js'
 import type { FeedLine, TranscriptSummary } from '../sessions/transcript.js'
 import { databaseDirOf } from '../storage/owner.js'
-import { demoTurn, roleOf, type DemoRole } from './scenario.js'
+import { demoTurn, languageOf, roleOf, type DemoRole } from './scenario.js'
 
 /** The context window the demo's sessions show their fill against. */
 const DEMO_WINDOW = 200_000
@@ -75,7 +75,9 @@ export class DemoAgent extends ScriptedAgent {
 
   protected override nextTurn(session: ScriptedSession): Turn {
     const role = this.roles.get(session.entry.sessionId) ?? roleOf(session.prompt)
-    return demoTurn(role, session.plays, this.language)
+    // The demo speaks the language it was made in; a task the person added, the page's.
+    const made = languageOf(session.prompt)
+    return demoTurn(role, session.plays, () => made ?? this.language())
   }
 
   protected override changed(): void {
