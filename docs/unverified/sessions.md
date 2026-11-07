@@ -38,6 +38,10 @@ A handoff from a session that failed before its first answer carries the steps, 
 
 A session in a done task's folder that the cleanup found `busy`/`waiting` is stopped once its turn ends (`docs/chain/worktrees.md`, "A session left mid-turn"). An end-to-end scenario with the scripted agent covers a second session in the task's folder. Not run live: a real Codex or Claude session caught that way — the mismatch between the task's view and the listing that leaves one behind cannot be made on purpose — so whether a real stop of such a session lands is assumed from the usual cleanup's stop. A restart before its turn ends forgets it, as before. **Workaround:** stop the session from the page or kill its pid.
 
+## A stop after Done that timed out in the folder's queue (EKR-99)
+
+A cleanup after Done whose stop of the session timed out in the account folder's queue keeps trying it for 5 minutes and removes the worktree folder after it, warning only if that fails (`docs/chain/worktrees.md`, "A stop that timed out"). Unit tests cover the retry, the folder and the warning once the wait is over. Not run live: a real Done right after a service restart, when `/usage` and the `/context` probes fill the queue (seen 2026-11-07, EKR-CARRY on the host) — the queue cannot be filled on purpose without a slow CLI — so whether the stop lands on the next ticks and the Windows folder goes after it is assumed. **Workaround:** if the banner still comes, stop the session from the page or kill its pid from an administrator terminal (the service's session 0), then delete the folder.
+
 ## A resume that starts a copy
 
 A resumed session in place was seen to show a fresh session id for under a second before it takes its old one, and the chain now waits for the old id (`docs/sessions.md`). When the CLI starts a copy instead (a new job), the chain takes the first session of that new job; whether a copy also passes through a throwaway id first was not seen. If it does, the chain follows an id with no transcript: the chat says the transcript is not found and the card shows "Session booting" for 5 minutes. The workaround is "New session".

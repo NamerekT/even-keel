@@ -195,6 +195,12 @@ describe('Dispatcher finishing a done task', () => {
     expect(dispatcher.state.leftovers).toEqual({})
   })
 
+  it('adds a warning that came after the cleanup to the task’s leftovers (EKR-99)', () => {
+    const { dispatcher } = setup()
+    dispatcher.leftover('ABC', 'ABC-1', kept)
+    expect(dispatcher.state.leftovers).toEqual({ ABC: [{ task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: kept }] })
+  })
+
   it('keeps a failed git sync as a warning and goes on to the next task', async () => {
     const { dispatcher, launched, finished } = setup({ finish: () => ({ warnings: [kept], syncError: textNotice('sync: merge it by hand') }) })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])

@@ -740,7 +740,7 @@ function slotUse(slot: string, task: string): SlotUse { return chainService.slot
 
 function vacateSlot(slot: string, task: string): Promise<void> { return chainService.vacateSlot(context, slot, task) }
 
-function stopTaskSessions(repo: string, task: string, count: number): Promise<Notice[]> { return chainService.stopTaskSessions(context, repo, task, count) }
+function stopTaskSessions(project: string, repo: string, task: string, count: number): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count) }
 
 function stopLingering(): Promise<void> { return chainService.stopLingering(context) }
 

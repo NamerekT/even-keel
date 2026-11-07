@@ -3,9 +3,19 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CallTimeout, FolderCalls } from './calls.js'
+import { CallTimeout, FolderCalls, isCallTimeout } from './calls.js'
 
 const NODE = process.execPath
+
+describe('isCallTimeout', () => {
+  it('finds a timeout as it is or under the cause of a wrapping error, and nothing else', () => {
+    const timeout = new CallTimeout('claude', ['agents'])
+    expect(isCallTimeout(timeout)).toBe(true)
+    expect(isCallTimeout(new Error('stop failed', { cause: timeout }))).toBe(true)
+    expect(isCallTimeout(new Error('stop failed'))).toBe(false)
+    expect(isCallTimeout('timed out')).toBe(false)
+  })
+})
 const env = process.env
 
 /** A child that prints its start and end times after `ms`. */

@@ -26,6 +26,12 @@ export class CallTimeout extends Error {
   }
 }
 
+/** A `CallTimeout`, as it is or under the `cause` of an error that wraps it. */
+export function isCallTimeout(error: unknown): boolean {
+  for (let each = error; each instanceof Error; each = each.cause) if (each instanceof CallTimeout) return true
+  return false
+}
+
 /**
  * The short CLI calls of one account folder, one at a time (EKR-15). Any call may renew the folder's sign-in, and a
  * renewed refresh token is single-use: a call killed after sending the renewal and before writing the answer leaves
