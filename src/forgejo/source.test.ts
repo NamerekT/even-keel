@@ -71,20 +71,32 @@ describe('connectForgejo', () => {
     expect(calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([{ state: 'closed' }])
   })
 
-  it('shows both directions of the dependencies on the card, none where they are off', async () => {
+  it('shows both directions of the dependencies on the card', async () => {
     const { source } = await connect({
       [`GET ${BASE}/issues/1`]: { body: issue({ number: 1 }) },
       [`GET ${BASE}/issues/1/dependencies`]: { body: [issue({ number: 2, title: 'Blocker' })] },
       [`GET ${BASE}/issues/1/blocks`]: { body: [issue({ number: 3, title: 'Waits' })] },
       [`GET ${BASE}/issues/1/comments`]: { body: [comment(1)] },
-      [`GET ${BASE}/issues/4`]: { body: issue({ number: 4 }) },
-      [`GET ${BASE}/issues/4/dependencies`]: { status: 404, body: {} },
-      [`GET ${BASE}/issues/4/blocks`]: { status: 404, body: {} },
-      [`GET ${BASE}/issues/4/comments`]: { body: [] },
     })
     const card = await source.card!('APP-1')
     expect([card.blockedBy.map((ref) => ref.id), card.blocks.map((ref) => ref.id), card.comments.length]).toEqual([['APP-2'], ['APP-3'], 1])
-    expect(await source.card!('APP-4')).toMatchObject({ blockedBy: [], blocks: [] })
+  })
+
+  it('skips stale blocks while dependencies are off and reads them again once enabled', async () => {
+    let enabled = false
+    const { source, calls } = await connect({
+      [`GET ${BASE}/issues/1`]: { body: issue({ number: 1 }) },
+      [`GET ${BASE}/issues/1/dependencies`]: () => enabled ? { body: [] } : { status: 404, body: {} },
+      [`GET ${BASE}/issues/1/blocks`]: { body: [issue({ number: 3, title: 'Waits' })] },
+      [`GET ${BASE}/issues/1/comments`]: { body: [comment(1)] },
+    })
+    const card = await source.card!('APP-1')
+    expect([card.blockedBy, card.blocks, card.comments.length]).toEqual([[], [], 1])
+    expect(calls.some((call) => call.path.endsWith('/blocks'))).toBe(false)
+
+    enabled = true
+    const refreshed = await source.card!('APP-1')
+    expect([refreshed.blockedBy, refreshed.blocks.map((ref) => ref.id)]).toEqual([[], ['APP-3']])
   })
 
   it('passes the comments of collaborators, the owner and the token\'s account, and logs each skipped one once', async () => {

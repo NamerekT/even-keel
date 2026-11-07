@@ -16,7 +16,7 @@ export interface ForgejoSettings {
 
 /**
  * Forgejo Issues over the Gitea API (BTN-476), so Gitea and Codeberg too. An open issue is `ToDo`, a closed one `Won`;
- * blockers are the native dependencies, which a repository may turn off: their routes then answer 404 and the chain
+ * blockers are the native dependencies, which a repository may turn off: the blocked-by route then answers 404 and the chain
  * goes by milestones and priority alone. No subtasks, no estimate, no backlog status: entry is by label.
  */
 export async function connectForgejo(settings: ForgejoSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch, log: (line: string) => void = console.log): Promise<TaskSource> {
@@ -139,7 +139,8 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
     async card(id) {
       const issue = await rawIssue(id)
       const { base } = addressOf(id)
-      const [blockedBy, blocks, comments] = await Promise.all([dependenciesOf(base, 'dependencies'), dependenciesOf(base, 'blocks'), commentsOf(id)])
+      const [blockedBy, comments] = await Promise.all([dependenciesOf(base, 'dependencies'), commentsOf(id)])
+      const blocks = blockedBy === null ? [] : await dependenciesOf(base, 'blocks')
       return toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos)
     },
 
