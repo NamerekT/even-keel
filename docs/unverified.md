@@ -36,7 +36,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36c, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
-- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
+- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714; 100 (an address change) has no task yet.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3, and 93 (not run yet) (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again). Not checked by choice: 63.
 
@@ -170,3 +170,4 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 96 | [Attachments of the built-in tracker](unverified/trackers.md#attachments-of-the-built-in-tracker-btn-773) | projects on the built-in tracker whose tasks carry screenshots | a picture is not taken or not shown, or a session works without it; link the file or describe it |
 | 97 | [Test projects on a live service](unverified/page.md#test-projects-on-a-live-service-btn-206) | installations with sandbox projects | the aggregate page may lag behind a flag change or restart; open the project's own strip or include tests, then remove the flag |
 | 98 | [The Codex auto-compaction window](unverified/codex.md#the-codex-auto-compaction-window-btn-810) | Codex projects with `codexAutoCompactWindow` set | the session compacts at the model's own point, possibly before the checkpoint; clear the setting |
+| 100 | [Hooks after the page's address changes](unverified/sessions.md#hooks-after-the-pages-address-changes-btn-817) | installations that change `EVEN_KEEL_PORT` or `EVEN_KEEL_HOST` | Claude `--bg` sessions keep asking the old address: no merge check, chat mailbox or checkpoint; with no session running, `claude daemon stop --any` in the account folder |

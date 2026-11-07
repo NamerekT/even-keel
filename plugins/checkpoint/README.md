@@ -78,7 +78,7 @@ Keep `.temp/` in the project's `.gitignore`, or the note ends up in a commit.
 | `CHECKPOINT_LATE_STEP_TOKENS` | `25000` | a new nudge every this many tokens past `CHECKPOINT_LATE_TOKENS` |
 | `CHECKPOINT_HARD_TOKENS` | `300000` | context size of the first nudge for a task that has had its handoffs |
 | `CHECKPOINT_MAX_HANDOFFS` | `3` | handoffs of a task after which nudges wait for `CHECKPOINT_HARD_TOKENS` |
-| `EVEN_KEEL_URL` | `http://127.0.0.1:4747` | where the hook asks Even Keel |
+| `EVEN_KEEL_URL` | `http://127.0.0.1:4747` | where the hook asks Even Keel; Even Keel sets it for its own sessions to the address it listens on |
 
 Put them into the environment the sessions run with. Set the first nudge well below the size where the CLI compacts the context. A step that would land less than a late step before `CHECKPOINT_LATE_TOKENS` is skipped, so two nudges do not come one right after the other.
 

@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { accountsRoot, codexAccountsRoot, copilotAccountsRoot, openCodeAccountsRoot } from '../account/homes.js'
-import { firstByKey, idPrefixOf } from '../config.js'
+import { firstByKey, idPrefixOf, localUrlOf } from '../config.js'
 import { envTargets } from '../env-file.js'
 import { home as dataHome, root } from '../locations.js'
 import { defaultProfile, profileFor } from '../profiles/model.js'
@@ -48,7 +48,7 @@ export function wireNewTally(ctx: StatsContext): () => TallyService {
       env: process.env,
       intervalMs: ctx.TALLY_INTERVAL_MS,
       firstDelayMs: ctx.TALLY_FIRST_DELAY_MS,
-      evenKeelUrl: () => `http://${['0.0.0.0', '::'].includes(ctx.listen.host) ? '127.0.0.1' : ctx.listen.host}:${ctx.listen.port}`,
+      evenKeelUrl: () => localUrlOf(ctx.listen),
       huly: () => {
         const set = ctx.profiles.current()
         const config = ctx.readers()

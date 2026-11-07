@@ -13,7 +13,7 @@ import { VsCodeAccount, vscodeSettingsFile } from '../account/vscode.js'
 import { AccountWatcher } from '../account/watcher.js'
 import { AGENTS } from '../agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from '../agent/contract.js'
-import { sessionBase, sessionSecrets, settingsSecrets } from '../agent/env.js'
+import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
 import { ModelCatalog } from '../agent/models.js'
 import { ContextWindows } from '../agent/windows.js'
 import { VersionWatcher } from '../agent/versions.js'
@@ -23,7 +23,7 @@ import { CODEX } from '../codex/name.js'
 import { chainWindowOf } from '../codex/window.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
-import { ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
+import { localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
@@ -234,7 +234,7 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
     Object.entries(AGENTS).map(([name, adapter]) => [
       name,
       adapter.setup({
-        env: () => sessionBase(process.env, ctx.packages.keyNames()),
+        env: () => sessionEnv(process.env, ctx.packages.keyNames(), localUrlOf(ctx.listen)),
         timeoutMs: ctx.AGENT_TIMEOUT_MS,
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',

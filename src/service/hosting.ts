@@ -620,6 +620,8 @@ export async function rebind(ctx: HostingContext): Promise<void> {
   old.close()
   old.closeAllConnections()
   console.log(`even-keel listening on http://${ctx.listen.host}:${ctx.listen.port}, moved from the previous address`)
+  // A `--bg` daemon gives its sessions the environment it started with, the old `EVEN_KEEL_URL` too (BTN-817).
+  for (const home of ctx.homes.list()) if (ctx.agentOf(home).stopDaemon !== undefined) void ctx.daemons.expire(home)
 }
 
 export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore> {

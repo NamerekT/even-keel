@@ -1,6 +1,7 @@
 import { readFileSync, watchFile } from 'node:fs'
 import { join } from 'node:path'
 import type { ActiveChain } from '../chain/model.js'
+import { localUrlOf } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { readCheckout } from './checkout.js'
 import { serviceControl, type ServiceControl } from './control.js'
@@ -64,8 +65,7 @@ const REFRESH_MS = 10 * 60_000
 
 /** `/api/state` of a service listening on `host`: a wildcard address is reached on loopback. */
 export function stateUrlOf(host: string, port: number): string {
-  const reach = host === '' || host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host
-  return `http://${reach.includes(':') ? `[${reach}]` : reach}:${port}/api/state`
+  return `${localUrlOf({ host, port })}/api/state`
 }
 
 /**

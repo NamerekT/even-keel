@@ -51,8 +51,6 @@ export function chainOnRealCli(kit: CliKit): void {
       const baseURL = await model.start()
       await run.start(() => {
         kit.prepare(run, binary, baseURL)
-        // The hooks reach the service only through this variable, which it does not give its sessions yet (BTN-817).
-        process.env.EVEN_KEEL_URL = `http://127.0.0.1:${process.env.EVEN_KEEL_PORT}`
         prepared?.()
       })
       // A real CLI tells its sign-in slower than the first Start: an account not read yet is an expired login to it.

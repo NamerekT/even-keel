@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { claudeEnv } from '../claude/adapter.js'
-import { sessionBase, sessionSecrets, settingsSecrets } from './env.js'
+import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from './env.js'
 
 const env = {
   PATH: '/bin',
@@ -19,6 +19,15 @@ describe('sessionBase', () => {
 
   it('drops the CI token', () => {
     expect(sessionBase({ ...env, FORGEJO_TOKEN: 'fake-token' }).FORGEJO_TOKEN).toBeUndefined()
+  })
+})
+
+describe('sessionEnv', () => {
+  it("gives the packages' hooks the service's own address over an inherited one", () => {
+    const result = sessionEnv({ ...env, EVEN_KEEL_URL: 'http://127.0.0.1:4747' }, ['EXAMPLE_KEY'], 'http://127.0.0.1:5000')
+    expect(result.EVEN_KEEL_URL).toBe('http://127.0.0.1:5000')
+    expect(result.HULY_PASSWORD).toBeUndefined()
+    expect(result.PATH).toBe('/bin')
   })
 })
 

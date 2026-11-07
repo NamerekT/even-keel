@@ -5,6 +5,7 @@ import {
   idPrefixOf,
   ignoredKeys,
   listenOf,
+  localUrlOf,
   ownerOf,
   parseConfig,
   poolEntries,
@@ -156,5 +157,15 @@ describe('listenOf', () => {
 
   it('rejects a port outside the TCP range or not a whole number', () => {
     for (const port of ['70000', '0', '12.5', 'http']) expect(() => listenOf({ EVEN_KEEL_PORT: port })).toThrow(/EVEN_KEEL_PORT/)
+  })
+})
+
+describe('localUrlOf', () => {
+  it('reaches a wildcard address on loopback and brackets IPv6', () => {
+    expect(localUrlOf({ host: '127.0.0.1', port: 4747 })).toBe('http://127.0.0.1:4747')
+    expect(localUrlOf({ host: '0.0.0.0', port: 5000 })).toBe('http://127.0.0.1:5000')
+    expect(localUrlOf({ host: '::', port: 4747 })).toBe('http://127.0.0.1:4747')
+    expect(localUrlOf({ host: '100.64.0.7', port: 5000 })).toBe('http://100.64.0.7:5000')
+    expect(localUrlOf({ host: '::1', port: 4747 })).toBe('http://[::1]:4747')
   })
 })

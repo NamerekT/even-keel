@@ -572,6 +572,12 @@ export function listenOf(env: NodeJS.ProcessEnv): { host: string; port: number }
   return { host, port }
 }
 
+/** The address this machine reaches the service on: a wildcard `host` through loopback, IPv6 in brackets. */
+export function localUrlOf(listen: { host: string; port: number }): string {
+  const reach = ['', '0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host
+  return `http://${reach.includes(':') ? `[${reach}]` : reach}:${listen.port}`
+}
+
 /** The port of the MCP gateway (`src/packages/gateway.ts`), always on 127.0.0.1. */
 export function mcpPortOf(env: NodeJS.ProcessEnv): number {
   const text = env.EVEN_KEEL_MCP_PORT?.trim() || String(DEFAULT_MCP_PORT)

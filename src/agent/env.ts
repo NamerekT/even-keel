@@ -16,6 +16,14 @@ export function sessionBase(env: NodeJS.ProcessEnv, keys: readonly string[] = []
   return base
 }
 
+/**
+ * An agent's environment for its sessions: `sessionBase` and the service's own address `url` as `EVEN_KEEL_URL`,
+ * the only way the packages' hooks find the service off its default port (BTN-817).
+ */
+export function sessionEnv(env: NodeJS.ProcessEnv, keys: readonly string[], url: string): NodeJS.ProcessEnv {
+  return { ...sessionBase(env, keys), EVEN_KEEL_URL: url }
+}
+
 /** Which of `names` the `env` of a parsed `settings.json` sets: the CLI puts it on top of a session's environment. */
 export function settingsSecrets(settings: unknown, names: readonly string[]): string[] {
   const env = typeof settings === 'object' && settings !== null ? (settings as { env?: unknown }).env : undefined
