@@ -135,12 +135,13 @@ describe('follow-ups over a task', () => {
     await db.exec(`set timezone = 'UTC'`)
     await migrate(pgliteDb(db))
     const tasks: Followed[] = [
-      ['ABC-1', ['Bug'], ['ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'ABC-6'], '2026-09-30T10:00:00Z'],
+      ['ABC-1', ['Bug'], ['ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'ABC-6', 'ABC-8'], '2026-09-30T10:00:00Z'],
       ['ABC-2', ['Bug'], ['ABC-1'], '2026-10-02T10:00:00Z'],
       ['ABC-3', ['Переделка'], ['ABC-1'], '2026-10-03T10:00:00Z'],
       ['ABC-4', ['Bug'], ['ABC-1'], '2026-10-01T11:00:00Z'],
       ['ABC-5', ['Opus'], ['ABC-1'], '2026-10-04T10:00:00Z'],
       ['ABC-6', ['Bug'], ['ABC-1'], null],
+      ['ABC-8', ['Rework'], ['ABC-1'], '2026-10-05T10:00:00Z'],
     ]
     for (const [task, labels, related, createdAt] of tasks) {
       await db.query(`insert into tasks (task, title, labels, related, created_at) values ($1, $1, $2, $3, $4)`, [task, labels, related, createdAt])
@@ -160,15 +161,27 @@ describe('follow-ups over a task', () => {
     await db?.close()
   })
 
-  it('counts the related Bug and Переделка tasks created after the last session, the later one being the follow-up', async () => {
+  it('counts the related Bug, Переделка and Rework tasks created after the last session, the later one being the follow-up', async () => {
     const { rows } = await db.query<{ task: string; last_at: string; followups: number; followup_tasks: string[] }>(
       'select task, last_at::text, followups::int, followup_tasks from task_followups order by task',
     )
     expect(rows).toEqual([
-      { task: 'ABC-1', last_at: '2026-10-01 12:00:00+00', followups: 2, followup_tasks: ['ABC-2', 'ABC-3'] },
+      { task: 'ABC-1', last_at: '2026-10-01 12:00:00+00', followups: 3, followup_tasks: ['ABC-2', 'ABC-3', 'ABC-8'] },
       { task: 'ABC-2', last_at: '2026-10-02 15:00:00+00', followups: 0, followup_tasks: [] },
       { task: 'ABC-7', last_at: '2026-10-05 10:00:00+00', followups: 0, followup_tasks: [] },
     ])
+  })
+
+  it('marks a task labelled Переделка or Rework as a rework', async () => {
+    await db.query(`insert into sessions (session_id, account, launch_task, last_at) values ('s3', 'a', 'ABC-3', '2026-10-06T10:00:00Z'), ('s8', 'a', 'ABC-8', '2026-10-06T10:00:00Z')`)
+    try {
+      const { rows } = await db.query<{ task: string; rework: boolean }>('select task, rework from task_repeats order by task')
+      expect(rows).toEqual([
+        { task: 'ABC-1', rework: false }, { task: 'ABC-2', rework: false }, { task: 'ABC-3', rework: true }, { task: 'ABC-7', rework: false }, { task: 'ABC-8', rework: true },
+      ])
+    } finally {
+      await db.query(`delete from sessions where session_id in ('s3', 's8')`)
+    }
   })
 })
 
