@@ -1,9 +1,9 @@
 name: Real CLIs
 
-# The chain's scenarios on the real CLIs with a scripted model (src/e2e-cli/, docs/chain/e2e.md, BTN-572): the checked
-# version of each CLI, a local provider that plays fixed tool calls, no subscription and no limits. A schedule fires
-# only on the default branch, so the night checks out `dev`, the next version; a run by hand takes the branch it is
-# started on. Out of the push check: a run of a real CLI takes minutes and needs the npm registry.
+# The chain's scenarios on the real CLIs with a scripted model (src/e2e-cli/, docs/chain/e2e.md, BTN-572, BTN-784): the
+# checked version of each CLI, a local provider that plays fixed tool calls, no subscription and no limits. A schedule
+# fires only on the default branch, so the night checks out `dev`, the next version; a run by hand takes the branch it
+# is started on. Out of the push check: a run of a real CLI takes minutes and downloads the CLI.
 on:
   schedule:
     - cron: '30 2 * * *'
@@ -13,9 +13,21 @@ permissions:
   contents: read
 
 jobs:
-  opencode:
+  cli:
+    name: ${{ matrix.cli }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `checked` names the file where the CLI's checked version is: the cache follows it.
+          - cli: opencode
+            checked: src/opencode/adapter.ts
+          - cli: claude
+            checked: src/claude/adapter.ts
+          - cli: codex
+            checked: src/codex/version.ts
 
     steps:
       - uses: actions/checkout@v4
@@ -29,10 +41,10 @@ jobs:
 
       - run: npm ci
 
-      # The checked copy, unpacked by the first run (`openCodeBinary`); the key follows the adapter, where `checked` is.
+      # The checked copy, unpacked by the first run (`checkedCopy`).
       - uses: actions/cache@v4
         with:
-          path: .temp/e2e-cli
-          key: e2e-cli-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src/opencode/adapter.ts') }}
+          path: .temp/e2e-cli/${{ matrix.cli }}
+          key: e2e-cli-${{ matrix.cli }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(matrix.checked) }}
 
-      - run: npm run test:cli
+      - run: npx vitest run src/e2e-cli/${{ matrix.cli }}.test.ts

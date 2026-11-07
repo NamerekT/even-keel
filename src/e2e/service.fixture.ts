@@ -98,8 +98,8 @@ export class Harness {
    */
   githubRemote = false
   /**
-   * Set before `start`: the real adapters left in `AGENTS` beside the scripted one, by name (`opencode`) — the level of
-   * real CLIs (`src/e2e-cli/`, `docs/chain/e2e.md`).
+   * Set before `start`: the real adapters left in `AGENTS`, by name (`opencode`, `codex`); with `claude` among them the
+   * scripted agent does not take Claude Code's place — the level of real CLIs (`src/e2e-cli/`, `docs/chain/e2e.md`).
    */
   realAgents: string[] = []
   /**
@@ -318,7 +318,7 @@ export class Harness {
     Object.assign(agents, real)
     const { CLAUDE } = await import('../claude/name.js')
     const { CODEX } = await import('../codex/name.js')
-    agents[CLAUDE] = this.agent.adapter()
+    if (!this.realAgents.includes(CLAUDE)) agents[CLAUDE] = this.agent.adapter()
     if (this.codex) agents[CODEX] = this.agent.adapter()
     const { ADAPTERS } = await import('../tracker/adapters.js')
     ;(ADAPTERS as Record<string, unknown>)[BOARD_TRACKER] = this.board.adapter()
