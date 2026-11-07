@@ -2,8 +2,9 @@ import { existsSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
-import { CallTimeout, FolderCalls, isCallTimeout } from './calls.js'
+import { CallTimeout, FolderCalls, isCallTimeout, QueueWait } from './calls.js'
 
 const NODE = process.execPath
 
@@ -84,5 +85,45 @@ describe('FolderCalls', () => {
     const calls = new FolderCalls()
     const failed = calls.run('/accounts/one', NODE, ['-e', 'console.log("{}");process.exit(1)'], { env, timeoutMs: 5_000 })
     await expect(failed).rejects.toMatchObject({ code: 1, stdout: '{}\n' })
+  })
+})
+
+describe('QueueWait', () => {
+  const timedOut = () => new CallTimeout('claude', ['agents', '--json', '--all'])
+  /** A call that times out in the queue after `ms` the first `times` times, then answers at once. */
+  const clogged = (times: number, ms = 0) => {
+    let left = times
+    return async () => {
+      if (left-- <= 0) return 'answer'
+      await delay(ms)
+      throw timedOut()
+    }
+  }
+
+  // EKR-102: right after the service's start the folder's queue was full of /context probes, and the chain paused.
+  it('tries again a call that timed out in the folder queue', async () => {
+    await expect(new QueueWait(1_000).call(clogged(2))).resolves.toBe('answer')
+  })
+
+  it('does not count the time a call lost in the queue against the wait', async () => {
+    const wait = new QueueWait(100, 5_000)
+    await wait.call(clogged(1, 300))
+    expect(wait.open).toBe(true)
+  })
+
+  it('gives up once the patience is over', async () => {
+    const wait = new QueueWait(10, 150)
+    await expect(wait.call(clogged(100, 40))).rejects.toBeInstanceOf(CallTimeout)
+    expect(wait.open).toBe(false)
+  })
+
+  it('throws any other failure at once', async () => {
+    let calls = 0
+    const failing = () => {
+      calls++
+      return Promise.reject(new Error('exit code 1'))
+    }
+    await expect(new QueueWait(1_000).call(failing)).rejects.toThrow('exit code 1')
+    expect(calls).toBe(1)
   })
 })

@@ -4,8 +4,37 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { FolderCalls, type CallOptions, type CallOutput } from './calls.js'
+import { CallTimeout, FolderCalls, type CallOptions, type CallOutput } from './calls.js'
 import { callFailure, ClaudeCli, parseWarmAnswer, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+
+// EKR-102: at the service's start the chain's `claude agents` timed out behind the /context probes and paused the chain.
+describe('ClaudeCli.stop in a clogged folder queue', () => {
+  class Clogged extends FolderCalls {
+    readonly priorities: boolean[] = []
+    constructor(private left: number) {
+      super()
+    }
+    override run(_folder: string, file: string, args: string[], { priority = false }: CallOptions): Promise<CallOutput> {
+      this.priorities.push(priority)
+      if (this.left-- > 0) return Promise.reject(new CallTimeout(file, args))
+      return Promise.resolve({ stdout: '[]', stderr: '' })
+    }
+  }
+  const home: AccountHome = { key: 'one', dir: join(tmpdir(), 'even-keel-no-such-account'), global: false, agent: 'claude' }
+
+  it('goes ahead of the waiting calls and tries again a listing that timed out in the queue', async () => {
+    const calls = new Clogged(2)
+    const cli = new ClaudeCli(() => 'claude', 30_000, () => ({}), calls)
+    await expect(cli.stop(home, 'agent-1', 'session-1')).resolves.toBeUndefined()
+    expect(calls.priorities).toEqual([true, true, true])
+  })
+
+  it('leaves the folder listing of the page an ordinary call', async () => {
+    const calls = new Clogged(0)
+    await new ClaudeCli(() => 'claude', 30_000, () => ({}), calls).agents(home)
+    expect(calls.priorities).toEqual([false])
+  })
+})
 
 describe('ClaudeCli.usage', () => {
   class Timeouts extends FolderCalls {

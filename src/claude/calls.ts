@@ -33,6 +33,39 @@ export function isCallTimeout(error: unknown): boolean {
 }
 
 /**
+ * A wait of the chain's own made of folder calls: `claude agents` polled until a launched session shows or a stopped one
+ * goes (EKR-102). Right after the service's start the folder's queue is full of `/context` probes, and a call whose
+ * timeout passes there never starts: such a call is tried again and does not use up the wait, which grows by the time
+ * the call lost, up to `patienceMs` from the start — the longest a running call may hold the folder.
+ */
+export class QueueWait {
+  private deadline: number
+  private readonly patience: number
+
+  constructor(waitMs: number, patienceMs = KILL_AFTER_MS) {
+    const now = Date.now()
+    this.deadline = now + waitMs
+    this.patience = now + patienceMs
+  }
+
+  get open(): boolean {
+    return Date.now() < this.deadline
+  }
+
+  async call<T>(call: () => Promise<T>): Promise<T> {
+    for (;;) {
+      const asked = Date.now()
+      try {
+        return await call()
+      } catch (error) {
+        if (!(error instanceof CallTimeout) || Date.now() >= this.patience) throw error
+        this.deadline = Math.min(this.patience, this.deadline + Date.now() - asked)
+      }
+    }
+  }
+}
+
+/**
  * The short CLI calls of one account folder, one at a time (EKR-15). Any call may renew the folder's sign-in, and a
  * renewed refresh token is single-use: a call killed after sending the renewal and before writing the answer leaves
  * the folder signed out, and two calls renewing at once may too. So a call past its timeout is given up on, not
