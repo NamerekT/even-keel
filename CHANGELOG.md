@@ -13,7 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
+
+## [0.2.3] - 2026-11-07
+
+### Fixed
+
 - The GitLab plugin's `gitlab:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on GitLab projects get the skill (plugin 0.1.3).
+- Right after a service restart a Claude chain no longer pauses on `agents --json --all timed out`. The session listing the chain waits on goes ahead of the account's other short calls and is tried again for up to five minutes.
+- A cleanup after Done whose session stop timed out the same way tries the stop again and then removes the task's worktree folder, instead of warning that the session and the folder were left behind.
 
 ## [0.2.2] - 2026-11-06
 

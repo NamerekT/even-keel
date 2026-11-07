@@ -38,7 +38,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 46a, 53, 77, 78, 78b (handoffs off), 82, 84 — BTN-714.
 - A restart of the service watched through `/api/state` and two pages: 1c, 1d, 37h3, and 93 (not run yet) (one run 2026-11-02; what is left needs a task due right at the restart, a snapshot older than a poll and a profile whose first check times out).
-- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again). Not checked by choice: 63.
+- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
@@ -88,6 +88,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 17a | [A task returned after a blocker or skip](unverified/sessions.md#a-task-returned-after-a-blocker-or-skip-btn-547) | chains resuming postponed or skipped tasks on `--bg` sessions or other agents (Claude through the Agent SDK checked) | an idle session may still be adopted and hold the chain |
 | 17c | [A session left mid-turn by the cleanup](unverified/sessions.md#a-session-left-mid-turn-by-the-cleanup-btn-616) | chain sessions busy in a done task's folder when its cleanup runs, rarely | the session keeps resting as "waiting" on the page after its task closed |
 | 17d | [A stop after Done that timed out in the folder's queue](unverified/sessions.md#a-stop-after-done-that-timed-out-in-the-folders-queue-ekr-99) | Claude `--bg` chains whose task goes to Done right after a service restart; Windows | the session stays idle and the banner about its worktree folder comes after 5 minutes, as before |
+| 17e | [The chain's session listing in a clogged folder queue](unverified/sessions.md#the-chains-session-listing-in-a-clogged-folder-queue-ekr-102) | Claude `--bg` chains with a step due right after a service restart | the chain still pauses with `agents --json --all timed out`, or its step holds the others for minutes |
 | 18 | [A resume that starts a copy](unverified/sessions.md#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
 | 20 | [Sessions through the Agent SDK](unverified/sessions.md#sessions-through-the-agent-sdk-btn-239) | Claude SDK sessions stopped by the service on Linux (macOS checked) | a stale `ek-sdk-*.sock` stays in `/tmp` per stopped session |
 | 20a | [API spending cap recovery](unverified/sessions.md#api-spending-cap-recovery) | Anthropic keys with organization or workspace spending caps | a cap may need an account switch or manual session restart |

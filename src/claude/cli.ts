@@ -16,7 +16,7 @@ import { newestExtensionBinary } from '../sessions/paths.js'
 import { rareEvents } from '../sessions/rare.js'
 import { TranscriptTail } from '../sessions/tail.js'
 import type { TurnSpend } from '../state.js'
-import { CallTimeout, FolderCalls } from './calls.js'
+import { CallTimeout, FolderCalls, QueueWait } from './calls.js'
 import { contextArgs } from './context.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
 import { descendantsOf, killLeftovers, sessionProcessAlive } from './tree.js'
@@ -70,9 +70,15 @@ export class ClaudeCli {
     private readonly calls = new FolderCalls(),
   ) {}
 
-  async agents(home: AccountHome): Promise<AgentEntry[]> {
-    const { stdout } = await this.call(home, ['agents', '--json', '--all'], undefined, 16 * 1024 * 1024)
+  /** `priority` — a listing the chain waits on (a launch, a resume, a stop) goes ahead of the folder's waiting calls. */
+  async agents(home: AccountHome, priority = false): Promise<AgentEntry[]> {
+    const { stdout } = await this.call(home, ['agents', '--json', '--all'], undefined, 16 * 1024 * 1024, this.timeoutMs, priority)
     return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
+  }
+
+  /** The chain's own listing within `wait`: ahead of the waiting calls, and tried again after a timeout in the queue. */
+  private listIn(home: AccountHome, wait: QueueWait): Promise<AgentEntry[]> {
+    return wait.call(() => this.agents(home, true))
   }
 
   /** `claude --version`: `2.1.303 (Claude Code)`. */
@@ -168,7 +174,7 @@ export class ClaudeCli {
    * keeps its `ParentProcessId` there, while `ps` is taken first, before orphans are reparented.
    */
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
-    const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
+    const running = (await this.listIn(home, new QueueWait(0))).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isGone(running)) return
     if (running.pid !== undefined && !(await sessionProcessAlive(running.pid, running.processStartedAt, true))) return
     const children = running.pid === undefined ? Promise.resolve([]) : descendantsOf({ pid: running.pid, startedAt: running.processStartedAt })
@@ -178,13 +184,13 @@ export class ClaudeCli {
     } catch (error) {
       throw fail('claude.stopFailed', { agent: agentId }, { detail: outputOf(error) }, { cause: error })
     }
-    const deadline = Date.now() + APPEAR_TIMEOUT_MS
-    while (Date.now() < deadline) {
+    const wait = new QueueWait(APPEAR_TIMEOUT_MS)
+    while (wait.open) {
       if (await sessionProcessAlive(running.pid, running.processStartedAt)) {
         await delay(EXIT_POLL_MS)
         continue
       }
-      if (isGone((await this.agents(home)).find((entry) => entry.sessionId === sessionId))) {
+      if (isGone((await this.listIn(home, wait)).find((entry) => entry.sessionId === sessionId))) {
         await killLeftovers(await children)
         return
       }
@@ -230,9 +236,9 @@ export class ClaudeCli {
   }
 
   private async appear(home: AccountHome, match: (agent: AgentEntry) => boolean, failure: Notice): Promise<AgentEntry> {
-    const deadline = Date.now() + APPEAR_TIMEOUT_MS
-    while (Date.now() < deadline) {
-      const found = (await this.agents(home)).find(match)
+    const wait = new QueueWait(APPEAR_TIMEOUT_MS)
+    while (wait.open) {
+      const found = (await this.listIn(home, wait)).find(match)
       if (found !== undefined) return found
       await delay(APPEAR_POLL_MS)
     }
