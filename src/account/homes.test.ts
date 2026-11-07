@@ -82,6 +82,20 @@ describe('AccountHomes.addCloud (BTN-822)', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  it('names a Vertex folder after its cloud and tells a user sign-in in its key file (BTN-823)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const keyFile = join(root, 'user.json')
+      writeFileSync(keyFile, JSON.stringify({ type: 'authorized_user' }))
+      const homes = new AccountHomes(env, root)
+      const home = homes.addCloud('', { cloud: 'vertex', projectId: 'fake-project', auth: { way: 'keyFile', keyFile } })
+      expect(home.key).toBe('vertex')
+      expect(homes.cloudOf(home)).toEqual({ cloud: 'vertex', region: null, way: 'keyFile', project: 'fake-project', models: {}, shortLived: true })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('AccountHomes.apiKeyOf', () => {

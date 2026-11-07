@@ -2,6 +2,7 @@ import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS, CLOUD_CHECK_PROMPT, CLOUD_CHECK_TIMEOUT_MS } from '../account/service-defaults.js'
 import { currentUser, readAwsProfiles } from '../account/aws.js'
+import { readGcloud } from '../account/gcloud.js'
 import { DaemonRefresh } from '../account/daemon.js'
 import { keyProvider, type AccountHome } from '../account/homes.js'
 import { accountAt, forgetAccount, formerOwner, markRemoving, nameAccount, noteAccount } from '../account/ledger.js'
@@ -528,6 +529,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
       return { model: answer.spend.model }
     },
     awsProfiles: () => readAwsProfiles(process.env),
+    gcloud: () => readGcloud(process.env),
     whose: () => ({ user: currentUser(), home: homedir() }),
     checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
     keyCheckMs: KEY_CHECK_MS,

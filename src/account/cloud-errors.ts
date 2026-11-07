@@ -27,7 +27,26 @@ const BEDROCK_ERRORS: Array<[RegExp, (whose: Whose) => Notice]> = [
   [/ThrottlingException|TooManyRequestsException|Too many (requests|tokens), please wait/i, () => notice('cloud.throttled', {})],
 ]
 
+/**
+ * Vertex AI's refusals (BTN-823): Google's auth library as the CLI's own Vertex wizard reads it in 2.1.319, and Google
+ * Cloud's error bodies. Billing goes before the disabled API, which a project without billing may also report. Every
+ * pattern names Google's own words, so an `invalid_grant` or a 404 of Anthropic's API is left alone.
+ */
+const VERTEX_ERRORS: Array<[RegExp, (whose: Whose) => Notice]> = [
+  [
+    /Could not load the default credentials|does not exist, or it is not a file|The incoming JSON object does not|Must pass in a JSON object containing|invalid_rapt|reauth related error|Token has been expired or revoked|Timed out waiting for GCP credentials|Unable to detect a Project Id/i,
+    (whose) => notice('cloud.gcpCredentials', whose),
+  ],
+  [/BILLING_DISABLED|requires billing to be enabled/i, () => notice('cloud.vertexBilling', {})],
+  [/SERVICE_DISABLED|has not been used in project \S+ before or it is disabled/i, () => notice('cloud.vertexApi', {})],
+  [/Publisher Model .*(not found|does not have access)/i, () => notice('cloud.vertexModel', {})],
+  [/Quota exceeded for aiplatform\.googleapis\.com|RESOURCE_EXHAUSTED/i, () => notice('cloud.vertexQuota', {})],
+  [/Permission '?aiplatform\.\S+'? denied/i, () => notice('cloud.vertexPermission', {})],
+]
+
+const CLOUD_ERRORS = [...VERTEX_ERRORS, ...BEDROCK_ERRORS]
+
 /** What a cloud refusal means and what to do, by the error's text; undefined for any other error. */
 export function cloudErrorNotice(text: string, whose: Whose = NOBODY): Notice | undefined {
-  return BEDROCK_ERRORS.find(([pattern]) => pattern.test(text))?.[1](whose)
+  return CLOUD_ERRORS.find(([pattern]) => pattern.test(text))?.[1](whose)
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { cloudConnectionOf, cloudEnv, cloudOf } from './cloud.js'
+import { cloudConnectionOf, cloudEnv, cloudOf, isCloudVariable } from './cloud.js'
 
 function codeOf(run: () => unknown): string | undefined {
   try {
@@ -95,7 +95,7 @@ describe('cloudConnectionOf', () => {
   })
 
   it('refuses a cloud not made yet, an unknown cloud or way and a missing field', () => {
-    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'environment' }))).toBe('account.cloudNotReady')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'foundry', way: 'environment' }))).toBe('account.cloudNotReady')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'elsewhere', way: 'environment' }))).toBe('request.required')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'password' }))).toBe('request.required')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'apiKey', key: '  ' }))).toBe('request.required')
@@ -105,5 +105,75 @@ describe('cloudConnectionOf', () => {
   it('refuses a value with a space inside, as a pasted key with a line break would be', () => {
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'apiKey', key: 'ABSK fake' }))).toBe('account.cloudFieldInvalid')
     expect(codeOf(() => cloudConnectionOf({ cloud: 'bedrock', way: 'environment', region: 'eu central' }))).toBe('account.cloudFieldInvalid')
+  })
+})
+
+describe('Vertex AI', () => {
+  it('writes the project, the region, the key file and the regions of models', () => {
+    expect(
+      cloudEnv({
+        cloud: 'vertex',
+        projectId: 'fake-project',
+        region: 'global',
+        auth: { way: 'keyFile', keyFile: 'C:\\Users\\John Doe\\key.json' },
+        models: { sonnet: 'claude-sonnet-fake@20990101' },
+        modelRegions: { VERTEX_REGION_CLAUDE_HAIKU_4_5: 'us-east5' },
+      }),
+    ).toEqual({
+      CLAUDE_CODE_USE_VERTEX: '1',
+      ANTHROPIC_VERTEX_PROJECT_ID: 'fake-project',
+      CLOUD_ML_REGION: 'global',
+      GOOGLE_APPLICATION_CREDENTIALS: 'C:\\Users\\John Doe\\key.json',
+      ANTHROPIC_DEFAULT_SONNET_MODEL: 'claude-sonnet-fake@20990101',
+      VERTEX_REGION_CLAUDE_HAIKU_4_5: 'us-east5',
+    })
+  })
+
+  it('stores nothing of the credentials for ADC and the service environment', () => {
+    for (const way of ['adc', 'environment'] as const) {
+      expect(cloudEnv({ cloud: 'vertex', projectId: 'fake-project', auth: { way } })).toEqual({ CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'fake-project' })
+    }
+  })
+
+  it('reads the connection back, short-lived for user credentials', () => {
+    const env = cloudEnv({ cloud: 'vertex', projectId: 'fake-project', region: 'eu', auth: { way: 'keyFile', keyFile: '/keys/sa.json' }, modelRegions: { VERTEX_REGION_CLAUDE_4_5_OPUS: 'europe-west1' } })
+    expect(cloudOf(env)).toEqual({ cloud: 'vertex', region: 'eu', way: 'keyFile', project: 'fake-project', models: {}, shortLived: false })
+    expect(cloudOf({ CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'p' })?.way).toBe('adc')
+    const userCredentials = (file: string | null) => file === null
+    expect(cloudOf({ CLAUDE_CODE_USE_VERTEX: '1', ANTHROPIC_VERTEX_PROJECT_ID: 'p' }, undefined, userCredentials)?.shortLived).toBe(true)
+    expect(cloudOf(env, undefined, userCredentials)?.shortLived).toBe(false)
+  })
+
+  it('takes the project, the way and the regions of models from a request', () => {
+    expect(
+      cloudConnectionOf({
+        cloud: 'vertex',
+        way: 'keyFile',
+        keyFile: ' /home/john doe/key.json ',
+        projectId: ' fake-project ',
+        region: '',
+        models: { opus: '' },
+        modelRegions: { VERTEX_REGION_CLAUDE_HAIKU_4_5: ' us-east5 ', VERTEX_REGION_CLAUDE_4_5_OPUS: '' },
+      }),
+    ).toEqual({ cloud: 'vertex', projectId: 'fake-project', auth: { way: 'keyFile', keyFile: '/home/john doe/key.json' }, modelRegions: { VERTEX_REGION_CLAUDE_HAIKU_4_5: 'us-east5' } })
+    expect(cloudConnectionOf({ cloud: 'vertex', way: 'adc', projectId: 'p', keyFile: 'ignored' })).toEqual({ cloud: 'vertex', projectId: 'p', auth: { way: 'adc' } })
+  })
+
+  it('refuses a request without a project, a key file or with an unknown variable', () => {
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'adc' }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'profile', projectId: 'p' }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'keyFile', projectId: 'p' }))).toBe('request.required')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'keyFile', projectId: 'p', keyFile: 'a\nb' }))).toBe('account.cloudFieldInvalid')
+    expect(codeOf(() => cloudConnectionOf({ cloud: 'vertex', way: 'adc', projectId: 'p', modelRegions: { PATH: 'x' } }))).toBe('account.cloudFieldInvalid')
+  })
+})
+
+describe('isCloudVariable', () => {
+  it('knows both clouds’ variables and any region of a model', () => {
+    expect(isCloudVariable('CLAUDE_CODE_USE_VERTEX')).toBe(true)
+    expect(isCloudVariable('AWS_PROFILE')).toBe(true)
+    expect(isCloudVariable('GOOGLE_APPLICATION_CREDENTIALS')).toBe(true)
+    expect(isCloudVariable('VERTEX_REGION_CLAUDE_FUTURE_9')).toBe(true)
+    expect(isCloudVariable('ANTHROPIC_API_KEY')).toBe(false)
   })
 })
