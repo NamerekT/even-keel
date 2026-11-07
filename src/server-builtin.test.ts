@@ -126,6 +126,16 @@ describe('the built-in tracker over HTTP', () => {
     expect((await control.search('', ABC)).map((task) => task.id)).toEqual(['ABC-2', 'ABC-1'])
   })
 
+  it('says whether a project holds tasks, a deleted one leaving none', async () => {
+    const control = builtinControl({ db, places: () => builtinPlaces(CONFIG), refresh: async () => true })
+    expect(await control.holds(ABC)).toBe(false)
+    await control.create(ABC, { title: 'only' })
+    expect(await control.holds(ABC)).toBe(true)
+    expect(await control.holds(XYZ)).toBe(false)
+    await control.remove('ABC-1')
+    expect(await control.holds(ABC)).toBe(false)
+  })
+
   it('refuses a project on another tracker, a bad priority, and every command without the database', async () => {
     const { post } = await fixture()
     expect((await post('create', { project: HULY, title: 'x' })).body.notice.code).toBe('builtin.noProject')

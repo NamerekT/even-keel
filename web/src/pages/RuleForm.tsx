@@ -265,6 +265,8 @@ export interface MilestoneFieldsProps {
   inherited: ChainRules
   origins: Record<keyof ChainRules, RuleLevel>
   milestones: readonly string[]
+  /** Why "Only milestones" cannot be picked: the tracker has none to name (the built-in one, BTN-769). */
+  onlyUnavailable?: string
   /** A list as the draft keeps it, a line a milestone: a row being typed stays. */
   text: (key: MilestoneKey) => string
   /** The texts one edit changes, together: a pick of the mode may clear both lists. */
@@ -279,7 +281,7 @@ type MilestoneKey = 'requiredMilestones' | 'excludedMilestones'
  * Which tasks of the tracker project are the project's (BTN-334): not a rule of the chain — a task left out is not the
  * project's at all. Kept as `requiredMilestones` and `excludedMilestones`.
  */
-export function MilestoneFields({ level, rules, inherited, origins, milestones, text, onEdit, errorOf, marks }: MilestoneFieldsProps) {
+export function MilestoneFields({ level, rules, inherited, origins, milestones, onlyUnavailable, text, onEdit, errorOf, marks }: MilestoneFieldsProps) {
   const id = useId()
   const tableDraft = useTableDraft()
   const pending = tableDraft?.draft.adding
@@ -314,12 +316,16 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
   return (
     <div className={marks.box(['requiredMilestones', 'excludedMilestones'])}>
       <div className={own || level === 'shared' ? 'rule-take' : 'rule-take rule-table__inherited'} role="radiogroup" aria-label={t.settings.milestones}>
-        {MODES.map((each) => (
-          <label key={each} className="settings__check">
-            <input type="radio" name={`${id}-mode`} checked={mode === each} onChange={() => pick(each)} />
-            {t.settings.milestoneMode[each]}
-          </label>
-        ))}
+        {MODES.map((each) => {
+          // A mode already stored stays pickable: the radio must not hide what the rules say.
+          const off = each === 'only' && onlyUnavailable !== undefined && mode !== 'only'
+          return (
+            <label key={each} className="settings__check" title={off ? onlyUnavailable : undefined}>
+              <input type="radio" name={`${id}-mode`} checked={mode === each} disabled={off} onChange={() => pick(each)} />
+              {t.settings.milestoneMode[each]}
+            </label>
+          )
+        })}
         {level === 'project' && (
           <Inherit
             own={own}
@@ -333,6 +339,7 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
         {marks.note('requiredMilestones')}
         {marks.note('excludedMilestones')}
       </div>
+      {onlyUnavailable !== undefined && mode !== 'only' && <span className="settings__hint">{onlyUnavailable}</span>}
       {mode === 'only' && list('requiredMilestones', 'excludedMilestones')}
       {(mode === 'except' || rules.excludedMilestones.length > 0) && (
         <>

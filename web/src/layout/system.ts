@@ -1,3 +1,4 @@
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -90,12 +91,14 @@ function serverCheck(link: Link): Check {
 
 function trackerCheck(tracker: TrackerView, now: Date): Check {
   const { health } = tracker
-  const base = { key: tracker.name, name: tracker.title, tracker }
+  // The built-in tracker is the state database: no profile to fix.
+  const own = tracker.kind === BUILTIN
+  const base = { key: tracker.name, name: own ? t.system.builtin : tracker.title, tracker }
   if (health.state === 'off') return { ...base, level: 'off', text: t.system.off, details: [] }
-  if (health.state === 'live') return { ...base, level: 'ok', text: t.system.live, details: [] }
+  if (health.state === 'live') return { ...base, level: 'ok', text: own ? t.statusPage.builtinReady : t.system.live, details: [] }
   if (health.state === 'connecting') return { ...base, level: 'warn', text: t.system.connecting, details: [] }
   const details = [health.lastOkAt === null ? null : t.system.lastOk(formatAgo(health.lastOkAt, now)), health.error]
-  return { ...base, level: 'error', text: t.system.lost, details: details.filter((line) => line !== null), fix: PROFILES }
+  return { ...base, level: 'error', text: t.system.lost, details: details.filter((line) => line !== null), ...(own ? {} : { fix: PROFILES }) }
 }
 
 function usageCheck(health: UsageHealth, limitsAt: string | null, now: Date): Check {

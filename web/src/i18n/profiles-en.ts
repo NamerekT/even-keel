@@ -3,7 +3,9 @@ import type { Messages } from './ru.js'
 export const profilesEn: Messages['profiles'] = {
     title: 'Tracker and CI profiles',
     hint: "A project runs on a profile of its tracker. The default tracker profile also goes to sessions started by hand (the env of ~/.claude/settings.json) and to the GitHub Actions CI of other trackers' projects. A Forgejo CI takes the Forgejo profile on its remote's host, a GitLab CI the GitLab profile of its server.",
-    none: "No profiles: without one the chain does not read the tracker's tasks.",
+    builtin: 'Built-in',
+    builtinNote: 'no account · nothing to connect',
+    builtinTip: "The tasks live in Even Keel's own database: no account, key or profile.",
     add: 'Add profile',
     addGitlab: 'Add GitLab profile',
     isDefault: 'default',

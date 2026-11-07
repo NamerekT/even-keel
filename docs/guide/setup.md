@@ -58,6 +58,10 @@ A project is removed at the bottom of its **Settings** → **Repository**; the p
 
 GitHub, Linear, GitLab and Forgejo profiles have nothing to set for MCP: their **MCP for sessions** box says the sessions use the token entered above. In a Jira profile's box, choose OAuth or Jira's separate MCP token: one is enough, and the token is unused while OAuth is connected. The profile list shows **MCP: connected through OAuth** or **MCP: reconnect needed**. **Check** verifies both REST and the selected MCP OAuth access, refreshing it if necessary; Jira also checks that MCP can reach the profile's site. Even Keel renews access automatically, so no short-lived token expiry is shown. After browser consent, press **Check and save**: an unsaved grant is lost when the dialog closes and expires ten minutes after consent was started. The dialog asks before closing with an unsaved grant.
 
+### No account: the built-in tracker
+
+Even Keel has a tracker of its own, kept in its state database: no account, no token, nothing to connect. It is the first choice of the tracker in the setup and in **Add project**, and the one picked when you have no tracker profile; you give the project only its key (`APP` for `APP-12`). **Status** and **Settings** → **Trackers and CI** always show it. In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save. A project that has tasks in the built-in tracker stays on it, and a project with another tracker's tasks cannot move to it: moving tasks between trackers is not supported yet.
+
 ### Minimum: the adapter only
 
 After a tracker read times out, Even Keel retries that read with an increasing delay, from 20 seconds to five minutes. Saving a changed profile clears the delay. Repeated timeouts produce one diagnostic line and a recovery line with their count in the service log.

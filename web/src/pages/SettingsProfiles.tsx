@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -42,21 +43,18 @@ export function SettingsProfiles({ state, onRules }: { state: EvenKeelState; onR
     <Section title={t.profiles.title} hint={t.profiles.hint} aside={add}>
       {/* A profile's tracker keys also go into the global settings.json: a removed one reaches new sessions until that folder's daemon restarts. */}
       {state.secrets.sessionsPending && <Band tone="warn">{t.secrets.pending}</Band>}
-      {profiles.length === 0 ? (
-        <p className="notice notice--warn">{t.profiles.none}</p>
-      ) : (
-        <ul className="profile-rows">
-          {profiles.map((profile) => (
-            <ProfileRow
-              key={profile.id}
-              profile={profile}
-              tracker={kinds.find((each) => each.kind === profile.kind)?.tracker ?? true}
-              onEdit={() => setEditing({ id: profile.id })}
-              onRules={() => onRules(profile.id)}
-            />
-          ))}
-        </ul>
-      )}
+      <ul className="profile-rows">
+        <BuiltinRow />
+        {profiles.map((profile) => (
+          <ProfileRow
+            key={profile.id}
+            profile={profile}
+            tracker={kinds.find((each) => each.kind === profile.kind)?.tracker ?? true}
+            onEdit={() => setEditing({ id: profile.id })}
+            onRules={() => onRules(profile.id)}
+          />
+        ))}
+      </ul>
       {editing !== null &&
         createPortal(<ProfileDialog kinds={kinds} profile={profiles.find((each) => each.id === editing.id)} onClose={() => setEditing(null)} />, document.body)}
       {/* Only PR mode links here so far (EKR-7): the profile is for a remote's pull requests. */}
@@ -74,6 +72,27 @@ export function SettingsProfiles({ state, onRules }: { state: EvenKeelState; onR
           document.body,
         )}
     </Section>
+  )
+}
+
+/**
+ * Even Keel's own tracker, first and always (BTN-769): it has no account, so there is no form and nothing to connect.
+ * "Connect Claude Code / Codex" and the export to another tracker will come here later.
+ */
+function BuiltinRow() {
+  return (
+    <li className="profile-row">
+      <div className="profile-row__head">
+        <span className="lamp lamp--done" role="img" aria-label={t.statusPage.builtinReady} />
+        <span className="profile-row__icon">
+          <TrackerIcon kind={BUILTIN} />
+        </span>
+        <Tipped className="profile-row__name" tip={t.profiles.builtinTip} align="start" focusable>
+          {t.profiles.builtin}
+        </Tipped>
+        <span className="profile-row__quiet">{t.profiles.builtinNote}</span>
+      </div>
+    </li>
   )
 }
 

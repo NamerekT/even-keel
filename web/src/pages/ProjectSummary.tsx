@@ -1,3 +1,4 @@
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState, ProjectDraft } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { Card, Fact, FactList } from '../ui/blocks.js'
@@ -21,8 +22,10 @@ interface SummaryProps {
 export function ProjectSummary({ state, fields, shape, draft, root, current }: SummaryProps) {
   const key = fields.key.trim()
   const name = fields.name.trim() || key
-  const tracker = state.config.trackers.find((each) => each.name === fields.tracker)?.title ?? ''
-  const place = trackerPlace(shape, fields)
+  const own = fields.tracker === BUILTIN
+  const tracker = own ? t.system.builtin : (state.config.trackers.find((each) => each.name === fields.tracker)?.title ?? '')
+  // The built-in tracker has no place of its own: the key already names the project.
+  const place = own ? '' : trackerPlace(shape, fields)
   return (
     <Card title={t.wizard.summary.title} className="project-summary">
       <FactList className="project-summary__facts">
@@ -30,7 +33,7 @@ export function ProjectSummary({ state, fields, shape, draft, root, current }: S
           <Value text={name === '' ? '' : key === '' || name === key ? name : `${name} · ${key}`} />
         </Fact>
         <Fact label={t.wizard.summary.tracker}>
-          <Value text={fields.profile === '' ? '' : place === '' ? tracker : `${tracker} · ${place}`} />
+          <Value text={fields.profile === '' && !own ? '' : place === '' ? tracker : `${tracker} · ${place}`} />
         </Fact>
         <Fact label={t.wizard.summary.branch}>
           <Value text={fields.branch.trim() || current || ''} mono />

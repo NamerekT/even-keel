@@ -51,6 +51,7 @@ import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runsAsService } from '../updates/control.js'
 import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
+import { BUILTIN } from '../builtin/model.js'
 
 type HostingContext = Pick<ServiceContext,
   | 'CONFIG_POLL_MS'
@@ -297,6 +298,9 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         if (ctx.configStore.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
         const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
         if (moved && ctx.lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(ctx.configStore.current, project) })
+        // Tasks of the built-in tracker do not move to another one yet: that is an export (BTN-769).
+        const leaves = ctx.configStore.current.trackers[project] === BUILTIN && form.tracker !== BUILTIN
+        if (leaves && (await builtin.holds(project))) throw fail('config.builtinLocked', { key: projectLabel(ctx.configStore.current, project) })
         if (form.pullRequests && !base.pullRequests) {
           const ready = ctx.pullReadinessOf(project, await remotesIn(runGit, form.repo))
           if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })

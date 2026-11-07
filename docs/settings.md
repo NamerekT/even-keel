@@ -42,7 +42,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | Key | Levels | Merge | Written by | Default |
 | --- | --- | --- | --- | --- |
 | `parallel` | G | — | page, hand | 1 |
-| `tracker` | P | — (a project's own since BTN-345: every writer stores it, so no later default moves a project) | page, hand | `github`, only for a project of a hand-written file that names none |
+| `tracker` | P | — (a project's own since BTN-345: every writer stores it, so no later default moves a project). `builtin` — the built-in tracker, no profile or place (BTN-767); a project with tasks there cannot leave it (`config.builtinLocked`, BTN-769), and the page does not offer it to a project whose chain has another tracker's tasks | page, hand | `github`, only for a project of a hand-written file that names none |
 | `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225) | page, hand | `null` |
 | `chain.active`, `chain.terminal` | G, profile, P | each key P over the profile's over G; `null` — back to the status categories | page, hand (not the profile's) | `null` |
 | `chain.requiredLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole | page, hand (not the profile's) | `[]` |

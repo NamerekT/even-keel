@@ -35,7 +35,8 @@ export function TrackerStep({ state, fields, shape, check, tracker, onChange }: 
         fields={fields}
         profiles={profiles}
         kinds={kinds}
-        profileHint={t.wizard.profileHint}
+        profileHint={t.wizard.trackerPickHint}
+        builtin={{}}
         projectNote={refused && <Status>{say(check!.entry!)}</Status>}
         projectInvalid={refused}
         status={status}

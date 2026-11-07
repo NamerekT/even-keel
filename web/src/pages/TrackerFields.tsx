@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import { noticeOf } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProfileKindView, ProfileView, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
@@ -12,7 +13,7 @@ import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { EMPTY_LOOKUP, answered, failed, failureShown, retryDelay, type Lookup } from './projectLookup.js'
-import { pickProject, placeOf, shapeOf, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
+import { pickProject, placeOf, shapeOf, switchBuiltin, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import { profileLine, projectLine } from './trackerLines.js'
 import './trackerFields.css'
@@ -20,6 +21,8 @@ import './trackerFields.css'
 const LOOKUP_DELAY_MS = 300
 /** The Select's value of "Add profile": no profile has it as its id. */
 const ADD = '+add'
+/** The Select's value of Even Keel's own tracker: it has no profile. */
+const BUILTIN_PICK = '+builtin'
 
 type FieldName = 'profile' | 'project' | 'team'
 
@@ -50,6 +53,11 @@ interface TrackerFieldsProps {
   status?: StripLine | null
   /** Under the profile: what its change answered. */
   profileNote?: ReactNode
+  /**
+   * Even Keel's own tracker is offered first, before the profiles; `unavailable` says why it cannot be picked. Left
+   * out, it is not offered: a task feed is always another tracker's.
+   */
+  builtin?: { unavailable?: string }
   /** In the profile's head: the mark of its unsaved change (`Marks.note`). */
   profileMark?: ReactNode
   /** The tracker project's field: its box's class, the mark in its head, what goes under it, whether it is refused. */
@@ -103,7 +111,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
     name: (shape === 'key' || shape === 'alias') && exact !== undefined ? exact.name : null,
     quiet: failure === 'quiet',
   })
-  const profileSays = profileLineOf(profiles, profile)
+  const profileSays = fields.tracker === BUILTIN ? { tone: 'plain' as const, text: t.wizard.builtinLine } : profileLineOf(profiles, profile)
   // With the key fixed the `key` shape has no field of its own: what is wrong with the project goes under the profile.
   const noProjectField = keyFixed && shape === 'key'
 
@@ -111,7 +119,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
     <>
       <div className="settings__row tracker-fields__row">
         <ProfilePick {...props} line={noProjectField && projectSays?.tone === 'error' ? projectSays : profileSays} onAdd={() => setAdding(true)} />
-        <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined} list={lookup.list} line={projectSays} />
+        <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined && fields.tracker !== BUILTIN} list={lookup.list} line={projectSays} />
       </div>
       {adding &&
         createPortal(<ProfileDialog kinds={[...kinds]} profile={undefined} onClose={() => setAdding(false)} onSaved={(id) => setAdded(id)} />, document.body)}
@@ -119,18 +127,21 @@ export function TrackerFields(props: TrackerFieldsProps) {
   )
 }
 
-function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, profileMark, keyFixed = false, line, onChange, onAdd }: TrackerFieldsProps & { line: StripLine | null; onAdd: () => void }) {
+function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false, soon, profileNote, profileMark, keyFixed = false, builtin, line, onChange, onAdd }: TrackerFieldsProps & { line: StripLine | null; onAdd: () => void }) {
+  const own = builtin === undefined ? [] : [{ value: BUILTIN_PICK, label: t.wizard.builtin, icon: <TrackerIcon kind={BUILTIN} />, unavailable: builtin.unavailable }]
   const options = [
+    ...own,
     ...profiles.map((each) => ({ value: each.id, label: each.isDefault ? t.profiles.byDefault(each.name) : each.name, icon: <TrackerIcon kind={each.kind} /> })),
     { value: ADD, label: t.wizard.addProfile, icon: <PlusIcon /> },
   ]
   const pick = (value: string) => {
+    if (value === BUILTIN_PICK) return onChange(switchBuiltin)
     const next = profiles.find((each) => each.id === value)
     if (next === undefined) onAdd()
     else onChange((before) => switchProfile(before, next))
   }
   // Nothing to pick from: the field is the button that adds one, not a list holding only "Add profile".
-  if (profiles.length === 0)
+  if (profiles.length === 0 && builtin === undefined)
     return (
       <div className="settings__field">
         <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} mark={profileMark} />
@@ -146,9 +157,9 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
     )
   return (
     <div className="settings__field">
-      <FieldHead label={t.profiles.field} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} mark={profileMark} />
+      <FieldHead label={builtin === undefined ? t.profiles.field : t.wizard.trackerPick} hint={profileHint} htmlFor={ids('profile')} soon={profileLocked ? soon : undefined} mark={profileMark} />
       <FieldStrip line={line}>
-        <Select id={ids('profile')} className="settings__text tracker-fields__wide" value={fields.profile} options={options} disabled={profileLocked} onChange={pick} />
+        <Select id={ids('profile')} className="settings__text tracker-fields__wide" value={fields.tracker === BUILTIN ? BUILTIN_PICK : fields.profile} options={options} disabled={profileLocked} onChange={pick} />
       </FieldStrip>
       {profileNote}
     </div>
@@ -180,11 +191,12 @@ function ProjectFields(props: ProjectFieldsProps) {
   if (disabled) return <TextField id={ids('project')} label={t.wizard.trackerField} value={placeOf(fields)} disabled onChange={() => {}} />
   if (shape === 'key') {
     if (keyFixed) return null
+    const own = kind === BUILTIN
     return (
       <TextField
         id={ids('project')}
-        label={label}
-        hint={t.wizard.projectHint(title)}
+        label={own ? t.wizard.ownKey : label}
+        hint={own ? t.wizard.prefixHint : t.wizard.projectHint(title)}
         value={fields.key}
         placeholder="ABC"
         upper

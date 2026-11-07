@@ -30,6 +30,19 @@ export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly Tra
 }
 
 /**
+ * The milestones the rules name that the built-in tracker has not got, once whatever their case: saving the rules
+ * creates them (BTN-769). One it has is never sent again: a milestone without a date would lose its date.
+ */
+export function newMilestones(rules: { requiredMilestones: readonly string[]; excludedMilestones: readonly string[] }, known: readonly string[]): string[] {
+  const names: string[] = []
+  for (const raw of [...rules.requiredMilestones, ...rules.excludedMilestones]) {
+    const name = raw.trim()
+    if (name !== '' && ![...known, ...names].some((each) => sameName(each, name))) names.push(name)
+  }
+  return names
+}
+
+/**
  * The tasks of one source of the project (BTN-553): of a feed those whose id has its prefix (`readerOf` of the service),
  * of the main tracker (`null`) those no feed claims.
  */

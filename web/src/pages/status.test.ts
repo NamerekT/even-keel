@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import type { Check, Level } from '../layout/system.js'
-import { problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
+import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem } from './status.js'
 
 const now = new Date('2026-10-24T12:00:00Z')
 const live: TrackerHealth = { state: 'live', lastOkAt: '2026-10-24T12:00:00Z', error: null }
@@ -59,6 +59,18 @@ describe('refreshedProjects', () => {
 
   it('skips a reader of no known project', () => {
     expect(refreshedProjects(state, { ...tracker({}), projects: ['gone'] })).toEqual([])
+  })
+})
+
+describe('openTasks', () => {
+  const task = (project: string, id: string, category: string) => ({ project, id, status: { name: category, category } })
+  const state = {
+    tasks: [task('p-abc', 'ABC-1', 'ToDo'), task('p-abc', 'ABC-2', 'Won'), task('p-ops', 'OPS-1', 'Started'), task('p-x', 'X-1', 'ToDo'), task('p-ops', 'OPS-2', 'Lost')],
+  } as unknown as Pick<EvenKeelState, 'tasks'>
+
+  it("counts the open tasks of the connection's projects, a closed one and another tracker's left out", () => {
+    expect(openTasks(state, ['p-abc', 'p-ops'])).toBe(2)
+    expect(openTasks(state, [])).toBe(0)
   })
 })
 

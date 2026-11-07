@@ -70,6 +70,15 @@ describe('systemChecks', () => {
     expect(worstLevel(checks)).toBe('error')
   })
 
+  it('names the built-in tracker by its database, with no profile to open when it fails', () => {
+    const own = (health: TrackerHealth): TrackerView => ({ ...huly(health), name: 'none:builtin', kind: 'builtin', title: 'Even Keel' })
+    const live = systemChecks({ ...healthy, trackers: [own({ state: 'live', lastOkAt: null, error: null })] }, now)[1]!
+    expect(live).toMatchObject({ name: 'Встроенный трекер', level: 'ok', text: 'база доступна' })
+    const down = systemChecks({ ...healthy, trackers: [own({ state: 'down', lastOkAt: null, error: 'no database' })] }, now)[1]!
+    expect(down).toMatchObject({ level: 'error', details: ['no database'] })
+    expect(down.fix).toBeUndefined()
+  })
+
   it('keeps a switched-off Huly and a limit poll without data neutral', () => {
     const checks = systemChecks(
       {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft } from '../../../src/state.js'
 import { examplePaths } from '../examplePaths.js'
@@ -24,6 +25,7 @@ import {
   shapeOf,
   stepChecks,
   suggestOfRepo,
+  switchBuiltin,
   switchProfile,
   trackerBasis,
   typedIn,
@@ -458,14 +460,16 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   )
 }
 
-/** The only tracker profile is chosen at once; with several the user picks. */
+/** No tracker profile: the built-in tracker is chosen at once; the only one is; with several the user picks. */
 function firstFields(state: EvenKeelState): WizardFields {
   const trackers = new Set(state.profiles.kinds.filter((kind) => kind.tracker).map((kind) => kind.kind))
   const own = state.profiles.profiles.filter((profile) => trackers.has(profile.kind))
+  if (own.length === 0) return switchBuiltin(EMPTY_FIELDS)
   return own.length === 1 ? switchProfile(EMPTY_FIELDS, own[0]!) : EMPTY_FIELDS
 }
 
 function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields, state: EvenKeelState): string {
+  if (fields.tracker === BUILTIN && missing === 'project') return t.wizard.missing.field(t.wizard.ownKey)
   const choice = state.config.trackers.find((each) => each.name === fields.tracker)
   const title = choice?.title ?? fields.tracker
   if (missing === 'project' && shapeOf(choice) === 'within') return t.wizard.missing.field(t.wizard.team)

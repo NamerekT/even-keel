@@ -3,6 +3,7 @@ import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { BranchDriftBand, BranchField, BranchMoveLine, useRepoBranches } from './BranchField.js'
 import { protectionText, sameProtection } from './protectionDraft.js'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -48,7 +49,7 @@ import {
   useFieldErrors,
   wholeOf,
 } from './settingsParts.js'
-import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
+import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
 import { useSourceMoves } from './SourceMoves.js'
 import { Band } from '../ui/blocks.js'
@@ -184,8 +185,12 @@ export function SettingsPanel({
   const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
+  const onBuiltin = text('tracker') === BUILTIN
   const save = async () => {
     if (next === undefined || base === undefined) return false
+    // The built-in tracker gets the milestones the rules name first: "Add a milestone" creates one (BTN-769).
+    if (form.tracker === BUILTIN && onBuiltin)
+      for (const name of newMilestones(next.chain, ruleChoices.milestones)) if (!(await send('builtin/milestone', { project, name }))) return false
     return send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
@@ -414,6 +419,7 @@ export function SettingsPanel({
               trackerProject={text('trackerProject')}
               known={text('tracker') === saved.tracker && text('trackerProject') === saved.trackerProject}
               locked={locked}
+              hasTasks={mainTasks.length > 0}
               trackerMark={marks.note('tracker')}
               trackerNote={notes('tracker')}
               box={marks.box('trackerProject')}
@@ -465,7 +471,8 @@ export function SettingsPanel({
             sourceKey={state?.projectKeys[project] ?? project}
             title={ruleProfile?.name ?? trackerTitle}
             tabs={[
-              {
+              // The built-in tracker's statuses and labels are fixed (BTN-767): only which tasks are the project's.
+              ...(onBuiltin ? [] : [{
                 id: 'rules',
                 title: t.settings.rules,
                 dirty: changed(draft, ['active', 'terminal', 'requiredLabels', 'excludedLabels'], same).length > 0,
@@ -488,7 +495,7 @@ export function SettingsPanel({
                     marks={marks}
                   />
                 ),
-              },
+              }]),
               {
                 id: 'milestones',
                 fields: ['requiredMilestones', 'excludedMilestones'],
@@ -502,6 +509,7 @@ export function SettingsPanel({
                       inherited={inherited}
                       origins={origins}
                       milestones={ruleChoices.milestones}
+                      onlyUnavailable={onBuiltin && ruleChoices.milestones.length === 0 ? t.settings.milestonesNone : undefined}
                       text={text}
                       onEdit={editAll}
                       errorOf={errorOf}
@@ -510,7 +518,7 @@ export function SettingsPanel({
                   </Section>
                 ),
               },
-              ...(moves.tab === null ? [] : [moves.tab]),
+              ...(moves.tab === null || onBuiltin ? [] : [moves.tab]),
             ]}
             canSave={!sending && !moves.sending && next !== undefined}
             failure={leftover ?? moves.failure}

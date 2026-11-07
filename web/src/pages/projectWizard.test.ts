@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ProjectCheck, ProjectDraft } from '../../../src/state.js'
 import {
@@ -15,9 +16,11 @@ import {
   shapeOf,
   stepChecks,
   suggestOfRepo,
+  switchBuiltin,
   switchProfile,
   taskExample,
   trackerBasis,
+  trackerChosen,
   trackerPlace,
   typedIn,
   type TrackerShape,
@@ -351,6 +354,26 @@ describe('switchProfile', () => {
   it('keeps everything for another profile of the same kind', () => {
     const before = fields({ tracker: 'github', profile: 'p-1', trackerProject: 'octo-org/shop' })
     expect(switchProfile(before, { id: 'p-3', kind: 'github' })).toMatchObject({ profile: 'p-3', trackerProject: 'octo-org/shop' })
+  })
+})
+
+describe('switchBuiltin', () => {
+  it("drops the profile and clears the last kind's suggestions, not what was typed", () => {
+    const before = typedIn(fields({ tracker: 'github', profile: 'p-1', trackerProject: 'octo-org/shop', name: 'shop' }), 'key', 'SHOP')
+    expect(switchBuiltin(before)).toMatchObject({ profile: '', tracker: BUILTIN, key: 'SHOP', name: '', trackerProject: '', team: '' })
+  })
+})
+
+describe('the built-in tracker', () => {
+  const builtin = fields({ repo: 'D:/Projects/shop', tracker: BUILTIN, key: 'SHOP' })
+
+  it('is chosen without a profile', () => {
+    expect(trackerChosen(builtin)).toBe(true)
+    expect(trackerChosen(fields({}))).toBe(false)
+    expect(missingOf({ ...builtin, key: '' }, 'key', null)).toBe('project')
+    expect(missingOf(builtin, 'key', passed)).toBeNull()
+    expect(stepChecks(builtin, 'key', passed, passed, 'passed').tracker).toBe('passed')
+    expect(draftOfFields(builtin)).toMatchObject({ tracker: BUILTIN, profile: null, key: 'SHOP' })
   })
 })
 

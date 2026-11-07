@@ -1,3 +1,4 @@
+import { BUILTIN } from '../../../src/builtin/model.js'
 import type { ProjectCheck, ProjectDraft, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import type { StepCheck } from './wizard.js'
@@ -155,6 +156,15 @@ function suggest(fields: WizardFields, values: Partial<Record<Suggested, string>
   return next
 }
 
+/** The tracker is chosen: a profile, or Even Keel's own tracker, which needs none (BTN-769). */
+export const trackerChosen = (fields: Pick<WizardFields, 'profile' | 'tracker'>): boolean => fields.profile !== '' || fields.tracker === BUILTIN
+
+/** Even Keel's own tracker: no profile, and the suggestions of the last kind cleared. */
+export function switchBuiltin(fields: WizardFields): WizardFields {
+  if (fields.tracker === BUILTIN && fields.profile === '') return fields
+  return suggest({ ...fields, profile: '', tracker: BUILTIN, team: '' }, { key: '', name: '', trackerProject: '' })
+}
+
 /** Another profile: its kind's tracker, and the suggestions of the last kind cleared. */
 export function switchProfile(fields: WizardFields, profile: { id: string; kind: string }): WizardFields {
   if (profile.kind === fields.tracker) return { ...fields, profile: profile.id }
@@ -203,7 +213,7 @@ export type Missing = 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checki
 export function missingOf(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null): Missing | null {
   if (fields.repo.trim() === '') return 'repo'
   if (check?.repo.notice != null) return 'repoError'
-  if (fields.profile === '') return 'profile'
+  if (!trackerChosen(fields)) return 'profile'
   if (shape === 'place' && fields.trackerProject.trim() === '') return 'place'
   if (shape === 'alias' && fields.trackerProject.trim() === '') return 'project'
   if (shape === 'within' && fields.team.trim() === '') return 'project'
@@ -252,7 +262,7 @@ export function stepChecks(
   const refused = entryField(fields, shape, entry)
   const repo = fields.repo.trim() === '' ? 'empty' : repoCheck?.repo.notice != null ? 'failed' : repoCheck?.repo.root != null ? 'passed' : 'empty'
   const trackerAnswer = tracker === null ? 'empty' : tracker.ok ? 'passed' : 'failed'
-  const trackerStep = fields.profile === '' ? 'empty' : refused === 'tracker' ? 'failed' : trackerAnswer
+  const trackerStep = !trackerChosen(fields) ? 'empty' : refused === 'tracker' ? 'failed' : trackerAnswer
   const project =
     refused === 'milestones' || refused === 'key' ? 'failed' : key !== '' && check !== null && entry === null ? 'passed' : 'empty'
   return { agent, repo, tracker: trackerStep, project, place: draftOfFields(fields) === undefined ? 'failed' : 'passed' }

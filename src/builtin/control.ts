@@ -66,6 +66,8 @@ export interface BuiltinControl {
    * the built-in tracker when it is `null`.
    */
   search(text: string, project: string | null): Promise<TaskRef[]>
+  /** The project has a task in the built-in tracker, whatever its status: its tracker is not swapped for another (BTN-769). */
+  holds(project: string): Promise<boolean>
 }
 
 /** The projects on the built-in tracker with their keys, as the adapter gets them. */
@@ -203,6 +205,9 @@ export function builtinControl({ db, places, refresh, busy = () => null }: Built
       }
       const found = [...exact, ...(await store.search(projects, text)).filter((task) => !exact.some((each) => each.project === task.project && each.number === task.number))]
       return found.slice(0, SEARCH_LIMIT).map((task) => ({ id: names.name(task), title: task.title, status: task.status }))
+    },
+    async holds(project) {
+      return (await open().store.list([project])).length > 0
     },
   }
 }
