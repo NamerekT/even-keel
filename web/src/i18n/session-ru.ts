@@ -46,7 +46,7 @@ export const sessionRu = {
     disabled: 'Remote Control выключен: в /config папки аккаунта нет «remoteControlAtStartup».',
     'no-bridge': 'Сессия не подняла Remote Control — отсюда её не открыть.',
     lost: 'Remote Control отвалился — с телефона не открыть. Не довела задачу — «Новая сессия».',
-    'api-key': 'На API-ключе Remote Control нет: он требует входа в claude.ai. Ответить сессии — из чата здесь или в трекере.',
+    'api-key': 'На API-ключе и в облаке Remote Control нет: он требует входа в claude.ai. Ответить сессии — из чата здесь или в трекере.',
   },
   panel: (task: string) => `Сессия задачи ${task}`,
   closePanel: 'Закрыть панель',

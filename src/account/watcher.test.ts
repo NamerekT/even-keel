@@ -156,3 +156,92 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     expect(organizations.get('work')).toBe('org-a')
   })
 })
+
+describe('AccountWatcher.addCloud (BTN-822)', () => {
+  let root: string
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  const CLOUD_STATUS = { loggedIn: true, authMethod: 'third_party', email: null, orgName: null, subscriptionType: null }
+  const connection = { cloud: 'bedrock', region: 'eu-central-1', auth: { way: 'profile', profile: 'work' } } as const
+
+  function watcher(check: () => Promise<{ model: string | null }>) {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-watcher-'))
+    const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: join(root, 'no-global'), CODEX_HOME: join(root, 'no-codex') }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+    const named: Array<[string, string]> = []
+    const options = {
+      homes,
+      agentOf: () => ({ authStatus: async () => CLOUD_STATUS }),
+      apps: { list: () => [] },
+      active: () => 'bedrock',
+      nameOf: () => null,
+      name: (key: string, name: string) => void named.push([key, name]),
+      transportOf: () => null,
+      loginBlock: () => null,
+      sessionsIn: () => [],
+      projectsOn: () => [],
+      pool: () => [],
+      makeShared: () => {},
+      missing: () => [],
+      online: async () => true,
+      sessionsKnown: () => true,
+      removing: () => false,
+      configPending: () => false,
+      limits: () => null,
+      usage: () => ({ state: 'ok' }),
+      checkCloud: check,
+      awsProfiles: () => ({ profiles: [{ name: 'work', region: null, shortLived: false }], user: 'john', home: 'C:\\Users\\john' }),
+      whose: () => ({ user: 'john', home: 'C:\\Users\\john' }),
+      checkKey: async () => ({ state: 'ok' }),
+      keyCheckMs: 60 * 60_000,
+      checkCredit: async () => ({ state: 'unknown', reason: 'none' }),
+      creditCheckMs: 60 * 60_000,
+      organizations: { of: () => undefined, note: () => {}, forget: () => {} },
+      now: () => new Date('2026-10-26T12:00:00.000Z'),
+      onChange: () => {},
+      onError: (error: unknown) => {
+        throw error
+      },
+    } as unknown as AccountWatcherOptions
+    return { accounts: new AccountWatcher(options), homes, named }
+  }
+
+  it('keeps a folder whose check turn answered, with the cloud and the model that answered, as an account paying per token', async () => {
+    const { accounts, named } = watcher(async () => ({ model: 'eu.anthropic.claude-sonnet-fake' }))
+    await accounts.addCloud('AWS work', connection)
+    expect(named).toEqual([['aws-work', 'AWS work']])
+    expect(accounts.view.accounts[0]).toMatchObject({
+      key: 'aws-work',
+      apiKey: false,
+      cloud: { cloud: 'bedrock', region: 'eu-central-1', way: 'profile', profile: 'work', shortLived: false },
+      checkedModel: 'eu.anthropic.claude-sonnet-fake',
+      status: { email: 'aws-work' },
+    })
+    expect(accounts.apiKey('aws-work')).toBe(true)
+  })
+
+  it("removes the folder again on a refused check and says the cloud's reason, naming whose AWS files were read", async () => {
+    const { accounts, homes } = watcher(async () => {
+      throw new Error('Could not load credentials from any providers')
+    })
+    await expect(accounts.addCloud('', connection)).rejects.toThrow(
+      expect.objectContaining({ notice: { code: 'cloud.awsCredentials', params: { user: 'john', home: 'C:\\Users\\john' } } }),
+    )
+    expect(homes.list().filter((home) => !home.global)).toEqual([])
+  })
+
+  it('says an unknown refusal as it came', async () => {
+    const { accounts } = watcher(async () => {
+      throw new Error('spawn claude ENOENT')
+    })
+    await expect(accounts.addCloud('', connection)).rejects.toThrow(
+      expect.objectContaining({ notice: { code: 'account.cloudCheckFailed', params: { reason: 'spawn claude ENOENT' } } }),
+    )
+  })
+
+  it("puts the service user's AWS profiles into the view when the form asks", () => {
+    const { accounts } = watcher(async () => ({ model: null }))
+    expect(accounts.view.aws).toBeUndefined()
+    accounts.readAws()
+    expect(accounts.view.aws).toEqual({ profiles: [{ name: 'work', region: null, shortLived: false }], user: 'john', home: 'C:\\Users\\john' })
+  })
+})

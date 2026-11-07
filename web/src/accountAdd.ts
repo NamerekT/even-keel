@@ -1,14 +1,15 @@
 import type { AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN } from '../../src/agent/providers.js'
 import { PROVIDERS, type Provider } from './accounts.js'
+import { cloudDirty, type CloudDraft } from './cloudDraft.js'
 import { t } from './i18n/index.js'
 
 export const providerHint = (provider: Provider): string => provider === 'opencode'
   ? ['chatgpt', 'free', 'apiKey'].map(way => t.addAccount.way.opencode[way as 'chatgpt' | 'free' | 'apiKey'].title).join(' · ')
   : t.account.providerHints[provider]
 
-/** How a way adds the account: a sign-in through the agent's CLI, a folder placed at once, or a key checked first. */
-export type WayKind = 'login' | 'instant' | 'key'
+/** How a way adds the account: a sign-in through the agent's CLI, a folder placed at once, a key checked first, or a cloud checked by one turn. */
+export type WayKind = 'login' | 'instant' | 'key' | 'cloud'
 
 export interface Way {
   id: string
@@ -22,6 +23,7 @@ export const WAYS: Record<Provider, readonly Way[]> = {
   claude: [
     { id: 'subscription', kind: 'login' },
     { id: 'apiKey', kind: 'key' },
+    { id: 'cloud', kind: 'cloud' },
   ],
   codex: [
     { id: 'subscription', kind: 'login' },
@@ -103,13 +105,15 @@ export interface Draft {
   key: string
   /** The way last picked, so coming back to the provider finds it again. */
   way: string
+  /** The cloud way's fields (BTN-822). */
+  cloud?: CloudDraft
 }
 
 export type Drafts = Partial<Record<Provider, Draft>>
 
-/** Whether closing loses something typed: a name or a key; a picked way alone is not worth asking about. */
+/** Whether closing loses something typed: a name, a key or a cloud's secret; a picked way alone is not worth asking about. */
 export function dirty(drafts: Drafts): boolean {
-  return Object.values(drafts).some((draft) => draft.name.trim() !== '' || draft.key.trim() !== '')
+  return Object.values(drafts).some((draft) => draft.name.trim() !== '' || draft.key.trim() !== '' || cloudDirty(draft.cloud))
 }
 
 export type LoginRow = 'open' | 'signIn' | 'code'

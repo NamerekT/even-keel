@@ -30,7 +30,7 @@ Waiting-list entries 86, 18, 17c, 29 and 46 can be checked after a natural occur
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
-- Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419.
+- Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23b (Amazon Bedrock, needs an AWS account with model access) has no task yet.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36, 36a — BTN-546; the demo, 99 — BTN-815.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
@@ -98,6 +98,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 22 | [Codex on an OpenAI API key](unverified/codex.md#codex-on-an-openai-api-key-btn-177) | Codex API keys | the chain waits forever after a top-up, or a funded key's turn is priced wrong |
 | 23 | [A key refused after it was added](unverified/sessions.md#a-key-refused-after-it-was-added) | Claude API keys of a disabled organization | the key looks fine until a session fails |
 | 23a | [An API key's organization header](unverified/sessions.md#an-api-keys-organization-header) | replacing an OpenAI API key with one of another organization, and with a restricted key (Anthropic checked; OpenAI's now from `/v1/me`, BTN-649) | a key of another organization replaces the old one, a key of the same one is refused, or a restricted key keeps no organization |
+| 23b | [Claude on Amazon Bedrock](unverified/accounts.md#claude-on-amazon-bedrock-btn-822) | Claude accounts on Amazon Bedrock | an added account's sessions do not reach Bedrock, a refusal shows raw text, or throttling looks like any error; use an Anthropic API key account |
 | 24 | [A command after a green main that restarts Even Keel on Linux and macOS](unverified/ci.md#a-command-after-a-green-main-that-restarts-even-keel-on-linux-and-macos) | a restart from `afterGreen` under systemd since BTN-720 (systemd before it and launchd checked); the stop waiting for the gateway's servers (BTN-723) | the service stays stopped; an old run's gateway server lives on with the tracker credentials of its start |
 | 25 | [When a CI run counts as stuck](unverified/ci.md#when-a-ci-run-counts-as-stuck) | a runner shared with repositories Even Keel does not watch; a late red run of an unchecked push (BTN-719) | a push is called unchecked while the runner builds such a repository; a red run taken after a restart or past an hour goes unnoticed |
 | 25b | [The log tail of a failed job](unverified/ci.md#the-log-tail-of-a-failed-job-btn-605) | a log the token is refused (every forge's tail checked) | the session gets the run's link alone, as before |

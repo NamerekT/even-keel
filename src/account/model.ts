@@ -10,6 +10,7 @@ import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 import type { Transport } from './transport.js'
+import type { AwsProfiles, CloudSummary } from './cloud.js'
 import type { AccountLevel } from './header-levels.js'
 
 export const GLOBAL_ACCOUNT = 'global'
@@ -61,6 +62,10 @@ export interface AccountEntry {
   apiKey: boolean
   /** An API account whose folder keeps the key itself, so the page can put a new one in its place (BTN-418). */
   keyReplaceable?: boolean
+  /** The cloud a Claude folder runs on (BTN-822), read from its `settings.json`; `apiKey` is false for it. */
+  cloud?: CloudSummary
+  /** The model that answered the check turn when the account was added, while the service runs. */
+  checkedModel?: string | null
   /** How its new Claude sessions run (`transportOf`); absent for an agent with one way only. */
   transport?: Transport
   limits: RateLimits | null
@@ -93,6 +98,8 @@ export interface AccountView {
   headerLevels?: Record<string, AccountLevel[]>
   /** Result of an explicit Add account check; hidden folders are never polled as accounts. */
   globalCheck?: { agent: string; account: { key: string; status: AccountStatus } | null }
+  /** The AWS profiles the service's user has, read when the cloud form asks (`account/aws`). */
+  aws?: AwsProfiles
   /** The account holding the Even Keel role: the shared provider's entry of the shared pool, Claude's or Codex's. */
   active: string
   accounts: AccountEntry[]
@@ -154,9 +161,19 @@ export function isApiKey(status: AccountStatus | null): boolean {
   return status?.authMethod === 'api_key' || status?.authMethod === 'api_key_helper'
 }
 
-/** An API account has no e-mail: its folder key stands in for it wherever an account is told apart by e-mail. */
+/** A cloud account (BTN-822): the CLI says `third_party` for a folder whose `settings.json` turns a cloud on. */
+export function isCloud(status: AccountStatus | null): boolean {
+  return status?.authMethod === 'third_party'
+}
+
+/** A key or a cloud pays per token: no plan limits, no claude.ai sign-in to renew or sign out of. */
+export function paysPerToken(status: AccountStatus | null): boolean {
+  return isApiKey(status) || isCloud(status)
+}
+
+/** An API or cloud account has no e-mail: its folder key stands in for it wherever an account is told apart by e-mail. */
 export function withIdentity(status: AccountStatus, key: string): AccountStatus {
-  return status.loggedIn && status.email === null && isApiKey(status) ? { ...status, email: key } : status
+  return status.loggedIn && status.email === null && paysPerToken(status) ? { ...status, email: key } : status
 }
 
 export function cleanOutput(raw: string): string {

@@ -11,6 +11,7 @@ import {
   type PoolEntry,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
+import { cloudConnectionOf, cloudEnv, cloudOf, type AwsProfiles } from '../../../src/account/cloud.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
@@ -121,6 +122,16 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
 
 const OPENCODE_STATUS = { loggedIn: true, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
 
+const FAKE_AWS: AwsProfiles = {
+  profiles: [
+    { name: 'default', region: 'us-east-1', shortLived: false },
+    { name: 'bedrock-prod', region: 'eu-central-1', shortLived: false },
+    { name: 'sso-dev', region: 'us-west-2', shortLived: true },
+  ],
+  user: 'john',
+  home: 'C:\\Users\\john',
+}
+
 /** No limits, with why (`UsageAnswer` of kind `missing`). */
 function stale(reason: ReturnType<typeof notice>): UsageHealth {
   return { state: 'stale', reason, since: ago(3) }
@@ -137,10 +148,10 @@ function codexEntry(key: string, email: string, plan: string, patch: Partial<Acc
   })
 }
 
-/** A Claude account runs its sessions the way a real one does by default: an API key through the Agent SDK, a subscription through `--bg`. */
+/** A Claude account runs its sessions the way a real one does by default: an API key or a cloud through the Agent SDK, a subscription through `--bg`. */
 function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
   const entry = rawEntry(patch)
-  return entry.agent === 'claude' && entry.transport === undefined ? { ...entry, transport: entry.apiKey ? 'sdk' : 'bg' } : entry
+  return entry.agent === 'claude' && entry.transport === undefined ? { ...entry, transport: entry.apiKey || entry.cloud ? 'sdk' : 'bg' } : entry
 }
 
 function rawEntry(patch: Partial<AccountEntry>): AccountEntry {
@@ -334,7 +345,14 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   if (mode === 'api' || mode === 'spend' || mode === 'spendUnknown') {
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
     const spendingLimit = mode === 'api' ? null : { resetsAt: mode === 'spendUnknown' ? null : '2026-11-01T00:00:00.000Z' }
-    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'], spendingLimit }), lost] }
+    const bedrock = apiEntry('bedrock', {
+      name: 'AWS work',
+      apiKey: false,
+      keyReplaceable: false,
+      cloud: { cloud: 'bedrock', region: 'eu-central-1', way: 'profile', profile: 'bedrock-prod', models: {}, shortLived: false },
+      status: { loggedIn: true, authMethod: 'third_party', email: 'bedrock', orgName: null, subscriptionType: null },
+    })
+    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'], spendingLimit }), lost, bedrock] }
   }
   if (mode === 'codex') {
     const codex = codexEntry('codex', 'john.doe@example.com', 'free', {
@@ -483,6 +501,20 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     const given = String(body.name ?? '').trim()
     const folder = folderName(given || 'api', account.accounts.map((entry) => entry.key))
     const entry = apiEntry(folder, { name: given || null, agent: String(body.agent ?? CLAUDE) })
+    return { ...account, accounts: [...account.accounts, entry] }
+  }
+  if (name === 'account/aws') return { ...account, aws: FAKE_AWS }
+  if (name === 'account/cloud') {
+    // The service checks with one turn: a profile named "missing" fails as AWS answers when it finds no credentials.
+    const connection = cloudConnectionOf(body)
+    if (connection.auth.way === 'profile' && connection.auth.profile === 'missing') {
+      throw new NoticeError(notice('cloud.awsCredentials', { user: FAKE_AWS.user, home: FAKE_AWS.home }))
+    }
+    const given = String(body.name ?? '').trim()
+    const folder = folderName(given || connection.cloud, account.accounts.map((entry) => entry.key))
+    const cloud = cloudOf(cloudEnv(connection), (profile) => FAKE_AWS.profiles.some((each) => each.name === profile && each.shortLived))!
+    const entry = apiEntry(folder, { name: given || null, apiKey: false, keyReplaceable: false, cloud, checkedModel: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+      status: { loggedIn: true, authMethod: 'third_party', email: folder, orgName: null, subscriptionType: null } })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {

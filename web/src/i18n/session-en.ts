@@ -45,7 +45,7 @@ export const sessionEn = {
     disabled: 'Remote Control is off: /config of the account folder has no “remoteControlAtStartup”.',
     'no-bridge': "The session didn't start Remote Control — it can't be opened from here.",
     lost: "Remote Control dropped — can't be opened from the phone. If the task isn't done — “New session”.",
-    'api-key': 'No Remote Control on an API key: it needs a claude.ai sign-in. Answer the session from the chat here or in the tracker.',
+    'api-key': 'No Remote Control on an API key or a cloud: it needs a claude.ai sign-in. Answer the session from the chat here or in the tracker.',
   },
   panel: (task: string) => `Session of task ${task}`,
   closePanel: 'Close the panel',

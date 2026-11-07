@@ -66,6 +66,24 @@ describe('AccountHomes.addApiKey', () => {
   })
 })
 
+describe('AccountHomes.addCloud (BTN-822)', () => {
+  it('writes the whole connection into the env of settings.json and reads the cloud back without its secret', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const homes = new AccountHomes(env, root)
+      const home = homes.addCloud('', { cloud: 'bedrock', region: 'us-east-1', auth: { way: 'apiKey', key: 'ABSKfake0000' } })
+      expect(home.key).toBe('bedrock')
+      expect(JSON.parse(readFileSync(join(home.dir, 'settings.json'), 'utf8'))).toEqual({
+        env: { CLAUDE_CODE_USE_BEDROCK: '1', AWS_REGION: 'us-east-1', AWS_BEARER_TOKEN_BEDROCK: 'ABSKfake0000' },
+      })
+      expect(homes.cloudOf(home)).toEqual({ cloud: 'bedrock', region: 'us-east-1', way: 'apiKey', models: {}, shortLived: false })
+      expect(homes.cloudOf(homes.addApiKey('', 'sk-ant-api03-FAKE0000000000000000000000000000-example'))).toBeNull()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('AccountHomes.apiKeyOf', () => {
   it("reads the key from the folder's settings and nothing from a folder without one", () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))

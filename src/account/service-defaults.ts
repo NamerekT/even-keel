@@ -13,5 +13,8 @@ export const CREDIT_CHECKS = {
   openai: checkOpenAiCredit,
   github: async (): Promise<CreditVerdict> => ({ state: 'unknown', reason: 'GitHub does not tell the AI credits of a token' }),
 }
+/** The check turn of a new cloud account: the CLI gives up resolving AWS credentials after 60 s itself. */
+export const CLOUD_CHECK_TIMEOUT_MS = 120_000
+export const CLOUD_CHECK_PROMPT = 'This is a connection check. Reply with the single word OK and use no tools.'
 export const APP_POLL_MS = 5_000
 export const LOGIN_TIMEOUT_MS = 10 * 60_000

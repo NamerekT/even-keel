@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, whose, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -313,6 +313,21 @@ export const noticesRu: NoticeTexts = {
   'account.keyOtherProvider': (p) =>
     `в аккаунте ключ ${PROVIDER_NAMES[p.provider] ?? p.provider}; ключ другого провайдера — это другой аккаунт, добавьте его отдельно`,
   'account.keyOtherOrganization': () => 'ключ из другой организации, чем у аккаунта, — это другой аккаунт: добавьте его отдельно; старый ключ остался',
+  'account.cloudNotReady': (p) => `аккаунты в ${p.cloud} пока не поддерживаются`,
+  'account.cloudFieldInvalid': (p) => `${p.field} — одно слово, без пробелов`,
+  'account.cloudCheckFailed': (p) => `проверочный ход в облаке не прошёл, ничего не добавлено: ${p.reason}`,
+  'cloud.bedrockModelDenied': () =>
+    'Amazon Bedrock не даёт этому аккаунту AWS модели Anthropic: запросите доступ в консоли Bedrock в его регионе. Новому аккаунту без истории оплат доступ открывает только поддержка AWS',
+  'cloud.bedrockPayment': () =>
+    'у аккаунта AWS нет действующего способа оплаты (INVALID_PAYMENT_INSTRUMENT): добавьте его в консоли AWS Billing и попробуйте снова',
+  'cloud.awsCredentials': (p) =>
+    `учётные данные AWS не найдены или истекли у пользователя, под которым работает Even Keel${whose(p)}: войдите снова (aws sso login, aws login) или укажите ключи в аккаунте. ~/.aws другого пользователя Windows служба не видит`,
+  'cloud.awsTimeout': (p) =>
+    `учётные данные AWS не нашлись вовремя (AWS default-chain credential resolve timed out) у пользователя, под которым работает Even Keel${whose(p)}: проверьте профиль, сеть и прокси или укажите ключи в аккаунте`,
+  'cloud.bedrockRegion': () =>
+    'Amazon Bedrock не отдаёт эту модель по запросу (on-demand) в регионе аккаунта: закрепите в моделях аккаунта inference profile (us.anthropic.…) или его ARN или выберите регион, где она есть',
+  'cloud.throttled': () =>
+    'Amazon Bedrock ограничивает частоту запросов (ThrottlingException). У облака нет известного времени сброса, поэтому сессия встала и не ждётся: ответьте ей позже из чата или поднимите квоту в AWS Service Quotas',
   'account.chainRunning': (p) => `цепочка ${p.project} работает — остановите её перед сменой аккаунта`,
   'account.sessionsBusy': (p) => `сессии посреди хода (${list(p.sessions)}) — смените аккаунт, когда они закончат`,
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,

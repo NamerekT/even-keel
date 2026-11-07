@@ -38,26 +38,32 @@ export function entrySlot(view: AccountView, entry: AccountEntry): number {
 export const PROVIDERS = ['claude', 'codex', 'opencode', 'copilot'] as const
 export type Provider = (typeof PROVIDERS)[number]
 
-/** How the account signs in: through the agent's CLI or with an API key. */
-export type Connection = 'cli' | 'apiKey'
+/** How the account signs in: through the agent's CLI, with an API key or on a cloud (BTN-822). */
+export type Connection = 'cli' | 'apiKey' | 'cloud'
 
 export function connectionOf(entry: AccountEntry): Connection {
-  return entry.apiKey ? 'apiKey' : 'cli'
+  return entry.cloud !== undefined ? 'cloud' : entry.apiKey ? 'apiKey' : 'cli'
+}
+
+/** A key or a cloud pays per token: no plan limits, no claude.ai sign-in to renew. */
+export function paysPerToken(entry: AccountEntry): boolean {
+  return entry.apiKey || entry.cloud !== undefined
 }
 
 /**
  * What the account reaches the models through and who bills it, the group of the accounts page inside an agent's block
  * (BTN-576). Keys of different providers are different groups; the plan (pro, max, free) does not split one.
  */
-export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'other'] as const
+export const ACCESSES = ['zen', 'claudeSubscription', 'chatgpt', 'github', 'anthropicKey', 'openaiKey', 'bedrock', 'other'] as const
 export type Access = (typeof ACCESSES)[number]
 
-export type Owner = 'anthropic' | 'openai' | 'zen' | 'github'
+export type Owner = 'anthropic' | 'openai' | 'zen' | 'github' | 'aws'
 
 /** Who bills a connection, the colour of its group's stripe; none for an agent the page does not know. */
 export const ACCESS_OWNER: Record<Access, Owner | null> = {
   claudeSubscription: 'anthropic',
   anthropicKey: 'anthropic',
+  bedrock: 'aws',
   chatgpt: 'openai',
   openaiKey: 'openai',
   zen: 'zen',
@@ -71,6 +77,7 @@ export const ACCESS_OWNER: Record<Access, Owner | null> = {
  */
 export function accessOf(entry: AccountEntry): Access {
   if (entry.agent === COPILOT) return 'github'
+  if (entry.cloud !== undefined) return entry.cloud.cloud === 'bedrock' ? 'bedrock' : 'other'
   if (entry.agent === CLAUDE) return entry.apiKey ? 'anthropicKey' : 'claudeSubscription'
   if (entry.agent === CODEX) return entry.apiKey ? 'openaiKey' : 'chatgpt'
   if (entry.agent !== OPENCODE) return 'other'

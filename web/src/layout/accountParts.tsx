@@ -10,7 +10,7 @@ import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountSpend, AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel, globalFolder, sameAccountAs } from '../accountName.js'
-import { CLI_MISSING, connectionOf } from '../accounts.js'
+import { CLI_MISSING, connectionOf, paysPerToken } from '../accounts.js'
 import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -94,7 +94,7 @@ export function UnknownLimit({ entry, tokens, now, className, why }: { entry: Ac
  * AI credits Tally does not price.
  */
 export function spendsByKey(entry: AccountEntry): boolean {
-  return entry.apiKey && entry.agent !== COPILOT
+  return paysPerToken(entry) && entry.agent !== COPILOT
 }
 
 /**
@@ -138,7 +138,10 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
       <span className="tip__head">
         {agentLabel(entry.agent)} · {t.account.connections[connection]}
       </span>
-      {!entry.apiKey && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
+      {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
+      {entry.cloud !== undefined && <span>{t.account.cloudTip}</span>}
+      {entry.cloud?.cloud === 'bedrock' && <span>{t.account.cloudBedrockTip}</span>}
+      {entry.cloud?.shortLived === true && <span>{t.account.cloudShortLived}</span>}
       <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
       {entry.configPending && <span className="tip__muted">{t.account.configPending}</span>}
     </>
@@ -155,6 +158,7 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
 
 /** The word of the card's head after the name: the plan of a subscription (`pro`, `free`), "API key" for a key, else none. */
 export function planText(entry: AccountEntry): string | null {
+  if (entry.cloud !== undefined) return entry.cloud.region === null ? null : t.account.cloudRegion(entry.cloud.region)
   if (entry.apiKey) return t.account.connections.apiKey
   return entry.status?.subscriptionType ?? null
 }
@@ -313,13 +317,13 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
-      {!entry.apiKey && entry.needsLogin && entry.terminalLogin !== undefined && (
+      {!paysPerToken(entry) && entry.needsLogin && entry.terminalLogin !== undefined && (
         <div className="accounts__note accounts__note--warn accounts__note--command">
           <span>{t.account.terminalLogin(entry.terminalLogin.startsWith('cmd ') ? 'cmd' : 'sh')}</span>
           <CommandBlock command={entry.terminalLogin} />
         </div>
       )}
-      {!entry.apiKey && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
+      {!paysPerToken(entry) && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
@@ -352,7 +356,7 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
   const left = loginLeft(entry.loginExpiresAt, now)
   return (
     <>
-      {!entry.apiKey && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
+      {!paysPerToken(entry) && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
         <RenewButton entry={entry} view={view} sending={sending} send={send} again={!left.renew} />}
       {entry.apiKey && entry.needsLogin && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
@@ -424,7 +428,7 @@ export function TransportNote({ entry, brief = false }: Pick<NotesProps, 'entry'
       tip={
         <>
           <p>{t.account.transportWhere}</p>
-          {transport === 'sdk' && !entry.apiKey && <p>{t.account.transportTerms}</p>}
+          {transport === 'sdk' && !paysPerToken(entry) && <p>{t.account.transportTerms}</p>}
         </>
       }
       align="start"
@@ -483,7 +487,7 @@ export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
 export function removeQuestion(entry: AccountEntry): string {
   if (entry.global) return t.addAccount.removeGlobal
   const sessions = entry.sessions.join(', ')
-  if (entry.apiKey) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
+  if (paysPerToken(entry)) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
   return sessions === '' ? t.account.removeNow : t.account.removeWhenDone(sessions)
 }
 

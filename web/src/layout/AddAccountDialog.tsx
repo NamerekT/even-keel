@@ -11,9 +11,12 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
-import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
+import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, TerminalIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
+import type { AwsProfiles } from '../../../src/account/cloud.js'
+import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
+import { CloudFields } from './CloudFields.js'
 import '../tools/addPackage.css'
 import './accountAdd.css'
 
@@ -70,6 +73,7 @@ function wayText(provider: Provider, way: Way): WayText {
 
 function wayIcon(provider: Provider, way: Way): ReactNode {
   if (way.kind === 'key') return <KeyIcon />
+  if (way.kind === 'cloud') return <ServerIcon />
   if (way.id === 'chatgpt') return <CodexIcon />
   if (way.id === 'copilot') return <CopilotIcon />
   if (way.id === 'free') return <GiftIcon />
@@ -87,6 +91,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const { send, sending, failure } = useCommand()
   const [drafts, setDrafts] = useState<Drafts>({})
   const [asking, setAsking] = useState<Ask | null>(null)
+  // A cloud account passed its check turn: the dialog says which model answered before it closes (BTN-822).
+  const [cloudAdded, setCloudAdded] = useState(false)
   const before = useRef(account.accounts.map((entry) => entry.key))
   const { login } = account
   const running = login !== null && login.error === null
@@ -112,7 +118,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const checking = provider !== null && !newAccount && checked !== provider
   const candidate = !newAccount && checked === provider && account.globalCheck?.agent === provider ? account.globalCheck.account : null
   const shown = login === null ? provider : (PROVIDERS.find((each) => each === login.agent) ?? provider)
-  const step = login !== null ? 'login' : checking ? 'checking' : candidate != null ? 'existing' : `${provider ?? 'pick'}:${newAccount}`
+  const step = cloudAdded ? 'cloudAdded' : login !== null ? 'login' : checking ? 'checking' : candidate != null ? 'existing' : `${provider ?? 'pick'}:${newAccount}`
 
   // Closing goes back over the entries the dialog pushed; one opened by its address has the dialog under them too, and
   // that entry is then replaced by the page alone.
@@ -162,6 +168,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   }
 
   const leave = () => {
+    if (cloudAdded) return done()
     if (running) return setAsking('stopClose')
     if (dirty(drafts)) return setAsking('discard')
     if (login !== null) void cancelLogin()
@@ -202,7 +209,9 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             ×
           </button>
         </header>
-        {login !== null ? (
+        {cloudAdded ? (
+          <CloudAdded account={account} before={before.current} onDone={done} />
+        ) : login !== null ? (
           <>
             <div className="add-package__body">
               <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
@@ -251,8 +260,14 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             back={picked ? () => void navigate(-1) : null}
             sending={sending}
             failure={failure === null ? null : say(failure)}
+            aws={account.aws}
+            readAws={() => void send('account/aws')}
             onSubmit={async (way, draft) => {
               before.current = account.accounts.map((entry) => entry.key)
+              if (way.kind === 'cloud') {
+                if (await send('account/cloud', cloudBody(draft.name, draft.cloud ?? EMPTY_CLOUD))) setCloudAdded(true)
+                return
+              }
               if (way.kind === 'key') {
                 if (await send('account/api', { name: draft.name, key: draft.key, agent: provider })) done()
                 return
@@ -295,6 +310,32 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
         />
       )}
     </dialog>
+  )
+}
+
+/** A cloud account passed its check: which model answered, then the list with the new card lit. */
+function CloudAdded({ account, before, onDone }: { account: AccountView; before: string[]; onDone: () => void }) {
+  const added = account.accounts.find((entry) => entry.cloud !== undefined && !before.includes(entry.key))
+  return (
+    <>
+      <div className="add-package__body" role="status">
+        <p className="add-package__label account-add__identity">{t.addAccount.cloud.added}</p>
+        <p className="add-package__note">
+          {added === undefined
+            ? t.addAccount.cloud.waiting
+            : added.checkedModel != null
+              ? t.addAccount.cloud.answered(added.checkedModel)
+              : t.addAccount.cloud.answeredNoModel}
+        </p>
+        {added?.cloud?.shortLived === true && <p className="notice notice--warn">{t.addAccount.cloud.shortLived}</p>}
+      </div>
+      <footer className="add-package__foot">
+        <span className="add-package__spacer" />
+        <button type="button" className="button button--primary account-add__use-cli" onClick={onDone}>
+          {t.addAccount.cloud.done}
+        </button>
+      </footer>
+    </>
   )
 }
 
@@ -341,15 +382,23 @@ interface WaysProps {
   back: (() => void) | null
   sending: boolean
   failure: string | null
+  aws: AwsProfiles | undefined
+  readAws: () => void
   onSubmit: (way: Way, draft: Draft) => Promise<void>
 }
 
 /** The ways a provider's account signs in, as cards to pick one from, what the picked one needs under them, and its one action. */
-function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, onSubmit }: WaysProps) {
+function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, onSubmit }: WaysProps) {
   const group = useId()
   const text = wayText(provider, way)
   const key = way.kind === 'key'
-  const ready = !sending && (!key || draft.key.trim() !== '')
+  const cloud = way.kind === 'cloud'
+  const ready = !sending && (key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
+  // The cloud form is taller than the dialog: its check's answer lands below the fold unless brought into view.
+  const alert = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (failure !== null) alert.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [failure])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -404,20 +453,28 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, o
                 />
               </FieldStrip>
             </label>
-            <label className="add-package__field">
-              <span className="add-package__label">{t.addAccount.name}</span>
-              <input
-                className="add-package__input"
-                value={draft.name}
-                onChange={(event) => onDraft({ ...draft, name: event.target.value })}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
           </>
         )}
+        {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} />}
+        {(key || cloud) && (
+          <label className="add-package__field">
+            <span className="add-package__label">{t.addAccount.name}</span>
+            <input
+              className="add-package__input"
+              value={draft.name}
+              onChange={(event) => onDraft({ ...draft, name: event.target.value })}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+        )}
+        {cloud && sending && (
+          <p className="add-package__note" role="status">
+            {t.addAccount.cloud.checking}
+          </p>
+        )}
         {failure !== null && !key && (
-          <p className="notice notice--error" role="alert">
+          <p ref={alert} className="notice notice--error" role="alert">
             {failure}
           </p>
         )}

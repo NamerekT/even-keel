@@ -120,7 +120,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
     held.map((role) => <span key={role.label} className={`account-role account-role--${role.label === 'Even Keel' ? 'chain' : 'app'}`}>{role.label}</span>)}</div>
   const counted = limitsNote(entry) !== null
   const sums = spendsByKey(entry) ? spend?.[entry.key] ?? null : tokens?.[entry.key] ?? null
-  const tip = spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
+  const tip = entry.cloud !== undefined ? t.account.cloudSpendTitle : spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
     {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>
   const loaded = spendsByKey(entry) ? spend !== null : tokens !== null
   return <AccountRowMenu entry={entry} view={view} send={send} sending={sending} fresh={fresh.includes(entry.key)}>
@@ -132,7 +132,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
           {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{plan}</span>}
         </div>
         {!page && roles}
-        {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : t.account.needsLogin}</span>}
+        {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : entry.cloud !== undefined ? t.account.checkFailedShort : t.account.needsLogin}</span>}
         {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
         {entry.status?.loggedIn === null && <span className="account-row__error account-row__unknown">{t.account.authUnknown}</span>}
         {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
