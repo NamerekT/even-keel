@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 jobs:
@@ -34,6 +35,12 @@ jobs:
             echo "the tag $GITHUB_REF_NAME is not v$version of package.json" >&2
             exit 1
           fi
+
+      # A red night of the real CLIs or of the tracker contract holds the release; once a run is green again, re-run this.
+      - name: The nightly workflows are green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh scripts/nights-green.sh
 
       - run: npm ci
 

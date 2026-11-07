@@ -1,0 +1,46 @@
+name: Tracker contract
+
+# The tracker adapters' contract on live trackers (src/e2e-trackers/, docs/trackers.md, "Contract tests on live trackers",
+# BTN-470): one set of cases over each stand of the secret TRACKER_STANDS, each in a test project of its own. A red
+# night holds every release (scripts/nights-green.sh, checked by publish.yml). A schedule fires only on the default
+# branch, so the night checks out `dev`, the next version; a run by hand takes the branch it is started on.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: trackers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # The self-hosted stands (Huly, Forgejo) are reached over the tailnet; without its OAuth client only the stands
+      # on the internet may be in TRACKER_STANDS.
+      TAILNET_CLIENT: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - if: env.TAILNET_CLIENT != ''
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - run: npm ci
+
+      - run: npm run test:trackers
+        env:
+          EVEN_KEEL_TRACKER_STANDS: ${{ secrets.TRACKER_STANDS }}
