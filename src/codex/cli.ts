@@ -8,7 +8,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
-import { isAlive, killTree } from '../agent/process.js'
+import { isAlive, killTree, stopTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { TokenTotals } from '../sessions/transcript.js'
@@ -252,13 +252,9 @@ export class CodexCli {
 
   private async stopTurn(session: CodexSession): Promise<void> {
     const { sessionId, pid, out } = session
-    if (!processBelongsToTurn(await processStartedAt(pid), turnStartedAt(out))) return
-    await killTree(pid)
-    const deadline = Date.now() + STOP_TIMEOUT_MS
-    while (isAlive(pid)) {
-      if (Date.now() > deadline) throw fail('codex.stillRunning', { session: sessionId })
-      await delay(POLL_MS)
-    }
+    const ours = async () => processBelongsToTurn(await processStartedAt(pid), turnStartedAt(out))
+    if (!(await ours())) return
+    if (!(await stopTree(pid, ours, { termMs: STOP_TIMEOUT_MS }))) throw fail('codex.stillRunning', { session: sessionId })
   }
 
   async sessions(home: AccountHome): Promise<AgentEntry[]> {

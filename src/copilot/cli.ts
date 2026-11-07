@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import { gatewayName, type SessionStart } from '../agent/contract.js'
-import { isAlive, killTree } from '../agent/process.js'
+import { isAlive, killTree, stopTree } from '../agent/process.js'
 import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from '../codex/process.js'
 import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
@@ -195,13 +195,9 @@ export class CopilotCli {
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if ((await this.turnLive(session)) && processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)) {
-      await killTree(session.pid)
-      const deadline = Date.now() + STOP_TIMEOUT_MS
-      while (isAlive(session.pid)) {
-        if (Date.now() > deadline) throw fail('copilot.stillRunning', { session: sessionId })
-        await delay(POLL_MS)
-      }
+    const ours = async () => processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)
+    if ((await this.turnLive(session)) && (await ours())) {
+      if (!(await stopTree(session.pid, ours, { termMs: STOP_TIMEOUT_MS }))) throw fail('copilot.stillRunning', { session: sessionId })
     }
     this.registry.save({ ...session, stopped: true })
   }

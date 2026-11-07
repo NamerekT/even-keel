@@ -10,7 +10,7 @@ import type { AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { passedSkillFolders } from '../agent/projectRules.js'
-import { isAlive, killTree } from '../agent/process.js'
+import { isAlive, killTree, stopTree } from '../agent/process.js'
 import { polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from '../codex/process.js'
 import { entryOf, lastEvent, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { parseJsonc } from '../jsonc.js'
@@ -366,13 +366,9 @@ export class OpenCodeCli {
 
   private async endTurn(session: CodexSession): Promise<void> {
     if (!(await this.turnLive(session))) return
-    if (!processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)) return
-    await killTree(session.pid)
-    const deadline = Date.now() + STOP_TIMEOUT_MS
-    while (isAlive(session.pid)) {
-      if (Date.now() > deadline) throw fail('opencode.stillRunning', { session: session.sessionId })
-      await delay(POLL_MS)
-    }
+    const ours = async () => processBelongsToTurn(await processStartedAt(session.pid), turnStartedAt(session.out), APPEAR_TIMEOUT_MS)
+    if (!(await ours())) return
+    if (!(await stopTree(session.pid, ours, { termMs: STOP_TIMEOUT_MS }))) throw fail('opencode.stillRunning', { session: session.sessionId })
   }
 
   /**

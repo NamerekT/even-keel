@@ -3,6 +3,8 @@ import { promisify } from 'node:util'
 
 const run = promisify(execFile)
 const QUERY_TIMEOUT_MS = 5_000
+const KILL_TIMEOUT_MS = 5_000
+const STOP_POLL_MS = 500
 
 export interface ProcessRow {
   pid: number
@@ -10,12 +12,41 @@ export interface ProcessRow {
   pgid: number
 }
 
+export interface StopWaits {
+  termMs: number
+  killMs?: number
+  pollMs?: number
+}
+
+/**
+ * Stops a detached turn and waits for its pid to go. A turn that outlives `termMs` after `SIGTERM` (one frozen by
+ * `SIGSTOP`, EKR-64) gets `SIGKILL` to a fresh tree, but only while `stillOurs` confirms the pid is still the turn's
+ * own (BTN-760). False when the pid outlived both waits or stopped being the turn's.
+ */
+export async function stopTree(pid: number, stillOurs: () => Promise<boolean>, waits: StopWaits): Promise<boolean> {
+  const { termMs, killMs = KILL_TIMEOUT_MS, pollMs = STOP_POLL_MS } = waits
+  await killTree(pid)
+  if (await gone(pid, termMs, pollMs)) return true
+  if (!(await stillOurs())) return false
+  await killTree(pid, 'SIGKILL')
+  return gone(pid, killMs, pollMs)
+}
+
+async function gone(pid: number, timeoutMs: number, pollMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (isAlive(pid)) {
+    if (Date.now() > deadline) return false
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+  }
+  return true
+}
+
 /**
  * Kills a detached turn with its children: on Windows a shell wrapper dies alone and leaves the agent running. On Unix
  * an agent may run a tool's command in a session of its own, out of the turn's group (BTN-643): the turn's descendants
  * are found by parent from one snapshot taken right before the kill, and their groups are signalled too.
  */
-export async function killTree(pid: number): Promise<void> {
+export async function killTree(pid: number, kind: NodeJS.Signals = 'SIGTERM'): Promise<void> {
   if (process.platform === 'win32') {
     await run('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }).catch(() => undefined)
     return
@@ -23,9 +54,9 @@ export async function killTree(pid: number): Promise<void> {
   const table = await processTable()
   const { groups, pids } = table === undefined ? { groups: [pid], pids: [] } : treeTargets(table, pid, process.pid)
   for (const group of groups) {
-    if (!signal(-group) && group === pid) signal(pid)
+    if (!signal(-group, kind) && group === pid) signal(pid, kind)
   }
-  for (const loose of pids) signal(loose)
+  for (const loose of pids) signal(loose, kind)
 }
 
 /** The groups to signal and the descendants to signal alone: those sharing the service's own group. */
@@ -61,9 +92,9 @@ async function processTable(): Promise<ProcessRow[] | undefined> {
   }
 }
 
-function signal(target: number): boolean {
+function signal(target: number, kind: NodeJS.Signals): boolean {
   try {
-    process.kill(target, 'SIGTERM')
+    process.kill(target, kind)
     return true
   } catch {
     return false
