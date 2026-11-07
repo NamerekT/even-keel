@@ -158,6 +158,17 @@ async function deleteLeftFolder(path: string, gitOut: string): Promise<Notice | 
   }
 }
 
+/** A second try at a folder a cleanup left (EKR-99), once the session that held it is stopped; one registered again since is not touched. */
+export async function removeLeftFolder(git: Git, repo: string, path: string): Promise<Notice | null> {
+  try {
+    if ((await worktreeAt(git, repo, path)) !== undefined) return null
+    await rm(path, { recursive: true, force: true })
+    return null
+  } catch (error) {
+    return leftBehind(path, error instanceof Error ? error.message : String(error))
+  }
+}
+
 /**
  * `git worktree remove` on Windows follows junctions: it empties a linked folder outside the worktree
  * (`npm link`) and stops at a dangling one (an npm workspace link whose package it already deleted),

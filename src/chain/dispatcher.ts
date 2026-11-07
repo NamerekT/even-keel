@@ -393,6 +393,13 @@ export class Dispatcher {
     return true
   }
 
+  /** A warning about a finished task's cleanup that came after the cleanup itself: a stop tried again in vain (EKR-99). */
+  leftover(project: string, task: string, warning: Notice): void {
+    const leftovers = (this.state.leftovers[project] ??= [])
+    leftovers.push({ task, at: this.deps.now().toISOString(), notice: warning })
+    this.deps.save(this.state)
+  }
+
   dismiss(project: string, task: string): void {
     const leftovers = this.state.leftovers[project]
     if (leftovers === undefined || !leftovers.some((each) => each.task === task)) return

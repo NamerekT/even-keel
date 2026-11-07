@@ -27,7 +27,8 @@ import { DEFAULT_BRANCH, DEFAULT_CI, mergeTargetOf, projectLabel } from '../conf
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
-import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from '../git/worktree.js'
+import { ensureIgnored, finishWorktree, prepareWorktree, removeLeftFolder, requireBranch, requireCheckedOut, taskPlace, type Git } from '../git/worktree.js'
+import { isCallTimeout } from '../claude/calls.js'
 import { exhaustedReset, limitReopenedAt } from '../limits/model.js'
 import { overageSession } from '../limits/overage-session.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
@@ -427,10 +428,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       if (!isOwnName(task) && pull?.unmerged !== true) ctx.archiveClosed(project, task)
       const repo = ctx.configStore.current.projects[project]!
       const span = isOwnName(task) ? 0 : ctx.slotSpan(project)
-      let stopped: Notice[]
+      let stopped: Awaited<ReturnType<typeof stopTaskSessions>>
       let finished: Awaited<ReturnType<typeof finishWorktree>>
       try {
-        stopped = await ctx.stopTaskSessions(repo, task, Math.max(span, 1))
+        stopped = await ctx.stopTaskSessions(project, repo, task, Math.max(span, 1))
         const main = ctx.branchOf(project)
         const drop = pull === undefined ? {} : { force: pull.force, remote: pull.remote }
         finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop) : finishWorktree(runGit, repo, task, main, drop))
@@ -439,7 +440,8 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
         throw error
       }
       ctx.packages.release(project, task)
-      const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
+      const left = stopped.retrying ? deferLeftFolder(ctx, project, repo, task, finished.warnings) : finished.warnings
+      const outcome = { ...finished, warnings: [...stopped.warnings, ...left] }
       for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
       if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
       // The task's row shows what the cleanup left as soon as the cleanup is over, not the folder it has just removed.
@@ -633,8 +635,21 @@ export async function vacateSlot(ctx: ChainContext, slot: string, task: string):
   }
 }
 
-/** Stops the task's sessions that are not mid-turn; the rest are kept in `lingering`, to be stopped once their turn ends (BTN-616). */
-export async function stopTaskSessions(ctx: ChainContext, repo: string, task: string, count: number): Promise<Notice[]> {
+/** How long a cleanup after Done keeps trying a stop that timed out in the folder's queue before it warns (EKR-99). */
+export const STOP_RETRY_MS = 5 * 60_000
+
+/**
+ * Stops the task's sessions that are not mid-turn; the rest are kept in `lingering`, to be stopped once their turn ends
+ * (BTN-616). A stop that timed out waiting for the account folder's queue is kept too, to be tried again (EKR-99):
+ * `retrying` says so, and the cleanup then leaves the worktree folder the session holds to `deferLeftFolder`.
+ */
+export async function stopTaskSessions(
+  ctx: ChainContext,
+  project: string,
+  repo: string,
+  task: string,
+  count: number,
+): Promise<{ warnings: Notice[]; retrying: boolean }> {
   const own = new Set(ctx.launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
   const sessions = ctx.agents.filter(
@@ -644,6 +659,7 @@ export async function stopTaskSessions(ctx: ChainContext, repo: string, task: st
       (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))),
   )
   const warnings: Notice[] = []
+  let retrying = false
   for (const agent of sessions) {
     if (midTurn(agent)) {
       ctx.lingering.keep(task, agent.sessionId)
@@ -653,23 +669,62 @@ export async function stopTaskSessions(ctx: ChainContext, repo: string, task: st
     try {
       await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
     } catch (error) {
-      warnings.push(notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
+      if (!isCallTimeout(error)) {
+        warnings.push(notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
+        continue
+      }
+      ctx.lingering.keep(task, agent.sessionId, { project, until: Date.now() + STOP_RETRY_MS })
+      retrying = true
+      console.log(`cleanup: the stop of the session ${agent.sessionId} of ${task} timed out, it will be tried again: ${englishOf(noticeOf(error))}`)
     }
   }
-  return warnings
+  return { warnings, retrying }
 }
 
-/** Stops the sessions a cleanup after Done left mid-turn whose turn has ended since (`stopTaskSessions`). */
-export async function stopLingering(ctx: ChainContext): Promise<void> {
-  for (const { task, agent } of ctx.lingering.due(ctx.agents, midTurn)) {
-    if (agent.id === undefined) continue
-    try {
-      await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
-      console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, its turn after Done ended`)
-    } catch (error) {
-      console.warn(`cleanup: the session ${agent.sessionId} of ${task} was not stopped: ${englishOf(noticeOf(error))}`)
+/**
+ * The cleanup's warnings without the worktree folder a session whose stop is tried again still holds (EKR-99): the
+ * folder is removed once the session is stopped, and warned about only if that fails too.
+ */
+export function deferLeftFolder(ctx: ChainContext, project: string, repo: string, task: string, warnings: Notice[]): Notice[] {
+  return warnings.filter((warning) => {
+    if (warning.code !== 'cleanup.folderLeft') return true
+    ctx.lingering.leave({ project, task, repo, path: warning.params.path, until: Date.now() + STOP_RETRY_MS })
+    console.log(`cleanup: the worktree folder ${warning.params.path} of ${task} is held, it will be removed once its session is stopped`)
+    return false
+  })
+}
+
+/**
+ * Stops the sessions a cleanup after Done left mid-turn whose turn has ended since, tries again the stops that timed
+ * out, and removes the folders they held (`stopTaskSessions`). What still fails once the wait is over is warned about
+ * on the task, as the cleanup itself would have.
+ */
+export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<void> {
+  return ctx.lingering.alone(async () => {
+    for (const { task, agent, retry } of ctx.lingering.due(ctx.agents, midTurn)) {
+      if (agent.id === undefined) continue
+      try {
+        await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
+        console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, ${retry === undefined ? 'its turn after Done ended' : 'its stop tried again'}`)
+      } catch (error) {
+        if (retry !== undefined && isCallTimeout(error) && Date.now() < retry.until) {
+          ctx.lingering.keep(task, agent.sessionId, retry)
+          continue
+        }
+        console.warn(`cleanup: the session ${agent.sessionId} of ${task} was not stopped: ${englishOf(noticeOf(error))}`)
+        if (retry !== undefined) ctx.dispatcher.leftover(retry.project, task, notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
+      }
     }
-  }
+    for (const folder of ctx.lingering.dueFolders(Date.now())) {
+      const left = await removeLeftFolder(git, folder.repo, folder.path)
+      if (left === null) {
+        console.log(`cleanup: removed the worktree folder ${folder.path} of ${folder.task} once its session was stopped`)
+        continue
+      }
+      console.warn(`git: ${folder.task}: ${englishOf(left)}`)
+      ctx.dispatcher.leftover(folder.project, folder.task, left)
+    }
+  })
 }
 
 function midTurn(agent: AgentEntry): boolean {
