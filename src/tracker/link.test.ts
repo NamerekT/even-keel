@@ -44,7 +44,7 @@ describe('TrackerLink', () => {
     expect(log).toHaveBeenCalledTimes(1)
     hangs = false
     await run()
-    expect(log).toHaveBeenLastCalledWith('gitlab: tasks reads again after 2 timeouts')
+    expect(log).toHaveBeenLastCalledWith('gitlab: tasks reads again after 2 failures')
     await run()
     expect(log).toHaveBeenCalledTimes(2)
   })
@@ -273,5 +273,63 @@ describe('TrackerLink', () => {
     expect(onHealth).toHaveBeenLastCalledWith(expect.objectContaining({ state: 'connecting' }))
     await link.run(async () => 2)
     expect(connect).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails the page at once while the tracker did not answer, and goes on as usual once it answers (BTN-825)', async () => {
+    vi.useFakeTimers()
+    const source = fakeSource()
+    let hangs = true
+    source.tasks = vi.fn(async () => hangs ? new Promise(() => {}) : []) as typeof source.tasks
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+    const pending = link.page((tracker) => tracker.tasks([]))
+    const rejected = expect(pending).rejects.toThrow('call timed out')
+    await vi.advanceTimersByTimeAsync(1000)
+    await rejected
+
+    const started = Date.now()
+    await expect(link.page((tracker) => tracker.tasks([]))).rejects.toThrow('call timed out')
+    expect(Date.now() - started).toBe(0)
+
+    hangs = false
+    await expect(link.run((tracker) => tracker.tasks([]))).resolves.toEqual([])
+    await expect(link.page((tracker) => tracker.tasks([]))).resolves.toEqual([])
+  })
+
+  it('treats a broken connection as the tracker not answering, and gives that read the same delay (BTN-825)', async () => {
+    const log = vi.fn()
+    const source = fakeSource()
+    source.tasks = async () => { throw new TypeError('fetch failed', { cause: new Error('Connect Timeout') }) }
+    const connect = vi.fn(async () => source)
+    const link = new TrackerLink({ name: 'gitlab', connect, timeoutMs: 1000, onDiagnostic: log })
+
+    await expect(link.run((tracker) => tracker.tasks([]), 'tasks')).rejects.toThrow('fetch failed')
+    await expect(link.page((tracker) => tracker.tasks([]))).rejects.toThrow('fetch failed')
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('connection failed'))
+
+    const calls = connect.mock.calls.length
+    await expect(link.run((tracker) => tracker.tasks([]), 'tasks')).rejects.toThrow('fetch failed')
+    expect(connect).toHaveBeenCalledTimes(calls)
+  })
+
+  it('does not fail the page at once when the tracker answered (BTN-825)', async () => {
+    const source = fakeSource()
+    const tasks = vi.fn(async () => { throw new TrackerNotFound('gitlab: not found or the token cannot see it') })
+    source.tasks = tasks as typeof source.tasks
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+
+    await expect(link.run((tracker) => tracker.tasks([]))).rejects.toThrow('not found')
+    await expect(link.page((tracker) => tracker.tasks([]))).rejects.toThrow('not found')
+    expect(tasks).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not fail the page at once when the tracker refused the credentials (BTN-825)', async () => {
+    const source = fakeSource()
+    const tasks = vi.fn(async () => { throw fail('gitlab.token', {}) })
+    source.tasks = tasks as typeof source.tasks
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+
+    await expect(link.run((tracker) => tracker.tasks([]))).rejects.toThrow()
+    await expect(link.page((tracker) => tracker.tasks([]))).rejects.toThrow()
+    expect(tasks).toHaveBeenCalledTimes(2)
   })
 })

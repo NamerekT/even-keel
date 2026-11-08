@@ -32,7 +32,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23b (Amazon Bedrock, needs an AWS account with model access), 23c (Google Vertex AI, needs a billed Google Cloud project with a Claude model) and 23d (Microsoft Foundry, needs a pay-as-you-go Azure subscription with a Claude deployment) have no task yet.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36 — BTN-546; the demo, 99 — BTN-815.
-- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807.
+- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807. A tracker that did not answer: 106 — has no task yet.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844.
@@ -42,6 +42,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 106 | [A tracker that did not answer](unverified/trackers.md#a-tracker-that-did-not-answer-btn-825) | every page of a project whose tracker stopped answering | the page waits the whole timeout on every request, or says that the tracker is down while it is up |
 | 105 | [The CLI's own reading of a lone `AGENTS.md`](unverified/sessions.md#the-clis-own-reading-of-a-lone-agentsmd-btn-833) | projects whose branch holds a lone `AGENTS.md`, on Claude Code | the file reaches no Claude session and the page still says the agent reads it; put the rules in `CLAUDE.md` |
 | 104 | [OpenCode on an OpenRouter key](unverified/opencode.md#opencode-on-an-openrouter-key-btn-843) | OpenCode accounts on an `sk-or-` key | a working key is refused, or a session out of money is not held for credit |
 | 103 | [Lightweight commands and tray polling](unverified/page.md#lightweight-commands-and-tray-polling-btn-826) | a phone over Tailscale, long-running pages, the Windows tray and old tabs during updates | updates may arrive late or a tray count may be wrong; reload the page and inspect its chain/question controls |

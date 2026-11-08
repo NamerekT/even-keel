@@ -449,7 +449,7 @@ const refreshProject = async (project: string): Promise<boolean> => {
   await Promise.all(found.map((refresh) => refresh()))
   return found.length > 0
 }
-const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(async (tracker) => tracker.vocabulary?.(project)))
+const vocabularies = new Vocabularies(async (project) => linkOf(project)?.page(async (tracker) => tracker.vocabulary?.(project)))
 /** The statuses of each tracker profile (BTN-554), for its status moves. */
 const profileStatuses = new KeptReads((id) => profileStatusesOf(ADAPTERS, profiles.current(), id))
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695).

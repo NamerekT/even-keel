@@ -1,10 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { fail } from '../notice/notice.js'
 import { taskControl } from './control.js'
 import { TrackerLink } from './link.js'
 import { toTask, type TaskStatus } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function fixture(relabel?: TaskSource['relabel'], connectionError?: Error, refresh?: () => Promise<void>) {
   const raw = { id: 'APP-1', title: 'Example', status: { name: 'Todo', category: 'ToDo' as const }, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none' as const, estimate: null, labels: ['Old'] }
@@ -150,5 +154,35 @@ describe('the moves between the backlog and the chain', () => {
   it('does not call a ready task without a required label "in the backlog" when its tracker has no backlog status to move it to', async () => {
     const control = moves({ unready: async () => null }, { rules: DEFAULT_RULES }).control
     await expect(control.unready('APP-1')).rejects.toMatchObject({ notice: { code: 'task.cannotUnready' } })
+  })
+})
+
+describe('the card of a task whose tracker did not answer', () => {
+  it('fails at once instead of waiting the whole timeout again (BTN-825)', async () => {
+    vi.useFakeTimers()
+    const card = vi.fn(() => new Promise<never>(() => {}))
+    const source: TaskSource = {
+      chainTasks: async () => ({ tasks: [], statuses: [] }),
+      tasks: async () => [],
+      card: card as TaskSource['card'],
+      close: async () => {},
+    }
+    const link = new TrackerLink({ name: 'example', connect: async () => trackerOf(source), timeoutMs: 1000 })
+    const control = taskControl({
+      configuredProject: () => 'owner', live: () => false,
+      linkFor: () => link, readerFor: () => 'feed', rulesOf: () => DEFAULT_RULES,
+      refreshers: new Map(), readerTasks: { get: () => [], set: () => {}, setTasks: () => {} },
+      refreshProject: async () => true, pollReviews: async () => {}, broadcast: () => {},
+    })
+
+    const pending = control.card('APP-1')
+    const rejected = expect(pending).rejects.toThrow('call timed out')
+    await vi.advanceTimersByTimeAsync(1000)
+    await rejected
+
+    const started = Date.now()
+    await expect(control.card('APP-1')).rejects.toThrow('call timed out')
+    expect(Date.now() - started).toBe(0)
+    expect(card).toHaveBeenCalledTimes(1)
   })
 })

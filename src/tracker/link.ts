@@ -17,7 +17,9 @@ export class TrackerLink {
   private closed = false
   private current: TrackerHealth = { state: 'connecting', lastOkAt: null, error: null }
   private readonly slowLogged = new Map<string, number>()
-  private readonly timeouts = new Map<string, { count: number; retryAt: number; error: CallTimeout }>()
+  private readonly timeouts = new Map<string, { count: number; retryAt: number; error: Error }>()
+  /** The error the tracker did not answer with: the page's calls fail at once while it holds (BTN-825). */
+  private unanswered: Error | undefined
 
   constructor(private readonly options: TrackerLinkOptions) {}
 
@@ -27,6 +29,16 @@ export class TrackerLink {
 
   get health(): TrackerHealth {
     return this.current
+  }
+
+  /**
+   * A call the page asks for (BTN-825): while the tracker did not answer — a timeout or a broken connection — it fails at
+   * once, with the error it failed with, and not after the whole timeout. The chain's own reads go through `run`: they are
+   * what brings the tracker back, and they keep their own delay.
+   */
+  async page<T>(call: (source: Tracker) => Promise<T>): Promise<T> {
+    if (this.unanswered !== undefined) throw this.unanswered
+    return await this.run(call)
   }
 
   async run<T>(call: (source: Tracker) => Promise<T>, operation?: string): Promise<T> {
@@ -52,7 +64,7 @@ export class TrackerLink {
       const previous = this.timeouts.get(operation ?? diagnostics.operation)
       if (previous !== undefined) {
         this.timeouts.delete(operation ?? diagnostics.operation)
-        ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${diagnostics.operation} reads again after ${previous.count} timeout${previous.count === 1 ? '' : 's'}`)
+        ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${diagnostics.operation} reads again after ${previous.count} failure${previous.count === 1 ? '' : 's'}`)
       }
       const elapsed = Date.now() - started
       if (elapsed > this.options.timeoutMs / 2 && Date.now() - (this.slowLogged.get(diagnostics.operation) ?? -Infinity) >= 600_000) {
@@ -62,12 +74,14 @@ export class TrackerLink {
       this.answered()
       return result
     } catch (error) {
-      if (error instanceof CallTimeout) {
+      const failure = error instanceof Error ? error : new Error(String(error))
+      if (didNotAnswer(error)) {
         controller.abort(error)
+        this.unanswered = failure
         const key = operation ?? diagnostics.operation
         const count = (this.timeouts.get(key)?.count ?? 0) + 1
-        this.timeouts.set(key, { count, retryAt: Date.now() + Math.min(300_000, 20_000 * 2 ** Math.min(count - 1, 4)), error })
-        if (count === 1) this.diagnostic('call timed out', Date.now() - started, diagnostics)
+        this.timeouts.set(key, { count, retryAt: Date.now() + Math.min(300_000, 20_000 * 2 ** Math.min(count - 1, 4)), error: failure })
+        if (count === 1) this.diagnostic(failure instanceof CallTimeout ? 'call timed out' : 'connection failed', Date.now() - started, diagnostics)
       }
       if (error instanceof TrackerNotFound) {
         this.answered()
@@ -89,6 +103,7 @@ export class TrackerLink {
   /** Closes the connection, if any: the next call connects again, with what `connect` reads by then (new credentials). */
   reset(): void {
     this.timeouts.clear()
+    this.unanswered = undefined
     const pending = this.source
     this.source = undefined
     pending?.then((source) => source.close()).catch(() => {})
@@ -97,12 +112,14 @@ export class TrackerLink {
 
   async close(): Promise<void> {
     this.closed = true
+    this.unanswered = undefined
     const pending = this.source
     this.source = undefined
     await pending?.then((source) => source.close()).catch(() => {})
   }
 
   private answered(): void {
+    this.unanswered = undefined
     this.report({ state: 'live', lastOkAt: (this.options.now?.() ?? new Date()).toISOString(), error: null })
   }
 
@@ -128,6 +145,21 @@ export function errorText(error: unknown): string {
 }
 
 class CallTimeout extends Error {}
+
+/**
+ * The tracker did not answer: the call timed out, the request of the adapter timed out or the connection failed. Node's
+ * `fetch` says only "fetch failed" and keeps the reason (refused, connect timeout) in `cause` (BTN-825).
+ */
+function didNotAnswer(error: unknown): boolean {
+  if (error instanceof CallTimeout) return true
+  let each: unknown = error
+  while (each instanceof Error) {
+    if (each.name === 'TimeoutError') return true
+    if (each instanceof TypeError && (each.message === 'fetch failed' || each.message === 'Failed to fetch')) return true
+    each = each.cause
+  }
+  return false
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined

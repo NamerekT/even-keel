@@ -144,7 +144,7 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
     tasks: async (project, milestone) => {
       const link = ctx.linkOf(project)
       if (link === undefined) throw fail('tracker.noProject', { project })
-      const tasks = await link.run(async (tracker) => tracker.milestoneTasks?.(project, milestone))
+      const tasks = await link.page(async (tracker) => tracker.milestoneTasks?.(project, milestone))
       if (tasks === undefined) throw fail('changelog.cannotList', { project })
       return tasks
     },

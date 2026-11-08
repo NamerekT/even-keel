@@ -57,7 +57,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const project = configuredProject(task)
       const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) return undefined
-      return link.run(async (tracker) => {
+      return link.page(async (tracker) => {
         if (tracker.card === undefined) return undefined
         const [card, milestones] = await Promise.all([tracker.card(task), tracker.milestones?.(task) ?? null])
         const can = { ready: tracker.ready !== undefined, unready: tracker.unready !== undefined, relabel: tracker.relabel !== undefined }
@@ -68,7 +68,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const project = configuredProject(task)
       const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) return undefined
-      return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
+      return link.page(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
     },
     // "Into the chain": the missing required label on, then out of the backlog status, whichever the tracker can (BTN-509).
     ready: async (task) => {
@@ -78,7 +78,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const reader = readerFor(project!, task)
       const listed = readerTasks.get(reader)?.find((each) => each.id === task)
       const label = listed === undefined ? null : missingLabel(rulesOf(project!, task), listed)
-      const moved = await link.run(async (tracker) => {
+      const moved = await link.page(async (tracker) => {
         const labels = label === null || tracker.relabel === undefined ? undefined : await relabeled(link, tracker, task, { add: [label], remove: [] })
         const status = await tracker.ready?.(task)
         if (labels === undefined && (status ?? null) === null) {
@@ -101,7 +101,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const remove = listed === undefined ? rules.requiredLabels : requiredOn(rules, listed)
       // A Jira workflow may have no backlog status: a ready task left alone there is not "in the backlog".
       const parked = listed === undefined || listed.status.category === 'UnStarted' || missingLabel(rules, listed) !== null
-      const moved = await link.run(async (tracker) => {
+      const moved = await link.page(async (tracker) => {
         const labels = remove.length === 0 || tracker.relabel === undefined ? undefined : await relabeled(link, tracker, task, { add: [], remove })
         const status = await tracker.unready?.(task)
         if (labels === undefined && (status ?? null) === null) {
@@ -117,7 +117,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       let labels: string[] | undefined
-      try { labels = await link.run(async (tracker) => tracker.relabel?.(task, change)) } catch (error) {
+      try { labels = await link.page(async (tracker) => tracker.relabel?.(task, change)) } catch (error) {
         throw refused(link, task, error)
       }
       if (labels === undefined) throw fail('task.cannotRelabel', { task })
@@ -129,7 +129,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const project = configuredProject(task)
       const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
-      const moved = await link.run(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
+      const moved = await link.page(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
       if (!moved) throw fail('task.cannotMoveMilestone', { task })
       await refreshers.get(readerFor(project!, task))?.()
     },
