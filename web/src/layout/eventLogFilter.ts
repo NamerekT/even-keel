@@ -42,13 +42,33 @@ export function projectOf(entry: EventEntry): string | null {
   return 'project' in params && typeof params.project === 'string' ? params.project : null
 }
 
-export type EventFilter = { level: EventLevel | null; category: EventCategory | null; project: string | null }
+/**
+ * What an `eventLog.*` entry is about, shown in a column of its own: its texts leave it out (BTN-852). A task keeps the
+ * project of its place for the link; a removed project is only its key. Other messages name what they are about inline.
+ */
+export type EventSubject = { task: string; project: string | null } | { project: string } | { key: string }
+
+export function subjectOf(entry: EventEntry): EventSubject | null {
+  if (!entry.notice.code.startsWith('eventLog.')) return null
+  const params = entry.notice.params as { task?: unknown; key?: unknown }
+  if (typeof params.task === 'string') return { task: params.task, project: projectOf(entry) }
+  const project = projectOf(entry)
+  if (project !== null) return { project }
+  return typeof params.key === 'string' ? { key: params.key } : null
+}
+
+/** The lowest level shown: `warning` shows warnings and errors. Info alone is not a filter, all levels are. */
+export type EventThreshold = Exclude<EventLevel, 'info'>
+export const EVENT_THRESHOLDS = ['warning', 'error'] as const satisfies readonly EventThreshold[]
+const RANK: Record<EventLevel, number> = { info: 0, warning: 1, error: 2 }
+
+export type EventFilter = { level: EventThreshold | null; category: EventCategory | null; project: string | null }
 
 export function filterOf(search: URLSearchParams): EventFilter {
   const level = search.get('level')
   const category = search.get('category')
   return {
-    level: level === 'info' || level === 'warning' || level === 'error' ? level : null,
+    level: EVENT_THRESHOLDS.find((each) => each === level) ?? null,
     category: EVENT_CATEGORIES.find((each) => each === category) ?? null,
     project: search.get('project') || null,
   }
@@ -64,7 +84,7 @@ export function searchOf(filter: EventFilter): URLSearchParams {
 
 export function filtered(entries: readonly EventEntry[], filter: EventFilter): EventEntry[] {
   return entries.filter((entry) =>
-    (filter.level === null || entry.level === filter.level) &&
+    (filter.level === null || RANK[entry.level] >= RANK[filter.level]) &&
     (filter.category === null || categoryOf(entry.notice) === filter.category) &&
     (filter.project === null || projectOf(entry) === filter.project),
   )

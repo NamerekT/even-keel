@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router'
 import type { EventEntry } from '../../../src/event-log/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { Said } from '../ui/ProjectLinks.js'
 import { Toast } from '../ui/Toast.js'
 import { freshAlerts, lastId, placePath, useFirstReadMark, withFresh } from './eventLog.js'
+import { EventTitle } from './EventSubject.js'
 
 /** How long a toast stays while the page is in sight; a hidden tab stops it, and coming back starts it over. */
 export const TOAST_MS = 12_000
@@ -41,7 +41,7 @@ export function EventToasts() {
             <Toast
               source="Even Keel"
               icon="/favicon.svg"
-              title={<Said notice={entry.notice} />}
+              title={<EventTitle entry={entry} state={state} />}
               body={t.events.hints[entry.notice.code]}
               actions={[...open, { label: t.events.close, onClick: () => close(entry.id) }]}
             />

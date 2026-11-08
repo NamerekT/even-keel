@@ -5,7 +5,8 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { formatFullTime, formatLineTime, minuteMarks } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { lastId, markRead, placePath, readMark } from '../layout/eventLog.js'
-import { EVENT_CATEGORIES, filtered, filterOf, projectOf, searchOf, type EventFilter } from '../layout/eventLogFilter.js'
+import { EVENT_CATEGORIES, EVENT_THRESHOLDS, filtered, filterOf, projectOf, searchOf, subjectOf, type EventFilter } from '../layout/eventLogFilter.js'
+import { EventSubject } from '../layout/EventSubject.js'
 import { useNow } from '../layout/useNow.js'
 import { projectLabel } from '../state.js'
 import { Card, EmptyState, PageHead } from '../ui/blocks.js'
@@ -62,7 +63,7 @@ export function EventLogPage({ state }: { state: EvenKeelState }) {
       {state.eventLog.length > 0 && (
         <div className="event-log__filters">
           <Select className="button" label={t.events.filters.level} value={filter.level ?? ''}
-            options={[{ value: '', label: t.events.filters.allLevels }, ...(['info', 'warning', 'error'] as const).map((value) => ({ value, label: t.events.levels[value] }))]}
+            options={[{ value: '', label: t.events.filters.allLevels }, ...EVENT_THRESHOLDS.map((value) => ({ value, label: t.events.filters.thresholds[value] }))]}
             onChange={(value) => change({ ...filter, level: filterOf(new URLSearchParams({ level: value })).level })} />
           <Select className="button" label={t.events.filters.category} value={filter.category ?? ''}
             options={[{ value: '', label: t.events.filters.allCategories }, ...EVENT_CATEGORIES.map((value) => ({ value, label: t.events.categories[value] }))]}
@@ -70,7 +71,7 @@ export function EventLogPage({ state }: { state: EvenKeelState }) {
           <Select className="button" label={t.events.filters.project} value={filter.project ?? ''}
             options={[{ value: '', label: t.events.filters.allProjects }, ...state.projects.filter((id) => projects.has(id) || id === filter.project).map((value) => ({ value, label: projectLabel(state, value) }))]}
             onChange={(value) => change({ ...filter, project: value || null })} />
-          {hasFilter && <button type="button" className="button event-log__reset" onClick={reset}>{t.events.filters.reset}</button>}
+          <button type="button" className="button event-log__reset" disabled={!hasFilter} onClick={reset}>{t.events.filters.reset}</button>
         </div>
       )}
       {state.eventLog.length === 0 ? (
@@ -99,6 +100,7 @@ function EntryList({ entries, state, read }: { entries: EventEntry[]; state: Eve
       {entries.map((entry, index) => {
         const path = placePath(entry.place, state)
         const fresh = entry.level !== 'info' && Number(entry.id) > read
+        const subject = subjectOf(entry)
         return (
           <li key={entry.id} className={`event-log__row event-log__row--${entry.level} row-action-host`}>
             <Tipped tip={formatFullTime(entry.at)} inline className="event-log__time">
@@ -107,6 +109,7 @@ function EntryList({ entries, state, read }: { entries: EventEntry[]; state: Eve
             <Tipped tip={t.events.levels[entry.level]} inline className="event-log__level">
               <span className="event-log__dot" role="img" aria-label={t.events.levels[entry.level]} />
             </Tipped>
+            <span className="event-log__subject">{subject !== null && <EventSubject subject={subject} state={state} />}</span>
             <span className="event-log__text">
               <Said notice={entry.notice} />
               {fresh && <span className="chip event-log__fresh">{t.events.fresh}</span>}

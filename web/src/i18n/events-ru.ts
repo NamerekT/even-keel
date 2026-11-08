@@ -21,6 +21,7 @@ export const eventsRu = {
   filters: {
     level: 'Уровень', category: 'Категория', project: 'Проект',
     allLevels: 'Все уровни', allCategories: 'Все категории', allProjects: 'Все проекты',
+    thresholds: { warning: 'Предупреждения и ошибки', error: 'Только ошибки' },
     reset: 'Сбросить', empty: 'Под эти фильтры записей нет', emptyAction: 'Сбросить фильтры',
   },
   categories: {

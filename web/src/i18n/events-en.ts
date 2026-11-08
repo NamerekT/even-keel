@@ -22,6 +22,7 @@ export const eventsEn = {
   filters: {
     level: 'Level', category: 'Category', project: 'Project',
     allLevels: 'All levels', allCategories: 'All categories', allProjects: 'All projects',
+    thresholds: { warning: 'Warnings and errors', error: 'Errors only' },
     reset: 'Reset', empty: 'No entries match these filters', emptyAction: 'Reset filters',
   },
   categories: {

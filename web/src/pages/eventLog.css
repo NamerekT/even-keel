@@ -1,4 +1,4 @@
-/* `/log` (BTN-350): a centred column of day cards, a line per entry — time, level dot, text, "Open" at the right. */
+/* `/log` (BTN-350): a centred column of day cards, a line per entry — time, level dot, subject, text, "Open" at the right. */
 .event-log {
   width: 100%;
   max-width: 960px;
@@ -13,31 +13,27 @@
   list-style: none;
 }
 
+/* Three equal selects and "Reset", always there: choosing a filter moves nothing (BTN-852). */
 .event-log__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: stretch;
   gap: var(--space-8);
 }
 
-.event-log__filters > .select {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-
-.event-log__reset {
-  margin-left: auto;
-}
-
 @media (max-width: 760px) {
-  .event-log__filters > .select {
-    flex-basis: 100%;
+  .event-log__filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .event-log__reset {
+    justify-self: end;
   }
 }
 
 .event-log__row {
   display: grid;
-  grid-template-columns: 5ch 16px minmax(0, 1fr) auto;
+  grid-template-columns: 5ch 16px 10ch minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-8);
   min-height: 32px;
@@ -80,6 +76,16 @@
 
 .event-log__row--error .event-log__dot {
   background: var(--lamp-error);
+}
+
+/* The task or project, as task numbers stand on the home page; a longer one is cut, never pushing the text. */
+.event-log__subject {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: var(--text-13);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .event-log__text {

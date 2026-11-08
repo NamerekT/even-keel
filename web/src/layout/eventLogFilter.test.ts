@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { EventEntry, EventLevel, EventPlace } from '../../../src/event-log/model.js'
 import { en } from '../../../src/notice/en.js'
-import { notice, type Notice } from '../../../src/notice/notice.js'
+import { englishOf, notice, renderNotice, type Notice } from '../../../src/notice/notice.js'
+import { noticesRu } from '../i18n/notices-ru.js'
 import { fakeEventLog } from '../live/fakeEvents.js'
-import { categoryOf, filtered, filterOf, projectOf, searchOf, type EventFilter } from './eventLogFilter.js'
+import { categoryOf, filtered, filterOf, projectOf, searchOf, subjectOf, type EventFilter } from './eventLogFilter.js'
 
 const all: EventFilter = { level: null, category: null, project: null }
 const entry = (message: Notice, place: EventPlace | null = null, level: EventLevel = 'info'): EventEntry => ({
@@ -71,7 +72,39 @@ describe('event filter URLs', () => {
   })
 
   it('takes the first repeated value', () => {
-    expect(filterOf(new URLSearchParams('level=info&level=error'))).toEqual({ ...all, level: 'info' })
+    expect(filterOf(new URLSearchParams('level=warning&level=error'))).toEqual({ ...all, level: 'warning' })
+  })
+
+  it('reads an old info level as all levels', () => {
+    expect(filterOf(new URLSearchParams('level=info'))).toEqual(all)
+  })
+})
+
+describe('event subjects', () => {
+  it('names the task of a task entry with the project of its place', () => {
+    expect(subjectOf(entry(notice('eventLog.ask', { task: 'ABC-4' }), { view: 'ask', project: 'p-1', task: 'ABC-4' }))).toEqual({ task: 'ABC-4', project: 'p-1' })
+    expect(subjectOf(entry(notice('eventLog.stopped', { task: 'ABC-2' }), { view: 'project', project: 'p-1' }))).toEqual({ task: 'ABC-2', project: 'p-1' })
+    expect(subjectOf(entry(notice('eventLog.launch', { task: 'ABC-1' })))).toEqual({ task: 'ABC-1', project: null })
+  })
+
+  it('names the project of a project entry, and the key of a removed one', () => {
+    expect(subjectOf(entry(notice('eventLog.red', { project: 'p-2', commit: 'abc', cis: [] }), { view: 'ci', project: 'p-2' }))).toEqual({ project: 'p-2' })
+    expect(subjectOf(entry(notice('eventLog.projectSettings', { project: 'p-2' }), { view: 'settings', project: 'p-2' }))).toEqual({ project: 'p-2' })
+    expect(subjectOf(entry(notice('eventLog.projectRemoved', { key: 'ABC' })))).toEqual({ key: 'ABC' })
+  })
+
+  it('has none for entries about neither, nor for messages whose text names their project itself', () => {
+    expect(subjectOf(entry(notice('eventLog.settings', {}), { view: 'settings', project: null }))).toBeNull()
+    expect(subjectOf(entry(notice('eventLog.usageUnread', { account: 'global' }), { view: 'accounts' }))).toBeNull()
+    expect(subjectOf(entry(notice('chain.empty', { project: 'p-1' }), { view: 'project', project: 'p-1' }))).toBeNull()
+  })
+
+  it('leaves the subject out of every eventLog text', () => {
+    const params = { task: 'T-9', project: 'P-9', key: 'K-9', commit: 'c1', cis: ['github'], into: 'dev', path: '/w', problem: 'noKey', detail: 'KEY', account: 'a' }
+    for (const code of Object.keys(en).filter((key) => key.startsWith('eventLog.'))) {
+      const message = { code, params } as unknown as Notice
+      for (const text of [englishOf(message), renderNotice(message, noticesRu)]) expect(text, code).not.toMatch(/T-9|P-9|K-9/)
+    }
   })
 })
 
@@ -86,8 +119,12 @@ describe('filtered events', () => {
     expect(filtered([], all)).toEqual([])
   })
 
+  it('takes a level as the lowest one shown', () => {
+    expect(filtered(entries, { ...all, level: 'warning' })).toEqual([second, third])
+    expect(filtered(entries, { ...all, level: 'error' })).toEqual([second])
+  })
+
   it('filters by each field separately', () => {
-    expect(filtered(entries, { ...all, level: 'warning' })).toEqual([third])
     expect(filtered(entries, { ...all, category: 'sessions' })).toEqual([first])
     expect(filtered(entries, { ...all, project: 'p-2' })).toEqual([second])
     expect(filtered(entries, { ...all, project: 'p-1' })).not.toContain(third)
@@ -95,6 +132,6 @@ describe('filtered events', () => {
 
   it('requires all selected fields to match', () => {
     expect(filtered(entries, { level: 'error', category: 'main', project: 'p-2' })).toEqual([second])
-    expect(filtered(entries, { level: 'info', category: 'main', project: 'p-2' })).toEqual([])
+    expect(filtered(entries, { level: 'error', category: 'sessions', project: 'p-1' })).toEqual([])
   })
 })

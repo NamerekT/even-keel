@@ -33,13 +33,37 @@ describe('the filtered log page', () => {
   })
 
   it('shows a reset action for an empty result but no filters for a wholly empty log', () => {
-    const emptyResult = render('?level=warning')
+    const emptyResult = render('?category=questions')
     expect(emptyResult).toContain(t.events.filters.empty)
     expect(emptyResult).toContain(t.events.filters.emptyAction)
     expect(emptyResult).toContain('role="combobox"')
     const emptyLog = render('?level=error', [])
     expect(emptyLog).toContain(t.events.emptyAction)
     expect(emptyLog).not.toContain('role="combobox"')
+  })
+
+  it('keeps the reset button in place, disabled until a filter is chosen', () => {
+    const reset = new RegExp(`<button type="button"[^>]*event-log__reset[^>]*>${t.events.filters.reset}<`)
+    expect(render()).toMatch(reset)
+    expect(render().match(reset)![0]).toContain('disabled')
+    expect(render('?category=chain').match(reset)![0]).not.toContain('disabled')
+  })
+
+  it('offers levels as a threshold and reads an old info level as all', () => {
+    expect(render('?level=warning').match(/<li /g)).toHaveLength(1)
+    expect(render('?level=info').match(/<li /g)).toHaveLength(3)
+    expect(render('?level=info').match(/<button[^>]*event-log__reset[^>]*>/)![0]).toContain('disabled')
+  })
+
+  it('puts the subject in its own column, a task and a project both as links', () => {
+    const html = render('', [
+      ...entries,
+      { id: '4', at: '2026-11-06T10:01:00Z', level: 'info', notice: notice('eventLog.launch', { task: 'ABC-7' }), place: { view: 'task', project: 'p-1', task: 'ABC-7' } },
+    ])
+    expect(html).toMatch(/<a [^>]*href="\/p\/p-1\?task=ABC-7"[^>]*>ABC-7<\/a>/)
+    expect(html).toMatch(/event-log__subject[^>]*><a [^>]*href="\/p\/p-1"[^>]*>ABC<\/a>/)
+    expect(html.match(/class="event-log__subject"/g)).toHaveLength(4)
+    expect(html).not.toContain('ABC: ')
   })
 
   it('ignores a removed project and labels a selected existing project without entries', () => {
