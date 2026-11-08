@@ -4,13 +4,17 @@
  * `Mod` is Cmd on a Mac and Ctrl elsewhere; `Ctrl` is a Mac's Control, `Meta` the Windows key elsewhere.
  */
 
-export const HOTKEY_ACTIONS = ['chainRun'] as const
+export const HOTKEY_ACTIONS = ['chainRun', 'chatTask'] as const
 export type HotkeyAction = (typeof HOTKEY_ACTIONS)[number]
 
 /** A browser's own combinations: only the actions it changed, the rest keep `DEFAULT_HOTKEYS`. */
 export type HotkeyBindings = Partial<Record<HotkeyAction, string>>
 
-export const DEFAULT_HOTKEYS: Readonly<Record<HotkeyAction, string>> = { chainRun: 'Mod+Enter' }
+/** `chatTask` toggles the chat window's task panel (BTN-891). */
+export const DEFAULT_HOTKEYS: Readonly<Record<HotkeyAction, string>> = { chainRun: 'Mod+Enter', chatTask: 'Mod+B' }
+
+/** Actions that run while a person types in the chat field: Enter there sends or breaks the line, so they never take it. */
+export const TYPING_ACTIONS: readonly HotkeyAction[] = ['chatTask']
 
 export const MODIFIERS = ['Mod', 'Ctrl', 'Meta', 'Alt', 'Shift'] as const
 export type Modifier = (typeof MODIFIERS)[number]

@@ -1,0 +1,176 @@
+/* The chat window's task panel (BTN-891): a column at the left of the feed, the window wider by it. */
+
+.session-window.transcript {
+  --chat-task-width: 380px;
+}
+
+.session-window.transcript.transcript--chat {
+  transition: width var(--motion-appear) ease-out;
+}
+
+.session-window.transcript.transcript--task {
+  width: min(calc(1100px + var(--chat-task-width)), calc(100vw - 32px));
+}
+
+.transcript__frame {
+  position: relative;
+  display: flex;
+  height: 100%;
+}
+
+.transcript__frame > .session-window__body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* It slides in from the left and back out: its width grows with the window's, so the feed keeps its width, and its
+   content, held at the right edge at full width, comes out from under the window's left edge. */
+.chat-task {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: var(--chat-task-width);
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  border-radius: var(--radius-inner) 0 0 var(--radius-inner);
+  background: var(--surface);
+  transition: width var(--motion-appear) ease-out;
+}
+
+.chat-task.chat-task--leaving {
+  width: 0;
+}
+
+@starting-style {
+  .chat-task.chat-task--slide {
+    width: 0;
+  }
+}
+
+/* The panel's full width less its right border. */
+.chat-task > * {
+  width: calc(var(--chat-task-width) - 1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-window.transcript.transcript--chat,
+  .chat-task {
+    transition: none;
+  }
+}
+
+.chat-task__scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: var(--space-16) calc(var(--space-16) - var(--pane-scrollbar)) var(--space-16) var(--space-16);
+}
+
+.chat-task__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.chat-task__title {
+  margin: 0;
+  font-size: var(--text-16);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* The card's text, a step smaller for a column of 380 px. */
+.chat-task .task-card__markdown {
+  font-size: var(--text-14);
+  line-height: 1.6;
+}
+
+.chat-task .task-card__heading {
+  margin-bottom: var(--space-8);
+}
+
+.chat-task__foot {
+  display: flex;
+  padding: var(--space-12) var(--space-16);
+  border-top: 1px solid var(--border);
+}
+
+/* A screen too narrow for the feed beside the panel: the panel lies over the feed instead of squeezing it,
+   below the head, so that its switch and the key stay in reach (the body's 16 px padding, the 28 px head, the 10 px gap). */
+@media (max-width: 1180px) {
+  .chat-task {
+    position: absolute;
+    top: 54px;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
+    max-width: calc(100% - 48px);
+    border-top: 1px solid var(--border);
+    border-radius: 0 var(--radius-inner) 0 var(--radius-inner);
+    box-shadow: var(--shadow-popover);
+  }
+}
+
+/* The head's switch, at the side the panel opens on; pressed while the panel is open. */
+.chat__task-toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -3px 0 0 -6px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.chat__task-toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.chat__task-toggle:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.chat__task-toggle--on,
+.chat__task-toggle--on:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--accent);
+}
+
+.chat__task-toggle:focus-visible,
+.chat__task-key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The key in the head is a link to the panel. */
+.chat__task-key {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  line-height: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: text-decoration-color var(--motion-fast);
+}
+
+.chat__task-key:hover {
+  text-decoration-color: currentColor;
+}

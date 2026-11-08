@@ -4,20 +4,26 @@ import type { ReviewView } from '../../../src/chain/dispatcher.js'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
+import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
 import { formatElapsed } from '../format.js'
+import { formatCombo } from '../hotkeys/combo.js'
+import { useDialogHotkey, useHotkeyLayout } from '../hotkeys/useHotkeys.js'
 import { localized, say, t } from '../i18n/index.js'
+import { useNarrow } from '../layout/useNarrow.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
 import { PullButton } from '../ui/PullChip.js'
+import { SidebarIcon } from '../ui/icons.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { ChatStatus, useStatusFacts } from './ChatStatus.js'
+import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
@@ -67,6 +73,8 @@ interface Props {
   chat?: ChatTarget
   /** The session's task, for the head: its key and title; without it the head shows the session's id. */
   task?: { key: string; title: string | null }
+  /** Opens the full card of a task; with it a chat of a tracker task gets its task panel (BTN-891). */
+  onCard?: (task: string) => void
   onClose: () => void
 }
 
@@ -81,7 +89,7 @@ interface SentLine {
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId, account, live, chat, task, onClose }: Props) {
+export function TranscriptWindow({ sessionId, account, live, chat, task, onCard, onClose }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
@@ -124,6 +132,23 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onClose
   const listed = entries != null && loader === 'done'
   const facts = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((session) => session.sessionId === sessionId) ?? null)
   const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
+  // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card
+  // over the chat, which shows again when it closes.
+  const narrow = useNarrow()
+  const taskPanel = useTaskPanelOpen()
+  const cardTask = chat !== undefined && onCard !== undefined && task !== undefined && !isOwnName(task.key) ? task.key : null
+  const panel = cardTask !== null && taskPanel.open && !narrow
+  const panelShown = panel || (cardTask !== null && taskPanel.leaving && !narrow)
+  const toggleTask = () => {
+    if (cardTask === null) return
+    if (narrow) onCard?.(cardTask)
+    else taskPanel.choose(!taskPanel.open)
+  }
+  const leaveForCard = (key: string) => {
+    dialogRef.current?.close()
+    onCard?.(key)
+  }
+  const onHotkey = useDialogHotkey('chatTask', toggleTask)
 
   useEffect(() => {
     // Otherwise the dialog focuses its first focusable element, the head's title, and its tip opens at once.
@@ -209,7 +234,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onClose
   return (
     <dialog
       ref={dialogRef}
-      className={`session-window transcript${chat === undefined ? '' : ' transcript--chat'}`}
+      className={`session-window transcript${chat === undefined ? '' : ' transcript--chat'}${panel ? ' transcript--task' : ''}`}
       aria-label={t.session.transcriptDialog(sessionId.slice(0, 8))}
       onClose={(event) => {
         event.stopPropagation()
@@ -217,97 +242,110 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onClose
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
+        onHotkey(event)
       }}
       onClick={(event) => event.stopPropagation()}
       {...backdrop}
     >
-      <div className="session-window__body" {...drop.handlers}>
-        {drop.over && (
-          <div className="chat__drop" aria-hidden="true">
-            {t.session.chat.drop}
-          </div>
+      <div className="transcript__frame">
+        {panelShown && chat !== undefined && cardTask !== null && (
+          <ChatTaskPanel project={chat.project} task={cardTask} beat={chat.session.lamp} onCard={leaveForCard} slide={taskPanel.moved} leaving={!panel} onLeft={taskPanel.left} />
         )}
-        <header className="panel__head">
-          <h2 className="panel__task">
-            <span className="panel__key">{task?.key ?? chat?.task ?? sessionId.slice(0, 8)}</span>
-            <WindowTitle sessionId={sessionId} title={task?.title ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
-          </h2>
-          {chat?.review !== undefined && <PullButton review={chat.review} compact />}
-          {remoteUrl != null && (
-            <a
-              className="panel__remote"
-              href={remoteUrl}
-              target="_blank"
-              rel="noreferrer"
-              title={`${t.session.openRemote}${account === null ? '' : t.session.onlyIn(account)}`}
-              aria-label={t.session.openRemote}
-            >
-              ↗
-            </a>
+        <div className="session-window__body" {...drop.handlers}>
+          {drop.over && (
+            <div className="chat__drop" aria-hidden="true">
+              {t.session.chat.drop}
+            </div>
           )}
-          <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
-            ×
-          </button>
-        </header>
-        {error !== null && <p className="notice notice--error">{error}</p>}
-        {loader !== 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
-        {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
-        {entries != null && listed && (
-          <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
-            <ol className="transcript__lines">
-              {entries.map((entry, index) =>
-                entry.kind === 'gap' ? (
-                  <li key={index} className="transcript__gap">
-                    <LineTime at={entry.at} />
-                  </li>
-                ) : entry.kind === 'tools' ? (
-                  <li key={index} className="transcript__entry transcript__entry--tools">
-                    <LineTime at={entry.calls[0]!.line.at} hover />
-                    <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
-                  </li>
-                ) : (
-                  <li key={index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
-                    <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
-                    <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
-                  </li>
-                ),
+          <header className="panel__head">
+            {cardTask !== null && <TaskToggle open={panel} narrow={narrow} onToggle={toggleTask} />}
+            <h2 className="panel__task">
+              {cardTask !== null ? (
+                <button type="button" className="panel__key chat__task-key" aria-expanded={narrow ? undefined : panel} onClick={toggleTask}>
+                  {cardTask}
+                </button>
+              ) : (
+                <span className="panel__key">{task?.key ?? chat?.task ?? sessionId.slice(0, 8)}</span>
               )}
-            </ol>
-          </div>
-        )}
-        {chat === undefined ? (
-          <div className="transcript__foot">{status}</div>
-        ) : (
-          <div className="transcript__foot">
-            {chat.session.lamp === 'working' && (
-              <TurnLine
-                facts={{
-                  working: true,
-                  turn,
-                  lastReplyAt: lines?.findLast(isReply)?.at ?? null,
-                  answers: [chat.answeredAt, sent.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
-                  delivering: chat.delivering,
+              <WindowTitle sessionId={sessionId} title={task?.title ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
+            </h2>
+            {chat?.review !== undefined && <PullButton review={chat.review} compact />}
+            {remoteUrl != null && (
+              <a
+                className="panel__remote"
+                href={remoteUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={`${t.session.openRemote}${account === null ? '' : t.session.onlyIn(account)}`}
+                aria-label={t.session.openRemote}
+              >
+                ↗
+              </a>
+            )}
+            <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
+              ×
+            </button>
+          </header>
+          {error !== null && <p className="notice notice--error">{error}</p>}
+          {loader !== 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
+          {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
+          {entries != null && listed && (
+            <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
+              <ol className="transcript__lines">
+                {entries.map((entry, index) =>
+                  entry.kind === 'gap' ? (
+                    <li key={index} className="transcript__gap">
+                      <LineTime at={entry.at} />
+                    </li>
+                  ) : entry.kind === 'tools' ? (
+                    <li key={index} className="transcript__entry transcript__entry--tools">
+                      <LineTime at={entry.calls[0]!.line.at} hover />
+                      <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
+                    </li>
+                  ) : (
+                    <li key={index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
+                      <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
+                      <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
+                    </li>
+                  ),
+                )}
+              </ol>
+            </div>
+          )}
+          {chat === undefined ? (
+            <div className="transcript__foot">{status}</div>
+          ) : (
+            <div className="transcript__foot">
+              {chat.session.lamp === 'working' && (
+                <TurnLine
+                  facts={{
+                    working: true,
+                    turn,
+                    lastReplyAt: lines?.findLast(isReply)?.at ?? null,
+                    answers: [chat.answeredAt, sent.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
+                    delivering: chat.delivering,
+                  }}
+                />
+              )}
+              <ChatComposer
+                key={chat.session.sessionId}
+                project={chat.project}
+                task={chat.task}
+                session={chat.session}
+                aside={chat.aside}
+                renews={chat.renews}
+                mail={chat.mail}
+                queued={queued}
+                handle={composerRef}
+                status={status}
+                onSent={(line, steered) => {
+                  pinned.current = true
+                  setSent((now) => [...now, { line, after: lines?.length ?? 0, steered }])
                 }}
               />
-            )}
-            <ChatComposer
-              key={chat.session.sessionId}
-              project={chat.project}
-              task={chat.task}
-              session={chat.session}
-              aside={chat.aside}
-              renews={chat.renews}
-              mail={chat.mail}
-              queued={queued}
-              handle={composerRef}
-              status={status}
-              onSent={(line, steered) => {
-                pinned.current = true
-                setSent((now) => [...now, { line, after: lines?.length ?? 0, steered }])
-              }}
-            />
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
       {viewing !== null && media.items[viewing] !== undefined && (
         <MediaViewer items={media.items} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
@@ -368,6 +406,25 @@ function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   if (line.kind === 'text') return <SessionMarkdown text={line.text} />
   if (line.kind === 'image') return <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />
   return <span className="transcript__plain">{line.notice === undefined ? line.text : say(line.notice)}</span>
+}
+
+/** The head's switch of the task panel, at the side the panel opens on; on a phone it opens the full card. */
+function TaskToggle({ open, narrow, onToggle }: { open: boolean; narrow: boolean; onToggle: () => void }) {
+  const { current, mac } = useHotkeyLayout()
+  const label = narrow ? t.session.chat.task.card : open ? t.session.chat.task.hide : t.session.chat.task.show
+  return (
+    <Tipped inline align="start" tip={narrow ? label : `${label} · ${formatCombo(current.chatTask, mac)}`}>
+      <button
+        type="button"
+        className={`chat__task-toggle${open ? ' chat__task-toggle--on' : ''}`}
+        aria-label={label}
+        aria-pressed={narrow ? undefined : open}
+        onClick={onToggle}
+      >
+        <SidebarIcon />
+      </button>
+    </Tipped>
+  )
 }
 
 /** The window's title cut to one line: the full one and the session's id in the tip, a press copies the id. */

@@ -58,6 +58,11 @@ describe('refusalOf', () => {
     expect(refusalOf('Ctrl+Tab', 'chainRun', current)).toEqual({ kind: 'reserved' })
   })
 
+  it('keeps Enter for the chat field from an action that runs while typing there', () => {
+    for (const combo of ['Mod+Enter', 'Alt+Enter', 'Mod+Shift+Enter']) expect(refusalOf(combo, 'chatTask', current)).toEqual({ kind: 'field' })
+    expect(refusalOf('Mod+Shift+Enter', 'chainRun', current)).toBeNull()
+  })
+
   it('refuses a combination another action holds and names it', () => {
     const two = { ...current, other: 'Mod+K' } as unknown as Record<HotkeyAction, string>
     expect(refusalOf('Mod+K', 'chainRun', two)).toEqual({ kind: 'taken', action: 'other' })

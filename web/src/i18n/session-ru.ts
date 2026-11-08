@@ -211,6 +211,14 @@ export const sessionRu = {
       unknownWindow: 'размер окна неизвестен',
       checkpoint: (tokens: string) => `Передача с ${tokens}`,
     },
+    task: {
+      show: 'Показать задачу',
+      hide: 'Скрыть задачу',
+      card: 'Открыть карточку задачи',
+      panel: (key: string) => `Задача ${key}`,
+      openCard: 'Открыть карточку',
+      openCardTip: 'Закрывает чат; правка задачи и комментарии — в карточке. Черновик ответа сохранится.',
+    },
     ...composerRu,
   },
 }

@@ -254,6 +254,8 @@ The **Chat** button of the current session opens its whole transcript with a rep
 
 The window's head names the task; point at its title for the session's id, press it to copy the id. The line under the reply box says what the session is at: its branch and edits on the left, its account, the model of its last answer and a ring of how full its context is on the right. Press the ring for the figures, the mark where the session hands over to a fresh one, and the account's limits. A finished session's transcript keeps the same line at its bottom.
 
+The sidebar button at the left of the head, the task key beside it, or Ctrl+B (Cmd+B on a Mac) opens the task beside the chat: its status, description, attachments and comments, read only, kept up to date as the task changes. **Open the card** at its bottom closes the chat and opens the full card, where you edit the task and comment. The chat remembers whether the panel was open. On a narrow window the panel lies over the feed; on a phone the button opens the full card instead, and closing it brings the same chat back, your unsent reply still in the box.
+
 If the session has waited for you past its prompt cache (the ring on its row is empty), **Send** first asks how to go on: a reply to that session rereads its whole context at full price, so the suggested choice is **New session with this message** — a new session in the same worktree gets the usual handoff and your words, answers and files. **Reply to this session** sends it as before; **Cancel** keeps the text in the box. A session whose chain has stopped offers only the reply.
 
 If a turn stops on an API error, send a reply from the chat to resume the session. While the agent is still working or retrying the request, the usual rules for messages during a turn apply.
@@ -280,7 +282,7 @@ The milestone on the card is a pick: choosing another one moves the task there i
 
 ## Hotkeys
 
-On a project page Ctrl+Enter (Cmd+Enter on a Mac) starts the chain, or resumes it from a pause; a running chain is left as it is. A double click on a chain task opens its card. Keys do nothing while you type in a field or a window is open. **Hotkeys** in the gear menu (the menu button on a phone) shows them and changes the combination: it turns down one taken by another action, a bare key other than F1–F12, and the ones a browser keeps for itself, such as Ctrl+W. The layout belongs to this browser: another browser, a private window or another address of the page (`localhost` and `127.0.0.1` count as two) starts from the defaults.
+On a project page Ctrl+Enter (Cmd+Enter on a Mac) starts the chain, or resumes it from a pause; a running chain is left as it is. A double click on a chain task opens its card. Keys do nothing while you type in a field or a window is open, except the chat's own: Ctrl+B (Cmd+B) opens and closes the task panel even while you type a reply, and it never takes Enter, which the reply box keeps. **Hotkeys** in the gear menu (the menu button on a phone) shows them and changes the combination: it turns down one taken by another action, a bare key other than F1–F12, and the ones a browser keeps for itself, such as Ctrl+W. The layout belongs to this browser: another browser, a private window or another address of the page (`localhost` and `127.0.0.1` count as two) starts from the defaults.
 
 ## Changelog drafts
 

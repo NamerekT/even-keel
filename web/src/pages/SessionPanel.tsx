@@ -82,6 +82,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // Escape in a dialog over the panel — the task card opened from the chat — closes only that dialog.
+      if (event.target instanceof Element && event.target.closest('dialog[open]') !== null) return
       if (event.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
@@ -121,7 +123,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
       )}
-      <Actions block={block} scale={scale} ci={ci} chatting={chatting} onChat={setChatting} onFailure={onFailure} />
+      <Actions block={block} scale={scale} ci={ci} chatting={chatting} onChat={setChatting} onCard={onCard} onFailure={onFailure} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
@@ -158,10 +160,12 @@ interface ActionsProps {
   /** The chat window is open; the panel keeps it, since a press on the feed opens it too. */
   chatting: boolean
   onChat: (open: boolean) => void
+  /** Opens a task's card: the chat's task panel leads to it. */
+  onCard: (task: string) => void
   onFailure: (failure: Notice | null) => void
 }
 
-function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }: ActionsProps) {
+function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFailure }: ActionsProps) {
   const { send, sending, failure } = useCommand()
   const lastFailure = useRef(failure)
   useEffect(() => {
@@ -312,6 +316,7 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }:
               mail: state?.mailbox[chatSession.sessionId],
               review: block.review,
             }}
+            onCard={onCard}
             onClose={() => setChatting(false)}
           />
         </Suspense>
