@@ -22,6 +22,7 @@ export type ChainWait =
   | { kind: 'ci'; wait: CiWait }
   | { kind: 'limits'; wait: LimitsWait }
   | { kind: 'limit'; until: string }
+  | { kind: 'model'; model: string; until: string | null }
   | { kind: 'gateway'; error: Notice }
   | { kind: 'packages'; packages: WaitedPackage[]; passing: boolean }
   | { kind: 'slot'; notice: Notice }
@@ -35,6 +36,7 @@ export function chainWaits(state: Pick<EvenKeelState, 'chain' | 'packages'>, pro
   if (chain.ciWait !== undefined) waits.push({ kind: 'ci', wait: chain.ciWait })
   if (chain.limitsWait !== undefined) waits.push({ kind: 'limits', wait: chain.limitsWait })
   if (chain.limitUntil !== undefined) waits.push({ kind: 'limit', until: chain.limitUntil })
+  if (chain.modelWeek !== undefined) waits.push({ kind: 'model', model: chain.modelWeek.model, until: chain.modelWeek.until })
   const packages = chain.closing === undefined && chain.fixOnly !== true ? packagesWait(state.packages, project) : null
   if (packages !== null) waits.push(packages)
   if (chain.slotWait !== undefined) waits.push({ kind: 'slot', notice: chain.slotWait.notice })

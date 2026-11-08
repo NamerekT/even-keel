@@ -165,6 +165,10 @@ export const ru = {
     usageOff: (reason: string | null) =>
       `Опрос /usage выключен до перезапуска службы: ответ похож на ход модели, а он тратит квоту. Причина: ${reason}`,
     limitHold: (at: string) => `Лимит исчерпан — следующая задача запустится после сброса в ${at}.`,
+    modelHold: (model: string, at: string | null) =>
+      at === null
+        ? `Неделя ${model} исчерпана — следующая задача запустится, когда неделя откроется; время сброса неизвестно.`
+        : `Неделя ${model} исчерпана — следующая задача запустится после сброса в ${at}.`,
     ciHold: (commit: string, since: string) => `Ждёт CI на main: ${commit} с ${since} — следующая задача запустится, когда он позеленеет.`,
     checkHold: (commit: string, since: string) => `Проверяет main на ${commit} с ${since} в папке следующей задачи — задача запустится, когда проверка пройдёт.`,
     afterGreenHold: (commit: string, since: string) => `Выполняет команды после зелёного main на ${commit} с ${since} — следующая задача запустится, когда они закончатся.`,
@@ -293,7 +297,7 @@ export const ru = {
     idle: 'не запущена',
     position: (position: number) => `${position}-я`,
     waiting: 'ждёт',
-    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот' },
+    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот' },
   },
   lamp: {
     done: 'готово',

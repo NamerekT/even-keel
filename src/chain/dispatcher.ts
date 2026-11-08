@@ -758,6 +758,7 @@ export class Dispatcher {
       const returned = own === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
       if (live !== undefined && returned === undefined) {
         delete chain.limitUntil
+        delete chain.modelWeek
         delete chain.slotWait
         delete chain.ciWait
         delete chain.limitsWait
@@ -780,8 +781,19 @@ export class Dispatcher {
       if (waitsForLimits(this.deps, chain, task, () => this.deps.save(this.state))) return
       const reset = this.deps.limitReset(chain.project, task)
       if (reset !== null) {
-        if (chain.limitUntil !== reset) {
+        if (chain.limitUntil !== reset || chain.modelWeek !== undefined) {
           chain.limitUntil = reset
+          delete chain.modelWeek
+          this.deps.save(this.state)
+        }
+        return
+      }
+      // The model's own week is used up: the task waits for it, and only the poll can say when it opens (BTN-816).
+      const week = this.deps.modelWeek?.(chain.project, task) ?? null
+      if (week !== null) {
+        if (chain.modelWeek?.model !== week.model || chain.modelWeek.until !== week.until || chain.limitUntil !== undefined) {
+          chain.modelWeek = week
+          delete chain.limitUntil
           this.deps.save(this.state)
         }
         return
@@ -792,6 +804,7 @@ export class Dispatcher {
 
       if (returned !== undefined) {
         delete chain.limitUntil
+        delete chain.modelWeek
         delete chain.slotWait
         delete chain.ciWait
         const current: CurrentTask = { task, sessionId: returned.session.sessionId, since }
@@ -811,6 +824,7 @@ export class Dispatcher {
       }
 
       delete chain.limitUntil
+      delete chain.modelWeek
       const current: CurrentTask = { task, sessionId: null, since, starting: since }
       this.take(chain, current)
       this.deps.save(this.state)
@@ -847,6 +861,7 @@ export class Dispatcher {
     chain.paused = true
     chain.error = error
     delete chain.limitUntil
+    delete chain.modelWeek
     delete chain.slotWait
     delete chain.ciWait
     delete chain.limitsWait

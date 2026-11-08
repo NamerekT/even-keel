@@ -3,7 +3,7 @@ import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { DispatcherDeps, LimitsWait, MainCheckDeps, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
+import type { DispatcherDeps, LimitsWait, MainCheckDeps, ModelWeekHold, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
@@ -47,6 +47,8 @@ export interface SetupOptions {
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
   limitReopenedAt?: (account: string, at: string, resetsAt: string) => string | null
+  /** The model's own week used up on the account the task would start on (BTN-816). */
+  modelWeek?: ModelWeekHold | null
   /** The account has not answered its first limits poll; absent — it has. */
   limitsUnread?: LimitsWait
   /** Projects whose set of packages has a problem that holds the chain. */
@@ -161,6 +163,7 @@ export function setup(options: SetupOptions = {}) {
     limitReset: () => options.limitReset ?? null,
     limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
     limitReopenedAt: options.limitReopenedAt ?? (() => null),
+    modelWeek: () => options.modelWeek ?? null,
     limitsUnread: () => options.limitsUnread,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     trackerBlock: () => options.trackerBlock,

@@ -13,7 +13,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 export { Gate, type Call, type Turn, type TurnContext, type TurnEnd } from '../agent/scripted.js'
 
 /** The windows a `usage` answer gives; its time and source are the call's. */
-export type LimitWindows = Pick<RateLimits, 'fiveHour' | 'sevenDay'> & Partial<Pick<RateLimits, 'month'>>
+export type LimitWindows = Pick<RateLimits, 'fiveHour' | 'sevenDay'> & Partial<Pick<RateLimits, 'month' | 'models'>>
 
 /**
  * The product's scripted agent (`src/agent/scripted.ts`) with the bench's levers: a held listing, refused stops, model

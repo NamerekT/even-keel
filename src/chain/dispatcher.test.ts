@@ -3,7 +3,7 @@ import { englishOf, notice, textNotice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, pause, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
-import type { LimitsWait } from './model.js'
+import type { LimitsWait, ModelWeekHold } from './model.js'
 import { DEFAULT_RULES } from './rules.js'
 
 describe('Dispatcher', () => {
@@ -543,6 +543,36 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
     expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
+  })
+
+  it('holds the next launch while the model of the task has its own week used up, and launches it once the week opens', async () => {
+    const options: { modelWeek?: ModelWeekHold | null } = { modelWeek: { model: 'Fable', until: '2026-09-26T17:00:00.000Z' } }
+    const { dispatcher, launched, saved } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toEqual({
+      project: 'ABC', current: null, paused: false, error: null,
+      modelWeek: { model: 'Fable', until: '2026-09-26T17:00:00.000Z' },
+    })
+    expect(saved.at(-1)?.active[0]?.modelWeek).toEqual({ model: 'Fable', until: '2026-09-26T17:00:00.000Z' })
+
+    options.modelWeek = null
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]?.modelWeek).toBeUndefined()
+  })
+
+  it('holds the launch while the week of the model is used up and its reset is unknown', async () => {
+    const options: { modelWeek?: ModelWeekHold | null } = { modelWeek: { model: 'Fable', until: null } }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]?.modelWeek).toEqual({ model: 'Fable', until: null })
   })
 
   it('holds the launch until the account answers its first limits poll since the start', async () => {

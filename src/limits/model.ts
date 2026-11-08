@@ -194,6 +194,35 @@ export function exhaustedReset(limits: RateLimits | null): string | null {
   return resets.sort().at(-1) ?? null
 }
 
+/**
+ * The model's own week used up for the model a session of `model` runs on (BTN-816): the server names that week by its
+ * `display_name` ("Fable"), the task's model is what the CLI takes ("fable", "claude-fable-5"), and the two are matched
+ * by the family they name. `null` — the plan has no week of that model, or its week is not used up.
+ */
+export function spentModelWeek(limits: RateLimits | null, model: string | null): ModelWeek | null {
+  if (limits === null || model === null) return null
+  return limits.models?.weeks.find((week) => week.usedPercentage >= 100 && modelWeekMatches(week.model, model)) ?? null
+}
+
+/**
+ * Whether the model's own week the server names `name` is the week of `model`: the name's family word is a word of the
+ * model ("Fable" in "claude-fable-5"). The name is not known ahead of the server's answer, so the words of the name are
+ * compared with the words of the model; a word that names no family ("claude") is left out.
+ */
+export function modelWeekMatches(name: string, model: string): boolean {
+  const family = wordsOf(name).filter((word) => !GENERIC_WORDS.has(word))
+  if (family.length === 0) return false
+  const given = new Set(wordsOf(model))
+  return family.some((word) => given.has(word))
+}
+
+const GENERIC_WORDS = new Set(['claude', 'anthropic'])
+
+/** The words of a name, in lower case: the digits and the punctuation name no family. */
+function wordsOf(name: string): string[] {
+  return name.toLowerCase().split(/[^a-z]+/).filter((word) => word !== '')
+}
+
 const FIVE_HOURS_MS = 5 * 60 * 60_000
 /** How near the named reset a window's own reset still counts as that window: a refusal names it to the hour or minute. */
 const SAME_WINDOW_MS = 60 * 60_000

@@ -20,6 +20,8 @@
 
 Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 
+`?chain=modelWeek` gives the chain a task held by a model's own week (BTN-816) with a reset, `?chain=modelWeekUnknown` one without: the chip names the wait and the line under it the model and the reset, or says that the reset time is not known. Use them on `/p/ABC` and on a home card.
+
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.
 
 ```sh

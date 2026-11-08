@@ -28,6 +28,12 @@ describe('chainWaits', () => {
     expect(chainWaits(stateOf(chain), 'ABC').map((each) => each.kind)).toEqual(['closing', 'ci', 'limits', 'limit', 'slot'])
   })
 
+  it('names the model whose own week holds the chain, and whether its reset is known', () => {
+    const chain = running({ modelWeek: { model: 'Fable', until: '2026-11-01T05:00:00.000Z' } })
+    expect(chainWaits(stateOf(chain), 'ABC')).toEqual([{ kind: 'model', model: 'Fable', until: '2026-11-01T05:00:00.000Z' }])
+    expect(chainWaits(stateOf(running({ modelWeek: { model: 'Fable', until: null } })), 'ABC')).toEqual([{ kind: 'model', model: 'Fable', until: null }])
+  })
+
   it('names the packages a chain about to launch waits for, and whether they pass by themselves', () => {
     const cells: ProjectPackages['cells'] = {
       huly: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'installing' }, { kind: 'unsupported', agent: 'codex' }] },

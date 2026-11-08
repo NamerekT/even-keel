@@ -140,6 +140,16 @@ export class MainFix {
       }
       return false
     }
+    // The model's own week is used up: the fix waits for it, and only the poll can say when it opens (BTN-816).
+    const week = this.deps.modelWeek?.(project, held.task) ?? null
+    if (week !== null) {
+      if (chain.modelWeek?.model !== week.model || chain.modelWeek.until !== week.until || chain.limitUntil !== undefined) {
+        chain.modelWeek = week
+        delete chain.limitUntil
+        this.deps.save(this.state)
+      }
+      return false
+    }
     const account = this.deps.account(project, held.task)
     if (!account.ready) return false
     const session = this.deps.handoff(held.task)
@@ -153,6 +163,7 @@ export class MainFix {
     const current: CurrentTask = { task: held.task, sessionId: held.sessionId, since: held.since, starting: at }
     delete chain.interrupted
     delete chain.limitUntil
+    delete chain.modelWeek
     this.host.take(chain, current)
     this.deps.save(this.state)
     const prompt = mainFixedPrompt(held.commit, held.fixed ?? null, this.deps.promptLanguage(held.task), this.deps.mainBranch(held.task))

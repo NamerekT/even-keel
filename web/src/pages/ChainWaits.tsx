@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { ciWaitText, limitsWaitText, limitWaitText } from '../state.js'
 import { problemText } from '../tools/packageView.js'
@@ -33,6 +34,8 @@ function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
       return limitsWaitText(wait.wait, now)
     case 'limit':
       return limitWaitText(wait.until, now)
+    case 'model':
+      return t.banner.modelHold(wait.model, wait.until === null ? null : formatMoment(wait.until, now))
     case 'gateway':
       return t.banner.gatewayHold
     case 'packages': {

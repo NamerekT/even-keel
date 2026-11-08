@@ -36,6 +36,11 @@ export interface ActiveChain {
   paused: boolean
   error: Notice | null
   limitUntil?: string
+  /**
+   * The model's own week is used up on the account the next task would start on (BTN-816): the chain holds the task
+   * until the week opens. `until` — when it opens, unknown without it: the poll is then the only thing that can tell.
+   */
+  modelWeek?: ModelWeekHold
   /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
   slotWait?: { notice: Notice; at: string }
   /**
@@ -59,6 +64,14 @@ export interface ActiveChain {
 export interface LimitsWait {
   account: string
   next: string | null
+}
+
+/** The model's own week used up on the account a session would start on (BTN-816). */
+export interface ModelWeekHold {
+  /** The model's name as the server gave it ("Fable"). */
+  model: string
+  /** When the week opens; `null` — the server named no reset, and only a poll can tell. */
+  until: string | null
 }
 
 export interface Interrupted {
@@ -336,6 +349,11 @@ export interface DispatcherDeps {
   accountAt: (account: string, at: string) => string | null
   /** When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
   limitReset: (project: string, task?: string) => string | null
+  /**
+   * The model's own week used up on the account the project's session (or `task`'s) would start on (BTN-816): the chain
+   * holds the task until the week opens. `null` — no such week.
+   */
+  modelWeek?: (project: string, task?: string) => ModelWeekHold | null
   /** When the limit hit at `at` resets; a key's recovery may precede the spending reset in `text`. */
   limitResetAfter: (account: string, at: string, text?: string) => string | null
   /** When a poll after the limit hit at `at` showed the account open before `resetsAt` (BTN-530); `null` — it did not. */

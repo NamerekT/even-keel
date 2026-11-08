@@ -419,6 +419,13 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
   }
+  if (params.get('chain') === 'modelWeek' && active) {
+    const modelWeek = { model: 'Fable', until: new Date(Date.now() + 95 * 60_000).toISOString() }
+    current.state!.chain.active = [{ ...active, current: null, modelWeek }]
+  }
+  if (params.get('chain') === 'modelWeekUnknown' && active) {
+    current.state!.chain.active = [{ ...active, current: null, modelWeek: { model: 'Fable', until: null } }]
+  }
   if (params.get('chain') === 'limitsUnread' && active) {
     const limitsWait = { account: 'global', next: new Date(Date.now() + 4 * 60_000).toISOString() }
     current.state!.chain.active = [{ ...active, current: null, limitsWait }]

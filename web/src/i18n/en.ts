@@ -160,6 +160,10 @@ export const en: Messages = {
     usageOff: (reason: string | null) =>
       `/usage polling is off until the service restarts: the answer looks like a model turn, and that spends quota. Reason: ${reason}`,
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
+    modelHold: (model: string, at: string | null) =>
+      at === null
+        ? `The ${model} week is used up — the next task starts when it opens; the reset time is not known.`
+        : `The ${model} week is used up — the next task starts after the reset at ${at}.`,
     ciHold: (commit: string, since: string) => `Waiting for the CI of main on ${commit} since ${since} — the next task starts when it is green.`,
     checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
     afterGreenHold: (commit: string, since: string) =>
@@ -289,7 +293,7 @@ export const en: Messages = {
     idle: 'not started',
     position: (position: number) => `#${position}`,
     waiting: 'waiting',
-    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', gateway: 'MCP gateway', packages: 'packages', slot: 'slot' },
+    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', slot: 'slot' },
   },
   lamp: {
     done: 'done',

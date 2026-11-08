@@ -164,4 +164,26 @@ describe('limits end to end', { timeout: 60_000 }, () => {
     expect(shown()).toMatchObject({ fiveHour: hours(10, '2026-10-01T14:10:00.000Z'), sevenDay: week(31) })
     await run.until(() => run.service.account.view.accounts.find((entry) => entry.key === ACCOUNT)?.limitsOutdated === undefined, 'the card without the mark')
   })
+
+  it('holds the next task while the week of its model is used up, and launches it once the week opens (BTN-816)', async () => {
+    const opens = Date.parse('2026-10-01T09:20:00Z')
+    run.project.models = { claude: 'fable' }
+    run.agent.windows = (_account, at) => ({
+      fiveHour: hours(20, '2026-10-01T13:00:00.000Z'),
+      sevenDay: week(40),
+      models: { weeks: [{ model: 'Fable', usedPercentage: Date.parse(at) >= opens ? 0 : 100, resetsAt: null }], updatedAt: at },
+    })
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', commitAndMerge())
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    await run.until(() => run.service.dispatcher.state.active[0]?.modelWeek?.model === 'Fable', 'the week of the model holds the chain')
+    expect(launches()).toEqual([])
+
+    await run.pass(25 * 60_000)
+    await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 30_000, limitMs: 10 * 60_000 })
+    expect(run.service.dispatcher.state.active[0]?.modelWeek).toBeUndefined()
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+  })
 })

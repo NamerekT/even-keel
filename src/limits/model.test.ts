@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, limitReopenedAt, limitResetAfter,limitsFileDir, limitsOfRateLimitInfo, limitSpans, newestLimits, parseLimitsFile, withSessionLimits } from './model.js'
+import { currentLimits, exhaustedReset, limitReopenedAt, limitResetAfter,limitsFileDir, limitsOfRateLimitInfo, limitSpans, modelWeekMatches, newestLimits, parseLimitsFile, spentModelWeek, withSessionLimits } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -401,5 +401,55 @@ describe('withSessionLimits', () => {
     const fiveHour = { usedPercentage: 25, resetsAt: '2026-01-01T15:00:00.000Z' }
 
     expect(withSessionLimits({ ...polled, models }, { fiveHour }, '2026-01-01T12:03:00.000Z').models).toEqual(models)
+  })
+})
+
+describe('modelWeekMatches', () => {
+  it('matches the model a session of it runs on, by the family the server names', () => {
+    expect(modelWeekMatches('Fable', 'fable')).toBe(true)
+    expect(modelWeekMatches('Fable', 'claude-fable-5-1')).toBe(true)
+    expect(modelWeekMatches('Fable', 'CLAUDE-FABLE-5')).toBe(true)
+  })
+
+  it('keeps another model of the same plan out of the week', () => {
+    expect(modelWeekMatches('Fable', 'opus')).toBe(false)
+    expect(modelWeekMatches('Fable', 'claude-opus-4-1')).toBe(false)
+    expect(modelWeekMatches('Fable', 'sonnet')).toBe(false)
+  })
+
+  it('takes the family out of a name with more words', () => {
+    expect(modelWeekMatches('Claude Opus 4.1', 'opus')).toBe(true)
+    expect(modelWeekMatches('Claude Opus 4.1', 'claude-opus-4-1')).toBe(true)
+    expect(modelWeekMatches('Claude Opus 4.1', 'claude-sonnet-4-5')).toBe(false)
+  })
+
+  it('knows nothing of a name without a family in it', () => {
+    expect(modelWeekMatches('Claude', 'claude-opus-4-1')).toBe(false)
+    expect(modelWeekMatches('', 'opus')).toBe(false)
+  })
+})
+
+describe('spentModelWeek', () => {
+  const week = (model: string, usedPercentage: number, resetsAt: string | null) => ({ model, usedPercentage, resetsAt })
+  const limits = (weeks: ReturnType<typeof week>[]) => ({
+    fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'usage' as const,
+    models: { weeks, updatedAt: RECEIVED_AT },
+  })
+
+  it('takes the week of the model that is used up', () => {
+    const known = limits([week('Fable', 100, '2026-01-05T09:30:00.000Z'), week('Sonnet', 40, null)])
+
+    expect(spentModelWeek(known, 'claude-fable-5')).toEqual(week('Fable', 100, '2026-01-05T09:30:00.000Z'))
+  })
+
+  it('leaves a week that is not used up, and another model of the plan', () => {
+    expect(spentModelWeek(limits([week('Fable', 40, null)]), 'fable')).toBeNull()
+    expect(spentModelWeek(limits([week('Fable', 100, null)]), 'opus')).toBeNull()
+  })
+
+  it('knows nothing of a model the plan does not name and of an account without model weeks', () => {
+    expect(spentModelWeek(limits([week('Fable', 100, null)]), null)).toBeNull()
+    expect(spentModelWeek({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'usage' }, 'fable')).toBeNull()
+    expect(spentModelWeek(null, 'fable')).toBeNull()
   })
 })

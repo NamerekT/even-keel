@@ -182,6 +182,8 @@ export class Handovers {
     const session = this.deps.handoff(current.task)
     if (session === undefined || session.checkpoint === null || session.sessionId !== current.sessionId) return
     if (this.deps.blocked(chain.project, current.task) !== undefined || this.deps.limitReset(chain.project, current.task) !== null) return
+    // The model's own week is used up: the new session of the task would be refused too (BTN-816).
+    if (this.deps.modelWeek?.(chain.project, current.task) != null) return
     await this.handOverCurrent(chain, current, session, 'checkpoint')
   }
 

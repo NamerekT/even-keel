@@ -42,6 +42,11 @@ describe('pageEvents', () => {
     expect(paused.map((each) => each.kind)).toEqual(['limit'])
   })
 
+  it('sees a chain that waits for the week of its model (BTN-816)', () => {
+    const waits = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ modelWeek: { model: 'Fable', until: null } })] } })
+    expect(waits).toEqual([{ key: 'limit|p1|model:Fable', kind: 'limit', project: 'p1' }])
+  })
+
   it('sees a red main once, by its run, its fix or a failed check of it', () => {
     const red = { key: 'red|p1|abc1234', kind: 'red', project: 'p1', cis: [], commit: 'abc1234' }
     expect(pageEvents({ ...none, ci: { p1: [view('failure')] } })).toEqual([{ ...red, cis: ['forgejo'] }])
