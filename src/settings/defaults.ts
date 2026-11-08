@@ -28,4 +28,5 @@ export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({
   waitMinutes: null,
   recheckMain: true,
   fixTask: false,
+  rerunFailed: true,
 })

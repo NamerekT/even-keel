@@ -96,7 +96,7 @@ export function setup(options: SetupOptions = {}) {
   const handoffs: Record<string, HandoffSession> = {}
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string; stopped?: true }[] = []
   const launched: string[] = []
-  const fixes: { project: string; name: string; report: string }[] = []
+  const fixes: { project: string; name: string; report: string; reran?: boolean }[] = []
   const carries: { project: string; name: string; report: string }[] = []
   /** The release commits each project's branch has, `<project>/<commit>`. */
   const carried = new Set<string>()
@@ -185,10 +185,10 @@ export function setup(options: SetupOptions = {}) {
       relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason, ...(session.stopped && { stopped: true }) })
       return `session-${++counter}`
     },
-    launchFix: async (project, name, report) => {
+    launchFix: async (project, name, report, reran) => {
       if (name === options.failLaunch) throw new Error(`claude: could not start ${name}`)
       launched.push(`${project}/${name}`)
-      fixes.push({ project, name, report })
+      fixes.push({ project, name, report, ...(reran === true ? { reran } : {}) })
       return `session-${++counter}`
     },
     launchCarry: async (project, name, report) => {

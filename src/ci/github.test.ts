@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { noticeOf } from '../notice/notice.js'
 import { githubActionsSource } from './github.js'
 
 function fake(routes: Record<string, unknown>) {
@@ -150,5 +151,23 @@ describe('githubActionsSource', () => {
     const source = githubActionsSource({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
     expect(await source.log!({ id: 11 } as never)).toBe('FAIL')
     expect(accept).toBe('application/vnd.github+json')
+  })
+
+  it('reruns only the failed jobs of a run, an empty 201 being the answer (BTN-846)', async () => {
+    const asked: { url: string; method: string | undefined }[] = []
+    const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
+      asked.push({ url: String(input), method: init?.method })
+      return new Response(null, { status: 201 })
+    }) as typeof fetch
+    const source = githubActionsSource({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    await source.rerun!({ id: 38171546488 } as never)
+    expect(asked).toEqual([{ url: 'https://api.github.com/repos/octo-org/app/actions/runs/38171546488/rerun-failed-jobs', method: 'POST' }])
+  })
+
+  it('tells a token without the right to rerun by its own code', async () => {
+    const fetchImpl = (async () => new Response('{"message":"Resource not accessible by personal access token"}', { status: 403 })) as typeof fetch
+    const source = githubActionsSource({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    const error = await source.rerun!({ id: 1 } as never).catch((error: unknown) => error)
+    expect(noticeOf(error)).toMatchObject({ code: 'ci.rerunDenied', params: { ci: 'GitHub Actions', status: 403 } })
   })
 })

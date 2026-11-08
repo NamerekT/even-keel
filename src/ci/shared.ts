@@ -48,6 +48,15 @@ export class SharedSources {
       },
     }
     if (entry.source.log !== undefined) source.log = (job) => this.entryOf(key, target, token)!.source.log!(job)
+    if (entry.source.rerun !== undefined) {
+      source.rerun = async (run) => {
+        const current = this.entryOf(key, target, token)!
+        await current.source.rerun!(run)
+        // What was read before the rerun shows the run finished: the next poll asks the API anew.
+        current.runs.clear()
+        current.jobs.clear()
+      }
+    }
     return source
   }
 

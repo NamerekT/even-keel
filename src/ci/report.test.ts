@@ -68,6 +68,12 @@ describe('redReport', () => {
     expect(description).not.toContain('## Хвост лога')
   })
 
+  it('says the failed jobs were rerun once and failed again (BTN-846)', () => {
+    expect(redReport({ ...facts, reran: true }, 'en').description).toContain('Even Keel already reran the failed jobs once')
+    expect(redReport({ ...facts, reran: true }, 'en', 'ru').prompt).toContain('Even Keel уже один раз перезапустил упавшие задания')
+    expect(redReport(facts, 'en').description).not.toContain('already reran')
+  })
+
   it('makes the comment for a fix task already open from the same facts', () => {
     const { comment } = redReport(facts, 'ru')
     expect(comment.startsWith('CI на main снова упал на `abcdef1`.')).toBe(true)

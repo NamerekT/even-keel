@@ -22,6 +22,8 @@ export interface RedFacts {
   tasks: string[]
   /** The project's own check found main red (BTN-104); `runs` are then empty. */
   check?: CheckFailure
+  /** The failed jobs were rerun once and failed again (BTN-846). */
+  reran?: boolean
 }
 
 export const LOG_LINES = 60
@@ -47,6 +49,7 @@ interface Opening {
 interface ReportTexts extends Opening {
   check: Opening & { failed: string; exited: (command: string, code: number) => string }
   runs: string
+  reran: string
   job: string
   step: string
   log: string
@@ -72,6 +75,7 @@ const TEXTS: Record<Language, ReportTexts> = {
       exited: (command, code) => `\`${command}\` exited with code ${code}.`,
     },
     runs: 'Failed runs',
+    reran: 'Even Keel already reran the failed jobs once, and they failed again: this is not a one-off flake.',
     job: 'job',
     step: 'failed step',
     log: 'Log tail',
@@ -95,6 +99,7 @@ const TEXTS: Record<Language, ReportTexts> = {
       exited: (command, code) => `\`${command}\` завершилась с кодом ${code}.`,
     },
     runs: 'Упавшие прогоны',
+    reran: 'Even Keel уже один раз перезапустил упавшие задания, и они упали снова: это не разовый сбой.',
     job: 'задание',
     step: 'упал шаг',
     log: 'Хвост лога',
@@ -125,13 +130,14 @@ export function redReport(facts: RedFacts, language: Language, promptLanguage: L
 }
 
 function bodyOf(facts: RedFacts, texts: ReportTexts): string {
-  return [...(facts.check === undefined ? runsOf(facts.runs, texts) : checkOf(facts.check, texts)), `## ${texts.commits}`, ...commitsOf(facts, texts)].join('\n\n')
+  return [...(facts.check === undefined ? runsOf(facts.runs, texts, facts.reran === true) : checkOf(facts.check, texts)), `## ${texts.commits}`, ...commitsOf(facts, texts)].join('\n\n')
 }
 
-function runsOf(failedRuns: FailedRun[], texts: ReportTexts): string[] {
+function runsOf(failedRuns: FailedRun[], texts: ReportTexts, reran: boolean): string[] {
   const runs = failedRuns.flatMap((failed) => [`- ${CI_TITLES[failed.kind]}: [${failed.run.workflow} #${failed.run.number}](${failed.run.url})`, ...jobLines(failed.jobs, texts)])
   const logs = failedRuns.filter((failed) => failed.log !== null && failed.log !== '')
-  return [`## ${texts.runs}`, runs.join('\n'), ...(logs.length === 0 ? [texts.noLog] : [`## ${texts.log}`, ...logs.map((failed) => fenced(failed.log!))])]
+  const told = reran ? [texts.reran] : []
+  return [`## ${texts.runs}`, runs.join('\n'), ...told, ...(logs.length === 0 ? [texts.noLog] : [`## ${texts.log}`, ...logs.map((failed) => fenced(failed.log!))])]
 }
 
 function checkOf(check: CheckFailure, texts: ReportTexts): string[] {

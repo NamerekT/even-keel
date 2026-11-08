@@ -212,6 +212,9 @@ export const en = {
 
   'ci.noToken': (p: { kind: CiKind }) => `no profile has a token for this CI: add a ${FORGES[p.kind]} profile in Settings → Trackers and CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
+  'ci.rerunDenied': (p: { ci: string; status: number }) =>
+    `${p.ci}: the token was refused a rerun (HTTP ${p.status}); it needs to write the repository's actions: "Actions: write" on GitHub, the Developer role on GitLab`,
+  'ci.rerunUnsupported': (p: { ci: string }) => `${p.ci} cannot rerun jobs through its API`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
   'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
@@ -737,6 +740,11 @@ export const en = {
     `main is red at ${p.commit}${p.cis.length > 0 ? ` (${list(p.cis.map((ci) => FORGES[ci]))})` : ''}`,
   'eventLog.ciRed': (p: { project: string; commit: string; cis: CiKind[] }) =>
     `${list(p.cis.map((ci) => FORGES[ci]))} is red at ${p.commit}, the chain goes on`,
+  'eventLog.ciRerun': (p: { project: string; commit: string; cis: CiKind[] }) =>
+    `main is red at ${p.commit} (${list(p.cis.map((ci) => FORGES[ci]))}); its failed jobs are rerun once before a fix`,
+  'eventLog.ciRerunGreen': (p: { project: string; commit: string }) => `main is green at ${p.commit} on a rerun of its failed jobs: nothing to fix`,
+  'eventLog.ciRerunRed': (p: { project: string; commit: string }) => `main is red again at ${p.commit} on a rerun of its failed jobs`,
+  'eventLog.ciRerunFailed': (p: { project: string; commit: string }) => `the failed jobs of ${p.commit} were not rerun; a fix follows at once`,
   'eventLog.ask': (_: { task: string }) => 'asks a question',
   'eventLog.conflict': (p: { project: string; into: string }) => `the carry into ${p.into} hit a conflict`,
   'eventLog.uncommitted': (p: { task: string; path: string }) => `the work is done but not committed, in ${p.path}`,

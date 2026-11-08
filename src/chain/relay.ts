@@ -27,12 +27,15 @@ export function startPrompt(task: string, place: TaskPlace, language: Language, 
   return lines.join('\n') + '\n'
 }
 
-/** The prompt of the session that fixes a red main without a task: the report of what broke, then its place and rules. */
-export function fixPrompt(report: string, place: TaskPlace, language: Language, main = 'main'): string {
+/**
+ * The prompt of the session that fixes a red main without a task: the report of what broke, then its place and rules;
+ * `reran` — the failed jobs were already rerun once (BTN-846).
+ */
+export function fixPrompt(report: string, place: TaskPlace, language: Language, main = 'main', reran = false): string {
   const text = PROMPTS[language]
   const lines = [fill`${report.trim()}`, '', text.worktree(place.path)]
   if (place.branch !== null) lines.push(text.branch(place.branch))
-  lines.push(text.fixRules(main))
+  lines.push(text.fixRules(main, reran))
   return lines.join('\n') + '\n'
 }
 

@@ -69,8 +69,8 @@ export interface PromptTexts {
   /** The head of the user's chat message a `message` handover ends with (BTN-757). */
   userMessage: string
   unattended: string
-  /** The rules of a session that fixes a red main without a task. */
-  fixRules: (main: string) => string
+  /** The rules of a session that fixes a red main without a task; `reran` — Even Keel already reran the failed jobs once (BTN-846). */
+  fixRules: (main: string, reran: boolean) => string
   /** What a session stopped for a red main is told when it goes on; `fixed` — main after the fix, `null` — the fix was skipped. */
   mainFixed: (red: string, fixed: string | null, main: string) => string
   /** What the session resolving a release project's carry (BTN-369) merges and what conflicted. */
@@ -188,10 +188,13 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       '  4. Последним шагом, после последнего коммита, переведи задачу в Backlog: git-хук после коммита двигает задачу вперёд. Через полминуты проверь статус и, если хук его сдвинул, верни Backlog.',
       '  5. Закончи ход коротким отчётом. Следующую задачу Even Keel возьмёт сам, утром пользователь ответит в задаче или в этой сессии.',
     ].join('\n'),
-    fixRules: (main) =>
+    fixRules: (main, reran) =>
       [
         '- Задачи в трекере на эту починку нет: не заводи её и статусы не трогай, в сообщениях коммитов ID задач не пиши.',
         fill`- Починку слей в ${main} основного чекаута (git merge --no-edit в основной рабочей копии). Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel, он же проверит пуш.`,
+        ...(reran
+          ? ['- Even Keel уже один раз перезапустил упавшие задания этого коммита, и они упали снова: ещё раз их ради проверки на нестабильность не перезапускай, ищи причину в коде, тестах или окружении.']
+          : []),
         fill`- Если код не сломан (сбой раннера или инфраструктуры, нестабильный тест) — чинить нечего: перезапусти упавшие прогоны, если CI это позволяет, оставь ветку без коммитов сверх ${main} и с пустым git status и закончи ход последней строкой \`NO CHANGES: <одна строка — почему>\`. Even Keel заново спросит вердикт по красному коммиту: зелёный — починка закрыта и цепочка идёт дальше, красный — цепочка ждёт пользователя.`,
         '- Перед концом хода останови свои фоновые команды (циклы ожидания, наблюдение за логом CI): пока они работают, Even Keel считает тебя занятым.',
       ].join('\n'),
@@ -305,10 +308,13 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       '  4. As the last step, after the last commit, move the task to Backlog: a git hook moves the task forward after a commit. Check the status half a minute later and set Backlog again if the hook moved it.',
       '  5. End the turn with a short report. Even Keel takes the next task itself; in the morning the user answers in the task or in this session.',
     ].join('\n'),
-    fixRules: (main) =>
+    fixRules: (main, reran) =>
       [
         '- There is no tracker task for this fix: do not create one or move statuses, and put no task id into commit messages.',
         fill`- Merge the fix into ${main} of the main checkout (git merge --no-edit in the main working copy). After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up and checks the push.`,
+        ...(reran
+          ? ['- Even Keel already reran the failed jobs of this commit once, and they failed again: do not rerun them to test for a flake; look for the cause in the code, the tests or the environment.']
+          : []),
         fill`- If the code is not broken (a runner or infrastructure failure, a flaky test), there is nothing to fix: rerun the failed runs if the CI allows it, leave the branch with no commits beyond ${main} and git status clean, and end the turn with the last line \`NO CHANGES: <one line — why>\`. Even Keel asks for the verdict on the red commit again: green — the fix is closed and the chain goes on; red — the chain waits for the user.`,
         '- Before you end the turn, stop your background commands (wait loops, watching a CI log): while they run, Even Keel takes you for busy.',
       ].join('\n'),

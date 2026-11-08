@@ -379,24 +379,25 @@ describe('parseConfig', () => {
   })
 
   it('counts all supported CIs and waits for them as long as it takes unless the project says otherwise', () => {
-    expect(DEFAULT_CI).toEqual({ guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false })
+    expect(DEFAULT_CI).toEqual({ guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false, rerunFailed: true })
     const config = parse({
       projects: {
         ABC: { repo: 'C:\\abc', ci: { kinds: ['github'], waitMinutes: 15 } },
-        DEF: { repo: 'C:\\def', ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true } },
+        DEF: { repo: 'C:\\def', ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true, rerunFailed: false } },
         XYZ: { repo: 'C:\\xyz', ci: { waitMinutes: null } },
       },
     })
-    expect(config.settings.ABC?.ci).toEqual({ guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: false })
-    expect(config.settings.DEF?.ci).toEqual({ guard: true, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true })
+    expect(config.settings.ABC?.ci).toEqual({ guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: false, rerunFailed: true })
+    expect(config.settings.DEF?.ci).toEqual({ guard: true, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true, rerunFailed: false })
     expect(config.settings.XYZ?.ci).toEqual(DEFAULT_CI)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', ci: { recheckMain: 'no' } } } })).toThrow(/ABC.ci.recheckMain/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', ci: { fixTask: 1 } } } })).toThrow(/ABC.ci.fixTask/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', ci: { rerunFailed: 'yes' } } } })).toThrow(/ABC.ci.rerunFailed/)
   })
 
   it('turns the guard of main off only when the project says so, keeping the other CI keys', () => {
     const config = parse({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: false, kinds: ['github'], fixTask: true } } } })
-    expect(config.settings.ABC?.ci).toEqual({ guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true })
+    expect(config.settings.ABC?.ci).toEqual({ guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true, rerunFailed: true })
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: 'off' } } } })).toThrow(/ABC.ci.guard/)
   })
 

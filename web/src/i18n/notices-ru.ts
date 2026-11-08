@@ -178,6 +178,9 @@ export const noticesRu: NoticeTexts = {
 
   'ci.noToken': (p) => `ни у одного профиля нет токена для этого CI: добавьте профиль ${FORGES[p.kind]} в «Настройки → Трекеры и CI»`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
+  'ci.rerunDenied': (p) =>
+    `${p.ci}: токену отказано в перезапуске (HTTP ${p.status}) — ему нужна запись actions репозитория: «Actions: write» на GitHub, роль Developer на GitLab`,
+  'ci.rerunUnsupported': (p) => `${p.ci} не умеет перезапускать задания через API`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
   'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
@@ -648,6 +651,10 @@ export const noticesRu: NoticeTexts = {
   'eventLog.limit': () => 'цепочка встала на лимите',
   'eventLog.red': (p) => `main красный на ${p.commit}${p.cis.length > 0 ? ` (${list(p.cis.map((ci) => FORGES[ci]))})` : ''}`,
   'eventLog.ciRed': (p) => `${list(p.cis.map((ci) => FORGES[ci]))} красный на ${p.commit}, цепочка идёт дальше`,
+  'eventLog.ciRerun': (p) => `main красный на ${p.commit} (${list(p.cis.map((ci) => FORGES[ci]))}); упавшие задания перезапущены один раз до починки`,
+  'eventLog.ciRerunGreen': (p) => `main зелёный на ${p.commit} после перезапуска упавших заданий — чинить нечего`,
+  'eventLog.ciRerunRed': (p) => `main снова красный на ${p.commit} после перезапуска упавших заданий`,
+  'eventLog.ciRerunFailed': (p) => `упавшие задания ${p.commit} не перезапущены; починка — сразу`,
   'eventLog.ask': () => 'задаёт вопрос',
   'eventLog.conflict': (p) => `перенос в ${p.into} упёрся в конфликт`,
   'eventLog.uncommitted': (p) => `работа сделана, но не закоммичена, в ${p.path}`,

@@ -136,7 +136,7 @@ const command = (key: 'beforeStart' | 'check' | 'afterGreen'): SettingDefinition
   },
 })
 
-const ciSwitch = (key: 'guard' | 'recheckMain' | 'fixTask'): SettingDefinition => ({
+const ciSwitch = (key: 'guard' | 'recheckMain' | 'fixTask' | 'rerunFailed'): SettingDefinition => ({
   key: `ci.${key}`,
   kind: 'boolean',
   scopes: ['global', 'project'],
@@ -361,6 +361,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   ciSwitch('recheckMain'),
   ciSwitch('fixTask'),
+  // The first red verdict on a commit reruns its failed jobs once before a fix (BTN-846).
+  ciSwitch('rerunFailed'),
   { key: 'remoteProfiles', kind: 'json', scopes: ['project'], lands: ['settings'], default: {}, check: (value, place) => {
     const problem = () => fail('config.remoteProfiles', { where: at(place, 'remoteProfiles'), known: [...CI_KINDS] })
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw problem()
@@ -404,7 +406,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
 export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
+export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'ci.rerunFailed', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {

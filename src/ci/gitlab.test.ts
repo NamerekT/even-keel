@@ -118,4 +118,21 @@ describe('gitlabSource', () => {
     const error = await source.runs(10).catch((error: unknown) => error)
     expect(noticeOf(error)).toMatchObject(status === 404 ? { code: 'ci.http', params: { status } } : { code: 'ci.denied', params: { status } })
   })
+
+  it('retries the failed jobs of a pipeline (BTN-846)', async () => {
+    const asked: { url: string; method: string | undefined }[] = []
+    const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
+      asked.push({ url: String(input), method: init?.method })
+      return Response.json(PIPELINE, { status: 201 })
+    }) as typeof fetch
+    const source = gitlabSource({ web: 'https://git.example.com/lab', owner: 'group/sub', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    await source.rerun!({ id: 47 } as never)
+    expect(asked).toEqual([{ url: `${BASE}/pipelines/47/retry`, method: 'POST' }])
+  })
+
+  it('tells a token that may not retry by its own code', async () => {
+    const { source } = fake({ '/pipelines/47/retry': new Response('{"message":"403 Forbidden"}', { status: 403 }) })
+    const error = await source.rerun!({ id: 47 } as never).catch((error: unknown) => error)
+    expect(noticeOf(error)).toMatchObject({ code: 'ci.rerunDenied', params: { ci: 'GitLab CI', status: 403 } })
+  })
 })

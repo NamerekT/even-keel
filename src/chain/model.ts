@@ -1,4 +1,5 @@
 import type { CiVerdict, RedRun } from '../ci/verdict.js'
+import type { EventDraft } from '../event-log/model.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
@@ -133,7 +134,12 @@ export interface MainGate {
    * The task Even Keel created to fix a red main, from its creation until a push of it is judged. Without a task
    * (`ci.fixTask` off) `task` is the fix session's name and `report` its prompt, kept until its branch lands.
    */
-  fix?: { task: string; at: string; commit: string; report?: string }
+  fix?: { task: string; at: string; commit: string; report?: string; reran?: true }
+  /**
+   * The rerun of a red commit's failed jobs (BTN-846), one per commit, kept until another commit is rerun: `runs` are
+   * the failed runs as they ended then (`failedKey`) — while one is still so, the rerun has not ended.
+   */
+  rerun?: { commit: string; at: string; runs: string[] }
   /** The last green commit the project's `commands.afterGreen` were started on, written before they start. */
   afterGreen?: string
   /** On a release project's gate: the carry of its branch a session resolves, from "Resolve with the agent" until it lands or is skipped. */
@@ -166,6 +172,8 @@ export interface SessionFix {
   task: string
   commit: string
   report: string
+  /** Even Keel reran the failed jobs once and they failed again (BTN-846): the session is not to rerun them to test for a flake. */
+  reran?: true
 }
 
 /** A resting session left behind by a released task; one someone talked to since is not replaced. */
@@ -398,8 +406,8 @@ export interface DispatcherDeps {
   /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
-  /** Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke. */
-  launchFix: (project: string, name: string, report: string) => Promise<string>
+  /** Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke, `reran` — see `SessionFix`. */
+  launchFix: (project: string, name: string, report: string, reran?: boolean) => Promise<string>
   /** Starts the session that resolves a release project's carry (BTN-369) in a place of its own; `report` says what conflicted. */
   launchCarry: (project: string, name: string, report: string) => Promise<string>
   /** Whether the project's main branch has the commit: the carry's release commit is in. */
@@ -430,6 +438,12 @@ export interface MainCheckDeps {
   verdict: (project: string, commit: string, since: string) => CiVerdict
   /** The project's counted CIs are asked again for a while, though no run is under way: a rerun may change a verdict (EKR-88). */
   lookAgain: (project: string) => void
+  /** `ci.rerunFailed` (BTN-846): the first red verdict on a commit reruns its failed jobs before anything is fixed. */
+  rerunFailed: (project: string) => boolean
+  /** Reruns the failed jobs of each run; throws why one was not rerun (`ci.rerunUnsupported`, `ci.rerunDenied`, …). */
+  rerun: (project: string, failed: RedRun[]) => Promise<void>
+  /** Writes an entry of the event log. */
+  event: (draft: EventDraft) => void
   /** The remote's main by project, where the project's counted CIs have read it and agree on it (BTN-707). */
   remoteHeads: () => Record<string, string>
   /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */
@@ -472,7 +486,8 @@ export interface CheckFailure {
 export type MainCheckRun = { state: 'green' } | { state: 'red'; failure: CheckFailure } | { state: 'skipped'; reason: string }
 
 /** What found main red: the CI's failed runs or the project's own check. */
-export type MainFailure = { ci: RedRun[] } | { check: CheckFailure }
+/** `reran` — Even Keel reran the failed jobs once and they failed again (BTN-846). */
+export type MainFailure = { ci: RedRun[]; reran?: true } | { check: CheckFailure }
 
 /** The fix task's title and description, the comment for a fix task already open, and the prompt of a fix session without a task. */
 export interface RedReport {

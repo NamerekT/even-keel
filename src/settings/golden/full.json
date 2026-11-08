@@ -167,7 +167,8 @@
         ],
         "waitMinutes": 5,
         "recheckMain": false,
-        "fixTask": true
+        "fixTask": true,
+        "rerunFailed": false
       },
       "remoteProfiles": {
         "github": "33333333-3333-4333-8333-333333333333"
@@ -242,6 +243,7 @@
         "ci.waitMinutes": 5,
         "ci.recheckMain": false,
         "ci.fixTask": true,
+        "ci.rerunFailed": false,
         "fillMilestone": true,
         "codexAutoCompactWindow": null,
         "openCodeAutoCompactWindow": 150000,
@@ -265,7 +267,8 @@
         ],
         "waitMinutes": null,
         "recheckMain": true,
-        "fixTask": false
+        "fixTask": false,
+        "rerunFailed": true
       },
       "remoteProfiles": {},
       "pullRequests": false,
@@ -331,7 +334,8 @@
         ],
         "waitMinutes": null,
         "recheckMain": true,
-        "fixTask": false
+        "fixTask": false,
+        "rerunFailed": true
       },
       "remoteProfiles": {},
       "pullRequests": false,
@@ -397,7 +401,8 @@
         ],
         "waitMinutes": null,
         "recheckMain": true,
-        "fixTask": false
+        "fixTask": false,
+        "rerunFailed": true
       },
       "remoteProfiles": {},
       "pullRequests": false,
@@ -536,7 +541,8 @@
     ],
     "waitMinutes": null,
     "recheckMain": true,
-    "fixTask": false
+    "fixTask": false,
+    "rerunFailed": true
   },
   "fillMilestone": false,
   "parallel": 2,

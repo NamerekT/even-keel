@@ -181,6 +181,7 @@ export interface OwnValues {
   'ci.waitMinutes'?: number | null
   'ci.recheckMain'?: boolean
   'ci.fixTask'?: boolean
+  'ci.rerunFailed'?: boolean
   fillMilestone?: boolean
   promptLanguage?: Language
   cacheTtl?: CacheTtl | null
@@ -205,6 +206,8 @@ export interface CiSettings {
   recheckMain: boolean
   /** A red main gets a fix task in the tracker; without it a session with no task fixes main (BTN-115). */
   fixTask: boolean
+  /** The first red verdict on a commit reruns only its failed jobs, once, before a fix (BTN-846); green on the rerun — nothing to fix. */
+  rerunFailed: boolean
 }
 
 /** The prompt cache lifetime a chain session is started with; the CLI picks its own without one. */

@@ -453,6 +453,12 @@ describe('prompts in English', () => {
     expect(mainFixedPrompt('c1c1c1c1c1', 'c2c2c2c2c2', 'en', 'trunk')).toContain('Merge trunk into your branch')
   })
 
+  it('tells a fix session the failed jobs were already rerun once, and only then (BTN-846)', () => {
+    expect(fixPrompt('Broken.', place, 'en', 'main', true)).toContain('Even Keel already reran the failed jobs of this commit once')
+    expect(fixPrompt('Broken.', place, 'ru', 'main', true)).toContain('Even Keel уже один раз перезапустил упавшие задания')
+    expect(fixPrompt('Broken.', place, 'en', 'main')).not.toContain('already reran')
+  })
+
   it('tells the carry session what to merge, what conflicted, which side wins and how it ends (BTN-369)', () => {
     const facts = { release: 'EKR', branch: 'release/v0.1', into: 'BTN', main: 'dev', ref: 'refs/even-keel/forward/f00d', commit: 'r1r1r1r1r1', commits: 2, files: ['a.ts', 'b.md'] }
     for (const language of ['en', 'ru'] as const) {

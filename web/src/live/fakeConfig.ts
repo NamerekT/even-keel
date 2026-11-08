@@ -53,7 +53,7 @@ export const FAKE_VOCABULARY: TrackerVocabulary = {
   milestones: ['v1.0', 'v1.1', 'v2.0'],
 }
 
-const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false }
+const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false, rerunFailed: true }
 
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,
@@ -140,7 +140,7 @@ export function fakeConfig(account?: string | null): ConfigView {
         tracker: 'github',
         trackerProject: 'octo-org/demo',
         afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
-        ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
+        ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true, rerunFailed: true },
         promptLanguage: 'ru',
         checkpointTokens: 180_000,
         own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
@@ -150,7 +150,7 @@ export function fakeConfig(account?: string | null): ConfigView {
         checkpointShares: { first: 65, late: 80, hard: 90 },
         own: { 'stats.checkpointShares.first': 65, 'stats.checkpointShares.late': 80, 'stats.checkpointShares.hard': 90 },
       }),
-      OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false },
+      OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false, rerunFailed: false },
         own: { 'ci.guard': false, 'ci.kinds': [], 'ci.waitMinutes': 0, 'ci.recheckMain': false },
       }),
     },

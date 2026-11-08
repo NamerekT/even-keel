@@ -289,11 +289,11 @@ export function mapOf<T>(raw: unknown, field: string, fits: (value: unknown) => 
 }
 
 export function ciOf(raw: unknown): CiSettings {
-  const { guard, kinds, waitMinutes, recheckMain, fixTask } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const { guard, kinds, waitMinutes, recheckMain, fixTask, rerunFailed = DEFAULT_CI.rerunFailed } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const known = Array.isArray(kinds) && kinds.every((kind) => (CI_KINDS as readonly unknown[]).includes(kind))
   const wait = waitMinutes === null || (Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)
-  if (typeof guard !== 'boolean' || !known || !wait || typeof recheckMain !== 'boolean' || typeof fixTask !== 'boolean') throw fail('request.required', { field: 'ci' })
-  return { guard, kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null, recheckMain, fixTask }
+  if (typeof guard !== 'boolean' || !known || !wait || typeof recheckMain !== 'boolean' || typeof fixTask !== 'boolean' || typeof rerunFailed !== 'boolean') throw fail('request.required', { field: 'ci' })
+  return { guard, kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null, recheckMain, fixTask, rerunFailed }
 }
 
 export function accountOf(body: Record<string, unknown>): string {

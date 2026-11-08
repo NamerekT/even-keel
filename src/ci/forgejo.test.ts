@@ -118,4 +118,8 @@ describe('forgejoSource', () => {
     expect(error).toBeInstanceOf(NoticeError)
     expect((error as NoticeError).notice).toMatchObject({ code: 'ci.denied', params: { ci: 'Forgejo', status: 401 } })
   })
+
+  it('has no rerun: the API of Forgejo 16.0.3 gives none (BTN-846)', () => {
+    expect(fake({}).source.rerun).toBeUndefined()
+  })
 })

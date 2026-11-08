@@ -1,8 +1,9 @@
 import type { Git } from '../git/types.js'
-import { englishOf, notice, noticeOf, sameNotice } from '../notice/notice.js'
+import { englishOf, fail, notice, noticeOf, sameNotice } from '../notice/notice.js'
 import { currentRunOf, failedKey, failedUntaken, isFinished, medianDuration, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
+import { CI_TITLES } from './verdict.js'
 
 /** How often an unfinished run or a fresh push is polled. */
 export const POLL_MS = 15_000
@@ -135,6 +136,22 @@ export class CiWatch {
     } finally {
       this.busy = false
     }
+  }
+
+  get rerunnable(): boolean {
+    return this.source?.rerun !== undefined
+  }
+
+  /**
+   * Reruns the failed jobs of a run (BTN-846) and polls the history at once and then for `WANT_MS`, for the run
+   * under way again. Throws `ci.rerunUnsupported` for a CI without a rerun, a CI's own error otherwise.
+   */
+  async rerun(run: CiRun): Promise<void> {
+    const source = this.source
+    if (source?.rerun === undefined) throw fail('ci.rerunUnsupported', { ci: CI_TITLES[this.view.kind] })
+    await source.rerun(run)
+    this.polledAt = -Infinity
+    this.want()
   }
 
   /** A failed run with its jobs and the log tail of its first failed job, for the fix task; what cannot be read stays `null`. */

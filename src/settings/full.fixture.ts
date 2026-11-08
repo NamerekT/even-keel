@@ -45,7 +45,7 @@ export const FULL = {
       chain: { active: null, excludedLabels: ['Manual'] },
       prompt: ' Mind the Library. ',
       commands: { beforeStart: ['npm ci', ' '], check: [' npm test '] },
-      ci: { guard: false, kinds: ['github', 'forgejo'], waitMinutes: 5, recheckMain: false, fixTask: true },
+      ci: { guard: false, kinds: ['github', 'forgejo'], waitMinutes: 5, recheckMain: false, fixTask: true, rerunFailed: false },
       remoteProfiles: { github: ' 33333333-3333-4333-8333-333333333333 ', forgejo: '' },
       pullRequests: true,
       testProject: true,

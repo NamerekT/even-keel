@@ -311,6 +311,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('ci', 'ci.waitMinutes', form.ci.waitMinutes),
     value('ci', 'ci.recheckMain', form.ci.recheckMain),
     value('ci', 'ci.fixTask', form.ci.fixTask),
+    value('ci', 'ci.rerunFailed', form.ci.rerunFailed),
     value('fillMilestone', 'fillMilestone', form.fillMilestone),
     value('allowedHosts', 'allowedHosts', names(form.allowedHosts).map((name) => name.toLowerCase())),
     ...(['window', 'warn', 'danger'] as const).map((key) => value('context', `context.${key}`, form.context[key])),

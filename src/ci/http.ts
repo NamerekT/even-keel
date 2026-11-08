@@ -1,7 +1,7 @@
 import { fail } from '../notice/notice.js'
 
 /** What a refused token is told it needs: the CI's runs, pull requests, issues (BTN-262). */
-export type Denied = 'ci.denied' | 'review.denied' | 'intake.denied'
+export type Denied = 'ci.denied' | 'ci.rerunDenied' | 'review.denied' | 'intake.denied'
 
 export async function getJson<T>(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch, denied: Denied = 'ci.denied'): Promise<T> {
   return (await (await request(ci, url, { authorization, accept: 'application/json', denied }, timeoutMs, fetchImpl)).json()) as T
@@ -34,6 +34,11 @@ export async function sendJson<T>(
 ): Promise<T> {
   const options = { authorization, accept: 'application/json', method, body: JSON.stringify(body), denied }
   return (await (await request(ci, url, options, timeoutMs, fetchImpl)).json()) as T
+}
+
+/** A write whose answer is not read: a rerun of a run's failed jobs (BTN-846), answered 201 with no body by GitHub. */
+export async function post(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch, denied: Denied): Promise<void> {
+  await request(ci, url, { authorization, accept: 'application/json', method: 'POST', denied }, timeoutMs, fetchImpl)
 }
 
 interface RequestOptions {

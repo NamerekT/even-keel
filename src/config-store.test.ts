@@ -112,7 +112,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       beforeStart: ['npm ci'],
       check: ['npm test'],
       afterGreen: [],
-      ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
+      ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false, rerunFailed: true },
       remoteProfiles: { github: 'org' },
       standards: [],
       mergeInto: null,

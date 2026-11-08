@@ -51,6 +51,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'task.relabelFailed': PROFILES,
   'ci.noToken': PROFILES,
   'ci.denied': PROFILES,
+  'ci.rerunDenied': PROFILES,
   'review.denied': PROFILES,
   'config.token': PAGE,
   'config.tokenShape': PAGE,

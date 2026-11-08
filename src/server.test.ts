@@ -82,7 +82,7 @@ describe('Even Keel HTTP server', () => {
   const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, accounts: {}, modelLabels: true, pullRequests: false, intakeLabel: null, mergeInto: null, carryAgent: false, remoteProfiles: { forgejo: 'own' } }
 
   it('passes the settings of a project on with the values the form started from', async () => {
-    const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
+    const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true, rerunFailed: false }
     const settings = {
       ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', standards: [STANDARD], ...form },
       ...{ testProject: true, promptLanguage: 'ru', cacheTtl: '1h', autoCompactWindow: 400_000, codexAutoCompactWindow: 250_000, openCodeAutoCompactWindow: 180_000, contextHandoffs: false, checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
@@ -180,7 +180,7 @@ describe('Even Keel HTTP server', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: { first: 70, late: 85, hard: 95 } },
       updates: { check: true, notify: false },
-      ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true },
+      ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true, rerunFailed: false },
       fillMilestone: true,
     }
     const started = { ...shared, parallel: 1 }
@@ -270,6 +270,7 @@ describe('Even Keel HTTP server', () => {
       { guard: true, kinds: [], waitMinutes: 1.5, recheckMain: true, fixTask: false },
       { guard: true, kinds: [], waitMinutes: null, fixTask: false },
       { guard: true, kinds: [], waitMinutes: null, recheckMain: true },
+      { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false, rerunFailed: 'yes' },
       { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
     ]
     for (const ci of bad) {

@@ -25,7 +25,9 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: CiTarget; counted?: boolean } = {}) {
+function setup(
+  options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; rerun?: CiSource['rerun']; main?: string; target?: CiTarget; counted?: boolean } = {},
+) {
   let main = options.main ?? 'main'
   let counted = options.counted ?? true
   const branches: (string | undefined)[] = []
@@ -41,6 +43,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
   const jobs: CiJob[] = options.jobs ?? [{ id: 1, name: 'test', status: 'success', startedAt: null, stoppedAt: null, steps: null }]
   const source: CiSource = {
     ...(options.log === undefined ? {} : { log: options.log }),
+    ...(options.rerun === undefined ? {} : { rerun: options.rerun }),
     runs: async (_limit, branch) => {
       branches.push(branch)
       calls.runs++
@@ -354,6 +357,26 @@ describe('CiWatch and runs no runner took (BTN-761)', () => {
     t.watch.want()
     await t.watch.tick()
     expect(asked).toEqual([1, 2, 2])
+  })
+})
+
+describe('CiWatch.rerun (BTN-846)', () => {
+  it('reruns through the source and polls the finished history again at once', async () => {
+    const reran: number[] = []
+    const t = setup({ runs: [run(2, { status: 'failure' }), run(1)], rerun: async (each) => void reran.push(each.id) })
+    await t.watch.tick()
+    expect(t.watch.rerunnable).toBe(true)
+    t.advance(1000)
+    await t.watch.rerun(run(2, { status: 'failure' }))
+    expect(reran).toEqual([2])
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(2)
+  })
+
+  it('throws ci.rerunUnsupported for a source without a rerun', async () => {
+    const t = setup()
+    expect(t.watch.rerunnable).toBe(false)
+    await expect(t.watch.rerun(run(2))).rejects.toMatchObject({ notice: { code: 'ci.rerunUnsupported', params: { ci: 'Forgejo' } } })
   })
 })
 

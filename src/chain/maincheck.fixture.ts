@@ -1,5 +1,6 @@
 import type { CiRun } from '../ci/model.js'
-import type { CiVerdict } from '../ci/verdict.js'
+import type { CiVerdict, RedRun } from '../ci/verdict.js'
+import type { EventDraft } from '../event-log/model.js'
 import type { NewTask } from '../tracker/source.js'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { fixName } from './fix.js'
@@ -53,6 +54,13 @@ export function fakeMain(wait: number | null = null) {
     remote: {} as Record<string, string>,
     /** The projects whose CIs the chain asked to look again, a call per step. */
     looks: [] as string[],
+    /** `ci.rerunFailed` (BTN-846); off here, so the tests before it see a red at once. */
+    rerunFailed: false,
+    /** The failed runs of each rerun asked for. */
+    reruns: [] as RedRun[][],
+    /** Thrown by a rerun; `null` — it starts. */
+    rerunError: null as unknown,
+    events: [] as EventDraft[],
   }
   const deps: MainCheckDeps = {
     peers: (project) => ci.peers[project] ?? [],
@@ -60,6 +68,14 @@ export function fakeMain(wait: number | null = null) {
     verdict: () => ci.verdict,
     lookAgain: (project) => {
       ci.looks.push(project)
+    },
+    rerunFailed: () => ci.rerunFailed,
+    rerun: async (_project, failed) => {
+      ci.reruns.push(failed)
+      if (ci.rerunError !== null) throw ci.rerunError
+    },
+    event: (draft) => {
+      ci.events.push(draft)
     },
     remoteHeads: () => ({ ...ci.remote }),
     waitMs: () => ci.wait,

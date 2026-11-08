@@ -1,6 +1,8 @@
 import type { CiView } from '../ci/model.js'
 import { redReport, type FailedRun } from '../ci/report.js'
-import { shortCommit, verdictOf, type RedRun } from '../ci/verdict.js'
+import { CI_TITLES, shortCommit, verdictOf, type RedRun } from '../ci/verdict.js'
+import type { EventDraft } from '../event-log/model.js'
+import { fail } from '../notice/notice.js'
 import { branchMerged } from '../git/merged.js'
 import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
@@ -19,6 +21,10 @@ export interface MainCiWatch {
   failed(run: RedRun['run']): Promise<FailedRun>
   /** Polls the CI's finished history for a while, for a fresh verdict on a commit (`CiWatch.want`). */
   want(): void
+  /** Whether the CI's adapter can rerun failed jobs (`CiSource.rerun`). */
+  readonly rerunnable: boolean
+  /** Reruns the run's failed jobs (`CiWatch.rerun`); throws `ci.rerunUnsupported` for a CI without a rerun. */
+  rerun(run: RedRun['run']): Promise<void>
 }
 
 export interface MainCiDeps {
@@ -50,6 +56,8 @@ export interface MainCiDeps {
   runAfterGreen: (project: string, cwd: string) => Promise<CheckFailure | null>
   /** The name the project's fix session runs under (`fixNameOf`). */
   fixName: (project: string) => string
+  /** Writes an entry of the event log. */
+  event: (draft: EventDraft) => void
   now: () => Date
 }
 
@@ -87,6 +95,19 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     lookAgain(project) {
       for (const watch of counted(project) ?? []) watch.want()
     },
+    rerunFailed: (project) => {
+      const { guard, rerunFailed } = deps.settings(project)
+      return guard && rerunFailed
+    },
+    async rerun(project, failed) {
+      const watches = counted(project) ?? []
+      const runs = failed.map(({ kind, run }) => ({ kind, run, watch: watches.find((each) => each.view.kind === kind) }))
+      // A CI that cannot rerun leaves the red to decide at once: none is started then.
+      const unable = runs.find(({ watch }) => watch?.rerunnable !== true)
+      if (unable !== undefined) throw fail('ci.rerunUnsupported', { ci: CI_TITLES[unable.kind] })
+      for (const { run, watch } of runs) await watch!.rerun(run)
+    },
+    event: deps.event,
     remoteHeads() {
       const heads: Record<string, string> = {}
       for (const project of deps.projects()) {
@@ -117,7 +138,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       const runs = await Promise.all(
         failure.ci.map(({ kind, run }) => watches.find((watch) => watch.view.kind === kind)?.failed(run) ?? Promise.resolve({ kind, run, jobs: null, log: null })),
       )
-      return redReport({ ...facts, runs }, deps.language(), deps.promptLanguage(project))
+      return redReport({ ...facts, runs, reran: failure.reran === true }, deps.language(), deps.promptLanguage(project))
     },
     create: (project, task) => deps.create({ project, ...task }),
     comment: deps.comment,

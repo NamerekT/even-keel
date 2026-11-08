@@ -16,6 +16,10 @@ export class Ci {
   log = 'npm test\nFAIL src/sum.test.ts\nAssertionError: expected 3 to be 4\n'
   /** How many times the service asked for the runs. */
   polls = 0
+  /** Whether the adapter reruns failed jobs, as GitHub's does (BTN-846); off — as Forgejo's. Set before the start. */
+  rerunnable = false
+  /** The ids of the runs the service reran. */
+  readonly reran: number[] = []
   private readonly seen = new Set<string>()
   /** The branch each run is of, by its id. */
   private readonly branches = new Map<number, string>()
@@ -47,6 +51,10 @@ export class Ci {
   rerun(subject: string): void {
     const run = this.runOf(subject)
     if (run === undefined) throw new Error(`ci: no run of "${subject}"`)
+    this.queueAgain(run)
+  }
+
+  private queueAgain(run: CiRun): void {
     this.untaken.delete(run.id)
     Object.assign(run, { status: 'queued', startedAt: null, stoppedAt: null })
   }
@@ -62,6 +70,15 @@ export class Ci {
       },
       jobs: async (run) => [this.job(this.runs.find((each) => each.id === run.id) ?? run)],
       log: async () => this.log,
+      ...(this.rerunnable
+        ? {
+            rerun: async (asked: CiRun) => {
+              this.reran.push(asked.id)
+              const run = this.runs.find((each) => each.id === asked.id)
+              if (run !== undefined) this.queueAgain(run)
+            },
+          }
+        : {}),
     }
   }
 

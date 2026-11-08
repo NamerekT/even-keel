@@ -360,6 +360,7 @@ const ciOf = (values: Values): CiSettings =>
     waitMinutes: values['ci.waitMinutes'],
     recheckMain: values['ci.recheckMain'],
     fixTask: values['ci.fixTask'],
+    rerunFailed: values['ci.rerunFailed'],
   }) as CiSettings
 
 /** The checkpoint shares a level ends up with, in order, or `config.checkpointShareOrder`; `project` — its key, `null` for the shared level. */

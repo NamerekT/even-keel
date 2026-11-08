@@ -414,11 +414,12 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       ctx.writes.add(`the handoff snapshot of ${task}`, saveSnapshot(ctx.db, snapshot))
       return sessionId
     },
-    launchFix: async (project, name, report) => {
+    launchFix: async (project, name, report, reran) => {
       const home = ctx.homeOf(ctx.choiceFor(project).account)
       await ctx.daemons.prepare(home)
       const place = await ctx.places.ready(project, name)
-      const { prompt, model } = ctx.planFor(name, ctx.withProject(fixPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project)), project), project)
+      const text = fixPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project), reran === true)
+      const { prompt, model } = ctx.planFor(name, ctx.withProject(text, project), project)
       const extras = ctx.agentExtras(home, project, name)
       return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: ctx.settingsFor(name, project), ...extras }, project)
     },
@@ -515,6 +516,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       afterGreen: (project) => ctx.configStore.current.settings[project]?.afterGreen ?? [],
       runAfterGreen: (project, cwd) => runAfterGreen(ctx.configStore.current.settings[project]?.afterGreen ?? [], ctx.taskRun(project, cwd, ctx.choiceFor(project).account)),
       fixName: (project) => fixNameOf(ctx.configStore.current.keys, project),
+      event: (draft) => ctx.eventLog.add(draft),
       now: () => new Date(),
     }),
   })

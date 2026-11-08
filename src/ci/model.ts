@@ -53,6 +53,11 @@ export interface CiSource {
   jobs(run: CiRun): Promise<CiJob[]>
   /** A job's plain-text log; absent — the CI does not give logs through its API. */
   log?(job: CiJob): Promise<string>
+  /**
+   * Reruns only the run's failed jobs (BTN-846): the run keeps its id and ends anew, with a new `stoppedAt`.
+   * Absent — the CI cannot rerun through its API.
+   */
+  rerun?(run: CiRun): Promise<void>
 }
 
 export interface CurrentRun {

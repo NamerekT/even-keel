@@ -163,4 +163,43 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     expect(calls('launch', 'ABC-2')).toHaveLength(1)
     expect(chain()?.interrupted).toBeUndefined()
   })
+
+  it('reruns the failed jobs of a red main once and, green on the rerun, neither stops the session nor fixes (BTN-846)', async () => {
+    run.ci.rerunnable = true
+    const gate = new Gate()
+    await underTask('success', parked(gate, goOn))
+
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => run.ci.reran.length === 1, 'the failed jobs rerun')
+    await run.pass(60_000)
+    expect(calls('stop', 'ABC-2')).toEqual([])
+    expect(calls('launch', fix)).toEqual([])
+
+    run.ci.finish('ABC-1', 'success')
+    await run.until(() => run.log.some((line) => line.includes('is green on a rerun of its failed jobs')), 'main green on the rerun')
+    gate.open()
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+    expect(calls('launch', fix)).toEqual([])
+    expect(calls('launch', 'ABC-2')).toHaveLength(1)
+    expect(run.ci.reran).toHaveLength(1)
+  })
+
+  it('fixes a red main as before once the rerun is red too, telling the fix session (BTN-846)', async () => {
+    run.ci.rerunnable = true
+    await underTask('success', parked(new Gate(), ends({ say: 'never' })), goOn)
+    const session = calls('launch', 'ABC-2')[0]!.sessionId
+
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => run.ci.reran.length === 1, 'the failed jobs rerun')
+    await run.pass(5_000)
+    expect(calls('stop', 'ABC-2')).toEqual([])
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => calls('launch', fix).length === 1, 'the fix session launched')
+    expect(calls('stop', 'ABC-2').map((call) => call.sessionId)).toEqual([session])
+    expect(calls('launch', fix)[0]!.prompt).toContain('Even Keel already reran the failed jobs of this commit once')
+
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+    expect(run.ci.reran).toHaveLength(1)
+    expect(calls('launch', fix)).toHaveLength(1)
+  })
 })

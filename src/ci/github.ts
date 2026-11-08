@@ -1,4 +1,4 @@
-import { getJson, getText } from './http.js'
+import { getJson, getText, post } from './http.js'
 import type { CiJob, CiRun, CiSource, CiStep, RunStatus } from './model.js'
 
 export interface GithubActionsSettings {
@@ -92,6 +92,11 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
 
     log(job) {
       return getText(TITLE, `${base}/actions/jobs/${job.id}/logs`, `Bearer ${settings.token}`, timeoutMs, fetchImpl, 'application/vnd.github+json')
+    },
+
+    // Needs `actions: write` of the token; the run keeps its id, its attempt grows.
+    rerun(run) {
+      return post(TITLE, `${base}/actions/runs/${run.id}/rerun-failed-jobs`, `Bearer ${settings.token}`, timeoutMs, fetchImpl, 'ci.rerunDenied')
     },
   }
 }

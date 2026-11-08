@@ -781,6 +781,7 @@ export function SettingsPanel({
             </Row>
             {inheritedSwitch('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
             {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
+            {inheritedSwitch('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, shared.ci.rerunFailed, unguarded)}
           </div>
         </Section>
         <Section title={t.settings.sections.pulls}>

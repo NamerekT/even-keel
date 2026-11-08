@@ -146,4 +146,27 @@ describe('SharedSources', () => {
     sources.of(TARGET, 'old')
     expect(calls.made).toEqual(['origin:old', 'origin:secret', 'origin:old'])
   })
+
+  it('passes a rerun through and asks for the runs anew after it (BTN-846)', async () => {
+    let runs = 0
+    const reran: number[] = []
+    const shared = new SharedSources(() => ({
+      runs: async () => {
+        runs++
+        return [RUN]
+      },
+      jobs: async () => [JOB],
+      rerun: async (run) => void reran.push(run.id),
+    }), () => 0)
+    const source = shared.of(TARGET, 'secret')!
+    await source.runs(10, 'main')
+    await source.rerun!(RUN)
+    await source.runs(10, 'main')
+    expect(reran).toEqual([7])
+    expect(runs).toBe(2)
+  })
+
+  it('has no rerun when the adapter has none', () => {
+    expect(setup().sources.of(TARGET, 'secret')!.rerun).toBeUndefined()
+  })
 })

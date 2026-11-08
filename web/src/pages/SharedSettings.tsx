@@ -85,7 +85,7 @@ const GROUPS = [
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
-  { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
+  { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
@@ -144,6 +144,7 @@ const valuesOf = (form: SharedForm): Values => ({
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
   recheck: form.ci.recheckMain,
   fixTask: form.ci.fixTask,
+  rerun: form.ci.rerunFailed,
 })
 
 const amountOf = (text: string): number | undefined => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : undefined)
@@ -210,6 +211,7 @@ function formOf(values: Values): SharedForm | undefined {
       waitMinutes,
       recheckMain: values.recheck as boolean,
       fixTask: values.fixTask as boolean,
+      rerunFailed: values.rerun as boolean,
     },
     fillMilestone: values.fillMilestone as boolean,
   }
@@ -619,6 +621,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           />
           {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, unguarded)}
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, unguarded)}
+          {check('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, unguarded)}
         </div>
       </Section>
     ),

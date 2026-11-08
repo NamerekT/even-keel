@@ -1,4 +1,5 @@
-import { shortCommit } from '../ci/verdict.js'
+import { failedKey } from '../ci/model.js'
+import { shortCommit, type CiVerdict, type RedRun } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isFixName } from './fix.js'
 import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
@@ -8,6 +9,9 @@ export const FIX_LISTED_MS = 5 * 60_000
 
 /** How long a push left unchecked because no runner took it is still watched for a late verdict (BTN-719). */
 export const LATE_MS = 60 * 60_000
+
+/** How long the rerun of a red commit's failed jobs is awaited before the red it started from decides (BTN-846). */
+export const RERUN_MS = 60 * 60_000
 
 export interface MainStop {
   project: string
@@ -143,7 +147,7 @@ export class MainCheck {
   /** The fix a session without a task does or is about to do; gone once its branch has landed. */
   sessionFix(project: string): SessionFix | undefined {
     const fix = this.state.ci[project]?.fix
-    return fix?.report === undefined ? undefined : { task: fix.task, commit: fix.commit, report: fix.report }
+    return fix?.report === undefined ? undefined : { task: fix.task, commit: fix.commit, report: fix.report, ...(fix.reran === true ? { reran: true as const } : {}) }
   }
 
   /**
@@ -236,15 +240,17 @@ export class MainCheck {
     for (const [project, gate] of Object.entries(this.state.ci)) {
       const push = gate.check
       if (push === undefined) continue
-      const verdict = this.deps.verdict(project, push.commit, push.at)
+      const rerunBefore = gate.rerun
+      const { verdict, reran } = await this.judged(project, gate, push)
+      if (gate.rerun !== rerunBefore) changed = true
       if (verdict.state === 'pending') continue
       changed = true
       delete gate.check
       if (verdict.state === 'green') {
-        this.passed(project, gate, push, 'is green')
+        this.passed(project, gate, push, reran ? 'is green on a rerun of its failed jobs' : 'is green')
       } else if (verdict.state === 'red') {
         const before = gate.fix
-        const stop = await this.red(project, gate, push, { ci: verdict.failed }, open)
+        const stop = await this.red(project, gate, push, { ci: verdict.failed, ...(reran ? { reran: true as const } : {}) }, open)
         if (stop !== null) stops.push({ project, notice: stop })
         else if (gate.fix !== before && gate.fix?.report !== undefined) fixes.push(project)
       } else {
@@ -259,8 +265,10 @@ export class MainCheck {
   private async settleLate(open: IsOpen, stops: MainStop[], fixes: string[]): Promise<boolean> {
     let changed = false
     for (const [project, push] of [...this.late]) {
-      const verdict = this.deps.verdict(project, push.commit, push.at)
       const gate = this.gate(project)
+      const rerunBefore = gate.rerun
+      const { verdict, reran } = await this.judged(project, gate, push)
+      if (gate.rerun !== rerunBefore) changed = true
       if (verdict.state === 'green') {
         this.late.delete(project)
         changed = true
@@ -269,7 +277,7 @@ export class MainCheck {
         this.late.delete(project)
         changed = true
         const before = gate.fix
-        const stop = await this.red(project, gate, push, { ci: verdict.failed }, open)
+        const stop = await this.red(project, gate, push, { ci: verdict.failed, ...(reran ? { reran: true as const } : {}) }, open)
         if (stop !== null) stops.push({ project, notice: stop })
         else if (gate.fix !== before && gate.fix?.report !== undefined) fixes.push(project)
       } else if (verdict.state === 'none') {
@@ -283,6 +291,57 @@ export class MainCheck {
       }
     }
     return changed
+  }
+
+  /**
+   * The verdict on a push the chain awaits, with the rerun of its failed jobs (BTN-846): the first red on a commit
+   * reruns them and waits instead; until each rerun run ends anew, or `RERUN_MS` runs out, neither the old red nor a CI
+   * that cannot say decides. `reran` — the commit's failed jobs were rerun, so a red now is red again.
+   */
+  private async judged(project: string, gate: MainGate, push: MainPush): Promise<{ verdict: CiVerdict; reran: boolean }> {
+    const verdict = this.deps.verdict(project, push.commit, push.at)
+    const rerun = gate.rerun?.commit === push.commit ? gate.rerun : undefined
+    if (rerun === undefined) {
+      if (verdict.state !== 'red' || !this.deps.rerunFailed(project)) return { verdict, reran: false }
+      const started = await this.rerunFailed(project, gate, push, verdict.failed)
+      return { verdict: started ? { state: 'pending' } : verdict, reran: false }
+    }
+    const awaited = this.now().getTime() - Date.parse(rerun.at) < RERUN_MS
+    const notEnded = verdict.state === 'red' && verdict.failed.every(({ run }) => rerun.runs.includes(failedKey(run)))
+    if (awaited && (notEnded || verdict.state === 'unavailable')) {
+      // The runs looked finished before the rerun: only a fresh look sees them under way again.
+      this.deps.lookAgain(project)
+      return { verdict: { state: 'pending' }, reran: true }
+    }
+    const place = { view: 'ci', project } as const
+    const params = { project, commit: shortCommit(push.commit) }
+    if (verdict.state === 'green') this.deps.event({ level: 'info', notice: notice('eventLog.ciRerunGreen', params), place })
+    if (verdict.state === 'red') this.deps.event({ level: 'info', notice: notice('eventLog.ciRerunRed', params), place })
+    return { verdict, reran: true }
+  }
+
+  /** Reruns the failed jobs of a red commit once; `false` — they were not rerun, and the red decides at once. */
+  private async rerunFailed(project: string, gate: MainGate, push: MainPush, failed: RedRun[]): Promise<boolean> {
+    const commit = shortCommit(push.commit)
+    try {
+      await this.deps.rerun(project, failed)
+    } catch (error) {
+      const why = noticeOf(error)
+      this.log(`ci: ${project}: ${commit} is red; its failed jobs were not rerun: ${englishOf(why)}`)
+      // A CI without a rerun is how it is built, nothing for a person to do: the log line is enough.
+      if (why.code !== 'ci.rerunUnsupported') {
+        const place = why.code === 'ci.rerunDenied' ? { view: 'settings' as const, project: null } : { view: 'ci' as const, project }
+        this.deps.event({ level: 'warning', notice: notice('eventLog.ciRerunFailed', { project, commit }, { cause: why }), place })
+      }
+      return false
+    }
+    gate.rerun = { commit: push.commit, at: this.now().toISOString(), runs: failed.map(({ run }) => failedKey(run)) }
+    this.hooks.save()
+    this.deps.lookAgain(project)
+    this.log(`ci: ${project}: ${commit} is red; its failed jobs are rerun once before a fix`)
+    const cis = [...new Set(failed.map(({ kind }) => kind))]
+    this.deps.event({ level: 'info', notice: notice('eventLog.ciRerun', { project, commit, cis }), place: { view: 'ci', project } })
+    return true
   }
 
   /**
@@ -433,7 +492,8 @@ export class MainCheck {
       return null
     }
     if (!byTask) {
-      gate.fix = { task: this.deps.fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
+      const reran = ci && failure.reran === true ? { reran: true as const } : {}
+      gate.fix = { task: this.deps.fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt, ...reran }
       this.log(`ci: ${project}: ${commit} is ${what}; a session without a task fixes it`)
       return null
     }

@@ -20,7 +20,7 @@ export async function startTask(
   try {
     const { sessionId, fallback } =
       fix !== undefined
-        ? { sessionId: await deps.launchFix(chain.project, task, fix.report) }
+        ? { sessionId: await deps.launchFix(chain.project, task, fix.report, fix.reran === true) }
         : carry !== undefined
           ? { sessionId: await deps.launchCarry(chain.project, task, carry.report) }
           : feedback !== undefined

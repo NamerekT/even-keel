@@ -31,7 +31,7 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
   pushed: null,
 })
 
-const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ guard: true, kinds, waitMinutes, recheckMain: true, fixTask: false })
+const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ guard: true, kinds, waitMinutes, recheckMain: true, fixTask: false, rerunFailed: true })
 const unguarded = (kinds: CiKind[]): CiSettings => ({ ...all(kinds), guard: false })
 
 /** `views: null` — the service has yet to find the project's CIs. */
@@ -40,6 +40,8 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
   const checks: string[] = []
   /** The CIs asked to look again (`want`), by kind. */
   const wanted: string[] = []
+  /** The runs rerun, by kind; Forgejo cannot rerun. */
+  const reran: string[] = []
   const git: Git = async (cwd, args) => {
     gitCalls.push(args)
     if (args[0] === 'rev-parse') {
@@ -62,6 +64,8 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       remoteHead: heads[`remote ${each.remote}`] ?? null,
       failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }),
       want: () => wanted.push(each.kind),
+      rerunnable: each.kind !== 'forgejo',
+      rerun: async () => void reran.push(each.kind),
     })) ?? null
   const deps = mainCheckDeps({
     projects: () => ['ABC'],
@@ -87,9 +91,11 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       checks.push(`afterGreen of ${project} in ${cwd}`)
       return failure
     },
+    fixName: (project) => `${project}-FIX`,
+    event: () => {},
     now: () => new Date('2026-10-12T10:05:00Z'),
   })
-  return { deps, gitCalls, checks, wanted }
+  return { deps, gitCalls, checks, wanted, reran }
 }
 
 describe('mainCheckDeps', () => {
@@ -143,6 +149,23 @@ describe('mainCheckDeps', () => {
     expect(setup(all([]), views, same).deps.remoteHeads()).toEqual({})
     expect(setup(all(['github']), null, same).deps.remoteHeads()).toEqual({})
     expect(setup(unguarded(['github']), views, same).deps.remoteHeads()).toEqual({})
+  })
+
+  it('reruns the failed runs of the counted CIs, none when one of them cannot rerun (BTN-846)', async () => {
+    const github = { kind: 'github' as const, run: run('github', 'failure') }
+    const forgejo = { kind: 'forgejo' as const, run: run('forgejo', 'failure') }
+    const both = setup(all(['forgejo', 'github']), [view('forgejo', 'failure'), view('github', 'failure')])
+    await both.deps.rerun('ABC', [github])
+    expect(both.reran).toEqual(['github'])
+    await expect(both.deps.rerun('ABC', [github, forgejo])).rejects.toMatchObject({ notice: { code: 'ci.rerunUnsupported', params: { ci: 'Forgejo' } } })
+    expect(both.reran).toEqual(['github'])
+  })
+
+  it('reruns only with the guard of main and the setting on', () => {
+    const views = [view('github', 'failure')]
+    expect(setup(all(['github']), views).deps.rerunFailed('ABC')).toBe(true)
+    expect(setup({ ...all(['github']), rerunFailed: false }, views).deps.rerunFailed('ABC')).toBe(false)
+    expect(setup(unguarded(['github']), views).deps.rerunFailed('ABC')).toBe(false)
   })
 
   it('turns the wait into milliseconds, null staying as long as it takes', () => {

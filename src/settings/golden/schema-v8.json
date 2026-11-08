@@ -90,7 +90,8 @@
         ],
         "waitMinutes": null,
         "recheckMain": true,
-        "fixTask": false
+        "fixTask": false,
+        "rerunFailed": true
       },
       "remoteProfiles": {},
       "pullRequests": false,
@@ -142,7 +143,8 @@
         ],
         "waitMinutes": null,
         "recheckMain": true,
-        "fixTask": false
+        "fixTask": false,
+        "rerunFailed": true
       },
       "remoteProfiles": {},
       "pullRequests": false,
@@ -263,7 +265,8 @@
     ],
     "waitMinutes": null,
     "recheckMain": true,
-    "fixTask": false
+    "fixTask": false,
+    "rerunFailed": true
   },
   "fillMilestone": false,
   "parallel": 1,

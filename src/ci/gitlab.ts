@@ -1,5 +1,5 @@
 import { stripAnsi } from '../ansi.js'
-import { getJson, getJsonPage, getText } from './http.js'
+import { getJson, getJsonPage, getText, post } from './http.js'
 import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
 interface GitlabSettings {
@@ -93,6 +93,10 @@ export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchI
     },
     async log(job) {
       return plainTrace(await getText(TITLE, `${base}/jobs/${job.id}/trace`, auth, timeoutMs, fetchImpl))
+    },
+    // Retries the pipeline's failed jobs; it keeps its id and finishes anew.
+    rerun(run) {
+      return post(TITLE, `${base}/pipelines/${run.id}/retry`, auth, timeoutMs, fetchImpl, 'ci.rerunDenied')
     },
   }
 }
