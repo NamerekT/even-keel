@@ -12,6 +12,7 @@ import { APP_LABELS, type AppAccount } from './apps.js'
 import type { Transport } from './transport.js'
 import type { AwsProfiles, AzureCredentials, CloudSummary, GcloudCredentials } from './cloud.js'
 import type { AccountLevel } from './header-levels.js'
+import type { ReadKeyLimit } from './keycheck.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 /** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */
@@ -76,6 +77,8 @@ export interface AccountEntry {
   lastLimitAt?: string | null
   /** The spending cap a current chain is waiting out; absent or null when none is known. */
   spendingLimit?: { resetsAt: string | null } | null
+  /** What is left of the limit set on the key itself, as last read (an OpenRouter key, BTN-847); absent — none known. */
+  keyLimit?: ReadKeyLimit
 }
 
 export interface AccountLogin {

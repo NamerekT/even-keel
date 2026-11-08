@@ -7,7 +7,7 @@ import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '..
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
-import { KeyChecks, type KeyVerdict } from './keycheck.js'
+import { KeyChecks, type KeyLimit, type KeyVerdict } from './keycheck.js'
 import type { AwsProfiles, AzureCredentials, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
@@ -205,6 +205,7 @@ export class AccountWatcher {
         ...(this.options.limitsOutdated?.(home.key) === true && { limitsOutdated: true }),
         lastLimitAt: this.options.lastLimit?.(home.key) ?? null,
         spendingLimit: this.credit.spendingLimit(home.key, now),
+        ...(this.keys.limit(home.key) !== null && { keyLimit: this.keys.limit(home.key)! }),
       }
     })
     return {
@@ -237,6 +238,14 @@ export class AccountWatcher {
   /** The account pays per token, with a key or on a cloud: no plan limits to poll or wait out. */
   apiKey(key: string): boolean {
     return paysPerToken(this.known.find((known) => known.home.key === key)?.status ?? null)
+  }
+
+  /**
+   * The key's own limit, read between the hourly checks by a read of its spend (`readOpenRouterKey`, BTN-847); null — the
+   * key has none. The page hears of a change at once.
+   */
+  noteKeyLimit(key: string, limit: KeyLimit | null): void {
+    if (this.keys.noteLimit(key, limit, this.options.now())) this.options.onChange()
   }
 
   /** When an API key can pay again after a credit or spending refusal at `at`; asking keeps it checked. */
@@ -394,11 +403,13 @@ export class AccountWatcher {
     return verdict
   }
 
-  private noteKey(key: string, verdict: KeyVerdict): void {
-    this.keys.note(key, verdict, this.options.now())
+  /** True when the verdict or the key's limit changed. */
+  private noteKey(key: string, verdict: KeyVerdict): boolean {
+    const changed = this.keys.note(key, verdict, this.options.now())
     if (verdict.state === 'ok' && verdict.organization !== undefined && verdict.organization !== this.options.organizations.of(key)) {
       this.options.organizations.note(key, verdict.organization)
     }
+    return changed
   }
 
   renew(key: string): void {
@@ -464,7 +475,7 @@ export class AccountWatcher {
     }
   }
 
-  /** Asks Anthropic or OpenAI about each API account's key once per `keyCheckMs`; true when a verdict changed. */
+  /** Asks each API account's provider about its key once per `keyCheckMs`; true when a verdict or a key's limit changed. */
   private async checkKeys(known: Known[]): Promise<boolean> {
     const now = this.options.now()
     const due = known.filter(({ home, status }) => isApiKey(status) && this.keys.due(home.key, now))
@@ -472,9 +483,7 @@ export class AccountWatcher {
       due.map(async ({ home }) => {
         const key = this.options.homes.apiKeyOf(home)
         if (key === null) return false
-        const before = this.keys.rejected(home.key)
-        this.noteKey(home.key, await this.options.checkKey(home.agent, key))
-        return this.keys.rejected(home.key) !== before
+        return this.noteKey(home.key, await this.options.checkKey(home.agent, key))
       }),
     )
     return changes.includes(true)

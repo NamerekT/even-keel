@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KeySpend, openRouterUsage, type KeySpendGrowth } from './spend.js'
+import { KeySpend, readOpenRouterKey, type KeySpendGrowth } from './spend.js'
 
 const KEY = 'sk-or-v1-fake-0000'
 const A = 'opencode-a'
@@ -36,24 +36,37 @@ function bench(options: { tailMs?: number; pollMs?: number } = {}) {
   }
 }
 
-describe('openRouterUsage (BTN-860)', () => {
-  it("reads the key's usage in dollars with the key as a bearer token", async () => {
+describe('readOpenRouterKey', () => {
+  const answering = (status: number, body: unknown): typeof fetch => async () => new Response(JSON.stringify(body), { status })
+
+  it("reads the key's usage in dollars with the key as a bearer token (BTN-860)", async () => {
     let seen: { url: string; headers: Headers } | undefined
     const fetchImpl: typeof fetch = async (url, init) => {
       seen = { url: String(url), headers: new Headers(init?.headers) }
       return new Response(JSON.stringify({ data: { label: 'sk-or-v1-fak...000', usage: 1.2345, usage_daily: 0.2 } }), { status: 200 })
     }
-    expect(await openRouterUsage(KEY, 1000, fetchImpl)).toBe(1.2345)
+    expect(await readOpenRouterKey(KEY, 1000, fetchImpl)).toEqual({ usage: 1.2345, limit: null })
     expect(seen?.url).toBe('https://openrouter.ai/api/v1/key')
     expect(seen?.headers.get('authorization')).toBe(`Bearer ${KEY}`)
   })
 
-  it('gives null for an error, a body without usage and a failed request', async () => {
-    expect(await openRouterUsage(KEY, 1000, async () => new Response('{}', { status: 401 }))).toBeNull()
-    expect(await openRouterUsage(KEY, 1000, async () => new Response(JSON.stringify({ data: { usage: 'x' } }), { status: 200 }))).toBeNull()
-    expect(await openRouterUsage(KEY, 1000, async () => {
+  it('gives no usage for a body without it, and null for an error and a failed request', async () => {
+    expect(await readOpenRouterKey(KEY, 1000, answering(200, { data: { usage: 'x' } }))).toEqual({ usage: null, limit: null })
+    expect(await readOpenRouterKey(KEY, 1000, answering(401, {}))).toBeNull()
+    expect(await readOpenRouterKey(KEY, 1000, async () => {
       throw new TypeError('fetch failed')
     })).toBeNull()
+  })
+
+  it("gives the key's usage and its limit from one read", async () => {
+    const fetchImpl = answering(200, { data: { usage: 2.5, limit: 10, limit_remaining: 7.5, limit_reset: 'weekly' } })
+    expect(await readOpenRouterKey(KEY, 1000, fetchImpl)).toEqual({ usage: 2.5, limit: { remaining: 7.5, limit: 10, reset: 'weekly' } })
+  })
+
+  it('tells a key without a limit from a read that failed', async () => {
+    expect(await readOpenRouterKey(KEY, 1000, answering(200, { data: { usage: 2.5, limit: null } }))).toEqual({ usage: 2.5, limit: null })
+    expect(await readOpenRouterKey(KEY, 1000, answering(401, {}))).toBeNull()
+    expect(await readOpenRouterKey(KEY, 1000, async () => new Response('not json', { status: 200 }))).toBeNull()
   })
 })
 

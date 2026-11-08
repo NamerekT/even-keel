@@ -39,6 +39,10 @@ export const accountEn = {
     spendTitle: "Spent on this account's key, by Tally",
     tokensToday: 'Today',
     tokensMonth: '30 days',
+    keyLeft: 'Key limit left',
+    keyLimitResets: { daily: 'resets daily', weekly: 'resets weekly', monthly: 'resets monthly', never: 'never resets' },
+    keyLimitTitle: (left: string, limit: string, reset: string, ago: string) =>
+      `Left of the limit set on the key: ${left} of ${limit}, ${reset}; read from OpenRouter ${ago}. The account's balance only a management key may read.`,
     sessionsLabel: 'Sessions',
     runsThrough: 'Runs through',
     checkConnection: 'Check connection',

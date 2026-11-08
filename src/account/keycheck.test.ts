@@ -81,6 +81,29 @@ describe('checkOpenRouterKey (BTN-843)', () => {
   })
 })
 
+describe("an OpenRouter key's own limit (BTN-847)", () => {
+  const KEY = 'sk-or-v1-fake-0000'
+  const describing = (data: unknown): typeof fetch => async () => new Response(JSON.stringify({ data }), { status: 200 })
+
+  it('gives what is left of a key with a limit, and when the limit resets', async () => {
+    const fetchImpl = describing({ usage: 2.5, limit: 10, limit_remaining: 7.5, limit_reset: 'monthly' })
+    expect(await checkOpenRouterKey(KEY, 1000, fetchImpl)).toEqual({ state: 'ok', limit: { remaining: 7.5, limit: 10, reset: 'monthly' } })
+  })
+
+  it('takes a limit that never resets, and an unknown reset period, as no reset', async () => {
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ limit: 5, limit_remaining: 5, limit_reset: null })))
+      .toEqual({ state: 'ok', limit: { remaining: 5, limit: 5, reset: null } })
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ limit: 5, limit_remaining: 1, limit_reset: 'hourly' })))
+      .toEqual({ state: 'ok', limit: { remaining: 1, limit: 5, reset: null } })
+  })
+
+  it('gives no limit for a key without one, or an answer that does not describe it', async () => {
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ usage: 2.5, limit: null, limit_remaining: null }))).toEqual({ state: 'ok' })
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ limit: 10, limit_remaining: 'a lot' }))).toEqual({ state: 'ok' })
+    expect(await checkOpenRouterKey(KEY, 1000, async () => new Response('not json', { status: 200 }))).toEqual({ state: 'ok' })
+  })
+})
+
 describe('the organization a working key pays through (BTN-418)', () => {
   const answering = (status: number, headers: Record<string, string>): typeof fetch => async () => new Response('{}', { status, headers })
 
@@ -146,8 +169,38 @@ describe('KeyChecks', () => {
   it('forgets a removed account', () => {
     const checks = new KeyChecks(hour)
     checks.note('work', { state: 'rejected' }, at(0))
+    checks.note('cap', { state: 'ok', limit: { remaining: 1, limit: 2, reset: null } }, at(0))
     checks.forget('work')
+    checks.forget('cap')
     expect(checks.rejected('work')).toBe(false)
     expect(checks.due('work', at(1))).toBe(true)
+    expect(checks.limit('cap')).toBeNull()
+  })
+
+  it("keeps a key's limit from the last check that told it (BTN-847)", () => {
+    const checks = new KeyChecks(hour)
+    const limit = { remaining: 7.5, limit: 10, reset: 'monthly' as const }
+    expect(checks.limit('work')).toBeNull()
+    checks.note('work', { state: 'ok', limit }, at(0))
+    expect(checks.limit('work')).toEqual({ ...limit, at: at(0).toISOString() })
+    checks.note('work', { state: 'unknown', reason: 'HTTP 502' }, at(60))
+    expect(checks.limit('work')).toEqual({ ...limit, at: at(0).toISOString() })
+    checks.note('work', { state: 'ok' }, at(120))
+    expect(checks.limit('work')).toBeNull()
+    checks.note('work', { state: 'ok', limit }, at(180))
+    checks.note('work', { state: 'rejected' }, at(240))
+    expect(checks.limit('work')).toBeNull()
+  })
+
+  it('takes a fresher limit from a read between checks without moving the next check', () => {
+    const checks = new KeyChecks(hour)
+    checks.note('work', { state: 'ok', limit: { remaining: 7.5, limit: 10, reset: null } }, at(0))
+    expect(checks.noteLimit('work', { remaining: 6, limit: 10, reset: null }, at(30))).toBe(true)
+    expect(checks.limit('work')).toEqual({ remaining: 6, limit: 10, reset: null, at: at(30).toISOString() })
+    expect(checks.noteLimit('work', { remaining: 6, limit: 10, reset: null }, at(40))).toBe(false)
+    expect(checks.limit('work')?.at).toBe(at(40).toISOString())
+    expect(checks.due('work', at(60))).toBe(true)
+    expect(checks.noteLimit('work', null, at(50))).toBe(true)
+    expect(checks.limit('work')).toBeNull()
   })
 })

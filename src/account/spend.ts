@@ -1,11 +1,17 @@
 import type { Queryable } from '../storage/database.js'
-import { OPENROUTER_KEY_URL } from './keycheck.js'
+import { OPENROUTER_KEY_URL, openRouterLimit, type KeyLimit } from './keycheck.js'
+
+/** One read of `GET /api/v1/key`: what the key has spent, in dollars, and its own limit (null — none or not told). */
+export interface OpenRouterKeyRead {
+  usage: number | null
+  limit: KeyLimit | null
+}
 
 /**
- * What an OpenRouter key has spent so far, in dollars: `usage` of `GET /api/v1/key`, which any key may read of
- * itself (BTN-860). `null` — no answer, an error or a body without it.
+ * Reads an OpenRouter key's description of itself, which any key may read (BTN-860, BTN-847); `null` — no answer, an
+ * error or a body that is no description.
  */
-export async function openRouterUsage(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<number | null> {
+export async function readOpenRouterKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<OpenRouterKeyRead | null> {
   try {
     const response = await fetchImpl(OPENROUTER_KEY_URL, { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(timeoutMs) })
     if (!response.ok) {
@@ -13,9 +19,10 @@ export async function openRouterUsage(key: string, timeoutMs: number, fetchImpl:
       return null
     }
     const body: unknown = await response.json()
-    const data = typeof body === 'object' && body !== null ? (body as { data?: { usage?: unknown } }).data : undefined
-    const usage = data?.usage
-    return typeof usage === 'number' && Number.isFinite(usage) ? usage : null
+    const data = typeof body === 'object' && body !== null ? (body as { data?: unknown }).data : undefined
+    if (typeof data !== 'object' || data === null) return null
+    const usage = (data as { usage?: unknown }).usage
+    return { usage: typeof usage === 'number' && Number.isFinite(usage) ? usage : null, limit: openRouterLimit(data) }
   } catch {
     return null
   }

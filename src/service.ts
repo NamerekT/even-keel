@@ -5,7 +5,7 @@ import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from './account/service-defaults.js'
-import { KeySpend, openRouterUsage, saveKeySpend } from './account/spend.js'
+import { KeySpend, readOpenRouterKey, saveKeySpend } from './account/spend.js'
 import { keyVendor } from './opencode/home.js'
 import { loadSavedLimits } from './limits/saved.js'
 import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
@@ -561,7 +561,10 @@ const homeOf = (key: string): AccountHome => {
 }
 
 const reach = accountsService.wireReach(context)
-/** The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860). */
+/**
+ * The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860); the same read tells the account card
+ * what is left of the key's own limit (BTN-847).
+ */
 const keySpend = new KeySpend({
   metered: (key) => {
     const home = homes.find(key)
@@ -572,7 +575,9 @@ const keySpend = new KeySpend({
   read: async (key) => {
     const home = homes.find(key)
     const apiKey = home === undefined ? null : homes.apiKeyOf(home)
-    return apiKey === null ? null : await openRouterUsage(apiKey, KEY_SPEND_TIMEOUT_MS)
+    const read = apiKey === null ? null : await readOpenRouterKey(apiKey, KEY_SPEND_TIMEOUT_MS)
+    if (read !== null) account.noteKeyLimit(key, read.limit)
+    return read?.usage ?? null
   },
   onSpend: (growth) => writes.add(`the key spend of session ${growth.sessionId}`, saveKeySpend(db, growth)),
   now: () => Date.now(),

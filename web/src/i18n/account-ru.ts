@@ -39,6 +39,10 @@ export const accountRu = {
     spendTitle: 'Потрачено с ключа этого аккаунта, по Tally',
     tokensToday: 'Сегодня',
     tokensMonth: '30 дней',
+    keyLeft: 'Остаток лимита',
+    keyLimitResets: { daily: 'сбрасывается каждый день', weekly: 'сбрасывается каждую неделю', monthly: 'сбрасывается каждый месяц', never: 'не сбрасывается' },
+    keyLimitTitle: (left: string, limit: string, reset: string, ago: string) =>
+      `Остаток лимита, заданного на ключе: ${left} из ${limit}, ${reset}; прочитан у OpenRouter ${ago}. Баланс аккаунта читает только management-ключ.`,
     sessionsLabel: 'Сессии',
     runsThrough: 'Запуск через',
     checkConnection: 'Проверить подключение',

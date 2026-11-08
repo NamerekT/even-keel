@@ -156,6 +156,21 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     const { organizations } = await watcher(() => ({ state: 'ok', organization: 'org-a' }))
     expect(organizations.get('work')).toBe('org-a')
   })
+
+  it("shows what is left of the key's own limit, by the hourly check and by a read between checks (BTN-847)", async () => {
+    const at = '2026-10-26T12:00:00.000Z'
+    const { accounts, options } = await watcher(() => ({ state: 'ok', limit: { remaining: 7.5, limit: 10, reset: 'monthly' } }))
+    expect(accounts.view.accounts[0]?.keyLimit).toEqual({ remaining: 7.5, limit: 10, reset: 'monthly', at })
+    let changes = 0
+    options.onChange = () => void changes++
+    accounts.noteKeyLimit('work', { remaining: 6, limit: 10, reset: 'monthly' })
+    accounts.noteKeyLimit('work', { remaining: 6, limit: 10, reset: 'monthly' })
+    expect(accounts.view.accounts[0]?.keyLimit).toEqual({ remaining: 6, limit: 10, reset: 'monthly', at })
+    expect(changes).toBe(1)
+    accounts.noteKeyLimit('work', null)
+    expect(accounts.view.accounts[0]).not.toHaveProperty('keyLimit')
+    expect(changes).toBe(2)
+  })
 })
 
 describe('AccountWatcher.addCloud (BTN-822)', () => {

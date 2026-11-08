@@ -140,10 +140,13 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
       </div>
       {page && roles}
       <div className="account-windows">
-        {spendsByKey(entry) || counted ? (['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>
-          {named && <span className="account-meter__name">{period === 'day' ? t.account.tokensToday : t.account.tokensMonth}</span>}
-          <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
-        </Tipped>) : <>
+        {spendsByKey(entry) || counted ? <>
+          {(['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>
+            {named && <span className="account-meter__name">{period === 'day' ? t.account.tokensToday : t.account.tokensMonth}</span>}
+            <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
+          </Tipped>)}
+          {spendsByKey(entry) && entry.keyLimit !== undefined && <KeyLeft entry={entry} now={now} />}
+        </> : <>
           {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
           {entry.limits?.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} />)}
         </>}
@@ -154,6 +157,21 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
     <OverageWarning entry={entry} view={view} />
     {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__note">{say(copilotNote())}</p>}
   </AccountRowMenu>
+}
+
+/**
+ * What is left of the limit set on the key itself, after the key's spend (an OpenRouter key, BTN-847). Named always:
+ * the group's head names only the spend's columns.
+ */
+function KeyLeft({ entry, now }: { entry: AccountEntry; now: Date }) {
+  const { remaining, limit, reset, at } = entry.keyLimit!
+  const used = limit > 0 ? (1 - remaining / limit) * 100 : 100
+  const heat = remaining <= 0 || used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
+  const tip = t.account.keyLimitTitle(formatUsd(remaining), formatUsd(limit), t.account.keyLimitResets[reset ?? 'never'], formatAgo(at, now))
+  return <Tipped className={`account-sum${heat}`} tip={tip} align="start" focusable>
+    <span className="account-meter__name">{t.account.keyLeft}</span>
+    <strong>{formatUsd(remaining)}</strong>
+  </Tipped>
 }
 
 /** One window, named in its own row: the plan decides which windows a row has (variant 2 of BTN-575). */
