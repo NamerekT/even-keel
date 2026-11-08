@@ -1,10 +1,12 @@
 import { megabytes } from '../notice/en.js'
 import { englishOf, NoticeError } from '../notice/notice.js'
+import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
 import type { Tracker, TrackerVocabulary } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
 import { Args } from './args.js'
+import { TaskRetries, type Retry } from './retries.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -14,6 +16,7 @@ export interface TasksScope {
 }
 
 export interface TasksDeps {
+  db: Queryable
   /** Runs `call` on the project's tracker; throws when the tracker is off. */
   run<T>(project: string, call: (tracker: Tracker) => Promise<T>): Promise<T>
   /** The project of this key whose tracker the tools serve; `null` — none. */
@@ -25,23 +28,19 @@ export interface TasksDeps {
 }
 
 const LIST_LIMIT = 200
-const RETRIES_KEPT = 200
 const LINKS: readonly TaskLink[] = ['blocks', 'blockedBy', 'relates']
 const LINK_WORDS: Record<TaskLink, string> = { blocks: 'blocks', blockedBy: 'blocked by', relates: 'relates' }
-
-/** What a batch of the retry key has created so far, by its place in the batch. */
-interface Retry {
-  ids: (string | undefined)[]
-}
 
 /**
  * The five tools over a tracker's `TaskEditor` (BTN-768): short Markdown answers, names instead of ids, no deletes.
  * Neutral to the tracker: everything goes through the `src/tracker/` layer.
  */
 export class TasksTools {
-  private readonly retries = new Map<string, Retry>()
+  private readonly retries: TaskRetries
 
-  constructor(private readonly deps: TasksDeps) {}
+  constructor(private readonly deps: TasksDeps) {
+    this.retries = new TaskRetries(deps.db)
+  }
 
   async call(name: string, raw: Record<string, unknown>, scope: TasksScope): Promise<string> {
     const args = new Args(raw)
@@ -102,35 +101,42 @@ export class TasksTools {
       const editor = editorOf(tracker)
       const known = await vocabularyOf(tracker, project)
       const planned = items.map((item, index) => plannedTask(item, index, items.length, known))
-      const retry = retryKey === undefined ? { ids: [] } : this.retryOf(`${project}\u0000${retryKey}`)
-      const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
-      const notes = planned.map((): string[] => [])
-      const noted = (index: number) => (notes[index]!.length === 0 ? '' : ` (${notes[index]!.join('; ')})`)
-      const done = () => planned.flatMap((each, index) => (retry.ids[index] === undefined ? [] : [`${retry.ids[index]} ${each.draft.title}${noted(index)}`]))
-      try {
-        for (const [index, each] of planned.entries()) {
-          if (retry.ids[index] !== undefined) continue
-          try {
-            retry.ids[index] = await editor.create(project, { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) }, notes[index])
-          } catch (error) {
-            throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
+      const run = async (retry: Retry): Promise<string> => {
+        const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
+        const notes = planned.map((): string[] => [])
+        const noted = (index: number) => (notes[index]!.length === 0 ? '' : ` (${notes[index]!.join('; ')})`)
+        const done = () => planned.flatMap((each, index) => (retry.ids[index] === undefined ? [] : [`${retry.ids[index]} ${each.draft.title}${noted(index)}`]))
+        try {
+          for (const [index, each] of planned.entries()) {
+            if (retry.ids[index] !== undefined) continue
+            try {
+              retry.ids[index] = await editor.create(project, { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) }, notes[index])
+            } catch (error) {
+              throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
+            }
+            try {
+              await retry.save()
+            } catch (error) {
+              throw new EditRefused(`${createdSoFar(done())}retry progress was not saved: ${refusalText(error)}. Check the created tasks in the tracker before repeating; an unsaved task may be duplicated`)
+            }
           }
-        }
-        for (const [index, each] of planned.entries()) {
-          for (const link of LINKS) {
-            for (const ref of each.links[link]) {
-              try {
-                await editor.link(retry.ids[index]!, refOf(ref), link, true)
-              } catch (error) {
-                throw new EditRefused(`${createdSoFar(done())}the link ${retry.ids[index]} ${LINK_WORDS[link]} ${refOf(ref)} was refused: ${refusalText(error)}. Fix the links with task_update`)
+          for (const [index, each] of planned.entries()) {
+            for (const link of LINKS) {
+              for (const ref of each.links[link]) {
+                try {
+                  await editor.link(retry.ids[index]!, refOf(ref), link, true)
+                } catch (error) {
+                  throw new EditRefused(`${createdSoFar(done())}the link ${retry.ids[index]} ${LINK_WORDS[link]} ${refOf(ref)} was refused: ${refusalText(error)}. Fix the links with task_update`)
+                }
               }
             }
           }
+        } finally {
+          await this.deps.refresh(project)
         }
-      } finally {
-        await this.deps.refresh(project)
+        return done().join('\n')
       }
-      return done().join('\n')
+      return retryKey === undefined ? run({ ids: [], save: async () => {} }) : this.retries.run(project, retryKey, run)
     })
   }
 
@@ -217,15 +223,6 @@ export class TasksTools {
     const project = this.deps.projectOfKey(parsed.project)
     if (project === null) throw new EditRefused(`no project ${parsed.project} keeps its tasks where these tools reach`)
     return project
-  }
-
-  private retryOf(key: string): Retry {
-    const known = this.retries.get(key)
-    if (known !== undefined) return known
-    const fresh: Retry = { ids: [] }
-    this.retries.set(key, fresh)
-    if (this.retries.size > RETRIES_KEPT) this.retries.delete(this.retries.keys().next().value!)
-    return fresh
   }
 }
 

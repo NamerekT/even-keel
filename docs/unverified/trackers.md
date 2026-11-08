@@ -101,6 +101,10 @@ Even Keel's own tasks server for the built-in tracker (`docs/trackers.md`, "The 
 
 If one is wrong, a session cannot file or edit tasks of the built-in tracker, or does it at Huly's cost. **Workaround:** file and edit the tasks on the project's page. To check (BTN-795): a chain session on a bench project with the `tasks@even-keel` package on — the tools seen at once, a split picked up by the chain, a patch refused for an `old` found twice; a hand session with the plugin; Codex and OpenCode listing the tools; Tally's calls and tokens per task filed, Huly before against the built-in tracker after.
 
+## Retry progress across a service crash (BTN-896)
+
+Tests cover a new tools instance over the same database after two tasks of a three-task batch, every ID saved before the next create, the database folder closed and reopened, concurrent repeats, journal failures, retention and the frozen step-39 sample. A forced service kill against a live external tracker has not been run. Assumed: an ID whose awaited database write finished survives a process crash and the retry resumes with the same order and references. If wrong, a retry duplicates tasks. **Workaround:** check the tracker before repeating an interrupted batch and file only the missing tasks with a new key. A crash between the external create and the local save remains an explicit limitation, as does retrying an evicted key. To check: on a registered tracker bench, interrupt a three-task batch after its second saved ID, restart the service, repeat with the same key and check that only the third task is created and every link is correct.
+
 ## The tasks server on Huly (BTN-779)
 
 The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`; no live Huly has taken a write from them. Assumed:
