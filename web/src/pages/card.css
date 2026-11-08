@@ -34,6 +34,13 @@ html:has(.task-card[open]) {
   flex-direction: column;
   max-height: calc(100dvh - 66px);
   outline: none;
+  transition: height var(--motion-appear) ease-out;
+}
+
+/* While the task is read the card stands at its full height: a long task stays put after it, a short one glides
+   down to its content (useHeightGlide). */
+.task-card__frame--reading {
+  height: calc(100dvh - 66px);
 }
 
 /* Header */
@@ -160,11 +167,20 @@ html:has(.task-card[open]) {
 
 /* Body */
 
+/* Fills the frame, so its bottom rides the edge while the height glides. */
 .task-card__body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
   padding: 22px calc(24px - var(--pane-scrollbar)) 28px 24px;
   overscroll-behavior: contain;
+}
+
+/* The loader fills the body, so the boat sits in the card's middle. */
+.task-card__frame--reading .task-card__body {
+  display: flex;
+  flex-direction: column;
 }
 
 .task-card__title {
@@ -741,6 +757,10 @@ html:has(.task-card[open]) {
 @media (prefers-reduced-motion: reduce) {
   .task-card[open] {
     animation: none;
+  }
+
+  .task-card__frame {
+    transition: none;
   }
 }
 

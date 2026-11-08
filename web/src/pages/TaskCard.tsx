@@ -13,7 +13,9 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { Loading } from '../ui/Loader.js'
+import { Loader } from '../ui/Loader.js'
+import { useLoader } from '../ui/loaderPhase.js'
+import { useHeightGlide } from '../ui/useHeightGlide.js'
 import '../ui/markdown.css'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { PriorityIcon } from '../ui/Priority.js'
@@ -71,6 +73,10 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const editor = useCardEdit(task, reread)
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
   const current = state !== null && activeChain(state.chain, project)?.current?.task === task
+  // The card reads at its full height, so a long task does not move after it; a short one glides down to its content.
+  const phase = useLoader(card === undefined && error === null)
+  const reading = phase !== 'done'
+  useHeightGlide(frame, reading ? null : task)
 
   // A card Even Keel keeps is read anew when the poll brings its task changed: fields without a draft follow it.
   const row = JSON.stringify(state?.tasks.filter((each) => each.project === project && (each.id === task || each.parent === task)) ?? null)
@@ -120,7 +126,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
       }}
       {...backdrop}
     >
-      <div ref={frame} className="task-card__frame" tabIndex={-1}>
+      <div ref={frame} className={`task-card__frame${reading ? ' task-card__frame--reading' : ''}`} tabIndex={-1}>
         <header className="task-card__head">
           <span className="task-card__key">{task}</span>
           {editable !== null ? (
@@ -145,26 +151,30 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
           </button>
         </header>
         <div className="task-card__body">
-          <Loading busy={card === undefined && error === null} label={t.card.loading}>
-            {error !== null && <p className="notice notice--error">{say(error)}</p>}
-            {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
-            {card != null && (
-              <CardBody
-                card={card}
-                project={project}
-                editor={editable === null ? null : editor}
-                inWork={current || live}
-                refused={refused}
-                work={work}
-                live={live}
-                onOpen={onOpen}
-                onChanged={reread}
-                onDraft={(kind, on) => {
-                  drafting.current = { ...drafting.current, [kind]: on }
-                }}
-              />
-            )}
-          </Loading>
+          {reading ? (
+            <Loader phase={phase} label={t.card.loading} fit="fill" />
+          ) : (
+            <>
+              {error !== null && <p className="notice notice--error">{say(error)}</p>}
+              {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
+              {card != null && (
+                <CardBody
+                  card={card}
+                  project={project}
+                  editor={editable === null ? null : editor}
+                  inWork={current || live}
+                  refused={refused}
+                  work={work}
+                  live={live}
+                  onOpen={onOpen}
+                  onChanged={reread}
+                  onDraft={(kind, on) => {
+                    drafting.current = { ...drafting.current, [kind]: on }
+                  }}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
       {leaving !== null && (
