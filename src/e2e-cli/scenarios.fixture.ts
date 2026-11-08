@@ -55,7 +55,7 @@ export function chainOnRealCli(kit: CliKit): void {
     })
 
     afterEach(async () => {
-      kit.release?.(run, binary)
+      await kit.release?.(run, binary)
       await run.stop()
       await model.close()
       await notes.close()
@@ -77,6 +77,12 @@ export function chainOnRealCli(kit: CliKit): void {
     const merge = (task: string) => (): Reply => ({ bash: [`git -C "${run.repo.replaceAll('\\', '/')}" merge --no-edit ${branchOf(task)}`] })
     const work = (task: string) => [commit(task), merge(task), { text: `Merged ${task}.` }]
     const sessionOf = (task: string) => run.service.agents.find((entry) => entry.name === task)
+    /** The task's session as the chain sees it, of the kit's kind: an adapter may start another kind when it cannot run that one. */
+    const liveSession = (task: string) => {
+      const session = sessionOf(task)!
+      if (kit.kind !== undefined) expect(session.kind).toBe(kit.kind)
+      return session
+    }
     const asked = (task: string) => model.requests.filter((request) => request.task === task)
 
     /** Adds Even Keel's `checkpoint` plugin to the project and waits for it to install. */
@@ -135,7 +141,7 @@ export function chainOnRealCli(kit: CliKit): void {
       await run.startChain(PROJECT_ID)
 
       await run.until(() => model.left('ABC-1') === 3 && sessionOf('ABC-1')?.status === 'idle', 'the question asked', { limitMs: TURN_LIMIT_MS })
-      const session = sessionOf('ABC-1')!
+      const session = liveSession('ABC-1')
       await run.pass(60_000)
       expect(run.board.status('ABC-1')).not.toBe('Done')
 
@@ -187,7 +193,11 @@ export function chainOnRealCli(kit: CliKit): void {
       expect(model.left('ABC-1')).toBe(0)
     })
 
-    it("hands a chat message to the working session mid-turn, by the checkpoint plugin's mailbox hook", async () => {
+    /**
+     * A session that steers (`AgentEntry.steers`, an SDK session) takes the message on its stdin at once, so the mailbox
+     * stays empty and the CLI hands the message to the model within the same turn.
+     */
+    it("hands a chat message to the working session mid-turn, by the checkpoint plugin's mailbox hook or the session's own input", async () => {
       run.board.add('ABC-1')
       model.script('ABC-1', awaiting(MAIL_WORD, 'the chat message', commit('ABC-1')), merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start()
@@ -200,14 +210,14 @@ export function chainOnRealCli(kit: CliKit): void {
         return id !== undefined && run.service.mailbox.listens(id) && run.service.agentStatus('ABC-1') === 'busy'
       }
       await run.until(listening, 'the mailbox hook of ABC-1 asked mid-turn', { limitMs: TURN_LIMIT_MS })
-      const session = sessionOf('ABC-1')!
+      const session = liveSession('ABC-1')
       await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-1', sessionId: session.sessionId, ask: null, answers: {}, text: `The code word is ${MAIL_WORD}.` })
-      expect(run.service.mailbox.of(session.sessionId)).toEqual([expect.objectContaining({ fate: 'waiting' })])
+      const steers = session.steers === true
+      expect(run.service.mailbox.of(session.sessionId)).toEqual(steers ? [] : [expect.objectContaining({ fate: 'waiting' })])
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
-      const [mail] = run.service.mailbox.of(session.sessionId)
       // Delivered by a hook of the turn, not by a resume after it.
-      expect(mail).toMatchObject({ fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) })
+      if (!steers) expect(run.service.mailbox.of(session.sessionId)[0]).toMatchObject({ fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) })
       expect(asked('ABC-1').some((request) => request.context.includes(MAIL_WORD))).toBe(true)
       expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
       expect(model.left('ABC-1')).toBe(0)
