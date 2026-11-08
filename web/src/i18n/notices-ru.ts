@@ -312,6 +312,10 @@ export const noticesRu: NoticeTexts = {
   'account.codexKeyUnchecked': (p) => `не удалось проверить ключ у OpenAI (${p.reason}) — попробуйте позже`,
   'account.openRouterKeyRejected': () => 'OpenRouter не принимает этот ключ: он неверный, отозван или отключён',
   'account.openRouterKeyUnchecked': (p) => `не удалось проверить ключ у OpenRouter (${p.reason}) — попробуйте позже`,
+  'account.managementKeyRejected': () =>
+    'OpenRouter не читает баланс этим ключом: вставьте management-ключ из настроек OpenRouter (Management keys), а не API-ключ',
+  'account.managementKeyUnchecked': (p) => `не удалось прочитать баланс у OpenRouter этим ключом (${p.reason}) — попробуйте позже`,
+  'account.managementKeyNotOpenRouter': () => 'management-ключ читает баланс только у аккаунта на ключе OpenRouter',
   'account.copilotTokenInvalid': () =>
     'Copilot CLI принимает мелкозернистый личный токен (github_pat_…) с правом Copilot Requests или OAuth-токен (gho_…); классический ghp_ он не берёт',
   'account.copilotTokenRejected': () => 'GitHub не принимает этот токен: он неверный, истёк или отозван',

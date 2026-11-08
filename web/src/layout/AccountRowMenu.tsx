@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { usePopoverMenu } from '../ui/usePopoverMenu.js'
 import { rolesOf } from './AccountRoles.js'
 import { removeQuestion, type Send } from './accountParts.js'
+import { ManagementKeyDialog } from './ManagementKeyDialog.js'
 
 interface Props {
   entry: AccountEntry
@@ -26,6 +27,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   )
   const [renaming, setRenaming] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [managing, setManaging] = useState(false)
   const name = accountName(entry, view.accounts)
   const roles = rolesOf(entry, view, send)
   const held = roles.filter((role) => role.held)
@@ -68,6 +70,8 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
           {held.length === 0 && <li role="none" className="roles__here">✓ {t.account.rolesNone}</li>}
           <li role="separator" className="account-row__separator" />
           <li role="none"><button type="button" role="menuitem" className="roles__offer" onClick={() => pick(() => setRenaming(true))}>{t.account.renameAction}</button></li>
+          {entry.managementKey !== undefined && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
+            onClick={() => pick(() => setManaging(true))}>{t.account.managementKeyAction}</button></li>}
           <li role="none"><button type="button" role="menuitem" className="roles__offer account-row__remove"
             aria-disabled={problem !== undefined || entry.removing}
             onClick={() => { if (problem === undefined && !entry.removing) pick(() => setRemoving(true)) }}>
@@ -78,6 +82,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
         </>}
       </ul>
       {renaming && <RenameAccount entry={entry} name={name} send={send} sending={sending} onClose={() => { setRenaming(false); button.current?.focus() }} />}
+      {managing && <ManagementKeyDialog entry={entry} title={name} onClose={() => { setManaging(false); button.current?.focus() }} />}
       {removing && <ConfirmDialog title={name} question={removeQuestion(entry)} confirm={t.common.remove} cancel={t.account.keep}
         busy={sending} onClose={() => { setRemoving(false); button.current?.focus() }}
         onConfirm={() => void send('account/remove', { account: entry.key }).then((ok) => { if (ok) setRemoving(false) })} />}

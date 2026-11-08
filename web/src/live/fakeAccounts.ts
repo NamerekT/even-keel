@@ -274,7 +274,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
       key('opencode-anthropic', OPENCODE, { name: 'OpenCode keys', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'anthropic' } }),
       key('opencode-openai', OPENCODE, { name: 'Test API', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'openai' }, spendingLimit: { resetsAt: null } }),
       key('opencode-openrouter', OPENCODE, { name: 'OpenRouter', status: { ...OPENCODE_STATUS, authMethod: 'api_key', subscriptionType: 'openrouter' },
-        keyLimit: { remaining: 7.42, limit: 10, reset: 'monthly', at: ago(3) } }),
+        keyLimit: { remaining: 7.42, limit: 10, reset: 'monthly', at: ago(3) }, managementKey: false }),
       ...fakeAccount('copilot', idle, limits).accounts.filter((entry) => entry.agent === COPILOT),
     ]
     return { ...signedIn, accounts, pool: [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'codex' }] }
@@ -520,6 +520,14 @@ export function accountCommand(account: AccountView, name: string, body: Record<
       return { ...account, accounts: [...account.accounts, placed] }
     }
     return { ...account, login: { ...(FAKE_LOGINS[agent] ?? FAKE_LOGIN), agent, ...(method !== undefined && { method }), target, startedAt: ago(0) } }
+  }
+  // A management key reads the balance before it is kept (BTN-868): "rejected" and "offline" in it act out the refusals.
+  if (name === 'account/management-key') {
+    const value = body.key === null ? '' : String(body.key).trim()
+    if (value.includes('rejected')) throw fail('account.managementKeyRejected', {})
+    if (value.includes('offline')) throw fail('account.managementKeyUnchecked', { reason: 'fetch failed' })
+    const read = value === '' ? { managementKey: false, balance: undefined } : { managementKey: true, balance: { usd: 42.17, at: ago(0) } }
+    return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, ...read } : entry)) }
   }
   if (name === 'account/api' || name === 'account/key') {
     const agent = name === 'account/key' ? (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE) : body.agent
