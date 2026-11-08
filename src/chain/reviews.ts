@@ -185,7 +185,7 @@ export class Reviews {
     delete pull.feedback
     this.drop(project, task)
     ;(this.state.reviews[project] ??= []).push(pull)
-    this.deps.journal({ at, project, task, sessionId: current.sessionId!, reason: 'review' })
+    this.deps.journal({ at, project, task, sessionId: current.sessionId!, reason: 'opened' })
     this.deps.log(`chain: ${project}: ${task} is out for review in ${url}`)
     this.host.letGo(chain)
     this.deps.save(this.state)

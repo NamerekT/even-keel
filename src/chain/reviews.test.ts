@@ -81,7 +81,7 @@ describe('Dispatcher in PR mode', () => {
     expect(dispatcher.state.reviews.ABC).toEqual([
       { task: 'ABC-1', remote: 'origin', number: 7, url: URL, branch: 'abc-1/task', at: '2026-09-26T12:00:00.000Z', pushedAt: '2026-09-26T12:00:00.000Z', markAt: '2026-09-26T11:50:00.000Z', seen: [] },
     ])
-    expect(journal[0]).toEqual({ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'review' })
+    expect(journal[0]).toEqual({ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'opened' })
     expect(launched).toEqual(['ABC/ABC-2'])
     expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-2')
     const order = dispatcher.orders().ABC!

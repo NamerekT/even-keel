@@ -17,6 +17,10 @@ describe('launchLine', () => {
     expect(launchLine({ at, project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'review' })).toBe('chain: ABC-1 goes on by review in the session old-session')
   })
 
+  it('tells a pull request opened on the session\'s mark apart from a launch (BTN-863)', () => {
+    expect(launchLine({ at, project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'opened' })).toBe('chain: ABC-1 is out for review from the session old-session')
+  })
+
   it('tells a release and the blockers behind a postpone', () => {
     expect(launchLine({ at, project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'skip' })).toBe(
       'chain: ABC-1 released (skip), its session old-session is left as it is',
