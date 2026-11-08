@@ -53,7 +53,7 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 
 ## Requirements
 
-- **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`).
+- **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`). On macOS the nodejs.org installer leaves npm's global folder to root: move it into your home first, with the [commands `npx even-keel` prints](docs/guide/setup.md#npms-global-folder-on-macos-and-linux), and never use `sudo`.
 - **git** ([git-scm.com](https://git-scm.com/downloads)) with your name and e-mail set (`git config --global user.name` and `user.email`): sessions commit and merge under that name.
 - **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The setup can download the CLI for you.
 - **A tracker:** a Huly workspace, GitHub, GitLab or Forgejo projects with Issues, a Linear workspace or a Jira Cloud site.

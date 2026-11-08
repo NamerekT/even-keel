@@ -215,6 +215,20 @@ even-keel uninstall
 
 `even-keel` with no command runs Even Keel in the terminal, on the same data folder.
 
+#### npm's global folder on macOS and Linux
+
+Node from the nodejs.org installer puts npm's global folder under `/usr/local`, which belongs to root, so `npm install --global` fails with `EACCES`. `npx even-keel` checks the folder first and, when it cannot write there, installs nothing and prints these commands: they move the folder into your home (`~/.bashrc` instead of `~/.zshrc` in bash).
+
+```sh
+mkdir -p ~/.npm-global
+npm config set prefix ~/.npm-global
+echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+npx even-keel
+```
+
+Do not use `sudo` instead: `sudo npx even-keel` would install the service for root, with root's data folder and accounts, and after a `sudo npm install --global` an update from the page fails the same way. `npx even-keel` refuses to run as root. Node from nvm or Homebrew leaves the folder writable by you and needs none of this.
+
 The service runs from the global install, never from npx's cache, which npm may clear. The package keeps nothing of yours in its folder, since npm replaces the folder at every update: `.env`, `state/` and `logs/` are in the data folder.
 
 | | Data folder |

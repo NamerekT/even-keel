@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **A project's lone `AGENTS.md` is no longer in a Claude session's context twice.** Claude Code reads the file by itself, so Even Keel stopped appending it to the system prompt; the same text reached every turn twice before.
 - **A project's lone `AGENTS.md` reaches a Claude session again when a `CLAUDE.md` lies in a folder above the checkout**, such as `~/.claude/CLAUDE.md` for a checkout in your home folder. Claude Code skips the file then, so Even Keel appends it to the system prompt in that case only.
 - The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
+- **`npx even-keel` on macOS and Linux says what to do when npm cannot write its global folder**, as with Node from the nodejs.org installer, whose folder under `/usr/local` belongs to root: it installs nothing and prints the commands that move the folder into your home, also after an `EACCES` of npm itself. It refuses to run as root, since the service would then be installed for root.
 
 ## [0.2.3] - 2026-11-07
 

@@ -29,7 +29,7 @@ Waiting-list entries 86, 18, 17c, 29 and 46 can be checked after a natural occur
 
 The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
 
-- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
+- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69, 116 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23b (Amazon Bedrock, needs an AWS account with model access), 23c (Google Vertex AI, needs a billed Google Cloud project with a Claude model) and 23d (Microsoft Foundry, needs a pay-as-you-go Azure subscription with a Claude deployment) have no task yet.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36 — BTN-546; the demo, 99 — BTN-815.
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; on Huly: 115 — BTN-873; its attachments: 96 — BTN-807. A tracker that did not answer: 106 — has no task yet. A turned-off tracker profile: 110 — BTN-864. The CI panel by push: 111 — has no task yet.
@@ -43,6 +43,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 116 | [npm's global folder owned by root](unverified/platforms.md#npms-global-folder-owned-by-root-btn-876) | everyone on macOS or Linux whose Node came from the nodejs.org installer | `npx even-keel` fails with npm's `EACCES` and no advice, or stops a folder npm could write; move npm's prefix by hand as the setup guide says |
 | 114 | [The OpenRouter balance by a management key](unverified/opencode.md#the-openrouter-balance-by-a-management-key-btn-868) | OpenCode accounts on an `sk-or-` key whose owner adds a management key | a working management key is refused on saving, or the card shows a wrong balance; remove the key from the row's menu, the rest of the account works without it |
 | 113 | [A manual milestone order](unverified/trackers.md#a-manual-milestone-order-btn-792) | projects whose milestones are ordered by hand in the tracker's window | the chain keeps the automatic order, or takes the saved one only after a restart; press "Back to automatic" or edit `projects[].milestoneOrder` by `config-import` |
 | 112 | [The CI panel: what the chain waits for, after green, who pushed](unverified/ci.md#the-ci-panel-what-the-chain-waits-for-after-green-who-pushed-btn-829) | projects with `commands.afterGreen`, above all one whose commands restart Even Keel, and pushes by hand | the "After green" row says "the end was not seen" after a run that ended, or a push by hand is labelled as the chain's; the service log has the run and the push |

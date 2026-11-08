@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // The `even-keel` command of the npm package (`bin` of package.json): see `usage` below.
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
 import { commandOf, serviceScriptOf, updateTargetOf } from './cli-args.js'
 import { home, root, source } from './locations.js'
+import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
 import { samePath } from './paths.js'
 import { autostartControl, launchdControl, systemdControl, windowsControl, type ServiceControl } from './updates/control.js'
 import { fromNpxCache, globalPrefixOf } from './updates/prefix.js'
@@ -40,17 +41,49 @@ function fail(message: string): never {
   process.exit(1)
 }
 
+/** `attempt` that also keeps stderr, shown as it comes: an EACCES of npm there adds the advice. */
+function attemptKeepingErrors([program, ...args]: string[], what: string): Promise<{ error: string | null; stderr: string }> {
+  return new Promise((resolve) => {
+    let stderr = ''
+    const child = spawn(program!, args, { stdio: ['inherit', 'inherit', 'pipe'], windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
+    child.stderr!.on('data', (chunk: Buffer) => {
+      process.stderr.write(chunk)
+      stderr = (stderr + chunk.toString()).slice(-8_000)
+    })
+    child.on('error', (error) => resolve({ error: `${what}: ${error.message}`, stderr }))
+    child.on('close', (code) => resolve({ error: code === 0 ? null : `${what} failed with code ${code}`, stderr }))
+  })
+}
+
+/** The stdout of an npm command that prints a value. */
+function npmOutput(...command: string[]): string {
+  const [program, ...args] = npm(...command)
+  const what = `npm ${command[0]}`
+  const result = spawnSync(program!, args, { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
+  if (result.error !== undefined) fail(`${what}: ${result.error.message}`)
+  if (result.status !== 0) fail(`${what} failed with code ${result.status}: ${result.stderr.trim()}`)
+  return result.stdout.trim()
+}
+
 /** npx keeps the package in a cache it may clear: the service runs from a global install of the same version. */
-function installGlobally(): void {
+async function installGlobally(): Promise<void> {
+  const npx = `npx ${name}@${installedVersion}`
+  const refusal = rootRefusal(process.platform, process.getuid?.(), npx)
+  if (refusal !== null) fail(refusal)
+  const modules = npmOutput('root', '--global')
+  const posix = process.platform !== 'win32'
+  if (posix) {
+    const blocked = [modules, globalBinOf(modules)].filter((folder) => folder !== null).map((folder) => nearestExisting(folder, existsSync)).find((folder) => !writable(folder))
+    if (blocked !== undefined) fail(npmPrefixAdvice(blocked, process.env.SHELL, npx))
+  }
   console.log(`even-keel: installing ${name}@${installedVersion} globally, the service needs a folder npx does not clear`)
   // A host of an earlier install runs node from the global folder npm replaces.
-  if (process.platform === 'win32') {
+  if (!posix) {
     const before = registeredAutostart()
     if (before !== null) quitHost(before.exe)
   }
-  run(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
-  const [program, ...args] = npm('root', '--global')
-  const modules = spawnSync(program!, args, { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' }).stdout.trim()
+  const { error, stderr } = await attemptKeepingErrors(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
+  if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, process.env.SHELL, npx)}` : error)
   run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install')
 }
 
@@ -129,17 +162,14 @@ function installedService(): ServiceControl | null {
 
 /** The dist-tags of the package in the registry, `npm view <name> dist-tags --json`. */
 function distTags(): Record<string, unknown> {
-  const [program, ...args] = npm('view', name, 'dist-tags', '--json')
-  const result = spawnSync(program!, args, { encoding: 'utf8', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
-  if (result.error !== undefined) fail(`npm view: ${result.error.message}`)
-  if (result.status !== 0) fail(`npm view failed with code ${result.status}: ${result.stderr.trim()}`)
+  const stdout = npmOutput('view', name, 'dist-tags', '--json')
   try {
-    const tags: unknown = JSON.parse(result.stdout)
+    const tags: unknown = JSON.parse(stdout)
     if (tags !== null && typeof tags === 'object' && !Array.isArray(tags)) return tags as Record<string, unknown>
   } catch {
     // Reported below with the output.
   }
-  fail(`npm view gave no dist-tags: ${result.stdout.trim()}`)
+  fail(`npm view gave no dist-tags: ${stdout}`)
 }
 
 /** The page's button waits for the chains first; this does not, it is for a service that is down or a page out of reach. */
@@ -166,11 +196,11 @@ switch (command.command) {
     console.log(usage)
     break
   case 'run':
-    if (fromNpxCache(root)) installGlobally()
+    if (fromNpxCache(root)) await installGlobally()
     else await import('./main.js')
     break
   case 'install':
-    if (fromNpxCache(root)) installGlobally()
+    if (fromNpxCache(root)) await installGlobally()
     else service('install')
     break
   case 'uninstall':
