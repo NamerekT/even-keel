@@ -1,10 +1,13 @@
-import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { execFileSync, spawn } from 'node:child_process'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { claude } from '../claude/adapter.js'
 import { claudeBinaryIn, fetchClaude } from '../claude/release.js'
-import { ACCOUNT } from '../e2e/service.fixture.js'
+import { ACCOUNT, type Harness } from '../e2e/service.fixture.js'
 import { checkedCopy, type CliKit } from './kit.fixture.js'
+
+/** The CLI's remote default that decides whether it reads a lone `AGENTS.md` (CLI 2.1.319, `cachedGrowthBookFeatures`). */
+export const AGENTS_MD_FLAG = 'tengu_agents_md_mod'
 
 /** The bench's key: any text, the scripted model reads none; the CLI takes it only once `.claude.json` approves it. */
 const BENCH_KEY = 'local-only-scripted-bench'
@@ -50,4 +53,39 @@ export const claudeCode: CliKit = {
       // No daemon was started, or it is gone already.
     }
   },
+}
+
+/**
+ * Gives the account's sessions the CLI's remote defaults, as a live session has them. Under the bench's
+ * `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` the CLI neither fetches its flags nor reads their cache in `.claude.json`:
+ * so the switch goes before the daemon starts (in `start`'s `prepared`). Without it a `--bg` session takes the flags
+ * fresh from Anthropic before its first request, and falls back on the cache when they do not come in time, so one
+ * `claude -p` against the scripted model, which must answer meanwhile, fills the cache first. Resolves to the cached
+ * flags; none — the CLI reached no Anthropic server, and the sessions run on its built-in defaults. The bench's key is
+ * no Anthropic key: the flags are what an API-key user with no account gets.
+ */
+export function remoteDefaults(run: Harness, binary: string): Promise<Record<string, unknown>> {
+  delete process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+  const dir = join(run.dir, 'accounts', ACCOUNT)
+  const child = spawn(binary, ['-p', 'Say ok.'], { cwd: run.dir, env: { ...process.env, CLAUDE_CONFIG_DIR: dir }, windowsHide: true, stdio: 'ignore' })
+  return new Promise((resolve, reject) => {
+    child.on('error', reject)
+    child.on('exit', () => {
+      const config = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8')) as { cachedGrowthBookFeatures?: Record<string, unknown> }
+      resolve(config.cachedGrowthBookFeatures ?? {})
+    })
+  })
+}
+
+/**
+ * A project rules file of Claude's in a folder above `folder`, or `null`. The CLI reads such files above a checkout, and
+ * a lone `AGENTS.md` below one is not read: on Windows `~/.claude/CLAUDE.md` is such a file for the bench's folder in
+ * the user's temp once the account is another folder, the chain's worktree too (CLI 2.1.319, BTN-855).
+ */
+export function claudeRulesAbove(folder: string): string | null {
+  for (let dir = dirname(folder); ; dir = dirname(dir)) {
+    const found = ['CLAUDE.md', join('.claude', 'CLAUDE.md')].map((name) => join(dir, name)).find((path) => existsSync(path))
+    if (found !== undefined) return found
+    if (dirname(dir) === dir) return null
+  }
 }

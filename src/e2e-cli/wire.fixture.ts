@@ -16,6 +16,8 @@ export interface Asked {
   /** The text of the last tool result the request carries; '' without one. */
   result: string
   side: Side | null
+  /** All the text the CLI sent: the system prompt and every message, in order — where a project's rules file lands. */
+  context: string
 }
 
 /** What the model answers: calls of offered tools, or a text that ends the turn. */
@@ -36,7 +38,8 @@ export function readAsked(wire: Wire, body: Json): Asked {
     const messages: Json[] = body.messages ?? []
     const tools = (body.tools ?? []).map((tool: Json) => tool.function?.name ?? '')
     const last = messages.at(-1)
-    return { users: textsOf(messages, 'user'), tools, result: last?.role === 'tool' ? textOf(last.content) : '', side: tools.length === 0 ? 'title' : null }
+    const context = messages.map((message) => textOf(message?.content)).join('\n')
+    return { users: textsOf(messages, 'user'), tools, result: last?.role === 'tool' ? textOf(last.content) : '', side: tools.length === 0 ? 'title' : null, context }
   }
   if (wire === 'messages') {
     const messages: Json[] = body.messages ?? []
@@ -45,14 +48,16 @@ export function readAsked(wire: Wire, body: Json): Asked {
     const results = Array.isArray(last?.content) ? last.content.filter((part: Json) => part?.type === 'tool_result') : []
     const system = Array.isArray(body.system) ? body.system.map((part: Json) => part?.text ?? '').join('\n') : String(body.system ?? '')
     const side = tools.length > 0 ? null : system.includes('"state":"<working|blocked|done|failed>"') ? 'state' : 'title'
-    return { users: textsOf(messages, 'user'), tools, result: results.map((part: Json) => textOf(part.content)).join('\n'), side }
+    const context = [system, ...messages.map((message) => textOf(message?.content))].join('\n')
+    return { users: textsOf(messages, 'user'), tools, result: results.map((part: Json) => textOf(part.content)).join('\n'), side, context }
   }
   const input: Json[] = Array.isArray(body.input) ? body.input : []
   const tools = responsesTools(body.tools ?? [])
   const last = input.at(-1)
   const result = last?.type === 'function_call_output' ? textOf(last.output) : ''
   const side = body.text?.format?.type === 'json_schema' ? 'guardian' : tools.length === 0 ? 'title' : null
-  return { users: textsOf(input.filter((item) => item.type === 'message'), 'user'), tools, result, side }
+  const context = [typeof body.instructions === 'string' ? body.instructions : '', ...input.map((item) => textOf(item.content ?? item.output))].join('\n')
+  return { users: textsOf(input.filter((item) => item.type === 'message'), 'user'), tools, result, side, context }
 }
 
 /** What a real model would say to a request of the CLI's own; a short text for a title. */

@@ -1,10 +1,11 @@
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFailed } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFailed, type TestContext } from 'vitest'
 import { Harness, PROJECT_ID } from '../e2e/service.fixture.js'
+import { AGENTS_MD_FLAG, claudeRulesAbove, remoteDefaults } from './claude.fixture.js'
 import type { CliKit } from './kit.fixture.js'
 import { NoteServer } from './mcp.fixture.js'
-import { ScriptedModel, type LateReply, type Reply } from './model.fixture.js'
+import { ScriptedModel, type LateReply, type ModelRequest, type Reply } from './model.fixture.js'
 
 /** Real ms each step of the bench's clock waits: the service polls the real process about ten times faster than live. */
 const PACE_MS = 100
@@ -12,6 +13,9 @@ const PACE_MS = 100
 const TURN_LIMIT_MS = 30 * 60_000
 /** The words `merge-check` opens its refusal with (`plugins/checkpoint/hooks/merges.mjs`, `refusal`). */
 const REFUSED = "Even Keel's check before the merge failed"
+/** Words of a project's `AGENTS.md` and `CLAUDE.md` that nothing else in a request says. */
+const AGENTS_WORD = 'ZEBRAFINCH'
+const CLAUDE_WORD = 'MARMOSET'
 /** A project's check that passes once the branch's last commit is a fix: committed in the bench's checkout. */
 const CHECK_SCRIPT = "import { execFileSync } from 'node:child_process'\nprocess.exit(execFileSync('git', ['log', '-1', '--format=%s'], { encoding: 'utf8' }).includes('Fix') ? 0 : 1)\n"
 
@@ -152,6 +156,43 @@ export function chainOnRealCli(kit: CliKit): void {
       expect(asked('ABC-1').some((request) => request.result.includes(REFUSED))).toBe(true)
       expect(run.git('log', '--format=%s', 'main').split('\n')).toEqual(expect.arrayContaining(['[ABC-1] Work', '[ABC-1] Fix']))
       expect(model.left('ABC-1')).toBe(0)
+    })
+
+    /**
+     * Commits the rules files to `main` and runs one task to `NO CHANGES` on the CLI's remote defaults; the first request
+     * of its session and the flags the CLI fetched. Skipped below a project rules file of Claude's, which the CLI reads too.
+     */
+    async function rulesRun(context: TestContext, files: Record<string, string>): Promise<{ first: ModelRequest; flags: Record<string, unknown> }> {
+      const above = claudeRulesAbove(run.dir)
+      if (above !== null) context.skip(`${above} is above the bench's folder, so no AGENTS.md below it is lone: set TEMP to a folder with none above`)
+      run.board.add('ABC-1')
+      model.script('ABC-1', { text: 'NO CHANGES: nothing to do.' })
+      let fetched: Promise<Record<string, unknown>> | undefined
+      await start(() => {
+        for (const [name, text] of Object.entries(files)) writeFileSync(join(run.repo, name), text)
+        run.git('add', '.')
+        run.git('commit', '-q', '-m', 'Add the rules')
+        fetched = remoteDefaults(run, binary)
+      })
+      const flags = await fetched!
+      // Without them the scenario checks only the built-in default, and a remote switch would pass unseen.
+      expect(Object.keys(flags).length, "the remote defaults the CLI fetched from Anthropic's servers").toBeGreaterThan(0)
+      await run.startChain(PROJECT_ID)
+      await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
+      // A session on the remote defaults takes longer to quit, and holds its worktree until it does.
+      await run.until(() => run.git('worktree', 'list').split('\n').length === 1, 'the worktree removed', { limitMs: TURN_LIMIT_MS })
+      return { first: asked('ABC-1')[0]!, flags }
+    }
+
+    it.runIf(kit.agent === 'claude')('gives the session a lone AGENTS.md, as the CLI reads it on its remote defaults', async (context) => {
+      const { first, flags } = await rulesRun(context, { 'AGENTS.md': `# Rules\n\nThe code word is ${AGENTS_WORD}.\n` })
+      expect(first.context, `the AGENTS.md word in the first request (${AGENTS_MD_FLAG}: ${JSON.stringify(flags[AGENTS_MD_FLAG])})`).toContain(AGENTS_WORD)
+    })
+
+    it.runIf(kit.agent === 'claude')('gives the session CLAUDE.md and not AGENTS.md when both are there', async (context) => {
+      const { first } = await rulesRun(context, { 'AGENTS.md': `# Rules\n\nThe code word is ${AGENTS_WORD}.\n`, 'CLAUDE.md': `# Rules\n\nThe code word is ${CLAUDE_WORD}.\n` })
+      expect(first.context).toContain(CLAUDE_WORD)
+      expect(first.context).not.toContain(AGENTS_WORD)
     })
   })
 }

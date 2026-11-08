@@ -26,6 +26,8 @@ export interface ModelRequest {
   result: string
   side: Side | null
   reply: Reply
+  /** The system prompt and the messages as text (`Asked.context`). */
+  context: string
 }
 
 /**
@@ -87,7 +89,7 @@ export class ScriptedModel {
     const asked = readAsked(wire, body)
     const task = asked.side === null ? this.taskOf(asked.users) : null
     const reply: Reply = asked.side !== null ? { text: sideAnswer(asked.side, asked) } : this.next(task, asked.tools, asked.result)
-    this.requests.push({ wire, task, tools: asked.tools, result: asked.result, side: asked.side, reply })
+    this.requests.push({ wire, task, tools: asked.tools, result: asked.result, side: asked.side, reply, context: asked.context })
     sendAnswer(wire, answerOf(reply, asked.tools), ++this.calls, typeof body.model === 'string' ? body.model : 'scripted', response)
   }
 
