@@ -249,10 +249,7 @@ export class ClaudeCli {
 export const SESSION_MODE = 'auto'
 
 /** What a chain session gets besides its name, model and prompt. */
-export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'> & {
-  /** A file appended to the system prompt: the project's lone `AGENTS.md` (`agentsFallback`). */
-  instructions?: string
-}
+export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
 
 /**
  * `Agent.write`: `claude -p` with the prompt on stdin — one read-only turn with no one to answer it, so no tool to ask,
@@ -309,7 +306,7 @@ export function parseWriteAnswer(stdout: string): OneTurnAnswer {
  * would swallow it. A server goes under its `gatewayName`.
  */
 export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
-  const { settings, instructions } = extras
+  const { settings } = extras
   return [
     '--bg',
     ...packageArgs(extras),
@@ -319,7 +316,6 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
     task,
     ...(model === null ? [] : ['--model', model]),
     ...(settings === undefined ? [] : ['--settings', settings]),
-    ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
   ]
 }
 
@@ -337,12 +333,12 @@ export const WARM_MODE = 'dontAsk'
 /**
  * The keep-warm ping (BTN-437): a fork of the session with no transcript, for one call, with the prompt on stdin. Its
  * tools, system prompt and model must be the session's, or it misses the cache: the session's servers, plugins,
- * settings and instructions, and the model of its last answer. `--max-turns 1` does not keep a tool call from running,
+ * settings, and the model of its last answer. `--max-turns 1` does not keep a tool call from running,
  * so the mode refuses one; the hooks are off, so that the plugins' hooks take no mail and hold no stop of the fork.
  * `plan` would be safer, but it changes the prompt and the fork read nothing (CLI 2.1.310, 2026-10-26).
  */
 export function warmArgs(sessionId: string, model: string | null, extras: SessionExtras = {}): string[] {
-  const { settings, instructions } = extras
+  const { settings } = extras
   return [
     '-p',
     '--resume',
@@ -359,7 +355,6 @@ export function warmArgs(sessionId: string, model: string | null, extras: Sessio
     ...(model === null ? [] : ['--model', model]),
     '--settings',
     hooksOff(settings),
-    ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
   ]
 }
 

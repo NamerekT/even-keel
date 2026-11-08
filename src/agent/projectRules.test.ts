@@ -23,7 +23,7 @@ describe('instructionsFor', () => {
   })
 
   it("tells the lone file Even Keel gives from one the agent finds itself", () => {
-    expect(fallbackPassed('claude', ['AGENTS.md'])).toBe(true)
+    expect(fallbackPassed('claude', ['AGENTS.md'])).toBe(false)
     expect(fallbackPassed('claude', ['CLAUDE.md'])).toBe(false)
     expect(fallbackPassed('codex', ['CLAUDE.md'])).toBe(true)
     expect(fallbackPassed('codex', ['CLAUDE.md', 'AGENTS.md'])).toBe(false)

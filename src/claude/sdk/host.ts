@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readFileSync, rmSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import type { AccountHome } from '../../account/homes.js'
@@ -13,7 +13,6 @@ import { questionsOf, replyParts, type Ask, type AskAnswers } from '../../sessio
 import { NO_APPROVAL, permissionAsk, permissionMove } from '../../sessions/permission.js'
 import type { TurnSpend } from '../../state.js'
 import { hooksOff, SESSION_MODE, WARM_MODE, warmSpend } from '../cli.js'
-import { agentsFallback } from '../instructions.js'
 import type { ExecutorHello } from './executor.js'
 import { ExecutorProcess, newPipe, probe, startExecutor, type ExecutorRequest } from './pipe.js'
 import { sdkEntryOf, SdkRegistry, type SdkSession, type SdkTurn } from './registry.js'
@@ -408,12 +407,11 @@ export class SdkSessions {
   }
 }
 
-/** What a new CLI starts with besides the session's own name and model; a lone `AGENTS.md` as `--append-system-prompt-file` does for `--bg`. */
+/** What a new CLI starts with besides the session's own name and model: Claude Code's own system prompt, as `--bg` gets. */
 export function sessionOptions(start: SessionStart): Partial<SdkOptions> {
   const { settings, mcp, plugins = [] } = start
-  const instructions = agentsFallback(start.cwd)
   return {
-    ...(instructions !== undefined && { systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const, append: readFileSync(instructions, 'utf8') } }),
+    systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const },
     ...(settings !== undefined && { settings }),
     ...(mcp !== undefined && {
       mcpServers: Object.fromEntries(mcp.map((server) => [gatewayName(server), { type: 'http' as const, url: server.url }])),

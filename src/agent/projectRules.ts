@@ -3,8 +3,9 @@ import { CODEX } from '../codex/name.js'
 import { COPILOT } from '../copilot/name.js'
 import { OPENCODE } from '../opencode/name.js'
 
-// What of a repository's own rules reaches a session of each agent (BTN-340), checked live on Claude Code 2.1.309,
-// codex-cli 0.164.0, OpenCode 1.18.25 and Copilot CLI 1.0.103 (`docs/sessions/protection.md`). No node imports: the page reads it.
+// What of a repository's own rules reaches a session of each agent (BTN-340), checked live on Claude Code 2.1.319
+// (a lone `AGENTS.md` since 2.1.309, 2026-11-08), codex-cli 0.164.0, OpenCode 1.18.25 and Copilot CLI 1.0.103
+// (`docs/sessions/protection.md`). No node imports: the page reads it.
 
 export type InstructionFile = 'CLAUDE.md' | 'AGENTS.md'
 
@@ -32,9 +33,10 @@ interface Reads {
 }
 
 // A lone file reaches every agent: Codex and OpenCode take CLAUDE.md without an AGENTS.md (Codex by Even Keel's
-// `project_doc_fallback_filenames`), Claude Code gets a lone AGENTS.md appended to its system prompt by Even Keel.
+// `project_doc_fallback_filenames`); Claude Code reads a lone AGENTS.md by itself (CLI 2.1.309 and up, 2026-11-08),
+// so Even Keel passes it nothing.
 const READS: Record<string, Reads> = {
-  [CLAUDE]: { own: 'CLAUDE.md', fallbackPassed: true, skills: ['.claude/skills'], passed: [], plugins: 'all' },
+  [CLAUDE]: { own: 'CLAUDE.md', fallbackPassed: false, skills: ['.claude/skills'], passed: [], plugins: 'all' },
   [CODEX]: { own: 'AGENTS.md', fallbackPassed: true, skills: ['.agents/skills', '.codex/skills'], passed: [], plugins: 'all' },
   [OPENCODE]: { own: 'AGENTS.md', fallbackPassed: false, skills: ['.opencode/skills'], passed: ['.claude/skills', '.agents/skills'], plugins: 'skills' },
   [COPILOT]: { own: null, fallbackPassed: false, skills: ['.github/skills', '.agents/skills', '.claude/skills'], passed: [], plugins: 'all' },

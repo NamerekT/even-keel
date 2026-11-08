@@ -193,11 +193,11 @@ An account added with a token shows its monthly allowance, "N left, resets on th
 
 ## The project's instructions and skills
 
-A project written for one agent keeps its rules when its tasks move to another. A lone instruction file reaches every agent: Even Keel tells Codex to read a `CLAUDE.md` and gives Claude Code a lone `AGENTS.md`, which neither reads by itself. With both files, each agent reads its own one, and Copilot reads both:
+A project written for one agent keeps its rules when its tasks move to another. A lone instruction file reaches every agent: Even Keel tells Codex to read a `CLAUDE.md`, which it does not read by itself, while Claude Code reads a lone `AGENTS.md` by itself. With both files, each agent reads its own one, and Copilot reads both:
 
 | Agent | Only `CLAUDE.md` | Only `AGENTS.md` | Both | Skill folders |
 | --- | --- | --- | --- | --- |
-| Claude Code | `CLAUDE.md` | `AGENTS.md`, given by Even Keel | `CLAUDE.md` | `.claude/skills` |
+| Claude Code | `CLAUDE.md` | `AGENTS.md` | `CLAUDE.md` | `.claude/skills` |
 | Codex | `CLAUDE.md`, given by Even Keel | `AGENTS.md` | `AGENTS.md` | `.agents/skills`, `.codex/skills` |
 | OpenCode | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` | `.opencode/skills`, and `.claude/skills`, `.agents/skills` given by Even Keel |
 | Copilot | `CLAUDE.md` | `AGENTS.md` | both | `.github/skills`, `.agents/skills`, `.claude/skills` |

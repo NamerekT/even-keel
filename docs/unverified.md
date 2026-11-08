@@ -42,6 +42,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 105 | [The CLI's own reading of a lone `AGENTS.md`](unverified/sessions.md#the-clis-own-reading-of-a-lone-agentsmd-btn-833) | projects whose branch holds a lone `AGENTS.md`, on Claude Code | the file reaches no Claude session and the page still says the agent reads it; put the rules in `CLAUDE.md` |
 | 104 | [OpenCode on an OpenRouter key](unverified/opencode.md#opencode-on-an-openrouter-key-btn-843) | OpenCode accounts on an `sk-or-` key | a working key is refused, or a session out of money is not held for credit |
 | 103 | [Lightweight commands and tray polling](unverified/page.md#lightweight-commands-and-tray-polling-btn-826) | a phone over Tailscale, long-running pages, the Windows tray and old tabs during updates | updates may arrive late or a tray count may be wrong; reload the page and inspect its chain/question controls |
 | 102 | [Automatic milestone order](unverified/trackers.md#automatic-milestone-order-btn-791) | Jira and Linear projects whose milestones are reordered by dragging in the tracker; live check BTN-849 | a wrong milestone runs first, a task waits or a milestone-order conflict stops the chain; correct tracker dates/names or blockers and refresh |

@@ -180,8 +180,8 @@ describe('sessionArgs', () => {
     expect(sessionArgs('ABC-1', null)).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1'])
   })
 
-  it("appends the project's lone AGENTS.md to the system prompt", () => {
-    expect(sessionArgs('ABC-1', null, { instructions: 'C:\\work\\AGENTS.md' }).slice(-2)).toEqual(['--append-system-prompt-file', 'C:\\work\\AGENTS.md'])
+  it("appends no file to the system prompt: the CLI reads a lone AGENTS.md by itself", () => {
+    expect(sessionArgs('ABC-1', null)).not.toContain('--append-system-prompt-file')
   })
 })
 
@@ -206,16 +206,15 @@ describe('warmArgs', () => {
     expect(args.slice(9)).toEqual(['--permission-mode', 'dontAsk', '--model', 'claude-haiku-5-5', '--settings', '{"disableAllHooks":true}'])
   })
 
-  it("passes the session's own servers, plugins, settings and instructions, with the hooks off", () => {
+  it("passes the session's own servers, plugins and settings, with the hooks off", () => {
     const mcp = [{ name: 'strata', plugin: null, url: 'http://127.0.0.1:4748/mcp/p/strata@b/strata' }]
     const plugins = [{ package: 'huly@even-keel', dir: 'C:\\cache\\huly', name: 'huly', marketplace: 'ek-a', marketplaceFile: 'C:\\cache\\m.json', servers: [] }]
     const settings = '{"promptCacheTtl":"1h","env":{"HULY_TOKEN":""}}'
-    const args = warmArgs('s-1', null, { mcp, plugins, settings, instructions: 'C:\\work\\AGENTS.md' }).slice(9)
+    const args = warmArgs('s-1', null, { mcp, plugins, settings }).slice(9)
     const session = sessionArgs('ABC-1', null, { mcp, plugins }).slice(1, 6)
     expect(args.slice(0, 5)).toEqual(session)
     expect(args.slice(5, 7)).toEqual(['--permission-mode', 'dontAsk'])
     expect(JSON.parse(args[args.indexOf('--settings') + 1]!)).toEqual({ promptCacheTtl: '1h', env: { HULY_TOKEN: '' }, disableAllHooks: true })
-    expect(args.slice(-2)).toEqual(['--append-system-prompt-file', 'C:\\work\\AGENTS.md'])
   })
 })
 

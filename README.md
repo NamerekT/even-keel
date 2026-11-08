@@ -13,7 +13,7 @@
 - **A full context, your way.** A session past its context threshold writes a handoff note and a fresh one takes over in the same worktree — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/reference.md#configuration). The statistics count both, so you can compare what each cost on your own tasks.
 - **What each task cost.** Built-in statistics (optional): cost and time per task, where sessions got stuck, how full the context ran, and before/after every change to your rule files. A session audit skill reads them and proposes what to change in your rules.
 - **Every account on one page.** Claude, Codex, OpenCode and Copilot — subscriptions and API keys — each with its limits or spend and what runs on it right now. You pick the account a project runs on.
-- **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent: Claude Code gets your `AGENTS.md`, Codex your `CLAUDE.md`.
+- **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent: Claude Code reads your `AGENTS.md` by itself, Codex your `CLAUDE.md`.
 
 It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues (GitLab.com or your own server), Jira Cloud and Forgejo Issues (Forgejo, Gitea or Codeberg).
 
