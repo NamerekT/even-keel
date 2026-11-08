@@ -75,11 +75,11 @@ Branches (`docs/releases.md`): `main` is the latest release and gets no commits 
 
 ## Tasks
 
-Work is tracked in Huly: `BTN` for the next version, `EKR` for fixes of the released one (the same rules with its own key). Read the `huly-tracker` skill before creating a task or starting one; working with the Huly API directly is allowed here.
+Work is tracked in Huly: `BTN` for the next version, `EKR` for fixes of the released one (the same rules with its own key). Tasks go through the `tasks` plugin: read `tasks:task` and `huly-tracker` (labels, statuses); what it lacks, the Huly API.
 
 - A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code. Code by hand only when the user says to do it here (this overrides the global "without a task — commit at once"); such work is a commit to the checkout's branch, `dev` or `release/v<x.y>`, never `main`.
 - Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`. Task content is in Russian.
-- A session merges its task branch itself (`git merge --no-edit` in the main working copy) and reports what was done. A chain session then leaves the worktree, the branch and the push to Even Keel; a hand session cleans up per the skill and pushes through `git sync`.
+- A session merges its task branch itself (`git merge --no-edit` in the main working copy) and reports what was done. A chain session then leaves the worktree, the branch and the push to Even Keel; a hand session cleans up per `tasks:task` and pushes through `git sync`.
 - GitHub issues are taken into `EKR` or `BTN` as `docs/releases.md` ("Trackers") says; decisions come only from the Huly task.
 
 Even Keel prepares a task's worktree itself (`.claude/worktrees/<key>-<number>` or a slot) and removes it after Done; sessions never create one (`docs/chain.md`).
