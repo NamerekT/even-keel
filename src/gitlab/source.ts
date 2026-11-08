@@ -4,6 +4,7 @@ import { entryMinutes, parseTaskId, type TrackerTask } from '../tracker/model.js
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GitlabApi, GitlabHttpError } from './api.js'
 import { GitlabBatch, limitedMap } from './batch.js'
+import { gitlabEditor } from './editor.js'
 import { GitlabHierarchy } from './hierarchy.js'
 import { GitlabUploads, uploadType } from './uploads.js'
 import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, ProjectMap, toCard, toTrackerTask, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabNote } from './model.js'
@@ -74,7 +75,7 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     return passed
   }
 
-  return {
+  const source: TaskSource = {
     async chainTasks(project, open) {
       const path = pathOf(project)
       const states = GITLAB_STATUSES.filter(open).map((status) => status.category === 'ToDo' ? 'opened' : 'closed')
@@ -256,4 +257,24 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     },
     close: async () => {},
   }
+  source.editor = gitlabEditor({
+    rest: (path, method, body) => api.rest(path, method, body),
+    async graphql<T>(query: string, variables: Record<string, unknown>) {
+      const answer = await (await api.request('/api/graphql', 'POST', { query, variables })).json() as { data?: T; errors?: { message: string }[] }
+      if (answer.errors?.length) throw new Error(`gitlab: ${answer.errors.map((error) => error.message).join('; ')}`)
+      return answer.data as T
+    },
+    projects,
+    list: async (project) => {
+      const path = pathOf(project)
+      return convertedMany(await api.collect<GitlabIssue>(`${projectBase(path)}/issues?state=all&scope=all`), path)
+    },
+    parentOf: async (path, iid) => (await hierarchy.read(path, iid)).parent,
+    labelsOf,
+    milestonesOf,
+    linksOf,
+    relabel: (id, change) => source.relabel!(id, change),
+    comment: (id, body) => source.comment!(id, body),
+  })
+  return source
 }

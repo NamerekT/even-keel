@@ -23,10 +23,13 @@ export interface GitlabIssue extends GitlabRef {
   description: string | null
   labels: string[]
   milestone: GitlabMilestone | null
+  /** `issue`, `task`, `incident`…; a task is the child type of an issue. */
+  issue_type?: string
 }
 
 export interface GitlabLink extends GitlabRef {
   link_type: 'blocks' | 'is_blocked_by' | 'relates_to'
+  issue_link_id?: number
 }
 
 export interface GitlabNote {
