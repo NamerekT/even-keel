@@ -244,13 +244,16 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       const estimateH = next() > 0.35 ? Math.round((0.25 + next() * 3) * 4) / 4 : null
       const activeS = Math.round(sessions * 900 * (0.4 + next() * 1.8))
       const waitS = next() > 0.5 ? Math.round(next() * 5400) : 0
+      const paid = (cost / count) * (0.3 + next() * 1.4)
       tasks.push({
         task: `${project}-${100 - index * 3}`,
         project,
         title: TITLES[(index + project.length) % TITLES.length]!,
         status: index === 0 ? 'In Progress' : 'Done',
         url: null,
-        cost: (cost / count) * (0.3 + next() * 1.4),
+        cost: paid,
+        // Every fifth task ran on an OpenRouter key whose real spend Even Keel read (BTN-860).
+        priceEstimate: index % 5 === 2 ? paid * 1.18 : null,
         limit: (cost / count) * 0.11,
         sessions,
         relays: next() > 0.8 ? 1 : 0,
@@ -320,6 +323,7 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
     const firstAt = at + next() * 3_600_000
     const lastAt = firstAt + (0.5 + next() * 3) * 3_600_000
     at = lastAt + next() * 20 * 3_600_000
+    const cost = 2 + next() * 12
     return {
       sessionId: `00000000-0000-4000-9000-${String(index + 1).padStart(12, '0')}`,
       title: TITLES[index % TITLES.length]!,
@@ -327,7 +331,8 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       model: index % 3 === 2 ? 'claude-sonnet-5-5' : 'claude-opus-5-5',
       firstAt: new Date(firstAt).toISOString(),
       lastAt: new Date(lastAt).toISOString(),
-      cost: 2 + next() * 12,
+      cost,
+      priceEstimate: index % 3 === 1 ? cost * 1.18 : null,
       account: index % 3 === 1 ? 'jane.roe' : 'global',
     }
   })

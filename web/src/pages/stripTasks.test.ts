@@ -10,6 +10,7 @@ function task(id: string, fields: Partial<StatsTaskRow>): StatsTaskRow {
     status: 'Done',
     url: null,
     cost: 1,
+    priceEstimate: null,
     limit: null,
     sessions: 1,
     relays: 0,

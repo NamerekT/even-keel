@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot, type AccountHome } from '../../src/account/homes.js'
+import { readKeySpends, type SessionKeySpend } from '../../src/account/spend.js'
 import { samePath } from '../../src/paths.js'
 import { taskSources } from '../../src/chain/launches.js'
 import type { LaunchEntry } from '../../src/chain/model.js'
@@ -50,7 +51,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env)).all()
-  const { launches: journal, handoffs: saved, repos, closed, builtin } = await evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved, repos, closed, builtin, keySpends } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
   const taskHomes = taskSources(journal)
   const hulyOf = hulyOfProfiles(huly, new Map(taskHomes.flatMap((home) => (home.profile === null ? [] : [[home.task, home.profile] as const]))))
@@ -116,6 +117,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     await db.syncCataloguePrices(cataloguePriced)
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(taskHomes)
+    if (keySpends !== undefined) await db.syncKeySpends(keySpends)
     // A built-in task read whole is not given the archive's older state on top.
     const readWhole = new Set(builtin.map((task) => task.task))
     await db.syncClosedTasks(closedStates(closed.filter((each) => !readWhole.has(each.task)), journal))
@@ -153,7 +155,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode, ${copilot.length} Copilot),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
-        `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
+        `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${keySpends?.length ?? 'no'} key spends,${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${builtin.length} built-in tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
     )
@@ -168,7 +170,8 @@ export async function collect(settings: DbSettings, root: string, home: string, 
  * Without one — a merge reaches the collector before the service restarts and imports the old state — from the
  * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder. `repos` — the folders and
  * branches of the projects of the database (BTN-199); `undefined` without it, when the config file still holds them.
- * `closed` — the archive of closed tasks (BTN-330), only in the database.
+ * `closed` — the archive of closed tasks (BTN-330), only in the database. `keySpends` — the real spends of sessions
+ * on their keys (BTN-860); `undefined` when not read, so the copy Tally holds stays.
  */
 async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState> {
   try {
@@ -182,7 +185,9 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
       const repos = database === undefined ? undefined : (await reader.db.query<TrackedProject>('select repo, branch from projects order by position')).rows
       const closed = database === undefined ? [] : await closedTasks(reader.db)
       const builtin = database === undefined ? [] : await builtinTasks(reader.db)
-      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin }
+      // A service on the code before step 35 has no table yet: the rest of the state is read all the same.
+      const keySpends = database === undefined ? undefined : await readKeySpends(reader.db).catch(() => undefined)
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin, keySpends }
     } finally {
       await reader.close()
     }
@@ -193,7 +198,7 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
 }
 
 /** `builtin` — the built-in tracker's tasks (BTN-785), only in the database. */
-type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[] }
+type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[]; keySpends?: SessionKeySpend[] }
 
 async function legacyReader(stateDir: string): Promise<StateReader | undefined> {
   const file = join(stateDir, SQLITE_FILE)

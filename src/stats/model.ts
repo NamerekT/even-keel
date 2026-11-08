@@ -62,7 +62,10 @@ export interface StatsTaskRow {
   status: string | null
   /** The task's link as the launch log recorded it (BTN-66); `null` — the page builds it from the tracker's template. */
   url: string | null
+  /** As paid: a session's real spend on its key where Even Keel read one (BTN-860), the estimate by price elsewhere. */
   cost: number
+  /** The estimate by price when some of `cost` is real spend; `null` — `cost` is the estimate itself. */
+  priceEstimate: number | null
   limit: number | null
   sessions: number
   relays: number
@@ -122,7 +125,10 @@ export interface StatsTaskSession {
   model: string | null
   firstAt: string
   lastAt: string
+  /** As paid, like `StatsTaskRow.cost`. */
   cost: number
+  /** The estimate by price when `cost` is the session's real spend on its key; `null` otherwise. */
+  priceEstimate: number | null
   /** The account folder key the session's messages came from. */
   account: string | null
 }

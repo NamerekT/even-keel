@@ -189,6 +189,7 @@ export const statsRU = {
       handoffs: (relays: number, checkpoints: number, restarts: number) =>
         `по лимиту: ${relays}, контрольные точки: ${checkpoints}, вручную: ${restarts}`,
       compacts: (auto: number, manual: number) => `автоматически: ${auto}, через /compact: ${manual}`,
+      priceEstimate: (usd: string) => `Потрачено на ключе OpenRouter; оценка по цене: ${usd}`,
       compaction: (trigger: string | null, pre: string, post: string) =>
         `${trigger === 'auto' ? 'Автоматическая компакция' : 'Компакция через /compact'}: ${pre} → ${post} токенов`,
       noSessions: 'Сессий по задаче нет.',

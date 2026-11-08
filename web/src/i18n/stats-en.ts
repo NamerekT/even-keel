@@ -190,6 +190,7 @@ export const statsEN: Messages['stats'] = {
       handoffs: (relays: number, checkpoints: number, restarts: number) =>
         `limit: ${relays}, checkpoints: ${checkpoints}, by hand: ${restarts}`,
       compacts: (auto: number, manual: number) => `automatic: ${auto}, /compact: ${manual}`,
+      priceEstimate: (usd: string) => `Spent on the OpenRouter key; estimate by price: ${usd}`,
       compaction: (trigger: string | null, pre: string, post: string) =>
         `${trigger === 'auto' ? 'Automatic compaction' : 'Compaction by /compact'}: ${pre} → ${post} tokens`,
       noSessions: 'No sessions for the task.',

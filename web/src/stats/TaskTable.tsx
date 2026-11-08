@@ -60,7 +60,13 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
       case 'cost':
         return (
           <td key={column} className="tasks__num tasks__cost" style={{ '--share': top > 0 ? row.cost / top : 0 } as CSSProperties}>
-            {formatUsd(row.cost)}
+            {row.priceEstimate === null ? (
+              formatUsd(row.cost)
+            ) : (
+              <Tipped tip={t.stats.tasks.priceEstimate(formatUsd(row.priceEstimate))} inline>
+                {formatUsd(row.cost)}
+              </Tipped>
+            )}
           </td>
         )
       case 'limit':
@@ -233,7 +239,13 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
             <span className="timeline__label" title={session.title ?? session.sessionId}>
               {launchLabel(session.reason)}
               <span className="timeline__meta">
-                {session.model !== null && modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))} · {formatUsd(session.cost)}
+                {session.model !== null && modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))} · {session.priceEstimate === null ? (
+                  formatUsd(session.cost)
+                ) : (
+                  <Tipped tip={t.stats.tasks.priceEstimate(formatUsd(session.priceEstimate))} align="start" inline>
+                    {formatUsd(session.cost)}
+                  </Tipped>
+                )}
               </span>
               {session.account !== null && <AccountTag account={session.account} agent={state?.sessions.find((each) => each.sessionId === session.sessionId)?.agent} />}
             </span>

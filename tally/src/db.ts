@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { stat } from 'node:fs/promises'
+import type { SessionKeySpend } from '../../src/account/spend.js'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
 import type { CatalogueModel } from './catalogue.js'
@@ -483,6 +484,19 @@ export class TallyDb implements Store {
     await this.transaction(async () => {
       await this.client.query(`delete from model_prices where source = 'config' and not (model = any($1::text[]))`, [prices.map((price) => price.model)])
       await this.insertPrices(prices, 'config')
+    })
+  }
+
+  /** Even Keel's real spends of sessions on their keys (BTN-860): they replace the earlier rows whole. */
+  async syncKeySpends(spends: SessionKeySpend[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query('delete from key_spends')
+      await this.client.query(
+        `insert into key_spends (session_id, account, usd, shared, first_at, last_at)
+         select session_id, account, usd, shared, first_at, last_at
+         from jsonb_to_recordset($1::jsonb) as x(session_id text, account text, usd double precision, shared boolean, first_at timestamptz, last_at timestamptz)`,
+        [JSON.stringify(spends.map((spend) => ({ session_id: spend.sessionId, account: spend.account, usd: spend.usd, shared: spend.shared, first_at: spend.firstAt, last_at: spend.lastAt })))],
+      )
     })
   }
 

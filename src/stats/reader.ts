@@ -149,8 +149,12 @@ const TASKS = `${PERIOD}, cur as (
   cross join bounds
   where k.agent_id is null and k.at >= bounds.lo and k.at < bounds.hi
   group by t.task
+), paid as (
+  -- The real spend on the key where Even Keel read one (BTN-860): only those sessions, so the view prices no other.
+  select p.message_id, p.paid from message_paid p where p.session_id in (select session_id from key_spends where not shared)
 )
-select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum(c.cost), 0) as cost, sum(sv.share) as limit_share,
+select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum(coalesce(pd.paid, c.cost)), 0) as cost,
+  case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) end as price_estimate, sum(sv.share) as limit_share,
   count(distinct c.session_id) as sessions,
   count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
@@ -164,6 +168,7 @@ select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum
   mode() within group (order by ${familyOf('c.model')}) as model
 from cur c
 left join seven sv on sv.message_id = c.message_id
+left join paid pd on pd.message_id = c.message_id
 left join tasks t on t.task = c.task
 left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
@@ -195,9 +200,12 @@ limit ${TOP_STUCK}`
 
 const TASK_SESSIONS = `
 select c.session_id, coalesce(s.custom_title, s.ai_title) as title, s.launch_reason, mode() within group (order by c.model) as model,
-  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.cost), 0) as cost, mode() within group (order by c.account) as account
-from message_costs c
+  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.paid), 0) as cost,
+  case when max(k.session_id) is not null then coalesce(sum(c.cost), 0) end as price_estimate,
+  mode() within group (order by c.account) as account
+from message_paid c
 left join sessions s on s.session_id = c.session_id
+left join key_spends k on k.session_id = c.session_id and not k.shared
 where c.task = $1::text
 group by c.session_id, s.custom_title, s.ai_title, s.launch_reason
 order by first_at`
@@ -373,6 +381,7 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       status: text(row.status),
       url: text(row.url),
       cost: number(row.cost),
+      priceEstimate: maybe(row.price_estimate),
       limit: maybe(row.limit_share),
       sessions: number(row.sessions),
       relays: number(row.relays),
@@ -406,6 +415,7 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
       firstAt: iso(row.first_at),
       lastAt: iso(row.last_at),
       cost: number(row.cost),
+      priceEstimate: maybe(row.price_estimate),
       account: text(row.account),
     })),
     spans: spans.map(stuck),

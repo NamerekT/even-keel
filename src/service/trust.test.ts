@@ -15,6 +15,7 @@ describe('project trust wiring', () => {
       configStore: { current }, cliCopies: { blocked: () => null }, protectionAudit: { check: async () => {} },
       requireModel: async () => {}, agentOf: () => ({ launch: refuse, resume: refuse }), projectOf: () => 'p',
       cliLease: { session: async (_home: AccountHome, run: () => Promise<string>) => run() },
+      keySpend: { beforeTurn: async () => {} },
     } as unknown as Parameters<typeof wireLaunchIn>[0]
     const home: AccountHome = { key: 'one', dir: 'D:/accounts/one', agent: 'claude', global: false }
     const start = { name: 'ABC-1', cwd: 'D:/checkout', prompt: 'test', model: null }
@@ -34,6 +35,7 @@ describe('project trust wiring', () => {
       agentOf: () => ({ launch, resume }),
       projectOf: () => 'p',
       cliLease: { session: async (_home: AccountHome, run: () => Promise<string>) => run() },
+      keySpend: { beforeTurn: async () => {} },
     } as unknown as Parameters<typeof wireLaunchIn>[0]
     const start = { name: 'ABC-1', cwd: 'D:/checkout/.claude/worktrees/abc-1', prompt: 'test', model: null }
     const first: AccountHome = { key: 'one', dir: 'D:/one', global: false, agent: 'claude' }
