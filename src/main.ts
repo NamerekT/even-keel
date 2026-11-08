@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { listenOf } from './config.js'
 import { profileSecondsOf, profileStart, watchLoopDelay } from './diagnostics/start-watch.js'
+import { logFatalErrors } from './diagnostics/stop.js'
 import { guardHosts, guardToken } from './guard.js'
 import { configPath, home, loadEnv, root, stateDirOf } from './locations.js'
 import { causeLine, englishOf, noticeWithCause, type Notice } from './notice/notice.js'
@@ -14,6 +15,7 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './storage/state-files.js'
 
 // The storage is brought to the current schema before the service reads any of it; when it cannot be, the service
 // starts nothing and writes nothing, and the page shows why.
+logFatalErrors()
 loadEnv()
 const profileSeconds = profileSecondsOf(process.env)
 if (profileSeconds !== undefined) await profileStart(profileSeconds, join(home, 'logs'), (line) => console.log(line)).catch((error: unknown) => console.error(`cpu profile: not started: ${String(error)}`))

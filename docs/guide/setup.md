@@ -337,6 +337,8 @@ loginctl enable-linger $USER
 
 **macOS:** a launchd agent `local.even-keel`. It runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off).
 
+On both systems the installer waits up to 60 seconds for the service and its page to answer before reporting success. It uses the address in your data folder's `.env`; `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` set in the installer's shell take priority and are saved in the service definition. A protected page can pass without entering its token. On failure the installer exits with an error, shows the service state and recent log, and leaves the installation in place. Fix the reported problem and run the installer again. On macOS also check **System Settings → General → Login Items → Allow in the Background**: the entry may be called `node`. The service log records stop signals and fatal errors; it cannot record a forced kill or a machine failure.
+
 ## Updating
 
 The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.

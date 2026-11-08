@@ -41,6 +41,19 @@ mkdir -p "$logs"
 unit_value() { printf '%s' "$1" | sed 's/%/%%/g'; }
 xml_value() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 
+# Keep the readiness probe and the installed service on the same address; .env remains the default.
+unit_listen=
+plist_listen=
+for listen_key in EVEN_KEEL_HOST EVEN_KEEL_PORT; do
+  if listen_value=$(printenv "$listen_key"); then
+    unit_listen="$unit_listen
+Environment=\"$listen_key=$(unit_value "$listen_value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')\""
+    plist_listen="$plist_listen
+    <key>$listen_key</key>
+    <string>$(xml_value "$listen_value")</string>"
+  fi
+done
+
 if [ -z "$data" ]; then
   exec_args='--import tsx src/main.ts'
   unit_data=
@@ -71,6 +84,7 @@ WorkingDirectory=$(unit_value "$root")
 ExecStart="$(unit_value "$node")" $exec_args
 Environment="PATH=$(unit_value "$PATH")"
 $unit_data
+$unit_listen
 Restart=always
 RestartSec=10
 KillMode=process
@@ -80,7 +94,11 @@ WantedBy=default.target
 EOF
   systemctl --user daemon-reload
   systemctl --user enable "$name.service"
-  systemctl --user restart "$name.service"
+  if ! systemctl --user restart "$name.service"; then
+    "$node" "$root/dist/src/service/install-check.js" linux "$name.service" '' --failed
+    exit 1
+  fi
+  "$node" "$root/dist/src/service/install-check.js" linux "$name.service"
   echo "Service $name started. Log: journalctl --user -u $name -f"
   if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ]; then
     echo "It stops when you log out. To keep it running: loginctl enable-linger $(id -un)"
@@ -111,6 +129,7 @@ $plist_args
     <key>PATH</key>
     <string>$(xml_value "$PATH")</string>
 $plist_data
+$plist_listen
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -133,7 +152,11 @@ EOF
     sleep 0.5
     tries=$((tries + 1))
   done
-  launchctl bootstrap "$domain" "$plist"
+  if ! launchctl bootstrap "$domain" "$plist"; then
+    "$node" "$root/dist/src/service/install-check.js" darwin "$domain/$label" "$log" --failed
+    exit 1
+  fi
+  "$node" "$root/dist/src/service/install-check.js" darwin "$domain/$label" "$log"
   echo "Agent $label started. Log: $log"
   ;;
 *)

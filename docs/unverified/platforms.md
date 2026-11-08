@@ -8,6 +8,16 @@ Run live on a rented Mac (BTN-312, Apple M2, macOS 27.2, 2026-11-03, [verified](
 
 Not run: a fallback to the background domain `user/<uid>` — there is none, on the assumption that sessions there would not reach Claude Code's sign-in in the login keychain, which only a desktop sign-in unlocks (over SSH that keychain was seen locked); Intel Macs and macOS versions before 27. **Workaround:** sign in to the desktop of the user, at the screen or through Screen Sharing, before `install.sh`; a Mac without a screen keeps its session through automatic login (System Settings → Users & Groups, needs FileVault off).
 
+## A launchd agent disappearing after installation (BTN-878)
+
+Observed on 2026-11-08 on an Intel MacBook Air, macOS 15, npm 0.3.0-rc.1: installation said the agent started, the log reached `listening`, then HTTP stopped answering and `launchctl print gui/<uid>/local.even-keel` could no longer find the agent. There were no repeated starts despite `KeepAlive`. After a reboot and installing Git it worked; neither change is established as the fix. Intel Macs remain unverified: README's checked Mac is Apple silicon.
+
+Unconfirmed explanations: Background Task Management on macOS 13+ unloading/disabling a new background item (possibly shown as `node`); the first `/usr/bin/git` call opening the Command Line Tools install prompt; resource pressure while the database took 16.6 s to open and Command Line Tools downloaded, followed by a machine hang. There is no evidence choosing between them.
+
+The installer now checks launchd registration, PID and HTTP for up to 60 s, and on failure reports state, last exit code and the log tail with advice about Login Items. Linux uses `systemctl --user is-active` and the journal. Signals and fatal JavaScript errors are logged before shutdown/exit. Automated tests cover waiting, disappearance, HTTP failures, manager output and fatal Node exits on Windows. Not checked live: this installer revision on macOS or Linux, a slow Intel first start, toggling Allow in the Background, missing Command Line Tools, or a real disappearing agent. A readiness check cannot catch an agent unloaded later; a forced kill or native/machine crash can leave no stop line.
+
+**If it is wrong:** installation may still fail or the agent may disappear after it reported success. Keep the installer's diagnostics, `logs/even-keel.log`, `launchctl print gui/$(id -u)/local.even-keel` and the Background Items setting; check System Settings → General → Login Items → Allow in the Background, sign in to the desktop, install Git/Command Line Tools if missing and retry. For Linux keep `systemctl --user status even-keel` and `journalctl --user -u even-keel`.
+
 ## npm's global folder owned by root (BTN-876)
 
 On a Mac with Node from the nodejs.org installer (2026-11-08) `npx even-keel` failed with npm's `EACCES` on `/usr/local/lib/node_modules`, and moving npm's prefix into the home ([setup](../guide/setup.md#npms-global-folder-on-macos-and-linux)) got it installed. Since then `npx even-keel` on macOS and Linux checks, before `npm install --global`, that it may write npm's global `node_modules` and the `bin` next to it (or their nearest existing parents), refuses to run as root, and prints the same commands after an `EACCES` of npm the check missed. Only the unit tests of `src/npm-access.ts` ran, on Windows.

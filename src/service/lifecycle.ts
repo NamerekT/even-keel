@@ -1,6 +1,7 @@
 import { executionOfChoices, transportOf } from '../account/transport.js'
 import { needsCheckedCli } from '../agent/providers.js'
 import { CLAUDE } from '../claude/name.js'
+import { stopOnSignals } from '../diagnostics/stop.js'
 import type { ServiceContext } from '../service.js'
 
 type LifecycleContext = Pick<ServiceContext,
@@ -74,12 +75,7 @@ export function start(ctx: LifecycleContext): void {
   }
   ctx.envFile.subscribe((changed) => void ctx.envChanged(changed))
   ctx.envFile.watch()
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.once(signal, () => {
-      setTimeout(() => process.exit(0), ctx.SHUTDOWN_MS).unref()
-      void shutdown(ctx).finally(() => process.exit(0))
-    })
-  }
+  stopOnSignals(() => shutdown(ctx), ctx.SHUTDOWN_MS)
   ctx.server.listen(ctx.listen.port, ctx.listen.host, () => {
     console.log(`even-keel listening on http://${ctx.listen.host}:${ctx.listen.port}`)
   })
