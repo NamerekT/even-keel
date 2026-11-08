@@ -43,6 +43,15 @@ beforeAll(async () => {
   await db.exec(`insert into key_spends (session_id, account, usd, shared, first_at, last_at) values
     ('metered', 'or', 3, false, '2026-11-03T12:00:00Z', '2026-11-03T12:10:00Z'),
     ('shared', 'or', 0, true, '2026-11-03T12:00:00Z', '2026-11-03T12:10:00Z')`)
+  // The accounts panel counts back from now: a metered session on a priced model and one on a model with no price.
+  await db.exec(`insert into sessions (session_id, account, launch_task, launch_reason) values
+    ('today-priced', 'card', 'ABC-3', 'launch'), ('today-unpriced', 'card', 'ABC-4', 'launch')`)
+  await db.exec(`insert into messages (message_id, session_id, account, project_dir, task, at, model, input, cache_write_5m, cache_write_1h, cache_read, output) values
+    ('t1', 'today-priced', 'card', 'C:/abc', 'ABC-3', now(), 'qwen-9', 4000000, 0, 0, 0, 0),
+    ('t2', 'today-unpriced', 'card', 'C:/abc', 'ABC-4', now(), 'no-price-1', 1000000, 0, 0, 0, 0),
+    ('t3', 'today-unpriced', 'card', 'C:/abc', 'ABC-4', now(), 'no-price-1', 1000000, 0, 0, 0, 0)`)
+  await db.exec(`insert into key_spends (session_id, account, usd, shared, first_at, last_at) values
+    ('today-priced', 'card', 3, false, now(), now()), ('today-unpriced', 'card', 0.5, false, now(), now())`)
   await db.exec(SESSION_FOLDERS)
   reader = new StatsReader({ host: 'localhost', port: 1, database: 'tally', user: 'reader', password: 'fake' },
     () => ({ ABC: 'C:/abc' }), () => parseConfig({ projects: [] }).stats)
@@ -59,6 +68,11 @@ it("shows a task's cost as paid and its estimate by price beside it; the period'
   expect(shared.cost).toBeCloseTo(1)
   expect(shared.priceEstimate).toBeNull()
   expect(period.current.cost).toBeCloseTo(4 + 2 + 1)
+})
+
+it("gives the accounts panel a key's real spend: the estimate it replaces and a model with no price", async () => {
+  const card = data(await reader.spend('UTC')).card!
+  expect(card.month).toBeCloseTo(3 + 0.5)
 })
 
 it("shows a session's real spend with its estimate, and a session without one as priced", async () => {

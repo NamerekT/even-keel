@@ -45,12 +45,13 @@ order by l.day, l.project`
 
 const ACCOUNTS = `select distinct account from messages order by account`
 
-// $1 time zone: the spend since local midnight and over the last 30 days, per account folder key.
+// $1 time zone: the spend since local midnight and over the last 30 days, per account folder key; a session's real
+// spend on its key where Even Keel read one (BTN-860), the estimate by price otherwise.
 const SPEND = `
 select account,
-  coalesce(sum(cost) filter (where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text), 0) as day,
-  coalesce(sum(cost), 0) as month
-from message_costs
+  coalesce(sum(paid) filter (where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text), 0) as day,
+  coalesce(sum(paid), 0) as month
+from message_paid
 where at >= now() - interval '30 days'
 group by account`
 
