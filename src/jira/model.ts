@@ -17,6 +17,7 @@ export interface JiraRef {
 }
 
 export interface JiraLink {
+  id?: string
   type: { name: string }
   /** The issue on the link's inward side: for `Blocks` it blocks this one. */
   inwardIssue?: JiraRef

@@ -6,6 +6,7 @@ import { entryMinutes, parseTaskId, uniqueStatuses, type StatusCategory, type Ta
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
 import { JiraApi, JiraHttpError } from './api.js'
+import { jiraEditor, type JiraIssueType } from './editor.js'
 import {
   BLOCKS,
   CARD_FIELDS,
@@ -191,7 +192,12 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 
   const ready = (id: string) => move(id, ['UnStarted'], 'ToDo', 'ready')
 
-  return {
+  async function issueTypes(key: string): Promise<JiraIssueType[]> {
+    const { issueTypes, values } = await api.rest<{ issueTypes?: JiraIssueType[]; values?: JiraIssueType[] }>(`/issue/createmeta/${encodeURIComponent(key)}/issuetypes`)
+    return issueTypes ?? values ?? []
+  }
+
+  const source: TaskSource = {
     async chainTasks(project, open) {
       const key = keyOf(project)
       const statuses = await statusesOf(key)
@@ -317,8 +323,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     // A new issue goes in at the workflow's first status; one that starts in the backlog is moved to the first ready one.
     async create(task) {
       const key = keyOf(task.project)
-      const { issueTypes, values } = await api.rest<{ issueTypes?: IssueType[]; values?: IssueType[] }>(`/issue/createmeta/${encodeURIComponent(key)}/issuetypes`)
-      const types = (issueTypes ?? values ?? []).filter((type) => type.subtask !== true && type.hierarchyLevel === 0)
+      const types = (await issueTypes(key)).filter((type) => type.subtask !== true && type.hierarchyLevel === 0)
       const type = types.find((each) => sameName(each.untranslatedName ?? each.name, 'Task')) ?? types[0]
       if (type === undefined) throw new Error(`jira: project ${key} has no issue type to create a task with`)
       const priority = priorityFor(task.priority, await prioritiesOf())
@@ -411,14 +416,18 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 
     close: async () => {},
   }
-}
-
-interface IssueType {
-  id: string
-  name: string
-  untranslatedName?: string | null
-  subtask?: boolean
-  hierarchyLevel?: number
+  source.editor = jiraEditor({
+    rest: (path, method, body) => api.rest(path, method, body),
+    keyOf,
+    list: async (project) => converted(await search(`project = "${keyOf(project)}" ORDER BY key`)),
+    priorities: prioritiesOf,
+    versionsOf,
+    issueTypes,
+    linkTypes: issueLinkTypes.map((type) => type.name),
+    relabel: (id, change) => source.relabel!(id, change),
+    comment: (id, body) => source.comment!(id, body),
+  })
+  return source
 }
 
 /** A worklog's `started`: Jira takes `2026-11-01T10:13:00.000+0000`, not the `Z` of ISO. */

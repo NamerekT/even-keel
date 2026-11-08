@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest'
+import { revisionOf } from '../tracker/editor.js'
+import { markdownToAdf } from './adf.js'
+import { jiraEditor } from './editor.js'
+
+const status = (name: string) => ({ id: name, name, statusCategory: { key: 'new' } })
+const ref = (key: string) => ({ key, fields: { summary: key, status: status('To Do') } })
+
+function fixture() {
+  const issues: Record<string, Record<string, unknown>> = {
+    'ABC-1': { summary: 'Epic', status: status('To Do'), priority: { id: '3', name: 'Medium' }, fixVersions: [{ id: 'v1', name: '1.0' }], issuetype: { hierarchyLevel: 1 }, description: markdownToAdf('Old text') },
+    'ABC-2': {
+      summary: 'Story', status: status('To Do'), issuetype: { hierarchyLevel: 0 }, parent: ref('ABC-1'),
+      issuelinks: [{ id: 'l-1', type: { name: 'Blocks' }, inwardIssue: ref('ABC-3') }, { id: 'l-2', type: { name: 'Relates' }, outwardIssue: ref('ABC-1') }],
+    },
+    'ABC-3': { summary: 'Sub', status: status('To Do'), issuetype: { hierarchyLevel: -1, subtask: true } },
+    'ABC-10': { summary: 'New', status: status('To Do'), issuetype: { hierarchyLevel: 0 } },
+  }
+  const writes: [string, string, unknown][] = []
+  const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+    if (method !== 'GET') {
+      writes.push([method, path, body])
+      return { key: 'ABC-10' } as T
+    }
+    if (path.endsWith('/transitions')) return { transitions: [{ id: 't-31', to: { name: 'Done' } }, { id: 't-21', to: { name: 'In Progress' } }] } as T
+    const key = decodeURIComponent(/\/issue\/([^?/]+)/.exec(path)![1]!)
+    return { id: key, key, fields: issues[key] } as T
+  }
+  const editor = jiraEditor({
+    rest,
+    keyOf: () => 'ABC',
+    list: async () => [],
+    priorities: async () => [{ id: '1', name: 'Highest' }, { id: '2', name: 'High' }, { id: '3', name: 'Medium' }, { id: '4', name: 'Low' }],
+    versionsOf: async () => [{ id: 'v1', name: '1.0' }, { id: 'v2', name: '2.0' }],
+    issueTypes: async () => [{ id: 'epic', name: 'Epic', hierarchyLevel: 1 }, { id: 'task', name: 'Task', hierarchyLevel: 0 }, { id: 'sub', name: 'Subtask', subtask: true, hierarchyLevel: -1 }],
+    linkTypes: ['Blocks', 'Relates', 'Duplicate'],
+    relabel: async () => [],
+    comment: async () => 'c-1',
+  })
+  return { editor, writes }
+}
+
+describe('jiraEditor', () => {
+  it('creates a task under an epic with every field, then moves it through a transition', async () => {
+    const { editor, writes } = fixture()
+    expect(await editor.create('P1', { title: 'New', description: 'Text', status: 'In Progress', priority: 'urgent', milestone: '2.0', labels: ['bug'], parent: 'ABC-1' })).toBe('ABC-10')
+    expect(writes).toEqual([
+      ['POST', '/issue', { fields: { project: { key: 'ABC' }, issuetype: { id: 'task' }, summary: 'New', description: markdownToAdf('Text'), priority: { id: '1' }, fixVersions: [{ id: 'v2' }], labels: ['bug'], parent: { key: 'ABC-1' } } }],
+      ['POST', '/issue/ABC-10/transitions', { transition: { id: 't-21' } }],
+    ])
+  })
+
+  it('takes the sub-task type under a standard parent, refuses one under a sub-task, and says a created task stays', async () => {
+    const { editor, writes } = fixture()
+    await editor.create('P1', { title: 'Child', description: '', status: null, priority: null, milestone: null, labels: [], parent: 'ABC-2' })
+    expect((writes[0]![2] as { fields: { issuetype: unknown } }).fields.issuetype).toEqual({ id: 'sub' })
+    await expect(editor.create('P1', { title: 'Child', description: '', status: null, priority: null, milestone: null, labels: [], parent: 'ABC-3' })).rejects.toThrow(/sub-task has no children/)
+    await expect(editor.create('P1', { title: 'New', description: '', status: 'Review', priority: null, milestone: null, labels: [], parent: null })).rejects.toThrow(
+      /ABC-10 was created, but .*no transition from To Do to "Review"; from here it goes to Done, In Progress; do not create it again/,
+    )
+  })
+
+  it('sets fields, keeps the version as the only one and refuses a priority of none', async () => {
+    const { editor, writes } = fixture()
+    expect(await editor.set('ABC-1', { field: 'priority', to: 'medium' })).toBe(false)
+    expect(await editor.set('ABC-1', { field: 'priority', to: 'low' })).toBe(true)
+    await expect(editor.set('ABC-1', { field: 'priority', to: 'none' })).rejects.toThrow(/keeps a priority on every issue/)
+    expect(await editor.set('ABC-1', { field: 'milestone', to: '1.0' })).toBe(false)
+    expect(await editor.set('ABC-1', { field: 'milestone', to: null })).toBe(true)
+    expect(await editor.set('ABC-2', { field: 'milestone', to: '2.0' })).toBe(true)
+    expect(await editor.set('ABC-2', { field: 'parent', to: 'abc-1' })).toBe(false)
+    expect(await editor.set('ABC-2', { field: 'parent', to: null })).toBe(true)
+    expect(await editor.set('ABC-1', { field: 'status', to: 'to do' })).toBe(false)
+    expect(await editor.set('ABC-1', { field: 'status', to: 'Done' })).toBe(true)
+    expect(writes).toEqual([
+      ['PUT', '/issue/ABC-1', { fields: { priority: { id: '4' } } }],
+      ['PUT', '/issue/ABC-1', { fields: { fixVersions: [] } }],
+      ['PUT', '/issue/ABC-2', { fields: { fixVersions: [{ id: 'v2' }] } }],
+      ['PUT', '/issue/ABC-2', { fields: { parent: null } }],
+      ['POST', '/issue/ABC-1/transitions', { transition: { id: 't-31' } }],
+    ])
+  })
+
+  it('links with the blocker outward and removes a link from either side of "relates"', async () => {
+    const { editor, writes } = fixture()
+    await editor.link('ABC-2', 'ABC-3', 'blockedBy', true)
+    await editor.link('ABC-2', 'ABC-3', 'blocks', true)
+    await editor.link('ABC-2', 'ABC-3', 'blockedBy', false)
+    await editor.link('ABC-2', 'ABC-1', 'relates', false)
+    await editor.link('ABC-1', 'ABC-3', 'relates', true)
+    expect(writes).toEqual([
+      ['POST', '/issueLink', { type: { name: 'Blocks' }, outwardIssue: { key: 'ABC-2' }, inwardIssue: { key: 'ABC-3' } }],
+      ['DELETE', '/issueLink/l-1', undefined],
+      ['DELETE', '/issueLink/l-2', undefined],
+      ['POST', '/issueLink', { type: { name: 'Relates' }, outwardIssue: { key: 'ABC-1' }, inwardIssue: { key: 'ABC-3' } }],
+    ])
+  })
+
+  it('patches the description through Markdown and writes it back as ADF', async () => {
+    const { editor, writes } = fixture()
+    expect(await editor.revision('ABC-1')).toBe(revisionOf('Old text'))
+    expect(await editor.patch('ABC-1', [{ old: 'Old', new: 'New' }], null)).toBe(true)
+    expect(writes).toEqual([['PUT', '/issue/ABC-1', { fields: { description: markdownToAdf('New text') } }]])
+  })
+})
