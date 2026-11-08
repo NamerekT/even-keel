@@ -120,10 +120,10 @@ export function FoldPresence({ children, className, onClosed }: { children: Reac
   return <FoldBody open={shown} className={className} onClosed={onClosed}>{shown ? children : last}</FoldBody>
 }
 
-interface FoldItem { key: string; children: ReactNode }
+export interface FoldItem { key: string; children: ReactNode }
 
 /** Removed notices retain their place and content until their individual exit finishes. */
-export function FoldList({ items }: { items: FoldItem[] }) {
+export function FoldList({ items, className = '', itemClassName }: { items: FoldItem[]; className?: string; itemClassName?: string }) {
   const [previous, setPrevious] = useState(items)
   const [rendered, setRendered] = useState(items)
   if (previous !== items) {
@@ -135,9 +135,9 @@ export function FoldList({ items }: { items: FoldItem[] }) {
     setRendered(next)
   }
   if (rendered.length === 0) return null
-  return <div className="ui-fold-list">{rendered.map(item => {
+  return <div className={`ui-fold-list ${className}`}>{rendered.map(item => {
     const current = items.find(each => each.key === item.key)
-    return <FoldPresence key={item.key} onClosed={() => setRendered(rows => rows.filter(each => each.key !== item.key))}>
+    return <FoldPresence key={item.key} className={itemClassName} onClosed={() => setRendered(rows => rows.filter(each => each.key !== item.key))}>
       {current === undefined ? null : <div className="ui-fold-list__item">{current.children}</div>}
     </FoldPresence>
   })}</div>

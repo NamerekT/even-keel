@@ -1,5 +1,5 @@
 import { Fold } from '../ui/Fold.js'
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
@@ -9,7 +9,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
-import { Toast } from '../ui/Toast.js'
+import { Toast, ToastPresence } from '../ui/Toast.js'
 import '../tools/addPackage.css'
 import '../ui/markdown.css'
 import './updates.css'
@@ -60,6 +60,10 @@ export function VersionRow() {
 
 /** The toast about a newer release; its buttons are kept by the service, so every device stops showing it. */
 export function UpdateToast() {
+  return <ToastPresence>{useUpdateToast()}</ToastPresence>
+}
+
+function useUpdateToast(): ReactNode {
   const { state } = useLive()
   const { send } = useCommand()
   const [hidden, setHidden] = useState<string | null>(null)
@@ -94,6 +98,10 @@ export function UpdateToast() {
  * with another version: the new code is in the bundle it serves.
  */
 export function UpdateProgressToast() {
+  return <ToastPresence>{useUpdateProgressToast()}</ToastPresence>
+}
+
+function useUpdateProgressToast(): ReactNode {
   const { state } = useLive()
   const first = useRef<string | null>(null)
   const current = state?.updates.current ?? null
@@ -125,6 +133,10 @@ export function UpdateProgressToast() {
 
 /** How the last update or revert ended, shown after the restart until the user closes it. */
 export function UpdateResultToast() {
+  return <ToastPresence>{useUpdateResultToast()}</ToastPresence>
+}
+
+function useUpdateResultToast(): ReactNode {
   const { state } = useLive()
   const { send } = useCommand()
   const [hidden, setHidden] = useState(false)

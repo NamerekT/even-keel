@@ -1,13 +1,51 @@
 .toasts {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: max(16px, env(safe-area-inset-bottom));
+  /* The last toast's slot ends a gap below it: that gap lies under the corner's edge, not above it. */
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) - var(--toast-gap));
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   width: min(360px, calc(100vw - 32px));
   pointer-events: none;
+  /* The gap between toasts, and the room around each that keeps its shadow out of the slot's clip. */
+  --toast-gap: 10px;
+  --toast-shade-side: var(--space-24);
+  --toast-shade-below: 32px;
+}
+
+/*
+ * A slot of `ToastList` is a `FoldBody`: it grows from nothing and fades in while sliding up, and leaves the same way
+ * backwards, so the toasts around it move smoothly. Its clip would cut the toast's shadow, so the item keeps room for
+ * the shadow inside and the slot gives that room back with negative margins; the bottom one shrinks with the slot.
+ */
+.ui-fold__body.toast-slot {
+  margin-inline: calc(-1 * var(--toast-shade-side));
+  margin-bottom: 0;
+  transform: translateY(var(--space-12));
+  transition:
+    grid-template-rows var(--motion-appear) ease-out,
+    opacity var(--motion-appear) ease-out,
+    transform var(--motion-appear) ease-out,
+    margin-bottom var(--motion-appear) ease-out;
+}
+
+.ui-fold__body--open.toast-slot {
+  margin-bottom: calc(var(--toast-gap) - var(--toast-shade-below));
+  transform: none;
+}
+
+.toast-slot .ui-fold-list__item {
+  padding: 0 var(--toast-shade-side) var(--toast-shade-below);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-fold__body.toast-slot {
+    grid-template-rows: 1fr;
+    margin-bottom: calc(var(--toast-gap) - var(--toast-shade-below));
+    transform: none;
+    transition: opacity var(--motion-appear) ease-out;
+  }
 }
 
 .toast {
@@ -22,16 +60,27 @@
   pointer-events: auto;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .toast {
-    animation: toast-in var(--motion-appear) ease-out;
+/* The time left of a toast that goes by itself: full at the start, empty at the timeout, standing while held. */
+.toast__bar {
+  height: 3px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: toast-time var(--toast-ms) linear forwards;
+}
+
+.toast__bar[data-running='false'] {
+  animation-play-state: paused;
+}
+
+@keyframes toast-time {
+  to {
+    transform: scaleX(0);
   }
 }
 
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+@media (prefers-reduced-motion: reduce) {
+  .toast__bar {
+    display: none;
   }
 }
 
@@ -94,7 +143,7 @@
   .toasts {
     left: max(12px, env(safe-area-inset-left));
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) - var(--toast-gap));
     width: auto;
   }
 }
