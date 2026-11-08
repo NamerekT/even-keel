@@ -112,6 +112,19 @@ The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", t
 
 If one is wrong, a patch spoils a description's formatting or a link is missing in Huly. **Workaround:** keep the `huly` plugin's own server (the plugin still uses it) and fix the description in Huly's editor. To check (BTN-873): on the Huly bench with the `tasks@even-keel` package on, patch copies of real BTN descriptions, file a batch with links and a parent, try a parent change (refused), comment; a hand session by key; Tally's cost against `huly-mcp`.
 
+## The tasks server on GitHub, Linear, Jira, GitLab and Forgejo (BTN-875)
+
+The same five tools on the outer trackers (`docs/trackers.md`, "The tasks server", a paragraph of limits each) are checked by tests that record every request against a fake API (`src/<tracker>/editor.test.ts`); no live tracker has taken a write from them. The requests are written from each API's documentation and the live seed scripts of the benches. Assumed:
+
+- GitHub: `createIssue` takes `parentIssueId`; `addBlockedBy`/`removeBlockedBy` exist under these names for a token of the bench; a close as `DUPLICATE` without naming the duplicate is accepted.
+- Linear: a milestone found among the team's projects moves an issue without a project into that project, and `issueRelationCreate` of type `blocks` from the blocker is what the chain reads back as "blocked by".
+- Jira: `POST /issueLink` with the blocker as `outwardIssue` shows "blocks" on the blocker; a new task under a story takes the sub-task type and lands as its child; a failed transition after a create leaves one issue, not two.
+- GitLab: an issue's REST `id` is its work item's id, so `gid://gitlab/WorkItem/<id>` names it in `workItemUpdate`; a new `task` lands under an issue; on CE a `link_type: blocks` comes back as `relates_to` (and is removed again), on Premium as `blocks`; `milestone_id: 0` clears a milestone.
+- Forgejo: `POST`/`DELETE /issues/{index}/dependencies` with `{owner, repo, index}` of the blocker adds and removes "blocked by" on the issue in the path; an organization's priority label is set by relabelling.
+- On every one, a hand session with the `tasks` plugin finds the project by its task key, and the chain sees a new task or link at its next read.
+
+If one is wrong, a write fails with the tracker's own error, or a link lands the other way round (the chain then waits on the wrong task). **Workaround:** make the change in the tracker's own interface; the chain reads it as usual. To check: on each tracker's bench with the `tasks@even-keel` package on, file a batch with every field, a parent and `#N` links, move a status, swap a priority and a milestone, link and unlink both ways, patch a description, and read each task back in the tracker and on the card.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:

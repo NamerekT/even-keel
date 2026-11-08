@@ -44,7 +44,7 @@
     },
     {
       "name": "tasks",
-      "description": "Even Keel's built-in tracker and Huly for sessions: its own tasks server with five tools — list, read, create in batches, update with description patches, comment — and skills to work a task and split it into subtasks",
+      "description": "Any tracker of an Even Keel project for sessions: its own tasks server with five tools — list, read, create in batches, update with description patches, comment — and skills to work a task and split it into subtasks",
       "source": "./plugins/tasks",
       "category": "productivity"
     },

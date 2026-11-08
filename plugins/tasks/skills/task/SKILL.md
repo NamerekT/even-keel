@@ -1,6 +1,6 @@
 ---
 name: task
-description: Working a task through Even Keel's tasks MCP server (the built-in tracker and Huly) — recording decisions in the description, filing a blocker or a question, creating tasks, the closing comment and the merge. Load it when the prompt is a task id such as ABC-12 and the session has the tasks server's tools, or before creating such a task. Not for GitHub or other trackers — they have their own skills.
+description: Working a task through Even Keel's tasks MCP server (any tracker of an Even Keel project) — recording decisions in the description, filing a blocker or a question, creating tasks, the closing comment and the merge. Load it when the prompt is a task id such as ABC-12 and the session has the tasks server's tools, or before creating such a task. Not when the session has only a tracker's own MCP server — that tracker's skills cover it.
 ---
 
 # Working a task

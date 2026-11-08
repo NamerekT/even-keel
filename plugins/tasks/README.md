@@ -1,8 +1,17 @@
 # tasks
 
-Even Keel's own tasks server for the sessions of projects on its built-in tracker and on Huly, with the `tasks:task` and `tasks:split` skills. The server is not a separate process: Even Keel's MCP gateway answers it in the service, over the tracker layer, so it works only while Even Keel runs. Other trackers are not served yet.
+Even Keel's own tasks server for the sessions of projects on any of its trackers — the built-in one, Huly, GitHub, Linear, Jira, GitLab and Forgejo — with the `tasks:task` and `tasks:split` skills. The server is not a separate process: Even Keel's MCP gateway answers it in the service, over the tracker layer, so it works only while Even Keel runs.
 
-On Huly the tools have a few limits: a description patch reads and writes the whole description with no lock in between, so an edit made in Huly at that moment is lost; a parent is set only on a new task; a table in a description comes back as HTML; a comment does not carry the session's model. The `huly` plugin keeps its own server for now.
+Outside the built-in tracker the tools have a few limits: a description patch reads and writes the whole description with no lock in between, so an edit made in the tracker at that moment is lost, and a comment does not carry the session's model. What a tracker cannot hold is refused with a reason, never skipped quietly:
+
+- Huly: a parent is set only on a new task; a table in a description comes back as HTML. The `huly` plugin keeps its own server for now.
+- GitHub: no "relates" link; a priority is a `priority: <level>` label the repository must already have.
+- Linear: a milestone name found in two projects of the team is refused.
+- Jira: a status moves only along the workflow; every issue keeps a priority, so "none" is refused; a sub-task takes no children.
+- GitLab: one link per pair of issues; blocking links only on Premium and Ultimate; a priority is a `priority::<level>` label the project must already have.
+- Forgejo: no subtasks and no "relates" link; blocking links need the repository's dependencies on; a priority is a `priority/<level>` label the repository must already have.
+
+Every limit in detail: [`docs/trackers.md`](../../docs/trackers.md), "The tasks server".
 
 | Tool | What it does |
 | --- | --- |
