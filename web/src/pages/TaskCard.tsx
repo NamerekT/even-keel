@@ -35,6 +35,9 @@ import { useCardEdit, type CardEditor } from './useCardEdit.js'
 import { CardJournal } from './CardJournal.js'
 import { CardDescription } from './CardDescription.js'
 import './card.css'
+import './cardMain.css'
+import './cardSide.css'
+import './cardNarrow.css'
 import './cardEdit.css'
 
 /** Labels whose meaning stops a session or keeps the task out of the chain get a callout above the description. */
