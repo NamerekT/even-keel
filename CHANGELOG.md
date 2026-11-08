@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - **A project's lone `AGENTS.md` is no longer in a Claude session's context twice.** Claude Code reads the file by itself, so Even Keel stopped appending it to the system prompt; the same text reached every turn twice before.
+- **A project's lone `AGENTS.md` reaches a Claude session again when a `CLAUDE.md` lies in a folder above the checkout**, such as `~/.claude/CLAUDE.md` for a checkout in your home folder. Claude Code skips the file then, so Even Keel appends it to the system prompt in that case only.
 - The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
 
 ## [0.2.3] - 2026-11-07

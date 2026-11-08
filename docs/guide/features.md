@@ -195,7 +195,7 @@ An account added with a token shows its monthly allowance, "N left, resets on th
 
 ## The project's instructions and skills
 
-A project written for one agent keeps its rules when its tasks move to another. A lone instruction file reaches every agent: Even Keel tells Codex to read a `CLAUDE.md`, which it does not read by itself, while Claude Code reads a lone `AGENTS.md` by itself. With both files, each agent reads its own one, and Copilot reads both:
+A project written for one agent keeps its rules when its tasks move to another. A lone instruction file reaches every agent: Even Keel tells Codex to read a `CLAUDE.md`, which it does not read by itself, while Claude Code reads a lone `AGENTS.md` by itself — unless a folder above the checkout holds a `CLAUDE.md` (`~/.claude/CLAUDE.md` included), and then Even Keel gives it the file. With both files, each agent reads its own one, and Copilot reads both:
 
 | Agent | Only `CLAUDE.md` | Only `AGENTS.md` | Both | Skill folders |
 | --- | --- | --- | --- | --- |

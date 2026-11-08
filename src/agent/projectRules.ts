@@ -34,7 +34,7 @@ interface Reads {
 
 // A lone file reaches every agent: Codex and OpenCode take CLAUDE.md without an AGENTS.md (Codex by Even Keel's
 // `project_doc_fallback_filenames`); Claude Code reads a lone AGENTS.md by itself (CLI 2.1.309 and up, 2026-11-08),
-// so Even Keel passes it nothing.
+// and Even Keel passes it only where a CLAUDE.md above the folder keeps the CLI from it (`agentsFallback`, BTN-869).
 const READS: Record<string, Reads> = {
   [CLAUDE]: { own: 'CLAUDE.md', fallbackPassed: false, skills: ['.claude/skills'], passed: [], plugins: 'all' },
   [CODEX]: { own: 'AGENTS.md', fallbackPassed: true, skills: ['.agents/skills', '.codex/skills'], passed: [], plugins: 'all' },

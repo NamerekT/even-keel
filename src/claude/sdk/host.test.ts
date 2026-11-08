@@ -54,11 +54,13 @@ describe('SdkSessions.stop', () => {
 })
 
 describe('sessionOptions', () => {
-  it("uses Claude Code's own system prompt, with no file appended: the CLI reads a lone AGENTS.md by itself", () => {
+  it("uses Claude Code's own system prompt, with the lone AGENTS.md the CLI will not read appended", () => {
     const cwd = mkdtempSync(join(tmpdir(), 'ek-sdk-'))
     try {
+      const start = { name: 'ABC-1', cwd, prompt: 'ABC-1', model: null }
       writeFileSync(join(cwd, 'AGENTS.md'), 'Run the checks.')
-      expect(sessionOptions({ name: 'ABC-1', cwd, prompt: 'ABC-1', model: null }).systemPrompt).toEqual({ type: 'preset', preset: 'claude_code' })
+      expect(sessionOptions(start, () => undefined).systemPrompt).toEqual({ type: 'preset', preset: 'claude_code' })
+      expect(sessionOptions(start, () => join(cwd, 'AGENTS.md')).systemPrompt).toEqual({ type: 'preset', preset: 'claude_code', append: 'Run the checks.' })
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }

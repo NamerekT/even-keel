@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { claude } from '../claude/adapter.js'
 import { claudeBinaryIn, fetchClaude } from '../claude/release.js'
 import { ACCOUNT, type Harness } from '../e2e/service.fixture.js'
@@ -78,14 +78,9 @@ export function remoteDefaults(run: Harness, binary: string): Promise<Record<str
 }
 
 /**
- * A project rules file of Claude's in a folder above `folder`, or `null`. The CLI reads such files above a checkout, and
- * a lone `AGENTS.md` below one is not read: on Windows `~/.claude/CLAUDE.md` is such a file for the bench's folder in
- * the user's temp once the account is another folder, the chain's worktree too (CLI 2.1.319, BTN-855).
+ * A project rules file of Claude's in a folder above `folder`, or `null`. A lone `AGENTS.md` below one is not read by
+ * the CLI, so Even Keel passes it itself (`agentsFallback`) and the scenarios on the CLI's own reading have nothing to
+ * check: on Windows `~/.claude/CLAUDE.md` is such a file for the bench's folder in the user's temp once the account is
+ * another folder (CLI 2.1.319, BTN-855).
  */
-export function claudeRulesAbove(folder: string): string | null {
-  for (let dir = dirname(folder); ; dir = dirname(dir)) {
-    const found = ['CLAUDE.md', join('.claude', 'CLAUDE.md')].map((name) => join(dir, name)).find((path) => existsSync(path))
-    if (found !== undefined) return found
-    if (dirname(dir) === dir) return null
-  }
-}
+export { claudeRulesAbove } from '../claude/instructions.js'
