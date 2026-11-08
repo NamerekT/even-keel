@@ -1,5 +1,5 @@
 import { getJson, getText } from './http.js'
-import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
+import { isFinished, withEvent, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
 export interface ForgejoSettings {
   web: string
@@ -13,6 +13,7 @@ interface ForgejoRun {
   index_in_repo: number
   title: string
   workflow_id: string
+  event?: string
   commit_sha: string
   status: string
   created: string
@@ -69,6 +70,7 @@ export function forgejoSource(settings: ForgejoSettings, timeoutMs: number, fetc
           workflow: run.workflow_id,
           commit: run.commit_sha,
           status: statusOf(run.status),
+          ...withEvent(run.event),
           createdAt: run.created,
           startedAt: timeOf(run.started),
           stoppedAt: timeOf(run.stopped),

@@ -17,6 +17,7 @@ const RUN = {
   id: 38171546488,
   name: 'Tests',
   display_title: '[ABC-7] Fix the parser',
+  event: 'push',
   head_sha: '5c95521730bbc58ab20052f7ff807c29a8fbeb65',
   status: 'completed',
   conclusion: 'success',
@@ -45,6 +46,7 @@ describe('githubActionsSource', () => {
         workflow: 'Tests',
         commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65',
         status: 'success',
+        event: 'push',
         createdAt: '2026-10-11T20:17:02Z',
         startedAt: '2026-10-11T20:17:05Z',
         stoppedAt: '2026-10-11T20:20:03Z',
@@ -52,6 +54,12 @@ describe('githubActionsSource', () => {
       },
     ])
     expect(asked[0]!.auth).toBe('Bearer fake-token')
+  })
+
+  it('names what started a run, and leaves it out when GitHub does not say (BTN-828)', async () => {
+    const runs = [{ ...RUN, event: 'workflow_dispatch' }, { ...RUN, event: 'pull_request' }, { ...RUN, event: 'repository_dispatch' }, { ...RUN, event: undefined }]
+    const { source } = fake({ '/actions/runs?per_page=10': { workflow_runs: runs } })
+    expect((await source.runs(10)).map((run) => run.event)).toEqual(['manual', 'pull', 'other', undefined])
   })
 
   it('maps statuses and conclusions', async () => {

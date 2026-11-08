@@ -3,9 +3,24 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { FixEpisode } from '../../../src/chain/launches.js'
-import { isFinished, runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
+import {
+  leadRun,
+  pushesOf,
+  pushStatus,
+  runDurationMs,
+  runLook,
+  stuckSince,
+  type BusyRunner,
+  type CiJob,
+  type CiRun,
+  type CiView,
+  type CurrentRun,
+  type PushRuns,
+  type RunLook,
+  type WorkflowRun,
+} from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
-import { ciLevel, worstCiLevel } from '../ci.js'
+import { ciLevel, countedViews, worstCiLevel } from '../ci.js'
 import { formatAgo, formatClock, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
@@ -17,6 +32,15 @@ import './ci.css'
 
 const SHORT_SHA = 7
 const short = (commit: string) => commit.slice(0, SHORT_SHA)
+
+const runsOf = (current: CurrentRun): CiRun[] => current.runs.map((each) => each.run)
+const isDone = (look: RunLook) => look !== 'running' && look !== 'queued'
+
+/** What started the runs, in words; `null` — no CI said. */
+function eventsOf(runs: CiRun[]): string | null {
+  const events = [...new Set(runs.flatMap((run) => (run.event === undefined ? [] : [run.event])))]
+  return events.length === 0 ? null : events.map((event) => t.ci.events[event]).join(', ')
+}
 
 /** The address hash that opens the CI panel; a task id never equals it. */
 export const CI_HASH = 'ci'
@@ -36,7 +60,8 @@ const CI_CLASS: Record<ChipLook, string> = { tag: 'chip chip--ci', tab: 'side-ta
 export function CiChip({ views, open, look = 'tag', onToggle }: { views: CiView[]; open: boolean; look?: ChipLook; onToggle: () => void }) {
   const now = useNow(1_000)
   const level = worstCiLevel(views, now)
-  const running = views.map((view) => view.current?.run).find((run) => run?.status === 'running')
+  const running = countedViews(views).flatMap((view) => (view.current === null ? [] : runsOf(view.current))).filter((run) => run.status === 'running')
+  const clock = running.length === 0 ? null : Math.max(...running.map((run) => runDurationMs(run, now) ?? 0))
   const label = t.ci.title(t.ci.levels[level])
 
   return (
@@ -50,7 +75,7 @@ export function CiChip({ views, open, look = 'tag', onToggle }: { views: CiView[
     >
       <span className="ci-dot" aria-hidden="true" />
       {t.ci.chip}
-      {running !== undefined && <span className="chip__extra"> · {formatClock(runDurationMs(running, now) ?? 0)}</span>}
+      {clock !== null && <span className="chip__extra"> · {formatClock(clock)}</span>}
     </button>
   )
 }
@@ -61,12 +86,13 @@ interface Fixes {
   marked: ReadonlySet<string>
 }
 
-/** The side panel with each CI's runs. */
+/** The side panel with each CI's runs; a CI the project does not count goes after those it counts (BTN-828). */
 export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[]; urls: TrackerUrls; fixes: FixEpisode[]; fix: string | null; onClose: () => void }) {
   const episode = fixes.find((each) => each.id === fix)
   const known: Fixes = { episodes: fixes, marked: new Set([episode?.red, episode?.end?.commit].filter((commit) => commit != null)) }
   const now = useNow(1_000)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const ordered = [...views.filter((view) => view.counted), ...views.filter((view) => !view.counted)]
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => {
@@ -85,9 +111,9 @@ export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[];
           ×
         </button>
       </header>
-      {views.map((view, index) => {
+      {ordered.map((view, index) => {
         const key = `${view.kind}-${view.remote}`
-        return index > 0 && mirrors(view, views[0]!, now) ? (
+        return index > 0 && mirrors(view, ordered[0]!, now) ? (
           <CiMirror key={key} view={view} now={now} urls={urls} fixes={known} />
         ) : (
           <CiSection key={key} view={view} now={now} urls={urls} fixes={known} />
@@ -97,16 +123,19 @@ export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[];
   )
 }
 
-/** How many runs the history shows before "Show all". */
+/** How many pushes the history shows before "Show all". */
 const HISTORY_SHOWN = 5
 
 /** A later CI that ran the first one's finished commit to the same end: its card would repeat the first (`docs/design.md`, "One fact once"). */
 function mirrors(view: CiView, first: CiView, now: Date): boolean {
-  const run = view.current?.run
-  const base = first.current?.run
-  if (run === undefined || base === undefined) return false
-  return run.commit === base.commit && run.status === base.status && isFinished(run.status) && view.error === null && view.pushed === null && stuckSince(view, now) === null
+  const push = view.current
+  const base = first.current
+  if (push === null || base === null) return false
+  const status = pushStatus(runsOf(push))
+  return push.commit === base.commit && status === pushStatus(runsOf(base)) && isDone(status) && view.error === null && view.pushed === null && stuckSince(view, now) === null
 }
+
+const sectionClass = (view: CiView, now: Date, extra = '') => `ci ci--${ciLevel(view, now)}${view.counted ? '' : ' ci--uncounted'}${extra}`
 
 function Lamp({ view, now }: { view: CiView; now: Date }) {
   return (
@@ -127,6 +156,15 @@ function Lamp({ view, now }: { view: CiView; now: Date }) {
   )
 }
 
+/** A CI outside the project's `ci.kinds` judges nothing: it says so in its head. */
+function Uncounted({ view }: { view: CiView }) {
+  return view.counted ? null : (
+    <span className="ci-status ci__uncounted" title={t.ci.uncountedTitle}>
+      {t.ci.uncounted}
+    </span>
+  )
+}
+
 function AllRuns({ url }: { url: string }) {
   return (
     <a className="ci__all" href={url} target="_blank" rel="noreferrer" title={t.ci.allRuns} aria-label={t.ci.allRuns}>
@@ -135,14 +173,15 @@ function AllRuns({ url }: { url: string }) {
   )
 }
 
-/** Each CI is a card: the verdict of its last run, its commit and tasks in view; jobs, steps and history folded. */
+/** Each CI is a card: the verdict of its last push, its commit and tasks in view; workflows, jobs and history folded. */
 function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
   return (
-    <section className={`ci ci--${ciLevel(view, now)}`}>
+    <section className={sectionClass(view, now)}>
       <header className="ci__head">
         <Lamp view={view} now={now} />
         <span className="ci__name">{t.ci.kinds[view.kind]}</span>
         <span className="ci__remote">{view.remote}</span>
+        <Uncounted view={view} />
         <AllRuns url={view.url} />
       </header>
       <CiBody view={view} now={now} urls={urls} fixes={fixes} />
@@ -152,9 +191,9 @@ function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: 
 
 /** A mirror is one line — the dot, the name and "same commit · 3:12" — and opens into the whole card. */
 function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
-  const length = runDurationMs(view.current!.run, now)
+  const length = runDurationMs(leadRun(runsOf(view.current!), view.medians, now), now)
   return (
-    <section className={`ci ci--${ciLevel(view, now)} ci--mirror`}>
+    <section className={sectionClass(view, now, ' ci--mirror')}>
       <Fold
         className="ci__mirror"
         summaryClassName="ci__mirror-toggle"
@@ -166,13 +205,14 @@ function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: T
           </header>
         )}
         summary={
-          <>
+          <span className="ci__mirror-line">
             <span className="ci__name">{t.ci.kinds[view.kind]}</span>
             <span className="ci__remote">{view.remote}</span>
+            <Uncounted view={view} />
             <span className="ci__same" title={t.ci.sameTitle}>
               {t.ci.same(formatClock(length ?? 0))}
             </span>
-          </>
+          </span>
         }
       >
         {() => <CiBody view={view} now={now} urls={urls} fixes={fixes} />}
@@ -183,7 +223,7 @@ function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: T
 
 function CiBody({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
   const stuck = stuckSince(view, now)
-  const queued = view.current?.run.status === 'queued' && stuck === view.current.run.createdAt
+  const queued = stuck !== null && view.current !== null && runsOf(view.current).some((run) => run.status === 'queued' && run.createdAt === stuck)
   return (
     <div className="ci__body">
       {view.error !== null && <p className={`notice ${view.health === 'off' ? 'notice--warn' : 'notice--error'} ci__notice`}>{say(view.error)}</p>}
@@ -194,8 +234,12 @@ function CiBody({ view, now, urls, fixes }: { view: CiView; now: Date; urls: Tra
         </p>
       )}
       {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
-      {view.current !== null && <Current current={view.current} median={view.medianMs} now={now} urls={urls} fixes={fixes} />}
-      {view.history.length > 0 ? <History runs={view.history} now={now} marked={fixes.marked} /> : view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>}
+      {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} />}
+      {view.history.length > 0 ? (
+        <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} />
+      ) : (
+        view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>
+      )}
     </div>
   )
 }
@@ -205,26 +249,43 @@ function formatAgoSpan(at: string, now: Date): string {
   return formatSpan(new Date(2 * now.getTime() - Date.parse(at)).toISOString(), now)
 }
 
-function Current({ current, median, now, urls, fixes }: { current: CurrentRun; median: number | null; now: Date; urls: TrackerUrls; fixes: Fixes }) {
-  const { run, jobs } = current
-  const fix = fixes.episodes.find((episode) => episode.end?.how === 'landed' && episode.end.commit === run.commit)
+/** "queued", or who holds the runner it waits for (BTN-828). */
+function waitText(busy: BusyRunner | undefined): string {
+  return busy === undefined ? t.ci.status.queued : t.ci.busy(busy.repository, busy.number)
+}
+
+/**
+ * The push: its commit's title, commit, event, tasks, and the state and time of the run the verdict waits for longest.
+ * A push of one workflow keeps that run's number and jobs in the block; one of several has a row per workflow (BTN-828).
+ */
+function Push({ current, medians, busy, now, urls, fixes }: { current: CurrentRun; medians: Record<string, number>; busy: BusyRunner | undefined; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+  const runs = runsOf(current)
+  const lead = leadRun(runs, medians, now)
+  const status = pushStatus(runs)
+  const single = current.runs.length === 1 ? current.runs[0]! : null
+  const fix = fixes.episodes.find((episode) => episode.end?.how === 'landed' && episode.end.commit === current.commit)
   const tasks = current.tasks.filter((task) => !isOwnName(task))
   const fixed = fix !== undefined || tasks.length < current.tasks.length
+  const event = eventsOf(runs)
   return (
     <div className="ci__block">
-      <a className={fixes.marked.has(run.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={run.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
-        {/* A finished run's colour is the head's dot already; only a run still going says so in words. */}
-        {(run.status === 'running' || run.status === 'queued') && <span className={`ci-status ci-status--${run.status}`}>{t.ci.status[run.status]}</span>}
-        <span className="ci__title">{run.title}</span>
+      <a className={fixes.marked.has(current.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={lead.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
+        {/* A finished push's colour is the head's dot already; only one still going says so in words. */}
+        {(status === 'running' || status === 'queued') && (
+          <span className={`ci-status ci-status--${status}`}>{status === 'queued' && single !== null ? waitText(busy) : t.ci.status[status]}</span>
+        )}
+        <span className="ci__title">{current.title}</span>
       </a>
       <div className="ci__meta">
-        <span className="ci__seg ci__commit" title={run.commit}>
-          {short(run.commit)}
+        <span className="ci__seg ci__commit" title={current.commit}>
+          {short(current.commit)}
         </span>
-        <span className="ci__seg">#{run.number}</span>
-        <span className="ci__seg">{run.workflow}</span>
-        <Timing run={run} median={median} now={now} />
+        {single !== null && <span className="ci__seg">#{single.run.number}</span>}
+        {single !== null && !current.manual && <span className="ci__seg">{single.run.workflow}</span>}
+        {event !== null && <span className="ci__seg">{event}</span>}
+        <Timing run={lead} median={medians[lead.workflow] ?? null} now={now} meter={single !== null} />
       </div>
+      {single !== null && status === 'notTaken' && <p className="ci__hint">{t.ci.notTaken}</p>}
       {(tasks.length > 0 || fixed) && (
         <p className="ci__tasks">
           <span className="ci__label">{t.ci.tasks}</span>
@@ -250,17 +311,22 @@ function Current({ current, median, now, urls, fixes }: { current: CurrentRun; m
           })}
         </p>
       )}
-      <Jobs jobs={jobs} run={run} now={now} />
+      {single !== null ? <Jobs jobs={single.jobs} run={single.run} now={now} /> : <Workflows runs={current.runs} medians={medians} busy={busy} now={now} />}
     </div>
   )
 }
 
-/** The run's time, apart from its commit: a meter against the usual length while it runs, the usual length while queued, the length and when once over. */
-function Timing({ run, median, now }: { run: CiRun; median: number | null; now: Date }) {
+/**
+ * The run's time, apart from its commit: a meter against the usual length while it runs (`meter`, or the bare
+ * "elapsed / usual"), the usual length while queued, the length and when once over.
+ */
+function Timing({ run, median, now, meter }: { run: CiRun; median: number | null; now: Date; meter: boolean }) {
   const length = runDurationMs(run, now) ?? 0
   if (run.status === 'queued') return median === null ? null : <span className="ci__when">{t.ci.usual(formatClock(median))}</span>
   if (run.status !== 'running') return <span className="ci__when">{`${t.ci.took(formatClock(length))} · ${formatAgo(run.stoppedAt ?? run.createdAt, now)}`}</span>
   if (median === null) return <span className="ci__when">{formatClock(length)}</span>
+  const elapsed = `${formatClock(length)} / ${formatClock(median)}`
+  if (!meter) return <span className={length > median ? 'ci__when ci__when--over' : 'ci__when'}>{elapsed}</span>
   return (
     <span className={length > median ? 'ci__when ci__progress ci__progress--over' : 'ci__when ci__progress'}>
       <span
@@ -273,63 +339,111 @@ function Timing({ run, median, now }: { run: CiRun; median: number | null; now: 
       >
         <span className="ci__fill" style={{ width: `${Math.min(100, (length / median) * 100)}%` }} />
       </span>
-      <span className="ci__elapsed">{`${formatClock(length)} / ${formatClock(median)}`}</span>
+      <span className="ci__elapsed">{elapsed}</span>
     </span>
   )
 }
 
-/** Folded unless the run is red, where what failed must be seen; a job's steps fold under it, open when it failed or is the only one. */
+/** A row per workflow of the push: its dot, name, number and own time against its own usual length; its jobs fold under it. */
+function Workflows({ runs, medians, busy, now }: { runs: WorkflowRun[]; medians: Record<string, number>; busy: BusyRunner | undefined; now: Date }) {
+  return (
+    <ul className="ci__workflows">
+      {runs.map(({ run, jobs }) => {
+        const line = <WorkflowLine run={run} median={medians[run.workflow] ?? null} busy={busy} now={now} />
+        return (
+          <li key={run.id} className="ci__job">
+            {jobs.length === 0 ? (
+              line
+            ) : (
+              <Fold defaultOpen={runLook(run) === 'failure'} summaryClassName="ci__job-summary" summary={line}>
+                {() => <JobList jobs={jobs} run={run} now={now} />}
+              </Fold>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function WorkflowLine({ run, median, busy, now }: { run: CiRun; median: number | null; busy: BusyRunner | undefined; now: Date }) {
+  const look = runLook(run)
+  return (
+    <span className={`ci__workflow ci__line--${look}`}>
+      <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
+      <span className="ci__line-name">{run.workflow}</span>
+      <a className="ci__workflow-number" href={run.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
+        #{run.number}
+      </a>
+      {look === 'notTaken' ? (
+        <span className="ci__when">{t.ci.notTaken}</span>
+      ) : run.status === 'queued' && busy !== undefined ? (
+        <span className="ci__when" title={t.ci.busyTitle}>
+          {waitText(busy)}
+        </span>
+      ) : (
+        <Timing run={run} median={median} now={now} meter />
+      )}
+    </span>
+  )
+}
+
+/** Folded unless the run is red, where what failed must be seen. */
 function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
   if (jobs.length === 0) return <p className="ci__hint">{t.ci.noJobs}</p>
   return (
-    <Fold className="ci__fold" defaultOpen={run.status === 'failure'} summaryClassName="ci__summary" summary={<>
-
-      {t.ci.jobs}
-      <Dots statuses={jobs.map((job) => job.status)} />
-    </>}>
-      {() => (
+    <Fold
+      className="ci__fold"
+      defaultOpen={runLook(run) === 'failure'}
+      summaryClassName="ci__summary"
+      summary={
         <>
-          <ul className="ci__jobs">
-            {jobs.map((job) => {
-              const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} steps={job.steps === null ? run.url : undefined} />
-              return (
-                <li key={job.id} className="ci__job">
-                  {job.steps === null || job.steps.length === 0 ? (
-                    line
-                  ) : (
-                    <Fold defaultOpen={job.status === 'failure' || jobs.length === 1} summaryClassName="ci__job-summary" summary={<>
-
-                      {line}
-                    </>}>
-                      {() => (
-                        <>
-                          <ul className="ci__steps">
-                            {job.steps!.map((step, index) => (
-                              <li key={index}>
-                                <Line status={step.status} name={step.name} length={lengthOf(step, now)} />
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      )}
-                    </Fold>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+          {t.ci.jobs}
+          <Dots looks={jobs.map((job) => job.status)} />
         </>
-      )}
+      }
+    >
+      {() => <JobList jobs={jobs} run={run} now={now} />}
     </Fold>
   )
 }
 
-/** The statuses as a row of dots, so a folded section still shows what is red. */
-function Dots({ statuses }: { statuses: CiRun['status'][] }) {
+/** A job's steps fold under it, open when it failed or is the only one; a job without steps from the API has a ↗ to the run page. */
+function JobList({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
+  return (
+    <ul className="ci__jobs">
+      {jobs.map((job) => {
+        const line = <Line status={job.status} name={job.name} length={lengthOf(job, now)} steps={job.steps === null ? run.url : undefined} />
+        return (
+          <li key={job.id} className="ci__job">
+            {job.steps === null || job.steps.length === 0 ? (
+              line
+            ) : (
+              <Fold defaultOpen={job.status === 'failure' || jobs.length === 1} summaryClassName="ci__job-summary" summary={line}>
+                {() => (
+                  <ul className="ci__steps">
+                    {job.steps!.map((step, index) => (
+                      <li key={index}>
+                        <Line status={step.status} name={step.name} length={lengthOf(step, now)} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Fold>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** The states as a row of dots, so a folded section still shows what is red. */
+function Dots({ looks }: { looks: RunLook[] }) {
   return (
     <span className="ci__dots">
-      {statuses.map((status, index) => (
-        <span key={index} className={`ci-status-dot ci-status-dot--${status}`} aria-label={t.ci.status[status]} role="img" />
+      {looks.map((look, index) => (
+        <span key={index} className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
       ))}
     </span>
   )
@@ -356,41 +470,69 @@ function Line({ status, name, length, steps }: { status: CiRun['status']; name: 
   )
 }
 
-/** Folded, the last runs shown as dots; open on the fix the panel was opened on, with every run when its run is past the first ones. */
-function History({ runs, now, marked }: { runs: CiRun[]; now: Date; marked: ReadonlySet<string> }) {
+/** A row per push, folded to the last pushes as dots; open on the fix the panel was opened on, with every push when its one is past the first ones. */
+function History({ runs, medians, now, marked }: { runs: CiRun[]; medians: Record<string, number>; now: Date; marked: ReadonlySet<string> }) {
   const [more, setMore] = useState(false)
-  const markedAt = runs.findIndex((run) => marked.has(run.commit))
-  const all = more || markedAt >= HISTORY_SHOWN || runs.length <= HISTORY_SHOWN
+  const pushes = pushesOf(runs)
+  const markedAt = pushes.findIndex((push) => marked.has(push.commit))
+  const all = more || markedAt >= HISTORY_SHOWN || pushes.length <= HISTORY_SHOWN
   return (
-    <Fold className="ci__fold" defaultOpen={markedAt >= 0} summaryClassName="ci__summary" summary={<>
-
-      {t.ci.history}
-      <Dots statuses={runs.slice(0, HISTORY_SHOWN).map((run) => run.status)} />
-    </>}>
+    <Fold
+      className="ci__fold"
+      defaultOpen={markedAt >= 0}
+      summaryClassName="ci__summary"
+      summary={
+        <>
+          {t.ci.history}
+          <Dots looks={pushes.slice(0, HISTORY_SHOWN).map((push) => pushStatus(push.runs))} />
+        </>
+      }
+    >
       {() => (
         <>
           <ul className="ci__history">
-            {(all ? runs : runs.slice(0, HISTORY_SHOWN)).map((run) => {
-              const length = runDurationMs(run, now)
-              return (
-                <li key={run.id}>
-                  <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${short(run.commit)} · ${run.title}`}>
-                    <span className={`ci-status-dot ci-status-dot--${run.status}`} aria-label={t.ci.status[run.status]} role="img" />
-                    <span className="ci__past-number">#{run.number}</span>
-                    <span className="ci__past-title">{run.title}</span>
-                    <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
-                    <span className="ci__past-ago">{formatAgo(run.createdAt, now)}</span>
-                  </a>
-                </li>
-              )
-            })}
-          </ul>{!all && (
+            {(all ? pushes : pushes.slice(0, HISTORY_SHOWN)).map((push) => (
+              <PushRow key={push.key} push={push} medians={medians} now={now} marked={marked.has(push.commit)} />
+            ))}
+          </ul>
+          {!all && (
             <button type="button" className="ci__more" onClick={() => setMore(true)}>
-              {t.ci.showAll(runs.length)}
+              {t.ci.showAll(pushes.length)}
             </button>
           )}
         </>
       )}
     </Fold>
+  )
+}
+
+/** The push's state, commit, title, a dot per workflow when there are several, its time and when; the event and run numbers are its tip. */
+function PushRow({ push, medians, now, marked }: { push: PushRuns; medians: Record<string, number>; now: Date; marked: boolean }) {
+  const look = pushStatus(push.runs)
+  const lead = leadRun(push.runs, medians, now)
+  const length = runDurationMs(lead, now)
+  const tip = [t.ci.status[look], eventsOf(push.runs), push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')].filter((part) => part !== null).join(' · ')
+  return (
+    <li>
+      <a className={marked ? 'ci__past ci__past--fix' : 'ci__past'} href={lead.url} target="_blank" rel="noreferrer" title={tip}>
+        <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
+        <span className="ci__past-commit">{short(push.commit)}</span>
+        <span className="ci__past-title">{push.title}</span>
+        <span className="ci__dots">
+          {push.runs.length > 1 &&
+            push.runs.map((run) => (
+              <span
+                key={run.id}
+                className={`ci-status-dot ci-status-dot--${runLook(run)}`}
+                title={t.ci.workflow(run.workflow, t.ci.status[runLook(run)])}
+                aria-label={t.ci.workflow(run.workflow, t.ci.status[runLook(run)])}
+                role="img"
+              />
+            ))}
+        </span>
+        <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
+        <span className="ci__past-ago">{formatAgo(push.runs.at(-1)!.createdAt, now)}</span>
+      </a>
+    </li>
   )
 }

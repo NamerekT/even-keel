@@ -28,6 +28,7 @@ const RUN = {
   started: '2026-10-12T10:00:05Z',
   stopped: '0001-01-01T00:00:00Z',
   html_url: 'https://forgejo.example.com/john/app/actions/runs/41',
+  event: 'push',
   event_payload: '{}',
 }
 
@@ -56,6 +57,7 @@ describe('forgejoSource', () => {
         workflow: 'test.yml',
         commit: 'c4a92ffa5e3a400ae7e9c40a2914e649eb338ad7',
         status: 'running',
+        event: 'push',
         createdAt: '2026-10-12T10:00:00Z',
         startedAt: '2026-10-12T10:00:05Z',
         stoppedAt: null,
@@ -63,6 +65,11 @@ describe('forgejoSource', () => {
       },
       expect.objectContaining({ id: 500, status: 'queued', startedAt: null, stoppedAt: null }),
     ])
+  })
+
+  it('names a run started by hand (BTN-828)', async () => {
+    const { source } = fake({ '/actions/runs?page=1&limit=10': { workflow_runs: [{ ...RUN, event: 'workflow_dispatch' }, { ...RUN, event: 'schedule' }] } })
+    expect((await source.runs(10)).map((run) => run.event)).toEqual(['manual', 'schedule'])
   })
 
   it('maps every run status', async () => {

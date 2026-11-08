@@ -21,13 +21,15 @@ const run = (kind: CiKind, status: CiRun['status']): CiRun => ({
 const view = (kind: CiKind, status: CiRun['status']): CiView => ({
   kind,
   remote: kind === 'github' ? 'github' : 'origin',
+  repository: 'john/app',
+  counted: true,
   url: 'https://example.com',
   health: 'ok',
   error: null,
   checkedAt: '2026-10-12T10:03:00Z',
-  current: { run: run(kind, status), tasks: [], jobs: [] },
+  current: { commit: run(kind, status).commit, title: '', manual: false, tasks: [], runs: [{ run: run(kind, status), jobs: [] }] },
   history: [],
-  medianMs: null,
+  medians: {},
   pushed: null,
 })
 

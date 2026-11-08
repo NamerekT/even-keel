@@ -1,5 +1,5 @@
 import type { EvenKeelState } from '../state.js'
-import type { CiKind } from '../ci/model.js'
+import { pushStatus, type CiKind } from '../ci/model.js'
 import { isCarryName } from '../chain/fix.js'
 import { shownWork, type WorkInput } from '../shown-work.js'
 
@@ -47,8 +47,9 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   for (const [project, views] of Object.entries(state.ci)) {
     const settings = state.config.projects[project]?.ci ?? state.config.shared.ci
     for (const view of views) {
-      if (view.current?.run.status !== 'failure') continue
-      red(project, view.current.run.commit, settings.guard && settings.kinds.includes(view.kind), view.kind)
+      const current = view.current
+      if (current === null || pushStatus(current.runs.map((each) => each.run)) !== 'failure') continue
+      red(project, current.commit, settings.guard && settings.kinds.includes(view.kind), view.kind)
     }
   }
   for (const [project, episodes] of Object.entries(state.fixes)) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { notice } from '../notice/notice.js'
 import type { CiRun, CiView } from './model.js'
-import { verdictOf } from './verdict.js'
+import { busyRunner, verdictOf } from './verdict.js'
 
 const PUSHED = '2026-10-12T12:00:00Z'
 const SOON = new Date('2026-10-12T12:01:00Z')
@@ -27,13 +27,15 @@ function view(history: CiRun[], overrides: Partial<CiView> = {}): CiView {
   return {
     kind: 'forgejo',
     remote: 'origin',
+    repository: 'john/app',
+    counted: true,
     url: 'https://ci.example.com/runs',
     health: 'ok',
     error: null,
     checkedAt: SOON.toISOString(),
     current: null,
     history,
-    medianMs: null,
+    medians: {},
     pushed: null,
     ...overrides,
   }
@@ -120,8 +122,19 @@ describe('verdictOf', () => {
 
   it('finds the run of the commit in the current run as well', () => {
     const current = run(1, { status: 'failure' })
-    const verdict = verdictOf([view([], { current: { run: current, tasks: [], jobs: [] } })], 'B', PUSHED, SOON)
+    const verdict = verdictOf([view([], { current: { commit: 'B', title: '', manual: false, tasks: [], runs: [{ run: current, jobs: [] }] } })], 'B', PUSHED, SOON)
     expect(verdict.state).toBe('red')
+  })
+})
+
+describe('busyRunner', () => {
+  it('names a run of its own at work first, then one of a neighbour on the same host (BTN-828)', () => {
+    const own = view([run(2, { status: 'queued', startedAt: null, stoppedAt: null }), run(1, { status: 'running', stoppedAt: null })], { url: 'https://ci.example.com/own/repo/actions' })
+    const other = view([run(9, { number: 12, commit: 'X', status: 'running', stoppedAt: null })], { repository: 'john/demo', url: 'https://ci.example.com/john/demo/actions' })
+    expect(busyRunner(own, [own, other])).toEqual({ repository: 'john/app', number: 1, url: 'https://ci.example.com/runs/1' })
+    const queued = view([run(2, { status: 'queued', startedAt: null, stoppedAt: null })], { url: 'https://ci.example.com/own/repo/actions' })
+    expect(busyRunner(queued, [queued, other])).toMatchObject({ repository: 'john/demo', number: 12 })
+    expect(busyRunner(queued, [queued])).toBeNull()
   })
 
   it('waits for a CI that has not been asked yet since the service started, however late', () => {

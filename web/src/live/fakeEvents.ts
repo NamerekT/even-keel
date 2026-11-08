@@ -79,9 +79,12 @@ function changedBy(state: EvenKeelState, event: string): EvenKeelState {
     const view = views[at]!
     const form = state.config.projects[project]!
     const config = { ...state.config, projects: { ...state.config.projects, [project]: { ...form, ci: { ...form.ci, kinds: ['forgejo' as const] } } } }
+    const commit = view.current!.commit
     const changed = views.map((each, index) => {
-      if (each.current === null || (event !== 'redBoth' && index !== at)) return each
-      return { ...each, current: { ...each.current, run: { ...each.current.run, commit: view.current!.run.commit, status: 'failure' as const } } }
+      const counted = each.kind === 'forgejo'
+      if (each.current === null || (event !== 'redBoth' && index !== at)) return { ...each, counted }
+      const runs = each.current.runs.map((one, place) => ({ ...one, run: { ...one.run, commit, ...(place === 0 ? { status: 'failure' as const } : {}) } }))
+      return { ...each, counted, current: { ...each.current, commit, runs } }
     })
     return { ...state, config, ci: { ...state.ci, [project]: changed } }
   }

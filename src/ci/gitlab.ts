@@ -1,6 +1,6 @@
 import { stripAnsi } from '../ansi.js'
 import { getJson, getJsonPage, getText, post } from './http.js'
-import { isFinished, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
+import { isFinished, withEvent, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
 interface GitlabSettings {
   web: string
@@ -16,6 +16,7 @@ interface Pipeline {
   ref: string
   sha: string
   status: string
+  source?: string
   created_at: string
   started_at: string | null
   finished_at: string | null
@@ -69,7 +70,7 @@ export function gitlabSource(settings: GitlabSettings, timeoutMs: number, fetchI
         const run = await get<Pipeline>(`/pipelines/${id}`)
         const status = statusOf(run.status)
         return {
-          id: run.id, number: run.iid, title: run.name || run.ref, workflow: run.name || TITLE, commit: run.sha, status,
+          id: run.id, number: run.iid, title: run.name || run.ref, workflow: run.name || TITLE, commit: run.sha, status, ...withEvent(run.source),
           createdAt: run.created_at, startedAt: status === 'queued' ? null : run.started_at ?? null,
           stoppedAt: isFinished(status) ? run.finished_at ?? null : null, url: run.web_url,
         }

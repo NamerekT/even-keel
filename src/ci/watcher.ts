@@ -1,6 +1,6 @@
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, noticeOf, sameNotice } from '../notice/notice.js'
-import { currentRunOf, failedKey, failedUntaken, isFinished, medianDuration, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun } from './model.js'
+import { currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
 import { CI_TITLES } from './verdict.js'
@@ -12,7 +12,8 @@ export const PUSH_WINDOW_MS = 10 * 60_000
 export const ERROR_RETRY_MS = 60_000
 /** How long one `want` keeps a finished history polled: the chain asks again on each of its steps while it waits. */
 export const WANT_MS = 2 * 60_000
-export const HISTORY = 10
+/** Runs, not pushes: a push of several workflows takes a run of each (BTN-828). */
+export const HISTORY = 20
 /** A run's tasks come from at most this many commits since the previous run. */
 const TASK_COMMITS = 50
 
@@ -46,8 +47,7 @@ export class CiWatch {
   private branch: string | undefined
   private polledAt = -Infinity
   private wantedAt = -Infinity
-  private jobsOf: string | null = null
-  private tasksOf: { run: number; tasks: string[] } | null = null
+  private tasksOf: { push: string; tasks: string[] } | null = null
   /** The jobs of each failed run, read once to tell a run no runner took (BTN-761); by `failedKey`. */
   private readonly failedJobs = new Map<string, CiJob[]>()
   /** The failed runs whose jobs could not be read, logged once each. */
@@ -61,13 +61,15 @@ export class CiWatch {
     this.view = {
       kind,
       remote,
+      repository: `${owner}/${repo}`,
+      counted: deps.counted?.() ?? true,
       url: `${web}/${owner}/${repo}/${kind === 'gitlab' ? '-/pipelines' : 'actions'}`,
       health: deps.source === null ? 'off' : 'ok',
       error: deps.source === null ? notice('ci.noToken', { kind }) : null,
       checkedAt: null,
       current: null,
       history: [],
-      medianMs: null,
+      medians: {},
       pushed: null,
     }
   }
@@ -116,16 +118,17 @@ export class CiWatch {
         this.branch = branch
         this.head = undefined
         this.polledAt = -Infinity
-        this.jobsOf = null
         this.tasksOf = null
         this.failedJobs.clear()
         this.push = null
-        this.view = { ...this.view, checkedAt: null, current: null, history: [], medianMs: null, pushed: null }
+        this.view = { ...this.view, checkedAt: null, current: null, history: [], medians: {}, pushed: null }
       }
       const pushed = await this.readHead(now, branch)
-      const shown = this.counted() ? this.push : null
-      if (this.view.pushed !== shown) {
+      const counted = this.counted()
+      const shown = counted ? this.push : null
+      if (this.view.pushed !== shown || this.view.counted !== counted) {
         this.view.pushed = shown
+        this.view.counted = counted
         this.deps.onChange()
       }
       if (!pushed && !this.due(now)) return
@@ -159,9 +162,9 @@ export class CiWatch {
     const source = this.source
     const failed: FailedRun = { kind: this.view.kind, run, jobs: null, log: null }
     if (source === null) return failed
-    const current = this.view.current
+    const shown = this.view.current?.runs.find((each) => each.run.id === run.id && each.run.status === run.status)
     try {
-      const known = current?.run.id === run.id && current.run.status === run.status ? current.jobs : this.failedJobs.get(failedKey(run))
+      const known = shown?.jobs ?? this.failedJobs.get(failedKey(run))
       await readFailure(source, failed, known)
     } catch (error) {
       this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo}: run ${run.number} is reported without its ${failed.jobs === null ? 'jobs' : 'log'}: ${englishOf(noticeOf(error))}`)
@@ -192,7 +195,7 @@ export class CiWatch {
     const since = now.getTime() - this.polledAt
     if (this.view.checkedAt === null && this.view.health !== 'error') return true
     if (this.view.health === 'error') return since >= ERROR_RETRY_MS
-    const running = this.view.current !== null && !isFinished(this.view.current.run.status)
+    const running = this.view.current?.runs.some((each) => !isFinished(each.run.status)) === true
     const waiting = this.push !== null && now.getTime() - Date.parse(this.push.at) < PUSH_WINDOW_MS
     const wanted = now.getTime() - this.wantedAt < WANT_MS
     return (running || waiting || wanted) && since >= POLL_MS
@@ -204,9 +207,10 @@ export class CiWatch {
       const run = currentRunOf(read)
       const current = run === null ? null : await this.currentOf(source, run, read)
       const runs = await this.markUntaken(source, read, current)
-      this.view.current = current === null ? null : { ...current, run: runs.find((each) => each.id === current.run.id) ?? current.run }
+      const marked = (each: WorkflowRun) => ({ ...each, run: runs.find((other) => other.id === each.run.id) ?? each.run })
+      this.view.current = current === null ? null : { ...current, runs: current.runs.map(marked) }
       this.view.history = runs
-      this.view.medianMs = medianDuration(runs, now)
+      this.view.medians = mediansOf(runs, now)
       const pushed = this.push
       if (pushed !== null && runs.some((each) => each.commit === pushed.commit || Date.parse(each.createdAt) >= Date.parse(pushed.at))) {
         this.push = null
@@ -229,13 +233,18 @@ export class CiWatch {
     this.view.checkedAt = now.toISOString()
   }
 
+  /** The push of `run` with each workflow's jobs; a finished run's jobs are read again only once it ends anew. */
   private async currentOf(source: CiSource, run: CiRun, runs: CiRun[]): Promise<CurrentRun> {
-    const key = `${run.id}:${run.status}`
-    const known = this.view.current?.run.id === run.id ? this.view.current.jobs : []
-    const jobs = this.jobsOf === key && isFinished(run.status) ? known : await source.jobs(run)
-    this.jobsOf = key
-    if (this.tasksOf?.run !== run.id) this.tasksOf = { run: run.id, tasks: await this.tasksFor(run, runs) }
-    return { run, tasks: this.tasksOf.tasks, jobs }
+    const push = pushesOf(runs).find((each) => each.key === pushKey(run))!
+    const shown = new Map((this.view.current?.runs ?? []).map((each) => [each.run.id, each]))
+    const workflows: WorkflowRun[] = []
+    for (const each of push.runs) {
+      const known = shown.get(each.id)
+      const same = known !== undefined && known.run.status === each.status && known.run.stoppedAt === each.stoppedAt && isFinished(each.status)
+      workflows.push({ run: each, jobs: same ? known.jobs : await source.jobs(each) })
+    }
+    if (this.tasksOf?.push !== push.key) this.tasksOf = { push: push.key, tasks: push.manual ? [] : await this.tasksFor(push.runs[0]!, runs) }
+    return { commit: push.commit, title: push.title, manual: push.manual, tasks: this.tasksOf.tasks, runs: workflows }
   }
 
   /**
@@ -252,7 +261,8 @@ export class CiWatch {
       }
       const key = failedKey(run)
       seen.add(key)
-      const jobs = current?.run.id === run.id ? current.jobs : (this.failedJobs.get(key) ?? (await this.readJobs(source, run, key)))
+      const shown = current?.runs.find((each) => each.run.id === run.id)?.jobs
+      const jobs = shown ?? this.failedJobs.get(key) ?? (await this.readJobs(source, run, key))
       if (jobs !== null) this.failedJobs.set(key, jobs)
       marked.push(jobs !== null && failedUntaken(jobs) ? { ...run, notTaken: true } : run)
     }

@@ -103,7 +103,7 @@ describe('CiWatch', () => {
     t.watch.setSource({ runs: async () => [run(3)], jobs: async () => [] })
     await t.watch.tick()
     expect(t.watch.hidden).toBe(false)
-    expect(t.watch.view.current?.run.id).toBe(3)
+    expect(t.watch.view.current?.runs[0]?.run.id).toBe(3)
   })
   it('scopes every poll to the project branch and drops the previous view when the branch changes live', async () => {
     const t = setup({ main: 'dev' })
@@ -113,15 +113,15 @@ describe('CiWatch', () => {
     t.setRuns([])
     await t.watch.tick()
     expect(t.branches).toEqual(['dev', 'release/v0.1'])
-    expect(t.watch.view).toMatchObject({ current: null, history: [], medianMs: null, pushed: null })
+    expect(t.watch.view).toMatchObject({ current: null, history: [], medians: {}, pushed: null })
     expect(t.refs.at(-1)).toBe('refs/remotes/origin/release/v0.1')
   })
 
   it('reads the history once at the start and stays quiet after', async () => {
     const t = setup()
     await t.watch.tick()
-    expect(t.watch.view).toMatchObject({ kind: 'forgejo', remote: 'origin', url: 'https://forgejo.example.com/john/app/actions', health: 'ok', medianMs: 180_000, pushed: null })
-    expect(t.watch.view.current).toMatchObject({ run: { id: 2 }, tasks: ['ABC-2', 'ABC-1'] })
+    expect(t.watch.view).toMatchObject({ kind: 'forgejo', remote: 'origin', repository: 'john/app', counted: true, url: 'https://forgejo.example.com/john/app/actions', health: 'ok', medians: { 'test.yml': 180_000 }, pushed: null })
+    expect(t.watch.view.current).toMatchObject({ commit: 'sha2', title: 'run 2', manual: false, runs: [{ run: { id: 2 } }], tasks: ['ABC-2', 'ABC-1'] })
     expect(t.watch.view.history.map((each) => each.id)).toEqual([2, 1])
     expect(t.calls).toEqual({ runs: 1, jobs: [2] })
     expect(t.changes()).toBe(1)
@@ -138,14 +138,14 @@ describe('CiWatch', () => {
     t.watch.want()
     await t.watch.tick()
     expect(t.calls.runs).toBe(2)
-    expect(t.watch.view.current?.run.status).toBe('failure')
+    expect(t.watch.view.current?.runs[0]?.run.status).toBe('failure')
 
     t.setRuns([run(2), run(1)])
     t.advance(POLL_MS)
     t.watch.want()
     await t.watch.tick()
     expect(t.calls.runs).toBe(3)
-    expect(t.watch.view.current?.run.status).toBe('success')
+    expect(t.watch.view.current?.runs[0]?.run.status).toBe('success')
 
     t.advance(WANT_MS + POLL_MS)
     await t.watch.tick()
@@ -171,7 +171,7 @@ describe('CiWatch', () => {
     t.setRuns([run(3), run(2)])
     await t.watch.tick()
     expect(t.calls).toEqual({ runs: 2, jobs: [3, 3] })
-    expect(t.watch.view.current?.run.status).toBe('success')
+    expect(t.watch.view.current?.runs[0]?.run.status).toBe('success')
     t.advance(POLL_MS)
     await t.watch.tick()
     expect(t.calls.runs).toBe(2)
@@ -190,7 +190,7 @@ describe('CiWatch', () => {
     t.setRuns([run(3, { status: 'queued', createdAt: '2026-10-12T12:00:05Z', startedAt: null, stoppedAt: null }), run(2), run(1)])
     await t.watch.tick()
     expect(t.watch.view.pushed).toBeNull()
-    expect(t.watch.view.current?.run.id).toBe(3)
+    expect(t.watch.view.current?.runs[0]?.run.id).toBe(3)
   })
 
   it('gives up polling a push no run takes after the push window', async () => {
@@ -228,7 +228,7 @@ describe('CiWatch', () => {
     t.setRuns([run(3, { status: 'queued', createdAt: '2026-10-12T12:00:05Z', startedAt: null, stoppedAt: null }), run(2), run(1)])
     await t.watch.tick()
     expect(t.calls.runs).toBe(3)
-    expect(t.watch.view.current?.run.id).toBe(3)
+    expect(t.watch.view.current?.runs[0]?.run.id).toBe(3)
   })
 
   it('drops the shown push once the project stops counting the CI', async () => {
@@ -241,7 +241,26 @@ describe('CiWatch', () => {
     t.setCounted(false)
     await t.watch.tick()
     expect(t.watch.view.pushed).toBeNull()
+    expect(t.watch.view.counted).toBe(false)
     expect(t.changes()).toBeGreaterThan(changes)
+  })
+
+  it('takes every workflow of the current push with its own jobs, and gives a run by hand no tasks (BTN-828)', async () => {
+    const tests = run(4, { workflow: 'Tests', commit: 'sha2', event: 'push', status: 'running', stoppedAt: null })
+    const macos = run(3, { workflow: 'macOS', commit: 'sha2', event: 'push' })
+    const t = setup({ runs: [tests, macos, run(1, { event: 'push' })] })
+    await t.watch.tick()
+    expect(t.watch.view.current).toMatchObject({ commit: 'sha2', tasks: ['ABC-2', 'ABC-1'], runs: [{ run: { id: 4 } }, { run: { id: 3 } }] })
+    expect(t.calls.jobs).toEqual([4, 3])
+    t.advance(POLL_MS)
+    await t.watch.tick()
+    // The finished macOS run keeps its jobs; the running Tests run is asked again.
+    expect(t.calls.jobs).toEqual([4, 3, 4])
+
+    t.setRuns([run(5, { workflow: 'Nightly', commit: 'sha2', event: 'manual', status: 'running', stoppedAt: null }), { ...tests, status: 'success', stoppedAt: '2026-10-12T11:08:10Z' }, macos])
+    t.advance(POLL_MS)
+    await t.watch.tick()
+    expect(t.watch.view.current).toMatchObject({ title: 'Nightly', manual: true, tasks: [], runs: [{ run: { id: 5 } }] })
   })
 
   it('shows an error and retries it slowly', async () => {
@@ -311,8 +330,8 @@ describe('CiWatch and runs no runner took (BTN-761)', () => {
     const t = setup({ runs: [run(3, { status: 'failure' }), run(2, { status: 'failure', stoppedAt: '2026-10-12T11:15:10Z' })], jobs: [passed, untaken] })
     await t.watch.tick()
     expect(t.watch.view.history.map((each) => each.notTaken)).toEqual([true, true])
-    expect(t.watch.view.current?.run.notTaken).toBe(true)
-    expect(t.watch.view.medianMs).toBeNull()
+    expect(t.watch.view.current?.runs[0]?.run.notTaken).toBe(true)
+    expect(t.watch.view.medians).toEqual({})
     expect(t.calls.jobs).toEqual([3, 2])
 
     t.advance(POLL_MS)

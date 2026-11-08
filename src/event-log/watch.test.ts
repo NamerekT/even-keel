@@ -87,7 +87,7 @@ describe('observe', () => {
   })
 
   it('writes a CI that comes to hold the chain once more, as an error', () => {
-    const view = (kind: string, status: string) => ({ kind, remote: kind, current: { run: { id: 1, commit: 'abc1234', status }, tasks: [], jobs: [] } })
+    const view = (kind: string, status: string) => ({ kind, remote: kind, current: { commit: 'abc1234', title: '', manual: false, tasks: [], runs: [{ run: { id: 1, commit: 'abc1234', status }, jobs: [] }] } })
     const optional = { ...none, ci: { p1: [view('forgejo', 'success'), view('github', 'failure')] } } as unknown as WatchInput
     const both = { ...none, ci: { p1: [view('forgejo', 'failure'), view('github', 'failure')] } } as unknown as WatchInput
     expect(step(none, optional).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.ciRed', 'warning']])

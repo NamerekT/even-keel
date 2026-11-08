@@ -1,5 +1,5 @@
 import { getJson, getText, post } from './http.js'
-import type { CiJob, CiRun, CiSource, CiStep, RunStatus } from './model.js'
+import { withEvent, type CiJob, type CiRun, type CiSource, type CiStep, type RunStatus } from './model.js'
 
 export interface GithubActionsSettings {
   owner: string
@@ -11,6 +11,7 @@ interface GithubRun {
   id: number
   name: string
   display_title: string
+  event?: string
   head_sha: string
   status: string
   conclusion: string | null
@@ -77,6 +78,7 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
           workflow: run.name,
           commit: run.head_sha,
           status,
+          ...withEvent(run.event),
           createdAt: run.created_at,
           startedAt: status === 'queued' ? null : run.run_started_at,
           stoppedAt: run.status === 'completed' ? run.updated_at : null,

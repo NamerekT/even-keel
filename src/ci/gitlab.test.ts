@@ -43,6 +43,13 @@ describe('gitlabSource', () => {
     expect(runs[2]).toMatchObject({ startedAt: PIPELINE.started_at, stoppedAt: null })
   })
 
+  it("names what started a pipeline by its source (BTN-828)", async () => {
+    const sources = ['push', 'web', 'merge_request_event', 'schedule', 'parent_pipeline']
+    const pipelines = sources.map((source, id) => ({ ...PIPELINE, id, source }))
+    const { source } = fake({ '/pipelines?per_page=5&page=1&order_by=id&sort=desc': pipelines, ...Object.fromEntries(pipelines.map((run) => [`/pipelines/${run.id}`, run])) })
+    expect((await source.runs(5)).map((run) => run.event)).toEqual(['push', 'manual', 'pull', 'schedule', 'other'])
+  })
+
   it('collects all job pages, omits retried attempts and has no steps', async () => {
     const job = { id: 11, name: 'test', status: 'failed', started_at: PIPELINE.started_at, finished_at: PIPELINE.finished_at }
     const { asked, source } = fake({

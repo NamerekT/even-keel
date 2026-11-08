@@ -9,7 +9,7 @@ const view = (status: 'failure' | 'success', commit = 'abc1234'): CiView =>
   ({
     kind: 'forgejo',
     remote: 'origin',
-    current: { run: { id: 7, commit, status }, tasks: [], jobs: [] },
+    current: { commit, title: '', manual: false, tasks: [], runs: [{ run: { id: 7, commit, status }, jobs: [] }] },
   }) as unknown as CiView
 
 describe('pageEvents', () => {

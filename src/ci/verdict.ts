@@ -1,5 +1,5 @@
 import { notice, type Notice } from '../notice/notice.js'
-import { STUCK_MS, type CiKind, type CiRun, type CiView } from './model.js'
+import { STUCK_MS, type BusyRunner, type CiKind, type CiRun, type CiView } from './model.js'
 
 export const CI_TITLES: Readonly<Record<CiKind, string>> = { forgejo: 'Forgejo', github: 'GitHub Actions', gitlab: 'GitLab CI' }
 
@@ -44,11 +44,21 @@ const hostOf = (url: string): string | null => {
   }
 }
 
-const isRunning = (view: CiView): boolean => view.current?.run.status === 'running' || view.history.some((run) => run.status === 'running')
+const runningOf = (view: CiView): CiRun | undefined =>
+  [...(view.current?.runs.map((each) => each.run) ?? []), ...view.history].find((run) => run.status === 'running')
 
-function sharedRunnerBusy(view: CiView, neighbours: CiView[]): boolean {
+/**
+ * The run a queued run of `view` waits behind: one of its own at work, or one of a neighbour of the same kind on the
+ * same host (a self-hosted forge's runner is shared, BTN-719). `null` — the runner is free.
+ */
+export function busyRunner(view: CiView, neighbours: CiView[]): BusyRunner | null {
   const host = hostOf(view.url)
-  return host !== null && neighbours.some((other) => other.kind === view.kind && other.health === 'ok' && hostOf(other.url) === host && isRunning(other))
+  const holders = [view, ...(host === null ? [] : neighbours.filter((other) => other !== view && other.kind === view.kind && other.health === 'ok' && hostOf(other.url) === host))]
+  for (const holder of holders) {
+    const run = runningOf(holder)
+    if (run !== undefined) return { repository: holder.repository, number: run.number, url: run.url }
+  }
+  return null
 }
 
 function viewVerdict(view: CiView, commit: string, since: string, now: Date, neighbours: CiView[]): CiVerdict {
@@ -56,7 +66,7 @@ function viewVerdict(view: CiView, commit: string, since: string, now: Date, nei
   if (view.health !== 'ok') return { state: 'unavailable', reasons: [view.error ?? notice('ci.unreachable', { ci })] }
   // Not asked since the service started: an empty history says nothing about the commit yet.
   if (view.checkedAt === null) return { state: 'pending' }
-  const known = [...(view.current === null ? [] : [view.current.run]), ...view.history]
+  const known = [...(view.current?.runs.map((each) => each.run) ?? []), ...view.history]
   const runs = known.filter((run, index) => run.commit === commit && known.findIndex((other) => other.id === run.id) === index)
   const failed = runs.filter((run) => run.status === 'failure' && run.notTaken !== true)
   if (failed.length > 0) return { state: 'red', failed: failed.map((run) => ({ kind: view.kind, run })) }
@@ -67,7 +77,7 @@ function viewVerdict(view: CiView, commit: string, since: string, now: Date, nei
   const queued = runs.filter((run) => run.status === 'queued')
   // A run failed only for want of a runner (BTN-761) checked nothing: never green, though the CI took it.
   if (queued.length === 0) return runs.some((run) => run.notTaken === true) ? notTaken : { state: 'green' }
-  const runnerBusy = known.some((run) => run.status === 'running') || sharedRunnerBusy(view, neighbours)
+  const runnerBusy = busyRunner(view, neighbours) !== null
   const stuck = queued.every((run) => now.getTime() - Date.parse(run.createdAt) >= STUCK_MS)
   return stuck && !runnerBusy ? notTaken : { state: 'pending' }
 }

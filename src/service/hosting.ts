@@ -12,6 +12,7 @@ import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, taskSessions } from '../chain/launches.js'
 import { mergeCheck } from '../chain/mainci.js'
+import { ciViews } from '../ci/wiring.js'
 import { pullReadiness } from '../review/open.js'
 import { archivedShown } from '../chain/archive.js'
 import { ConfigStore } from '../config-store.js'
@@ -209,7 +210,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       projects: Object.fromEntries(Object.keys(ctx.readers().projects).map((reader) => [idPrefixOf(ctx.readers(), reader), ctx.trackers.setupOf(reader)?.issueUrl(reader) ?? null])),
       pages: Object.fromEntries(Object.keys(ctx.readers().projects).map((reader) => [reader, ctx.trackers.setupOf(reader)?.projectUrl?.(reader) ?? null])),
     },
-    ci: Object.fromEntries([...ctx.ciWatches.byProject.keys()].map((project) => [project, ctx.ciWatches.shown(project).map((watch) => watch.view)])),
+    ci: ciViews(ctx.ciWatches),
     remotes: ctx.remotes.view,
     sameRepository: Object.fromEntries(
       Object.keys(ctx.remotes.repositories).map((project) => [project, Object.keys(ctx.remotes.repositories).filter((other) => other !== project && ctx.sameRepositoryOf(project, other))]),
