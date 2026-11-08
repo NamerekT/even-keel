@@ -9,6 +9,8 @@ export interface CliKit {
   title: string
   /** The adapter left in `AGENTS` (`Harness.realAgents`). */
   agent: string
+  /** The kind every session of the scenarios must be (`AgentEntry.kind`), where the adapter has more than one. */
+  kind?: string
   /** The checked copy, downloaded once (`checkedCopy`). */
   binary(): Promise<string>
   /** The project's provider, accounts and model on the bench's config, before `start`. */
@@ -19,7 +21,7 @@ export interface CliKit {
    */
   prepare(run: Harness, binary: string, baseURL: string): void
   /** Stops what the CLI leaves running after a scenario, before the bench's folder is removed. */
-  release?(run: Harness, binary: string): void
+  release?(run: Harness, binary: string): void | Promise<void>
 }
 
 /**
