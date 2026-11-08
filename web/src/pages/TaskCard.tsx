@@ -74,9 +74,11 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
   const current = state !== null && activeChain(state.chain, project)?.current?.task === task
   // The card reads at its full height, so a long task does not move after it; a short one glides down to its content.
-  const phase = useLoader(card === undefined && error === null)
-  const reading = phase !== 'done'
-  useHeightGlide(frame, reading ? null : task)
+  // `busy` counts at once: the loader's phase turns a render later, and the empty body between would be painted.
+  const busy = card === undefined && error === null
+  const phase = useLoader(busy)
+  const reading = busy || phase !== 'done'
+  useHeightGlide(frame, reading ? null : (card?.id ?? task))
 
   // A card Even Keel keeps is read anew when the poll brings its task changed: fields without a draft follow it.
   const row = JSON.stringify(state?.tasks.filter((each) => each.project === project && (each.id === task || each.parent === task)) ?? null)
@@ -152,7 +154,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
         </header>
         <div className="task-card__body">
           {reading ? (
-            <Loader phase={phase} label={t.card.loading} fit="fill" />
+            <Loader phase={phase === 'done' ? 'in' : phase} label={t.card.loading} fit="fill" />
           ) : (
             <>
               {error !== null && <p className="notice notice--error">{say(error)}</p>}

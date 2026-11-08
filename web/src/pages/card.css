@@ -37,12 +37,6 @@ html:has(.task-card[open]) {
   transition: height var(--motion-appear) ease-out;
 }
 
-/* While the task is read the card stands at its full height: a long task stays put after it, a short one glides
-   down to its content (useHeightGlide). */
-.task-card__frame--reading {
-  height: calc(100dvh - 66px);
-}
-
 /* Header */
 
 .task-card__head {
@@ -177,10 +171,14 @@ html:has(.task-card[open]) {
   overscroll-behavior: contain;
 }
 
-/* The loader fills the body, so the boat sits in the card's middle. */
+/* While the task is read the card stands at its full height: a long task stays put after it, a short one glides
+   down to its content (useHeightGlide), and the loader fills the body. The body asks for the height and the frame's
+   max-height trims it: a `height` on the frame itself would make Chrome cancel the glide up to it. */
 .task-card__frame--reading .task-card__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  height: calc(100dvh - 66px);
 }
 
 .task-card__title {
