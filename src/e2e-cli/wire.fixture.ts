@@ -83,30 +83,33 @@ const SHELLS: Record<string, (command: string) => Record<string, unknown>> = {
   shell_command: (command) => ({ command }),
 }
 
-/** Streams the answer the way the wire's real API does; every answer reports the same small usage. */
-export function sendAnswer(wire: Wire, answer: Answer, n: number, model: string, response: ServerResponse): void {
+/** The input tokens an answer reports unless its reply says otherwise. */
+export const SMALL_USAGE = 1000
+
+/** Streams the answer the way the wire's real API does, reporting `tokens` of input: the context the CLI and Even Keel read. */
+export function sendAnswer(wire: Wire, answer: Answer, n: number, model: string, response: ServerResponse, tokens = SMALL_USAGE): void {
   response.writeHead(200, { 'content-type': 'text/event-stream' })
-  if (wire === 'chat') sendChat(answer, n, response)
-  else if (wire === 'messages') sendMessages(answer, n, model, response)
-  else sendResponses(answer, n, response)
+  if (wire === 'chat') sendChat(answer, n, tokens, response)
+  else if (wire === 'messages') sendMessages(answer, n, model, tokens, response)
+  else sendResponses(answer, n, tokens, response)
   response.end()
 }
 
-function sendChat(answer: Answer, n: number, response: ServerResponse): void {
+function sendChat(answer: Answer, n: number, tokens: number, response: ServerResponse): void {
   const base = { id: `chatcmpl-${n}`, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'scripted' }
   const delta = 'text' in answer
     ? { role: 'assistant', content: answer.text }
     : { role: 'assistant', tool_calls: answer.calls.map(({ name, args }, index) => ({ index, id: `call_${n}_${index}`, type: 'function', function: { name, arguments: JSON.stringify(args) } })) }
   const data = (chunk: unknown) => response.write(`data: ${JSON.stringify(chunk)}\n\n`)
   data({ ...base, choices: [{ index: 0, delta, finish_reason: null }] })
-  data({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'text' in answer ? 'stop' : 'tool_calls' }], usage: { prompt_tokens: 1000, completion_tokens: 20, total_tokens: 1020 } })
+  data({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'text' in answer ? 'stop' : 'tool_calls' }], usage: { prompt_tokens: tokens, completion_tokens: 20, total_tokens: tokens + 20 } })
   response.write('data: [DONE]\n\n')
 }
 
-function sendMessages(answer: Answer, n: number, model: string, response: ServerResponse): void {
+function sendMessages(answer: Answer, n: number, model: string, tokens: number, response: ServerResponse): void {
   const event = (type: string, data: Json) => response.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`)
   const stop = 'text' in answer ? 'end_turn' : 'tool_use'
-  event('message_start', { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 1 } } })
+  event('message_start', { message: { id: `msg_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: tokens, output_tokens: 1 } } })
   const blocks = 'text' in answer ? [{ text: answer.text }] : answer.calls
   blocks.forEach((block, index) => {
     if ('text' in block) {
@@ -122,7 +125,7 @@ function sendMessages(answer: Answer, n: number, model: string, response: Server
   event('message_stop', {})
 }
 
-function sendResponses(answer: Answer, n: number, response: ServerResponse): void {
+function sendResponses(answer: Answer, n: number, tokens: number, response: ServerResponse): void {
   const event = (data: Json) => response.write(`event: ${data.type}\ndata: ${JSON.stringify(data)}\n\n`)
   const items = 'text' in answer
     ? [{ type: 'message', id: `msg_${n}`, role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: answer.text, annotations: [] }] }]
@@ -133,7 +136,7 @@ function sendResponses(answer: Answer, n: number, response: ServerResponse): voi
     event({ type: 'response.output_item.added', output_index: index, item: { ...item, status: 'in_progress' } })
     event({ type: 'response.output_item.done', output_index: index, item })
   })
-  const usage = { input_tokens: 1000, input_tokens_details: { cached_tokens: 0 }, output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 }, total_tokens: 1020 }
+  const usage = { input_tokens: tokens, input_tokens_details: { cached_tokens: 0 }, output_tokens: 20, output_tokens_details: { reasoning_tokens: 0 }, total_tokens: tokens + 20 }
   event({ type: 'response.completed', response: { id, object: 'response', status: 'completed', output: items, usage } })
 }
 
@@ -161,5 +164,6 @@ function textsOf(messages: Json[], role: string): string[] {
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
-  return content.map((part: Json) => (typeof part?.text === 'string' ? part.text : typeof part?.content === 'string' ? part.content : '')).join('\n')
+  // A part may hold parts of its own: Anthropic's `tool_result` with a `content` array.
+  return content.map((part: Json) => (typeof part?.text === 'string' ? part.text : textOf(part?.content))).join('\n')
 }

@@ -1,6 +1,6 @@
 import { createServer, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { readAsked, sendAnswer, shellCall, sideAnswer, wireOf, type Answer, type Side, type Wire } from './wire.fixture.js'
+import { readAsked, sendAnswer, shellCall, sideAnswer, wireOf, type Answer, type Asked, type Side, type Wire } from './wire.fixture.js'
 
 /** A call of a tool the CLI offered, by its name there. */
 export interface ToolCall {
@@ -8,14 +8,18 @@ export interface ToolCall {
   args: Record<string, unknown>
 }
 
-/** One answer of the model: commands of the CLI's shell tool, calls of any tools, or a text that ends the turn. */
-export type Reply = { bash: string[] } | { calls: ToolCall[] } | { text: string }
+/**
+ * One answer of the model: commands of the CLI's shell tool, calls of any tools, or a text that ends the turn. `tokens`
+ * is the input it reports, `SMALL_USAGE` by default: the session's context as the CLI and Even Keel count it.
+ */
+export type Reply = ({ bash: string[] } | { calls: ToolCall[] } | { text: string }) & { tokens?: number }
 
 /**
- * A reply made when its request comes, from the tools that request offers and the text of the last tool result.
- * `{ wait }` answers with its reply and keeps the function for the next request.
+ * A reply made when its request comes, from the tools that request offers, the text of the last tool result and all
+ * the text of the request (`ModelRequest.context`). `{ wait }` answers with its reply and keeps the function for the
+ * next request.
  */
-export type LateReply = (tools: string[], result: string) => Reply | { wait: Reply }
+export type LateReply = (tools: string[], result: string, context: string) => Reply | { wait: Reply }
 
 /** What the model was asked: the task it took the request for, the tools the CLI offered, the last tool result. */
 export interface ModelRequest {
@@ -88,16 +92,16 @@ export class ScriptedModel {
     const body = JSON.parse(raw) as Record<string, unknown>
     const asked = readAsked(wire, body)
     const task = asked.side === null ? this.taskOf(asked.users) : null
-    const reply: Reply = asked.side !== null ? { text: sideAnswer(asked.side, asked) } : this.next(task, asked.tools, asked.result)
+    const reply: Reply = asked.side !== null ? { text: sideAnswer(asked.side, asked) } : this.next(task, asked)
     this.requests.push({ wire, task, tools: asked.tools, result: asked.result, side: asked.side, reply, context: asked.context })
-    sendAnswer(wire, answerOf(reply, asked.tools), ++this.calls, typeof body.model === 'string' ? body.model : 'scripted', response)
+    sendAnswer(wire, answerOf(reply, asked.tools), ++this.calls, typeof body.model === 'string' ? body.model : 'scripted', response, reply.tokens)
   }
 
-  private next(task: string | null, tools: string[], result: string): Reply {
+  private next(task: string | null, { tools, result, context }: Asked): Reply {
     const replies = task === null ? undefined : this.scripts.get(task)
     const next = replies?.[0]
     if (next === undefined) return { text: 'NO SCRIPT: the scripted model has no reply left.' }
-    const made = typeof next === 'function' ? next(tools, result) : next
+    const made = typeof next === 'function' ? next(tools, result, context) : next
     if ('wait' in made) return made.wait
     replies!.shift()
     return made

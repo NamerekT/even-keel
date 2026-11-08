@@ -16,6 +16,16 @@ const REFUSED = "Even Keel's check before the merge failed"
 /** Words of a project's `AGENTS.md` and `CLAUDE.md` that nothing else in a request says. */
 const AGENTS_WORD = 'ZEBRAFINCH'
 const CLAUDE_WORD = 'MARMOSET'
+/** A word of a chat message that nothing else in a request says. */
+const MAIL_WORD = 'PANGOLIN'
+/** The project's pinned checkpoint threshold (the least the setting takes) and a context past it, short of the late one. */
+const CHECKPOINT_AT = 100_000
+const FULL_CONTEXT = 120_000
+/** How the checkpoint hook's nudge opens (`plugins/checkpoint/hooks/nudges.mjs`, `nudge`) and what it asks for. */
+const NUDGED = `Context is now ~${FULL_CONTEXT / 1000}k tokens`
+const CHECKPOINT_LINE = 'CHECKPOINT: .temp/handoff.md'
+/** The real time a scripted turn keeps working while it waits for a hook's word. */
+const WAIT_MS = 3 * 60_000
 /** A project's check that passes once the branch's last commit is a fix: committed in the bench's checkout. */
 const CHECK_SCRIPT = "import { execFileSync } from 'node:child_process'\nprocess.exit(execFileSync('git', ['log', '-1', '--format=%s'], { encoding: 'utf8' }).includes('Fix') ? 0 : 1)\n"
 
@@ -68,6 +78,26 @@ export function chainOnRealCli(kit: CliKit): void {
     const work = (task: string) => [commit(task), merge(task), { text: `Merged ${task}.` }]
     const sessionOf = (task: string) => run.service.agents.find((entry) => entry.name === task)
     const asked = (task: string) => model.requests.filter((request) => request.task === task)
+
+    /** Adds Even Keel's `checkpoint` plugin to the project and waits for it to install. */
+    async function addCheckpoint(): Promise<void> {
+      await run.post('packages/plugin', { plugin: 'checkpoint', marketplace: 'even-keel', project: PROJECT_ID })
+      await run.until(() => run.service.packages.unready(PROJECT_ID).length === 0, 'the checkpoint package installed', { limitMs: TURN_LIMIT_MS })
+    }
+
+    /**
+     * Keeps the turn working with `git status`, each answer reporting `tokens`, until a request's text shows `seen`, then
+     * answers `then`; past `WAIT_MS` of real time it ends the turn saying what never came.
+     */
+    function awaiting(seen: string, what: string, then: Reply, tokens?: number): LateReply {
+      let deadline: number | undefined
+      return (_tools, _result, context) => {
+        deadline ??= Date.now() + WAIT_MS
+        if (context.includes(seen)) return then
+        if (Date.now() > deadline) return { text: `Never got ${what}.` }
+        return { wait: { bash: ['git status --short'], ...(tokens === undefined ? {} : { tokens }) } }
+      }
+    }
 
     it('runs tasks in the order of their blocks, cleaning up after each Done', async () => {
       run.board.add('ABC-1')
@@ -148,13 +178,54 @@ export function chainOnRealCli(kit: CliKit): void {
         run.git('add', 'check.mjs')
         run.git('commit', '-q', '-m', 'Add the check')
       })
-      await run.post('packages/plugin', { plugin: 'checkpoint', marketplace: 'even-keel', project: PROJECT_ID })
-      await run.until(() => run.service.packages.unready(PROJECT_ID).length === 0, 'the checkpoint package installed', { limitMs: TURN_LIMIT_MS })
+      await addCheckpoint()
       await run.startChain(PROJECT_ID)
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
       expect(asked('ABC-1').some((request) => request.result.includes(REFUSED))).toBe(true)
       expect(run.git('log', '--format=%s', 'main').split('\n')).toEqual(expect.arrayContaining(['[ABC-1] Work', '[ABC-1] Fix']))
+      expect(model.left('ABC-1')).toBe(0)
+    })
+
+    it("hands a chat message to the working session mid-turn, by the checkpoint plugin's mailbox hook", async () => {
+      run.board.add('ABC-1')
+      model.script('ABC-1', awaiting(MAIL_WORD, 'the chat message', commit('ABC-1')), merge('ABC-1'), { text: 'Merged ABC-1.' })
+      await start()
+      await addCheckpoint()
+      await run.startChain(PROJECT_ID)
+
+      // The page's chat sends into the mailbox once the session's hook has asked for mail and its turn is on.
+      const listening = () => {
+        const id = sessionOf('ABC-1')?.sessionId
+        return id !== undefined && run.service.mailbox.listens(id) && run.service.agentStatus('ABC-1') === 'busy'
+      }
+      await run.until(listening, 'the mailbox hook of ABC-1 asked mid-turn', { limitMs: TURN_LIMIT_MS })
+      const session = sessionOf('ABC-1')!
+      await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-1', sessionId: session.sessionId, ask: null, answers: {}, text: `The code word is ${MAIL_WORD}.` })
+      expect(run.service.mailbox.of(session.sessionId)).toEqual([expect.objectContaining({ fate: 'waiting' })])
+
+      await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
+      const [mail] = run.service.mailbox.of(session.sessionId)
+      // Delivered by a hook of the turn, not by a resume after it.
+      expect(mail).toMatchObject({ fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) })
+      expect(asked('ABC-1').some((request) => request.context.includes(MAIL_WORD))).toBe(true)
+      expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
+      expect(model.left('ABC-1')).toBe(0)
+    })
+
+    it("asks the session for a checkpoint once its context passes the project's threshold, by the checkpoint plugin's hook", async () => {
+      run.board.add('ABC-1')
+      run.project.stats = { checkpointTokens: CHECKPOINT_AT }
+      // Even Keel reads the context from the transcript at its poll: the hook nudges at the first tool call after it.
+      model.script('ABC-1', awaiting(NUDGED, 'the checkpoint nudge', commit('ABC-1'), FULL_CONTEXT), merge('ABC-1'), { text: 'Merged ABC-1.' })
+      await start()
+      await addCheckpoint()
+      await run.startChain(PROJECT_ID)
+
+      await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
+      const nudged = asked('ABC-1').find((request) => request.context.includes(NUDGED))
+      expect(nudged?.context).toContain(CHECKPOINT_LINE)
+      expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
       expect(model.left('ABC-1')).toBe(0)
     })
 
