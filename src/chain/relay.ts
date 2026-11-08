@@ -137,6 +137,8 @@ export interface LimitHold {
   acted: RelayAction | null
   /** The key ran out of money: its handover is journaled with the cause `credit`. */
   credit?: true
+  /** A temporary model error: the wait's resume is journaled with the cause `transient`. */
+  transient?: true
   /** Paid-usage stops retain their context when the stopped session disappears from the monitor. */
   overage?: { session: LimitedSession; stopped: boolean }
 }

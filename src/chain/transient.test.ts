@@ -38,7 +38,7 @@ describe('retrying a temporary model refusal', () => {
     expect(c.relays).toHaveLength(1)
     expect(c.relays[0]).toMatchObject({ kind: 'reply', sessionId: 'session-1' })
     expect(c.relays[0]?.prompt).toContain('временной')
-    expect(c.journal.at(-1)).toMatchObject({ reason: 'resume', sessionId: 'session-1' })
+    expect(c.journal.at(-1)).toMatchObject({ reason: 'resume', cause: 'transient', sessionId: 'session-1' })
   })
 
   it('doubles delays to four hours and resets after a successful answer', async () => {

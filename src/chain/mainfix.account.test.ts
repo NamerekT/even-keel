@@ -59,7 +59,7 @@ describe.each(['opencode', 'copilot'])('MainFix with a machine %s account', (age
     await dispatcher.idle()
     expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-2', sessionId: 'session-2' }])
     expect(relays[0]!.prompt).toContain('ccccccc')
-    expect(journal.at(-1)).toMatchObject({ reason: 'resume', previous: 'session-2' })
+    expect(journal.at(-1)).toMatchObject({ reason: 'resume', cause: 'mainFixed', previous: 'session-2' })
     expect(dispatcher.state.active[0]?.interrupted).toBeUndefined()
     expect(dispatcher.state.active[0]?.current?.sessionId).toBe('session-2')
   })

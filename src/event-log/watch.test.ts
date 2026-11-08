@@ -223,6 +223,10 @@ describe('launchDraft', () => {
       place: { view: 'task', project: 'p1', task: 'ABC-1' },
     })
     expect(task({ reason: 'resume', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'resume' }))
+    expect(task({ reason: 'resume', cause: 'limit', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'limit' }))
+    expect(task({ reason: 'resume', cause: 'credit', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'credit' }))
+    expect(task({ reason: 'resume', cause: 'mainFixed', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'mainFixed' }))
+    expect(task({ reason: 'resume', cause: 'transient', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'transient' }))
     expect(task({ reason: 'review', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'review' }))
     expect(task({ reason: 'restart', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1' }))
   })

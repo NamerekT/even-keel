@@ -136,7 +136,7 @@ export class Handovers {
     }
     if (current.limit?.at !== session.limit.at) {
       const resetsAt = this.transientRetries.retryAfter(session.sessionId, session.limit.at)
-      current.limit = { at: session.limit.at, account: session.account, resetsAt, lastReplyAt: session.lastReplyAt, then: 'resume', acted: null }
+      current.limit = { at: session.limit.at, account: session.account, resetsAt, lastReplyAt: session.lastReplyAt, then: 'resume', acted: null, transient: true }
       this.deps.save(this.state)
       this.deps.log(`chain: ${current.task}: temporary model error; retry at ${resetsAt} in session ${session.sessionId}`)
     }
@@ -326,6 +326,7 @@ export class Handovers {
     const reason = returned ? 'relay' : move === 'message' ? 'restart' : move
     const cause =
       move === 'relay' ? (current.limit?.credit ? 'credit' : 'limit')
+      : move === 'resume' ? (current.limit?.transient ? 'transient' : current.limit?.credit ? 'credit' : 'limit')
       : returned || move === 'message' ? move
       : move === 'review' && sessionId !== previous ? 'review'
       : undefined

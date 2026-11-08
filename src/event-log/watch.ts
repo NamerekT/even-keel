@@ -1,7 +1,7 @@
 import { isCarryName, isFixName } from '../chain/fix.js'
 import { isLaunch } from '../chain/launches.js'
 import type { LaunchEntry } from '../chain/model.js'
-import type { LoggedPackageProblem } from '../notice/en.js'
+import type { ContinuedWhy, LoggedPackageProblem } from '../notice/en.js'
 import { notice, type Notice } from '../notice/notice.js'
 import type { EvenKeelState, PackageProblem, ProjectPackages } from '../state.js'
 import type { EventDraft, EventLevel } from './model.js'
@@ -241,7 +241,7 @@ export function launchDraft(entry: LaunchEntry): EventDraft | null {
   if (isFixName(task)) return { level: 'info', notice: notice('eventLog.fixLaunch', { project }), place: { view: 'project', project } }
   if (isCarryName(task)) return { level: 'info', notice: notice('eventLog.carryLaunch', { project }), place: { view: 'project', project } }
   if (previous === sessionId) {
-    const why = reason === 'answer' || reason === 'resume' || reason === 'review' ? reason : undefined
+    const why = continuedWhy(entry)
     return { level: 'info', notice: notice('eventLog.continued', { task, ...(why === undefined ? {} : { why }) }), place }
   }
   if (previous !== undefined) {
@@ -249,6 +249,14 @@ export function launchDraft(entry: LaunchEntry): EventDraft | null {
     return { level: 'info', notice: notice('eventLog.handoff', { task, ...(why === undefined ? {} : { why }) }), place }
   }
   return { level: 'info', notice: notice('eventLog.launch', { task }), place }
+}
+
+/** What moved a session that goes on, from its entry: a resume keeps its cause, or `resume` for a log from before it (BTN-862). */
+function continuedWhy(entry: LaunchEntry): ContinuedWhy | undefined {
+  if (entry.reason === 'answer' || entry.reason === 'review') return entry.reason
+  if (entry.reason !== 'resume') return undefined
+  const cause = entry.cause
+  return cause === 'limit' || cause === 'credit' || cause === 'mainFixed' || cause === 'transient' ? cause : 'resume'
 }
 
 /** The entry of a session the chain stopped mid-turn: a red main or subscription overage (invariant 1). */
