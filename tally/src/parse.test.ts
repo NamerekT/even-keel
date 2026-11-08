@@ -71,6 +71,7 @@ describe('BatchBuilder messages', () => {
         cacheWrite1h: 200,
         cacheRead: 5000,
         output: 250,
+        provider: 'anthropic',
       },
     ])
     expect([...batch.lines.keys()]).toEqual(['u1', 'u2'])

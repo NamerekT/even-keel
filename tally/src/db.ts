@@ -2,6 +2,7 @@ import pg from 'pg'
 import { stat } from 'node:fs/promises'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
+import type { CatalogueModel } from './catalogue.js'
 import type { ClosedState } from './closed-tasks.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
@@ -167,8 +168,9 @@ export class TallyDb implements Store {
          select * from jsonb_to_recordset($1::jsonb) as x(
            message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
            branch text, entrypoint text, model text, speed text, at timestamptz,
-           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text)
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text)
          on conflict (message_id) do update set
+           provider = coalesce(excluded.provider, messages.provider),
            at = least(messages.at, excluded.at),
            input = greatest(messages.input, excluded.input),
            cache_write_5m = greatest(messages.cache_write_5m, excluded.cache_write_5m),
@@ -476,33 +478,59 @@ export class TallyDb implements Store {
     return updated.rowCount ?? 0
   }
 
+  /** The config's prices, by model prefix; the catalogue's rows are left to `syncCataloguePrices`. */
   async syncPrices(prices: Price[]): Promise<void> {
     await this.transaction(async () => {
-      await this.client.query('delete from model_prices where not (model = any($1::text[]))', [prices.map((price) => price.model)])
-      await this.upsert(
-        `insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h,
-           long_over, long_input, long_output, long_cache_read, long_cache_write_5m, long_cache_write_1h)
-         select * from jsonb_to_recordset($1::jsonb) as x(
-           model text, input numeric, output numeric, cache_read numeric, cache_write_5m numeric, cache_write_1h numeric,
-           long_over bigint, long_input numeric, long_output numeric, long_cache_read numeric,
-           long_cache_write_5m numeric, long_cache_write_1h numeric)
-         on conflict (model) do update set
-           input = excluded.input, output = excluded.output, cache_read = excluded.cache_read,
-           cache_write_5m = excluded.cache_write_5m, cache_write_1h = excluded.cache_write_1h,
-           long_over = excluded.long_over, long_input = excluded.long_input, long_output = excluded.long_output,
-           long_cache_read = excluded.long_cache_read, long_cache_write_5m = excluded.long_cache_write_5m,
-           long_cache_write_1h = excluded.long_cache_write_1h`,
-        prices.map(({ longPrompt, ...price }) => ({
-          ...price,
-          longOver: longPrompt?.over ?? null,
-          longInput: longPrompt?.input ?? null,
-          longOutput: longPrompt?.output ?? null,
-          longCacheRead: longPrompt?.cacheRead ?? null,
-          longCacheWrite5m: longPrompt?.cacheWrite5m ?? null,
-          longCacheWrite1h: longPrompt?.cacheWrite1h ?? null,
-        })),
-      )
+      await this.client.query(`delete from model_prices where source = 'config' and not (model = any($1::text[]))`, [prices.map((price) => price.model)])
+      await this.insertPrices(prices, 'config')
     })
+  }
+
+  /** The catalogue's prices, each of one exact `<provider>/<model>`: they replace the catalogue's earlier rows. */
+  async syncCataloguePrices(prices: Price[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query(`delete from model_prices where source = 'catalogue'`)
+      await this.insertPrices(prices, 'catalogue')
+    })
+  }
+
+  /** The models of responses that no config price covers, with their provider, left out of `unpriced` (exact names). */
+  async catalogueWanted(unpriced: string[]): Promise<CatalogueModel[]> {
+    const result = await this.client.query<CatalogueModel>(
+      `select distinct m.provider, m.model from messages m
+       where m.provider is not null and m.model is not null and not (m.model = any($1::text[]))
+         and not exists (select 1 from model_prices p where p.source = 'config' and starts_with(m.model, p.model))
+       order by m.provider, m.model`,
+      [unpriced],
+    )
+    return result.rows
+  }
+
+  private async insertPrices(prices: Price[], source: 'config' | 'catalogue'): Promise<void> {
+    await this.upsert(
+      `insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h,
+         long_over, long_input, long_output, long_cache_read, long_cache_write_5m, long_cache_write_1h, source)
+       select * from jsonb_to_recordset($1::jsonb) as x(
+         model text, input numeric, output numeric, cache_read numeric, cache_write_5m numeric, cache_write_1h numeric,
+         long_over bigint, long_input numeric, long_output numeric, long_cache_read numeric,
+         long_cache_write_5m numeric, long_cache_write_1h numeric, source text)
+       on conflict (source, model) do update set
+         input = excluded.input, output = excluded.output, cache_read = excluded.cache_read,
+         cache_write_5m = excluded.cache_write_5m, cache_write_1h = excluded.cache_write_1h,
+         long_over = excluded.long_over, long_input = excluded.long_input, long_output = excluded.long_output,
+         long_cache_read = excluded.long_cache_read, long_cache_write_5m = excluded.long_cache_write_5m,
+         long_cache_write_1h = excluded.long_cache_write_1h`,
+      prices.map(({ longPrompt, ...price }) => ({
+        ...price,
+        longOver: longPrompt?.over ?? null,
+        longInput: longPrompt?.input ?? null,
+        longOutput: longPrompt?.output ?? null,
+        longCacheRead: longPrompt?.cacheRead ?? null,
+        longCacheWrite5m: longPrompt?.cacheWrite5m ?? null,
+        longCacheWrite1h: longPrompt?.cacheWrite1h ?? null,
+        source,
+      })),
+    )
   }
 
   async addSnapshots(snapshots: Snapshot[]): Promise<number> {
@@ -755,7 +783,7 @@ export class TallyDb implements Store {
          select * from jsonb_to_recordset($1::jsonb) as x(
            message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
            branch text, entrypoint text, model text, speed text, at timestamptz,
-           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text)
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text)
          on conflict (message_id) do nothing`,
         costs,
       )

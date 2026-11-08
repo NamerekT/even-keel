@@ -15,9 +15,14 @@ export interface SessionWindow {
   output: number
 }
 
+/** Where OpenCode keeps its copy of the models.dev catalogue in an account's folder. */
+export function catalogueFile(dir: string): string {
+  return join(dir, 'cache', 'opencode', 'models.json')
+}
+
 /** OpenCode's copy of the models.dev catalogue in the account's folders; empty when there is none yet. */
 export function readCatalogue(dir: string): Promise<string> {
-  return readFile(join(dir, 'cache', 'opencode', 'models.json'), 'utf8').catch(() => '')
+  return readFile(catalogueFile(dir), 'utf8').catch(() => '')
 }
 
 /**

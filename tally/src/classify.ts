@@ -137,6 +137,7 @@ export function costRows(sessionId: string, usage: ModelUsage[], account: string
     cacheWrite1h: 0,
     cacheRead: item.cacheRead,
     output: item.output,
+    provider: null,
   }))
 }
 

@@ -58,3 +58,61 @@ describe('cost of a message', () => {
     expect(found.none).toBeNull()
   })
 })
+
+describe('cost of a message priced by the catalogue', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await PGlite.create()
+    await migrate(pgliteDb(db))
+    await db.exec(`insert into model_prices (source, model, input, output, cache_read, cache_write_5m, cache_write_1h) values
+      ('config', 'claude-opus-9', 1, 1, 1, 1, 1),
+      ('config', 'minimax/m9', 7, 7, 7, 7, 7),
+      ('catalogue', 'minimax/m9', 3, 3, 3, 3, 3),
+      ('catalogue', 'anthropic/claude-opus-9', 50, 50, 50, 50, 50),
+      ('catalogue', 'openrouter/qwen-9', 2, 2, 2, 2, 2)`)
+    const messages: [id: string, model: string, provider: string | null][] = [
+      ['catalogue', 'qwen-9', 'openrouter'],
+      ['config wins', 'claude-opus-9', 'anthropic'],
+      ['config key, catalogue spelling', 'm9', 'minimax'],
+      ['not a prefix', 'qwen-9-turbo', 'openrouter'],
+      ['other provider', 'qwen-9', 'chutes'],
+      ['no provider', 'qwen-9', null],
+    ]
+    for (const [id, model, provider] of messages) {
+      await db.query(
+        `insert into messages (message_id, session_id, account, model, provider, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+         values ($1, 's', 'a', $2, $3, '2026-10-01T10:00:00Z', 1000000, 0, 0, 0, 0)`,
+        [id, model, provider],
+      )
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await db?.close()
+  })
+
+  async function prices(): Promise<Record<string, [cost: number | null, source: string | null]>> {
+    const { rows } = await db.query<{ message_id: string; cost: string | null; price_source: string | null }>(
+      'select message_id, cost, price_source from message_costs',
+    )
+    return Object.fromEntries(rows.map((row) => [row.message_id, [row.cost === null ? null : Number(row.cost), row.price_source]]))
+  }
+
+  it('prices a model the config lacks by its exact provider and model in the catalogue', async () => {
+    expect((await prices()).catalogue).toEqual([2, 'catalogue'])
+  })
+
+  it('keeps the config price over the catalogue', async () => {
+    const found = await prices()
+    expect(found['config wins']).toEqual([1, 'config'])
+    expect(found['config key, catalogue spelling']).toEqual([3, 'catalogue'])
+  })
+
+  it('gives a catalogue row to no other model, provider or a response without one', async () => {
+    const found = await prices()
+    expect(found['not a prefix']).toEqual([null, null])
+    expect(found['other provider']).toEqual([null, null])
+    expect(found['no provider']).toEqual([null, null])
+  })
+})

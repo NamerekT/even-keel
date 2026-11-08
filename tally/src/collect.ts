@@ -14,6 +14,7 @@ import { SQLITE_FILE } from '../../src/storage/database.js'
 import { readStateDatabase, type StateReader } from '../../src/storage/owner.js'
 import { readStateFiles } from '../../src/storage/state-files.js'
 import { builtinTasks } from './builtin-tasks.js'
+import { cataloguePrices, newestCatalogue } from './catalogue.js'
 import { closedStates } from './closed-tasks.js'
 import type { TaskRecord } from './huly.js'
 import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
@@ -110,6 +111,9 @@ export async function collect(settings: DbSettings, root: string, home: string, 
       }
     }
     const forgotten = await db.forgetFilesExcept(paths)
+    const catalogue = newestCatalogue(homes)
+    const cataloguePriced = catalogue === undefined ? [] : cataloguePrices(catalogue, await db.catalogueWanted(config.unpriced))
+    await db.syncCataloguePrices(cataloguePriced)
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(taskHomes)
     // A built-in task read whole is not given the archive's older state on top.
@@ -141,12 +145,15 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, trackers, log)
     const classified = await classifySpans(db, config.classify, log)
     const unpriced = unpricedToLog(await db.unpricedModels(), config.unpriced)
-    if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)
+    if (unpriced.length > 0) {
+      const where = catalogue === undefined ? 'no OpenCode account holds a models.dev catalogue' : "OpenCode's models.dev catalogue has none either"
+      log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json (${where})`)
+    }
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode, ${copilot.length} Copilot),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
-        `${relabeled} sessions relabeled, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
+        `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${builtin.length} built-in tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
     )

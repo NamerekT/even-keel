@@ -58,6 +58,7 @@ export function openCodeBatch(rows: ResponseRow[], context: ParseContext): Batch
       cacheWrite1h: 0,
       cacheRead: usage.cacheRead,
       output: usage.output,
+      provider: str(data.providerID),
     }
     batch.messages.set(message.messageId, message)
     const known = batch.sessions.get(sessionId)

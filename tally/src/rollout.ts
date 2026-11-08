@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { createZstdDecompress } from 'node:zlib'
-import { emptyBatch, type Batch, type MessageRow, type ParseContext } from './parse.js'
+import { emptyBatch, OPENAI, type Batch, type MessageRow, type ParseContext } from './parse.js'
 import { placeOf, taskOf } from './task.js'
 
 /**
@@ -123,6 +123,7 @@ export class RolloutBuilder {
       cacheWrite1h: 0,
       cacheRead: usage.cacheRead,
       output: usage.output,
+      provider: OPENAI,
     }
   }
 }

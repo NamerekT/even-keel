@@ -128,6 +128,7 @@ describe('costRows', () => {
         cacheWrite1h: 0,
         cacheRead: 5,
         output: 40,
+        provider: null,
       },
     ])
   })

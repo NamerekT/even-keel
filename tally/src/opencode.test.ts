@@ -35,6 +35,7 @@ describe('openCodeBatch', () => {
         cacheWrite1h: 0,
         cacheRead: 9000,
         output: 25,
+        provider: 'anthropic',
       },
     ])
     expect(batch.sessions.get('ses_root')).toMatchObject({ aiTitle: 'DEMO-7', launchTask: 'DEMO-7', launchReason: 'launch', project: 'demo' })

@@ -119,6 +119,7 @@ export class CopilotBuilder {
       cacheWrite1h: 0,
       cacheRead,
       output,
+      provider: null,
     }
     this.batch.messages.set(messageId, row)
   }

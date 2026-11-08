@@ -40,7 +40,12 @@ export interface MessageRow {
   cacheWrite1h: number
   cacheRead: number
   output: number
+  /** The provider that served the response, as the models.dev catalogue names it (BTN-859); null when unknown. */
+  provider: string | null
 }
+
+export const ANTHROPIC = 'anthropic'
+export const OPENAI = 'openai'
 
 export interface CallRow {
   toolUseId: string
@@ -191,6 +196,7 @@ export class BatchBuilder {
       cacheWrite1h: written?.ephemeral_1h_input_tokens ?? 0,
       cacheRead: usage.cache_read_input_tokens ?? 0,
       output: usage.output_tokens ?? 0,
+      provider: ANTHROPIC,
     }
     const known = this.batch.messages.get(id)
     this.batch.messages.set(id, known === undefined ? row : mergeMessages(known, row))

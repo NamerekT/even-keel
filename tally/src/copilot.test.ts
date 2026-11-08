@@ -50,6 +50,7 @@ describe('CopilotBuilder', () => {
         cacheWrite1h: 0,
         cacheRead: 0,
         output: 29,
+        provider: null,
       },
       expect.objectContaining({ messageId: 'copilot:session.usage_record-00:30', input: 3, cacheRead: 14363, cacheWrite5m: 71, output: 115 }),
     ])

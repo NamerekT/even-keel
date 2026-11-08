@@ -232,7 +232,7 @@ with own as (
   join session_tasks st on st.session_id = s.session_id
   where split_part(st.task, '-', 1) = any($1::text[])
 ), reqs as (
-  select c.session_id, c.message_id, c.cost, c.model,
+  select c.session_id, c.message_id, c.cost, c.model, c.price_model,
     c.input + c.cache_write_5m + c.cache_write_1h + c.cache_read as ctx,
     row_number() over (partition by c.session_id order by c.at, c.message_id) as n
   from message_costs c
@@ -252,7 +252,8 @@ with own as (
     max(r.ctx) filter (where r.n = 15) as ctx15,
     sum(r.cost) filter (where r.n < m.edit_n) as recovery,
     sum(r.cost) filter (where r.n >= m.note_n) as note,
-    (array_agg(r.model order by r.n))[1] as model
+    (array_agg(r.model order by r.n))[1] as model,
+    (array_agg(r.price_model order by r.n))[1] as price_model
   from own o
   join reqs r on r.session_id = o.session_id
   left join marks m on m.session_id = o.session_id
@@ -264,13 +265,16 @@ with own as (
     percentile_cont(0.5) within group (order by ctx15) filter (where handed) as base,
     percentile_cont(0.5) within group (order by recovery) filter (where handed) as recovery,
     percentile_cont(0.5) within group (order by note) as note,
-    mode() within group (order by model) filter (where handed) as model
+    mode() within group (order by model) filter (where handed) as model,
+    mode() within group (order by price_model) filter (where handed) as price_model
   from per
   group by key
 )
+-- The config's longest prefix of the model, else the catalogue row the model was priced by (BTN-859).
 select t.key, t.handoffs, t.sessions, t.base, t.recovery, t.note, (
   select p.cache_read from model_prices p
-  where starts_with(t.model, p.model) order by length(p.model) desc limit 1
+  where (p.source = 'config' and starts_with(t.model, p.model)) or (p.source = 'catalogue' and p.model = t.price_model)
+  order by p.source = 'config' desc, length(p.model) desc limit 1
 ) as cache_read
 from total t`
 

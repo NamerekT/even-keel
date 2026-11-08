@@ -51,7 +51,7 @@ describe('RolloutBuilder', () => {
       {
         messageId: 'resp_1', sessionId: SESSION, agentId: null, account: 'codex', project: 'EvenKeel', projectDir: 'D:\\Projects\\EvenKeel',
         task: 'BTN-46', branch: 'btn-46/task', entrypoint: 'codex-exec', model: 'gpt-5.6-luna', speed: null, effort: 'high',
-        at: '2026-10-17T13:34:34.201Z', input: 13398, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0, output: 9827,
+        at: '2026-10-17T13:34:34.201Z', input: 13398, cacheWrite5m: 0, cacheWrite1h: 0, cacheRead: 0, output: 9827, provider: 'openai',
       },
       expect.objectContaining({ messageId: 'resp_2', model: 'gpt-5.6-terra', effort: 'xhigh', input: 25531 - 13184 - 100, cacheRead: 13184, cacheWrite5m: 100, output: 19 }),
     ])
