@@ -8,7 +8,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -20,6 +20,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     session: (sessionId) => activity.track(source.session(sessionId)),
     transcript: (sessionId, after) => source.transcript(sessionId, after),
     onTranscript: (sessionId, listener) => source.onTranscript(sessionId, listener),
+    checkpoint: (sessionId) => source.checkpoint(sessionId),
     imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
     sharedUrl: (sessionId, tool, index) => source.sharedUrl(sessionId, tool, index),

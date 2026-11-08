@@ -5,14 +5,11 @@ import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
-import { formatElapsed, formatTokens } from '../format.js'
+import { formatElapsed } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
-import { contextFill } from '../state.js'
-import { AccountTag } from '../ui/AccountTag.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { ContextMeter } from '../ui/ContextMeter.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
 import { PullButton } from '../ui/PullChip.js'
@@ -20,12 +17,13 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
+import { ChatStatus, useStatusFacts } from './ChatStatus.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
 import { Thumb, Thumbs } from './Thumbs.js'
-import { EditSize, ToolGroup } from './ToolCalls.js'
-import { editTotals, feedEntries, type EditTotal } from './toolGroups.js'
+import { ToolGroup } from './ToolCalls.js'
+import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import { turnPhase, type TurnFacts } from './turnPhase.js'
 import { useFileDrop } from './useFileDrop.js'
@@ -49,7 +47,7 @@ export interface ChatTarget {
   aside: boolean
   /** The session is the current one of a running chain: a reply to it may go to a new session instead (BTN-757). */
   renews: boolean
-  /** For the head's meter of the session's context. */
+  /** For the status line's ring of the session's context. */
   scale: ContextScale
   /** When the service began delivering the last answer to the session, for the turn line; `null` without one. */
   answeredAt: string | null
@@ -67,6 +65,8 @@ interface Props {
   /** The session still runs: new lines are fetched every few seconds. */
   live: boolean
   chat?: ChatTarget
+  /** The session's task, for the head: its key and title; without it the head shows the session's id. */
+  task?: { key: string; title: string | null }
   onClose: () => void
 }
 
@@ -81,7 +81,7 @@ interface SentLine {
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
+export function TranscriptWindow({ sessionId, account, live, chat, task, onClose }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
@@ -122,9 +122,11 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const loader = useLoader(error === null && lines === undefined)
   // The list mounts once the loader has left, so the effects that pin it to its end wait for that too.
   const listed = entries != null && loader === 'done'
+  const facts = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((session) => session.sessionId === sessionId) ?? null)
+  const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
 
   useEffect(() => {
-    // Otherwise the dialog focuses its first focusable element, the head's facts, and their tip opens at once.
+    // Otherwise the dialog focuses its first focusable element, the head's title, and its tip opens at once.
     // React's `autoFocus` sets no attribute, and the dialog looks only at the attribute.
     closeRef.current?.setAttribute('autofocus', '')
     dialogRef.current?.showModal()
@@ -227,11 +229,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         )}
         <header className="panel__head">
           <h2 className="panel__task">
-            <span className="panel__key">{chat?.task ?? sessionId.slice(0, 8)}</span>
-            <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
-            <AccountTag account={account} agent={chat?.session.agent ?? state?.sessions.find((session) => session.sessionId === sessionId)?.agent} />
+            <span className="panel__key">{task?.key ?? chat?.task ?? sessionId.slice(0, 8)}</span>
+            <WindowTitle sessionId={sessionId} title={task?.title ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
           </h2>
-          <HeadFacts session={chat?.session ?? null} scale={chat?.scale ?? null} edits={edits} />
           {chat?.review !== undefined && <PullButton review={chat.review} compact />}
           {remoteUrl != null && (
             <a
@@ -275,7 +275,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             </ol>
           </div>
         )}
-        {chat !== undefined && (
+        {chat === undefined ? (
+          <div className="transcript__foot">{status}</div>
+        ) : (
           <div className="transcript__foot">
             {chat.session.lamp === 'working' && (
               <TurnLine
@@ -298,6 +300,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               mail={chat.mail}
               queued={queued}
               handle={composerRef}
+              status={status}
               onSent={(line, steered) => {
                 pinned.current = true
                 setSent((now) => [...now, { line, after: lines?.length ?? 0, steered }])
@@ -367,26 +370,20 @@ function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   return <span className="transcript__plain">{line.notice === undefined ? line.text : say(line.notice)}</span>
 }
 
-/**
- * The head's facts of a chat: how full the context is and the branch, and the edits of the session in any transcript;
- * their figures in full in the tip.
- */
-function HeadFacts({ session, scale, edits }: { session: SessionView | null; scale: ContextScale | null; edits: EditTotal | null }) {
-  const branch = session?.branch ?? null
-  const context = session !== null && scale !== null && session.contextTokens > 0
-  if (!context && branch === null && edits === null) return null
-  const tip = [
-    context
-      ? `${t.context.label}: ${t.context.of(formatTokens(session.contextTokens), formatTokens(session.contextWindow ?? scale.window), Math.round(contextFill(session.contextTokens, scale, session.contextWindow).percent))}`
-      : null,
-    branch === null ? null : t.session.chat.head.branch(branch),
-    edits === null ? null : t.session.chat.head.edits(edits.added, edits.removed),
-  ].filter((part) => part !== null)
+/** The window's title cut to one line: the full one and the session's id in the tip, a press copies the id. */
+function WindowTitle({ sessionId, title }: { sessionId: string; title: string }) {
+  const [copied, setCopied] = useState(false)
+  const tip = [title, t.session.chat.head.session(sessionId), copied ? t.session.chat.head.copied : t.session.chat.head.copy]
   return (
-    <Tipped className="transcript__facts" tip={tip.map((part) => <div key={part}>{part}</div>)} focusable>
-      {context && <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} />}
-      {branch !== null && <span className="transcript__branch">{branch}</span>}
-      {edits !== null && <EditSize {...edits} />}
+    <Tipped inline align="start" className="transcript__title-tip" tip={tip.map((line) => <span key={line} className="transcript__tip-line">{line}</span>)}>
+      <button
+        type="button"
+        className="panel__title transcript__title"
+        onClick={() => void navigator.clipboard?.writeText(sessionId).then(() => setCopied(true), () => {})}
+        onBlur={() => setCopied(false)}
+      >
+        {title}
+      </button>
     </Tipped>
   )
 }

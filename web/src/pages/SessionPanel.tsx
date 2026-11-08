@@ -39,6 +39,8 @@ import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
 import './facts.css'
 
+type WindowTask = { key: string; title: string | null }
+
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
@@ -73,6 +75,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   const [chatting, setChatting] = useState(false)
   // A press on the feed opens what the panel answers the session in: the chat, else the read-only whole transcript.
   const openChat = chat ? () => setChatting(true) : undefined
+  // The session windows name the task as this panel's head does.
+  const windowTask: WindowTask = { key: block.id, title: block.title }
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -122,13 +126,13 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
         <>
           <StartCard start={block.start} />
           {block.start.phase === 'answer' && block.session !== null && (
-            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live onChat={openChat} />
+            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live task={windowTask} onChat={openChat} />
           )}
         </>
       ) : block.session === null ? (
         <p className="placeholder">{block.sessions.length === 0 ? t.session.none : t.session.noneNow}</p>
       ) : (
-        <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} onChat={openChat} />
+        <SessionBody session={block.session} limit={block.limit} refusal={!recovered && refusal?.sessionId === sessionId ? refusal : null} scale={scale} task={windowTask} onChat={openChat} />
       )}
       {block.sessions.length > 0 && (
         <SessionList rows={block.sessions} current={block.session?.sessionId ?? null} onOpen={setOpened} />
@@ -139,6 +143,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           row={opened}
           live={block.session?.sessionId === opened.sessionId && block.session.lamp !== 'finished'}
           scale={scale}
+          task={windowTask}
           onClose={() => setOpened(null)}
         />
       )}
@@ -294,6 +299,7 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onFailure }:
             sessionId={chatSession.sessionId}
             account={chatSession.account}
             live={chatSession.lamp !== 'finished' || talking === null}
+            task={{ key: block.id, title: block.title }}
             chat={{
               project: body.project,
               task: body.task,
@@ -319,10 +325,11 @@ interface SessionBodyProps {
   limit: LimitHold | null
   refusal?: LimitRefusal | null
   scale: ContextScale
+  task: WindowTask
   onChat: (() => void) | undefined
 }
 
-function SessionBody({ session, limit, refusal = null, scale, onChat }: SessionBodyProps) {
+function SessionBody({ session, limit, refusal = null, scale, task, onChat }: SessionBodyProps) {
   const now = useNow(1_000)
   const { state } = useLive()
   const narrow = useNarrow()
@@ -369,15 +376,15 @@ function SessionBody({ session, limit, refusal = null, scale, onChat }: SessionB
         <TokensFact tokens={session.tokens} />
       </FactList>
       {session.lamp === 'finished' ? (
-        <RecordFeed sessionId={session.sessionId} account={session.account} onChat={onChat} />
+        <RecordFeed sessionId={session.sessionId} account={session.account} task={task} onChat={onChat} />
       ) : (
-        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live onChat={onChat} />
+        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live task={task} onChat={onChat} />
       )}
     </>
   )
 }
 
-function RecordFeed({ sessionId, account, onChat }: { sessionId: string; account: string | null; onChat: (() => void) | undefined }) {
+function RecordFeed({ sessionId, account, task, onChat }: { sessionId: string; account: string | null; task: WindowTask; onChat: (() => void) | undefined }) {
   const { session } = useLive()
   const [lines, setLines] = useState<FeedLine[] | null>(null)
 
@@ -394,7 +401,7 @@ function RecordFeed({ sessionId, account, onChat }: { sessionId: string; account
 
   return (
     <Loading busy={lines === null} label={t.common.reading}>
-      {lines !== null && <Feed lines={lines} sessionId={sessionId} account={account} live={false} onChat={onChat} />}
+      {lines !== null && <Feed lines={lines} sessionId={sessionId} account={account} live={false} task={task} onChat={onChat} />}
     </Loading>
   )
 }
@@ -590,7 +597,7 @@ function leftText(left: NonNullable<TaskSession['left']>): string {
   return left.reason === 'skip' ? t.session.skipped : t.session.postponed(left.blockers.join(', '))
 }
 
-function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; onClose: () => void }) {
+function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; task: WindowTask; onClose: () => void }) {
   const { session, state } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
@@ -666,7 +673,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
                 )}
               </FactList>
               {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
-              <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} onChat={undefined} />
+              <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} task={task} onChat={undefined} />
             </>
           )}
         </Loading>
@@ -680,11 +687,13 @@ interface FeedProps {
   sessionId: string
   account: string | null
   live: boolean
+  /** The task the read-only transcript names in its head. */
+  task: WindowTask
   /** A press on the feed opens the chat of the current session; without it, the read-only whole transcript. */
   onChat: (() => void) | undefined
 }
 
-function Feed({ lines, sessionId, account, live, onChat }: FeedProps) {
+function Feed({ lines, sessionId, account, live, task, onChat }: FeedProps) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [whole, setWhole] = useState(false)
@@ -712,7 +721,7 @@ function Feed({ lines, sessionId, account, live, onChat }: FeedProps) {
     <section className="panel__feed" aria-label={t.session.feed}>
       {whole && (
         <Suspense fallback={null}>
-          <TranscriptWindow sessionId={sessionId} account={account} live={live} onClose={() => setWhole(false)} />
+          <TranscriptWindow sessionId={sessionId} account={account} live={live} task={task} onClose={() => setWhole(false)} />
         </Suspense>
       )}
       {lines.length === 0 ? (

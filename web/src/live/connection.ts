@@ -4,7 +4,7 @@ import type { Feed } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../../src/state.js'
 import type { AccountSpend, AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
-import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
+import type { CheckpointThreshold, SessionCheckpoint } from '../../../src/stats/checkpoint.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import type { TaskCard } from '../../../src/tracker/card.js'
@@ -45,6 +45,8 @@ export interface LiveSource {
   transcript(sessionId: string, after: number): Promise<Feed | null>
   /** Calls `listener` each time the service says the session's transcript changed; returns the unsubscribe. */
   onTranscript(sessionId: string, listener: () => void): () => void
+  /** The checkpoint thresholds of a session the chain started; `null` — it started none. */
+  checkpoint(sessionId: string): Promise<SessionCheckpoint | null>
   /** The address of picture `index` of the result of call `tool`, for an image line of the transcript. */
   imageUrl(sessionId: string, tool: string, index: number): string
   /** The address of a picture the user sent the session, by its file name. */
@@ -79,6 +81,7 @@ export interface LiveDeps {
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<void>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
   fetchTranscript: (sessionId: string, after: number) => Promise<Feed | null>
+  fetchCheckpoint: (sessionId: string) => Promise<SessionCheckpoint | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
   fetchVocabulary: (projectId: string) => Promise<TrackerVocabulary | null>
@@ -152,6 +155,10 @@ export class LiveConnection implements LiveSource {
       set.delete(listener)
       if (set.size === 0 && this.transcriptListeners.get(sessionId) === set) this.transcriptListeners.delete(sessionId)
     }
+  }
+
+  checkpoint(sessionId: string): Promise<SessionCheckpoint | null> {
+    return this.deps.fetchCheckpoint(sessionId)
   }
 
   imageUrl(sessionId: string, tool: string, index: number): string {

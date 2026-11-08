@@ -41,7 +41,7 @@ import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
-import { fakeRecord, fakeTranscript } from './fakeTranscript.js'
+import { fakeCheckpoint, fakeRecord, fakeTranscript } from './fakeTranscript.js'
 import { withTrustPause } from './fakeTrust.js'
 import { withLongNames } from './fakeLong.js'
 
@@ -781,6 +781,11 @@ export function createFakeSource(search: string): LiveSource {
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},
+    checkpoint: async (sessionId) => {
+      await answer()
+      const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
+      return view === undefined ? null : fakeCheckpoint(view)
+    },
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
     sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index),

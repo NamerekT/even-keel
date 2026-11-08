@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { Feed } from '../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../src/state.js'
+import type { SessionCheckpoint } from '../../src/stats/checkpoint.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
@@ -43,6 +44,7 @@ async function fetchOrNull<T>(path: string): Promise<T | null> {
 const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/sessions/${encodeURIComponent(sessionId)}`)
 const fetchTranscript = (sessionId: string, after: number) =>
   fetchOrNull<Feed>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript?after=${after}`)
+const fetchCheckpoint = (sessionId: string) => fetchOrNull<SessionCheckpoint>(`/api/sessions/${encodeURIComponent(sessionId)}/checkpoint`)
 const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
 const fetchVocabulary = (projectId: string) => fetchOrNull<TrackerVocabulary>(`/api/projects/${encodeURIComponent(projectId)}/vocabulary`)
 
@@ -93,6 +95,7 @@ async function createSource(): Promise<LiveSource> {
     sendCommand,
     fetchSession,
     fetchTranscript,
+    fetchCheckpoint,
     fetchTools,
     fetchCard,
     fetchVocabulary,

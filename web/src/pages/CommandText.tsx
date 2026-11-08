@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent } from 'react'
+import { useId, useImperativeHandle, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type Ref } from 'react'
 import { commandIn, matchingCommands, type ChatCommand } from '../../../src/sessions/commands.js'
 import { language, t } from '../i18n/index.js'
 import { ghostOf, menuQuery, snappedSelection, tokenCut, withCommand } from './chatCommands.js'
@@ -13,6 +13,12 @@ interface Props {
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   /** Keys the commands menu did not take. */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  handle?: Ref<CommandTextHandle>
+}
+
+/** What the composer's slash button calls: an empty field gets a `/` and the commands menu opens. */
+export interface CommandTextHandle {
+  startCommand: () => void
 }
 
 /** Where a popover over the field stands, in the field's own coordinates. */
@@ -26,7 +32,7 @@ interface Spot {
  * the field, and a command there is drawn as one coloured piece with what may follow it muted. The colour comes from a
  * copy of the text behind the field, whose own text goes transparent while a command is in it.
  */
-export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown }: Props) {
+export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown, handle }: Props) {
   const field = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLTextAreaElement>(null)
   const mirror = useRef<HTMLDivElement>(null)
@@ -58,6 +64,13 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
     setPointed(null)
     onChange(text)
   }
+  useImperativeHandle(handle, () => ({
+    startCommand: () => {
+      setDismissed(null)
+      change('/', 1)
+      area.current?.focus()
+    },
+  }))
   const pick = (command: ChatCommand) => {
     const text = withCommand(value, command.name)
     change(text, text.length)

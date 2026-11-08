@@ -195,6 +195,15 @@ export function SendIcon() {
   )
 }
 
+/** Insert a command: a slash. */
+export function SlashIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M10.5 2.5 5.5 13.5" />
+    </svg>
+  )
+}
+
 /** Add a row: a plus. */
 export function PlusIcon() {
   return (

@@ -103,6 +103,7 @@ describe('LiveConnection', () => {
     live = new LiveConnection({
       fetchSession: async () => null,
       fetchTranscript: async () => null,
+      fetchCheckpoint: async () => null,
       fetchTools: async () => null,
       fetchCard: async () => null,
       fetchVocabulary: async () => null,

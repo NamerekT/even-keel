@@ -7,7 +7,7 @@ import { entrySlot, tightestWindow } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
-import { planText, spendsByKey, spendText, type Spend, type Tokens } from './accountParts.js'
+import { planText, spendsByKey, spendText, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 
 function sourceText(source: AccountLevel['source']): string {
@@ -48,6 +48,21 @@ export function AccountLevels({ account, levels, now, spend, tokens }: { account
         {index === 0 && <div className="account-level__body"><LevelWindows entry={entry} now={now} spend={spend} tokens={tokens} /></div>}
       </div>
     })}
+  </div>
+}
+
+/** One account as the header's card shows its first level: the name, the plan, the windows or what it spent (the chat's context ring). */
+export function AccountCard({ account, entry, now }: { account: AccountView; entry: AccountEntry; now: Date }) {
+  const spend = useSpend(account)
+  const tokens = useTokens(account)
+  const plan = planText(entry)
+  const name = accountName(entry, account.accounts)
+  const label = entry.name === null && name === entry.status?.email ? name.split('@')[0] : name
+  return <div className="account-level account-level--0" style={seriesStyle(entrySlot(account, entry))}>
+    <div className="account-level__head">
+      <div className="account-level__identity"><span className="account-card__name">{label}</span>{plan && <span className="tag">{plan}</span>}</div>
+    </div>
+    <div className="account-level__body"><LevelWindows entry={entry} now={now} spend={spend} tokens={tokens} /></div>
   </div>
 }
 

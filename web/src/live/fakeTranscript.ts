@@ -1,5 +1,6 @@
 import type { FeedLine } from '../../../src/sessions/transcript.js'
-import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
+import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
+import type { SessionCheckpoint } from '../../../src/stats/checkpoint.js'
 import { fakeCalls, fakeOpenAsk, fakePastAsk, fakeShare, fakeShots } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { ago, fakeFeed } from './fakeSessions.js'
@@ -42,4 +43,10 @@ export function fakeRecord(state: EvenKeelState, sessionId: string): SessionReco
     apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
     account: live?.account ?? state.taskSessions['ABC-5']?.find((row) => row.sessionId === sessionId)?.account ?? 'jane.roe@example.com',
   }
+}
+
+/** The thresholds the checkpoint hook gets for a session: two thirds of its window, as a calibrated project might have. */
+export function fakeCheckpoint(view: SessionView): SessionCheckpoint {
+  const first = Math.round(((view.contextWindow ?? 200_000) * 2) / 3 / 1000) * 1000
+  return { project: 'example', task: view.task, handoffs: 0, first, source: 'calibrated', late: null, hard: null, context: view.contextTokens }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
@@ -6,7 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
-import { PlusIcon, SendIcon } from '../ui/icons.js'
+import { PlusIcon, SendIcon, SlashIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
@@ -19,7 +19,7 @@ import { FixButton } from './FixButtons.js'
 import { ChatMail } from './ChatMail.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
 import { coldReply } from './coldReply.js'
-import { CommandText } from './CommandText.js'
+import { CommandText, type CommandTextHandle } from './CommandText.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
@@ -45,6 +45,8 @@ interface Props {
   /** `steered` — the message went straight into the working session. */
   onSent: (line: FeedLine, steered: boolean) => void
   handle?: Ref<ComposerHandle>
+  /** The session's status line, under the field. */
+  status?: ReactNode
 }
 
 /**
@@ -53,7 +55,8 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, renews, mail, queued, onSent, handle }: Props) {
+export function ChatComposer({ project, task, session, aside, renews, mail, queued, onSent, handle, status }: Props) {
+  const command = useRef<CommandTextHandle>(null)
   const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
   const [answered, setAnswered] = useState<string | null>(null)
@@ -88,6 +91,10 @@ export function ChatComposer({ project, task, session, aside, renews, mail, queu
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
+  const sendOff = disabled || !ready
+  // A command goes only at the start of the message, so the button inserts one into an empty field only.
+  const slashFree = text.trim() === '' && !sending
+  const hint = sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : session.lamp === 'error' ? t.session.chat.error : ''))
 
   // A reply that would resume a session whose cache went cold first asks how to send it (BTN-757).
   const [cold, setCold] = useState<{ since: string; tokens: number } | null>(null)
@@ -173,11 +180,26 @@ export function ChatComposer({ project, task, session, aside, renews, mail, queu
               />
             </label>
           </Tipped>
+          {/* A field already starting with a command keeps the plain tip: the press that put it there leaves the tip open. */}
+          <Tipped inline align="start" tip={slashFree || text.startsWith('/') ? t.session.chat.slash : t.session.chat.slashTaken}>
+            <button
+              type="button"
+              className="chat__icon chat__slash"
+              aria-label={t.session.chat.slash}
+              aria-disabled={slashFree ? undefined : true}
+              onClick={() => {
+                if (slashFree) command.current?.startCommand()
+              }}
+            >
+              <SlashIcon />
+            </button>
+          </Tipped>
           <CommandText
+            handle={command}
             rows={ask === null ? 2 : 1}
             value={text}
             disabled={sending}
-            placeholder={coarsePointer ? t.session.chat.touchPlaceholder : t.session.chat.placeholder}
+            placeholder={t.session.chat.placeholder}
             onChange={setText}
             onPaste={(event) => {
               // Text goes into the field as usual; a picture or files copied in Explorer go into the list.
@@ -190,17 +212,22 @@ export function ChatComposer({ project, task, session, aside, renews, mail, queu
               event.currentTarget.form?.requestSubmit()
             }}
           />
-          <button
-            type="submit"
-            className="chat__icon chat__send"
-            disabled={disabled || !ready}
-            aria-busy={sending ? true : undefined}
-            aria-label={t.session.chat.send}
-          >
-            <SendIcon />
-          </button>
+          <Tipped inline tip={mailing ? t.session.chat.mailbox : t.session.chat.steers} off={!midTurn}>
+            <button
+              type="submit"
+              className="chat__icon chat__send"
+              // Mid-turn the button keeps its pointer events for the tip; the form's submit checks readiness itself.
+              disabled={sendOff && !midTurn}
+              aria-disabled={sendOff && midTurn ? true : undefined}
+              aria-busy={sending ? true : undefined}
+              aria-label={t.session.chat.send}
+            >
+              <SendIcon />
+            </button>
+          </Tipped>
         </div>
       </div>
+      {status}
       {failure !== null ? (
         <p className="notice notice--error">{say(failure)}</p>
       ) : !sent.on && locked === t.session.chat.working && offer !== null ? (
@@ -211,9 +238,7 @@ export function ChatComposer({ project, task, session, aside, renews, mail, queu
           <FixButton project={project} fix={{ to: 'packages', plugin: offer }} className="button button--small" />
         </div>
       ) : (
-        <p className="chat__hint">
-          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : session.lamp === 'error' ? t.session.chat.error : ''))}
-        </p>
+        hint !== '' && <p className="chat__hint">{hint}</p>
       )}
     </form>
   )

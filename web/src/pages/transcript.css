@@ -5,31 +5,42 @@
   overflow: hidden;
 }
 
-.transcript__facts {
+/* The head's key and title on one line, the title cut by an ellipsis; the full one is in its tip. */
+.transcript .panel__task {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+}
+
+.transcript .panel__key {
+  flex: none;
+}
+
+.transcript__title-tip {
   min-width: 0;
-  margin: 4px 0 0 auto;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
 }
 
-.transcript__facts .context-meter {
-  flex: none;
-}
-
-.transcript__facts .context-meter__track {
-  flex: none;
-  width: 56px;
-}
-
-.transcript__branch {
-  max-width: 220px;
+.transcript__title {
+  display: block;
+  max-width: 100%;
   overflow: hidden;
-  font-family: var(--mono);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.transcript__title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.transcript__tip-line {
+  display: block;
 }
 
 /* The scroll box runs to the window's edges, so the hover times have room on the left and the scrollbar sits at the edge. */
@@ -349,9 +360,19 @@ button.tools__toggle:hover {
   outline: 2px solid var(--accent);
 }
 
-.chat__attach--off {
+.chat__attach--off,
+.chat__slash[aria-disabled='true'] {
   opacity: 0.55;
   cursor: default;
+}
+
+.chat__slash:hover:not([aria-disabled='true']) {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.chat__slash:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
 .chat__send {
@@ -359,11 +380,12 @@ button.tools__toggle:hover {
   color: var(--surface);
 }
 
-.chat__send:hover:not(:disabled) {
+.chat__send:hover:not(:disabled, [aria-disabled='true']) {
   background: color-mix(in srgb, var(--accent) 85%, var(--fg));
 }
 
-.chat__send:disabled {
+.chat__send:disabled,
+.chat__send[aria-disabled='true'] {
   background: var(--surface-muted);
   color: var(--fg-muted);
   cursor: default;
@@ -521,10 +543,6 @@ button.tools__toggle:hover {
   }
 
   .transcript__time--hover {
-    display: none;
-  }
-
-  .transcript__branch {
     display: none;
   }
 }
