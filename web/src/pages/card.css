@@ -2,9 +2,12 @@ html:has(.task-card[open]) {
   overflow: hidden;
 }
 
+/* Stands at a fixed distance from the top rather than in the middle, so the head stays put while the height glides
+   and only the bottom edge moves; at its full height it has the same 32 px below. */
 .task-card {
   width: min(1040px, calc(100vw - 48px));
   max-height: calc(100dvh - 64px);
+  margin-top: 32px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
