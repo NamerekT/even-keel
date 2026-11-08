@@ -239,6 +239,25 @@ describe('Even Keel HTTP server', () => {
     }
   })
 
+  it("passes on a browser's hotkeys and refuses a broken id or layout (BTN-880)", async () => {
+    const post = (body: unknown) => fetch(base + '/api/hotkeys/save', { method: 'POST', body: JSON.stringify(body) })
+    expect((await post({ browser: 'browser-example-0001', bindings: { chainRun: 'Mod+Shift+Enter' } })).status).toBe(200)
+    expect((await post({ browser: 'browser-example-0001', bindings: {} })).status).toBe(200)
+    expect(calls).toContainEqual(['saveHotkeys', 'browser-example-0001', { chainRun: 'Mod+Shift+Enter' }])
+    expect(calls).toContainEqual(['saveHotkeys', 'browser-example-0001', {}])
+    const refusals = [
+      [{ browser: 'short', bindings: {} }, 'browser'],
+      [{ browser: 'browser example 0001', bindings: {} }, 'browser'],
+      [{ browser: 'browser-example-0001', bindings: { chainRun: 'Enter+Mod' } }, 'bindings'],
+      [{ browser: 'browser-example-0001', bindings: { other: 'Mod+K' } }, 'bindings'],
+    ] as const
+    for (const [body, field] of refusals) {
+      const refused = await post(body)
+      expect(refused.status).toBe(400)
+      expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
+  })
+
   it('passes on the update window: update, revert and closing the result', async () => {
     for (const command of ['install', 'revert', 'seen']) {
       expect((await fetch(base + `/api/updates/${command}`, { method: 'POST', body: '{}' })).status).toBe(200)

@@ -1,0 +1,68 @@
+/* The hotkeys window (BTN-880): a nested group of rows — the action, its combination, its buttons. */
+
+.hotkeys__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.hotkeys__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  min-height: 44px;
+  padding: var(--space-8) var(--space-12);
+  font-size: var(--text-14);
+}
+
+.hotkeys__row + .hotkeys__row {
+  border-top: 1px solid var(--border);
+}
+
+.hotkeys__row--fixed {
+  color: var(--fg-muted);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.hotkeys__combo {
+  justify-self: end;
+  padding: var(--space-2) var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--text-13);
+  white-space: nowrap;
+}
+
+.hotkeys__combo--recording {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.hotkeys__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-6);
+}
+
+.hotkeys__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--lamp-error);
+  font-size: var(--text-13);
+}
+
+@media (max-width: 760px) {
+  .hotkeys__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .hotkeys__buttons {
+    grid-column: 1 / -1;
+  }
+}

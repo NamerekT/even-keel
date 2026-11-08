@@ -5,6 +5,7 @@ import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { loadManagementKeys } from './account/management.js'
+import { loadBrowserHotkeys } from './storage/browser-hotkeys.js'
 import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from './account/service-defaults.js'
 import { KeySpend, readOpenRouterKey, saveKeySpend } from './account/spend.js'
 import { keyVendor } from './opencode/home.js'
@@ -186,6 +187,8 @@ const context = {
   set dismissedUpdate(value: typeof dismissedUpdate) { dismissedUpdate = value },
   get dismissedNotices() { return dismissedNotices },
   set dismissedNotices(value: typeof dismissedNotices) { dismissedNotices = value },
+  get browserHotkeys() { return browserHotkeys },
+  set browserHotkeys(value: typeof browserHotkeys) { browserHotkeys = value },
   get dispatcher() { return dispatcher },
   get emailAt() { return emailAt },
   get eventLog() { return eventLog },
@@ -364,6 +367,8 @@ for (const method of ['log', 'warn', 'error'] as const) {
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 /** The page's "Got it" marks (BTN-759): state, not a setting. */
 let dismissedNotices = ((await stateValue(db, 'notices.dismissed')) as Record<string, string> | undefined) ?? {}
+/** The page's hotkeys of each browser (BTN-880), held in memory and written behind. */
+let browserHotkeys = await loadBrowserHotkeys(db)
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
 const keyOrganizations = await loadKeyOrganizations(db)

@@ -524,6 +524,13 @@ function Block(props: BlockProps) {
       data-movable={movable || undefined}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
+      // A double click opens the card (BTN-880); the row's own buttons and links keep theirs, the title is not selected.
+      onMouseDown={(event) => {
+        if (event.detail > 1) event.preventDefault()
+      }}
+      onDoubleClick={(event) => {
+        if (!ownControl(event.target)) onCard(block.id)
+      }}
     >
       {rails.map((rail) => (
         <span
@@ -634,6 +641,11 @@ function Block(props: BlockProps) {
       </div>
     </li>
   )
+}
+
+/** A control of the row other than its stretched key: a double click there is that control's. */
+function ownControl(target: EventTarget): boolean {
+  return target instanceof Element && target.closest('button, input, a:not(.block__key)') !== null
 }
 
 export function LockIcon() {

@@ -1,8 +1,17 @@
 import { withDismissed } from '../../../src/notice/kinds.js'
 import type { EvenKeelState } from '../../../src/state.js'
+import type { HotkeyBindings } from '../../../src/hotkeys.js'
 
-/** The banners' "Got it" and "Don't show again" and the "Notices" switches in `dev:fake` (BTN-759); `null` — not one of them. */
+/**
+ * The banners' "Got it" and "Don't show again" and the "Notices" switches in `dev:fake` (BTN-759), and the hotkeys
+ * window's layout (BTN-880); `null` — not one of them.
+ */
 export function fakeNoticesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
+  if (name === 'hotkeys/save') {
+    const { [String(body.browser)]: _, ...rest } = state.hotkeys ?? {}
+    const bindings = body.bindings as HotkeyBindings
+    return { ...state, hotkeys: Object.keys(bindings).length === 0 ? rest : { ...rest, [String(body.browser)]: bindings } }
+  }
   if (name === 'notices/dismiss') return { ...state, noticesDismissed: withDismissed(state.noticesDismissed ?? {}, body.entries as Record<string, string>) }
   if (name !== 'notices/mute') return null
   const kind = String(body.kind)

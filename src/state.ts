@@ -497,6 +497,11 @@ export interface EvenKeelState {
    * the stamp changes. Kept in `service_state`, so every device sees them.
    */
   noticesDismissed?: Record<string, string>
+  /**
+   * The page's hotkeys of each browser that changed one (BTN-880), by the id it keeps in its `localStorage`; a browser
+   * not here has the defaults. Every tab gets them all and picks its own.
+   */
+  hotkeys?: Record<string, import('./hotkeys.js').HotkeyBindings>
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
   cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>

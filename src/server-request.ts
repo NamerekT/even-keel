@@ -15,6 +15,18 @@ import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
 import { PROFILE_RULE_KEYS } from './profiles/model.js'
 import type { Protection } from './sessions/protection.js'
+import { BROWSER_ID, hotkeyBindingsOf, type HotkeyBindings } from './hotkeys.js'
+
+export function browserOf(body: Record<string, unknown>): string {
+  if (typeof body.browser !== 'string' || !BROWSER_ID.test(body.browser)) throw fail('request.required', { field: 'browser' })
+  return body.browser
+}
+
+export function hotkeysOf(body: Record<string, unknown>): HotkeyBindings {
+  const bindings = hotkeyBindingsOf(body.bindings)
+  if (bindings === null) throw fail('request.required', { field: 'bindings' })
+  return bindings
+}
 
 export function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw fail('request.required', { field: 'project' })

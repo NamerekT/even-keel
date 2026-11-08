@@ -276,6 +276,10 @@ A click on a task's title opens its card: the description and comments rendered 
 
 The milestone on the card is a pick: choosing another one moves the task there in the tracker at once, and the chain reorders. Tracker changes reach the page on the next poll, every 30 seconds; the refresh button in the project head reads the tracker now.
 
+## Hotkeys
+
+On a project page Ctrl+Enter (Cmd+Enter on a Mac) starts the chain, or resumes it from a pause; a running chain is left as it is. A double click on a chain task opens its card. Keys do nothing while you type in a field or a window is open. **Hotkeys** in the gear menu (the menu button on a phone) shows them and changes the combination: it turns down one taken by another action, a bare key other than F1–F12, and the ones a browser keeps for itself, such as Ctrl+W. The layout belongs to this browser: another browser, a private window or another address of the page (`localhost` and `127.0.0.1` count as two) starts from the defaults.
+
 ## Changelog drafts
 
 A button on a milestone's head in the chain opens that milestone's changelog: before the first draft it shows how many tasks are done and open and the section your changelog file already has, and nothing is spent until you press "Write draft". Then the agent writes the section in the Keep a Changelog format, from the titles and closing comments of its done tasks, in the language of your `CHANGELOG.md` (or `README.md`). It runs read-only, on the account and model the project's next session would get, and starts from the section already in your changelog file, so your own edits there stay. It writes for someone upgrading from the previous release, whose section it is given: a fix of something new in this release is part of that feature's entry, not a line under Fixed.

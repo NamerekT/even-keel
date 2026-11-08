@@ -11,6 +11,7 @@ import { profilesEn } from './profiles-en.js'
 import { demoEn } from './demo-en.js'
 import { noticesEn } from './notices-en.js'
 import { eventsEn } from './events-en.js'
+import { hotkeysEn } from './hotkeys-en.js'
 import { plural } from './plural.js'
 import type { ContextResets } from '../state.js'
 import type { Messages } from './ru.js'
@@ -66,8 +67,10 @@ export const en: Messages = {
     tools: 'Tools',
     settings: 'Settings',
     menu: 'Menu',
+    hotkeys: 'Hotkeys',
     gear: (level: string) => `Settings and status: ${level}`,
   },
+  hotkeys: hotkeysEn,
   updates: {
     version: (version: string) => `Even Keel ${version}`,
     available: (version: string) => `${version} available`,

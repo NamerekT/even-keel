@@ -13,6 +13,7 @@ import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
 import { eventsRu } from './events-ru.js'
+import { hotkeysRu } from './hotkeys-ru.js'
 import { plural } from './plural.js'
 
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
@@ -71,8 +72,10 @@ export const ru = {
     tools: 'Инструменты',
     settings: 'Настройки',
     menu: 'Меню',
+    hotkeys: 'Горячие клавиши',
     gear: (level: string) => `Настройки и состояние: ${level}`,
   },
+  hotkeys: hotkeysRu,
   updates: {
     version: (version: string) => `Even Keel ${version}`,
     available: (version: string) => `доступна ${version}`,

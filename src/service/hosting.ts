@@ -20,6 +20,7 @@ import { DEFAULT_BRANCH, idPrefixOf, listenOf, projectLabel, projectLabels, proj
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { withDismissed } from '../notice/kinds.js'
+import { saveBrowserHotkeys } from '../storage/browser-hotkeys.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
@@ -88,6 +89,7 @@ type HostingContext = Pick<ServiceContext,
   | 'demo'
   | 'dismissedUpdate'
   | 'dismissedNotices'
+  | 'browserHotkeys'
   | 'dispatcher'
   | 'eventLog'
   | 'emailAt'
@@ -244,6 +246,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     noticesDismissed: ctx.dismissedNotices,
+    hotkeys: ctx.browserHotkeys,
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
@@ -432,6 +435,12 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       dismissNotices: (entries) => {
         ctx.dismissedNotices = withDismissed(ctx.dismissedNotices, entries)
         ctx.writes.add('the dismissed notices', setStateValue(ctx.db, 'notices.dismissed', ctx.dismissedNotices))
+        ctx.hub.broadcastSoon('state', ctx.getState)
+      },
+      saveHotkeys: (browser, bindings) => {
+        const { [browser]: _, ...rest } = ctx.browserHotkeys
+        ctx.browserHotkeys = Object.keys(bindings).length === 0 ? rest : { ...rest, [browser]: bindings }
+        ctx.writes.add('the hotkeys', saveBrowserHotkeys(ctx.db, browser, bindings, new Date()))
         ctx.hub.broadcastSoon('state', ctx.getState)
       },
       muteNotice: (project, kind, shown) => {

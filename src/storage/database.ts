@@ -490,6 +490,14 @@ export const STEPS: readonly string[] = [
     saved_at text not null
   );
   `,
+  // The page's hotkeys of each browser (BTN-880), under the id the browser keeps in its localStorage.
+  `
+  create table browser_hotkeys (
+    browser  text primary key,
+    bindings text not null,
+    saved_at text not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

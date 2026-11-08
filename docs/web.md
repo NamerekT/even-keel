@@ -12,6 +12,7 @@ The area is split by subtopic, a file each in `docs/web/`: read this table, then
 | [`project-page.md`](web/project-page.md) | The project page |
 | [`session-panel.md`](web/session-panel.md) | The session panel and the chat |
 | [`event-log.md`](web/event-log.md) | The event log: what the service writes, toasts, unread, `/log` |
+| [`hotkeys.md`](web/hotkeys.md) | Hotkeys: actions, the window, storage by browser |
 | [`language.md`](web/language.md) | Language |
 | [`config.md`](web/config.md) | Live config and shared settings |
 | [`project-settings.md`](web/project-settings.md) | Project settings |

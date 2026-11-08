@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, NavLink, useLocation } from 'react-router'
+import { HotkeysDialog } from '../hotkeys/HotkeysDialog.js'
 import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
@@ -49,8 +52,28 @@ function StatusRow({ level }: { level: Level }) {
   )
 }
 
+/** The gear's "Hotkeys": a window, not a page; the menu that held it closes. */
+function HotkeysRow({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" className="gear__item" aria-haspopup="dialog" onClick={onOpen}>
+      {t.header.hotkeys}
+    </button>
+  )
+}
+
+/** The window lives outside the menu, which closes as it opens. */
+export function useHotkeysWindow(closeMenu: () => void) {
+  const [open, setOpen] = useState(false)
+  const show = () => {
+    closeMenu()
+    setOpen(true)
+  }
+  const dialog = open ? createPortal(<HotkeysDialog onClose={() => setOpen(false)} />, document.body) : null
+  return { show, dialog }
+}
+
 /** The narrow screen's sheet ends with the gear's items as rows. */
-export function GearRows({ now }: { now: Date }) {
+export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void }) {
   const { level } = useChecks(now)
 
   return (
@@ -62,6 +85,7 @@ export function GearRows({ now }: { now: Date }) {
       <NavLink to="/tools" className="gear__item">
         {t.header.tools}
       </NavLink>
+      <HotkeysRow onOpen={onHotkeys} />
       <VersionRow />
     </nav>
   )
@@ -74,6 +98,7 @@ export function GearRows({ now }: { now: Date }) {
 export function GearMenu({ now }: { now: Date }) {
   const { level } = useChecks(now)
   const { open, setOpen, rootRef } = usePopover()
+  const hotkeys = useHotkeysWindow(() => setOpen(false))
   const { pathname } = useLocation()
   const here = ['/settings', '/tools', '/status'].some((path) => pathname.startsWith(path))
   const label = t.header.gear(t.status.levels[level])
@@ -101,9 +126,11 @@ export function GearMenu({ now }: { now: Date }) {
           <NavLink to="/tools" className="gear__item">
             {t.header.tools}
           </NavLink>
+          <HotkeysRow onOpen={hotkeys.show} />
           <VersionRow />
         </nav>
       )}
+      {hotkeys.dialog}
     </div>
   )
 }

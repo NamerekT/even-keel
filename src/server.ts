@@ -1,8 +1,9 @@
 import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic, eventWriter } from './server-response.js'
 import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList } from './server-request.js'
+import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList, browserOf, hotkeysOf } from './server-request.js'
 import type { NoticeKind } from './notice/kinds.js'
+import type { HotkeyBindings } from './hotkeys.js'
 import { cloudConnectionOf, type CloudConnection } from './account/cloud.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
@@ -199,6 +200,8 @@ export interface SettingsControl {
   dismissUpdate(version: string): void
   /** A banner's "Got it" (BTN-759): its ids with the stamps of what they said; one comes back once its stamp changes. */
   dismissNotices(entries: Record<string, string>): void
+  /** The hotkeys window (BTN-880): the browser's whole layout at once, only what differs from the defaults; empty — the defaults. */
+  saveHotkeys(browser: string, bindings: HotkeyBindings): void
   /** "Don't show again" and the "Notices" switches: one kind, `project` `null` for Even Keel's; `shown` `null` — back to Even Keel's. */
   muteNotice(project: string | null, kind: NoticeKind, shown: boolean | null): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -352,6 +355,7 @@ const COMMANDS: Record<string, Command> = {
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
   'notices/dismiss': ({ settings }, body) => settings.dismissNotices(mapOf<string>(body.entries, 'entries', (stamp) => typeof stamp === 'string')),
+  'hotkeys/save': ({ settings }, body) => settings.saveHotkeys(browserOf(body), hotkeysOf(body)),
   'notices/mute': ({ settings }, body) =>
     settings.muteNotice(optionalProjectOf(body) ?? null, noticeKindOf(body.kind), body.shown === null ? null : switchOf(body.shown, 'shown')),
   'updates/install': ({ settings }) => settings.installUpdate(),

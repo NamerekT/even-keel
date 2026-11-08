@@ -71,6 +71,8 @@ import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsChip } from './ToolsLink.js'
 import { ADD_PARAM, PACKAGES_PARAM } from '../tools/packageGroups.js'
 import { useArrival } from './useArrival.js'
+import { chainRunControl } from '../hotkeys/actions.js'
+import { useHotkey } from '../hotkeys/useHotkeys.js'
 import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
@@ -388,6 +390,10 @@ function ChainControls({
   const error = failure
   const after = queuedAfter(state.chain, project)
   const off = controls.off === null ? undefined : t.project.off[controls.off]
+  useHotkey('chainRun', () => {
+    const control = chainRunControl(controls)
+    if (control !== null && !sending) void send(`chain/${control}`, { project })
+  })
 
   const active = status.kind === 'running' || status.kind === 'paused'
   const base = narrow ? SEG_CLASS : 'button'
