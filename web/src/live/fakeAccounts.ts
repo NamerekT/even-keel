@@ -82,10 +82,23 @@ const FAKE_MODELS: Record<string, { models: string[]; complete: boolean }> = {
   [OPENCODE]: { models: ['opencode/big-pickle', 'opencode/deepseek-v4.1-flash-free', 'anthropic/claude-sonnet-5-5'], complete: true },
 }
 
-/** `models/list` of the account folder `key`, by its agent. */
-export function fakeModels(account: AccountView, key: string): { models: string[]; complete: boolean } | null {
+const VENDORS = ['anthropic', 'openai', 'google', 'meta-llama', 'mistralai', 'deepseek', 'qwen', 'x-ai', 'cohere', 'nousresearch']
+
+/** An OpenRouter-sized catalogue (BTN-858): hundreds of models behind one OpenCode key. */
+const MANY_OPENCODE = Array.from({ length: 320 }, (_, index) => `openrouter/${VENDORS[index % VENDORS.length]}/model-${Math.floor(index / VENDORS.length) + 1}`)
+
+/** Prompts of `?models=many` whose matches list a few, fold hundreds, or count them all. */
+export const MANY_MODEL_PROMPTS: Record<string, string> = {
+  '* | *sonnet*': 'Keep diffs small.',
+  'OpenCode | openrouter/*': 'Prefer cheap models for reading.',
+  'OpenCode | *': 'Run the tests before each commit.',
+}
+
+/** `models/list` of the account folder `key`, by its agent; `mode` `many` gives OpenCode hundreds more. */
+export function fakeModels(account: AccountView, key: string, mode: string | null = null): { models: string[]; complete: boolean } | null {
   const agent = account.accounts.find((entry) => entry.key === key)?.agent
-  const list = agent === undefined ? null : (FAKE_MODELS[agent] ?? null)
+  const known = agent === undefined ? null : (FAKE_MODELS[agent] ?? null)
+  const list = known !== null && agent === OPENCODE && mode === 'many' ? { ...known, models: [...known.models, ...MANY_OPENCODE] } : known
   return agent === OPENCODE && list !== null ? { ...list, models: list.models.filter(model => !copilotModel(model)) } : list
 }
 

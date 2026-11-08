@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import type { AccountView } from '../../../src/account/model.js'
 import { runLabelText } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
 import { RowsTable } from './settingsTable.js'
 import { providerName } from './settingsRun.js'
 import { useModelCatalog } from './useModels.js'
-import { previewModels, type ProviderModels } from './modelPromptPreview.js'
+import { previewModels, type ProviderMatches, type ProviderModels } from './modelPromptPreview.js'
 import './model-prompts.css'
+
+const FIRST_MODELS = 8
 
 /** Prompt rows stay in table order; catalogue matches are advice and never restrict an entered pattern. */
 export function ModelPrompts({ value, accounts, onChange }: { value: string; accounts: AccountView; onChange: (value: string) => void }) {
@@ -25,12 +28,7 @@ export function ModelPrompts({ value, accounts, onChange }: { value: string; acc
     return (
       <div className="model-prompts__matches" aria-live="polite">
         {!known && <p className="model-prompts__warning">{t.shared.promptNoMatches}</p>}
-        {matches.filter((entry) => entry.models.length > 0 || !entry.complete).map(({ provider, models, complete }) => (
-          <p key={provider}>
-            <strong>{providerName(provider)}</strong> — {models.join(', ')}
-            {!complete && <>{models.length > 0 ? '; ' : ''}{t.shared.promptAnyId}</>}
-          </p>
-        ))}
+        {matches.filter((entry) => entry.models.length > 0 || !entry.complete).map((entry) => <MatchLine key={entry.provider} entry={entry} />)}
       </div>
     )
   }
@@ -49,5 +47,26 @@ export function ModelPrompts({ value, accounts, onChange }: { value: string; acc
         onChange={(rows) => onChange(JSON.stringify(rows))}
       />
     </div>
+  )
+}
+
+/** A catalogue can hold hundreds of models (OpenRouter): a line lists the first few and folds the rest behind a toggle. */
+function MatchLine({ entry: { provider, models, complete, all } }: { entry: ProviderMatches }) {
+  const [open, setOpen] = useState(false)
+  const folded = !open && models.length > FIRST_MODELS
+  const listed = models.length === 0 ? null : all ? t.shared.promptAllModels(models.length) : (folded ? models.slice(0, FIRST_MODELS) : models).join(', ')
+  return (
+    <p>
+      <strong>{providerName(provider)}</strong> — {listed}
+      {!all && models.length > FIRST_MODELS && (
+        <>
+          {folded ? '… ' : ' '}
+          <button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? t.shared.promptFewerModels : t.shared.promptMoreModels(models.length - FIRST_MODELS)}
+          </button>
+        </>
+      )}
+      {!complete && <>{listed !== null ? '; ' : ''}{t.shared.promptAnyId}</>}
+    </p>
   )
 }

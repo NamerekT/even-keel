@@ -18,6 +18,8 @@
 
 `?account=model-weeks` supplies the models' own weeks of BTN-805: Max with five hours, the week and a spent Fable week without a reset, a verified Ultra with the week and Fable, a Team seat with five hours and Fable with a reset, and Pro whose answer listed no model week. Use it on `/accounts` and in the drawer of `/p/ABC`.
 
+`?models=many` gives OpenCode an OpenRouter-sized catalogue of 323 models and sets three model prompts whose matches list a few, fold 312 behind "312 more" and count them all (BTN-858). Use it with `account=connections` on `/settings`, "Providers and models"; a narrow screen opens the group menu first (`--click 'button:has-text("Chain") >> nth=0'`).
+
 Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` show inherited accounts, project overrides, a pinned session over changed project settings, 40-character names, a token-only account and an old reading. Combine with `lang=ru`, `chain=paused`, `chain=close` or a light screenshot. The fixtures call the server's selector; account choice is not duplicated in the page.
 
 `?chain=modelWeek` gives the chain a task held by a model's own week (BTN-816) with a reset, `?chain=modelWeekUnknown` one without: the chip names the wait and the line under it the model and the reset, or says that the reset time is not known. Use them on `/p/ABC` and on a home card.

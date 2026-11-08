@@ -13,7 +13,7 @@ import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/
 import type { EvenKeelState, GitSetupView, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
-import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
+import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, MANY_MODEL_PROMPTS, withAccount } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi, fakeMainCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent, fakeEventLog } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
@@ -310,6 +310,7 @@ export function createFakeSource(search: string): LiveSource {
     entry.name = params.get('limit') === 'codexLong' ? 'Build account for the documentation and integration project with a deliberately long display name' : 'Build account'
   }
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
+  if (params.get('models') === 'many' && current.state !== null) current.state.config.shared.modelPrompts = MANY_MODEL_PROMPTS
   const builtinTracker = params.get('tracker') === 'builtin'
   if (builtinTracker && current.state !== null) current.state = withBuiltinTracker(current.state)
   if (params.get('long') === 'on' && current.state !== null) current.state = withLongNames(current.state)
@@ -813,7 +814,7 @@ export function createFakeSource(search: string): LiveSource {
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
-      if (name === 'models/list') return fakeModels(current.state.account, String(body.account)) as T
+      if (name === 'models/list') return fakeModels(current.state.account, String(body.account), params.get('models')) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
