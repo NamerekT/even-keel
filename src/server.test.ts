@@ -381,10 +381,10 @@ describe('Even Keel HTTP server', () => {
   const post = (path: string, body?: unknown) =>
     fetch(base + path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
 
-  it('drives the chain through legacy POST commands and answers with the state', async () => {
+  it('drives the chain through POST commands and acknowledges them', async () => {
     const response = await post('/api/chain/start', { project: 'ABC' })
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ chain: [] })
+    expect(await response.json()).toEqual({ ok: true })
 
     await post('/api/chain/resume', { project: 'ABC' })
     await post('/api/chain/stop', { project: 'ABC' })
@@ -539,7 +539,7 @@ describe('Even Keel HTTP server', () => {
   it('drives the Claude sign-in through POST commands', async () => {
     const response = await post('/api/account/add')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ chain: [] })
+    expect(await response.json()).toEqual({ ok: true })
 
     await post('/api/account/code', { code: 'abc#def' })
     await post('/api/account/cancel')

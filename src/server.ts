@@ -773,8 +773,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       sendFailure(response, error)
       return
     }
-    // A page awaiting a safe build reload still expects the old response shape.
-    sendJson(response, 200, request.headers['x-even-keel-command'] === 'ack' ? { ok: true } : deps.getState())
+    sendJson(response, 200, { ok: true })
     setImmediate(() => deps.hub.broadcastSoon('state', deps.getState))
     return
   }

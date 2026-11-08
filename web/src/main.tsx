@@ -25,7 +25,7 @@ async function fetchState(): Promise<EvenKeelState> {
 async function sendCommand(name: string, body: Record<string, unknown>): Promise<void> {
   const response = await fetch(`/api/${name}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-even-keel-command': 'ack' },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
   const answer = (await response.json().catch(() => null)) as { error?: string; notice?: unknown } | null
