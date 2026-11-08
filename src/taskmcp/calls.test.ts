@@ -25,6 +25,7 @@ let tools: TasksTools
 let refreshed: string[]
 
 const deps = () => ({
+  db,
   run: <T>(_project: string, call: (each: Tracker) => Promise<T>) => call(tracker),
   projectOfKey: (key: string) => Object.entries(PLACES).find(([, place]) => place.key === key)?.[0] ?? null,
   modelOf: () => 'Claude | opus',
@@ -47,7 +48,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
+  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
   tracker = trackerOf(builtinSource(db, PLACES))
   store = new BuiltinStore(db)
   tools = new TasksTools(deps())
@@ -88,8 +89,34 @@ describe('tasks_create', () => {
   it('a repeat with the same retry returns the tasks created, with no duplicates', async () => {
     const batch = { tasks: [{ title: 'One' }, { title: 'Two', blocks: ['#1'] }], retry: 'r-1' }
     const first = await call('tasks_create', batch)
+    tools = new TasksTools(deps())
     expect(await call('tasks_create', batch)).toBe(first)
     expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One', 'Two'])
+  })
+
+  it('saves every created task before starting the next and resumes a partial batch after restart', async () => {
+    const editor = tracker.editor!
+    let attempts = 0
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes) => {
+        const saved = await db.query<{ ids: string }>('select ids from task_retries where project_id = $1 and retry_key = $2', [ABC, 'partial'])
+        expect(JSON.parse(saved.rows[0]!.ids)).toEqual(['ABC-2', 'ABC-3'].slice(0, attempts))
+        if (++attempts === 3) throw new Error('tracker unavailable')
+        return editor.create(project, draft, notes)
+      },
+    }
+    const batch = {
+      tasks: [{ title: 'One' }, { title: 'Two', parent: '#1' }, { title: 'Three', blockedBy: ['#2'] }],
+      retry: 'partial',
+    }
+    expect(await refusal(call('tasks_create', batch))).toContain('Created ABC-2 One, ABC-3 Two; then task 3 was refused')
+    tracker.editor = editor
+    tools = new TasksTools(deps())
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One\nABC-3 Two\nABC-4 Three')
+    expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One', 'Two', 'Three'])
+    expect(await call('task_read', { key: 'ABC-3' })).toContain('parent ABC-2')
+    expect(await call('task_read', { key: 'ABC-4' })).toContain('blocked by ABC-3')
   })
 
   it('a hand session names the project by its key', async () => {
@@ -98,6 +125,42 @@ describe('tasks_create', () => {
     expect(await call('tasks_list', { project: 'XYZ' }, HAND)).toBe('XYZ-1 · Todo · There')
     expect(await call('task_read', { key: 'XYZ-1' }, HAND)).toContain('# XYZ-1 There')
     expect(await refusal(call('task_read', { key: 'NOP-1' }, HAND))).toMatch(/no project NOP/)
+  })
+
+  it('serializes simultaneous repeats of one key and keeps different projects separate', async () => {
+    const batch = { retry: '', tasks: [{ title: 'One' }] }
+    const answers = await Promise.all([call('tasks_create', batch), call('tasks_create', batch)])
+    expect(answers).toEqual(['ABC-2 One', 'ABC-2 One'])
+    expect(await call('tasks_create', batch, { project: XYZ, task: null })).toBe('XYZ-1 One')
+  })
+
+  it('without retry each call creates a new batch and writes no journal', async () => {
+    const batch = { tasks: [{ title: 'One' }] }
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One')
+    expect(await call('tasks_create', batch)).toBe('ABC-3 One')
+    expect((await db.query('select * from task_retries')).rows).toEqual([])
+  })
+
+  it('stops on a journal failure and names tasks whose progress could not be saved', async () => {
+    let broken = 'insert into task_retries'
+    tools = new TasksTools({
+      ...deps(),
+      db: {
+        async query<R>(sql: string, params?: unknown[]) {
+          if (sql.startsWith(broken) || sql.startsWith('delete from task_retries')) throw new Error('disk unavailable')
+          return db.query<R>(sql, params)
+        },
+      },
+    })
+    const batch = { retry: 'disk', tasks: [{ title: 'One' }, { title: 'Two' }] }
+    expect(await refusal(call('tasks_create', batch))).toBe('disk unavailable')
+    expect((await store.list([ABC])).length).toBe(1)
+    broken = 'update task_retries'
+    const error = await refusal(call('tasks_create', batch))
+    expect(error).toContain('Created ABC-2 One; then retry progress was not saved: disk unavailable')
+    expect(error).toContain('Check the created tasks in the tracker before repeating')
+    expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One'])
+    expect(refreshed).toEqual([ABC])
   })
 })
 

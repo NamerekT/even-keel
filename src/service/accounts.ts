@@ -198,6 +198,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
     },
     tasks: new TasksMcp(
       {
+        db: ctx.db,
         run: async (project, call) => {
           const link = ctx.linkOf(project)
           if (link === undefined) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
