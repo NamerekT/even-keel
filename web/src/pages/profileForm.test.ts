@@ -24,6 +24,7 @@ function stored(set: string[]): ProfileView {
     kind: 'huly',
     name: 'Huly · example',
     isDefault: true,
+    disabled: false,
     fields: HULY.fields.map(({ name, secret }) => ({ name, secret, set: set.includes(name), value: null })),
     login: null,
     expiresAt: null,

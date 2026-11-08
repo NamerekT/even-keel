@@ -36,6 +36,40 @@ export function fakeTrackerProblems(trackers: TrackerView[]): TrackerView[] {
   return [...changed, spare]
 }
 
+export const FAKE_OFF_PROFILE = '3f0c2b9e-0000-4000-8000-000000000008'
+
+/**
+ * `?trackers=off` (BTN-830): XYZ reads on a GitLab profile that is turned off, so it has no tasks; Huly answered again a
+ * minute ago and has not read DEMO since, so DEMO's Start waits for the read.
+ */
+export function withProfileOff(state: EvenKeelState): EvenKeelState {
+  const gitlab: TrackerView = {
+    name: FAKE_OFF_PROFILE,
+    kind: 'gitlab',
+    title: 'GitLab · bench',
+    projects: ['XYZ'],
+    ready: false,
+    health: { state: 'off', lastOkAt: null, error: null },
+    readAt: {},
+    disabled: true,
+  }
+  const trackers = state.trackers.map((tracker) =>
+    tracker.name === FAKE_HULY_PROFILE
+      ? { ...tracker, projects: tracker.projects.filter((project) => project !== 'XYZ'), liveSince: ago(1), readAt: { ...tracker.readAt, DEMO: ago(3) } }
+      : tracker,
+  )
+  const { XYZ: _, ...projects } = state.chain.projects
+  const huly = state.profiles.profiles.find((each) => each.id === FAKE_HULY_PROFILE)
+  const profile = huly === undefined ? [] : [{ ...huly, id: FAKE_OFF_PROFILE, kind: 'gitlab', name: 'GitLab · bench', isDefault: true, disabled: true, projects: ['XYZ'], projectIds: ['XYZ'], rules: {}, moves: {} }]
+  return {
+    ...state,
+    trackers: [...trackers, gitlab],
+    tasks: state.tasks.filter((task) => task.project !== 'XYZ'),
+    chain: { ...state.chain, projects },
+    profiles: { ...state.profiles, profiles: [...state.profiles.profiles.map((each) => (each.id === FAKE_HULY_PROFILE ? { ...each, projects: each.projects.filter((key) => key !== 'XYZ'), projectIds: each.projectIds.filter((id) => id !== 'XYZ') } : each)), ...profile] },
+  }
+}
+
 /**
  * `?trackers=scope` (BTN-788): XYZ reads on a Forgejo profile whose token was made for the CI, without the issue scope;
  * Forgejo refused its first read, so XYZ has no tasks yet.

@@ -194,16 +194,22 @@ export class Dispatcher {
 
   /**
    * Starts or queues the project's chain. With nothing to run by the last task list, it reads the tracker anew
-   * first — a task created a moment ago is not in the list yet — and refuses if there is still nothing.
+   * first — a task created a moment ago is not in the list yet — and refuses if there is still nothing. So it does with
+   * a list `listBlock` calls stale, and refuses while it stays so (BTN-830).
    */
   async start(project: string): Promise<void> {
     this.requireProject(project)
     const chain = this.chainOf(project)
     if (chain?.paused && chain.error?.code === 'review.notOpened') return this.resume(project)
     if (this.going(project)) return
-    if (!this.hasWork(project)) {
+    if (!this.hasWork(project) || this.deps.listBlock?.(project) !== undefined) {
       await this.deps.refresh(project)
       if (this.going(project)) return
+      const stale = this.deps.listBlock?.(project)
+      if (stale !== undefined) {
+        this.deps.log(englishOf(stale))
+        throw new NoticeError(stale)
+      }
       const empty = this.emptyReason(project)
       if (empty !== undefined) {
         this.deps.log(englishOf(empty))

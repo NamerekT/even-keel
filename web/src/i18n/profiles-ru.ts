@@ -13,6 +13,10 @@ export const profilesRu = {
     edit: 'Изменить',
     rules: 'Правила',
     remove: 'Удалить',
+    off: 'выключен',
+    switchLabel: (name: string) => `Профиль ${name} включён`,
+    switchTip:
+      'Выключенный профиль: Even Keel не ходит на его хост — задачи его проектов не читаются, CI с его токеном не опрашивается, цепочки на нём не запускаются. Сессии, запущенные вручную, по-прежнему получают его значения из env глобального settings.json.',
     states: { unchecked: 'не проверен', checking: 'проверяется', ok: 'вход принят', refused: 'отказ', unreachable: 'не отвечает' },
     expires: (days: number) => (days <= 0 ? 'токен истёк' : `истекает через ${days} дн.`),
     login: (login: string) => `Вошли как ${login}`,

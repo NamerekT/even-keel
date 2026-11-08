@@ -478,6 +478,10 @@ export const STEPS: readonly string[] = [
     last_at    text not null
   );
   `,
+  // A turned-off tracker profile (BTN-830): the service reaches nothing of its host until it is turned on again.
+  `
+  alter table tracker_profiles add column disabled boolean not null default false;
+  `,
 ]
 
 /** The version this code reads and writes. */

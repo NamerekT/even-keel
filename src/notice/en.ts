@@ -603,6 +603,12 @@ export const en = {
   'profiles.otherTracker': (p: { profile: string; project: string }) => `${p.profile} is a profile of another tracker than ${p.project}'s`,
   'profiles.paused': (p: { profile: string; project: string }) =>
     `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Trackers and CI`,
+  'profiles.disabled': (p: { profile: string; id: string; project?: string }) =>
+    `${p.project === undefined ? '' : `${p.project}: `}the tracker profile ${p.profile} is turned off; turn it on in Settings → Trackers and CI`,
+  'profiles.chainsRunning': (p: { profile: string; chains: string; projects: string }) =>
+    `${p.profile} cannot be turned off while a chain runs on it (${p.chains}): stop the chain first`,
+  'chain.unread': (p: { project: string; tracker: string }) =>
+    `chain: ${p.project} not started: its tasks have not been read from ${p.tracker} since it answered again; wait for the next read`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
   'config.color': (p: { key: string }) => `config: ${p.key}.color must be a whole number from 1 to 8`,

@@ -55,6 +55,8 @@ export interface SetupOptions {
   packagesBlocked?: Set<string>
   /** Brief is off and no package brings the tracker's MCP server. */
   trackerBlock?: Notice
+  /** Why a user's Start does not go by the project's task list (BTN-830). */
+  listBlock?: (project: string) => Notice | undefined
   /** A package of the set is not installed, failed to install or lacks a key. */
   packagesPause?: Notice
   /** Whether the service has read its account folders since its start; absent — it has. */
@@ -167,6 +169,7 @@ export function setup(options: SetupOptions = {}) {
     limitsUnread: () => options.limitsUnread,
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     trackerBlock: () => options.trackerBlock,
+    ...(options.listBlock === undefined ? {} : { listBlock: options.listBlock }),
     packagesPause: () => options.packagesPause,
     accountsRead: () => options.accountsRead ?? true,
     sessionsRead: () => options.sessionsRead ?? true,

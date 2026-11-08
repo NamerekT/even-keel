@@ -84,6 +84,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     onHealth: (health) => {
       const before = view.health
       view.health = health
+      if (health.state === 'live' && before.state !== 'live') view.liveSince = health.lastOkAt ?? new Date().toISOString()
       if (worthBroadcast(before, health)) broadcast()
       if (health.state === 'live' && before.state !== 'live' && !stopped) deps.recovered?.(name)
     },

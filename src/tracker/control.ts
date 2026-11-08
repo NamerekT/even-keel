@@ -1,5 +1,5 @@
 import { missingLabel, requiredOn, type ChainRules } from '../chain/rules.js'
-import { englishOf, fail, NoticeError, noticeOf } from '../notice/notice.js'
+import { englishOf, fail, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import type { TaskControl } from '../server.js'
 import { cardOf } from './card.js'
 import type { LabelChange } from './labels.js'
@@ -13,6 +13,8 @@ export interface TaskControlDeps {
   /** A session of the task is live: "To the backlog" would be a new way to touch it. */
   live(task: string): boolean
   linkFor(project: string, task: string): TrackerLink | undefined
+  /** The reader runs on a turned-off profile: its notice (`profiles.disabled`). */
+  disabled?(reader: string): Notice | undefined
   rulesOf(project: string, task: string): ChainRules
   readerFor(project: string, task: string): string
   refreshers: Map<string, () => Promise<void>>
@@ -24,6 +26,14 @@ export interface TaskControlDeps {
 
 export function taskControl(deps: TaskControlDeps): TaskControl {
   const { configuredProject, linkFor, rulesOf, readerFor, refreshers, readerTasks } = deps
+
+  /** A task on a turned-off profile gets its notice at once, with no call to the tracker (BTN-830). */
+  const linkOf = (project: string | undefined, task: string): TrackerLink | undefined => {
+    if (project === undefined) return undefined
+    const off = deps.disabled?.(readerFor(project, task))
+    if (off !== undefined) throw new NoticeError(off)
+    return linkFor(project, task)
+  }
 
   // A refusal the tracker named itself (a Linear label group) goes to the page as it is; any other is a permission one.
   const refused = (link: TrackerLink, task: string, error: unknown): NoticeError => {
@@ -55,7 +65,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
   return {
     card: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) return undefined
       return link.page(async (tracker) => {
         if (tracker.card === undefined) return undefined
@@ -66,14 +76,14 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
     },
     file: async (task, file) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) return undefined
       return link.page(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
     },
     // "Into the chain": the missing required label on, then out of the backlog status, whichever the tracker can (BTN-509).
     ready: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       const reader = readerFor(project!, task)
       const listed = readerTasks.get(reader)?.find((each) => each.id === task)
@@ -92,7 +102,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
     // "To the backlog": the mirror of `ready`, for a task no live session works on (invariant 1).
     unready: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       if (deps.live(task)) throw fail('task.unreadyLive', { task })
       const reader = readerFor(project!, task)
@@ -114,7 +124,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
     },
     relabel: async (task, change) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       let labels: string[] | undefined
       try { labels = await link.page(async (tracker) => tracker.relabel?.(task, change)) } catch (error) {
@@ -127,7 +137,7 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkFor(project, task)
+      const link = linkOf(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       const moved = await link.page(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
       if (!moved) throw fail('task.cannotMoveMilestone', { task })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
-import { fail } from '../notice/notice.js'
+import { fail, notice } from '../notice/notice.js'
 import { taskControl } from './control.js'
 import { TrackerLink } from './link.js'
 import { toTask, type TaskStatus } from './model.js'
@@ -184,5 +184,23 @@ describe('the card of a task whose tracker did not answer', () => {
     await expect(control.card('APP-1')).rejects.toThrow('call timed out')
     expect(Date.now() - started).toBe(0)
     expect(card).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a task on a turned-off profile (BTN-830)', () => {
+  it('gets the notice at once, the tracker is not asked', async () => {
+    const off = notice('profiles.disabled', { profile: 'Example', id: 'p1' })
+    const linkFor = vi.fn(() => undefined)
+    const asked: string[] = []
+    const control = taskControl({
+      configuredProject: () => 'owner', live: () => false, linkFor, readerFor: () => 'feed', rulesOf: () => DEFAULT_RULES,
+      disabled: (reader) => { asked.push(reader); return off },
+      refreshers: new Map(), readerTasks: { get: () => [], set: () => {}, setTasks: () => {} },
+      refreshProject: async () => true, pollReviews: async () => {}, broadcast: () => {},
+    })
+    await expect(control.card('APP-1')).rejects.toMatchObject({ notice: off })
+    await expect(control.relabel('APP-1', { add: ['New'], remove: [] })).rejects.toMatchObject({ notice: off })
+    expect(asked).toEqual(['feed', 'feed'])
+    expect(linkFor).not.toHaveBeenCalled()
   })
 })

@@ -9,8 +9,9 @@ import { Band } from '../ui/blocks.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
+import { NoticeFixButton } from './FixButtons.js'
 import { ProfileDialog } from './ProfileDialog.js'
-import { Section } from './settingsParts.js'
+import { Section, Switch } from './settingsParts.js'
 import { daysLeft } from './profileForm.js'
 import { profileAddOf, withoutProfileAdd } from './pullFix.js'
 import './profiles.css'
@@ -108,6 +109,7 @@ const LAMPS: Record<ProfileView['check']['state'], string> = {
  * A row, quiet while all is well: a lamp, the name and whether it is the default. Colour only on what needs a look —
  * a refusal, a near expiry, hidden CI, a refused pull request. Whom it signs in as and its projects open on pointing at
  * the name, and the remotes whose CI takes it when there are any; a CI's profile (`tracker` off) always names them.
+ * The switch at the right end turns it off (BTN-830): the row is dimmed and its sign-in errors are not shown.
  */
 function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileView; tracker: boolean; onEdit: () => void; onRules: () => void }) {
   const { send, sending, failure } = useCommand()
@@ -127,10 +129,15 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
     </>
   )
 
+  const off = profile.disabled
   return (
-    <li className="profile-row">
+    <li className={off ? 'profile-row profile-row--off' : 'profile-row'}>
       <div className="profile-row__head">
-        <span className={`lamp ${LAMPS[state]}`} role="img" aria-label={t.profiles.states[state]} />
+        {off ? (
+          <span className="lamp" role="img" aria-label={t.profiles.off} />
+        ) : (
+          <span className={`lamp ${LAMPS[state]}`} role="img" aria-label={t.profiles.states[state]} />
+        )}
         <span className="profile-row__icon">
           <TrackerIcon kind={profile.kind} />
         </span>
@@ -138,7 +145,8 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
           {profile.name}
         </Tipped>
         {profile.isDefault && <span className="profile-row__quiet">{t.profiles.isDefault}</span>}
-        {state !== 'ok' && <span className={`profile-row__state profile-row__state--${state}`}>{t.profiles.states[state]}</span>}
+        {off && <span className="profile-row__state">{t.profiles.off}</span>}
+        {!off && state !== 'ok' && <span className={`profile-row__state profile-row__state--${state}`}>{t.profiles.states[state]}</span>}
         {days !== null &&
           (days <= EXPIRY_WARN_DAYS ? (
             <span className="tools__chip tools__chip--lost">{t.profiles.expires(days)}</span>
@@ -183,14 +191,24 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
         >
           {t.profiles.remove}
         </button>
+        <Tipped className="profile-row__switch" tip={t.profiles.switchTip} inline>
+          <Switch checked={!off} disabled={sending} label={t.profiles.switchLabel(profile.name)} onChange={(on) => void send('profiles/disable', { id: profile.id, disabled: !on })} />
+        </Tipped>
       </div>
-      {error !== null && state !== 'ok' && <p className="notice notice--error profiles__error">{say(error)}</p>}
+      {!off && error !== null && state !== 'ok' && <p className="notice notice--error profiles__error">{say(error)}</p>}
       {profile.mcpOAuth?.warning !== undefined && (
         <Band tone="warn" className="profiles__error" action={<button type="button" className="button button--small" aria-haspopup="dialog" onClick={onEdit}>{t.profiles.mcp.again}</button>}>
           {say(profile.mcpOAuth.warning)}
         </Band>
       )}
-      {failure !== null && <p className="notice notice--error profiles__error">{say(failure)}</p>}
+      {failure !== null &&
+        (failure.code === 'profiles.chainsRunning' ? (
+          <Band tone="error" className="profiles__error" action={<NoticeFixButton project={null} notice={failure} />}>
+            {say(failure)}
+          </Band>
+        ) : (
+          <p className="notice notice--error profiles__error">{say(failure)}</p>
+        ))}
     </li>
   )
 }

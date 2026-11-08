@@ -279,7 +279,8 @@ database ─────────── readSettings ──┘               
 ## Credentials (BTN-131)
 
 There is no tab of credentials (BTN-355): each sits where its use is set. The trackers' profiles (rows and the "Add
-profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201) are the "Trackers and CI" tab;
+profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201) are the "Trackers and CI" tab,
+each row with its on/off switch (`profiles/disable`, BTN-830: kept in the profile, not in `config-export`, applied at once);
 the page token is "Page access" on Interface (`PageToken` in `web/src/pages/SettingsSecrets.tsx`, its own "Save" and
 "Remove"); Tally's Postgres is the "Your own Postgres" form on Stats (`stats/tally`, `docs/stats.md`) and its classifier
 the "Span classifier" section next to it (`ClassifierSettings`, one "Save" for the three `TALLY_LLM_*`, `secrets/update`;

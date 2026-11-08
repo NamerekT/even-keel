@@ -73,6 +73,11 @@
   color: var(--fg);
 }
 
+/* A project on a turned-off profile (BTN-830): the card recedes, its button stays in full. */
+.card--off > :not(.card__foot) {
+  opacity: 0.6;
+}
+
 .card__call {
   margin: 0;
   color: var(--fg-muted);

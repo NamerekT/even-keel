@@ -3,6 +3,11 @@ import { notice } from '../../../src/notice/notice.js'
 import { fieldFixOf, noticeFixOf } from './noticeFix.js'
 
 describe('noticeFixOf', () => {
+  it('turns on a turned-off profile and stops the chains that keep one on (BTN-830)', () => {
+    expect(noticeFixOf(notice('profiles.disabled', { profile: 'GitLab · bench', id: 'p-1', project: 'GLP' }))).toEqual({ to: 'enableProfile', profile: 'p-1' })
+    const running = notice('profiles.chainsRunning', { profile: 'GitLab · bench', chains: 'GLP, Second', projects: 'id-1,id-2' })
+    expect(noticeFixOf(running)).toEqual({ to: 'stopChains', projects: ['id-1', 'id-2'] })
+  })
   it('opens the merged task refused by its tracker', () => {
     expect(noticeFixOf(notice('tracker.completeRefused', { task: 'ABC-1' }))).toEqual({ to: 'tracker', task: 'ABC-1' })
   })

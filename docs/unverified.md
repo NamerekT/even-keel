@@ -32,7 +32,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
 - Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23b (Amazon Bedrock, needs an AWS account with model access), 23c (Google Vertex AI, needs a billed Google Cloud project with a Claude model) and 23d (Microsoft Foundry, needs a pay-as-you-go Azure subscription with a Claude deployment) have no task yet.
 - First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36 — BTN-546; the demo, 99 — BTN-815.
-- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807. A tracker that did not answer: 106 — has no task yet.
+- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807. A tracker that did not answer: 106 — has no task yet. A turned-off tracker profile: 110 — BTN-864.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (an OpenRouter key with money) — BTN-861.
@@ -42,6 +42,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 110 | [A turned-off tracker profile](unverified/trackers.md#a-turned-off-tracker-profile-btn-830) | projects on a profile turned off in Trackers and CI, and every Start after a tracker came back | the page keeps waiting on a host that is off, or Start stays on "Reading tasks…"; press Check on the tracker's card in `/status` |
 | 109 | [A rerun of a red main's failed jobs](unverified/ci.md#a-rerun-of-a-red-mains-failed-jobs-btn-846) | every project on GitHub Actions or GitLab CI with a red `main` (on by default) | a red main waits an hour before its fix, or the fix comes at once as before; turn `ci.rerunFailed` off |
 | 108 | [The real spend of a session on an OpenRouter key](unverified/opencode.md#the-real-spend-of-a-session-on-an-openrouter-key-btn-860) | OpenCode accounts on an `sk-or-` key that look at `/stats` | a task's cost on `/stats` is too low or too high next to what OpenRouter charged; the estimate in the tip still holds |
 | 107 | [The OpenCode auto-compaction window](unverified/opencode.md#the-opencode-auto-compaction-window-btn-856) | OpenCode projects with `openCodeAutoCompactWindow` set, on models with a larger window | the session grows to the model's own window; the checkpoint still hands over; clear the setting |

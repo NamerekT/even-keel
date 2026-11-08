@@ -387,6 +387,11 @@ export interface DispatcherDeps {
    */
   trackerBlock: (project: string) => Notice | undefined
   /**
+   * Why a user's Start does not go by the project's last task list (BTN-830): its profile is turned off, or the list was
+   * read before its tracker last answered again. Start reads the tracker anew first and refuses if the reason stays.
+   */
+  listBlock?: (project: string) => Notice | undefined
+  /**
    * The service has read its account folders once since its start. Until then every folder looks gone, so the chains
    * do nothing rather than pause on it; the first read checks them again.
    */

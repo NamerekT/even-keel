@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
@@ -28,8 +29,10 @@ import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
 import { chainWaits } from '../waits.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ChainWaits } from './ChainWaits.js'
 import { NoticeFixButton } from './FixButtons.js'
+import { offProfile, readingTasks } from './profileOff.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 
@@ -45,12 +48,17 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const slot = projectSlot(state, project)
   const tracker = projectTracker(state, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
-  const call = emptyCall(state, project)
+  const off = offProfile(state, project)
+  const reading = off === null && canStart && readingTasks(state, project)
+  const call = off === null ? emptyCall(state, project) : null
   const pages = call === null ? [] : projectPages(state, project)
-  const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? completionNotices(state, project)[0] ?? failure
+  const [asking, setAsking] = useState(false)
+  // A turned-off profile is a choice, not a fault: its project shows no red errors (BTN-830).
+  const error = off !== null ? (asking ? null : failure) : (order?.error ?? (status.kind === 'paused' ? status.error : null) ?? completionNotices(state, project)[0] ?? failure)
+  const enable = (profile: string) => void send('profiles/disable', { id: profile, disabled: false }).then((done) => done && setAsking(false))
 
   return (
-    <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
+    <article className={`card card--${status.kind}${off === null ? '' : ' card--off'}`} style={seriesStyle(slot)}>
       <header className={`card__head${state.config.projects[project]?.testProject ? ' card__head--test' : ''}`}>
         <span className="card__swatch" aria-hidden="true" />
         <Link to={projectPath(project)} className="card__key">
@@ -88,7 +96,9 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         </span>
       </div>
 
-      {task === null ? (
+      {off !== null ? (
+        <p className="card__task card__task--empty">{t.project.profileOff(off.name)}</p>
+      ) : task === null ? (
         order === undefined ? (
           <p className="card__task card__task--empty">{t.project.notLoaded}</p>
         ) : (
@@ -117,13 +127,45 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
       {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
 
-      {canStart && (
+      {off !== null && (
         <footer className="card__foot">
-          <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
-            {startsNow(state.chain) ? t.project.start : t.project.enqueue}
+          {/* A list read before the profile went off may still offer Start: it only asks to turn the profile on. */}
+          <button type="button" className="button button--primary" disabled={sending} onClick={() => (canStart ? setAsking(true) : enable(off.id))}>
+            {canStart ? (startsNow(state.chain) ? t.project.start : t.project.enqueue) : t.project.enableProfile}
           </button>
         </footer>
       )}
+      {off === null && canStart && (
+        <footer className="card__foot">
+          {reading ? (
+            <Tipped tip={t.project.readingTip} inline>
+              <button type="button" className="button button--primary" aria-disabled="true">
+                {t.project.reading}
+              </button>
+            </Tipped>
+          ) : (
+            <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
+              {startsNow(state.chain) ? t.project.start : t.project.enqueue}
+            </button>
+          )}
+        </footer>
+      )}
+      {asking &&
+        off !== null &&
+        createPortal(
+          <ConfirmDialog
+            title={t.project.enableTitle}
+            question={t.project.enableQuestion(off.name)}
+            confirm={t.project.enableProfile}
+            cancel={t.project.cancel}
+            busy={sending}
+            safe
+            failure={failure === null ? undefined : say(failure)}
+            onConfirm={() => enable(off.id)}
+            onClose={() => setAsking(false)}
+          />,
+          document.body,
+        )}
       {pages.length > 0 && (
         <footer className="card__foot">
           {pages.map((page) => (

@@ -22,6 +22,7 @@ export function profilesControl(profiles: Profiles, checkLink: (project: string)
       console.log(`page: the profile ${name} is removed`)
     },
     setDefault: (id) => profiles.setDefault(id),
+    setDisabled: (id, disabled) => profiles.setDisabled(id, disabled),
     setRules: (id, rules) => {
       profiles.setRules(id, rules)
       console.log(`page: the chain rules of the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} are saved`)

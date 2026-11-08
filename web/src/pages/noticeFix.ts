@@ -11,9 +11,12 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
- * column on /tools; `git` — the setup's Git step, where git's name and e-mail are written.
+ * column on /tools; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
+ * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830).
  */
 export type NoticeFix =
+  | { to: 'enableProfile'; profile: string }
+  | { to: 'stopChains'; projects: string[] }
   | { to: 'packages' }
   | { to: 'git' }
   | { to: 'project'; project?: string; tab: ProjectTab }
@@ -71,6 +74,8 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
     const { task, level } = notice.params
     return level === undefined ? { to: 'tracker', task } : { to: 'moves', level, task }
   }
+  if (notice.code === 'profiles.disabled') return { to: 'enableProfile', profile: notice.params.id }
+  if (notice.code === 'profiles.chainsRunning') return { to: 'stopChains', projects: notice.params.projects.split(',').filter((each) => each !== '') }
   if (notice.code === 'statusMove.refused' || notice.code === 'statusMove.outside' || notice.code === 'statusMove.notDone') {
     return { to: 'moves', level: notice.params.level, task: notice.params.task }
   }

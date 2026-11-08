@@ -25,7 +25,7 @@ import { TaskWorks, worksOf } from '../git/work.js'
 import { commitChangelog } from '../git/changelog.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, mergeTargetOf, projectLabel } from '../config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, mergeTargetOf, projectLabel, readerIds } from '../config.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
@@ -47,7 +47,9 @@ import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
 import type { ProjectForm } from '../state.js'
 import { issueLink } from '../tracker/model.js'
+import { readFresh } from '../tracker/health.js'
 import type { ServiceContext } from '../service.js'
+import { disabledBlock } from './accounts.js'
 
 export type ChainContext = Pick<ServiceContext,
   | 'CHANGELOG_TIMEOUT_MS'
@@ -379,6 +381,18 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     trackerBlock: (project) => {
       const server = ctx.packages.trackerMissing(project)
       return server === undefined ? undefined : notice('chain.noTrackerMcp', { project: projectLabel(ctx.configStore.current, project), server })
+    },
+    listBlock: (project) => {
+      const off = disabledBlock(ctx, project)
+      if (off !== undefined) return off
+      const views = ctx.trackers.views()
+      for (const reader of readerIds(ctx.configStore.current, project)) {
+        const view = views.find((each) => each.projects.includes(reader))
+        // A tracker that is off has no list to go stale: Start says why it is empty.
+        if (view === undefined || view.health.state === 'off' || readFresh(view, reader)) continue
+        return notice('chain.unread', { project: projectLabel(ctx.configStore.current, project), tracker: view.title })
+      }
+      return undefined
     },
     packagesPause: (project) => {
       const packages = ctx.packages.unready(project)

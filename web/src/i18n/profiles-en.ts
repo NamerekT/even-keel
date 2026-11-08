@@ -13,6 +13,10 @@ export const profilesEn: Messages['profiles'] = {
     edit: 'Edit',
     rules: 'Rules',
     remove: 'Remove',
+    off: 'off',
+    switchLabel: (name) => `Profile ${name} is on`,
+    switchTip:
+      "A turned-off profile: Even Keel does not reach its host — its projects' tasks are not read, no CI is polled with its token, no chain starts on it. Sessions started by hand still get its values from the env of the global settings.json.",
     states: { unchecked: 'not checked', checking: 'checking', ok: 'signed in', refused: 'refused', unreachable: 'no answer' },
     expires: (days) => (days <= 0 ? 'token expired' : `expires in ${days} d`),
     login: (login) => `Signed in as ${login}`,

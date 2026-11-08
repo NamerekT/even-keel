@@ -47,6 +47,8 @@ export interface ProfilesDeps {
   checkRules?: (set: ProfileSet, id: string, rules: ProfileRules) => void
   /** The remotes whose forge refused to open a pull request with the profile's token (`PullRefusals`). */
   deniedPulls?: (profileId: string) => CiRemote[]
+  /** The chains, running or paused, of the projects and feeds given by id, each named for a person (BTN-830). */
+  chains?: (readers: readonly string[]) => { id: string; label: string }[]
   timeoutMs: number
   now?: () => Date
   log: (line: string) => void
@@ -142,6 +144,7 @@ export class Profiles {
         kind: profile.kind,
         name: profile.name,
         isDefault: profile.isDefault,
+        disabled: profile.disabled === true,
         fields: (this.deps.kinds[profile.kind]?.variables ?? Object.keys(profile.values)).map((name) => {
           const value = profile.values[name] || null
           return { name, secret: isSecret(name), set: value !== null, value: isSecret(name) ? null : value }
@@ -207,6 +210,7 @@ export class Profiles {
       login: account.login,
       expiresAt: account.expiresAt,
       ...(oauth === undefined ? {} : { mcpOAuth: oauth }),
+      ...(stored?.disabled ? { disabled: true as const } : {}),
     }
     const profiles = stored === undefined ? [...this.set.profiles, profile] : this.set.profiles.map((each) => (each.id === profile.id ? profile : each))
     this.checks.set(profile.id, { state: 'ok', error: null, at: this.now() })
@@ -249,6 +253,37 @@ export class Profiles {
     const { moves: _, ...rest } = profile
     const updated: TrackerProfile = Object.keys(moves).length === 0 ? rest : { ...rest, moves }
     this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
+  }
+
+  /**
+   * Turns the profile off or on (BTN-830). Off: nothing of its host is reached until it is on again, so it is refused while
+   * a chain, running or paused, is on a project or feed of it. On: it is checked again at once; no chain starts by itself.
+   */
+  setDisabled(id: string, disabled: boolean): void {
+    const profile = this.profile(id)
+    if (profile === undefined) throw fail('profiles.unknown', {})
+    if ((profile.disabled === true) === disabled) return
+    if (disabled) {
+      const chains = this.deps.chains?.(this.projectsOn(profile).map(([projectId]) => projectId)) ?? []
+      if (chains.length > 0) {
+        throw fail('profiles.chainsRunning', { profile: profile.name, chains: chains.map((each) => each.label).join(', '), projects: chains.map((each) => each.id).join(',') })
+      }
+      clearTimeout(this.retries.get(id)?.timer)
+      this.retries.delete(id)
+      this.checks.delete(id)
+    }
+    const { disabled: _, ...rest } = profile
+    const updated: TrackerProfile = disabled ? { ...rest, disabled: true } : rest
+    this.deps.log(`profiles: ${profile.name} turned ${disabled ? 'off' : 'on'}`)
+    this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
+    if (!disabled && this.running) void this.recheck(id)
+  }
+
+  /** The turned-off profile the project or feed runs on, if it does (BTN-830). */
+  disabledFor(projectId: string): TrackerProfile | undefined {
+    const project = this.deps.projects()[projectId]
+    const profile = project === undefined ? undefined : profileFor(this.set, projectId, project.kind)
+    return profile?.disabled ? profile : undefined
   }
 
   /** The projects and feeds the chain has started on the old default stay on it, linked to it by name (BTN-435). */
@@ -295,6 +330,7 @@ export class Profiles {
     const kind = profile === undefined ? undefined : this.deps.kinds[profile.kind]
     if (profile === undefined || kind === undefined) throw fail('profiles.unknown', {})
     if (kind.projects === undefined) throw fail('profiles.unknownKind', { kind: profile.kind })
+    if (profile.disabled) throw new NoticeError(disabledNotice(profile)!)
     return kind.projects(profile.values, query, this.deps.timeoutMs)
   }
 
@@ -302,7 +338,7 @@ export class Profiles {
   refused(projectId: string): TrackerProfile | undefined {
     const project = this.deps.projects()[projectId]
     const profile = project === undefined ? undefined : profileFor(this.set, projectId, project.kind)
-    return profile !== undefined && this.checks.get(profile.id)?.state === 'refused' ? profile : undefined
+    return profile !== undefined && !profile.disabled && this.checks.get(profile.id)?.state === 'refused' ? profile : undefined
   }
 
   start(): void {
@@ -326,14 +362,14 @@ export class Profiles {
 
   /** Checks every profile, or the one, against its tracker. */
   async recheck(id?: string): Promise<void> {
-    const profiles = this.set.profiles.filter((profile) => id === undefined || profile.id === id)
+    const profiles = this.set.profiles.filter((profile) => (id === undefined || profile.id === id) && !profile.disabled)
     await Promise.all(profiles.map((profile) => this.recheckOne(profile)))
   }
 
   /** A tracker or CI link of the profile answers again: checks it again if its last check got no answer, at most once a minute. */
   recheckSoon(id: string): void {
     const check = this.checks.get(id)
-    if (check?.state !== 'unreachable') return
+    if (check?.state !== 'unreachable' || this.profile(id)?.disabled) return
     if (check.at !== null && Date.parse(this.now()) - Date.parse(check.at) < SOON_MS) return
     void this.recheck(id)
   }
@@ -342,7 +378,7 @@ export class Profiles {
   private retryLater(id: string, state: ProfileCheck['state']): void {
     const before = this.retries.get(id)
     clearTimeout(before?.timer)
-    if (state !== 'unreachable' || !this.running) {
+    if (state !== 'unreachable' || !this.running || this.profile(id)?.disabled) {
       this.retries.delete(id)
       return
     }
@@ -371,6 +407,7 @@ export class Profiles {
       check = { state: failure.code === 'profiles.refused' ? 'refused' : 'unreachable', error: failure, at: this.now() }
       if (before?.state !== check.state) this.deps.log(`profiles: ${profile.name}: ${englishOf(failure)}`)
     }
+    if (this.profile(profile.id)?.disabled) return
     this.checks.set(profile.id, check)
     this.retryLater(profile.id, check.state)
     if (account !== undefined) this.remember(profile.id, account)
@@ -468,6 +505,11 @@ export class Profiles {
   private now(): string {
     return (this.deps.now?.() ?? new Date()).toISOString()
   }
+}
+
+/** `profiles.disabled` of a turned-off profile, with its id for the page's "Turn on" (BTN-830); none for no profile. */
+export function disabledNotice(profile: TrackerProfile | undefined, project?: string): Notice | undefined {
+  return profile === undefined ? undefined : notice('profiles.disabled', { profile: profile.name, id: profile.id, ...(project === undefined ? {} : { project }) })
 }
 
 const keysOf = (projects: [string, { key: string }][]): string => projects.map(([, project]) => project.key).join(', ')

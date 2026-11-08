@@ -406,6 +406,7 @@ const COMMANDS: Record<string, Command> = {
   'stats/tally': ({ tally }, body) => tally.set(tallyModeOf(body.mode), tallyDraftOf(body.server)),
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
+  'profiles/disable': ({ profiles }, body) => profiles.setDisabled(textOf(body.id, 'id'), body.disabled === true),
   'profiles/rules': ({ profiles }, body) => profiles.setRules(textOf(body.id, 'id'), profileRulesOf(body.rules)),
   'profiles/moves': ({ settings }, body) => settings.profileMoves(textOf(body.id, 'id'), statusMovesOf(body.moves, 'moves')),
   'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),

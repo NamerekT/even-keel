@@ -198,6 +198,23 @@ describe('Trackers', () => {
     expect(tasksByProject.has('ABC')).toBe(false)
   })
 
+  it('a turned-off profile stops its tracker and forgets its tasks; turned on, it starts again (BTN-830)', () => {
+    const { trackers, started, tasksByProject, log } = context()
+    const set = hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' })
+    trackers.apply(config(), set)
+    tasksByProject.set('ABC', [])
+    trackers.apply(config(), { ...set, profiles: [{ ...set.profiles[0]!, disabled: true }] })
+    expect(started[0]!.handle.stopped).toBe(true)
+    expect(tasksByProject.has('ABC')).toBe(false)
+    expect(trackers.views()[0]).toMatchObject({ name: 'work', disabled: true, health: { state: 'off' } })
+    expect(trackers.setupOf('ABC')).toBeUndefined()
+    expect(trackers.setupOf(null)).toBeUndefined()
+    expect(log).toHaveBeenCalledWith('huly · work: the profile is turned off, tracker is off')
+    trackers.apply(config(), set)
+    expect(started).toHaveLength(2)
+    expect(trackers.views()[0]?.disabled).toBeUndefined()
+  })
+
   it('stops a tracker left without projects, and links no task without a project any more', () => {
     const { trackers, started } = context()
     const set = hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' })
@@ -238,5 +255,7 @@ describe('timeTrackers', () => {
       { kind: 'timed', values: { GITHUB_TOKEN: 't' }, places: { DEF: { key: 'DEF' }, XYZ: { key: 'XYZ', value: 'group/xyz' } }, prefixes: ['DEF', 'XYZ'] },
     ])
     expect(timeTrackers(all, { profiles: [], links: {} }, { timed })).toEqual([])
+    const off: ProfileSet = { ...set, profiles: set.profiles.map((each) => ({ ...each, disabled: true as const })) }
+    expect(timeTrackers(all, off, { huly, github, timed })).toEqual([])
   })
 })

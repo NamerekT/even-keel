@@ -18,6 +18,8 @@ export interface ProfilesControl {
   save(draft: ProfileDraft & { name: string }): Promise<string>
   remove(id: string): void
   setDefault(id: string): void
+  /** Turns the profile off or on (BTN-830); off is refused while a chain runs on it. */
+  setDisabled(id: string, disabled: boolean): void
   /** The chain rules of the profile's projects; refused when one of them would clash. */
   setRules(id: string, rules: ProfileRules): void
   /** `null` — the project runs on its tracker's default profile. */

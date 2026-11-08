@@ -104,6 +104,17 @@
   cursor: default;
 }
 
+/* A turned-off profile (BTN-830): the row recedes, its switch and actions stay as they are. */
+.profile-row--off .profile-row__head {
+  opacity: 0.6;
+}
+
+.profile-row__switch {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+}
+
 .profile-row > .profiles__error {
   flex-basis: 100%;
 }

@@ -151,6 +151,8 @@ export const en: Messages = {
     resume: 'Check again and resume',
     packages: 'Open the project’s packages',
     git: 'Open the Git step',
+    enableProfile: 'Turn on',
+    stopChains: (count: number) => (count > 1 ? 'Stop the chains' : 'Stop the chain'),
   },
   banner: {
     config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,

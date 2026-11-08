@@ -27,7 +27,7 @@ import { chainWindowOf, type WindowKey } from '../codex/window.js'
 import { OPENCODE } from '../opencode/name.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
-import { localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
+import { localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
@@ -47,7 +47,7 @@ import { TranscriptOwners } from '../sessions/owners.js'
 import { home as dataHome, root, source } from '../locations.js'
 import { keyPool, profileFor, serverProfile } from '../profiles/model.js'
 import { checkProfileRules } from '../profiles/rules.js'
-import { Profiles } from '../profiles/service.js'
+import { disabledNotice, Profiles } from '../profiles/service.js'
 import type { SessionView } from '../state.js'
 import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS } from '../storage/database.js'
 import { SCHEMA_VERSION } from '../storage/schema.js'
@@ -455,6 +455,13 @@ export function wireProfiles(ctx: AccountsContext): Profiles {
     hiddenCi: (id) => ctx.ciOn(id, true),
     checkRules: (set, id, rules) => checkProfileRules(ctx.configStore.current, set, id, rules),
     deniedPulls: (id) => ctx.pullRefusals.of(id, (project, target) => (ctx.pullRequestsOn(project) ? ctx.ciTokenOf(project, target) : null)),
+    // A feed's chain is its project's; a queued chain counts too (BTN-830).
+    chains: (readers) => {
+      const { active, queue } = ctx.dispatcher.state
+      const running = new Set([...active.map((chain) => chain.project), ...queue])
+      const owners = [...new Set(readers.map((reader) => ownerOf(ctx.readers(), reader)))]
+      return owners.filter((project) => running.has(project)).map((id) => ({ id, label: projectLabel(ctx.configStore.current, id) }))
+    },
     timeoutMs: ctx.TRACKER_CHECK_MS,
     log: (line) => console.log(line),
     onChange: (set) => {
@@ -761,9 +768,18 @@ export function wireReach(ctx: AccountsContext): Reachability {
 
 export function wireProfileBlock(ctx: AccountsContext): (project: string) => Notice | undefined {
   return (project: string): Notice | undefined => {
+    const off = disabledBlock(ctx, project)
+    if (off !== undefined) return off
     const refused = ctx.profiles.refused(project)
     return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project: projectLabel(ctx.configStore.current, project) })
   }
+}
+
+/** The project, or one of its feeds, reads on a turned-off profile (BTN-830): its chain does not start. */
+export function disabledBlock(ctx: Pick<AccountsContext, 'profiles' | 'configStore'>, project: string): Notice | undefined {
+  const readers = readerIds(ctx.configStore.current, project)
+  const off = readers.map((reader) => ctx.profiles.disabledFor(reader)).find((profile) => profile !== undefined)
+  return disabledNotice(off, projectLabel(ctx.configStore.current, project))
 }
 
 export function wirePullBlock(ctx: AccountsContext): (project: string) => Notice | undefined {

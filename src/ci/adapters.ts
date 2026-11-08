@@ -26,6 +26,7 @@ export interface CiToken {
 /**
  * An explicit remote profile wins. GitHub otherwise takes the project's GitHub profile or the default. GitLab takes
  * the project's GitLab profile for the installation, then its default there; Forgejo takes its default on that host.
+ * The profile so chosen being turned off gives no token.
  */
 export function ciToken(
   target: Pick<CiTarget, 'kind' | 'web'>,
@@ -48,7 +49,8 @@ export function ciToken(
     const own = profileFor(set, projectId, tracker)
     profile = set.profiles.find((each) => each.kind === 'github' && each.id === chosen.github) ?? (own?.kind === 'github' ? own : defaultProfile(set, 'github'))
   }
-  const token = profile?.values[CI_TOKENS[target.kind]]
+  // A turned-off profile reaches nothing of its host (BTN-830), and another profile's token would act as someone else.
+  const token = profile?.disabled ? undefined : profile?.values[CI_TOKENS[target.kind]]
   return profile !== undefined && token ? { token, profile: profile.id } : null
 }
 

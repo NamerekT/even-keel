@@ -750,6 +750,8 @@ export interface ProfileView {
   name: string
   /** The kind's profile for the sessions started by hand, the GitHub Actions of other trackers' projects and new projects. */
   isDefault: boolean
+  /** Turned off (BTN-830): the service reaches nothing of its host; its projects' chains do not start. */
+  disabled: boolean
   /** The kind's variables, each with what the profile holds. */
   fields: ProfileField[]
   login: string | null

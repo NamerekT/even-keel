@@ -36,6 +36,11 @@ export interface TrackerProfile {
   moves?: StatusMoves
   /** MCP-only credentials: never part of the key pool or agent settings. */
   mcpOAuth?: OAuthRecord
+  /**
+   * Turned off (BTN-830): the service reaches nothing of its host — no tracker, no check, no CI with its token — until it
+   * is turned on again. Sessions started by hand still get a default profile's values from the global `settings.json`.
+   */
+  disabled?: true
 }
 
 export interface ProfileSet {

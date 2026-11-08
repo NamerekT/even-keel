@@ -38,6 +38,7 @@ import { profileFor } from '../profiles/model.js'
 import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
 import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
+import { disabledNotice } from '../profiles/service.js'
 import type { EvenKeelState } from '../state.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
@@ -552,15 +553,22 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const received = view.received
       return received === null ? view : { ...view, received: { ...received, account: ctx.sessionAccount(received.sessionId, received.at) } }
     },
-    vocabulary: (id) => (Object.hasOwn(ctx.readers().projects, id) ? ctx.vocabularies.get(id) : Promise.resolve(undefined)),
-    profileStatuses: (id) => ctx.profileStatuses.get(id),
+    vocabulary: (id) => {
+      if (!Object.hasOwn(ctx.readers().projects, id)) return Promise.resolve(undefined)
+      const off = disabledNotice(ctx.profiles.disabledFor(id))
+      return off === undefined ? ctx.vocabularies.get(id) : Promise.reject(new NoticeError(off))
+    },
+    profileStatuses: (id) => {
+      const off = disabledNotice(ctx.profiles.current().profiles.find((profile) => profile.id === id && profile.disabled))
+      return off === undefined ? ctx.profileStatuses.get(id) : Promise.reject(new NoticeError(off))
+    },
     builtin,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)
     },
     tasks: taskControl({
-      configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
+      configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, disabled: (reader) => disabledNotice(ctx.profiles.disabledFor(reader)), rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
       live: (task) => ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished'),
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),

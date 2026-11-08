@@ -464,6 +464,65 @@ describe('Profiles', { timeout: 60_000 }, () => {
     })
   })
 
+  describe('a turned-off profile (BTN-830)', () => {
+    it('is stored and shown off, its host is not checked, and it names the projects on it', async () => {
+      const account = vi.fn(fake.account as ProfileKind['account'])
+      const profiles = make({ profiles: [profile('p1', 'bad', true), profile('p2', 'abc', false)], links: { [XYZ]: 'p2' } }, {
+        kinds: profileKinds({ fake: { ...fake, account } as unknown as TrackerAdapter }),
+      })
+      await profiles.recheck()
+      expect(profiles.refused(ABC)?.id).toBe('p1')
+      account.mockClear()
+      profiles.setDisabled('p1', true)
+      await writes.settled()
+      expect((await readProfiles(db)).profiles[0]!.disabled).toBe(true)
+      expect(changes.at(-1)!.profiles[0]!.disabled).toBe(true)
+      expect(profiles.view().profiles.map((each) => [each.disabled, each.check.state])).toEqual([[true, 'unchecked'], [false, 'ok']])
+      expect(profiles.refused(ABC)).toBeUndefined()
+      expect(profiles.disabledFor(ABC)?.id).toBe('p1')
+      expect(profiles.disabledFor(XYZ)).toBeUndefined()
+      await profiles.recheck()
+      profiles.recheckSoon('p1')
+      expect(account.mock.calls.map(([values]) => values.FAKE_TOKEN)).toEqual(['abc'])
+      expect(await codeOf(profiles.projects('p1', ''))).toBe('profiles.disabled')
+    })
+
+    it('keeps being off across a save, and turning it on checks it again', async () => {
+      const profiles = make({ profiles: [profile('p1', 'abc', true)], links: {} })
+      profiles.setDisabled('p1', true)
+      await profiles.save({ id: 'p1', kind: 'fake', name: 'Renamed', values: {} })
+      expect(profiles.current().profiles[0]!.disabled).toBe(true)
+      profiles.start()
+      profiles.setDisabled('p1', false)
+      expect(profiles.current().profiles[0]!.disabled).toBeUndefined()
+      await vi.waitFor(() => expect(profiles.view().profiles[0]!.check.state).toBe('ok'))
+      profiles.stop()
+      expect(() => profiles.setDisabled('missing', true)).toThrow(NoticeError)
+    })
+
+    it('is refused while a chain runs on a project or a feed of it, paused or not', () => {
+      const asked: string[][] = []
+      const profiles = make({ profiles: [profile('p1', 'abc', true)], links: {} }, {
+        chains: (projects) => {
+          asked.push([...projects])
+          return projects.includes(XYZ) ? [{ id: XYZ, label: 'XYZ' }] : []
+        },
+      })
+      let code = ''
+      try {
+        profiles.setDisabled('p1', true)
+      } catch (error) {
+        code = (error as NoticeError).notice.code
+        expect((error as NoticeError).notice.params).toEqual({ profile: 'Fake p1', chains: 'XYZ', projects: XYZ })
+      }
+      expect(code).toBe('profiles.chainsRunning')
+      expect(asked).toEqual([[ABC, XYZ]])
+      expect(profiles.current().profiles[0]!.disabled).toBeUndefined()
+      profiles.setDisabled('p1', false)
+      expect(changes).toEqual([])
+    })
+  })
+
   it('shows secrets as set only, and the kinds a profile can be made for', () => {
     const view = make({ profiles: [profile('p1', 'abc', true)], links: {} }).view()
     expect(view.profiles[0]!.fields).toEqual([

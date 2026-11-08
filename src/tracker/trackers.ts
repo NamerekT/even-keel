@@ -48,7 +48,7 @@ export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string
 /** The profiles with projects of a tracker that takes a task's time (`logsTime`): Tally writes the time through them (EKR-35). */
 export function timeTrackers(config: TrackerConfig, set: ProfileSet, adapters: Readonly<Record<string, TrackerAdapter>>): TimeTracker[] {
   return [...trackerPlans(config, set).values()].flatMap((plan) =>
-    adapters[plan.kind]?.logsTime !== true || plan.profile === undefined || plan.projects.length === 0
+    adapters[plan.kind]?.logsTime !== true || plan.profile === undefined || plan.profile.disabled || plan.projects.length === 0
       ? []
       : [{ kind: plan.kind, values: plan.profile.values, places: plan.places, prefixes: [...new Set(plan.projects.map((project) => idPrefixOf(config, project, adapters)))] }],
   )
@@ -135,17 +135,20 @@ export class Trackers {
     const title = plan.profile?.name ?? adapter.title
     const values = plan.profile?.values ?? {}
     const projects = JSON.stringify(plan.projects)
-    const signature = JSON.stringify({ values: adapter.variables.map((variable) => values[variable] ?? null), places: plan.places })
+    const disabled = plan.profile?.disabled === true
+    const signature = JSON.stringify({ values: adapter.variables.map((variable) => values[variable] ?? null), places: plan.places, disabled })
     const before = this.running.get(key)
     if (before?.view !== undefined) before.view.title = title
     if (before?.projects === projects && before.signature === signature) return
     let setup: TrackerSetup | undefined
     let failed = false
-    try {
-      setup = adapter.setup(values, plan.places)
-    } catch (error) {
-      failed = true
-      this.deps.log(`${title}: ${(error as Error).message}, tracker is off`)
+    if (!disabled) {
+      try {
+        setup = adapter.setup(values, plan.places)
+      } catch (error) {
+        failed = true
+        this.deps.log(`${title}: ${(error as Error).message}, tracker is off`)
+      }
     }
     this.setups.set(key, setup)
     if (before?.projects === projects && before.handle !== undefined && setup !== undefined) {
@@ -155,7 +158,7 @@ export class Trackers {
       for (const project of plan.projects) void this.deps.refreshers.get(project)?.()
       return
     }
-    this.retire(key, plan.projects)
+    this.retire(key, disabled ? [] : plan.projects)
     if (plan.projects.length === 0) {
       this.running.set(key, { projects, signature, view: undefined, handle: undefined })
       return
@@ -170,8 +173,10 @@ export class Trackers {
       unready: false,
       health: { state: 'off', lastOkAt: null, error: null },
       readAt: {},
+      ...(disabled ? { disabled: true as const } : {}),
     }
-    if (plan.profile === undefined && adapter.own === true) {
+    if (disabled) this.deps.log(`${title}: the profile is turned off, tracker is off`)
+    else if (plan.profile === undefined && adapter.own === true) {
       if (setup === undefined) this.deps.log(`${title}: no state database, tracker is off`)
     } else if (plan.profile === undefined) this.deps.log(`${title}: ${plan.projects.join(', ')} have no profile, tracker is off`)
     else if (setup === undefined && !failed) this.deps.log(`${title}: the profile has no credentials, tracker is off`)

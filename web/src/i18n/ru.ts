@@ -156,6 +156,8 @@ export const ru = {
     resume: 'Проверить и продолжить',
     packages: 'Открыть пакеты проекта',
     git: 'Открыть шаг «Git»',
+    enableProfile: 'Включить',
+    stopChains: (count: number): string => (count > 1 ? 'Остановить цепочки' : 'Остановить цепочку'),
   },
   banner: {
     config: (error: string) => `Настройки не применены, работают последние исправные: ${error}`,

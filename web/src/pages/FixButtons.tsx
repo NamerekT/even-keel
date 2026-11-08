@@ -27,6 +27,8 @@ export function FixButton({ project, fix, className = 'button button--small noti
     return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
   }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
+  if (fix.to === 'enableProfile') return <SendButton command="profiles/disable" bodies={[{ id: fix.profile, disabled: false }]} label={t.fix.enableProfile} className={className} />
+  if (fix.to === 'stopChains') return <SendButton command="chain/stop" bodies={fix.projects.map((each) => ({ project: each }))} label={t.fix.stopChains(fix.projects.length)} className={className} />
   const target = fix.to === 'project' ? (fix.project ?? project) : fix.to === 'moves' || fix.to === 'packages' ? project : null
   if ((fix.to === 'project' || fix.to === 'moves' || fix.to === 'packages') && target === null) return null
   return (
@@ -54,11 +56,24 @@ function ResumeButton({ project, className }: { project: string; className: stri
   )
 }
 
+/** A fix done by commands rather than a place: each body is sent in turn. */
+function SendButton({ command, bodies, label, className }: { command: string; bodies: Record<string, unknown>[]; label: string; className: string }) {
+  const { send, sending } = useCommand()
+  const run = async () => {
+    for (const body of bodies) if (!(await send(command, body))) return
+  }
+  return (
+    <button type="button" className={className} disabled={sending} onClick={() => void run()}>
+      {label}
+    </button>
+  )
+}
+
 /** Opens the place of a fix; `project` — the project of a fix in a project's settings, by its id or its key. */
 export function useFix() {
   const navigate = useNavigate()
   const { state } = useLive()
-  return (fix: Exclude<NoticeFix, { to: 'resume' }>, project: string | null) => {
+  return (fix: Exclude<NoticeFix, { to: 'resume' | 'enableProfile' | 'stopChains' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
     if (fix.to === 'git') return void navigate(stepPath('git'))
     if (fix.to === 'tracker') return

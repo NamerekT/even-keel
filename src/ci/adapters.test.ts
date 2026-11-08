@@ -40,6 +40,12 @@ describe('ciToken', () => {
     expect(ciToken({ kind: 'gitlab', web: `${root}/missing` }, set, ABC, 'gitlab')).toBeNull()
   })
 
+  it('gives no token of a turned-off profile, and does not fall back to another (BTN-830)', () => {
+    const set: ProfileSet = { profiles: [lab('default', '', true), { ...lab('project'), disabled: true }], links: { [ABC]: 'project' } }
+    expect(ciToken(GITLAB, set, ABC, 'gitlab')).toBeNull()
+    expect(ciToken(GITLAB, set, ABC, 'gitlab', { gitlab: 'default' })?.profile).toBe('default')
+  })
+
   it('chooses a GitLab override, then the project profile, then the default on the remote host', () => {
     const set: ProfileSet = { profiles: [lab('default', '', true), lab('project'), lab('chosen'), lab('elsewhere', 'https://git.example.com', true)], links: { [ABC]: 'project' } }
     expect(ciToken(GITLAB, set, ABC, 'gitlab')?.profile).toBe('project')
