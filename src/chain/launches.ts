@@ -233,9 +233,9 @@ export function taskSources(entries: LaunchEntry[]): TaskSource[] {
   return [...sources.values()]
 }
 
-/** An entry of a session the chain started or continued: not a release, not the outcome of a fix. */
+/** An entry of a session the chain started or continued: not a release, not the outcome of a fix, not a pull request opened. */
 export function isLaunch(entry: LaunchEntry): boolean {
-  return !isRelease(entry) && !isOutcome(entry)
+  return !isRelease(entry) && !isOutcome(entry) && entry.reason !== 'opened'
 }
 
 function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: ReleaseReason } {

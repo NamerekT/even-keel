@@ -14,7 +14,8 @@ export function launchLine(entry: LaunchEntry): string {
   if (reason === 'unneeded') return `chain: ${task} found nothing to fix, main is green at ${entry.commit === undefined ? 'unknown' : shortCommit(entry.commit)}`
   if (reason === 'carried') return `chain: ${task} carried ${entry.commits ?? 'its'} commit(s) of the release`
   if (reason === 'answer') return `chain: ${task} resumed with the user's answer in the session ${sessionId}`
-  // An entry of a pull request opened, or of a launch with its feedback, has no session before it.
+  if (reason === 'opened') return `chain: ${task} is out for review from the session ${sessionId}`
+  // An entry of a launch with the pull request feedback has no session before it.
   if (previous === undefined) return `chain: ${task} goes on by ${reason} in the session ${sessionId}`
   return `chain: ${task} handed over by ${reason} from the session ${previous} to ${sessionId}`
 }

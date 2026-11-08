@@ -674,6 +674,7 @@ export const noticesRu: NoticeTexts = {
   'eventLog.launch': () => 'сессия запущена',
   'eventLog.continued': (p) => (p.why === undefined ? 'сессия продолжена' : CONTINUED[p.why]),
   'eventLog.handoff': (p) => `новая сессия по хендоффу${p.why === undefined ? '' : `, ${HANDOFFS[p.why]}`}`,
+  'eventLog.reviewOpened': () => 'отправлено на ревью',
   'eventLog.stopped': () => 'цепочка остановила сессию',
   'eventLog.fixLaunch': () => 'запущена сессия починки main',
   'eventLog.carryLaunch': () => 'запущена сессия переноса',

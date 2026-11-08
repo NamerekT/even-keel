@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions, taskSources } from './launches.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, isLaunch, launchDays, launchedProjects, ranSince, taskSessions, taskSources } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -46,6 +46,17 @@ describe('launchDays', () => {
       { at, project: 'ABC', task: 'ABC-1', sessionId: 's', reason: 'skip' },
     ]
     expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: {} }])
+  })
+
+  it('does not count a pull request opened on the session\'s mark as a launch (BTN-863)', () => {
+    const at = new Date(2026, 0, 10, 9, 0).toISOString()
+    const entries: LaunchEntry[] = [
+      { at, project: 'ABC', task: 'ABC-1', sessionId: 's' },
+      { at, project: 'ABC', task: 'ABC-1', sessionId: 's', reason: 'opened' },
+    ]
+    expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: { ABC: 1 } }])
+    expect(isLaunch(entries[1]!)).toBe(false)
+    expect(taskSessions(entries, [])['ABC-1']!.map((row) => [row.sessionId, row.how, row.resumed])).toEqual([['s', 'launch', 0]])
   })
 
   it('skips entries with an unreadable time', () => {

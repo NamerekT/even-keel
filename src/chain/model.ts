@@ -209,8 +209,11 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
-  /** `review` — a pull request opened on the session's mark, or its feedback delivered to the task's session. */
-  reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer' | 'review'
+  /**
+   * `review` — the pull request feedback delivered to the task's session, or a launch with it; `opened` — a pull request
+   * opened on the session's mark, no launch (BTN-863; such an entry before it is a `review` without `previous`).
+   */
+  reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer' | 'review' | 'opened'
   /** What made the new session of a `relay` (or of a `review` handover): kept in `extra`, `reason` stays for Tally. */
   cause?: RelayCause
   previous?: string

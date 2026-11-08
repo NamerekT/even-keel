@@ -8,6 +8,7 @@ const categories = {
   'eventLog.launch': 'sessions',
   'eventLog.continued': 'sessions',
   'eventLog.handoff': 'sessions',
+  'eventLog.reviewOpened': 'sessions',
   'eventLog.stopped': 'sessions',
   'eventLog.fixLaunch': 'sessions',
   'eventLog.fixStopped': 'sessions',

@@ -768,6 +768,7 @@ export const en = {
   'eventLog.launch': (_: { task: string }) => 'a session started',
   'eventLog.continued': (p: { task: string; why?: ContinuedWhy }) => (p.why === undefined ? 'the session goes on' : CONTINUED[p.why]),
   'eventLog.handoff': (p: { task: string; why?: HandoffWhy }) => `a new session took over by a handoff${p.why === undefined ? '' : `, ${HANDOFFS[p.why]}`}`,
+  'eventLog.reviewOpened': (_: { task: string }) => 'sent for review',
   'eventLog.stopped': (_: { task: string }) => 'the chain stopped its session',
   'eventLog.fixLaunch': (_: { project: string }) => 'started a session to fix main',
   'eventLog.carryLaunch': (_: { project: string }) => 'started a session to resolve a carry',

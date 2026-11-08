@@ -243,6 +243,14 @@ describe('launchDraft', () => {
   it('writes a session started on pull request feedback, with no previous one, as a launch', () => {
     expect(task({ reason: 'review' })?.notice).toEqual(notice('eventLog.launch', { task: 'ABC-1' }))
   })
+
+  it('writes a pull request opened on the session\'s mark as sent for review, not as a launch (BTN-863)', () => {
+    expect(task({ reason: 'opened' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.reviewOpened', { task: 'ABC-1' }),
+      place: { view: 'task', project: 'p1', task: 'ABC-1' },
+    })
+  })
 })
 
 describe('stopDraft', () => {

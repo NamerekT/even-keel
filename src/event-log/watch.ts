@@ -230,14 +230,16 @@ function projectsOf(raw: RawSettings): Map<string, Record<string, unknown>> {
 /**
  * The entry of a session launched, from the launch log; its releases and outcomes are no launch. A fix of main or a
  * carry has no task: its entry names the project (BTN-781). A task's entry with a `previous` session is the same
- * session going on, or a new one in its place by a handoff (BTN-853).
+ * session going on, or a new one in its place by a handoff (BTN-853). A pull request opened on the session's mark is
+ * no launch: the task is out for review (BTN-863).
  */
 export function launchDraft(entry: LaunchEntry): EventDraft | null {
-  if (!isLaunch(entry)) return null
   const { project, task, sessionId, previous, reason, cause } = entry
+  const place = { view: 'task', project, task } as const
+  if (reason === 'opened') return { level: 'info', notice: notice('eventLog.reviewOpened', { task }), place }
+  if (!isLaunch(entry)) return null
   if (isFixName(task)) return { level: 'info', notice: notice('eventLog.fixLaunch', { project }), place: { view: 'project', project } }
   if (isCarryName(task)) return { level: 'info', notice: notice('eventLog.carryLaunch', { project }), place: { view: 'project', project } }
-  const place = { view: 'task', project, task } as const
   if (previous === sessionId) {
     const why = reason === 'answer' || reason === 'resume' || reason === 'review' ? reason : undefined
     return { level: 'info', notice: notice('eventLog.continued', { task, ...(why === undefined ? {} : { why }) }), place }
