@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "huly@even-keel": true
+    "huly@even-keel": true,
+    "tasks@even-keel": true
   }
 }
