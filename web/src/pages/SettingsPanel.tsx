@@ -1,85 +1,38 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import './projectSettingsTabs.css'
-import { DEFAULT_PROTECTION } from '../../../src/sessions/protection.js'
-import { ProtectionSettings } from './ProtectionSettings.js'
-import { BranchDriftBand, BranchField, BranchMoveLine, useRepoBranches } from './BranchField.js'
-import { protectionText } from './protectionDraft.js'
-import { GROUPS, keysOf, labelOf, onOff, same, standardsShown, STATUS_KEYS, ttlLabel, type GroupId, type Option } from './projectSettingsDraft.js'
+import { useRepoBranches } from './BranchField.js'
+import { GROUPS, keysOf, same, type GroupId } from './projectSettingsDraft.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
-import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
-import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
-import type { CacheTtl, ConfigView, ProjectForm } from '../../../src/state.js'
-import { LANGUAGES } from '../../../src/language.js'
+import type { ConfigView, ProjectForm } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { PROJECT_SLOTS, projectLabel } from '../state.js'
-import { Select } from '../ui/Select.js'
-import { seriesStyle } from '../ui/series.js'
-import { changed, edited, inheritedEdit, ownEdited, reverted, sent, type Value, type Values } from './settingsDraft.js'
-import { folderLabel } from '../accountName.js'
-import { accountOptions, namedProviders, providerKeys, providerName, WINDOW_KEYS } from './settingsRun.js'
-import { ProviderChoices } from './ProviderChoices.js'
-import {
-  ErrorStrip,
-  FieldHead,
-  fieldId,
-  FieldNote,
-  GroupTabs,
-  Inherit,
-  type Inheritance,
-  marksOf,
-  minutesOf,
-  Row,
-  RULE_KEYS,
-  type RuleKey,
-  rulesOf,
-  rulesText,
-  SaveBar,
-  Section,
-  SHARE_KEYS,
-  shareOf,
-  sharesText,
-  shown,
-  SwitchField,
-  unplaced,
-  useFieldErrors,
-  wholeOf,
-} from './settingsParts.js'
+import { changed, sent, type Value } from './settingsDraft.js'
+import { namedProviders } from './settingsRun.js'
+import { GroupTabs, type RuleKey, rulesOf, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
-import { SourceDialog, SourceLine } from './SourceDialog.js'
 import { useSourceMoves } from './SourceMoves.js'
-import { MilestoneOrder } from './MilestoneOrder.js'
-import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
-import { SuggestField } from '../ui/SuggestField.js'
-import { offersOf, useModelCatalog } from './useModels.js'
+import { useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
-import { ProjectRemove } from './ProjectRemove.js'
-import { SessionGets } from './SessionGets.js'
-import { checkpointOf, CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, valuesOf, WINDOW_FLAGS } from './projectForm.js'
-import { TokensInput } from '../ui/TokensInput.js'
-import { tokensShown } from '../ui/tokens.js'
-import { ProjectStandards } from './ProjectStandards.js'
-import { ProjectTracker } from './ProjectTracker.js'
-import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
-import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
-import { FeedList } from './FeedList.js'
-import { TrackerPackageButton } from './ToolsLink.js'
-import { remoteChoices } from './remoteProfiles.js'
+import { formOf, profileOf, valuesOf } from './projectForm.js'
 import { projectScope as scopeOf, sourceScope, useDraft, useTab } from './settingsStore.js'
 import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
-import { AddPullProfile, PullHint } from './PullButtons.js'
-import { FORGES } from '../../../src/notice/en.js'
 import { NoticeSettings } from './NoticeSettings.js'
+import { panelFields } from './projectSettingsFields.js'
+import { ProjectRepoTab } from './ProjectRepoTab.js'
+import { ProjectTrackerTab } from './ProjectTrackerTab.js'
+import { ProjectSessionsTab } from './ProjectSessionsTab.js'
+import { ProjectCiTab } from './ProjectCiTab.js'
 import './settings.css'
 
 export { useSettingsDirty } from './projectSettingsDraft.js'
 
+/** The project settings panel: the draft, the save and the frame; each tab draws its own rows. */
 export function SettingsPanel({
   project,
   form,
@@ -111,12 +64,9 @@ export function SettingsPanel({
   const shared = config.shared
   const next = formOf(outgoing.form, form.name, shared)
   const base = formOf(outgoing.base, form.name, shared)
-  const locked = config.trackerLocked.includes(project)
   const errorOf = useFieldErrors(project, [failure, configError], config)
-  const text = (key: string) => draft.edit[key] as string
-  const on = (key: string) => draft.edit[key] as boolean
-  // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
-  const pullReadiness = state?.pullReadiness[project] ?? null
+  const fields = panelFields(draft, setDraft, saved, errorOf)
+  const { text, editAll, revert } = fields
   const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
   // The model is offered from the account its row runs on: the project's own, else the shared one.
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
@@ -134,9 +84,6 @@ export function SettingsPanel({
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
-  const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
-  const editInherited = (key: string, value: Value, sharedValue: Value) => setDraft(inheritedEdit(draft, key, value, sharedValue, same))
   useModelReset(
     offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: rowAccount(provider), model: text(`models.${provider}`) })),
     models,
@@ -145,22 +92,13 @@ export function SettingsPanel({
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
   // The rules inherit from the profile of the tracker the draft has: a tracker changed and not saved yet brings its own.
   const ruleProfile = profileOf(state, project, text('tracker'))
-  const inheritedOf = (tracker: string) => effectiveRules(shared.chain, [], profileOf(state, project, tracker)?.rules ?? {})
-  const inherited = inheritedOf(text('tracker'))
-  const origins = ruleOrigins(chain, inherited, ruleProfile?.rules ?? {})
   // The main tracker's tasks only: a feed's are offered in its own window (BTN-553).
   const mainTasks = sourceTasks(tasks, config.feeds[project] ?? [], null)
   const ruleChoices = ruleChoicesOf(mainTasks, vocabularies)
-  // Another tracker names other statuses: the project's own status lists go back to what the new one inherits, saved with it.
-  const statusesOf = (tracker: string): [string, Value][] => STATUS_KEYS.map((key) => [key, rulesText(inheritedOf(tracker))[key]])
-  const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
-  const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
   const [configuring, setConfiguring] = useState(false)
   // A fix button may ask for the window open on a tab of its own ("Milestone order", BTN-792).
   const [sourceTab, openSourceTab] = useTab<string>(sourceScope(project), '')
   const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
-  const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
-  const marks = marksOf(draft, saved, same, revert)
   const onBuiltin = text('tracker') === BUILTIN
   const save = async () => {
     if (next === undefined || base === undefined) return false
@@ -170,650 +108,34 @@ export function SettingsPanel({
     return send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
-  const unguarded = !(switchOf(text('guard')) ?? shared.ci.guard)
-
-  // A key whose '' is "as shared": the field shows the shared value under a chip until an edit makes it the project's own.
-  const inheritOf = (key: string, sharedLabel: string, disabled = false): Inheritance => ({ own: text(key) !== '', shared: sharedLabel, disabled, onReset: () => edit(key, '') })
-  const notes = (key: string) => <FieldNote error={errorOf(key)} />
-  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }) => (
-    <Row
-      className={marks.box(key)}
-      label={label}
-      hint={hint}
-      htmlFor={fieldId(key)}
-      inherit={inherit === undefined ? undefined : inheritOf(key, inherit.label)}
-      mark={marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
-      control={
-        <Select
-          id={fieldId(key)}
-          className="settings__text"
-          value={inherit === undefined || text(key) !== '' ? text(key) : inherit.value}
-          options={options}
-          invalid={errorOf(key) !== null}
-          onChange={(value) => (inherit === undefined ? edit(key, value) : editInherited(key, value, inherit.value))}
-        />
-      }
-      error={errorOf(key)}
-    />
-  )
-  const inheritedSwitch = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) => (
-    <SwitchField
-      className={marks.box(key)}
-      label={label}
-      hint={hint}
-      checked={switchOf(text(key)) ?? sharedValue}
-      disabled={disabled}
-      inherit={inheritOf(key, onOff(sharedValue), disabled)}
-      mark={marks.note(key, (value) => (value === '' ? t.settings.asShared(onOff(sharedValue)) : onOff(value === 'true')))}
-      onChange={(checked) => editInherited(key, String(checked), String(sharedValue))}
-    >
-      {notes(key)}
-    </SwitchField>
-  )
-  const input = (key: string, label: string, hint: string, placeholder?: string, mono = true) => (
-    <Row
-      className={marks.box(key)}
-      label={label}
-      hint={hint}
-      htmlFor={fieldId(key)}
-      mark={marks.note(key)}
-      control={
-        <input
-          id={fieldId(key)}
-          className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
-          autoComplete="off"
-          spellCheck={false}
-          value={text(key)}
-          placeholder={placeholder}
-          aria-invalid={errorOf(key) !== null}
-          onChange={(event) => edit(key, event.target.value)}
-        />
-      }
-      error={errorOf(key)}
-    />
-  )
-  const lines = (key: string, label: string, hint: string, placeholder: string, rows: number, mono = true, disabled = false) => (
-    <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} />
-      <ErrorStrip error={errorOf(key)} wide>
-        <textarea
-          id={fieldId(key)}
-          className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
-          rows={rows}
-          spellCheck={!mono}
-          value={text(key)}
-          placeholder={placeholder}
-          disabled={disabled}
-          onChange={(event) => edit(key, event.target.value)}
-        />
-      </ErrorStrip>
-    </div>
-  )
-
-  // Fields kept own by a flag: they show the shared values until an edit turns the flag on with the shared values as the start.
-  const ownEdit = (flag: string, sharedValues: Values) => (key: string, value: Value) => setDraft(ownEdited(draft, flag, sharedValues, key, value, same))
-  const ownInherit = (flag: string, sharedValues: Values, sharedLabel: string, disabled = false): Inheritance => ({
-    own: on(flag),
-    shared: sharedLabel,
-    disabled,
-    onReset: () => setDraft(Object.keys(sharedValues).reduce((each, field) => edited(each, field, saved[field]!), edited(draft, flag, false))),
-  })
-  // One undo for a flag and its fields: "was: shared" when the field turned own, else what its value was.
-  const flagNote = (flag: string, fields: readonly string[], show: (value: Value) => string = shown) =>
-    marks.note([flag, ...fields], (value, key) => (key !== flag ? show(value) : value === true ? t.settings.ownChip : t.settings.sharedChip))
-  const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
-  const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
-  const sharedShares = sharesText(shared.stats.checkpointShares)
-  // The shares turned own or shared: one undo in the group's head; while they stay own, each share has its own.
-  const sharesTurned = on('ownShares') !== draft.base.ownShares
-  const handoffsOff = !(switchOf(text('contextHandoffs')) ?? shared.contextHandoffs)
-  const kinds = on('ownKinds') ? (draft.edit.kinds as readonly CiKind[]) : shared.ci.kinds
-  const kindsText = (value: Value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind]))
-  const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
-  // A release project merges into a main one of its own repository, never into another release project. Until the
-  // remotes are read, every main project is offered: the save checks it.
-  const kin = state?.sameRepository[project]
-  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) =>
-    key !== project && each.mergeInto === null && (kin === undefined || kin.includes(key)) ? [key] : [],
-  )
-  // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
-  const remoteChoice = (kind: CiKind) => {
-    const key = remoteKey(kind)
-    const offered = choices[kind]
-    const gone = text(key) !== '' && !offered.some((profile) => profile.id === text(key))
-    if (offered.length < 2 && text(key) === '') return null
-    const options = [
-      { value: '', label: t.settings.remoteAuto },
-      ...offered.map((profile) => ({ value: profile.id, label: profile.name })),
-      ...(gone ? [{ value: text(key), label: t.settings.remoteGone }] : []),
-    ]
-    return <Fragment key={kind}>{pick(key, t.settings.remoteProfile(FORGES[kind]), t.settings.remoteProfileHint, options)}</Fragment>
-  }
-  const number = (key: string, value: string, invalid: boolean, onChange: (value: string) => void, extra: { placeholder?: string; disabled?: boolean; label?: string } = {}) => (
-    <input
-      id={fieldId(key)}
-      className="settings__text settings__number"
-      inputMode="numeric"
-      autoComplete="off"
-      aria-label={extra.label}
-      value={value}
-      placeholder={extra.placeholder}
-      disabled={extra.disabled}
-      aria-invalid={invalid}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  )
-  // A provider's compaction window, a cell of the agent card: the project's own or the shared one, empty for the agent's own window.
-  const windowEmpty = (provider: string) => (provider === 'claude' ? t.shared.autoCompactWindowAccount : t.shared.codexAutoCompactWindowModel)
-  const windowCell = (provider: string) => {
-    const key = WINDOW_KEYS[provider]
-    if (key === undefined) return null
-    const flag = WINDOW_FLAGS[key]
-    const empty = windowEmpty(provider)
-    const sharedText = shared[key] === null ? '' : String(shared[key])
-    const invalid = on(flag) && compactWindowOf(text(key)) === undefined
-    return (
-      <div className={marks.box([flag, key])}>
-        <ErrorStrip error={invalid ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)} wide>
-          <TokensInput
-            id={fieldId(key)}
-            label={t.shared.autoCompactWindowOf(providerName(provider))}
-            value={on(flag) ? text(key) : sharedText}
-            invalid={invalid}
-            placeholder={empty}
-            onChange={(value) => ownEdit(flag, { [key]: sharedText })(key, value)}
-          />
-        </ErrorStrip>
-        <Inherit {...ownInherit(flag, { [key]: sharedText }, tokensShown(sharedText) || empty)} />
-      </div>
-    )
-  }
-  const windowMark = (provider: string) => {
-    const key = WINDOW_KEYS[provider]
-    if (key === undefined) return null
-    const empty = windowEmpty(provider)
-    return flagNote(WINDOW_FLAGS[key], [key], (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))
-  }
 
   const groups: Record<GroupId, () => ReactNode> = {
-    repo: () => (
-      <>
-        <Section title={t.settings.sections.repository}>
-          <div className={marks.box('repo')}>
-            <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} mark={marks.note('repo')} />
-            <ErrorStrip error={errorOf('repo')} wide>
-              <input
-                id={fieldId('repo')}
-                className="settings__text settings__text--mono"
-                autoComplete="off"
-                spellCheck={false}
-                value={text('repo')}
-                aria-invalid={errorOf('repo') !== null}
-                onChange={(event) => edit('repo', event.target.value)}
-              />
-            </ErrorStrip>
-          </div>
-          <Row
-            className={marks.box('branch')}
-            label={t.settings.branch}
-            hint={t.settings.branchHint}
-            htmlFor={fieldId('branch')}
-            mark={marks.note('branch')}
-            control={
-              <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} />
-            }
-            error={errorOf('branch')}
-          >
-            {text('branch').trim() !== form.branch && <BranchMoveLine repo={branches} value={text('branch')} />}
-            {drift !== undefined && <BranchDriftBand project={project} drift={drift} />}
-          </Row>
-          {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
-          <SwitchField
-            className={marks.box('testProject')}
-            label={t.settings.testProject}
-            hint={t.settings.testProjectHint}
-            checked={on('testProject')}
-            mark={marks.note('testProject')}
-            onChange={(checked) => edit('testProject', checked)}
-          >
-            {notes('testProject')}
-          </SwitchField>
-          <Row
-            className={marks.box('slot')}
-            label={t.settings.slot}
-            hint={t.settings.slotHint}
-            htmlFor={fieldId('slot')}
-            mark={marks.note('slot')}
-            control={number('slot', text('slot'), wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null, (value) => edit('slot', value))}
-            error={errorOf('slot')}
-          />
-          {pick('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
-            { value: '', label: t.settings.mergeIntoNone },
-            ...mainProjects.map((key) => ({ value: key, label: projectLabel(state, key) })),
-            ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto'))
-              ? [{ value: text('mergeInto'), label: projectLabel(state, text('mergeInto')) }]
-              : []),
-          ])}
-          {text('mergeInto') !== '' && (
-            <SwitchField
-              className={marks.box('carryAgent')}
-              label={t.settings.carryAgent}
-              hint={t.settings.carryAgentHint}
-              checked={on('carryAgent')}
-              mark={marks.note('carryAgent')}
-              onChange={(checked) => edit('carryAgent', checked)}
-            >
-              {notes('carryAgent')}
-            </SwitchField>
-          )}
-          <div className={marks.box('color')}>
-            <FieldHead label={t.settings.color} hint={t.settings.colorHint} mark={marks.note('color')} />
-            <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
-              {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  role="radio"
-                  aria-checked={text('color') === color}
-                  aria-label={t.settings.colorSlot(Number(color))}
-                  className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
-                  style={seriesStyle(Number(color))}
-                  onClick={() => edit('color', color)}
-                />
-              ))}
-            </div>
-            {notes('color')}
-          </div>
-        </Section>
-        <ProjectRemove project={project} />
-      </>
-    ),
+    repo: () => <ProjectRepoTab fields={fields} project={project} form={form} state={state} config={config} branches={branches} drift={drift} />,
     tracker: () => (
-      <>
-        <Section title={t.settings.sections.tracker}>
-          {state !== null && (
-            <ProjectTracker
-              state={state}
-              project={project}
-              tracker={text('tracker')}
-              trackerProject={text('trackerProject')}
-              known={text('tracker') === saved.tracker && text('trackerProject') === saved.trackerProject}
-              locked={locked}
-              hasTasks={mainTasks.length > 0}
-              trackerMark={marks.note('tracker')}
-              trackerNote={notes('tracker')}
-              box={marks.box('trackerProject')}
-              mark={marks.note('trackerProject')}
-              note={notes('trackerProject')}
-              invalid={errorOf('trackerProject') !== null}
-              onEdit={(tracker, value) =>
-                setDraft(
-                  tracker === text('tracker')
-                    ? edited(draft, 'trackerProject', value)
-                    : tracker === saved.tracker
-                      ? reverted(draft, saved, ['tracker', 'trackerProject', ...STATUS_KEYS])
-                      : statusesOf(tracker).reduce((each, [key, value]) => edited(each, key, value), edited(edited(draft, 'tracker', tracker), 'trackerProject', '')),
-                )
-              }
-            />
-          )}
-          {text('tracker') !== 'github' && input('intakeLabel', t.settings.intakeLabel, t.settings.intakeLabelHint, t.settings.intakeLabelNone)}
-          {inheritedSwitch('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
-        </Section>
-        {state !== null && (
-          <FeedList
-            state={state}
-            project={project}
-            tasks={tasks}
-            modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
-            mainTitle={trackerTitle}
-            main={
-              <SourceLine
-                kind={text('tracker')}
-                title={trackerTitle}
-                sourceKey={state.projectKeys[project] ?? ''}
-                own={form.ownRules.length > 0 || form.moves !== undefined}
-                dirty={changed(draft, RULE_KEYS, same).length > 0 || moves.dirty}
-                onConfigure={() => setConfiguring(true)}
-              >
-                {statusesReset && (
-                  <Band tone="warn" action={<button type="button" className="button button--small" onClick={() => setConfiguring(true)}>{t.settings.sourceConfigure}</button>}>
-                    {t.settings.statusRulesReset}
-                  </Band>
-                )}
-              </SourceLine>
-            }
-          />
-        )}
-        {(configuring || sourceTab !== '') && (
-          <SourceDialog
-            kind={text('tracker')}
-            initialTab={sourceTab === '' ? undefined : sourceTab}
-            sourceKey={state?.projectKeys[project] ?? project}
-            title={ruleProfile?.name ?? trackerTitle}
-            tabs={[
-              // The built-in tracker's statuses and labels are fixed (BTN-767): only which tasks are the project's.
-              ...(onBuiltin ? [] : [{
-                id: 'rules',
-                title: t.settings.rules,
-                dirty: changed(draft, ['active', 'terminal', 'requiredLabels', 'excludedLabels'], same).length > 0,
-                render: () => (
-                  <RuleForm
-                    level="project"
-                    rules={chain}
-                    inherited={inherited}
-                    origins={origins}
-                    profileName={ruleProfile?.name ?? null}
-                    statuses={knownStatuses(
-                      vocabularies.map((each) => each.statuses),
-                      mainTasks.map((task) => task.status),
-                      chain,
-                    )}
-                    labels={ruleChoices.labels}
-                    modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
-                    onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
-                    errorOf={errorOf}
-                    marks={marks}
-                  />
-                ),
-              }]),
-              {
-                id: 'milestones',
-                fields: ['requiredMilestones', 'excludedMilestones'],
-                title: t.settings.milestones,
-                dirty: changed(draft, ['requiredMilestones', 'excludedMilestones'], same).length > 0,
-                render: () => (
-                  <>
-                  <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
-                    <MilestoneFields
-                      level="project"
-                      rules={chain}
-                      inherited={inherited}
-                      origins={origins}
-                      milestones={ruleChoices.milestones}
-                      onlyUnavailable={onBuiltin && ruleChoices.milestones.length === 0 ? t.settings.milestonesNone : undefined}
-                      text={text}
-                      onEdit={editAll}
-                      errorOf={errorOf}
-                      marks={marks}
-                    />
-                  </Section>
-                  <MilestoneOrder project={project} milestones={state?.chain.projects[project]?.milestones ?? []} saved={form.milestoneOrder ?? []} />
-                  </>
-                ),
-              },
-              ...(moves.tab === null || onBuiltin ? [] : [moves.tab]),
-            ]}
-            canSave={!sending && !moves.sending && next !== undefined}
-            failure={leftover ?? moves.failure}
-            onSave={async () => (await save()) && moves.save()}
-            onRevert={() => {
-              revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)
-              moves.revert()
-            }}
-            onClose={() => {
-              setConfiguring(false)
-              openSourceTab('')
-            }}
-          />
-        )}
-      </>
+      <ProjectTrackerTab
+        fields={fields}
+        project={project}
+        form={form}
+        state={state}
+        config={config}
+        tasks={tasks}
+        mainTasks={mainTasks}
+        ruleProfile={ruleProfile}
+        chain={chain}
+        ruleChoices={ruleChoices}
+        vocabularies={vocabularies}
+        moves={moves}
+        configuring={configuring}
+        setConfiguring={setConfiguring}
+        sourceTab={sourceTab}
+        openSourceTab={openSourceTab}
+        canSave={!sending && next !== undefined}
+        leftover={leftover}
+        save={save}
+      />
     ),
-    sessions: () => (
-      <>
-        <Section title={t.settings.sections.agent}>
-          <ProviderChoices
-            label={t.settings.provider}
-            hint={t.settings.providerHint}
-            className={marks.box('provider')}
-            inherit={inheritOf('provider', providerName(shared.provider))}
-            mark={marks.note('provider', (value) => value === '' ? t.settings.asShared(providerName(shared.provider)) : providerName(String(value)))}
-            note={notes('provider')}
-            chosen={text('provider') || shared.provider}
-            onPick={(provider) => editInherited('provider', provider, shared.provider)}
-            columns={[
-              { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
-              { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
-              { key: 'window', label: t.shared.autoCompactWindow, hint: t.shared.autoCompactWindowColumnHint },
-            ]}
-            providers={offered}
-            cell={(column, provider) => {
-              const key = `${column}.${provider}`
-              if (column === 'window') return windowCell(provider)
-              if (column === 'accounts') {
-                const sharedAccount = shared.accounts[provider]
-                const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)
-                const options = [
-                  ...(sharedAccount === undefined ? [{ value: '', label: '—' }] : []),
-                  ...(state === null ? [] : accountOptions(state.account, provider, text(key) || (sharedAccount ?? ''))),
-                ]
-                return (
-                  <div className={marks.box(key)}>
-                    <ErrorStrip error={errorOf(key)} wide>
-                      <Select
-                        id={fieldId(key)}
-                        className="settings__text"
-                        label={t.settings.accountOf(providerName(provider))}
-                        value={text(key) || (sharedAccount ?? '')}
-                        options={options}
-                        invalid={errorOf(key) !== null}
-                        onChange={(value) => editInherited(key, value, sharedAccount ?? '')}
-                      />
-                    </ErrorStrip>
-                    <Inherit {...inheritOf(key, sharedLabel)} />
-                  </div>
-                )
-              }
-              const offers = offersOf(models, rowAccount(provider))
-              const sharedModel = shared.models[provider] ?? t.settings.cliDefault
-              return (
-                <div className={marks.box(key)}>
-                  <ErrorStrip error={errorOf(key)} wide>
-                    <SuggestField
-                      id={fieldId(key)}
-                      className="settings__text settings__text--mono"
-                      label={t.settings.modelOf(providerName(provider))}
-                      mono
-                      value={text(key)}
-                      options={offers}
-                      placeholder={sharedModel}
-                      invalid={errorOf(key) !== null}
-                      onChange={(value) => edit(key, value)}
-                    />
-                  </ErrorStrip>
-                  <Inherit {...inheritOf(key, sharedModel)} />
-                </div>
-              )
-            }}
-            cellMark={(column, provider) => {
-              const key = `${column}.${provider}`
-              if (column === 'window') return windowMark(provider)
-              if (column === 'models') {
-                const sharedModel = shared.models[provider] ?? t.settings.cliDefault
-                return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))
-              }
-              const sharedAccount = shared.accounts[provider]
-              const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)
-              const options = state === null ? [] : accountOptions(state.account, provider, text(key) || (sharedAccount ?? ''))
-              return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedLabel) : labelOf(options)(value)))
-            }}
-          />
-          {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
-        </Section>
-        <Section title={t.settings.sections.prompt}>
-          {pick('brief', t.settings.brief, t.settings.briefHint, [
-            { value: '', label: t.settings.briefAuto },
-            { value: 'true', label: t.settings.on },
-            { value: 'false', label: t.settings.off },
-          ])}
-          {state !== null && (
-            <div className="settings__line-extra">
-              <TrackerPackageButton project={project} packages={state.packages} />
-            </div>
-          )}
-          {lines('prompt', t.settings.prompt, t.settings.promptHint, t.settings.promptPlaceholder, 5, false)}
-          {lines('beforeStart', t.settings.beforeStart, t.settings.beforeStartHint, t.settings.beforeStartPlaceholder, 4)}
-          {pick(
-            'promptLanguage',
-            t.shared.promptLanguage,
-            t.settings.promptLanguageHint,
-            LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
-            { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
-          )}
-        </Section>
-        <Section title={t.settings.standards.title} hint={t.settings.standards.hint}>
-          <ProjectStandards
-            className={marks.box('standards')}
-            project={project}
-            branch={text('branch').trim() || form.branch}
-            trim={state?.trimTools ?? false}
-            value={text('standards')}
-            onChange={(value) => edit('standards', value)}
-            mark={marks.note('standards', standardsShown)}
-          >
-            {notes('standards')}
-          </ProjectStandards>
-        </Section>
-        <Section title={t.settings.gets.title} hint={t.settings.gets.hint(providerName(text('provider') || shared.provider))}>
-          <SessionGets
-            project={project}
-            agent={text('provider') || shared.provider}
-            prompts={{ shared: (shared.prompt ?? '').trim() !== '', project: text('prompt').trim() !== '' }}
-            packages={state?.packages ?? null}
-            trim={state?.trimTools ?? false}
-            standards={standardRows(text('standards')).map((row) => row.doc).filter((doc) => doc !== '')}
-          />
-        </Section>
-        <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => editInherited('protection', value, protectionText(shared.protection ?? DEFAULT_PROTECTION))} error={errorOf('protection')} mark={marks.note('protection')} />
-        <Section title={t.settings.sections.context}>
-          {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
-          <Row
-            className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
-            label={t.shared.checkpointTokens}
-            hint={t.shared.checkpointTokensHint}
-            htmlFor={fieldId('checkpointTokens')}
-            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, tokensShown(sharedCheckpoint) || t.shared.checkpointTokensPlaceholder, handoffsOff)}
-            mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : tokensShown(value as string)))}
-            control={
-              <TokensInput
-                id={fieldId('checkpointTokens')}
-                value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
-                invalid={on('ownCheckpoint') && checkpointOf(text('checkpointTokens')) === undefined}
-                placeholder={t.shared.checkpointTokensPlaceholder}
-                disabled={handoffsOff}
-                onChange={(value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value)}
-              />
-            }
-            error={errorOf('stats.checkpointTokens')}
-          />
-          <div className={marks.box('ownShares')}>
-            <FieldHead
-              label={t.shared.checkpointShares}
-              hint={t.shared.checkpointSharesHint}
-              inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
-              mark={sharesTurned ? flagNote('ownShares', SHARE_KEYS) : null}
-            />
-            <div className="settings__row">
-              {SHARE_KEYS.map((key) => (
-                <div key={key} className={marks.box(key)}>
-                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={sharesTurned ? null : marks.note(key)} />
-                  {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
-                    disabled: handoffsOff,
-                  })}
-                </div>
-              ))}
-            </div>
-            <FieldNote error={errorOf('checkpointShares')} />
-          </div>
-        </Section>
-        <Section title={t.shared.claude}>
-          {pick(
-            'cacheTtl',
-            t.shared.cacheTtl,
-            t.shared.cacheTtlHint,
-            [
-              { value: CLI_TTL, label: t.shared.cacheTtlAuto },
-              { value: '5m', label: t.shared.cacheTtl5m },
-              { value: '1h', label: t.shared.cacheTtl1h },
-            ],
-            { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
-          )}
-        </Section>
-      </>
-    ),
-    ci: () => (
-      <>
-        <Section title={t.settings.sections.guard}>
-          {inheritedSwitch('guard', t.settings.guard, t.settings.guardHint, shared.ci.guard)}
-          {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
-          <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
-            {lines('check', t.settings.check, t.settings.checkHint, t.settings.checkPlaceholder, 3, true, unguarded)}
-            {lines('afterGreen', t.settings.afterGreen, t.settings.afterGreenHint, t.settings.afterGreenPlaceholder, 3, true, unguarded)}
-            <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
-              <legend>
-                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} mark={flagNote('ownKinds', ['kinds'], kindsText)} />
-              </legend>
-              <div className="settings__checks">
-                {CI_KINDS.map((kind) => (
-                  <label key={kind} className="settings__check">
-                    <input
-                      type="checkbox"
-                      checked={kinds.includes(kind)}
-                      disabled={unguarded}
-                      onChange={(event) =>
-                        ownEdit('ownKinds', { kinds: shared.ci.kinds })(
-                          'kinds',
-                          CI_KINDS.filter((each) => (each === kind ? event.target.checked : kinds.includes(each))),
-                        )
-                      }
-                    />
-                    {t.settings.ciKinds[kind]}
-                  </label>
-                ))}
-              </div>
-              <FieldNote error={errorOf('ci')} />
-            </fieldset>
-            <Row
-              className={marks.box(['ownWait', 'wait'])}
-              label={t.settings.ciWait}
-              hint={t.settings.ciWaitHint}
-              htmlFor={fieldId('wait')}
-              inherit={ownInherit('ownWait', { wait: sharedWait }, sharedWait || t.settings.ciWaitPlaceholder, unguarded)}
-              mark={flagNote('ownWait', ['wait'], (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
-              control={number(
-                'wait',
-                on('ownWait') ? text('wait') : sharedWait,
-                on('ownWait') && minutesOf(text('wait')) === undefined,
-                (value) => ownEdit('ownWait', { wait: sharedWait })('wait', value),
-                { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded },
-              )}
-            >
-            </Row>
-            {inheritedSwitch('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
-            {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
-            {inheritedSwitch('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, shared.ci.rerunFailed, unguarded)}
-          </div>
-        </Section>
-        <Section title={t.settings.sections.pulls}>
-          <SwitchField
-            className={marks.box('pullRequests')}
-            label={t.settings.pullRequests}
-            hint={t.settings.pullRequestsHint}
-            checked={on('pullRequests')}
-            disabled={pullReadiness !== null && !on('pullRequests') && saved.pullRequests !== true}
-            onChange={(checked) => edit('pullRequests', checked)}
-            mark={marks.note('pullRequests')}
-          >
-            {notes('pullRequests')}
-          </SwitchField>
-          <div className="settings__line-extra">
-            <PullHint readiness={pullReadiness} on={on('pullRequests')} />
-            <AddPullProfile readiness={pullReadiness} />
-          </div>
-          {CI_KINDS.map(remoteChoice)}
-        </Section>
-      </>
-    ),
+    sessions: () => <ProjectSessionsTab fields={fields} project={project} form={form} state={state} shared={shared} offered={offered} rowAccount={rowAccount} models={models} />,
+    ci: () => <ProjectCiTab fields={fields} project={project} state={state} shared={shared} />,
     notices: () => <NoticeSettings project={project} />,
   }
 
