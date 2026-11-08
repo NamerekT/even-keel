@@ -200,9 +200,10 @@ export type FixOutcome = 'landed' | 'dropped' | 'unneeded' | 'carried'
 
 /**
  * Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. `credit` —
- * the API key ran out of money; `message` — of a `restart`: the user sent a chat message as a new session (BTN-757).
+ * the API key ran out of money; `message` — of a `restart`: the user sent a chat message as a new session (BTN-757);
+ * `transient` — the same session resumed after a temporary model error.
  */
-export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | 'message' | ReturnReason
+export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | 'message' | 'transient' | ReturnReason
 
 export interface LaunchEntry {
   at: string
@@ -214,7 +215,7 @@ export interface LaunchEntry {
    * opened on the session's mark, no launch (BTN-863; such an entry before it is a `review` without `previous`).
    */
   reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer' | 'review' | 'opened'
-  /** What made the new session of a `relay` (or of a `review` handover): kept in `extra`, `reason` stays for Tally. */
+  /** What made the new session of a `relay` (or a `resume` that goes on, or a `review` handover): kept in `extra`, `reason` stays for Tally. */
   cause?: RelayCause
   previous?: string
   blockers?: string[]

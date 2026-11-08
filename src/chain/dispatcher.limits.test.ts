@@ -84,7 +84,7 @@ describe('Dispatcher on a limit', () => {
     const credit = { back: null as string | null }
     const out = (lastReplyAt: string) => ({
       ...limitedSession('session-1', '2026-09-26T12:00:00.000Z', lastReplyAt),
-      limit: { at: '2026-09-26T12:00:00.000Z', text: 'Credit balance is too low' },
+      limit: { at: '2026-09-26T12:00:00.000Z', text: 'Credit balance is too low', credit: true },
       warmMs: warmCacheMs('5m'),
     })
     const warm = await running({ limitResetAfter: () => credit.back })
@@ -96,6 +96,7 @@ describe('Dispatcher on a limit', () => {
     credit.back = '2026-09-26T12:01:00.000Z'
     await check(warm.dispatcher)
     expect(warm.relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
+    expect(warm.journal.at(-1)).toMatchObject({ reason: 'resume', cause: 'credit', previous: 'session-1' })
 
     credit.back = null
     const cold = await running({ limitResetAfter: () => credit.back })
@@ -162,7 +163,7 @@ describe('Dispatcher on a limit', () => {
 
     expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
     expect(dispatcher.state.active[0]?.current?.sessionId).toBe('session-1')
-    expect(journal.at(-1)).toMatchObject({ sessionId: 'session-1', reason: 'resume', previous: 'session-1' })
+    expect(journal.at(-1)).toMatchObject({ sessionId: 'session-1', reason: 'resume', cause: 'limit', previous: 'session-1' })
 
     await check(dispatcher)
     expect(relays).toHaveLength(1)

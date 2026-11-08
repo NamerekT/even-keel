@@ -795,8 +795,8 @@ const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string>
   noTrackerMcp: (server) => `no tracker MCP ${server}`,
 }
 
-/** What moved a session that goes on (`launchDraft`): the reason of its launch log entry. */
-export type ContinuedWhy = 'answer' | 'resume' | 'review'
+/** What moved a session that goes on (`launchDraft`): the reason of its launch log entry, and for a resume its cause. */
+export type ContinuedWhy = 'answer' | 'resume' | 'review' | 'limit' | 'credit' | 'mainFixed' | 'transient'
 /** What made a new session in place of the previous one: the entry's cause, or a restart or a checkpoint without one. */
 export type HandoffWhy = RelayCause | 'restart' | 'checkpoint'
 
@@ -804,6 +804,10 @@ const CONTINUED: Record<ContinuedWhy, string> = {
   answer: 'the session goes on after an answer',
   resume: 'the session was resumed',
   review: 'the session got the pull request feedback',
+  limit: 'the session was resumed after the usage limit',
+  credit: 'the session was resumed after the key ran out of credit',
+  mainFixed: 'the session was resumed after main was fixed',
+  transient: 'the session was resumed after a temporary model error',
 }
 
 const HANDOFFS: Record<HandoffWhy, string> = {
@@ -814,6 +818,7 @@ const HANDOFFS: Record<HandoffWhy, string> = {
   credit: 'after the key ran out of credit',
   mainFixed: 'after main was fixed',
   review: 'after the pull request feedback',
+  transient: 'after a temporary model error',
   returned: 'after the task came back',
   unblocked: 'after the blockers closed',
   unskipped: 'after Skip was undone',

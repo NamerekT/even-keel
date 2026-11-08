@@ -701,6 +701,10 @@ const CONTINUED: Record<ContinuedWhy, string> = {
   answer: 'сессия продолжена после ответа',
   resume: 'сессия возобновлена',
   review: 'сессия получила отзыв на pull request',
+  limit: 'сессия продолжена после лимита',
+  credit: 'сессия продолжена после того, как на ключе кончились деньги',
+  mainFixed: 'сессия продолжена после починки main',
+  transient: 'сессия продолжена после временной ошибки модели',
 }
 
 const HANDOFFS: Record<HandoffWhy, string> = {
@@ -711,6 +715,7 @@ const HANDOFFS: Record<HandoffWhy, string> = {
   credit: 'на ключе кончились деньги',
   mainFixed: 'после починки main',
   review: 'после отзыва на pull request',
+  transient: 'после временной ошибки модели',
   returned: 'после возврата задачи',
   unblocked: 'после закрытия блокеров',
   unskipped: 'после отмены пропуска',
