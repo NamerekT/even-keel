@@ -106,7 +106,9 @@ export class KeySpend {
     for (const [account, busy] of busyOf) {
       if (busy.size === 0 && !this.meters.has(account)) continue
       const meter = this.meter(account)
-      if (busy.size > 1) this.markShared(account, busy)
+      // Busy before any read of the key: the turn began before the service started or with its read failed, and
+      // the spend up to the first read is lost, so the session keeps the estimate (BTN-871).
+      if (busy.size > 1 || (busy.size > 0 && meter.usage === null)) this.markShared(account, busy)
       for (const sessionId of busy) meter.ran.add(sessionId)
       const ended = [...meter.busy].some((sessionId) => !busy.has(sessionId))
       meter.busy = busy
