@@ -327,6 +327,11 @@ export interface TrackerAdapter {
    */
   keepsBrief?: true
   /**
+   * Optional. Its source gives `editor`, so Even Keel's tasks server serves its projects besides `mcpServer`: a session
+   * started by hand finds them by key (BTN-779). The tracker whose `mcpServer` is the tasks server needs no flag.
+   */
+  editsTasks?: true
+  /**
    * Optional. By placeholder of the tracker plugin's `.mcp.json`, the adapter's variable that holds its value
    * (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`): the MCP gateway fills it from the same pool of keys.
    */

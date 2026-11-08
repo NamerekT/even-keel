@@ -101,6 +101,17 @@ Even Keel's own tasks server for the built-in tracker (`docs/trackers.md`, "The 
 
 If one is wrong, a session cannot file or edit tasks of the built-in tracker, or does it at Huly's cost. **Workaround:** file and edit the tasks on the project's page. To check (BTN-795): a chain session on a bench project with the `tasks@even-keel` package on — the tools seen at once, a split picked up by the chain, a patch refused for an `old` found twice; a hand session with the plugin; Codex and OpenCode listing the tools; Tally's calls and tokens per task filed, Huly before against the built-in tracker after.
 
+## The tasks server on Huly (BTN-779)
+
+The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`; no live Huly has taken a write from them. Assumed:
+
+- A patch of a real description with headings, lists, code and links comes back as it was; only a table turns into HTML, and a second trip adds one blank line, then holds.
+- A batch with `#N` links, a parent inside the batch, labels and a milestone lands in Huly as one filed by hand, the links on both sides where Huly shows them; a task without a status lands in Backlog.
+- A hand session with the `tasks` plugin finds a Huly project by its task key, also when the project's `huly` identifier differs from Even Keel's key.
+- It costs a session fewer calls and tokens than the `huly` plugin's own server.
+
+If one is wrong, a patch spoils a description's formatting or a link is missing in Huly. **Workaround:** keep the `huly` plugin's own server (the plugin still uses it) and fix the description in Huly's editor. To check (BTN-873): on the Huly bench with the `tasks@even-keel` package on, patch copies of real BTN descriptions, file a batch with links and a parent, try a parent change (refused), comment; a hand session by key; Tally's cost against `huly-mcp`.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:

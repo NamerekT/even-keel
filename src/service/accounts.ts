@@ -28,7 +28,7 @@ import { chainWindowOf, type WindowKey } from '../codex/window.js'
 import { OPENCODE } from '../opencode/name.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
-import { localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
+import { idPrefixOf, localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
@@ -56,7 +56,7 @@ import { TALLY_SCHEMA_VERSION } from '../stats/tally-schema.js'
 import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
 import { EditRefused } from '../tracker/editor.js'
 import { runLabelText } from '../tracker/model.js'
-import { TasksMcp, TASKS_SERVER } from '../taskmcp/server.js'
+import { servesTasks, TasksMcp } from '../taskmcp/server.js'
 import { stateUrlOf, Updater } from '../updates/updater.js'
 import { runsAsService } from '../updates/control.js'
 import { installed, UpdateWatcher } from '../updates/watcher.js'
@@ -202,8 +202,9 @@ export function wirePackages(ctx: AccountsContext): Packages {
           return link.run(call)
         },
         projectOfKey: (key) => {
-          const { keys, trackers } = ctx.configStore.current
-          return Object.keys(keys).find((project) => keys[project]?.toUpperCase() === key && ADAPTERS[trackers[project]!]?.mcpServer === TASKS_SERVER) ?? null
+          const config = ctx.configStore.current
+          // By the prefix of the task keys: a Huly project may read another identifier than its own key.
+          return Object.keys(config.keys).find((project) => idPrefixOf(config, project).toUpperCase() === key && servesTasks(ADAPTERS[config.trackers[project]!])) ?? null
         },
         modelOf: (_project, task) => {
           const ofTask = ctx.sessions.filter((each) => each.task === task)

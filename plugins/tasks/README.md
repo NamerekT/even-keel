@@ -1,6 +1,8 @@
 # tasks
 
-Even Keel's own tasks server for the sessions of projects on its built-in tracker, with the `tasks:task` and `tasks:split` skills. The server is not a separate process: Even Keel's MCP gateway answers it in the service, over the tracker layer.
+Even Keel's own tasks server for the sessions of projects on its built-in tracker and on Huly, with the `tasks:task` and `tasks:split` skills. The server is not a separate process: Even Keel's MCP gateway answers it in the service, over the tracker layer, so it works only while Even Keel runs. Other trackers are not served yet.
+
+On Huly the tools have a few limits: a description patch reads and writes the whole description with no lock in between, so an edit made in Huly at that moment is lost; a parent is set only on a new task; a table in a description comes back as HTML; a comment does not carry the session's model. The `huly` plugin keeps its own server for now.
 
 | Tool | What it does |
 | --- | --- |

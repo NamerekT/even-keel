@@ -1,6 +1,6 @@
 ---
 name: split
-description: Size of a task of Even Keel's built-in tracker and splitting it into subtasks through the tasks MCP server — when a split is worth it, how to propose it, how to create the children in one call. Load it when a task looks big, holds an unchosen fork or bundles a side bug, or when the user asks to split a task. Not for small tasks that are simply done.
+description: Size of a task and splitting it into subtasks through Even Keel's tasks MCP server (the built-in tracker and Huly) — when a split is worth it, how to propose it, how to create the children in one call. Load it when a task looks big, holds an unchosen fork or bundles a side bug, or when the user asks to split a task. Not for small tasks that are simply done.
 ---
 
 # Splitting a task

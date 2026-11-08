@@ -1,8 +1,14 @@
+import type { TrackerAdapter } from '../tracker/source.js'
 import { refusalText, TasksTools, type TasksDeps, type TasksScope } from './calls.js'
 import { toolSpecs } from './tools.js'
 
 /** The server's name in a session: its tools are `mcp__plugin_tasks_tasks__*` in the `tasks` plugin. */
 export const TASKS_SERVER = 'tasks'
+
+/** The server serves the tracker's projects: its own server is this one, or its source edits tasks (BTN-779). */
+export function servesTasks(adapter: TrackerAdapter | undefined): boolean {
+  return adapter !== undefined && (adapter.mcpServer === TASKS_SERVER || adapter.editsTasks === true)
+}
 /** The gateway's path of the server; `/tasks/<project id>` names the project. */
 export const TASKS_PATH = '/tasks'
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])

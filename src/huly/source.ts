@@ -2,6 +2,7 @@ import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { hulyClient, type HulyPackage } from './client.js'
 import { authOf, type HulyCredentials } from './credentials.js'
+import { hulyEditor, parentsUnder, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 import { tracker } from './ids.js'
 import { quietModelNoise } from './quiet.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
@@ -24,7 +25,6 @@ import {
   toTasks,
   vocabularyOf,
   type HulyAttachmentDoc,
-  type HulyCardIssue,
   type HulyIssueDoc,
   type HulyLabelDoc,
   type HulyMilestoneDoc,
@@ -32,7 +32,7 @@ import {
 } from './model.js'
 
 type Query = Record<string, unknown>
-type FullIssue = HulyCardIssue & { space: string; description?: string | null }
+type FullIssue = HulyFullIssue
 
 interface ChatMessageDoc {
   _id: string
@@ -221,6 +221,55 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     return space
   }
 
+  async function comment(identifier: string, body: string): Promise<string> {
+    const issue = await findIssue(identifier)
+    const message = jsonToMarkup(markdownToMarkup(body))
+    return client.addCollection(CHAT_MESSAGE, issue.space, issue._id, tracker.class.Issue, 'comments', { message, attachments: 0 })
+  }
+
+  async function addIssue(space: { _id: string; identifier: string }, issue: HulyNewIssue): Promise<{ id: string; identifier: string }> {
+    const last = await client.findOne<{ rank?: string }>(tracker.class.Issue, { space: space._id }, { sort: { rank: -1 } })
+    // The project's issue counter is taken the way Huly's own client takes it.
+    const taken = (await client.updateDoc(tracker.class.Project, SPACE_OF_SPACES, space._id, { $inc: { sequence: 1 } }, true)) as { object?: { sequence?: number } }
+    const number = taken.object?.sequence
+    if (number === undefined) throw new Error(`huly: project ${space.identifier} gave no issue number`)
+    const id = generateId()
+    const identifier = `${space.identifier}-${number}`
+    const description = await client.uploadMarkup(tracker.class.Issue, id, 'description', issue.description, 'markdown')
+    const { parent } = issue
+    // A sub-issue is added to its parent's `subIssues`, which counts it, and carries the chain of its parents.
+    await client.addCollection(
+      tracker.class.Issue,
+      space._id,
+      parent?._id ?? tracker.ids.NoParent,
+      tracker.class.Issue,
+      'subIssues',
+      {
+        title: issue.title,
+        description,
+        status: issue.status,
+        number,
+        kind: tracker.taskTypes.Issue,
+        identifier,
+        priority: hulyPriority(issue.priority),
+        assignee: null,
+        component: null,
+        milestone: issue.milestone,
+        estimation: 0,
+        remainingTime: 0,
+        reportedTime: 0,
+        reports: 0,
+        subIssues: 0,
+        parents: parent === null ? [] : parentsUnder(parent),
+        childInfo: [],
+        dueDate: null,
+        rank: makeRank(last?.rank, undefined),
+      },
+      id,
+    )
+    return { id, identifier }
+  }
+
   return {
     projectIds,
 
@@ -303,11 +352,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     unready: (identifier) => moveStatus(identifier, backlogStatus),
 
     relabel: async (identifier, change) => relabelHuly(client, await findIssue(identifier), change),
-    async comment(identifier, body) {
-      const issue = await findIssue(identifier)
-      const message = jsonToMarkup(markdownToMarkup(body))
-      return client.addCollection(CHAT_MESSAGE, issue.space, issue._id, tracker.class.Issue, 'comments', { message, attachments: 0 })
-    },
+    comment,
     async commentsAfter(identifier, after) {
       const issue = await findIssue(identifier)
       const question = await client.findOne<ChatMessageDoc>(CHAT_MESSAGE, { _id: after })
@@ -324,49 +369,19 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     },
     async create(task) {
       const space = await spaceOf(task.project)
-      const [statuses, allowed, last, source] = await Promise.all([
+      const [statuses, allowed, source] = await Promise.all([
         findStatuses(),
         projectStatuses(space._id),
-        client.findOne<{ rank?: string }>(tracker.class.Issue, { space: space._id }, { sort: { rank: -1 } }),
         task.milestoneOf === null ? undefined : client.findOne<{ milestone?: string | null }>(tracker.class.Issue, { identifier: task.milestoneOf }),
       ])
-      const status = todoStatus(statuses, allowed)
-      // The project's issue counter is taken the way Huly's own client takes it.
-      const taken = (await client.updateDoc(tracker.class.Project, SPACE_OF_SPACES, space._id, { $inc: { sequence: 1 } }, true)) as { object?: { sequence?: number } }
-      const number = taken.object?.sequence
-      if (number === undefined) throw new Error(`huly: project ${space.identifier} gave no issue number`)
-      const id = generateId()
-      const identifier = `${space.identifier}-${number}`
-      const description = await client.uploadMarkup(tracker.class.Issue, id, 'description', task.description, 'markdown')
-      await client.addCollection(
-        tracker.class.Issue,
-        space._id,
-        tracker.ids.NoParent,
-        tracker.class.Issue,
-        'subIssues',
-        {
-          title: task.title,
-          description,
-          status: status._id,
-          number,
-          kind: tracker.taskTypes.Issue,
-          identifier,
-          priority: hulyPriority(task.priority),
-          assignee: null,
-          component: null,
-          milestone: source?.milestone ?? null,
-          estimation: 0,
-          remainingTime: 0,
-          reportedTime: 0,
-          reports: 0,
-          subIssues: 0,
-          parents: [],
-          childInfo: [],
-          dueDate: null,
-          rank: makeRank(last?.rank, undefined),
-        },
-        id,
-      )
+      const { identifier } = await addIssue(space, {
+        title: task.title,
+        description: task.description,
+        status: todoStatus(statuses, allowed)._id,
+        priority: task.priority,
+        milestone: source?.milestone ?? null,
+        parent: null,
+      })
       return identifier
     },
     async setMilestone(identifier, milestoneOf) {
@@ -425,6 +440,21 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       ])
       return { ...vocabularyOf(statuses, allowed, tags), milestones: milestones.map((milestone) => milestone.label) }
     },
+    editor: hulyEditor({
+      client,
+      findIssue,
+      spaceOf,
+      statusesOf: async (space) => {
+        const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(space)])
+        return { statuses, allowed }
+      },
+      issuesOf: async (space) => {
+        const [issues, statuses] = await Promise.all([findIssues({ space }), findStatuses()])
+        return resolve(issues, statuses)
+      },
+      addIssue,
+      comment: (identifier, body) => comment(identifier, body),
+    }),
     close: () => client.close(),
   }
 }
