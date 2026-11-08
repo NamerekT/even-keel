@@ -1,6 +1,6 @@
 {
   "name": "even-keel",
-  "version": "0.2.3",
+  "version": "0.3.0-rc.1",
   "description": "Runs Claude Code sessions over a tracker's tasks one after another, in the order of their blocks relations",
   "license": "MIT",
   "repository": {
