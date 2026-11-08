@@ -1,4 +1,4 @@
-import { parseCombo, type HotkeyAction, type Modifier } from '../../../src/hotkeys.js'
+import { parseCombo, TYPING_ACTIONS, type HotkeyAction, type Modifier } from '../../../src/hotkeys.js'
 
 /** The fields of a `KeyboardEvent` a combination is read from. */
 export interface KeyPress {
@@ -72,7 +72,7 @@ export function formatCombo(text: string, mac: boolean): string {
 }
 
 /** Why a recorded combination is not taken. */
-export type Refusal = { kind: 'taken'; action: HotkeyAction } | { kind: 'bare' } | { kind: 'reserved' }
+export type Refusal = { kind: 'taken'; action: HotkeyAction } | { kind: 'bare' } | { kind: 'reserved' } | { kind: 'field' }
 
 /** Browsers keep these for tabs and windows and never hand them to the page. */
 const RESERVED_KEYS = ['W', 'T', 'N', 'L', 'Tab', 'Q']
@@ -84,6 +84,7 @@ export function refusalOf(text: string, action: HotkeyAction, current: Readonly<
   if ((has('Mod') && RESERVED_KEYS.includes(combo.key)) || (has('Ctrl') && combo.key === 'Tab')) return { kind: 'reserved' }
   const held = has('Mod') || has('Ctrl') || has('Meta') || has('Alt')
   if (!held && !/^F\d+$/.test(combo.key)) return { kind: 'bare' }
+  if (combo.key === 'Enter' && TYPING_ACTIONS.includes(action)) return { kind: 'field' }
   const other = Object.entries(current).find(([each, held]) => each !== action && held === text)
   return other === undefined ? null : { kind: 'taken', action: other[0] as HotkeyAction }
 }

@@ -134,5 +134,6 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
 function refusalText({ combo, refusal }: Refused, mac: boolean): string {
   if (refusal.kind === 'taken') return t.hotkeys.refusal.taken(t.hotkeys.actions[refusal.action])
   if (refusal.kind === 'reserved') return t.hotkeys.refusal.reserved(formatCombo(combo, mac))
+  if (refusal.kind === 'field') return t.hotkeys.refusal.field
   return t.hotkeys.refusal.bare
 }

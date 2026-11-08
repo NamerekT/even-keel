@@ -211,6 +211,14 @@ export const sessionEn = {
       unknownWindow: 'window size unknown',
       checkpoint: (tokens: string) => `Handoff from ${tokens}`,
     },
+    task: {
+      show: 'Show the task',
+      hide: 'Hide the task',
+      card: 'Open the task card',
+      panel: (key: string) => `Task ${key}`,
+      openCard: 'Open the card',
+      openCardTip: 'Closes the chat; the task is edited and commented on in its card. The reply draft is kept.',
+    },
     ...composerEn,
   },
 }

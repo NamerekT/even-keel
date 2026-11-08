@@ -25,6 +25,7 @@ describe('parseCombo', () => {
 describe('hotkeyBindingsOf', () => {
   it('takes known actions with valid combinations', () => {
     expect(hotkeyBindingsOf({ chainRun: 'Mod+Shift+Enter' })).toEqual({ chainRun: 'Mod+Shift+Enter' })
+    expect(hotkeyBindingsOf({ chatTask: 'Alt+B' })).toEqual({ chatTask: 'Alt+B' })
     expect(hotkeyBindingsOf({})).toEqual({})
   })
 
@@ -38,6 +39,6 @@ describe('hotkeyBindingsOf', () => {
 })
 
 it('a browser without its own layout gets the defaults', () => {
-  expect(resolvedHotkeys(undefined)).toEqual({ chainRun: 'Mod+Enter' })
-  expect(resolvedHotkeys({ chainRun: 'F9' })).toEqual({ chainRun: 'F9' })
+  expect(resolvedHotkeys(undefined)).toEqual({ chainRun: 'Mod+Enter', chatTask: 'Mod+B' })
+  expect(resolvedHotkeys({ chainRun: 'F9' })).toEqual({ chainRun: 'F9', chatTask: 'Mod+B' })
 })

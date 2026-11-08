@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import Markdown, { type Components } from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
-import rehypeSanitize from 'rehype-sanitize'
-import remarkGfm from 'remark-gfm'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { TaskWork } from '../../../src/state.js'
-import { isTaskId } from '../../../src/stats/model.js'
 import type { CardLabel, TaskCard as Card } from '../../../src/tracker/card.js'
-import type { MilestonePick as MilestonePickView, TaskStatus } from '../../../src/tracker/model.js'
+import type { MilestonePick as MilestonePickView } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -16,7 +11,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
 import { useHeightGlide } from '../ui/useHeightGlide.js'
-import '../ui/markdown.css'
+import { StatusPill, Text, useMarkdown } from './CardText.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
@@ -481,25 +476,6 @@ function MilestonePick({ task, pick, onChanged }: { task: string; pick: Mileston
   )
 }
 
-function Text({ children, components }: { children: string; components: Components }) {
-  return (
-    <div className="markdown task-card__markdown">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={components}>
-        {children}
-      </Markdown>
-    </div>
-  )
-}
-
-function StatusPill({ status }: { status: TaskStatus }) {
-  return (
-    <span className={`task-card__status task-card__status--${status.category}`}>
-      <span className="task-card__dot" />
-      {status.name}
-    </span>
-  )
-}
-
 function Prop({ name, children, wide = false }: { name: string; children: ReactNode; wide?: boolean }) {
   return (
     <div className={`task-card__prop${wide ? ' task-card__prop--wide' : ''}`}>
@@ -507,31 +483,4 @@ function Prop({ name, children, wide = false }: { name: string; children: ReactN
       <dd>{children}</dd>
     </div>
   )
-}
-
-// A link to a task opens its card; a web link opens in a new tab; a link the tracker keeps to itself stays text.
-function useMarkdown(onOpen: (task: string) => void, attachments: Card['attachments']): Components {
-  const localFiles = new Set(attachments.map((file) => file.url).filter((url) => url.startsWith('/api/tasks/')))
-  return {
-    a: ({ href, children }) => {
-      if (typeof children === 'string' && isTaskId(children) && !/^https?:/i.test(href ?? '')) {
-        return (
-          <button type="button" className="task-card__inline-ref" onClick={() => onOpen(children)}>
-            {children}
-          </button>
-        )
-      }
-      if (href !== undefined && (/^(https?|mailto):/i.test(href) || localFiles.has(href))) {
-        return (
-          <a href={href} target="_blank" rel="noreferrer">
-            {children}
-          </a>
-        )
-      }
-      return <span>{children}</span>
-    },
-    img: ({ src, alt }) => typeof src === 'string' && localFiles.has(src)
-      ? <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
-      : (alt ? <span className="markdown__image">[{alt}]</span> : null),
-  }
 }

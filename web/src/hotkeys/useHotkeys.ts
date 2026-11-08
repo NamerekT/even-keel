@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { BROWSER_ID, resolvedHotkeys, type HotkeyAction, type HotkeyBindings } from '../../../src/hotkeys.js'
 import { useLive } from '../live/context.js'
 import { comboOf, isMac, keysBlocked } from './combo.js'
@@ -41,6 +41,19 @@ export function useHotkeyLayout(): HotkeyLayout {
   const browser = browserId()
   const own = state?.hotkeys?.[browser] ?? {}
   return { browser, own, current: resolvedHotkeys(own), mac: isMac(navigator as Navigator & { userAgentData?: { platform?: string } }) }
+}
+
+/**
+ * A dialog's own action (`chatTask`): the handler goes on the dialog's `onKeyDown` and runs `run` on the action's
+ * combination pressed anywhere inside it, typing in its fields included; only an IME composing holds it.
+ */
+export function useDialogHotkey(action: HotkeyAction, run: () => void): (event: ReactKeyboardEvent) => void {
+  const { current, mac } = useHotkeyLayout()
+  return (event) => {
+    if (event.repeat || event.nativeEvent.isComposing || comboOf(event, mac) !== current[action]) return
+    event.preventDefault()
+    run()
+  }
 }
 
 /** Runs `run` on the action's combination while the calling component is on the page, unless a field or a dialog holds the keys. */

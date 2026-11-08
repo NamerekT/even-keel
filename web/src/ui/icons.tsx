@@ -377,6 +377,16 @@ export function ColumnsIcon() {
   )
 }
 
+/** A side panel at the left, as the sidebar switch of desktop apps: the chat's task panel. */
+export function SidebarIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+      <path d="M6.25 2.5v11M3.75 5.25h1M3.75 7.25h1" />
+    </svg>
+  )
+}
+
 /** Home grouped by both: groups inside a group. */
 export function NestedIcon() {
   return (
