@@ -5,6 +5,7 @@ import { resolveLabels } from '../tracker/labels.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { ForgejoApi, ForgejoHttpError, ForgejoScopeError } from './api.js'
+import { forgejoEditor } from './editor.js'
 import { FORGEJO_STATUSES, forgejoPriority, forgejoStatus, labelNames, toCard, toTrackerTask, type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone } from './model.js'
 import { forgejoTrust } from './trust.js'
 
@@ -106,7 +107,7 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
     return passed
   }
 
-  return {
+  const source: TaskSource = {
     async chainTasks(project, open) {
       const repo = repoOf(project)
       const statuses = FORGEJO_STATUSES.map((status) => status.name)
@@ -248,4 +249,18 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
 
     close: async () => {},
   }
+  source.editor = forgejoEditor({
+    rest: (path, method, body) => api.rest(path, method, body),
+    repos,
+    list: async (project) => {
+      const repo = repoOf(project)
+      return converted(repo, await issuesOf(repo, 'state=all'))
+    },
+    labelsOf,
+    milestonesOf: openMilestones,
+    blockersOf: (repo, number) => dependenciesOf(`${repoBase(repo)}/issues/${number}`, 'dependencies'),
+    relabel: (id, change) => source.relabel!(id, change),
+    comment: (id, body) => source.comment!(id, body),
+  })
+  return source
 }
