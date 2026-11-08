@@ -76,8 +76,8 @@ describe('gitInstallCommand', () => {
     expect(gitInstallCommand('win32', having())).toBeNull()
   })
 
-  it('installs with brew on macOS, otherwise with the command line tools', () => {
-    expect(gitInstallCommand('darwin', having('brew'))).toBe('brew install git')
+  it('always installs the command line tools on macOS, even with brew on PATH', () => {
+    expect(gitInstallCommand('darwin', having('brew'))).toBe('xcode-select --install')
     expect(gitInstallCommand('darwin', having())).toBe('xcode-select --install')
   })
 

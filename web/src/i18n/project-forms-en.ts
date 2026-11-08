@@ -578,6 +578,7 @@ export const setupEN: Messages['setup'] = {
       checking: 'Checking git…',
       installed: (version: string) => `Git ${version} is installed.`,
       absent: 'Git is not found on this machine. Even Keel does not install it: install git, then check again.',
+      macTools: 'This installs only Command Line Tools; Xcode from the App Store is not needed. If full Xcode is installed but its license has not been accepted, run sudo xcodebuild -license accept.',
       restartTray: 'Just installed git? Restart Even Keel from its tray menu: the step checks again by itself.',
       restartService: (name: string) => `Just installed git? Restart the ${name} service (Restart-Service ${name} as an administrator, or services.msc): the step checks again by itself.`,
       restartConsole: 'Just installed git? Stop Even Keel and start it from a new terminal: the one it runs in does not see the new git.',

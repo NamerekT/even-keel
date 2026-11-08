@@ -1,6 +1,29 @@
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
-import { gitArgs, runGit } from './run.js'
+import { gitArgs, gitMissing, runGit } from './run.js'
+
+describe('gitMissing', () => {
+  const stub = 'xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun'
+
+  it.each(['win32', 'darwin', 'linux'] as const)('recognises ENOENT on %s', (platform) => {
+    expect(gitMissing('ENOENT', '', platform)).toBe(true)
+  })
+
+  it('recognises the macOS git stub only on a failed exit on macOS', () => {
+    expect(gitMissing(1, stub, 'darwin')).toBe(true)
+    expect(gitMissing(0, stub, 'darwin')).toBe(false)
+    expect(gitMissing(undefined, stub, 'darwin')).toBe(false)
+    expect(gitMissing(null, stub, 'darwin')).toBe(false)
+    expect(gitMissing(1, stub, 'linux')).toBe(false)
+    expect(gitMissing(1, stub, 'win32')).toBe(false)
+  })
+
+  it('keeps license failures, ordinary git errors and empty output as command failures', () => {
+    expect(gitMissing(69, 'You have not agreed to the Xcode license agreements', 'darwin')).toBe(false)
+    expect(gitMissing(128, 'fatal: not a git repository', 'darwin')).toBe(false)
+    expect(gitMissing(1, '', 'darwin')).toBe(false)
+  })
+})
 
 describe('runGit', () => {
   const path = process.env.PATH

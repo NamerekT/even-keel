@@ -3,7 +3,7 @@ import type { Notice } from '../notice/notice.js'
 export interface GitResult {
   code: number
   out: string
-  /** Git did not start at all: it is not on the service's PATH (BTN-731). */
+  /** Git is not on the service's PATH, or is macOS's stub without Command Line Tools. */
   missing?: true
 }
 

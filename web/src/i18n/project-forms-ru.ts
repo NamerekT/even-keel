@@ -576,6 +576,7 @@ export const setupRU = {
       checking: 'Проверяю git…',
       installed: (version: string) => `Git ${version} установлен.`,
       absent: 'Git на этой машине не найден. Even Keel его не ставит: установите git и проверьте снова.',
+      macTools: 'Ставятся только Command Line Tools, Xcode из App Store не нужен. Если полный Xcode установлен, но лицензия не принята, выполните sudo xcodebuild -license accept.',
       restartTray: 'Только что поставили git? Перезапустите Even Keel из меню в трее — шаг проверится сам.',
       restartService: (name: string) => `Только что поставили git? Перезапустите службу ${name} (Restart-Service ${name} от администратора или services.msc) — шаг проверится сам.`,
       restartConsole: 'Только что поставили git? Остановите Even Keel и запустите его из нового терминала: тот, в котором он работает, новый git не видит.',

@@ -43,6 +43,7 @@ export function GitStep({ state }: { state: EvenKeelState }) {
                   {text.again}
                 </button>
               </div>
+              {state.platform === 'darwin' && <p className="setup-account__note">{text.macTools}</p>}
               {command !== undefined && download(text.download)}
             </div>
           </>

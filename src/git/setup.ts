@@ -10,7 +10,7 @@ import type { Git, GitResult } from './types.js'
 
 const FIRST_COMMIT = 'Initial commit'
 
-/** Throws `git.missing` when git did not start at all: not installed, or gone from the service's PATH. */
+/** Throws `git.missing` for a missing binary or macOS's stub without Command Line Tools. */
 export function requireStarted(result: GitResult): GitResult {
   if (result.missing === true) throw fail('git.missing', {})
   return result
@@ -19,7 +19,6 @@ export function requireStarted(result: GitResult): GitResult {
 /** The package managers looked for on each platform, in order, and the command each installs git with. */
 const INSTALLERS: Readonly<Record<string, readonly (readonly [bin: string, command: string])[]>> = {
   win32: [['winget', 'winget install --id Git.Git -e']],
-  darwin: [['brew', 'brew install git']],
   linux: [
     ['apt-get', 'sudo apt install git'],
     ['dnf', 'sudo dnf install git'],
@@ -34,9 +33,9 @@ const INSTALLERS: Readonly<Record<string, readonly (readonly [bin: string, comma
  * the page shows only the download link. macOS always has `xcode-select`.
  */
 export function gitInstallCommand(platform: string, has: (bin: string) => boolean): string | null {
+  if (platform === 'darwin') return 'xcode-select --install'
   const found = INSTALLERS[platform]?.find(([bin]) => has(bin))
-  if (found !== undefined) return found[1]
-  return platform === 'darwin' ? 'xcode-select --install' : null
+  return found?.[1] ?? null
 }
 
 /**
