@@ -482,6 +482,14 @@ export const STEPS: readonly string[] = [
   `
   alter table tracker_profiles add column disabled boolean not null default false;
   `,
+  // The management key of an OpenRouter account (BTN-868), read only for the balance and kept out of its sessions.
+  `
+  create table management_keys (
+    account  text primary key,
+    key      text not null,
+    saved_at text not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

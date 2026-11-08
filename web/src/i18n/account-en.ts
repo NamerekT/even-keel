@@ -42,7 +42,19 @@ export const accountEn = {
     keyLeft: 'Key limit left',
     keyLimitResets: { daily: 'resets daily', weekly: 'resets weekly', monthly: 'resets monthly', never: 'never resets' },
     keyLimitTitle: (left: string, limit: string, reset: string, ago: string) =>
-      `Left of the limit set on the key: ${left} of ${limit}, ${reset}; read from OpenRouter ${ago}. The account's balance only a management key may read.`,
+      `Left of the limit set on the key: ${left} of ${limit}, ${reset}; read from OpenRouter ${ago}.`,
+    balanceNeedsKey: "The account's balance only a management key may read: add one with Management key in the row's menu.",
+    balance: 'Balance',
+    balanceTitle: (ago: string) => `The OpenRouter account's balance, credits bought less credits used; read with its management key ${ago}.`,
+    balanceRefused: 'key refused',
+    balanceRefusedTitle: (ago: string) =>
+      `OpenRouter refused the management key ${ago}: it was revoked or is no management key. Put a new one with Management key in the row's menu.`,
+    managementKeyAction: 'Management key',
+    managementKeyLead:
+      "A management key reads the OpenRouter account's balance for this card and nothing else. Even Keel keeps it in its own state: it never goes to the account's folder or a session. Create one in OpenRouter's settings, under Management keys.",
+    managementKeyHeld: 'A management key is set. Paste another one to replace it, or remove it.',
+    managementKeyField: 'Management key',
+    managementKeySave: 'Check and save',
     sessionsLabel: 'Sessions',
     runsThrough: 'Runs through',
     checkConnection: 'Check connection',

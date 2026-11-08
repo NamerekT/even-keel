@@ -146,6 +146,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
             <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
           </Tipped>)}
           {spendsByKey(entry) && entry.keyLimit !== undefined && <KeyLeft entry={entry} now={now} />}
+          {spendsByKey(entry) && entry.balance !== undefined && <Balance entry={entry} now={now} />}
         </> : <>
           {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
           {entry.limits?.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} />)}
@@ -167,10 +168,23 @@ function KeyLeft({ entry, now }: { entry: AccountEntry; now: Date }) {
   const { remaining, limit, reset, at } = entry.keyLimit!
   const used = limit > 0 ? (1 - remaining / limit) * 100 : 100
   const heat = remaining <= 0 || used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
-  const tip = t.account.keyLimitTitle(formatUsd(remaining), formatUsd(limit), t.account.keyLimitResets[reset ?? 'never'], formatAgo(at, now))
+  const read = t.account.keyLimitTitle(formatUsd(remaining), formatUsd(limit), t.account.keyLimitResets[reset ?? 'never'], formatAgo(at, now))
+  const tip = entry.managementKey === false ? `${read} ${t.account.balanceNeedsKey}` : read
   return <Tipped className={`account-sum${heat}`} tip={tip} align="start" focusable>
     <span className="account-meter__name">{t.account.keyLeft}</span>
     <strong>{formatUsd(remaining)}</strong>
+  </Tipped>
+}
+
+/** The OpenRouter account's balance as its management key last read it (BTN-868), or that the key was refused. */
+function Balance({ entry, now }: { entry: AccountEntry; now: Date }) {
+  const balance = entry.balance!
+  const ago = formatAgo(balance.at, now)
+  const refused = 'rejected' in balance
+  const heat = refused || balance.usd <= 0 ? ' account-value--full' : ''
+  return <Tipped className={`account-sum${heat}`} tip={refused ? t.account.balanceRefusedTitle(ago) : t.account.balanceTitle(ago)} align="start" focusable>
+    <span className="account-meter__name">{t.account.balance}</span>
+    <strong>{refused ? t.account.balanceRefused : formatUsd(balance.usd)}</strong>
   </Tipped>
 }
 

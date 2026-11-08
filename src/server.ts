@@ -111,6 +111,8 @@ export interface AccountControl {
   readAzure(): void
   /** A new key in the folder of an API account, its name, roles and pools kept (BTN-418). */
   replaceApiKey(account: string, key: string): Promise<void>
+  /** An OpenRouter account's management key for its balance, checked first; null removes it (BTN-868). */
+  setManagementKey(account: string, key: string | null): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
@@ -382,6 +384,7 @@ const COMMANDS: Record<string, Command> = {
   'account/gcloud': ({ account }) => account.readGcloud(),
   'account/azure': ({ account }) => account.readAzure(),
   'account/key': ({ account }, body) => account.replaceApiKey(accountOf(body), textOf(body.key, 'key')),
+  'account/management-key': ({ account }, body) => account.setManagementKey(accountOf(body), body.key === null ? null : textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),

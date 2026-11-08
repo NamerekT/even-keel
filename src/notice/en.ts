@@ -362,6 +362,10 @@ export const en = {
   'account.codexKeyUnchecked': (p: { reason: string }) => `codex: could not check the key with OpenAI (${p.reason}); try again later`,
   'account.openRouterKeyRejected': () => "opencode: OpenRouter doesn't accept this key: it is wrong, revoked or disabled",
   'account.openRouterKeyUnchecked': (p: { reason: string }) => `opencode: could not check the key with OpenRouter (${p.reason}); try again later`,
+  'account.managementKeyRejected': () =>
+    "opencode: OpenRouter doesn't take this key for the balance: paste a management key from OpenRouter's settings (Management keys), not an API key",
+  'account.managementKeyUnchecked': (p: { reason: string }) => `opencode: could not read the balance with this key from OpenRouter (${p.reason}); try again later`,
+  'account.managementKeyNotOpenRouter': () => 'opencode: a management key reads the balance only of an account on an OpenRouter key',
   'account.copilotTokenInvalid': () =>
     'copilot: Copilot CLI takes a fine-grained personal access token (github_pat_…) with the Copilot Requests permission, or an OAuth token (gho_…); a classic ghp_ one it refuses',
   'account.copilotTokenRejected': () => "copilot: GitHub doesn't accept this token: it is wrong, expired or revoked",

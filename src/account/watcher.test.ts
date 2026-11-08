@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CloudConnection } from './cloud.js'
+import { OPENCODE } from '../opencode/name.js'
 import { AccountHomes } from './homes.js'
 import type { KeyVerdict } from './keycheck.js'
+import type { BalanceVerdict } from './management.js'
 import { AccountWatcher, type AccountWatcherOptions } from './watcher.js'
 
 const OLD = 'sk-ant-api03-FAKE0000000000000000000000000000-oldkey'
@@ -282,5 +284,132 @@ describe('AccountWatcher.addCloud (BTN-822)', () => {
     })
     const foundry: CloudConnection = { cloud: 'foundry', endpoint: { resource: 'wrong-name' }, auth: { way: 'entra' }, models: { sonnet: 'my-sonnet' } }
     await expect(accounts.addCloud('', foundry)).rejects.toThrow(expect.objectContaining({ notice: { code: 'cloud.foundryUnreachable', params: {} } }))
+  })
+})
+
+describe('AccountWatcher.setManagementKey (BTN-868)', () => {
+  let root: string
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  const ROUTER_KEY = 'sk-or-v1-session-fake-00000000000000'
+  const MANAGEMENT = 'sk-or-v1-management-fake-0000000000'
+  const refusal = (code: string) => expect.objectContaining({ notice: expect.objectContaining({ code }) })
+
+  /** An OpenCode account `router` on an OpenRouter key and a Claude API account `work`; `balance` answers each read. */
+  async function watcher(balance: (key: string) => BalanceVerdict, saved: Record<string, string> = {}) {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-watcher-'))
+    const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: join(root, 'no-global'), CODEX_HOME: join(root, 'no-codex') }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+    homes.addApiKey('router', ROUTER_KEY, OPENCODE)
+    homes.addApiKey('work', OLD)
+    const keys = new Map(Object.entries(saved))
+    const read: string[] = []
+    let now = new Date('2026-11-08T12:00:00.000Z')
+    let changes = 0
+    const options = {
+      homes,
+      agentOf: () => ({ authStatus: async () => API_STATUS }),
+      apps: { list: () => [] },
+      active: () => 'router',
+      nameOf: () => null,
+      transportOf: () => null,
+      loginBlock: () => null,
+      sessionsIn: () => [],
+      projectsOn: () => [],
+      pool: () => [],
+      missing: () => [],
+      online: async () => true,
+      sessionsKnown: () => true,
+      removing: () => false,
+      configPending: () => false,
+      limits: () => null,
+      usage: () => ({ state: 'ok' }),
+      checkKey: async () => ({ state: 'ok' }),
+      keyCheckMs: 60 * 60_000,
+      checkCredit: async () => ({ state: 'unknown', reason: 'none' }),
+      creditCheckMs: 60 * 60_000,
+      organizations: { of: () => undefined, note: () => {}, forget: () => {} },
+      managementKeys: {
+        of: (key: string) => keys.get(key),
+        save: (key: string, value: string) => void keys.set(key, value),
+        forget: (key: string) => void keys.delete(key),
+      },
+      readBalance: async (key: string) => {
+        read.push(key)
+        return balance(key)
+      },
+      now: () => now,
+      onChange: () => void changes++,
+      onError: (error: unknown) => {
+        throw error
+      },
+    } as unknown as AccountWatcherOptions
+    const accounts = new AccountWatcher(options)
+    await accounts.refresh()
+    return { accounts, keys, read, changes: () => changes, later: (ms: number) => (now = new Date(now.getTime() + ms)) }
+  }
+
+  const entry = (accounts: AccountWatcher, key: string) => accounts.view.accounts.find((each) => each.key === key)
+
+  it('marks only an account on an OpenRouter key as one that may have a management key', async () => {
+    const { accounts } = await watcher(() => ({ state: 'ok', usd: 1 }))
+    expect(entry(accounts, 'router')).toMatchObject({ managementKey: false })
+    expect(entry(accounts, 'router')?.balance).toBeUndefined()
+    expect(entry(accounts, 'work')?.managementKey).toBeUndefined()
+  })
+
+  it('keeps a key that reads the balance, shows the balance at once and never gives the page the key', async () => {
+    const { accounts, keys, read } = await watcher(() => ({ state: 'ok', usd: 74.75 }))
+    await accounts.setManagementKey('router', `  ${MANAGEMENT}  `)
+    expect(read).toEqual([MANAGEMENT])
+    expect(keys.get('router')).toBe(MANAGEMENT)
+    expect(entry(accounts, 'router')).toMatchObject({ managementKey: true, balance: { usd: 74.75, at: '2026-11-08T12:00:00.000Z' } })
+    expect(JSON.stringify(accounts.view)).not.toContain(MANAGEMENT)
+  })
+
+  it('writes nothing when OpenRouter refuses the key or cannot be asked', async () => {
+    const refused = await watcher(() => ({ state: 'rejected' }))
+    await expect(refused.accounts.setManagementKey('router', MANAGEMENT)).rejects.toThrow(refusal('account.managementKeyRejected'))
+    expect(refused.keys.size).toBe(0)
+    rmSync(root, { recursive: true, force: true })
+    const silent = await watcher(() => ({ state: 'unknown', reason: 'HTTP 500' }))
+    await expect(silent.accounts.setManagementKey('router', MANAGEMENT)).rejects.toThrow(refusal('account.managementKeyUnchecked'))
+    expect(silent.keys.size).toBe(0)
+    expect(entry(silent.accounts, 'router')?.balance).toBeUndefined()
+  })
+
+  it('refuses a management key for an account that is not on an OpenRouter key, or one that is gone', async () => {
+    const { accounts, read } = await watcher(() => ({ state: 'ok', usd: 1 }))
+    await expect(accounts.setManagementKey('work', MANAGEMENT)).rejects.toThrow(refusal('account.managementKeyNotOpenRouter'))
+    await expect(accounts.setManagementKey('gone', MANAGEMENT)).rejects.toThrow(refusal('account.unknown'))
+    expect(read).toEqual([])
+  })
+
+  it('removes the key and its balance on an empty value', async () => {
+    const { accounts, keys, read } = await watcher(() => ({ state: 'ok', usd: 3 }), { router: MANAGEMENT })
+    expect(entry(accounts, 'router')?.balance).toMatchObject({ usd: 3 })
+    await accounts.setManagementKey('router', null)
+    expect(keys.size).toBe(0)
+    expect(entry(accounts, 'router')).toMatchObject({ managementKey: false })
+    expect(entry(accounts, 'router')?.balance).toBeUndefined()
+    expect(read).toEqual([MANAGEMENT])
+  })
+
+  it('reads the balance with the hourly key check and between checks, keeps it on an answer that tells nothing, marks a refused key', async () => {
+    let answer: BalanceVerdict = { state: 'ok', usd: 9.5 }
+    const { accounts, read, changes, later } = await watcher(() => answer, { router: MANAGEMENT })
+    expect(read).toEqual([MANAGEMENT])
+    expect(entry(accounts, 'router')?.balance).toEqual({ usd: 9.5, at: '2026-11-08T12:00:00.000Z' })
+    answer = { state: 'unknown', reason: 'fetch failed' }
+    const before = changes()
+    later(60_000)
+    await accounts.readBalance('router')
+    expect(entry(accounts, 'router')?.balance).toEqual({ usd: 9.5, at: '2026-11-08T12:00:00.000Z' })
+    expect(changes()).toBe(before)
+    answer = { state: 'rejected' }
+    await accounts.readBalance('router')
+    expect(entry(accounts, 'router')?.balance).toEqual({ rejected: true, at: '2026-11-08T12:01:00.000Z' })
+    expect(changes()).toBe(before + 1)
+    await accounts.readBalance('work')
+    expect(read).toHaveLength(3)
   })
 })

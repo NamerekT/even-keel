@@ -35,7 +35,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; its attachments: 96 — BTN-807. A tracker that did not answer: 106 — has no task yet. A turned-off tracker profile: 110 — BTN-864. The CI panel by push: 111 — has no task yet.
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
-- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (an OpenRouter key with money) — BTN-861.
+- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (an OpenRouter key with money) — BTN-861; 114 (an OpenRouter management key) — has no task yet.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - Milestone order by hand: 113 — BTN-865 (next to 102 — BTN-849).
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers).
@@ -43,6 +43,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 114 | [The OpenRouter balance by a management key](unverified/opencode.md#the-openrouter-balance-by-a-management-key-btn-868) | OpenCode accounts on an `sk-or-` key whose owner adds a management key | a working management key is refused on saving, or the card shows a wrong balance; remove the key from the row's menu, the rest of the account works without it |
 | 113 | [A manual milestone order](unverified/trackers.md#a-manual-milestone-order-btn-792) | projects whose milestones are ordered by hand in the tracker's window | the chain keeps the automatic order, or takes the saved one only after a restart; press "Back to automatic" or edit `projects[].milestoneOrder` by `config-import` |
 | 112 | [The CI panel: what the chain waits for, after green, who pushed](unverified/ci.md#the-ci-panel-what-the-chain-waits-for-after-green-who-pushed-btn-829) | projects with `commands.afterGreen`, above all one whose commands restart Even Keel, and pushes by hand | the "After green" row says "the end was not seen" after a run that ended, or a push by hand is labelled as the chain's; the service log has the run and the push |
 | 111 | [The CI panel by push: events and a busy runner](unverified/ci.md#the-ci-panel-by-push-events-and-a-busy-runner-btn-828) | everyone who reads the CI panel, mostly on Forgejo and GitLab | a run shows no event or "other trigger", or names a run that does not hold its runner; the run's page on the forge says the rest |
