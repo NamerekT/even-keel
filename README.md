@@ -100,7 +100,7 @@ Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-ke
 
 Open `http://localhost:4747`. The first start walks a short setup — the languages, the agent and its account, a tracker profile, update checks, statistics — and then a wizard that adds a project: the agent, the repository folder, a tracker profile and the project in that tracker. What each tracker's token needs: [Token permissions](docs/guide/setup.md#token-permissions). For Claude Code the wizard also trusts the repository folder, unless you turn that off. Then press **Start** on the project: the chain takes its first task.
 
-To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin (`huly@even-keel` and the like) on `/tools` → **Add a package**. Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
+To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin (`huly@even-keel` and the like) in **Settings → Packages** → **Add a package**. Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
 
 Running it from a clone, or a look at the page on fake data first: [From a clone](docs/guide/setup.md#from-a-clone).
 

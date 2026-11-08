@@ -77,6 +77,14 @@
   opacity: 0.85;
 }
 
+/* A failed MCP server: to each project's packages, where it is turned off or fixed. */
+.tools__problem-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
 .tools__problems .tools__chip--lost {
   background: var(--surface);
 }

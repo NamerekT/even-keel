@@ -1,5 +1,8 @@
 import { Fold } from '../ui/Fold.js'
 import type { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
+import { packagesPath } from '../tools/packageGroups.js'
+import { Tipped } from '../ui/Tipped.js'
 import { fallbackPassed, instructionsFor, skillFoldersFor, type InstructionFile } from '../../../src/agent/projectRules.js'
 import type { PackagesView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
@@ -84,6 +87,7 @@ function Gets({
             text.absent,
           )}
           {gets.packages.some((each) => !each.hooks) && <span className="gets__note">{text.noHooks}</span>}
+          <PackagesButton project={project} />
         </Fact>
         <Fact label={text.standards}>
           {names(standards, text.absent)}
@@ -92,6 +96,18 @@ function Gets({
       </dl>
       <AllAgents />
     </div>
+  )
+}
+
+/** The project's packages over its page (BTN-802), the settings panel kept open under them. */
+function PackagesButton({ project }: { project: string }) {
+  const location = useLocation()
+  return (
+    <Tipped className="gets__packages" tip={t.packages.openTip} inline>
+      <Link className="button button--small" to={`${packagesPath(project)}${location.hash}`}>
+        {t.packages.open}
+      </Link>
+    </Tipped>
   )
 }
 

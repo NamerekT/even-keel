@@ -455,9 +455,9 @@ export const settingsEN: Messages['settings'] = {
     briefHint:
       "Even Keel puts the task's title and description into the prompt. Auto: only when no package of the project brings the tracker's MCP server — with the tracker's plugin the session reads its task itself. On or off overrides that.",
     briefAuto: 'auto',
-    briefTools: 'Go to Tools',
-    briefToolsAdd: "Add the tracker's plugin on the Tools page: sessions then read the task, its comments and relations themselves.",
-    briefToolsTurnOn: "Turn the tracker's package on for the project on the Tools page: sessions then read the task, its comments and relations themselves.",
+    briefTools: 'Project packages',
+    briefToolsAdd: "Add the tracker's plugin to the project's packages: sessions then read the task, its comments and relations themselves.",
+    briefToolsTurnOn: "Turn the tracker's package on in the project's packages: sessions then read the task, its comments and relations themselves.",
     briefToolsBrought: (name: string) => `Sessions read the task through the package ${name}.`,
     slot: 'Slots',
     slotHint: '0 — a worktree of its own for every task. Above zero — a pool of permanent folders: a task switches the branch in a slot, and only the difference is rebuilt.',

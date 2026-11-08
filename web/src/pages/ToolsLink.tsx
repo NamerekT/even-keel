@@ -2,7 +2,8 @@ import { Link, useNavigate } from 'react-router'
 import type { PackagesView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { problemCount, problemsOf } from '../tools/matrix.js'
-import { trackerAddPath, trackerPackage } from '../tools/packageView.js'
+import { packagesPath } from '../tools/packageGroups.js'
+import { trackerPackage } from '../tools/packageView.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../tools/tools.css'
@@ -10,7 +11,8 @@ import '../tools/tools.css'
 /**
  * The project's "What sessions get" in its head: problems of its settings, and the tracker's package it lacks — a problem
  * with `brief` off, advice otherwise. Amber with the count while there are problems, quiet with only the advice, gone when
- * everything reaches the sessions; the details are its tip, a press goes where they are fixed.
+ * everything reaches the sessions; the details are its tip, a press goes where they are fixed: the settings problems to
+ * /tools, the tracker's package to the project's packages.
  */
 export function ToolsChip({ project, trim, packages }: { project: string; trim: boolean; packages: PackagesView }) {
   const loaded = useToolsViews([project], trim).get(project)
@@ -36,7 +38,7 @@ export function ToolsChip({ project, trim, packages }: { project: string; trim: 
     <Tipped className="tools-chip" tip={tip} inline>
       <Link
         className={warn ? 'chip chip--link chip--tools chip--tools-warn' : 'chip chip--link chip--tools'}
-        to={missing === null ? `/tools?projects=${encodeURIComponent(project)}` : trackerAddPath(project, missing.plugin)}
+        to={missing === null ? `/tools?projects=${encodeURIComponent(project)}` : packagesPath(project, missing.plugin)}
       >
         {t.tools.heading}
         {warn && count !== null && count > 0 && <span className="chip__count">{count}</span>}
@@ -45,7 +47,7 @@ export function ToolsChip({ project, trim, packages }: { project: string; trim: 
   )
 }
 
-/** Next to "Task description in the prompt": to the tracker's package on /tools while the project lacks it, inactive once a package brings it. */
+/** Next to "Task description in the prompt": to the tracker's package in the project's packages while the project lacks it, inactive once a package brings it. */
 export function TrackerPackageButton({ project, packages }: { project: string; packages: PackagesView }) {
   const navigate = useNavigate()
   const tracker = trackerPackage(packages, project)
@@ -60,7 +62,7 @@ export function TrackerPackageButton({ project, packages }: { project: string; p
         type="button"
         className="button"
         aria-disabled={!missing}
-        onClick={() => tracker.state === 'missing' && navigate(trackerAddPath(project, tracker.plugin))}
+        onClick={() => tracker.state === 'missing' && navigate(packagesPath(project, tracker.plugin))}
       >
         {t.settings.briefTools}
       </button>

@@ -19,23 +19,26 @@ type Kind = 'plugin' | 'mcp' | 'skills'
 
 const EXAMPLES: Record<Transport, string> = { http: 'Authorization: Bearer ${API_TOKEN}', stdio: 'API_URL=https://api.example.com' }
 
-/** "Add a package": a dialog that asks for the kind first, then for that kind's fields. */
-export function AddPackage({ view, projects }: { view: PackagesView; projects: string[] }) {
+/**
+ * "Add a package": a dialog that asks for the kind first, then for that kind's fields. From the catalog (no `project`)
+ * a package goes to every project; from a project's packages it is on in that project unless the dialog says otherwise.
+ */
+export function AddPackage({ view, project, label = t.packages.addOpen, className = 'button button--small packages__add' }: { view: PackagesView; project?: string; label?: string; className?: string }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button type="button" className="button button--small packages__add" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <button type="button" className={className} aria-haspopup="dialog" onClick={() => setOpen(true)}>
         <PlusIcon />
-        {t.packages.addOpen}
+        {label}
       </button>
-      {open && createPortal(<AddDialog view={view} projects={projects} onClose={() => setOpen(false)} />, document.body)}
+      {open && createPortal(<AddDialog view={view} projects={project === undefined ? [] : [project]} onClose={() => setOpen(false)} />, document.body)}
     </>
   )
 }
 
-/** The plugin step on a chosen plugin and project, from a link (`/tools?add=`); while Claude Code does not know Even Keel's marketplace, it asks to add it first. */
-export function AddPlugin({ view, projects, plugin, project, onClose }: { view: PackagesView; projects: string[]; plugin: string; project: string; onClose: () => void }) {
-  return createPortal(<AddDialog view={view} projects={projects} initial={{ plugin, project }} onClose={onClose} />, document.body)
+/** The plugin step on a chosen plugin and project, from a link (`?add=`); while Claude Code does not know Even Keel's marketplace, it asks to add it first. */
+export function AddPlugin({ view, plugin, project, onClose }: { view: PackagesView; plugin: string; project: string; onClose: () => void }) {
+  return createPortal(<AddDialog view={view} projects={[project]} initial={{ plugin, project }} onClose={onClose} />, document.body)
 }
 
 interface Initial {
@@ -146,7 +149,7 @@ function PluginStep({ view, projects, initial, onBack, onClose }: StepProps) {
   const { send, sending, failure } = useCommand()
   const names = view.available.map((each) => `${each.plugin}@${each.marketplace}`)
   const [picked, setPicked] = useState(initial !== undefined && names.includes(initial.plugin) ? initial.plugin : (names[0] ?? ''))
-  const [where, setWhere] = useState(initial?.project ?? '')
+  const [where, setWhere] = useState(initial?.project ?? projects[0] ?? '')
   const found = view.available.find((each) => `${each.plugin}@${each.marketplace}` === picked)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -184,7 +187,7 @@ function ServerStep({ projects, onBack, onClose }: StepProps) {
   const [transport, setTransport] = useState<Transport>('http')
   const [target, setTarget] = useState('')
   const [pairs, setPairs] = useState('')
-  const [where, setWhere] = useState('')
+  const [where, setWhere] = useState(projects[0] ?? '')
   const entry = serverEntry(transport, target, pairs)
   const pairsWrong = serverPairs(transport, pairs) === null
   const submit = async (event: FormEvent) => {
@@ -253,14 +256,14 @@ function ServerStep({ projects, onBack, onClose }: StepProps) {
 
 /**
  * The user's own skills by checkboxes, wrapped into one plugin package. Once the catalog has it, saving makes a new
- * version and leaves where it is on to the table.
+ * version and leaves the projects it is on as they are.
  */
 function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
   const { send, sending, failure } = useCommand()
   const { list, package: name } = view.skills
   const kept = view.packages.some((each) => each.name === name && !each.removed)
   const [picked, setPicked] = useState(() => new Set(kept ? list.filter((each) => each.wrapped).map((each) => each.name) : []))
-  const [where, setWhere] = useState('')
+  const [where, setWhere] = useState(projects[0] ?? '')
   const toggle = (skill: string) =>
     setPicked((now) => {
       const next = new Set(now)
@@ -299,8 +302,10 @@ function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
   )
 }
 
+/** Every project or only the one the dialog was opened for; from the catalog there is no choice: every project. */
 function WhereField({ projects, value, onChange }: { projects: string[]; value: string; onChange: (value: string) => void }) {
   const name = useProjectLabel()
+  if (projects.length === 0) return null
   const options = [{ value: '', label: t.packages.whereAll }, ...projects.map((project) => ({ value: project, label: t.packages.whereOne(name(project)) }))]
   return (
     <Field label={t.packages.where} hint={t.packages.whereHint}>

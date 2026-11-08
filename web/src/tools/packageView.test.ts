@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { heldLong, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerAddPath, trackerPackage, trackerPackageOf } from './packageView.js'
+import { heldLong, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -118,13 +118,6 @@ describe('trackerPackage', () => {
   it('has nothing to say for a tracker without a server or an unknown project', () => {
     expect(trackerPackage(view({ projects: { ABC: project(false) } }), 'ABC')).toBeNull()
     expect(trackerPackage(view(), 'ABC')).toBeNull()
-  })
-})
-
-describe('trackerAddPath', () => {
-  it('opens the project on /tools, with the add dialog on the plugin when there is one', () => {
-    expect(trackerAddPath('A B', 'huly@even-keel')).toBe('/tools?projects=A%20B&add=huly%40even-keel')
-    expect(trackerAddPath('ABC', null)).toBe('/tools?projects=ABC')
   })
 })
 

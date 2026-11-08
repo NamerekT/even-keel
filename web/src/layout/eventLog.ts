@@ -5,6 +5,7 @@ import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
 import { CI_HASH } from '../pages/CiChip.js'
 import { SETTINGS_HASH } from '../pages/settingsStore.js'
 import { projectPath } from '../state.js'
+import { PACKAGES_PARAM } from '../tools/packageGroups.js'
 
 /** The page of the log (`EventLogPage`). */
 export const LOG_PATH = '/log'
@@ -14,15 +15,15 @@ export type EventPath = { pathname: string; search?: string; hash?: string }
 
 /**
  * A question opens its row, a red main the CI chip, a task's work its backlog or its card, a setting the settings, a
- * package problem the project's column on /tools, unread limits the accounts.
+ * package problem the project's packages, unread limits the accounts.
  */
 export function placePath(place: EventPlace | null, state: Pick<EvenKeelState, 'ci' | 'projects'>): EventPath | null {
   if (place === null) return null
   if (place.view === 'accounts') return { pathname: '/accounts' }
   if (place.project === null) return { pathname: place.view === 'settings' ? '/settings' : '/' }
   if (!state.projects.includes(place.project)) return null
-  if (place.view === 'packages') return { pathname: '/tools', search: `?projects=${encodeURIComponent(place.project)}` }
   const pathname = projectPath(place.project)
+  if (place.view === 'packages') return { pathname, search: `?${PACKAGES_PARAM}=1` }
   if (place.view === 'settings') return { pathname, hash: SETTINGS_HASH }
   if (place.view === 'ask') return { pathname, hash: place.task }
   if (place.view === 'backlog') return { pathname, hash: BACKLOG_HASH }

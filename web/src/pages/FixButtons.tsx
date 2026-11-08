@@ -10,7 +10,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { profileGroup } from './ProfileRules.js'
 import { taskFeed } from './settingsRows.js'
-import { trackerAddPath } from '../tools/packageView.js'
+import { packagesPath } from '../tools/packageGroups.js'
 import { stepPath } from './setupSteps.js'
 
 /** A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is shown at. */
@@ -85,7 +85,7 @@ export function useFix() {
     }
     if (project === null) return
     const id = state === null ? project : projectOfPath(state, project).project
-    if (fix.to === 'packages') return void navigate(trackerAddPath(id, null))
+    if (fix.to === 'packages') return void navigate(packagesPath(id))
     if (fix.to === 'moves' && fix.level === 'profile') {
       openTab(SHARED_SCOPE, state === null ? 'rules' : (movesProfile(state, id, fix.task) ?? 'rules'))
       return void navigate('/settings')

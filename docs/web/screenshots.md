@@ -2,7 +2,7 @@
 
 ## Screenshots (`npm run shot`)
 
-`/accounts?packages=marketplace` shows the Claude Code marketplace button, `?packages=marketplace-missing-cli` its missing-CLI error after a press, and the default its registered check mark. The tooltip has copyable commands. Combine with `account=codex-only` to check that neither the account page nor `/tools?add=linear@even-keel&packages=marketplace` asks a Codex-only installation to register a Claude marketplace.
+`/accounts?packages=marketplace` shows the Claude Code marketplace button, `?packages=marketplace-missing-cli` its missing-CLI error after a press, and the default its registered check mark. The tooltip has copyable commands. Combine with `account=codex-only` to check that neither the account page nor `/p/DEMO?pkg=1&add=linear@even-keel&packages=marketplace` asks a Codex-only installation to register a Claude marketplace.
 
 `?header=sessionAccounts` supplies Claude and Codex accounts with the same e-mail and distinct names, with ABC-5 running on Codex by e-mail. Open ABC-5's session list, its session record and its chat to check account pills. Suffixes `-long`, `-missing` and `-empty` exercise a long OpenAI name, a missing Codex account and a session without an account.
 

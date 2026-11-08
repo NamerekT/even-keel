@@ -5,7 +5,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { t } from '../i18n/index.js'
 import { fakeAccount, FAKE_LIMITS } from '../live/fakeAccounts.js'
 import { fakePackages } from '../live/fakePackages.js'
-import { Packages } from '../tools/Packages.js'
+import type { EvenKeelState } from '../../../src/state.js'
+import { PackageCatalog } from '../tools/PackageCatalog.js'
 import { AccountGroups } from './accountRows.js'
 
 vi.mock('./AddAccountDialog.js', () => ({ useOpenAdd: () => () => {} }))
@@ -50,8 +51,10 @@ describe('Claude account marketplace action', () => {
     expect(render({ login: true })).toContain('+ ' + t.account.marketplace)
   })
 
-  it('does not offer marketplace registration on Tools', () => {
-    const html = renderToStaticMarkup(createElement(Packages, { view: fakePackages([], 'marketplace'), projects: [] }))
+  it('does not offer the marketplace command in the package catalog: its add dialog asks instead', () => {
+    const state = { packages: fakePackages([], 'marketplace'), projects: [] } as unknown as EvenKeelState
+    const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(PackageCatalog, { state })))
+    expect(html).toContain(t.packages.addOpen)
     expect(html).not.toContain('claude plugin marketplace add')
     expect(html).not.toContain('packages__command')
   })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
@@ -8,11 +8,8 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { projectLabel } from '../state.js'
 import { Band, PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
-import { AddPlugin } from './AddPackage.js'
 import { LastSessions } from './LastSessions.js'
 import { hiddenSkills, problemCount, problemsOf } from './matrix.js'
-import { problemCount as packageProblems } from './packageView.js'
-import { Packages } from './Packages.js'
 import { Problems } from './Problems.js'
 import { SettingsMatrix } from './SettingsMatrix.js'
 import { ToolsLoading } from './ToolsLoading.js'
@@ -43,7 +40,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
 
   const items = state.projects.map((project) => {
     const each = loaded.get(project)
-    const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) + packageProblems(state.packages, project) : null
+    const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) : null
     return { project, name: projectLabel(state, project), amount: count ?? 0, label: t.tools.pickerCount(count) }
   })
 
@@ -54,14 +51,6 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
   }
   const choose = (projects: string[] | null) => update((next) => next.set('projects', (projects ?? state.projects).join(',')))
   const setOnlyDiff = (on: boolean) => update((next) => (on ? next.set('diff', '1') : next.delete('diff')))
-
-  // `add`: the plugin step of the add dialog for the first chosen project; a plugin the catalog has already only drops it.
-  const adding = params.get('add')
-  const offered = adding !== null && state.packages.available.some((each) => `${each.plugin}@${each.marketplace}` === adding)
-  const stopAdding = () => update((next) => next.delete('add'), true)
-  useEffect(() => {
-    if (adding !== null && !offered) stopAdding()
-  }, [adding, offered])
 
   return (
     <div className="page tools-page">
@@ -75,7 +64,6 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
               {failure}
             </p>
           ))}
-          {chosen.length > 0 && <Packages view={state.packages} projects={chosen} />}
           {chosen.length === 0 ? (
             <p className="placeholder">{t.tools.noneChosen}</p>
           ) : views.length === 0 ? (
@@ -108,7 +96,6 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
         </div>
       </div>
       <Basement sign={t.basement.tools} ready={state.projects.every((project) => (loaded.get(project)?.state ?? 'loading') !== 'loading')} />
-      {adding !== null && offered && chosen.length > 0 && <AddPlugin view={state.packages} projects={chosen} plugin={adding} project={chosen[0]!} onClose={stopAdding} />}
     </div>
   )
 }

@@ -24,6 +24,7 @@ export const sharedEn = {
   sessions: 'Sessions',
   claude: 'Claude Code',
   ci: 'Check and CI',
+  packages: 'Packages',
   ciNote: 'For projects with no value of their own. The check commands, the commands after a green main, pull requests and the remote profiles are set per project.',
   forProjects: "For projects that don't set their own.",
   providerHint: 'For projects that name none of their own. Used for tasks without a run label; with run labels on, a task labelled with another provider runs on that one.',

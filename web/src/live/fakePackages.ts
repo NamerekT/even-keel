@@ -41,6 +41,8 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
   const catalog: Catalog = {
     packages: [
       { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', latest: '0.4.3', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
+      // Another tracker's plugin, off by default: a project's packages fold it under "1 more".
+      { ...base, name: 'github@even-keel', kind: 'plugin', version: '0.2.0', default: false, settings: {}, servers: ['github'], extras: true, keys: [] },
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],

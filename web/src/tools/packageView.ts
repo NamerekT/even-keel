@@ -118,12 +118,6 @@ export function trackerPackageOf(view: PackagesView, server: string): string | n
   return view.packages.find((each) => each.installed && !each.removed && each.servers.includes(server))?.name ?? null
 }
 
-/** The project on /tools, with the add dialog open on the plugin when there is one (`add`). */
-export function trackerAddPath(project: string, plugin: string | null): string {
-  const path = `/tools?projects=${encodeURIComponent(project)}`
-  return plugin === null ? path : `${path}&add=${encodeURIComponent(plugin)}`
-}
-
 /** The problems that reach the project's sessions: of its enabled packages and of the set as a whole. */
 export function problemCount(view: PackagesView, project: string): number {
   const found = view.projects[project]

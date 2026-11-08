@@ -67,6 +67,8 @@ import { SettingsProfiles } from './SettingsProfiles.js'
 import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
 import { TallySettings } from './TallyChoice.js'
 import { NoticeSettings } from './NoticeSettings.js'
+import { PackageCatalog } from '../tools/PackageCatalog.js'
+import { PACKAGE_PARAM } from '../tools/packageGroups.js'
 import { noticeTexts } from '../i18n/notice-choices.js'
 import { useVocabularies } from './useVocabularies.js'
 import './settings.css'
@@ -86,6 +88,8 @@ const GROUPS = [
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
+  // The catalog of packages (BTN-802): each change is sent at once, no draft.
+  { id: 'packages', keys: [] },
   { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
@@ -238,10 +242,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         : 'chain'
   const [params] = useSearchParams()
   const addsProfile = profileAddOf(params) !== null
-  // A link asking for a profile (PR mode, EKR-7) lands on the tab its dialog opens in.
+  const asksPackage = params.has(PACKAGE_PARAM)
+  // A link asking for a profile (PR mode, EKR-7) or a package lands on the tab it opens in.
   useEffect(() => {
     if (addsProfile) openTab(SCOPE, 'trackers')
-  }, [addsProfile])
+    else if (asksPackage) openTab(SCOPE, 'packages')
+  }, [addsProfile, asksPackage])
   const vocabularies = useVocabularies(state.projects)
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
   const choices = ruleChoicesOf(state.tasks, vocabularies)
@@ -683,6 +689,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     trackers: () => <SettingsProfiles state={state} onRules={(id) => setOpen(profileGroup(id))} />,
     notices: () => <NoticeSettings />,
+    packages: () => <PackageCatalog state={state} />,
   }
 
   const draftForm = (titled: boolean) => (
@@ -746,11 +753,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             )}
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
           </section>
-        ) : open === 'trackers' || open === 'notices' || open === 'stats' ? (
-          // Every profile and every notice switch is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
+        ) : open === 'trackers' || open === 'notices' || open === 'packages' || open === 'stats' ? (
+          // Every profile, notice switch and package change is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}
-            {open === 'trackers' || open === 'notices' ? (
+            {open !== 'stats' ? (
               groups[open]()
             ) : (
               <>

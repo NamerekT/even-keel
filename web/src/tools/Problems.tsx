@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import type { AccountDrift, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { folderLabel } from '../accountName.js'
 import { t } from '../i18n/index.js'
@@ -5,6 +6,7 @@ import { useLive } from '../live/context.js'
 import { projectLabel } from '../state.js'
 import { Band } from '../ui/blocks.js'
 import { PROBLEM_KINDS, sharedProblems, type SharedProblem } from './matrix.js'
+import { packagesPath } from './packageGroups.js'
 import { Chip, valueText } from './SettingsMatrix.js'
 
 /** A problem without project keys is in every chosen project. */
@@ -23,6 +25,15 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
           <div key={kind} className="tools__problem">
             <p className="tools__problem-label">{t.tools.problem[kind]}</p>
             <p className="tools__problem-fix">{t.tools.problemFix[kind]}</p>
+            {kind === 'mcpFailed' && (
+              <div className="tools__problem-links">
+                {[...new Set(problems.flatMap((each) => each.projects))].map((project) => (
+                  <Link key={project} className="button button--small" to={packagesPath(project)}>
+                    {t.packages.projectTitle(projectLabel(state, project))}
+                  </Link>
+                ))}
+              </div>
+            )}
             <div className="tools__chips">
               {problems.map((problem) => (
                 <Chip key={`${problem.row?.kind ?? ''}:${problem.name}`} tone="lost" title={titleOf(problem)}>

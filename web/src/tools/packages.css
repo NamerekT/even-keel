@@ -1,11 +1,9 @@
+/* The packages (BTN-802): the catalog on the shared settings and a project's packages over its page share these rows. */
+
 .packages {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
 }
 
 .packages .button {
@@ -22,19 +20,22 @@
   }
 }
 
-.packages__head {
-  display: flex;
+.packages__head-actions {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
-.packages__head .tools__heading {
+.packages__lead {
   margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
 }
 
 .packages__manual {
-  margin-left: auto;
+  align-self: flex-start;
   color: var(--fg-muted);
   font-size: var(--text-12);
   text-decoration: underline dotted;
@@ -42,11 +43,20 @@
   cursor: help;
 }
 
+.packages__head-actions .button,
+.packages__details-actions .button:not(.button--danger) {
+  border-color: var(--border);
+}
+
+.packages__head-actions .button:hover:not(:disabled),
+.packages__details-actions .button:not(.button--danger):hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
 .packages .packages__add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: 4px;
   border-color: var(--border);
 }
 
@@ -60,52 +70,86 @@
   border-color: var(--accent);
 }
 
-.packages__latest {
-  color: var(--accent);
-  font-size: var(--text-12);
-  font-weight: 600;
-  cursor: help;
-}
+/* The problems and the offers on top: each a band of its own. */
 
-.packages .packages__check {
-  border-color: var(--border);
-  color: var(--fg-muted);
-}
-
-.packages .packages__check:hover:not(:disabled) {
-  color: var(--fg);
-}
-
-.packages__table thead th:first-child {
-  width: 30%;
-}
-
-.packages__head {
-  display: inline-flex;
-  align-items: center;
+.packages__offers,
+.packages__issues {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
-.packages__waits {
-  display: flex;
-  cursor: help;
+.packages__issue-name {
+  margin-right: 8px;
+  font-size: var(--text-12);
 }
 
-.packages__row th {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
+/* A group by source: its head, then the rows split by lines. */
+
+.packages__group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-.packages__row--removed {
+.packages__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.packages__group-title {
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+
+.packages__group-note,
+.packages__group-count {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.packages__group-column {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.packages__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.packages__line + .packages__line {
+  border-top: 1px solid var(--border);
+}
+
+.packages__line--removed {
   opacity: 0.6;
+}
+
+/* One line at any width: the name shrinks with an ellipsis, the meta goes before the controls give way. */
+.packages__line-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px;
 }
 
 .packages__name {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   padding: 0;
   border: 0;
   background: none;
@@ -121,22 +165,34 @@
   border-radius: var(--radius-small);
 }
 
+.packages__name-text {
+  overflow: hidden;
+  font-size: var(--text-13);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .packages__meta {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex: 0 100 auto;
   align-items: center;
-  gap: 4px 8px;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.packages__meta .tools__muted {
-  font-size: var(--text-12);
-}
-
-.packages__extras {
+.packages__version {
+  overflow: hidden;
   color: var(--fg-muted);
   font-size: var(--text-12);
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
+  text-overflow: ellipsis;
+}
+
+.packages__latest {
+  color: var(--accent);
+  font-size: var(--text-12);
+  font-weight: 600;
   cursor: help;
 }
 
@@ -145,64 +201,16 @@
   font-size: var(--text-12);
 }
 
-.packages__actions {
+.packages__aside {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
 }
 
-.packages__error {
-  flex-basis: 100%;
-  color: var(--error-fg);
-  font-size: var(--text-12);
-}
-
-.packages__note {
-  flex-basis: 100%;
-}
-
-.packages__cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.packages__choice {
-  max-width: 100%;
-  padding: 2px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: var(--text-12);
-}
-
-.packages__choice--on {
-  border-color: color-mix(in srgb, var(--lamp-done) 55%, var(--border));
-  color: var(--fg);
-}
-
-.packages__cell .tools__chip {
-  cursor: help;
-}
-
-.packages__select {
-  position: relative;
-  display: inline-flex;
-  max-width: 100%;
-}
-
-.packages__select .tipped.packages__probing {
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  display: flex;
-  padding: 1px;
-  border-radius: 50%;
-  background: var(--surface);
-}
-
 .packages__spinner {
+  display: block;
   width: 9px;
   height: 9px;
   border: 2px solid var(--lamp-working);
@@ -217,53 +225,141 @@
   }
 }
 
-.packages__details > td {
-  padding: 0;
-  border: 0;
+.packages__probing {
+  display: inline-flex;
+  cursor: help;
 }
 
-.packages__details .ui-fold__body { min-width: max-content; }
+/* "N more" under a group: the other trackers' plugins. */
+.packages__group > .tipped {
+  display: flex;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--border);
+}
 
-.packages__panel {
-  margin: 0 10px 10px 22px;
+.packages .packages__more {
+  border-color: var(--border);
+  color: var(--fg-muted);
+}
+
+.packages .packages__more:hover {
+  color: var(--fg);
+}
+
+/* A row's details: what it brings, its problems, its settings and keys, the rarer actions. */
+
+.packages__details {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 12px;
+  margin: 0 12px 12px 24px;
+  padding: 12px;
   border-left: 2px solid var(--accent);
   background: var(--surface-muted);
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.packages__settings-title,
-.packages__block-title,
-.packages__form-label {
+.packages__details > p {
+  margin: 0;
+}
+
+.packages__brings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: var(--text-13);
+}
+
+.packages__extras {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  cursor: help;
+}
+
+.packages__quiet {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.packages__error {
+  color: var(--error-fg);
+  font-size: var(--text-12);
+}
+
+.packages__problems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  color: var(--error-fg);
+  font-size: var(--text-12);
+  list-style: none;
+}
+
+.packages__problems .tipped {
+  cursor: help;
+}
+
+.packages__details-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.packages__fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 16px;
+  width: 100%;
+}
+
+.packages__label {
   display: inline-flex;
+  grid-column: 1 / -1;
   align-items: center;
   gap: 6px;
   font-size: var(--text-13);
   font-weight: 600;
 }
 
-.packages__grid {
-  border-collapse: collapse;
+.packages__field {
+  display: contents;
+}
+
+.packages__field-name {
+  display: contents;
   font-size: var(--text-12);
 }
 
-.packages__grid th,
-.packages__grid td {
-  padding: 3px 8px 3px 0;
-  text-align: left;
-  font-weight: 400;
+.packages__field-name > code,
+.packages__key-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-12);
 }
 
-.packages__grid thead th {
-  color: var(--fg-muted);
-  font-family: var(--mono);
+.packages__key-name {
+  cursor: help;
+}
+
+.packages__field > .packages__error {
+  grid-column: 1 / -1;
+}
+
+.packages__field > .packages__field-name:has(.packages__unset) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .packages__input {
+  width: min(100%, 320px);
   min-width: 0;
   padding: 3px 6px;
   border: 1px solid var(--border);
@@ -278,78 +374,50 @@
   border-color: var(--error-fg);
 }
 
-.packages__offers {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.packages__offer {
+.packages__key-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  font-size: var(--text-13);
-}
-
-/* The command takes a line of its own; the buttons follow under it. */
-.packages__block {
-  display: flex;
-  flex-direction: column;
   gap: 6px;
-}
-
-.packages__keys {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 6px 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.packages__key {
-  display: contents;
-}
-
-.packages__key .packages__error {
-  grid-column: 1 / -1;
-}
-
-.packages__key-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* A narrow screen puts the field under its name: beside a long name it would be squeezed to nothing. */
-@media (max-width: 640px) {
-  .packages__keys {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 4px;
-  }
-
-  .packages__key-form {
-    margin-bottom: 6px;
-  }
-}
-
-.packages__key-name {
-  cursor: help;
 }
 
 .packages__key-form .packages__input {
   width: min(100%, 260px);
 }
 
-.packages__key-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+/* The project's packages over its page: wider than the add dialog, the whole screen on a narrow one. */
+
+.add-package--wide {
+  width: min(760px, calc(100vw - 32px));
+}
+
+/* On a narrow screen the version shrinks first, the controls stay on the name's line; a field goes under its name. */
+@media (max-width: 760px) {
+  .add-package--wide {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .add-package--wide .add-package__frame {
+    height: 100%;
+    max-height: 100dvh;
+  }
+
+  .add-package--wide .add-package__body {
+    flex: 1;
+  }
+
+  .packages__details {
+    margin-left: 12px;
+  }
+
+  .packages__fields {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
 }

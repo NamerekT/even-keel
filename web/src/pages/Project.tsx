@@ -69,10 +69,12 @@ import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsChip } from './ToolsLink.js'
+import { ADD_PARAM, PACKAGES_PARAM } from '../tools/packageGroups.js'
 import { useArrival } from './useArrival.js'
 import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
+const ProjectPackages = lazy(async () => ({ default: (await import('../tools/ProjectPackages.js')).ProjectPackages }))
 const CARD_PARAM = 'task'
 
 export function Project({ state, project: key }: { state: EvenKeelState; project: string }) {
@@ -168,6 +170,14 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     const search = new URLSearchParams(location.search)
     search.delete(CARD_PARAM)
     navigate({ search: search.toString(), hash: location.hash }, { replace: true })
+  }
+  // The project's packages over its page (BTN-802), the settings panel kept open under them.
+  const search = new URLSearchParams(location.search)
+  const packagesOpen = search.has(PACKAGES_PARAM)
+  const leavePackages = (...params: string[]) => {
+    const next = new URLSearchParams(location.search)
+    for (const param of params) next.delete(param)
+    navigate({ search: next.toString(), hash: location.hash }, { replace: true })
   }
 
   return (
@@ -266,6 +276,18 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
       )}
       {flight !== null && (
         <Flight key={flight.id} task={flight.id} title={flight.title} since={flight.since} onLand={() => arrival.land(flight.id)} />
+      )}
+      {packagesOpen && (
+        <Suspense fallback={null}>
+          <ProjectPackages
+            key={`packages-${key}`}
+            state={state}
+            project={key}
+            adding={search.get(ADD_PARAM)}
+            onAdded={() => leavePackages(ADD_PARAM)}
+            onClose={() => leavePackages(PACKAGES_PARAM, ADD_PARAM)}
+          />
+        </Suspense>
       )}
       {opened !== null && (
         <Suspense fallback={null}>
