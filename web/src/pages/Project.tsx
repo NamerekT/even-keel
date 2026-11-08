@@ -237,7 +237,17 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             />
           )}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}
-          {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} fixes={state.fixes[key] ?? []} fix={ciAt.fix} onClose={close} />}
+          {ciOpen && (
+            <CiPanel
+              views={ci}
+              urls={state.trackerUrls}
+              fixes={state.fixes[key] ?? []}
+              fix={ciAt.fix}
+              main={state.mainCi[key]}
+              wait={activeChain(state.chain, key)?.ciWait}
+              onClose={close}
+            />
+          )}
           {helpOpen && <HelpPanel blocks={blocks} ci={ci !== undefined} narrow={narrow} onClose={close} />}
           {!side && (
             <IdlePanel

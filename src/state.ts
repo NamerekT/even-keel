@@ -1,6 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
+import type { MainCiView } from './chain/model.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
 import type { CiKind, CiView, RemoteProfiles } from './ci/model.js'
@@ -451,6 +452,8 @@ export interface EvenKeelState {
   trackerUrls: TrackerUrls
   /** The CIs of each project that has any; a project without CI has no key. */
   ci: Record<string, CiView[]>
+  /** What the chain knows of each project's main for the CI panel (BTN-829); a project without CI has no key. */
+  mainCi: Record<string, MainCiView>
   /** The remotes of each project's checkout: Home groups the projects that share one (BTN-207). */
   remotes: Record<string, RemoteRef[]>
   /**

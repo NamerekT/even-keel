@@ -92,6 +92,11 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(state.shelved).toEqual({ [ABC]: [{ task: 'ABC-1', sessionId: '00000000-0000-4000-8000-0000000000a0', at: '2026-10-01T09:00:00.000Z', reason: 'postpone', blockers: ['ABC-3'] }] })
     expect(Object.keys(state.ci)).toEqual([ABC])
     expect(state.ci[ABC]?.afterGreen).toBe(state.ci[ABC]?.green)
+    expect(state.ci[ABC]?.afterGreenRun).toEqual({
+      commit: state.ci[ABC]?.green,
+      since: '2026-10-01T09:30:00.000Z',
+      end: { at: '2026-10-01T09:31:00.000Z', state: 'failed', command: 'npm run deploy', code: 1 },
+    })
   })
 
   it('reads the questions, the launches and the accounts', async () => {

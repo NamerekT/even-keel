@@ -52,7 +52,8 @@ const SLOT_RETRY_MS = 30_000
 
 export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
-  private readonly main: MainCheck | null
+  /** The check of main; the page reads its `view` (BTN-829). */
+  readonly main: MainCheck | null
   private readonly fixes: MainFix | null
   private readonly carries: MainCarry
   private readonly handovers: Handovers

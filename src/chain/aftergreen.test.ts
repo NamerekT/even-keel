@@ -28,7 +28,7 @@ describe('Dispatcher and the commands after a green main', () => {
     await dispatcher.idle()
 
     expect(ci.ran).toEqual(['ABC@bbbbbbbbbb'])
-    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb' })
+    expect(dispatcher.state.ci.ABC).toMatchObject({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb', afterGreenRun: { commit: 'bbbbbbbbbb' } })
     expect(saved.some((state) => state.ci.ABC?.afterGreen === 'bbbbbbbbbb' && state.active[0]?.ciWait?.after !== true)).toBe(true)
     expect(launched).toEqual(['ABC/ABC-1'])
     expect(dispatcher.state.active[0]?.ciWait).toEqual({ commit: 'bbbbbbbbbb', since: '2026-09-26T12:00:00.000Z', after: true })
@@ -64,7 +64,7 @@ describe('Dispatcher and the commands after a green main', () => {
     })
     await settled(dispatcher)
     expect(ci.ran).toEqual(['ABC@bbbbbbbbbb'])
-    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb' })
+    expect(dispatcher.state.ci.ABC).toMatchObject({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb', afterGreenRun: { commit: 'bbbbbbbbbb' } })
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
@@ -92,7 +92,7 @@ describe('Dispatcher and the commands after a green main', () => {
 
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.active[0]?.paused).toBe(false)
-    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb' })
+    expect(dispatcher.state.ci.ABC).toMatchObject({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb', afterGreenRun: { commit: 'bbbbbbbbbb' } })
     expect(ci.created).toEqual([])
     expect(dispatcher.state.leftovers.ABC).toEqual([
       { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: notice('afterGreen.failed', { command: 'npm run build', code: 2, commit: 'bbbbbbb' }) },
@@ -103,14 +103,14 @@ describe('Dispatcher and the commands after a green main', () => {
   it('logs a run skipped because the checkout is elsewhere', async () => {
     const { dispatcher, launched, log, ci } = await afterDone(null, (ci) => {
       ci.afterGreen = true
-      ci.afterRuns = { bbbbbbbbbb: { state: 'skipped', reason: 'the checkout is on dev' } }
+      ci.afterRuns = { bbbbbbbbbb: { state: 'skipped', reason: notice('afterGreen.offBranch', { branch: 'main', on: 'dev' }) } }
     })
     ci.verdict = { state: 'green' }
     dispatcher.check()
     await settled(dispatcher)
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.leftovers.ABC).toBeUndefined()
-    expect(log).toContain('afterGreen: ABC: skipped after bbbbbbb: the checkout is on dev')
+    expect(log).toContain('afterGreen: ABC: skipped after bbbbbbb: the main checkout is on dev, not on main')
   })
 
   it('runs the commands of a later green main after the running ones end', async () => {
@@ -165,7 +165,7 @@ describe('Dispatcher and a push of main from outside the chain (BTN-707)', () =>
     dispatcher.check()
     await settled(dispatcher)
     expect(ci.ran).toEqual(['ABC@ffffffffff'])
-    expect(dispatcher.state.ci.ABC).toEqual({ green: 'ffffffffff', afterGreen: 'ffffffffff' })
+    expect(dispatcher.state.ci.ABC).toMatchObject({ green: 'ffffffffff', afterGreen: 'ffffffffff', afterGreenRun: { commit: 'ffffffffff' } })
     expect(log).toContain('ci: ABC: fffffff is green, pushed outside the chain')
 
     dispatcher.check()

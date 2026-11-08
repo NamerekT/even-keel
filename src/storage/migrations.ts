@@ -158,6 +158,8 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   // v30 → v31: nullable `openCodeAutoCompactWindow` at both levels (BTN-856); omitted keeps the model's own window,
   // so only the version changes. An OpenCode session's `contextWindow` is the Codex record's field of v30.
   // v31 → v32: optional `ci.rerunFailed` at both levels (BTN-846); omitted takes the default, on, so only the version changes.
+  // v32 → v33: the optional `afterGreenRun` of a project's CI state in `state/chain.json` (BTN-829); omitted means no run
+  // seen yet, so only the version changes.
   const feeds = version < 23 ? feedsRuled(sdk) : sdk
   const trusted = version < 26 ? automaticTrust(feeds) : feeds
   return version < 28 ? manualKept(trusted) : trusted

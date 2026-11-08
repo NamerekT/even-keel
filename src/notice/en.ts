@@ -248,6 +248,9 @@ export const en = {
   'check.fixFailed': (p: { task: string; commit: string }) => `The project's check fails on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
   'check.cannotCreate': (p: { commit: string }) => `The project's check fails on main at ${p.commit}, and the tracker cannot create a task to fix it`,
   'check.fixNotCreated': (p: { commit: string }) => `The project's check fails on main at ${p.commit}; the task to fix it was not created`,
+  'afterGreen.offBranch': (p: { branch: string; on: string | null }) =>
+    p.on === null ? `the main checkout is on no branch, not on ${p.branch}` : `the main checkout is on ${p.on}, not on ${p.branch}`,
+  'afterGreen.pastCommit': (p: { head: string }) => `the main checkout is at ${p.head}, past the green commit`,
   'afterGreen.failed': (p: { command: string; code: number; commit: string }) =>
     `"${p.command}" after the green main at ${p.commit} exited with code ${p.code}; main stays green, the service log has the output`,
 

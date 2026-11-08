@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CiKind, CiRun, CiView } from '../ci/model.js'
 import type { Git } from '../git/types.js'
+import { notice } from '../notice/notice.js'
 import type { CiSettings } from '../state.js'
 import { mainCheckDeps, mergeCheck, type MainCiWatch } from './mainci.js'
 import type { CheckFailure } from './model.js'
@@ -274,11 +275,11 @@ describe('mainCheckDeps', () => {
     expect(await setup(all([]), [], { [`${repo} HEAD`]: 'c2' }, failure).deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'failed', failure })
 
     const moved = setup(all([]), [], { [`${repo} HEAD`]: 'c3abcdef12' })
-    expect(await moved.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is at c3abcde, past the green commit` })
+    expect(await moved.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.pastCommit', { head: 'c3abcde' }) })
     const elsewhere = setup(all([]), [], { [`${repo} HEAD`]: 'c2', [`${repo} branch`]: 'dev' })
-    expect(await elsewhere.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is on dev, not on main` })
+    expect(await elsewhere.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.offBranch', { branch: 'main', on: 'dev' }) })
     const detached = setup(all([]), [], { [`${repo} HEAD`]: 'c2', [`${repo} branch`]: '' })
-    expect(await detached.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is on no branch, not on main` })
+    expect(await detached.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.offBranch', { branch: 'main', on: null }) })
     expect([...moved.checks, ...elsewhere.checks, ...detached.checks]).toEqual([])
   })
 })

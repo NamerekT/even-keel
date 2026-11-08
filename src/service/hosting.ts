@@ -211,6 +211,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       pages: Object.fromEntries(Object.keys(ctx.readers().projects).map((reader) => [reader, ctx.trackers.setupOf(reader)?.projectUrl?.(reader) ?? null])),
     },
     ci: ciViews(ctx.ciWatches),
+    mainCi: Object.fromEntries([...ctx.ciWatches.byProject.keys()].flatMap((project) => {
+      const main = ctx.dispatcher.main?.view(project)
+      return main === undefined ? [] : [[project, main]]
+    })),
     remotes: ctx.remotes.view,
     sameRepository: Object.fromEntries(
       Object.keys(ctx.remotes.repositories).map((project) => [project, Object.keys(ctx.remotes.repositories).filter((other) => other !== project && ctx.sameRepositoryOf(project, other))]),

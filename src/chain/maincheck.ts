@@ -2,7 +2,7 @@ import { failedKey } from '../ci/model.js'
 import { shortCommit, type CiVerdict, type RedRun } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isFixName } from './fix.js'
-import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
+import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainCiView, MainFailure, MainGate, MainPush, PushBy, RedReport, SessionFix } from './model.js'
 
 /** How long the chain waits for the tracker to list the fix task it has just created. */
 export const FIX_LISTED_MS = 5 * 60_000
@@ -12,6 +12,9 @@ export const LATE_MS = 60 * 60_000
 
 /** How long the rerun of a red commit's failed jobs is awaited before the red it started from decides (BTN-846). */
 export const RERUN_MS = 60 * 60_000
+
+/** How many latest pushes of a project's main the panel can say who made. */
+const PUSHES_KEPT = 50
 
 export interface MainStop {
   project: string
@@ -51,6 +54,8 @@ export class MainCheck {
    * but a run taken later still judges it, a red one as any red main. The next push of the chain or `LATE_MS` ends the watch.
    */
   private readonly late = new Map<string, MainPush>()
+  /** Who pushed the latest commits of each project's main the service saw (BTN-829), oldest first. */
+  private readonly pushers = new Map<string, Map<string, PushBy>>()
 
   constructor(
     private readonly state: ChainState,
@@ -65,6 +70,29 @@ export class MainCheck {
   afterGreenRun(project: string): { commit: string; since: string } | undefined {
     const run = this.afterRuns.get(project)
     return run === undefined ? undefined : { commit: run.commit, since: run.since }
+  }
+
+  /** What the CI panel shows of the project's main (BTN-829). */
+  view(project: string): MainCiView {
+    const late = this.late.get(project)
+    const record = this.state.ci[project]?.afterGreenRun
+    const after = record !== undefined && this.deps.afterGreen(project) ? { ...record, running: this.afterRuns.get(project)?.commit === record.commit } : undefined
+    return {
+      ...(late !== undefined && { late: { commit: late.commit, until: new Date(Date.parse(late.at) + LATE_MS).toISOString() } }),
+      ...(after !== undefined && { afterGreen: after }),
+      pushes: Object.fromEntries(this.pushers.get(project) ?? []),
+    }
+  }
+
+  private pushedBy(project: string, commit: string, by: PushBy): void {
+    const pushes = this.pushers.get(project) ?? new Map<string, PushBy>()
+    this.pushers.set(project, pushes)
+    pushes.delete(commit)
+    pushes.set(commit, by)
+    for (const old of pushes.keys()) {
+      if (pushes.size <= PUSHES_KEPT) break
+      pushes.delete(old)
+    }
   }
 
   /** The tree of the task's branch, read before its cleanup deletes the branch; `null` — unknown. */
@@ -86,6 +114,7 @@ export class MainCheck {
       return
     }
     if (commit === null) return
+    this.pushedBy(project, commit, 'chain')
     if (this.outside.get(project)?.commit === commit) this.outside.delete(project)
     const gate = this.gate(project)
     if (gate.check?.commit === commit) {
@@ -358,6 +387,7 @@ export class MainCheck {
       const gate = this.state.ci[project]
       if (gate !== undefined && (gate.check?.commit === head || gate.local?.commit === head || gate.green === head)) continue
       this.outside.set(project, { commit: head, at: this.now().toISOString(), tasks: [] })
+      this.pushedBy(project, head, 'hand')
       this.log(`ci: ${project}: main of the remote is at ${shortCommit(head)}, pushed outside the chain; waiting for the CI`)
     }
     let changed = false
@@ -417,13 +447,15 @@ export class MainCheck {
       running.next = push
       return
     }
+    const since = this.now().toISOString()
     gate.afterGreen = push.commit
-    this.afterRuns.set(project, { commit: push.commit, since: this.now().toISOString() })
+    gate.afterGreenRun = { commit: push.commit, since }
+    this.afterRuns.set(project, { commit: push.commit, since })
     this.hooks.save()
     this.log(`afterGreen: ${project}: running the commands after ${shortCommit(push.commit)}`)
     void this.deps
       .runAfterGreen(project, push.commit)
-      .catch((error: unknown): AfterGreenRun => ({ state: 'skipped', reason: englishOf(noticeOf(error)) }))
+      .catch((error: unknown): AfterGreenRun => ({ state: 'skipped', reason: noticeOf(error) }))
       .then((run) => this.afterGreenEnded(project, push, run))
   }
 
@@ -431,8 +463,15 @@ export class MainCheck {
     const next = this.afterRuns.get(project)?.next
     this.afterRuns.delete(project)
     const commit = shortCommit(push.commit)
+    const record = this.state.ci[project]?.afterGreenRun
+    if (record?.commit === push.commit) {
+      const at = this.now().toISOString()
+      record.end =
+        run.state === 'failed' ? { at, state: 'failed', command: run.failure.command, code: run.failure.code } : run.state === 'skipped' ? { at, state: 'skipped', reason: run.reason } : { at, state: 'done' }
+      this.hooks.save()
+    }
     if (run.state === 'done') this.log(`afterGreen: ${project}: the commands after ${commit} are done`)
-    else if (run.state === 'skipped') this.log(`afterGreen: ${project}: skipped after ${commit}: ${run.reason}`)
+    else if (run.state === 'skipped') this.log(`afterGreen: ${project}: skipped after ${commit}: ${englishOf(run.reason)}`)
     else {
       const { command, code } = run.failure
       this.log(`afterGreen: ${project}: ${command} after ${commit} exited with ${code}`)

@@ -234,6 +234,42 @@
   font-size: var(--text-12);
 }
 
+/* What the chain waits for on main (BTN-829): a waiting dot and the line, in the text colour since it says why nothing moves. */
+.ci__hold {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  margin: 0;
+  font-size: var(--text-12);
+}
+
+/* On the first line when the text wraps. */
+.ci__hold .ci-status-dot,
+.ci__after .ci-status-dot {
+  align-self: flex-start;
+  margin-top: calc((1lh - 8px) / 2);
+}
+
+/* The last run of the project's after-green commands: a muted line like the hints, its label as the card's labels. */
+.ci__after {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.ci__after .ci__label {
+  flex: none;
+  white-space: nowrap;
+}
+
+.ci__after-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Commit, run number and workflow split by short dividers; the time stands apart at the right (`docs/design.md`, "Dividers in a segmented box"). */
 .ci__meta {
   display: flex;

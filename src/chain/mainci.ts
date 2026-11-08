@@ -2,7 +2,7 @@ import type { CiView } from '../ci/model.js'
 import { redReport, type FailedRun } from '../ci/report.js'
 import { CI_TITLES, shortCommit, verdictOf, type RedRun } from '../ci/verdict.js'
 import type { EventDraft } from '../event-log/model.js'
-import { fail } from '../notice/notice.js'
+import { fail, notice } from '../notice/notice.js'
 import { branchMerged } from '../git/merged.js'
 import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
@@ -174,8 +174,8 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       const branch = deps.main(project)
       const [on, head] = await Promise.all([deps.git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD']), revision(repo, 'HEAD')])
       const current = on.code === 0 ? on.out.trim() : null
-      if (current !== branch) return { state: 'skipped', reason: `the checkout ${repo} is on ${current ?? 'no branch'}, not on ${branch}` }
-      if (head !== commit) return { state: 'skipped', reason: `the checkout ${repo} is at ${shortCommit(head ?? 'nothing')}, past the green commit` }
+      if (current !== branch) return { state: 'skipped', reason: notice('afterGreen.offBranch', { branch, on: current }) }
+      if (head !== commit) return { state: 'skipped', reason: notice('afterGreen.pastCommit', { head: shortCommit(head ?? 'nothing') }) }
       const failure = await deps.runAfterGreen(project, repo)
       return failure === null ? { state: 'done' } : { state: 'failed', failure }
     },

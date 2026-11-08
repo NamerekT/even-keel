@@ -1,8 +1,9 @@
 import { Fold } from '../ui/Fold.js'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { FixEpisode } from '../../../src/chain/launches.js'
+import type { ActiveChain, MainCiView, PushBy } from '../../../src/chain/model.js'
 import {
   leadRun,
   pushesOf,
@@ -21,7 +22,8 @@ import {
 } from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { ciLevel, countedViews, worstCiLevel } from '../ci.js'
-import { formatAgo, formatClock, formatSpan } from '../format.js'
+import { chainHoldOf, holdPlace, type ChainHold } from '../ciHold.js'
+import { formatAgo, formatClock, formatMoment, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { issueLink } from '../state.js'
@@ -84,15 +86,56 @@ interface Fixes {
   episodes: FixEpisode[]
   /** The commits of the fix the panel was opened on: their runs stand out. */
   marked: ReadonlySet<string>
+  /** Who pushed the latest commits of main, as the service saw it. */
+  pushes: Record<string, PushBy>
 }
 
+/** What a card says beyond its CI's runs (BTN-829): the chain's wait in the card it concerns, the project's after-green commands in the first. */
+interface Extras {
+  hold: { hold: ChainHold; at: 'push' | 'pushed' | 'apart' } | null
+  afterGreen: NonNullable<MainCiView['afterGreen']> | null
+  /** The chain waits for the after-green commands: their row says so, not a line of its own. */
+  held: boolean
+}
+
+const NO_EXTRAS: Extras = { hold: null, afterGreen: null, held: false }
+
 /** The side panel with each CI's runs; a CI the project does not count goes after those it counts (BTN-828). */
-export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[]; urls: TrackerUrls; fixes: FixEpisode[]; fix: string | null; onClose: () => void }) {
+export function CiPanel({
+  views,
+  urls,
+  fixes,
+  fix,
+  main,
+  wait,
+  onClose,
+}: {
+  views: CiView[]
+  urls: TrackerUrls
+  fixes: FixEpisode[]
+  fix: string | null
+  /** What the chain knows of the project's main (BTN-829). */
+  main: MainCiView | undefined
+  /** The project's chain's wait on main, if it waits. */
+  wait: ActiveChain['ciWait']
+  onClose: () => void
+}) {
   const episode = fixes.find((each) => each.id === fix)
-  const known: Fixes = { episodes: fixes, marked: new Set([episode?.red, episode?.end?.commit].filter((commit) => commit != null)) }
   const now = useNow(1_000)
   const closeRef = useRef<HTMLButtonElement>(null)
   const ordered = [...views.filter((view) => view.counted), ...views.filter((view) => !view.counted)]
+  const hold = chainHoldOf(wait, main)
+  const place = hold === null ? null : holdPlace(hold, ordered)
+  const known: Fixes = {
+    episodes: fixes,
+    marked: new Set([episode?.red, episode?.end?.commit].filter((commit) => commit != null)),
+    pushes: main?.pushes ?? {},
+  }
+  const extrasOf = (index: number): Extras => ({
+    hold: hold !== null && hold.kind !== 'after' && place?.index === index ? { hold, at: place.at } : null,
+    afterGreen: index === 0 ? (main?.afterGreen ?? null) : null,
+    held: hold?.kind === 'after',
+  })
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => {
@@ -113,10 +156,11 @@ export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[];
       </header>
       {ordered.map((view, index) => {
         const key = `${view.kind}-${view.remote}`
-        return index > 0 && mirrors(view, ordered[0]!, now) ? (
+        const extras = extrasOf(index)
+        return index > 0 && extras.hold === null && mirrors(view, ordered[0]!, now) ? (
           <CiMirror key={key} view={view} now={now} urls={urls} fixes={known} />
         ) : (
-          <CiSection key={key} view={view} now={now} urls={urls} fixes={known} />
+          <CiSection key={key} view={view} now={now} urls={urls} fixes={known} extras={extras} />
         )
       })}
     </aside>
@@ -174,7 +218,7 @@ function AllRuns({ url }: { url: string }) {
 }
 
 /** Each CI is a card: the verdict of its last push, its commit and tasks in view; workflows, jobs and history folded. */
-function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+function CiSection({ view, now, urls, fixes, extras }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes; extras: Extras }) {
   return (
     <section className={sectionClass(view, now)}>
       <header className="ci__head">
@@ -184,8 +228,58 @@ function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: 
         <Uncounted view={view} />
         <AllRuns url={view.url} />
       </header>
-      <CiBody view={view} now={now} urls={urls} fixes={fixes} />
+      <CiBody view={view} now={now} urls={urls} fixes={fixes} extras={extras} />
     </section>
+  )
+}
+
+/** The chain's wait, in the words of the card it stands in: apart from the push it waits on, the line names the commit. */
+function Hold({ hold, commit, now }: { hold: ChainHold; commit: string | null; now: Date }) {
+  const text =
+    hold.kind === 'late'
+      ? t.ci.hold.late(commit, formatMoment(hold.until, now))
+      : hold.kind === 'local'
+        ? t.ci.hold.local(commit, formatMoment(hold.since, now))
+        : t.ci.hold.verdict(commit, formatMoment(hold.since, now))
+  return (
+    <p className="ci__hold">
+      <span className="ci-status-dot ci-status-dot--queued" aria-hidden="true" />
+      <span>{text}</span>
+    </p>
+  )
+}
+
+/** The last run of the project's `commands.afterGreen` (BTN-829): a dot, the label and how it went. */
+function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['afterGreen']>; held: boolean; now: Date }) {
+  const commit = short(run.commit)
+  const end = run.end
+  const look = run.running ? 'running' : end === undefined ? 'notTaken' : end.state === 'done' ? 'success' : end.state === 'failed' ? 'failure' : 'notTaken'
+  const text = run.running
+    ? [t.ci.after.running(commit, formatMoment(run.since, now)), held ? t.ci.after.held : null].filter((part) => part !== null).join(' · ')
+    : end === undefined
+      ? t.ci.after.unseen(commit, formatAgo(run.since, now))
+      : end.state === 'done'
+        ? t.ci.after.done(commit, formatAgo(end.at, now))
+        : end.state === 'failed'
+          ? t.ci.after.failed(end.command, end.code, commit, formatAgo(end.at, now))
+          : t.ci.after.skipped(commit, say(end.reason), formatAgo(end.at, now))
+  const failed = end?.state === 'failed' && !run.running
+  return (
+    <Tipped
+      className="ci__after"
+      focusable
+      align="start"
+      tip={
+        <>
+          <span>{t.ci.after.title}</span>
+          {failed && <span>{t.ci.after.failedTip}</span>}
+        </>
+      }
+    >
+      <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
+      <span className="ci__label">{t.ci.after.label}</span>
+      <span className="ci__after-text">{text}</span>
+    </Tipped>
   )
 }
 
@@ -215,17 +309,20 @@ function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: T
           </span>
         }
       >
-        {() => <CiBody view={view} now={now} urls={urls} fixes={fixes} />}
+        {() => <CiBody view={view} now={now} urls={urls} fixes={fixes} extras={NO_EXTRAS} />}
       </Fold>
     </section>
   )
 }
 
-function CiBody({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes; extras: Extras }) {
   const stuck = stuckSince(view, now)
   const queued = stuck !== null && view.current !== null && runsOf(view.current).some((run) => run.status === 'queued' && run.createdAt === stuck)
+  const hold = (at: 'push' | 'pushed' | 'apart') =>
+    extras.hold?.at === at ? <Hold hold={extras.hold.hold} commit={at === 'apart' ? short(extras.hold.hold.commit) : null} now={now} /> : null
   return (
     <div className="ci__body">
+      {hold('apart')}
       {view.error !== null && <p className={`notice ${view.health === 'off' ? 'notice--warn' : 'notice--error'} ci__notice`}>{say(view.error)}</p>}
       <NoticeFixButton project={null} notice={view.error} />
       {stuck !== null && (
@@ -234,9 +331,11 @@ function CiBody({ view, now, urls, fixes }: { view: CiView; now: Date; urls: Tra
         </p>
       )}
       {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
-      {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} />}
+      {hold('pushed')}
+      {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} hold={hold('push')} />}
+      {extras.afterGreen !== null && <AfterGreen run={extras.afterGreen} held={extras.held} now={now} />}
       {view.history.length > 0 ? (
-        <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} />
+        <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} pushes={fixes.pushes} />
       ) : (
         view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>
       )}
@@ -258,7 +357,24 @@ function waitText(busy: BusyRunner | undefined): string {
  * The push: its commit's title, commit, event, tasks, and the state and time of the run the verdict waits for longest.
  * A push of one workflow keeps that run's number and jobs in the block; one of several has a row per workflow (BTN-828).
  */
-function Push({ current, medians, busy, now, urls, fixes }: { current: CurrentRun; medians: Record<string, number>; busy: BusyRunner | undefined; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+function Push({
+  current,
+  medians,
+  busy,
+  now,
+  urls,
+  fixes,
+  hold,
+}: {
+  current: CurrentRun
+  medians: Record<string, number>
+  busy: BusyRunner | undefined
+  now: Date
+  urls: TrackerUrls
+  fixes: Fixes
+  /** The chain's wait on this push, under its commit line. */
+  hold: ReactNode
+}) {
   const runs = runsOf(current)
   const lead = leadRun(runs, medians, now)
   const status = pushStatus(runs)
@@ -267,6 +383,7 @@ function Push({ current, medians, busy, now, urls, fixes }: { current: CurrentRu
   const tasks = current.tasks.filter((task) => !isOwnName(task))
   const fixed = fix !== undefined || tasks.length < current.tasks.length
   const event = eventsOf(runs)
+  const by = fixes.pushes[current.commit]
   return (
     <div className="ci__block">
       <a className={fixes.marked.has(current.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={lead.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
@@ -283,9 +400,12 @@ function Push({ current, medians, busy, now, urls, fixes }: { current: CurrentRu
         {single !== null && <span className="ci__seg">#{single.run.number}</span>}
         {single !== null && !current.manual && <span className="ci__seg">{single.run.workflow}</span>}
         {event !== null && <span className="ci__seg">{event}</span>}
+        {/* The fix tag below says who pushed a fix already. */}
+        {by !== undefined && !fixed && <span className="ci__seg">{t.ci.by[by]}</span>}
         <Timing run={lead} median={medians[lead.workflow] ?? null} now={now} meter={single !== null} />
       </div>
       {single !== null && status === 'notTaken' && <p className="ci__hint">{t.ci.notTaken}</p>}
+      {hold}
       {(tasks.length > 0 || fixed) && (
         <p className="ci__tasks">
           <span className="ci__label">{t.ci.tasks}</span>
@@ -471,7 +591,19 @@ function Line({ status, name, length, steps }: { status: CiRun['status']; name: 
 }
 
 /** A row per push, folded to the last pushes as dots; open on the fix the panel was opened on, with every push when its one is past the first ones. */
-function History({ runs, medians, now, marked }: { runs: CiRun[]; medians: Record<string, number>; now: Date; marked: ReadonlySet<string> }) {
+function History({
+  runs,
+  medians,
+  now,
+  marked,
+  pushes: by,
+}: {
+  runs: CiRun[]
+  medians: Record<string, number>
+  now: Date
+  marked: ReadonlySet<string>
+  pushes: Record<string, PushBy>
+}) {
   const [more, setMore] = useState(false)
   const pushes = pushesOf(runs)
   const markedAt = pushes.findIndex((push) => marked.has(push.commit))
@@ -492,7 +624,7 @@ function History({ runs, medians, now, marked }: { runs: CiRun[]; medians: Recor
         <>
           <ul className="ci__history">
             {(all ? pushes : pushes.slice(0, HISTORY_SHOWN)).map((push) => (
-              <PushRow key={push.key} push={push} medians={medians} now={now} marked={marked.has(push.commit)} />
+              <PushRow key={push.key} push={push} medians={medians} now={now} marked={marked.has(push.commit)} by={by[push.commit]} />
             ))}
           </ul>
           {!all && (
@@ -507,11 +639,13 @@ function History({ runs, medians, now, marked }: { runs: CiRun[]; medians: Recor
 }
 
 /** The push's state, commit, title, a dot per workflow when there are several, its time and when; the event and run numbers are its tip. */
-function PushRow({ push, medians, now, marked }: { push: PushRuns; medians: Record<string, number>; now: Date; marked: boolean }) {
+function PushRow({ push, medians, now, marked, by }: { push: PushRuns; medians: Record<string, number>; now: Date; marked: boolean; by: PushBy | undefined }) {
   const look = pushStatus(push.runs)
   const lead = leadRun(push.runs, medians, now)
   const length = runDurationMs(lead, now)
-  const tip = [t.ci.status[look], eventsOf(push.runs), push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')].filter((part) => part !== null).join(' · ')
+  const tip = [t.ci.status[look], eventsOf(push.runs), by === undefined ? null : t.ci.by[by], push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')]
+    .filter((part) => part !== null)
+    .join(' · ')
   return (
     <li>
       <a className={marked ? 'ci__past ci__past--fix' : 'ci__past'} href={lead.url} target="_blank" rel="noreferrer" title={tip}>

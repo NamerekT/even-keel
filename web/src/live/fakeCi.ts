@@ -1,3 +1,4 @@
+import type { ActiveChain, AfterGreenEnd, MainCiView, PushBy } from '../../../src/chain/model.js'
 import type { CiJob, CiRun, CiView, CurrentRun, RunEvent, RunStatus } from '../../../src/ci/model.js'
 import { notice } from '../../../src/notice/notice.js'
 
@@ -137,7 +138,7 @@ function githubView(finished: boolean): CiView {
 }
 
 /**
- * `?ci=failure|stuck|busy|nottaken|push|fixed|mirror|error|off|none`; without it ABC has a running Forgejo run and
+ * `?ci=failure|stuck|busy|nottaken|push|fixed|mirror|error|off|none`, and the cases of `fakeMainCi`; without it ABC has a running Forgejo run and
  * an uncounted GitHub Actions whose push runs two workflows, one still going.
  */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
@@ -173,6 +174,50 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
     push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
     off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }), checkedAt: null, current: null, history: [], medians: {} },
+    late: forgejo({ current: current([[untaken, [notTakenJob]]], ['ABC-5']), history: [untaken, ...HISTORY] }),
+    after: finished,
+    afterfailed: finished,
+    afterskipped: finished,
+    afterunseen: finished,
   }
   return { ABC: [views[kind ?? ''] ?? forgejo(), githubView(kind === 'mirror')], DEMO: [finished] }
+}
+
+const ahead = (seconds: number) => new Date(Date.now() + seconds * 1_000).toISOString()
+
+/** The chain's wait on ABC's main and what the CI panel knows of it, for `fakeMainCi`. */
+export interface FakeMainCi {
+  mainCi: Record<string, MainCiView>
+  ciWait?: NonNullable<ActiveChain['ciWait']>
+}
+
+/**
+ * `?ci=wait|local|late|after|afterfailed|afterskipped|afterunseen|hand` (BTN-829); otherwise ABC's after-green
+ * commands ended well on its last green push 3 minutes ago, and the chain pushed the running one.
+ */
+export function fakeMainCi(kind: string | null): FakeMainCi {
+  const green = HISTORY[0]!.commit
+  const going = sha(5)
+  const pushes: Record<string, PushBy> = { [going]: kind === 'hand' ? 'hand' : 'chain', [green]: 'chain', [sha(3)]: 'hand' }
+  const record = (end: AfterGreenEnd | undefined, running = false) => ({ commit: green, since: ago(running ? 40 : 260), running, ...(end === undefined ? {} : { end }) })
+  const done = record({ at: ago(180), state: 'done' })
+  const main = (over: Partial<MainCiView> = {}): Record<string, MainCiView> => ({ ABC: { afterGreen: done, pushes, ...over } })
+  switch (kind) {
+    case 'wait':
+      return { mainCi: main(), ciWait: { commit: going, since: ago(150) } }
+    case 'local':
+      return { mainCi: main(), ciWait: { commit: sha(6), since: ago(70), local: true } }
+    case 'late':
+      return { mainCi: main({ late: { commit: going, until: ahead(1_200) } }) }
+    case 'after':
+      return { mainCi: main({ afterGreen: record(undefined, true) }), ciWait: { commit: green, since: ago(40), after: true } }
+    case 'afterfailed':
+      return { mainCi: main({ afterGreen: record({ at: ago(200), state: 'failed', command: 'npm run deploy', code: 1 }) }) }
+    case 'afterskipped':
+      return { mainCi: main({ afterGreen: record({ at: ago(250), state: 'skipped', reason: notice('afterGreen.offBranch', { branch: 'main', on: 'abc-12/fix' }) }) }) }
+    case 'afterunseen':
+      return { mainCi: main({ afterGreen: record(undefined) }) }
+    default:
+      return { mainCi: main() }
+  }
 }

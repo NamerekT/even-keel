@@ -142,6 +142,8 @@ export interface MainGate {
   rerun?: { commit: string; at: string; runs: string[] }
   /** The last green commit the project's `commands.afterGreen` were started on, written before they start. */
   afterGreen?: string
+  /** When that run started and how it ended, for the page (BTN-829). */
+  afterGreenRun?: AfterGreenRecord
   /** On a release project's gate: the carry of its branch a session resolves, from "Resolve with the agent" until it lands or is skipped. */
   carry?: CarrySession
   /**
@@ -479,7 +481,34 @@ export interface MainCheckDeps {
   runAfterGreen: (project: string, commit: string) => Promise<AfterGreenRun>
 }
 
-export type AfterGreenRun = { state: 'done' } | { state: 'failed'; failure: CheckFailure } | { state: 'skipped'; reason: string }
+/** `skipped` — the guard kept the checkout untouched, or the run could not start. */
+export type AfterGreenRun = { state: 'done' } | { state: 'failed'; failure: CheckFailure } | { state: 'skipped'; reason: Notice }
+
+/** How a run of `commands.afterGreen` ended (BTN-829): the failed command's output stays in the log. */
+export type AfterGreenEnd = { at: string } & ({ state: 'done' } | { state: 'failed'; command: string; code: number } | { state: 'skipped'; reason: Notice })
+
+/** The last run of the project's `commands.afterGreen` (BTN-829); no `end` — still going, or the service stopped before it ended. */
+export interface AfterGreenRecord {
+  commit: string
+  since: string
+  end?: AfterGreenEnd
+}
+
+/** Who pushed a commit of main, as the service saw it (BTN-829): the chain after a task, or a person by hand (BTN-707). */
+export type PushBy = 'chain' | 'hand'
+
+/**
+ * What the chain knows of the project's main for the CI panel (BTN-829). The late watch and who pushed are kept in
+ * memory only, so a restart forgets them as it ends their effect.
+ */
+export interface MainCiView {
+  /** A push no runner took in time that a run taken later still judges (BTN-719), and until when. */
+  late?: { commit: string; until: string }
+  /** Only for a project with `commands.afterGreen`; `running` — the run is going on now. */
+  afterGreen?: AfterGreenRecord & { running: boolean }
+  /** The latest pushes of main the service saw, by commit. */
+  pushes: Record<string, PushBy>
+}
 
 /** The first command of the project's check that failed, with its output. */
 export interface CheckFailure {

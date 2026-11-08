@@ -36,6 +36,25 @@ export const ciRu = {
   tasks: 'Задачи пуша',
   fixTask: 'починка main',
   fixTaskTitle: 'Строка этой починки в архиве цепочки',
+  hold: {
+    verdict: (commit: string | null, since: string) => `Следующая задача ждёт вердикт CI по ${commit ?? 'этому пушу'} с ${since}`,
+    local: (commit: string | null, since: string) =>
+      `CI не может судить ${commit ?? 'этот пуш'}: с ${since} его проверяет проверка проекта, следующая задача ждёт её`,
+    late: (commit: string | null, until: string) =>
+      commit === null ? `Прогон, взятый до ${until}, ещё рассудит этот пуш` : `Раннер не взял ${commit} вовремя: прогон, взятый до ${until}, ещё его рассудит`,
+  },
+  after: {
+    label: 'После зелёного',
+    title: 'Команды проекта после зелёного main',
+    running: (commit: string, since: string) => `команды идут на ${commit} с ${since}`,
+    held: 'следующая задача ждёт их',
+    done: (commit: string, ago: string) => `прошли на ${commit} · ${ago}`,
+    failed: (command: string, code: number, commit: string, ago: string) => `«${command}» завершилась с кодом ${code} на ${commit} · ${ago}`,
+    failedTip: 'Вывод команды — в логе сервиса',
+    skipped: (commit: string, why: string, ago: string) => `пропущены на ${commit}: ${why} · ${ago}`,
+    unseen: (commit: string, ago: string) => `запущены на ${commit} ${ago}; конца не видно — сервис перезапускался`,
+  },
+  by: { chain: 'пуш цепочки', hand: 'пуш вручную' },
   jobs: 'Задачи прогона',
   noJobs: 'Задач прогона пока нет',
   stepsOnPage: 'Шаги — на странице прогона',

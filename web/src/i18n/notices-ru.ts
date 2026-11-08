@@ -213,6 +213,8 @@ export const noticesRu: NoticeTexts = {
   'check.fixFailed': (p) => `проверка проекта падает на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'check.cannotCreate': (p) => `проверка проекта падает на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
   'check.fixNotCreated': (p) => `проверка проекта падает на main в ${p.commit}; задача на починку не заведена`,
+  'afterGreen.offBranch': (p) => (p.on === null ? `основной чекаут не на ветке, а должен быть на ${p.branch}` : `основной чекаут на ${p.on}, а не на ${p.branch}`),
+  'afterGreen.pastCommit': (p) => `основной чекаут на ${p.head}, дальше зелёного коммита`,
   'afterGreen.failed': (p) => `команда «${p.command}» после зелёного main в ${p.commit} завершилась с кодом ${p.code} — main остаётся зелёным, вывод в логе сервиса`,
 
   'slot.dirty': (p) => `в слоте ${p.path} незакоммиченные изменения — закоммитьте или уберите их`,

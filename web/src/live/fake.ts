@@ -14,7 +14,7 @@ import type { EvenKeelState, GitSetupView, SessionView } from '../../../src/stat
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, withAccount } from './fakeAccounts.js'
-import { FAKE_FIX, fakeCi } from './fakeCi.js'
+import { FAKE_FIX, fakeCi, fakeMainCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent, fakeEventLog } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
@@ -186,6 +186,7 @@ function fakeState(
       },
     },
     ci: fakeCi(null),
+    mainCi: fakeMainCi(null).mainCi,
     remotes: FAKE_REMOTES,
     sameRepository: {},
     pullReadiness: FAKE_PULL_READINESS,
@@ -323,7 +324,13 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('git') === 'missing' && current.state !== null) current.state.git = { version: null, name: null, email: null, install: 'winget install --id Git.Git -e', ...restart }
   if (params.get('git') === 'bare' && current.state !== null) current.state.git = { version: null, name: null, email: null, ...restart }
   if (params.get('git') === 'anon' && current.state !== null) current.state.git = { version: '2.47.1', name: null, email: null }
-  if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
+  if (params.has('ci') && current.state !== null) {
+    current.state.ci = fakeCi(params.get('ci'))
+    const { mainCi, ciWait } = fakeMainCi(params.get('ci'))
+    current.state.mainCi = mainCi
+    const abc = current.state.chain.active.find((each) => each.project === 'ABC')
+    if (abc !== undefined && ciWait !== undefined) abc.ciWait = ciWait
+  }
   if (params.get('log') === 'empty' && current.state !== null) current.state.eventLog = []
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (params.get('trackers') === 'scope' && current.state !== null) current.state = withScopeRefusal(current.state)

@@ -36,6 +36,26 @@ export const ciEn = {
   tasks: 'Tasks of the push',
   fixTask: 'fix of main',
   fixTaskTitle: 'The row of this fix in the chain archive',
+  hold: {
+    verdict: (commit: string | null, since: string) => `The next task waits for the CI's verdict on ${commit ?? 'this push'} since ${since}`,
+    local: (commit: string | null, since: string) =>
+      `No CI can judge ${commit ?? 'this push'}: the project's check runs on it since ${since}, and the next task waits for it`,
+    // In the push's own card its line already says no runner took it.
+    late: (commit: string | null, until: string) =>
+      commit === null ? `A run taken before ${until} still judges this push` : `No runner took ${commit} in time: a run taken before ${until} still judges it`,
+  },
+  after: {
+    label: 'After green',
+    title: "The project's commands after a green main",
+    running: (commit: string, since: string) => `running on ${commit} since ${since}`,
+    held: 'the next task waits for them',
+    done: (commit: string, ago: string) => `done on ${commit} · ${ago}`,
+    failed: (command: string, code: number, commit: string, ago: string) => `"${command}" exited with code ${code} on ${commit} · ${ago}`,
+    failedTip: 'The output is in the service log',
+    skipped: (commit: string, why: string, ago: string) => `skipped on ${commit}: ${why} · ${ago}`,
+    unseen: (commit: string, ago: string) => `started on ${commit} ${ago}; the end was not seen, the service restarted`,
+  },
+  by: { chain: 'pushed by the chain', hand: 'pushed by hand' },
   jobs: 'Jobs',
   noJobs: 'No jobs yet',
   stepsOnPage: 'Steps are on the run page',
