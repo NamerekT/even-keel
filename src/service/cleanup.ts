@@ -56,14 +56,15 @@ export async function stopTaskSessions(
 }
 
 /**
- * The cleanup's warnings without the worktree folder a session whose stop is tried again still holds (EKR-99): the
- * folder is removed once the session is stopped, and warned about only if that fails too.
+ * The cleanup's warnings without the worktree folder a process still holds: a session whose stop is tried again
+ * (EKR-99), or one just stopped whose process or children have not let go yet (BTN-870). The folder is tried again on
+ * each tick once no kept session of the task is left, and warned about only if it is still held after `STOP_RETRY_MS`.
  */
 export function deferLeftFolder(ctx: ChainContext, project: string, repo: string, task: string, warnings: Notice[]): Notice[] {
   return warnings.filter((warning) => {
     if (warning.code !== 'cleanup.folderLeft') return true
     ctx.lingering.leave({ project, task, repo, path: warning.params.path, until: Date.now() + STOP_RETRY_MS })
-    console.log(`cleanup: the worktree folder ${warning.params.path} of ${task} is held, it will be removed once its session is stopped`)
+    console.log(`cleanup: the worktree folder ${warning.params.path} of ${task} is held, it will be tried again once nothing holds it`)
     return false
   })
 }
@@ -95,7 +96,12 @@ export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<voi
     for (const folder of ctx.lingering.dueFolders(Date.now())) {
       const left = await removeLeftFolder(git, folder.repo, folder.path)
       if (left === null) {
-        console.log(`cleanup: removed the worktree folder ${folder.path} of ${folder.task} once its session was stopped`)
+        console.log(`cleanup: removed the worktree folder ${folder.path} of ${folder.task} once nothing held it`)
+        continue
+      }
+      // A stopped process lets go of the folder a moment after it exits, its children later still (BTN-870).
+      if (left.code === 'cleanup.folderLeft' && Date.now() < folder.until) {
+        ctx.lingering.leave(folder)
         continue
       }
       console.warn(`git: ${folder.task}: ${englishOf(left)}`)

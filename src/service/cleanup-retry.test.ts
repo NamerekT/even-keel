@@ -84,6 +84,40 @@ describe('cleanup after Done whose stop timed out (EKR-99)', () => {
     expect(stopIn).toHaveBeenCalledTimes(3)
   })
 
+  it('tries a held folder again on each tick after a stop that went through, and warns only once its wait is over (BTN-870)', async () => {
+    const { ctx, leftover } = setup([undefined])
+    await stopTaskSessions(ctx, 'project-1', repo, 'ABC-1', 1)
+    expect(deferLeftFolder(ctx, 'project-1', repo, 'ABC-1', [leftBehind(place, 'error: Permission denied')])).toEqual([])
+    const held = async (): Promise<GitResult> => {
+      throw new Error('EBUSY: resource busy or locked')
+    }
+
+    await stopLingering(ctx, held)
+    await stopLingering(ctx, held)
+    expect(existsSync(place)).toBe(true)
+    expect(leftover).not.toHaveBeenCalled()
+
+    vi.setSystemTime(Date.now() + STOP_RETRY_MS)
+    await stopLingering(ctx, held)
+    expect(leftover).toHaveBeenCalledTimes(1)
+    expect(leftover.mock.calls[0]!.slice(0, 2)).toEqual(['project-1', 'ABC-1'])
+    expect((leftover.mock.calls[0] as unknown[])[2]).toMatchObject({ code: 'cleanup.folderLeft' })
+    await stopLingering(ctx, held)
+    expect(leftover).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes a held folder once its holder lets it go, with nothing on the page (BTN-870)', async () => {
+    const { ctx, leftover, git } = setup([undefined])
+    deferLeftFolder(ctx, 'project-1', repo, 'ABC-1', [leftBehind(place, 'error: Permission denied')])
+
+    await stopLingering(ctx, async () => {
+      throw new Error('EBUSY: resource busy or locked')
+    })
+    await stopLingering(ctx, git)
+    expect(existsSync(place)).toBe(false)
+    expect(leftover).not.toHaveBeenCalled()
+  })
+
   it('warns at once when the stop fails for another reason', async () => {
     const { ctx, leftover } = setup([new Error('claude stop failed')])
     const stopped = await stopTaskSessions(ctx, 'project-1', repo, 'ABC-1', 1)

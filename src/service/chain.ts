@@ -469,7 +469,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
         throw error
       }
       ctx.packages.release(project, task)
-      const left = stopped.retrying ? deferLeftFolder(ctx, project, repo, task, finished.warnings) : finished.warnings
+      const left = deferLeftFolder(ctx, project, repo, task, finished.warnings)
       const outcome = { ...finished, warnings: [...stopped.warnings, ...left] }
       for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
       if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)

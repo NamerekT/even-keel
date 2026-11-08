@@ -84,6 +84,11 @@ export function chainOnRealCli(kit: CliKit): void {
       return session
     }
     const asked = (task: string) => model.requests.filter((request) => request.task === task)
+    /**
+     * Waits for the task's script to be played out. The branch lands in main at the merge's tool call, so Done can come
+     * before the CLI asks for the report after it; the session is stopped only once that turn ends (BTN-870).
+     */
+    const playedOut = (task: string) => run.until(() => model.left(task) === 0, `the last reply of ${task} taken`, { limitMs: TURN_LIMIT_MS })
 
     /** Adds Even Keel's `checkpoint` plugin to the project and waits for it to install. */
     async function addCheckpoint(): Promise<void> {
@@ -190,7 +195,7 @@ export function chainOnRealCli(kit: CliKit): void {
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
       expect(asked('ABC-1').some((request) => request.result.includes(REFUSED))).toBe(true)
       expect(run.git('log', '--format=%s', 'main').split('\n')).toEqual(expect.arrayContaining(['[ABC-1] Work', '[ABC-1] Fix']))
-      expect(model.left('ABC-1')).toBe(0)
+      await playedOut('ABC-1')
     })
 
     /**
@@ -220,7 +225,7 @@ export function chainOnRealCli(kit: CliKit): void {
       if (!steers) expect(run.service.mailbox.of(session.sessionId)[0]).toMatchObject({ fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) })
       expect(asked('ABC-1').some((request) => request.context.includes(MAIL_WORD))).toBe(true)
       expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
-      expect(model.left('ABC-1')).toBe(0)
+      await playedOut('ABC-1')
     })
 
     it("asks the session for a checkpoint once its context passes the project's threshold, by the checkpoint plugin's hook", async () => {
@@ -236,7 +241,7 @@ export function chainOnRealCli(kit: CliKit): void {
       const nudged = asked('ABC-1').find((request) => request.context.includes(NUDGED))
       expect(nudged?.context).toContain(CHECKPOINT_LINE)
       expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
-      expect(model.left('ABC-1')).toBe(0)
+      await playedOut('ABC-1')
     })
 
     /**

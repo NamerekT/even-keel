@@ -145,7 +145,8 @@ export class Harness {
     Object.assign(console, this.console)
     for (const name of Object.keys(process.env)) if (!(name in this.saved)) delete process.env[name]
     Object.assign(process.env, this.saved)
-    rmSync(this.dir, { recursive: true, force: true, maxRetries: 5 })
+    // A real CLI's process may still be exiting and hold its account's files for seconds under load (BTN-870).
+    rmSync(this.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   }
 
   /** Moves the clock by `step` until `done` holds, letting real I/O run between the steps; throws past `limitMs`. */

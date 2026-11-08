@@ -6,7 +6,7 @@ export interface StopRetry {
   until: number
 }
 
-/** A worktree folder git unregistered and left while a kept session of its task still held it (EKR-99). */
+/** A worktree folder git unregistered and left while a process still held it: a kept session (EKR-99), a stopped one's (BTN-870). */
 export interface LeftFolder {
   project: string
   task: string
@@ -53,7 +53,7 @@ export class Lingering {
     return due
   }
 
-  /** The left folders to remove now, forgotten as they are given: no session of their task is kept any more, or their wait is over. */
+  /** The left folders to try now, forgotten as they are given (a still held one is left again): no session of their task is kept any more, or their wait is over. */
   dueFolders(now: number): LeftFolder[] {
     const held = new Set([...this.sessions.values()].map((kept) => kept.task))
     const due = [...this.folders.values()].filter((folder) => !held.has(folder.task) || now >= folder.until)
