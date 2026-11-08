@@ -22,7 +22,7 @@ import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, inheritedEdit, ownEdited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import { folderLabel } from '../accountName.js'
-import { accountOptions, namedProviders, providerKeys, providerName } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import {
   ErrorStrip,
@@ -60,7 +60,7 @@ import { offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { SessionGets } from './SessionGets.js'
-import { checkpointOf, CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, valuesOf } from './projectForm.js'
+import { checkpointOf, CLI_TTL, compactWindowOf, formOf, profileOf, remoteKey, standardRows, switchOf, valuesOf, WINDOW_FLAGS } from './projectForm.js'
 import { TokensInput } from '../ui/TokensInput.js'
 import { tokensShown } from '../ui/tokens.js'
 import { ProjectStandards } from './ProjectStandards.js'
@@ -300,30 +300,36 @@ export function SettingsPanel({
       onChange={(event) => onChange(event.target.value)}
     />
   )
-  // An agent's compaction window: the project's own or the shared one, empty for the agent's own window.
-  const windowRow = (flag: string, key: 'autoCompactWindow' | 'codexAutoCompactWindow', empty: string, hint: string) => {
+  // A provider's compaction window, a cell of the agent card: the project's own or the shared one, empty for the agent's own window.
+  const windowEmpty = (provider: string) => (provider === 'claude' ? t.shared.autoCompactWindowAccount : t.shared.codexAutoCompactWindowModel)
+  const windowCell = (provider: string) => {
+    const key = WINDOW_KEYS[provider]
+    if (key === undefined) return null
+    const flag = WINDOW_FLAGS[key]
+    const empty = windowEmpty(provider)
     const sharedText = shared[key] === null ? '' : String(shared[key])
     const invalid = on(flag) && compactWindowOf(text(key)) === undefined
     return (
-      <Row
-        className={marks.box([flag, key])}
-        label={t.shared.autoCompactWindow}
-        hint={hint}
-        htmlFor={fieldId(key)}
-        inherit={ownInherit(flag, { [key]: sharedText }, tokensShown(sharedText) || empty)}
-        mark={flagNote(flag, [key], (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))}
-        control={
+      <div className={marks.box([flag, key])}>
+        <ErrorStrip error={invalid ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)} wide>
           <TokensInput
             id={fieldId(key)}
+            label={t.shared.autoCompactWindowOf(providerName(provider))}
             value={on(flag) ? text(key) : sharedText}
             invalid={invalid}
             placeholder={empty}
             onChange={(value) => ownEdit(flag, { [key]: sharedText })(key, value)}
           />
-        }
-        error={invalid ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)}
-      />
+        </ErrorStrip>
+        <Inherit {...ownInherit(flag, { [key]: sharedText }, tokensShown(sharedText) || empty)} />
+      </div>
     )
+  }
+  const windowMark = (provider: string) => {
+    const key = WINDOW_KEYS[provider]
+    if (key === undefined) return null
+    const empty = windowEmpty(provider)
+    return flagNote(WINDOW_FLAGS[key], [key], (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))
   }
 
   const groups: Record<GroupId, () => ReactNode> = {
@@ -558,10 +564,12 @@ export function SettingsPanel({
             columns={[
               { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
               { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
+              { key: 'window', label: t.shared.autoCompactWindow, hint: t.shared.autoCompactWindowColumnHint },
             ]}
             providers={offered}
             cell={(column, provider) => {
               const key = `${column}.${provider}`
+              if (column === 'window') return windowCell(provider)
               if (column === 'accounts') {
                 const sharedAccount = shared.accounts[provider]
                 const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)
@@ -609,6 +617,7 @@ export function SettingsPanel({
             }}
             cellMark={(column, provider) => {
               const key = `${column}.${provider}`
+              if (column === 'window') return windowMark(provider)
               if (column === 'models') {
                 const sharedModel = shared.models[provider] ?? t.settings.cliDefault
                 return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))
@@ -708,7 +717,6 @@ export function SettingsPanel({
           </div>
         </Section>
         <Section title={t.shared.claude}>
-          {windowRow('ownAutoCompact', 'autoCompactWindow', t.shared.autoCompactWindowAccount, t.shared.autoCompactWindowHint)}
           {pick(
             'cacheTtl',
             t.shared.cacheTtl,
@@ -720,9 +728,6 @@ export function SettingsPanel({
             ],
             { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
           )}
-        </Section>
-        <Section title={t.shared.codex}>
-          {windowRow('ownCodexCompact', 'codexAutoCompactWindow', t.shared.codexAutoCompactWindowModel, t.shared.codexAutoCompactWindowHint)}
         </Section>
       </>
     ),

@@ -25,7 +25,7 @@ export interface CodexSession {
   pid: number
   /** The `--json` output of the last turn. */
   out: string
-  /** The window it was started with (`codexAutoCompactWindow`); every later turn and fork keeps it. */
+  /** The window it was started with (`codexAutoCompactWindow`, OpenCode's `openCodeAutoCompactWindow`); every later turn and fork keeps it. */
   contextWindow?: number
   stopped?: boolean
 }
@@ -109,7 +109,8 @@ export function parseSession(raw: string): CodexSession | undefined {
 /** The session as the chain sees it: busy while its turn runs, resting and idle between turns. OpenCode keeps its sessions the same way. */
 export function entryOf(session: CodexSession, live: boolean, kind = CODEX): AgentEntry {
   const { sessionId, name, cwd, account, startedAt } = session
-  const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt, ...(session.contextWindow !== undefined && { compactAt: compactionLimit(session.contextWindow) }) }
+  const window = session.contextWindow === undefined ? {} : { contextWindow: session.contextWindow, compactAt: compactionLimit(session.contextWindow) }
+  const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt, ...window }
   if (session.stopped === true) return { ...entry, state: 'stopped' }
   if (live) return { ...entry, pid: session.pid, processStartedAt: turnStartedAt(session.out) ?? startedAt, status: 'busy', state: 'working' }
   return { ...entry, status: 'idle', state: 'working', resting: true }

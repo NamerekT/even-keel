@@ -93,6 +93,7 @@ export interface EvenKeelConfig {
   cacheTtl: CacheTtl | null
   autoCompactWindow: number | null
   codexAutoCompactWindow: number | null
+  openCodeAutoCompactWindow: number | null
   /** Handoffs by context size for every project without its own (BTN-255); what each ends up with is in `settings`. */
   contextHandoffs: boolean
   /** The shared `ci` keys and `fillMilestone`; what each project ends up with is in `settings`. */
@@ -329,6 +330,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     cacheTtl: shared.cacheTtl as CacheTtl | null,
     autoCompactWindow: shared.autoCompactWindow as number | null,
     codexAutoCompactWindow: shared.codexAutoCompactWindow as number | null,
+    openCodeAutoCompactWindow: shared.openCodeAutoCompactWindow as number | null,
     contextHandoffs: shared.contextHandoffs as boolean,
     ci: ciOf(shared),
     fillMilestone: shared.fillMilestone as boolean,
@@ -393,6 +395,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     cacheTtl: values.cacheTtl as CacheTtl | null,
     autoCompactWindow: values.autoCompactWindow as number | null,
     codexAutoCompactWindow: values.codexAutoCompactWindow as number | null,
+    openCodeAutoCompactWindow: values.openCodeAutoCompactWindow as number | null,
     contextHandoffs: values.contextHandoffs as boolean,
     protection: values.protection as Protection,
     checkpointTokens: values['stats.checkpointTokens'] as number | null,

@@ -127,6 +127,17 @@ describe('sessionConfig', () => {
     const packagesOnly = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [], ['file:///packages/checkpoint.mjs']))
     expect(packagesOnly.plugin).toEqual(['file:///packages/checkpoint.mjs'])
   })
+
+  it("sets the session's window over the model's limit, and leaves the model's own without one", () => {
+    const window = { model: 'openrouter/minimax/minimax-m3.1-flash', window: 250_000, output: 64_000 }
+    const config = JSON.parse(sessionConfig({}, [], [], [], window))
+    expect(config.provider.openrouter.models['minimax/minimax-m3.1-flash'].limit).toEqual({ context: 250_000, input: 250_000, output: 64_000 })
+    expect(config.compaction).toEqual({ reserved: 32_000 })
+    expect(config.permission.external_directory).toBe('allow')
+    const own = JSON.parse(sessionConfig({}, [], []))
+    expect(own.provider).toBeUndefined()
+    expect(own.compaction).toBeUndefined()
+  })
 })
 
 describe('pluginFiles', () => {

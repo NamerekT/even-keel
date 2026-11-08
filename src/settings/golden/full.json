@@ -203,6 +203,7 @@
       "cacheTtl": "1h",
       "autoCompactWindow": 300000,
       "codexAutoCompactWindow": null,
+      "openCodeAutoCompactWindow": 150000,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -243,6 +244,7 @@
         "ci.fixTask": true,
         "fillMilestone": true,
         "codexAutoCompactWindow": null,
+        "openCodeAutoCompactWindow": 150000,
         "contextHandoffs": true,
         "stats.checkpointShares.late": 80
       },
@@ -281,6 +283,7 @@
       "cacheTtl": "1h",
       "autoCompactWindow": 300000,
       "codexAutoCompactWindow": 250000,
+      "openCodeAutoCompactWindow": 200000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -346,6 +349,7 @@
       "cacheTtl": "1h",
       "autoCompactWindow": 300000,
       "codexAutoCompactWindow": 250000,
+      "openCodeAutoCompactWindow": 200000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -411,6 +415,7 @@
       "cacheTtl": "1h",
       "autoCompactWindow": 300000,
       "codexAutoCompactWindow": 250000,
+      "openCodeAutoCompactWindow": 200000,
       "contextHandoffs": false,
       "protection": {
         "disabled": [
@@ -520,6 +525,7 @@
   "cacheTtl": "1h",
   "autoCompactWindow": 300000,
   "codexAutoCompactWindow": 250000,
+  "openCodeAutoCompactWindow": 200000,
   "contextHandoffs": false,
   "ci": {
     "guard": true,

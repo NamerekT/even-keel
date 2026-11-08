@@ -295,6 +295,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)) throw fail('config.codexAutoCompactWindow', { value: json(value) })
     return value
   } },
+  // OpenCode chain sessions' window (BTN-856), capped by the model's own; compaction fires where Claude's would.
+  { key: 'openCodeAutoCompactWindow', kind: 'integer', scopes: ['global', 'project'], lands: ['openCodeAutoCompactWindow', 'settings'], default: null, check: (value) => {
+    if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)) throw fail('config.openCodeAutoCompactWindow', { value: json(value) })
+    return value
+  } },
   context('window'),
   context('warn'),
   context('danger'),
@@ -399,7 +404,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
 export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
+export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {

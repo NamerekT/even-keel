@@ -85,14 +85,14 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
 const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
   repo: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'],
   tracker: ['tracker', 'trackerProject', 'fillMilestone', 'chain'],
-  sessions: ['provider', 'models', 'accounts', 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'contextHandoffs', 'checkpointTokens', 'checkpointShares'],
+  sessions: ['provider', 'models', 'accounts', 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'checkpointTokens', 'checkpointShares'],
   ci: ['check', 'afterGreen', 'ci', 'pullRequests'],
 }
 
 const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   chain: ['parallel', 'brief', 'fillMilestone', 'chain'],
-  models: ['provider', 'models', 'accounts', 'execution', 'cli', 'cliCheck', 'modelLabels', 'modelPrompts', 'promptLanguage'],
-  sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'keepWarm'],
+  models: ['provider', 'models', 'accounts', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'execution', 'cli', 'cliCheck', 'modelLabels', 'modelPrompts', 'promptLanguage'],
+  sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
   ci: ['ci'],
   page: ['language', 'allowedHosts', 'attachmentLimit'],
   stats: ['stats'],

@@ -143,6 +143,7 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     cacheTtl: (body.cacheTtl ?? null) as CacheTtl | null,
     autoCompactWindow: (body.autoCompactWindow ?? null) as number | null,
     codexAutoCompactWindow: (body.codexAutoCompactWindow ?? null) as number | null,
+    openCodeAutoCompactWindow: (body.openCodeAutoCompactWindow ?? null) as number | null,
     contextHandoffs: (body.contextHandoffs ?? true) as boolean,
     checkpointTokens: (body.checkpointTokens ?? null) as number | null,
     checkpointShares: sharesOf(body.checkpointShares),
@@ -183,6 +184,7 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     cacheTtl: (cacheTtl ?? null) as CacheTtl | null,
     autoCompactWindow: body.autoCompactWindow == null ? null : numberOf(body.autoCompactWindow, 'autoCompactWindow'),
     codexAutoCompactWindow: body.codexAutoCompactWindow == null ? null : numberOf(body.codexAutoCompactWindow, 'codexAutoCompactWindow'),
+    openCodeAutoCompactWindow: body.openCodeAutoCompactWindow == null ? null : numberOf(body.openCodeAutoCompactWindow, 'openCodeAutoCompactWindow'),
     // A page from before the switch sends none: on, as the default, so nothing is written.
     contextHandoffs: contextHandoffs === undefined ? true : switchOf(contextHandoffs, 'contextHandoffs'),
     // A page from before the setting sends none: off, as the default, so nothing is written.

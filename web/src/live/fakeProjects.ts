@@ -215,6 +215,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     cacheTtl: state.config.shared.cacheTtl,
     autoCompactWindow: state.config.shared.autoCompactWindow,
     codexAutoCompactWindow: state.config.shared.codexAutoCompactWindow,
+    openCodeAutoCompactWindow: state.config.shared.openCodeAutoCompactWindow,
     contextHandoffs: state.config.shared.contextHandoffs,
     checkpointTokens: state.config.shared.stats.checkpointTokens,
     checkpointShares: state.config.shared.stats.checkpointShares,

@@ -22,6 +22,13 @@ export const providerMap = (map: string, values: Values, providers: readonly str
     }),
   )
 
+/** The auto-compaction window setting of each provider that takes one (BTN-856); Copilot's CLI takes none. */
+export const WINDOW_KEYS: Readonly<Record<string, 'autoCompactWindow' | 'codexAutoCompactWindow' | 'openCodeAutoCompactWindow'>> = {
+  claude: 'autoCompactWindow',
+  codex: 'codexAutoCompactWindow',
+  opencode: 'openCodeAutoCompactWindow',
+}
+
 export const providerName = (provider: string): string => (t.settings.agents as Record<string, string>)[provider] ?? provider
 
 export const providerOptions =(providers: readonly string[] = PROVIDERS): { value: string; label: string }[] =>

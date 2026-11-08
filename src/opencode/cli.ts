@@ -24,6 +24,7 @@ import { protectionRules } from '../sessions/protection.js'
 import { OpenCodeLog } from './log.js'
 import { copilotModel, copilotOnly, copilotUnsupported } from './support.js'
 import { foldSession } from './transcript.js'
+import { readCatalogue, sessionWindow, windowConfig, type SessionWindow } from './window.js'
 
 const run = promisify(execFile)
 
@@ -80,10 +81,11 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: st
 /**
  * The config a chain session gets on top of the account's and the project's (`OPENCODE_CONFIG_CONTENT`): the
  * gateway's servers and none of the project's own, the skills and the OpenCode plugins of the project's plugin
- * packages, and `external_directory` allowed, which a merge into the main checkout from a worktree needs. The
- * built-in config hook reapplies Protection after agent-specific permissions have been merged.
+ * packages, `external_directory` allowed, which a merge into the main checkout from a worktree needs, and the
+ * session's window, if Even Keel sets one (`windowConfig`). The built-in config hook reapplies Protection after
+ * agent-specific permissions have been merged.
  */
-export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection'>, projectServers: string[], skillDirs: string[], plugins: string[] = []): string {
+export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection'>, projectServers: string[], skillDirs: string[], plugins: string[] = [], window?: SessionWindow): string {
   const huly = start.mcp?.filter(server => server.plugin === 'huly' || server.name === 'huly').map(gatewayName)
   const rules = protectionRules(start.protection, [], undefined, huly).opencode
   const permission = {
@@ -102,6 +104,7 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'pro
     ? [[new URL(import.meta.url.endsWith('.ts') ? './protection-plugin.ts' : './protection-plugin.js', import.meta.url).href, rules]]
     : []
   if (plugins.length > 0 || overlay.length > 0) config.plugin = [...plugins, ...overlay]
+  if (window !== undefined) Object.assign(config, windowConfig(window))
   return JSON.stringify(config)
 }
 
@@ -255,24 +258,32 @@ export class OpenCodeCli {
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     this.requireSupported(home, start.model)
     const { name, cwd } = start
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('opencode.startFailed', { task: name, cwd }))
-    this.registry.save({ sessionId: turn.session, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
+    const window = sessionWindow(await readCatalogue(home.dir), start.model, start.contextWindow)
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('opencode.startFailed', { task: name, cwd }), window)
+    const kept = window === undefined ? {} : { contextWindow: window.window }
+    this.registry.save({ sessionId: turn.session, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out, ...kept })
     return turn.session
   }
 
-  /** OpenCode resumes in the session's own folder, whatever `start.cwd` says. */
+  /**
+   * OpenCode resumes in the session's own folder, whatever `start.cwd` says, and with the window it started with: a
+   * live edit of the setting reaches only new sessions.
+   */
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     this.requireSupported(home, start.model)
     const session = await this.registry.get(sessionId)
     if (session === undefined) throw fail('opencode.unknownSession', { session: sessionId })
     const { name, cwd } = session
-    if (start.model === null) {
+    let model = start.model
+    if (model === null) {
       const rows = await sessionRows(home.dir, sessionId)
-      if (rows !== undefined) this.requireSupported(home, foldSession(rows.messages, []).model)
+      model = rows === undefined ? null : foldSession(rows.messages, []).model
+      this.requireSupported(home, model)
     }
+    const window = sessionWindow(await readCatalogue(home.dir), model, session.contextWindow)
     // Only a hung turn is still live here: two processes must not write one session.
     await this.endTurn(session)
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }))
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }), window)
     if (turn.session !== sessionId) throw fail('opencode.otherSession', { task: name, asked: sessionId, got: turn.session })
     const { stopped: _, ...kept } = session
     this.registry.save({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
@@ -376,9 +387,9 @@ export class OpenCodeCli {
    * from `PWD` before the process's own, so `PWD` is set too. The session id is in its first event; a turn that sends
    * none yet is found in the account's database by its title.
    */
-  private async turn(home: AccountHome, start: SessionStart, args: string[], cwd: string, failure: Notice): Promise<{ session: string; pid: number; out: string; at: number }> {
+  private async turn(home: AccountHome, start: SessionStart, args: string[], cwd: string, failure: Notice, window: SessionWindow | undefined): Promise<{ session: string; pid: number; out: string; at: number }> {
     keepOwnInstructions(home.dir)
-    const config = sessionConfig(start, projectServers(cwd), skillDirs(start, cwd), pluginFiles(start))
+    const config = sessionConfig(start, projectServers(cwd), skillDirs(start, cwd), pluginFiles(start), window)
     const at = Date.now()
     const out = this.registry.turnFile(start.name, at)
     const fd = openSync(out, 'a')

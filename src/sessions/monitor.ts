@@ -260,7 +260,7 @@ function toView(
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,
-    contextWindow: summary.contextWindow ?? (model === null ? null : windowOf(model)),
+    contextWindow: summary.contextWindow ?? agent.contextWindow ?? (model === null ? null : windowOf(model)),
     cache: summary.cache,
     tokens: summary.tokens,
     stage: summary.stage,

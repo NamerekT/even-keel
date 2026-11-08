@@ -85,8 +85,8 @@ describe('Even Keel HTTP server', () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
     const settings = {
       ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', standards: [STANDARD], ...form },
-      ...{ testProject: true, promptLanguage: 'ru', cacheTtl: '1h', autoCompactWindow: 400_000, codexAutoCompactWindow: 250_000, contextHandoffs: false, checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
-      own: { 'ci.guard': false, cacheTtl: '1h', autoCompactWindow: 400_000, codexAutoCompactWindow: 250_000, contextHandoffs: false, 'stats.checkpointShares.first': 60 },
+      ...{ testProject: true, promptLanguage: 'ru', cacheTtl: '1h', autoCompactWindow: 400_000, codexAutoCompactWindow: 250_000, openCodeAutoCompactWindow: 180_000, contextHandoffs: false, checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
+      own: { 'ci.guard': false, cacheTtl: '1h', autoCompactWindow: 400_000, codexAutoCompactWindow: 250_000, openCodeAutoCompactWindow: 180_000, contextHandoffs: false, 'stats.checkpointShares.first': 60 },
       ownRules: [],
     }
     const started = { ...settings, prompt: null, slot: 0, own: {} }
@@ -171,6 +171,7 @@ describe('Even Keel HTTP server', () => {
       cacheTtl: '1h',
       autoCompactWindow: 300_000,
       codexAutoCompactWindow: 250_000,
+      openCodeAutoCompactWindow: 200_000,
       contextHandoffs: false,
       keepWarm: 2,
       attachmentLimit: 25,

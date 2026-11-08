@@ -24,6 +24,14 @@ describe('chainWindowOf', () => {
   it('refuses a window that is not a positive whole number', () => {
     expect(() => parseConfig({ codexAutoCompactWindow: 0, projects: [] })).toThrow()
     expect(() => parseConfig({ projects: [project(ABC, 'ABC', { codexAutoCompactWindow: 1.5 })] })).toThrow()
+    expect(() => parseConfig({ openCodeAutoCompactWindow: -1, projects: [] })).toThrow()
+  })
+
+  it("reads OpenCode's window from its own key, apart from Codex's", () => {
+    const config = parseConfig({ codexAutoCompactWindow: 250_000, openCodeAutoCompactWindow: 200_000, projects: [project(ABC, 'ABC'), project(XYZ, 'XYZ', { openCodeAutoCompactWindow: null })] })
+    expect(chainWindowOf(config, ABC, 'openCodeAutoCompactWindow')).toBe(200_000)
+    expect(chainWindowOf(config, XYZ, 'openCodeAutoCompactWindow')).toBeUndefined()
+    expect(chainWindowOf(config, XYZ)).toBe(250_000)
   })
 })
 

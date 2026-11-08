@@ -23,7 +23,8 @@ import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
-import { chainWindowOf } from '../codex/window.js'
+import { chainWindowOf, type WindowKey } from '../codex/window.js'
+import { OPENCODE } from '../opencode/name.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
 import { localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, runSettings, sessionPrefixes } from '../config.js'
@@ -719,9 +720,13 @@ export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string
 
 type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow'>
 
+/** The agents whose chain sessions take a window through `SessionStart.contextWindow`; Claude's goes in its settings. */
+const WINDOW_KEYS: Readonly<Record<string, WindowKey>> = { [CODEX]: 'codexAutoCompactWindow', [OPENCODE]: 'openCodeAutoCompactWindow' }
+
 export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, project: string | undefined, task: string) => AgentExtras {
   return (home: AccountHome, project: string | undefined, task: string): AgentExtras => {
-    const window = home.agent === CODEX ? chainWindowOf(ctx.configStore.current, project) : undefined
+    const key = WINDOW_KEYS[home.agent]
+    const window = key === undefined ? undefined : chainWindowOf(ctx.configStore.current, project, key)
     return {
       protection: (project === undefined ? undefined : ctx.configStore.current.settings[project]?.protection) ?? ctx.configStore.current.protection,
       ...(project === undefined ? {} : { mainBranch: ctx.branchOf(project) }),

@@ -24,6 +24,7 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.cacheTtl': 'cacheTtl',
   'config.autoCompactWindow': 'autoCompactWindow',
   'config.codexAutoCompactWindow': 'codexAutoCompactWindow',
+  'config.openCodeAutoCompactWindow': 'openCodeAutoCompactWindow',
   'config.allowedHosts': 'allowedHosts',
   'config.contextWindow': 'context',
   'config.contextPercents': 'context',

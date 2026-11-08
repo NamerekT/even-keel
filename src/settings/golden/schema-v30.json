@@ -135,6 +135,7 @@
       "cacheTtl": null,
       "autoCompactWindow": 400000,
       "codexAutoCompactWindow": 250000,
+      "openCodeAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -216,6 +217,7 @@
       "cacheTtl": null,
       "autoCompactWindow": null,
       "codexAutoCompactWindow": 400000,
+      "openCodeAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [
@@ -337,6 +339,7 @@
   "cacheTtl": null,
   "autoCompactWindow": 300000,
   "codexAutoCompactWindow": 250000,
+  "openCodeAutoCompactWindow": null,
   "contextHandoffs": true,
   "ci": {
     "guard": true,

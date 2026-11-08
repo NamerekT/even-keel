@@ -38,8 +38,10 @@ export interface AgentEntry {
   model?: string
   /** Original launch settings, retained so a window probe does not apply later project edits to this session. */
   settings?: string
-  /** The context size Even Keel set the session to compact at (a Codex session with a window, BTN-810). */
+  /** The context size Even Keel set the session to compact at (a Codex or OpenCode session with a window, BTN-810, BTN-856). */
   compactAt?: number
+  /** The window Even Keel set the session to, over the model's own: OpenCode's transcript does not say it (BTN-856). */
+  contextWindow?: number
   /** The CLI's blocked end-of-turn while a background command still runs. */
   backgroundBlock?: { event: string; detail: string | null }
 }

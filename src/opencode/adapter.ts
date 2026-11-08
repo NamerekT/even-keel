@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
@@ -15,6 +14,7 @@ import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
 import { openCodeLimitsHidden, openCodeUsage } from './usage.js'
+import { readCatalogue } from './window.js'
 import { filterChatGptModels } from './models.js'
 
 const HISTORY_FEED = 5_000
@@ -102,7 +102,7 @@ export const opencode: AgentAdapter = {
         const models = await cli.models(home)
         return { models: await filterChatGptModels(models, readAuth(home.dir), timeoutMs, line => log(`${line} (${home.key})`)), complete: models.length > 0 }
       },
-      contextWindow: async (home, model) => windowOf(await readFile(join(home.dir, 'cache', 'opencode', 'models.json'), 'utf8').catch(() => ''), model),
+      contextWindow: async (home, model) => windowOf(await readCatalogue(home.dir), model),
     }
   },
 }

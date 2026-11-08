@@ -23,7 +23,6 @@ export const sharedEn = {
   parallelHint: 'Other projects wait in the queue. Lowering it stops nothing: no new chain starts until fewer run.',
   sessions: 'Sessions',
   claude: 'Claude Code',
-  codex: 'Codex',
   ci: 'Check and CI',
   ciNote: 'For projects with no value of their own. The check commands, the commands after a green main, pull requests and the remote profiles are set per project.',
   forProjects: "For projects that don't set their own.",
@@ -65,10 +64,10 @@ export const sharedEn = {
   cacheTtl: 'Prompt cache lifetime',
   autoCompactWindow: 'Auto-compaction window',
   autoCompactWindowAccount: 'account window',
-  autoCompactWindowHint: 'Context window in tokens for Claude chain sessions only. Empty uses the account window. Applies to new sessions; running sessions keep their window. A project can override the shared value.',
   codexAutoCompactWindowModel: "model's window",
-  codexAutoCompactWindowHint:
-    "Context window in tokens for Codex chain sessions only; they compact about 32k before it, where Claude does with the same window. Empty uses the model's own window. Applies to new sessions; running sessions keep their window. Hand-started Codex sessions and config.toml are left alone. A project can override the shared value.",
+  autoCompactWindowOf: (provider: string) => `${provider} auto-compaction window`,
+  autoCompactWindowColumnHint:
+    "Context window in tokens for this provider's chain sessions; they compact about 32k before it. Empty: Claude Code uses the account's window, Codex and OpenCode the model's own. OpenCode takes the smaller of this and the model's window, and sets it only when a model is chosen. Copilot's CLI takes no window. Applies to new sessions; running sessions keep theirs. Hand-started sessions and the CLIs' own configs are left alone. A project can override the shared value.",
   cacheTtlAuto: 'as Claude Code decides',
   cacheTtl5m: '5 minutes',
   cacheTtl1h: '1 hour',

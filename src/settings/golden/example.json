@@ -165,6 +165,7 @@
       "cacheTtl": null,
       "autoCompactWindow": null,
       "codexAutoCompactWindow": null,
+      "openCodeAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -218,6 +219,7 @@
       "cacheTtl": null,
       "autoCompactWindow": null,
       "codexAutoCompactWindow": null,
+      "openCodeAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -269,6 +271,7 @@
       "cacheTtl": null,
       "autoCompactWindow": null,
       "codexAutoCompactWindow": null,
+      "openCodeAutoCompactWindow": null,
       "contextHandoffs": true,
       "protection": {
         "disabled": [],
@@ -358,6 +361,7 @@
   "cacheTtl": null,
   "autoCompactWindow": null,
   "codexAutoCompactWindow": null,
+  "openCodeAutoCompactWindow": null,
   "contextHandoffs": true,
   "ci": {
     "guard": true,

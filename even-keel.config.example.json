@@ -1,7 +1,8 @@
 {
-  "version": 30,
+  "version": 31,
   "autoCompactWindow": null,
   "codexAutoCompactWindow": null,
+  "openCodeAutoCompactWindow": null,
   "protection": { "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] },
   "allowedHosts": [],
   "parallel": 1,

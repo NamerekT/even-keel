@@ -155,6 +155,8 @@ export interface ProjectSettings {
   autoCompactWindow: number | null
   /** Codex chain sessions' context window in tokens (BTN-810); null keeps the model's own window. */
   codexAutoCompactWindow: number | null
+  /** OpenCode chain sessions' context window in tokens (BTN-856), capped by the model's own; null keeps the model's. */
+  openCodeAutoCompactWindow: number | null
   /** The resolved native deny rules; omitted by older clients. */
   protection?: Protection
   /** The checkpoint hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
@@ -184,6 +186,7 @@ export interface OwnValues {
   cacheTtl?: CacheTtl | null
   autoCompactWindow?: number | null
   codexAutoCompactWindow?: number | null
+  openCodeAutoCompactWindow?: number | null
   contextHandoffs?: boolean
   'stats.checkpointTokens'?: number | null
   'stats.checkpointShares.first'?: number
@@ -282,6 +285,7 @@ export interface SharedForm {
   cacheTtl: CacheTtl | null
   autoCompactWindow: number | null
   codexAutoCompactWindow: number | null
+  openCodeAutoCompactWindow: number | null
   /** For every project without its own (BTN-255); `false` — no handoffs by context size. */
   contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */

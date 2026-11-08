@@ -51,7 +51,7 @@ import { countFrom, tokensShown } from '../ui/tokens.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
-import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerValues } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerValues, WINDOW_KEYS } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { ModelPrompts } from './ModelPrompts.js'
@@ -82,9 +82,9 @@ const GROUPS = [
   { id: 'rules', keys: [...RULE_KEYS] },
   {
     id: 'models',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'autoCompactWindow', 'keepWarm', 'codexAutoCompactWindow'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
@@ -120,6 +120,7 @@ const valuesOf = (form: SharedForm): Values => ({
   cacheTtl: form.cacheTtl ?? '',
   autoCompactWindow: form.autoCompactWindow === null ? '' : String(form.autoCompactWindow),
   codexAutoCompactWindow: form.codexAutoCompactWindow === null ? '' : String(form.codexAutoCompactWindow),
+  openCodeAutoCompactWindow: form.openCodeAutoCompactWindow === null ? '' : String(form.openCodeAutoCompactWindow),
   keepWarm: String(form.keepWarm),
   attachmentLimit: String(form.attachmentLimit),
   allowedHosts: form.allowedHosts.join('\n'),
@@ -159,7 +160,8 @@ function formOf(values: Values): SharedForm | undefined {
   const checkpointTokens = countFrom(text('checkpointTokens'), 0)
   const autoCompactWindow = countFrom(text('autoCompactWindow'), 1)
   const codexAutoCompactWindow = countFrom(text('codexAutoCompactWindow'), 1)
-  if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined) return undefined
+  const openCodeAutoCompactWindow = countFrom(text('openCodeAutoCompactWindow'), 1)
+  if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined || openCodeAutoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
@@ -187,6 +189,7 @@ function formOf(values: Values): SharedForm | undefined {
     cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
     autoCompactWindow,
     codexAutoCompactWindow,
+    openCodeAutoCompactWindow,
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     attachmentLimit: attachmentLimit!,
@@ -342,8 +345,20 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const kinds = draft.edit.kinds as readonly CiKind[]
   const unguarded = !(draft.edit.guard as boolean)
   const handoffsOff = !(draft.edit.contextHandoffs as boolean)
-  const codexWindowBad = countFrom(text('codexAutoCompactWindow'), 1) === undefined
-  const claudeWindowBad = countFrom(text('autoCompactWindow'), 1) === undefined
+  // A provider's auto-compaction window, a cell of its card; empty is the account's window for Claude, the model's for the rest.
+  const windowEmpty = (provider: string) => (provider === 'claude' ? t.shared.autoCompactWindowAccount : t.shared.codexAutoCompactWindowModel)
+  const windowCell = (provider: string) => {
+    const key = WINDOW_KEYS[provider]
+    if (key === undefined) return null
+    const bad = countFrom(text(key), 1) === undefined
+    return (
+      <div className={marks.box(key)}>
+        <ErrorStrip error={bad ? { code: `config.${key}`, params: { value: text(key) } } : errorOf(key)} wide>
+          <TokensInput id={fieldId(key)} label={t.shared.autoCompactWindowOf(providerName(provider))} value={text(key)} invalid={bad} placeholder={windowEmpty(provider)} onChange={(value) => edit(key, value)} />
+        </ErrorStrip>
+      </div>
+    )
+  }
   const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
 
   const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
@@ -426,6 +441,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             columns={[
               { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
               { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
+              { key: 'window', label: t.shared.autoCompactWindow, hint: t.shared.autoCompactWindowColumnHint },
               { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
               { key: 'cli', label: t.shared.cli, hint: t.shared.cliHint },
             ]}
@@ -434,6 +450,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               const name = providerName(provider)
               if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), offersOf(models, text(`accounts.${provider}`)))
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
+              if (column === 'window') return windowCell(provider)
               // The CLI's source is a field of the form, saved with Execution, so the service judges the pair as the form
               // holds it (BTN-682); a missing checked copy is offered for download once the save lands (`useCommand`).
               if (column === 'cli') {
@@ -468,6 +485,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                 return marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))
               }
               if (column === 'cli') return marks.note(key, (value) => (value === 'system' ? cliText().yoursShort : cliText().checkedShort))
+              if (column === 'window') {
+                const window = WINDOW_KEYS[provider]
+                return window === undefined ? null : tokensNote(window, windowEmpty(provider))
+              }
               if (column !== 'execution') return null
               return marks.note(key, (value) => t.shared.modes[String(value)] ?? String(value))
             }}
@@ -551,15 +572,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           </div>
         </Section>
         <Section title={t.shared.claude}>
-          <Row
-            className={marks.box('autoCompactWindow')}
-            label={t.shared.autoCompactWindow}
-            hint={t.shared.autoCompactWindowHint}
-            htmlFor={fieldId('autoCompactWindow')}
-            mark={tokensNote('autoCompactWindow', t.shared.autoCompactWindowAccount)}
-            control={tokensInput('autoCompactWindow', claudeWindowBad, { placeholder: t.shared.autoCompactWindowAccount })}
-            error={claudeWindowBad ? { code: 'config.autoCompactWindow', params: { value: text('autoCompactWindow') } } : errorOf('autoCompactWindow')}
-          />
           {select(
             'cacheTtl',
             t.shared.cacheTtl,
@@ -571,17 +583,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             t.shared.cacheTtlHint,
           )}
           {numberRow('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
-        </Section>
-        <Section title={t.shared.codex}>
-          <Row
-            className={marks.box('codexAutoCompactWindow')}
-            label={t.shared.autoCompactWindow}
-            hint={t.shared.codexAutoCompactWindowHint}
-            htmlFor={fieldId('codexAutoCompactWindow')}
-            mark={tokensNote('codexAutoCompactWindow', t.shared.codexAutoCompactWindowModel)}
-            control={tokensInput('codexAutoCompactWindow', codexWindowBad, { placeholder: t.shared.codexAutoCompactWindowModel })}
-            error={codexWindowBad ? { code: 'config.codexAutoCompactWindow', params: { value: text('codexAutoCompactWindow') } } : errorOf('codexAutoCompactWindow')}
-          />
         </Section>
       </>
     ),

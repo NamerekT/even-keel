@@ -11,8 +11,11 @@ export function windowArgs(window: number | undefined): string[] {
   return window === undefined ? [] : ['-c', `model_context_window=${window}`, '-c', `model_auto_compact_token_limit=${compactionLimit(window)}`]
 }
 
-/** The window a new Codex chain session of the project starts with: the project's, else Even Keel's; none — the model's. */
-export function chainWindowOf(config: Pick<EvenKeelConfig,'settings' | 'codexAutoCompactWindow'>, project: string | undefined): number | undefined {
+/** The settings of a chain session's window, one per agent that takes it through `SessionStart.contextWindow`. */
+export type WindowKey = 'codexAutoCompactWindow' | 'openCodeAutoCompactWindow'
+
+/** The window a new chain session of the project starts with: the project's, else Even Keel's; none — the model's. */
+export function chainWindowOf(config: Pick<EvenKeelConfig, 'settings' | WindowKey>, project: string | undefined, key: WindowKey = 'codexAutoCompactWindow'): number | undefined {
   const settings = project === undefined ? undefined : config.settings[project]
-  return (settings === undefined ? config.codexAutoCompactWindow : settings.codexAutoCompactWindow) ?? undefined
+  return (settings === undefined ? config[key] : settings[key]) ?? undefined
 }

@@ -99,8 +99,9 @@ export interface SessionStart {
    */
   noMemory?: boolean
   /**
-   * Optional. Codex: the context window of a new chain session in tokens (`codexAutoCompactWindow`, BTN-810), kept
-   * by the session for its later turns. Claude's window goes in `settings`.
+   * Optional. Codex and OpenCode: the context window of a new chain session in tokens (`codexAutoCompactWindow`,
+   * BTN-810; `openCodeAutoCompactWindow`, BTN-856, capped by the model's own), kept by the session for its later
+   * turns. Claude's window goes in `settings`; Copilot's CLI takes none.
    */
   contextWindow?: number
 }

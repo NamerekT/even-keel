@@ -59,6 +59,22 @@ Codex's effective window, `W` × the model's `effective_context_window_percent` 
 250000 shows as 237500 and the compaction point at 218000 sits at 92 % of it. That is the CLI's own number, not a
 lost flag (BTN-812, `docs/verified/sessions.md`).
 
+`openCodeAutoCompactWindow` (BTN-856) is the same setting for OpenCode chain sessions, with the same inheritance;
+`null` keeps the model's own window. The models of one OpenCode account differ (1M for MiniMax, 200k for others), so
+the setting is a ceiling: `sessionWindow` (`src/opencode/window.ts`) takes it only below the chosen model's
+`limit.context` in the account's catalogue, and a session with no `-m` or a model the catalogue lacks keeps the
+model's window. How OpenCode is told is in [OpenCode](opencode.md). The window is written into the session's record
+at launch and every resume takes it from there, as Codex's; the record's window gives the page's window and
+`AgentEntry.compactAt` (`W − 32000`), so the checkpoint thresholds stay before the compaction there too.
+
+Copilot CLI has no such setting (1.0.106, [Copilot](copilot.md)): its card has no window field, and its window is the
+transcript's `maxPromptTokens`, as before.
+
+On the page the window is a column of the Agent card, beside Model and Account (`WINDOW_KEYS` of
+`web/src/pages/settingsRun.ts`): shared settings, Models tab; a project's sessions tab, with the own flag of each key
+(`ownAutoCompact`, `ownCodexCompact`, `ownOpenCodeCompact`, `WINDOW_FLAGS` of `projectForm.ts`). The «Claude Code»
+block below keeps Cache TTL and keep-warm.
+
 - **Codex** writes it into the rollout: `model_context_window` of `task_started` and of every `token_count` (`RolloutFold`, 258400 for `gpt-6.1-sol` on 0.163.0: 95 % of the model's 272000, `effective_context_window_percent`). A finished session's record carries it too.
 - **Claude** gives it to `claude -p /context --output-format json --no-session-persistence --model <model>`, a local command with no turn: the `result` has the line `**Tokens:** 23.8k / 250k (10%)` (`parseContextWindow` in `src/claude/context.ts`). It answers the window the account's settings make, `autoCompactWindow` included: with 250k in `~/.claude/settings.json` every model answered 250k on 2.1.303, `opus[1m]` too. It runs spawned directly, never through Git Bash (`docs/accounts.md`), in the account's environment with the `--settings` of a chain session of the task's project.
 - The model asked about is the `--model` the session was started with, from `respawnFlags` of its `jobs/<id>/state.json` (`launchedModel`): the transcript names `claude-opus-5-5` for an `opus[1m]` launch. A session without a job file or a `--model` is asked about the transcript's model.
