@@ -102,6 +102,17 @@ describe('trackerPackage', () => {
     expect(trackerPackage(view({ packages, projects: { ABC: tracked(true) } }), 'ABC')).toEqual({ state: 'brought', server: 'huly', by: 'huly@even-keel' })
   })
 
+  it('names the tasks package when only it brings the tracker’s tasks, and offers no tracker package then', () => {
+    const packages = [{ ...base, name: 'huly@even-keel', servers: ['huly'] }, { ...base, name: 'tasks@even-keel', servers: ['tasks'] }]
+    const found: ProjectPackages = {
+      cells: { 'huly@even-keel': { choice: 'off', enabled: false, settings: {}, problems: [] }, 'tasks@even-keel': { choice: null, enabled: true, settings: {}, problems: [] } },
+      problems: [],
+      blocked: false,
+      tracker: { server: 'huly', brought: true, through: 'tasks' },
+    }
+    expect(trackerPackage(view({ packages, projects: { ABC: found } }), 'ABC')).toEqual({ state: 'brought', server: 'huly', by: 'tasks@even-keel' })
+  })
+
   it('offers Even Keel’s plugin of the tracker while the catalog lacks it, and tells a problem from advice', () => {
     const available = [{ plugin: 'huly', marketplace: 'even-keel' }]
     expect(trackerPackage(view({ available, marketplace, projects: { ABC: tracked(false) } }), 'ABC')).toEqual({ state: 'missing', server: 'huly', problem: false, plugin: 'huly@even-keel' })

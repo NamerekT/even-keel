@@ -94,7 +94,7 @@ export function keyLabel(name: string, known: Record<string, string>): string {
 }
 
 export type TrackerPackage =
-  /** `by` — the enabled package that brings the server. */
+  /** `by` — the enabled package that brings the server, or the tasks server standing in for it (BTN-882). */
   | { state: 'brought'; server: string; by: string | null }
   /** `problem` — `brief` is off, so the chain waits (`noTrackerMcp`); `plugin` — Even Keel's plugin of the tracker the add dialog offers, `null` while the catalog has it already. */
   | { state: 'missing'; server: string; problem: boolean; plugin: string | null }
@@ -103,9 +103,9 @@ export type TrackerPackage =
 export function trackerPackage(view: PackagesView, project: string): TrackerPackage | null {
   const found = view.projects[project]
   if (found?.tracker == null) return null
-  const { server, brought } = found.tracker
+  const { server, brought, through } = found.tracker
   if (brought) {
-    const by = view.packages.find((each) => each.servers.includes(server) && found.cells[each.name]?.enabled === true)
+    const by = view.packages.find((each) => each.servers.includes(through ?? server) && found.cells[each.name]?.enabled === true)
     return { state: 'brought', server, by: by?.name ?? null }
   }
   const own = view.marketplace?.name

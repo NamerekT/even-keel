@@ -85,6 +85,20 @@ describe('projectPackages', () => {
     expect(projectPackages(input()).tracker).toBeNull()
   })
 
+  it('takes the tasks server for the tracker server when it serves the tracker', () => {
+    const own = file()
+    own.packages['tasks@even-keel'] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'even-keel' }, default: true, settings: {}, installs: [install(['tasks'])] }
+    own.projects['p-1'] = { on: [], off: ['huly@even-keel'], settings: {} }
+    const view = projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } }))
+    expect(view.problems).toEqual([])
+    expect(view.tracker).toEqual({ server: 'huly', brought: true, through: 'tasks' })
+    expect(view.blocked).toBe(false)
+    own.projects['p-1'] = { on: [], off: ['huly@even-keel', 'tasks@even-keel'], settings: {} }
+    expect(projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } })).problems).toEqual([{ kind: 'noTrackerMcp', server: 'huly' }])
+    own.projects['p-1'] = { on: [], off: [], settings: {} }
+    expect(projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } })).tracker).toEqual({ server: 'huly', brought: true })
+  })
+
   it('tells whether an enabled package of the project brings a server', () => {
     expect(bringsServer(file(), 'p-1', 'huly')).toBe(true)
     expect(bringsServer(file(), 'p-1', 'linear')).toBe(false)

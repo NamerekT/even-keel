@@ -689,8 +689,11 @@ export interface ProjectPackages {
   problems: PackageProblem[]
   /** A problem holds the chain: it waits until the problem is gone. */
   blocked: boolean
-  /** The tracker's MCP server and whether a package of the set brings it, whatever `brief` is; `null` — the tracker has none. */
-  tracker: { server: string; brought: boolean } | null
+  /**
+   * The tracker's MCP server and whether a package of the set brings it, whatever `brief` is; `through` — only another
+   * server brings its tasks: Even Keel's tasks server (BTN-882). `null` — the tracker has none.
+   */
+  tracker: { server: string; brought: boolean; through?: string } | null
 }
 
 export interface PackageCell {

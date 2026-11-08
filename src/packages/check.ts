@@ -27,8 +27,11 @@ export interface CheckInput {
   keys: (server: string, entry: ServerEntry) => ServerKeys
   /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet or still starting, held until it answers. */
   probe: (name: string, install: string, server: string) => boolean | undefined
-  /** The tracker's MCP server; `required` — `brief` is off, so a session cannot do without it. */
-  tracker?: { server: string; required: boolean }
+  /**
+   * The tracker's MCP server; `required` — `brief` is off, so a session cannot do without it; `also` — a server that
+   * brings the tracker's tasks too: Even Keel's tasks server when it serves the tracker (BTN-882).
+   */
+  tracker?: { server: string; required: boolean; also?: string }
 }
 
 /** Whether a package the project's sessions get brings the server; `brief` left to itself is on exactly when none does. */
@@ -42,6 +45,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
   const set = file.projects[project]
   const cells: Record<string, PackageCell> = {}
   let hasTracker = false
+  let hasAlso = false
   for (const [name, record] of Object.entries(file.packages)) {
     if (record.removed === true) continue
     const enabled = enabledIn(file, project, name)
@@ -61,6 +65,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         let probing = false
         for (const [server, { entry }] of Object.entries(install.servers)) {
           if (server === input.tracker?.server) hasTracker = true
+          if (server === input.tracker?.also) hasAlso = true
           const keys = input.keys(server, entry)
           keys.missing.forEach((each) => missing.add(each))
           if (keys.missing.length > 0) continue
@@ -79,8 +84,9 @@ export function projectPackages(input: CheckInput): ProjectPackages {
     }
     cells[name] = { choice, enabled, settings, problems }
   }
-  const tracker = input.tracker === undefined ? null : { server: input.tracker.server, brought: hasTracker }
-  const problems: PackageProblem[] = tracker !== null && input.tracker?.required === true && !hasTracker ? [{ kind: 'noTrackerMcp', server: tracker.server }] : []
+  const through = !hasTracker && hasAlso ? { through: input.tracker!.also! } : {}
+  const tracker = input.tracker === undefined ? null : { server: input.tracker.server, brought: hasTracker || hasAlso, ...through }
+  const problems: PackageProblem[] = tracker !== null && input.tracker?.required === true && !tracker.brought ? [{ kind: 'noTrackerMcp', server: tracker.server }] : []
   const blocked = [...problems, ...Object.values(cells).flatMap((cell) => cell.problems)].some((problem) => !NOTES.has(problem.kind))
   return { cells, problems, blocked, tracker }
 }

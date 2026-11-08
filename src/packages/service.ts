@@ -43,8 +43,8 @@ export interface PackagesDeps {
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
-  /** The MCP server of the project's tracker; `required` — `brief` is off, so its sessions cannot do without it. */
-  tracker: (project: string) => { server: string; required: boolean } | undefined
+  /** The MCP server of the project's tracker; `required` — `brief` is off, so its sessions cannot do without it; `also` — the tasks server when it serves the tracker. */
+  tracker: (project: string) => { server: string; required: boolean; also?: string } | undefined
   /** The agent of the account the project's next session runs on. */
   agentOf: (project: string) => string
   /** `claude plugin marketplace update <marketplace>` in the global configuration. */

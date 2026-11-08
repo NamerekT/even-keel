@@ -56,7 +56,7 @@ import { TALLY_SCHEMA_VERSION } from '../stats/tally-schema.js'
 import { ADAPTERS, trackerKeyRules } from '../tracker/adapters.js'
 import { EditRefused } from '../tracker/editor.js'
 import { runLabelText } from '../tracker/model.js'
-import { servesTasks, TasksMcp } from '../taskmcp/server.js'
+import { servesTasks, TASKS_SERVER, TasksMcp } from '../taskmcp/server.js'
 import { stateUrlOf, Updater } from '../updates/updater.js'
 import { runsAsService } from '../updates/control.js'
 import { installed, UpdateWatcher } from '../updates/watcher.js'
@@ -179,8 +179,10 @@ export function wirePackages(ctx: AccountsContext): Packages {
     claudeConfigs: ctx.claudeConfigs,
     rules: trackerKeyRules(),
     tracker: (project) => {
-      const server = ADAPTERS[ctx.configStore.current.trackers[project]!]!.mcpServer
-      return server === undefined ? undefined : { server, required: !ctx.briefOn(project) }
+      const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
+      const server = adapter.mcpServer
+      if (server === undefined) return undefined
+      return { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
     },
     agentOf: (project) => ctx.homes.find(ctx.choiceFor(project).account)?.agent ?? CLAUDE,
     updateMarketplace: (marketplace) => ctx.agentOf(ctx.homes.global).updateMarketplace!(ctx.homes.global, marketplace, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
@@ -229,8 +231,13 @@ export function briefOn(ctx: AccountsContext, project: string, reader = project)
   const own = ctx.configStore.current.briefs[project]
   if (own === true || (own === false && reader === project)) return own
   const tracker = ctx.readers().trackers[reader]!
-  const { mcpServer: server, keepsBrief } = ADAPTERS[tracker]!
-  if (server === undefined || keepsBrief === true || !ctx.packages.bringsServer(project, server)) return true
+  const adapter = ADAPTERS[tracker]!
+  const { mcpServer: server, keepsBrief } = adapter
+  if (server === undefined || keepsBrief === true) return true
+  if (!ctx.packages.bringsServer(project, server)) {
+    // The tasks server reads the project's own tasks only: a feed's task keeps its brief (BTN-882).
+    return reader !== project || !servesTasks(adapter) || !ctx.packages.bringsServer(project, TASKS_SERVER)
+  }
   if (reader === project) return false
   const { trackers, feeds } = ctx.configStore.current
   const set = ctx.profiles.current()
