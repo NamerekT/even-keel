@@ -8,6 +8,7 @@ import { DaemonRefresh } from '../account/daemon.js'
 import { keyProvider, type AccountHome } from '../account/homes.js'
 import { accountAt, forgetAccount, formerOwner, markRemoving, nameAccount, noteAccount } from '../account/ledger.js'
 import { forgetKeyOrganization, saveKeyOrganization } from '../account/organizations.js'
+import { forgetManagementKey, readOpenRouterBalance, saveManagementKey } from '../account/management.js'
 import { transportOf } from '../account/transport.js'
 import { liveSessions, loginBlock, type LoginBlock } from '../account/model.js'
 import { currentAccount } from '../account/current.js'
@@ -109,6 +110,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'hub'
   | 'importedProfiles'
   | 'keyOrganizations'
+  | 'managementKeys'
   | 'keySpend'
   | 'knownTask'
   | 'ledger'
@@ -557,6 +559,18 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
         ctx.writes.add(`the organization of ${key}`, forgetKeyOrganization(ctx.db, key))
       },
     },
+    managementKeys: {
+      of: (key) => ctx.managementKeys.get(key),
+      save: (key, value) => {
+        ctx.managementKeys.set(key, value)
+        ctx.writes.add(`the management key of ${key}`, saveManagementKey(ctx.db, key, value, new Date()))
+      },
+      forget: (key) => {
+        if (!ctx.managementKeys.delete(key)) return
+        ctx.writes.add(`the management key of ${key}`, forgetManagementKey(ctx.db, key))
+      },
+    },
+    readBalance: (managementKey) => readOpenRouterBalance(managementKey, KEY_CHECK_TIMEOUT_MS),
     checkCredit: (agent, key) => CREDIT_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
     creditCheckMs: CREDIT_CHECK_MS,
     intervalMs: ctx.ACCOUNT_POLL_MS,

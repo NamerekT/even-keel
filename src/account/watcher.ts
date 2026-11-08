@@ -8,6 +8,7 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyLimit, type KeyVerdict } from './keycheck.js'
+import type { BalanceVerdict } from './management.js'
 import type { AwsProfiles, AzureCredentials, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
@@ -31,6 +32,7 @@ import {
   type AccountStatus,
   type LoginBlock,
   type PoolEntry,
+  type ReadBalance,
 } from './model.js'
 
 const MAX_OUTPUT_CHARS = 16 * 1024
@@ -109,6 +111,10 @@ export interface AccountWatcherOptions {
   keyCheckMs: number
   /** The organization each API account's key was last seen paying through (`src/account/organizations.ts`). */
   organizations: KeyOrganizations
+  /** The management key of each OpenRouter account (BTN-868, `src/account/management.ts`). */
+  managementKeys: ManagementKeys
+  /** The account's balance, read with its management key (`readOpenRouterBalance`). */
+  readBalance: (managementKey: string) => Promise<BalanceVerdict>
   /** Whether the key can pay again, asked of the agent's provider. */
   checkCredit: (agent: string, key: string) => Promise<CreditVerdict>
   creditCheckMs: number
@@ -125,12 +131,20 @@ export interface KeyOrganizations {
   forget: (key: string) => void
 }
 
+export interface ManagementKeys {
+  of: (key: string) => string | undefined
+  save: (key: string, value: string) => void
+  forget: (key: string) => void
+}
+
 interface Known {
   home: AccountHome
   status: AccountStatus | null
   error: Notice | null
   /** The folder keeps its key itself, so the page may replace it (`AccountHomes.replacement`). */
   keyHeld: boolean
+  /** The key it keeps is OpenRouter's, so a management key may read the account's balance (BTN-868). */
+  openRouter: boolean
   /** The cloud the folder's `settings.json` connects to (BTN-822). */
   cloud: CloudSummary | null
 }
@@ -157,6 +171,8 @@ export class AccountWatcher {
   /** The model each cloud account's check turn answered with, by folder key (BTN-822). */
   private readonly checkedModels = new Map<string, string | null>()
   private readonly credit: CreditChecks
+  /** Each OpenRouter account's balance as its management key last read it, by folder key (BTN-868). */
+  private readonly balances = new Map<string, ReadBalance>()
 
   constructor(private readonly options: AccountWatcherOptions) {
     this.keys = new KeyChecks(options.keyCheckMs)
@@ -172,7 +188,7 @@ export class AccountWatcher {
 
   get view(): AccountView {
     const now = this.options.now()
-    const accounts = this.known.map(({ home, status, error, keyHeld, cloud }): AccountEntry => {
+    const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud }): AccountEntry => {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, paysPerToken(status))
       const seen = this.options.signedInAs?.(home.key)
@@ -206,6 +222,8 @@ export class AccountWatcher {
         lastLimitAt: this.options.lastLimit?.(home.key) ?? null,
         spendingLimit: this.credit.spendingLimit(home.key, now),
         ...(this.keys.limit(home.key) !== null && { keyLimit: this.keys.limit(home.key)! }),
+        ...(openRouter && { managementKey: this.options.managementKeys.of(home.key) !== undefined }),
+        ...(openRouter && this.balances.has(home.key) && { balance: this.balances.get(home.key)! }),
       }
     })
     return {
@@ -246,6 +264,46 @@ export class AccountWatcher {
    */
   noteKeyLimit(key: string, limit: KeyLimit | null): void {
     if (this.keys.noteLimit(key, limit, this.options.now())) this.options.onChange()
+  }
+
+  /**
+   * Keeps an OpenRouter account's management key once it reads the balance (BTN-868), or removes it on an empty value;
+   * a refused key or no answer is thrown and nothing is written. The page hears only that the account has one.
+   */
+  async setManagementKey(key: string, value: string | null): Promise<void> {
+    if (this.options.homes.find(key) === undefined) throw fail('account.unknown', { key })
+    if (this.known.find((known) => known.home.key === key)?.openRouter !== true) throw fail('account.managementKeyNotOpenRouter', {})
+    const next = value?.trim() ?? ''
+    if (next === '') {
+      this.options.managementKeys.forget(key)
+      this.balances.delete(key)
+      this.options.onChange()
+      return
+    }
+    const verdict = await this.options.readBalance(next)
+    if (verdict.state === 'rejected') throw fail('account.managementKeyRejected', {})
+    if (verdict.state === 'unknown') throw fail('account.managementKeyUnchecked', { reason: verdict.reason })
+    this.options.managementKeys.save(key, next)
+    this.balances.set(key, { usd: verdict.usd, at: this.options.now().toISOString() })
+    this.options.onChange()
+  }
+
+  /** Reads the balance of an account that has a management key, between the hourly checks; the page hears of a change. */
+  async readBalance(key: string): Promise<void> {
+    if (await this.noteBalance(key)) this.options.onChange()
+  }
+
+  /** True when the balance changed; an answer that tells nothing, or a key replaced meanwhile, keeps the last one. */
+  private async noteBalance(key: string): Promise<boolean> {
+    const managementKey = this.options.managementKeys.of(key)
+    if (managementKey === undefined) return false
+    const verdict = await this.options.readBalance(managementKey)
+    if (verdict.state === 'unknown' || this.options.managementKeys.of(key) !== managementKey) return false
+    const at = this.options.now().toISOString()
+    const before = this.balances.get(key)
+    const next: ReadBalance = verdict.state === 'ok' ? { usd: verdict.usd, at } : { rejected: true, at }
+    this.balances.set(key, next)
+    return before === undefined || ('usd' in before ? !('usd' in next) || before.usd !== next.usd : 'usd' in next)
   }
 
   /** When an API key can pay again after a credit or spending refusal at `at`; asking keeps it checked. */
@@ -480,10 +538,12 @@ export class AccountWatcher {
     const now = this.options.now()
     const due = known.filter(({ home, status }) => isApiKey(status) && this.keys.due(home.key, now))
     const changes = await Promise.all(
-      due.map(async ({ home }) => {
+      due.map(async ({ home, openRouter }) => {
         const key = this.options.homes.apiKeyOf(home)
         if (key === null) return false
-        return this.noteKey(home.key, await this.options.checkKey(home.agent, key))
+        const checked = this.options.checkKey(home.agent, key).then((verdict) => this.noteKey(home.key, verdict))
+        const [noted, balance] = await Promise.all([checked, openRouter ? this.noteBalance(home.key) : false])
+        return noted || balance
       }),
     )
     return changes.includes(true)
@@ -513,6 +573,8 @@ export class AccountWatcher {
     this.credit.forget(key)
     this.checkedModels.delete(key)
     this.options.organizations.forget(key)
+    this.options.managementKeys.forget(key)
+    this.balances.delete(key)
   }
 
   code(code: string): void {
@@ -533,15 +595,17 @@ export class AccountWatcher {
 
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
-    const keyHeld = !home.global && this.options.homes.apiKeyOf(home) !== null
+    const apiKey = home.global ? null : this.options.homes.apiKeyOf(home)
+    const keyHeld = apiKey !== null
+    const openRouter = apiKey !== null && keyProvider(home.agent, apiKey) === 'openrouter'
     const cloud = this.options.homes.cloudOf(home)
-    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, cloud }
+    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, openRouter, cloud }
     try {
-      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, cloud }
+      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, openRouter, cloud }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
-      return { home, status: before?.status ?? null, error, keyHeld, cloud }
+      return { home, status: before?.status ?? null, error, keyHeld, openRouter, cloud }
     }
   }
 

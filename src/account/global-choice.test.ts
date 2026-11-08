@@ -24,7 +24,7 @@ function setup(loggedIn = true) {
     makeShared, missing: () => [], online: async () => true, sessionsKnown: () => true,
     removing: () => false, configPending: () => false, limits: () => null, usage: () => ({ state: 'ok' }),
     now: () => new Date(), onChange: () => {}, onError: (error: unknown) => { throw error },
-    forget: vi.fn(), organizations: { forget: vi.fn() },
+    forget: vi.fn(), organizations: { forget: vi.fn() }, managementKeys: { forget: vi.fn() },
   } as unknown as AccountWatcherOptions
   return { accounts: new AccountWatcher(options), authStatus, logout, makeShared, options, homes }
 }

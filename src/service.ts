@@ -4,6 +4,7 @@ import { type AccountHome } from './account/homes.js'
 import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
+import { loadManagementKeys } from './account/management.js'
 import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from './account/service-defaults.js'
 import { KeySpend, readOpenRouterKey, saveKeySpend } from './account/spend.js'
 import { keyVendor } from './opencode/home.js'
@@ -206,6 +207,7 @@ const context = {
   get intakePlaces() { return intakePlaces },
   get keepWarm() { return keepWarm },
   get keyOrganizations() { return keyOrganizations },
+  get managementKeys() { return managementKeys },
   get keySpend() { return keySpend },
   get knownTask() { return knownTask },
   get launchIn() { return launchIn },
@@ -365,6 +367,8 @@ let dismissedNotices = ((await stateValue(db, 'notices.dismissed')) as Record<st
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
 const keyOrganizations = await loadKeyOrganizations(db)
+/** The management key of each OpenRouter account, for its balance (BTN-868), held in memory and written behind. */
+const managementKeys = await loadManagementKeys(db)
 /** What polls and sessions last told of each account's limits before this start (BTN-631). */
 const savedLimits = await loadSavedLimits(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
@@ -563,7 +567,7 @@ const homeOf = (key: string): AccountHome => {
 const reach = accountsService.wireReach(context)
 /**
  * The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860); the same read tells the account card
- * what is left of the key's own limit (BTN-847).
+ * what is left of the key's own limit (BTN-847), and the account's balance is read beside it (BTN-868).
  */
 const keySpend = new KeySpend({
   metered: (key) => {
@@ -575,6 +579,7 @@ const keySpend = new KeySpend({
   read: async (key) => {
     const home = homes.find(key)
     const apiKey = home === undefined ? null : homes.apiKeyOf(home)
+    account.readBalance(key).catch((error: unknown) => console.error(`account: the balance of ${key}: ${error instanceof Error ? error.message : String(error)}`))
     const read = apiKey === null ? null : await readOpenRouterKey(apiKey, KEY_SPEND_TIMEOUT_MS)
     if (read !== null) account.noteKeyLimit(key, read.limit)
     return read?.usage ?? null
