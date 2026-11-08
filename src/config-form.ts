@@ -355,6 +355,16 @@ export function withNotice(raw: unknown, project: string | null, kind: NoticeKin
   return withRows(raw, [unset ? { op: 'unset', key: 'notices', project, qualifier: kind } : { op: 'set', key: 'notices', project, qualifier: kind, value: shown }])
 }
 
+/**
+ * The raw config with the project's own milestone order (BTN-792): what dragging a milestone of the tracker window's
+ * "Milestone order" writes, labels trimmed and each once; an empty one — "Back to automatic" — drops the row.
+ */
+export function withSavedMilestoneOrder(raw: unknown, project: string, labels: readonly string[]): Record<string, unknown> {
+  const trimmed = labels.map((label) => label.trim()).filter((label) => label !== '')
+  const clean = trimmed.filter((label, index) => trimmed.indexOf(label) === index)
+  return withRows(raw, [clean.length === 0 ? { op: 'unset', key: 'milestoneOrder', project, qualifier: '' } : { op: 'set', key: 'milestoneOrder', project, qualifier: '', value: clean }])
+}
+
 /** The raw config with Tally's place set: what the page's stats setup and settings write. */
 export function withTally(raw: unknown, mode: TallyMode): Record<string, unknown> {
   return withRows(raw, changesOf(null, [value('tally', 'tally', mode)], () => true))

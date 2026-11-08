@@ -34,6 +34,9 @@ export const SHARED_SCOPE = 'shared'
 /** The scope of a project's settings panel. */
 export const projectScope = (project: string) => `project:${project}`
 
+/** The scope of the tab its main tracker's window opens on when a link asks for it; `''` — the window is not asked for. */
+export const sourceScope = (project: string) => `source:${project}`
+
 /** The address hash of a project page that opens its settings panel; a task id never equals it. */
 export const SETTINGS_HASH = 'settings'
 

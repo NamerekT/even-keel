@@ -148,6 +148,7 @@ export const en: Messages = {
     page: 'Open Settings → Interface',
     accounts: 'Open Accounts',
     moves: 'Open the statuses on actions',
+    milestoneOrder: 'Open the milestone order',
     resume: 'Check again and resume',
     packages: 'Open the project’s packages',
     git: 'Open the Git step',

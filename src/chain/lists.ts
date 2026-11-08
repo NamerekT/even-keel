@@ -1,6 +1,7 @@
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
+import { milestoneSequence, type SequencedMilestone } from './milestone-sequence.js'
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
 import { chainOrder, waitingBlockers, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
@@ -52,7 +53,8 @@ export class TaskLists {
       const listed = this.outside.get(project) ?? []
       const outside = (this.waiting.get(project) ?? []).filter((task) => listed.includes(task))
       const reviews = this.reviews.views(project)
-      const extra = { ...(outside.length > 0 && { outside }), ...(reviews.length > 0 && { reviews }) }
+      const milestones = this.milestones(project)
+      const extra = { ...(outside.length > 0 && { outside }), ...(reviews.length > 0 && { reviews }), ...(milestones.length > 0 && { milestones }) }
       try {
         const order = chainOrder(tasks, this.preferred(project))
         const { landing, landingMilestones, refused } = this.landing(project)
@@ -130,6 +132,14 @@ export class TaskLists {
     } catch {
       return base
     }
+  }
+
+  /** The milestones of the tasks of the chain, its own waiting blockers and the backlog, already ranked by `setTasks`. */
+  private milestones(project: string): SequencedMilestone[] {
+    const outside = this.outside.get(project) ?? []
+    const waiting = (this.waiting.get(project) ?? []).filter((task) => !outside.includes(task))
+    const live = [...(this.tasks.get(project) ?? []), ...waiting, ...(this.backlog.get(project) ?? [])].flatMap((task) => (task.milestone === null ? [] : [task.milestone]))
+    return milestoneSequence(live, this.deps.milestoneOrder?.(project) ?? [])
   }
 
   private requiredLabels(project: string): Pick<ProjectOrder, 'requiredLabel'> {

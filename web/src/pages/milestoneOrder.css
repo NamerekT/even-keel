@@ -1,0 +1,98 @@
+/* "Milestone order" of the tracker window (BTN-792): rows dragged by their handle, as the queue's. */
+
+.milestone-order__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.milestone-order__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  transition: transform var(--motion-fast) ease;
+}
+
+.milestone-order__list--dragging .milestone-order__row {
+  user-select: none;
+}
+
+.milestone-order__list--landing .milestone-order__row {
+  transition: none;
+}
+
+.milestone-order__row--dragged {
+  z-index: 1;
+  box-shadow: var(--shadow-popover);
+  transition: none;
+}
+
+.milestone-order__handle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  font: var(--text-16)/1 var(--font);
+  cursor: grab;
+  touch-action: none;
+}
+
+.milestone-order__row--dragged .milestone-order__handle {
+  cursor: grabbing;
+}
+
+.milestone-order__handle:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.milestone-order__handle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.milestone-order__handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.milestone-order__place {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.milestone-order__label {
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--text-14);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.milestone-order__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.milestone-order__empty p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}

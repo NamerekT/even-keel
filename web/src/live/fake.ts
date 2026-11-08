@@ -23,7 +23,7 @@ import { withCompletionFailure, withMoveFailure } from './fakeCompletion.js'
 import { withProtection } from './fakeProtection.js'
 import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
-import { withMilestonePreview } from './fakeMilestones.js'
+import { withLiveMilestones, withMilestonePreview, withSavedMilestoneOrder } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -659,9 +659,10 @@ export function createFakeSource(search: string): LiveSource {
       { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, answers: 0, compactions: 1, replaced: { at: ago(70), how: 'checkpoint' } },
     ]
   }
-  if (current.state !== null) current.state = withHeaderLevels(prepareHeaderLevels(current.state, params.get('header')))
+  if (params.get('milestones') === 'saved' && current.state !== null) current.state = withSavedMilestoneOrder(current.state, { project: 'ABC', order: ['v0.3 — служба', 'v0.1 — каркас'] })
+  if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header'))))
   const notify = () => {
-    if (current.state !== null) current.state = withHeaderLevels(current.state)
+    if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()
   }
 

@@ -4,6 +4,7 @@ import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import type { StatusMoves } from '../../../src/chain/moves.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
+import { withSavedMilestoneOrder } from './fakeMilestones.js'
 
 const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
   Object.fromEntries(Object.entries(forms).flatMap(([key, form]) => (form.color === null ? [] : [[key, form.color]])))
@@ -123,6 +124,7 @@ export function fakeProjectCommand(state: EvenKeelState, name: string, body: Rec
   if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
   if (name === 'project/feed/add' || name === 'project/feed/remove' || name === 'project/feed/rules') return withFeeds(state, name, body)
   if (name === 'project/moves') return withMoves(state, body)
+  if (name === 'project/milestone-order') return withSavedMilestoneOrder(state, body)
   if (name !== 'project/remove') return null
   const id = String(body.project)
   if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })

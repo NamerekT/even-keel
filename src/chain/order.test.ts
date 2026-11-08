@@ -97,7 +97,7 @@ describe('chainOrder with milestones', () => {
 
   it('names blockers that go against the milestone order through a task without one', () => {
     const tasks = [inMilestone(v1, 'ABC-1', 'ABC-3'), inMilestone(v2, 'ABC-2'), task('ABC-3', 'ABC-2')]
-    expect(() => chainOrder(tasks)).toThrow(/blockers go against the milestone order: ABC-1 → ABC-3 → ABC-2 → ABC-1$/)
+    expect(() => chainOrder(tasks)).toThrow(/blockers go against the milestone order: ABC-1 → ABC-3 → ABC-2 → ABC-1;/)
   })
 
   it('still names a plain blocker cycle as a cycle', () => {

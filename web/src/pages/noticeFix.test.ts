@@ -18,6 +18,10 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(refused)).toEqual({ to: 'moves', level: 'profile', task: 'ABC-2' })
     expect(noticeFixOf(notice('statusMove.outside', { task: 'ABC-2', status: 'Backlog', setting: 'review', level: 'source' }))).toEqual({ to: 'moves', level: 'source', task: 'ABC-2' })
   })
+  it('sends a blocker against the milestone order to "Milestone order" of the tracker window (BTN-792)', () => {
+    expect(noticeFixOf(notice('order.later', { task: 'ABC-1', milestone: 'v0.1', blocker: 'ABC-2', blockerMilestone: 'v0.2' }))).toEqual({ to: 'milestoneOrder' })
+    expect(noticeFixOf(notice('order.against', { path: 'ABC-1 → ABC-2' }))).toEqual({ to: 'milestoneOrder' })
+  })
   it('sends a wrong main branch to the repository tab of the project', () => {
     expect(noticeFixOf(notice('git.noBranch', { project: 'ABC', branch: 'dev', repo: 'D:/abc' }))).toEqual({ to: 'project', tab: 'repo' })
     expect(noticeFixOf(notice('forward.foreign', { from: 'ABC', into: 'ABD' }))).toEqual({ to: 'project', tab: 'repo' })

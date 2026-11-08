@@ -525,6 +525,16 @@ export const settingsEN: Messages['settings'] = {
     milestoneMode: { all: 'All', only: 'Only milestones', except: 'All except' },
     milestonesBut: 'and not these:',
     milestonesEmpty: "No milestone yet: every task is the project's",
+    milestoneOrder: 'Milestone order',
+    milestoneOrderHint:
+      'The order the chain goes through the milestones: the tasks of a later one wait for every open task of an earlier one. ' +
+      "Automatic goes by dates, then by version numbers; drag a milestone to give the project its own order. " +
+      'Only milestones with open tasks of the chain or its backlog are listed. A new milestone takes its automatic place and is marked "new" until you move it.',
+    milestoneOrderAuto: 'auto',
+    milestoneOrderNew: 'new',
+    milestoneOrderBack: 'Back to automatic',
+    milestoneOrderMove: (label: string) => `Move the milestone ${label}`,
+    milestoneOrderEmpty: 'No open task of the chain or its backlog is in a milestone',
   }
 
 export const setupEN: Messages['setup'] = {

@@ -136,6 +136,8 @@ export interface ProjectSettings {
   carryAgent: boolean
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
+  /** The project's own milestone order by label (BTN-792), read only: `project/milestone-order` writes it; empty — automatic. */
+  milestoneOrder?: string[]
   /** The changelog file, relative to the repository's root (BTN-209). */
   changelog: string
   /** The documents of the repository that guard some of its files, handed to the sessions by the `checkpoint` hooks (BTN-359). */

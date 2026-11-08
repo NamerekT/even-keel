@@ -454,6 +454,14 @@ describe('Even Keel HTTP server', () => {
     expect(calls).toContainEqual(['sourceMoves', 'ABC', 'f1', { review: 'In Review' }])
   })
 
+  it("saves a project's milestone order, refusing one that is no list of names", async () => {
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: ['Beta', 'MVP'] }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: [] }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: 'Beta' }) })).status).toBe(400)
+    expect(calls).toContainEqual(['milestoneOrder', 'ABC', ['Beta', 'MVP']])
+    expect(calls).toContainEqual(['milestoneOrder', 'ABC', []])
+  })
+
   it('serves the card of a task, 404 when no tracker gives one', async () => {
     const response = await fetch(base + '/api/tasks/ABC-1')
     expect(response.status).toBe(200)

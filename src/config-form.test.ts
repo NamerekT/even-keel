@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -275,6 +275,22 @@ describe('withNotice', () => {
   it('refuses a kind a project cannot turn off, and a kind that is none', () => {
     expect(() => parseConfig({ projects: [abc({ notices: { 'cli.versions': false } })] })).toThrow('ABC.notices.cli.versions is no notice that can be turned off here')
     expect(() => parseConfig({ projects: [], notices: { 'chain.paused': false } })).toThrow('notices.chain.paused is no notice')
+  })
+})
+
+describe('withSavedMilestoneOrder', () => {
+  it('writes the project\'s milestone order, trimmed, each label once, and an empty one goes back to automatic (BTN-792)', () => {
+    const own = withSavedMilestoneOrder({ projects: [abc(), xyz()] }, 'id-abc', [' Beta ', 'MVP', 'Beta', ''])
+    expect(own.projects).toEqual([abc({ milestoneOrder: ['Beta', 'MVP'] }), xyz()])
+    const config = parseConfig(own)
+    expect(config.settings['id-abc']!.milestoneOrder).toEqual(['Beta', 'MVP'])
+    expect(config.settings['id-xyz']!.milestoneOrder).toEqual([])
+    expect(withSavedMilestoneOrder(own, 'id-abc', []).projects).toEqual([abc(), xyz()])
+  })
+
+  it('refuses an order that is no list of names', () => {
+    expect(() => parseConfig({ projects: [abc({ milestoneOrder: 'v1' })] })).toThrow('ABC.milestoneOrder must be a list of milestone names')
+    expect(() => parseConfig({ projects: [abc({ milestoneOrder: ['v1', 2] })] })).toThrow('ABC.milestoneOrder must be a list of milestone names')
   })
 })
 

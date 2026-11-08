@@ -5,7 +5,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { issueLink, projectOfPath, projectPath } from '../state.js'
 import { type NoticeFix, noticeFixOf } from './noticeFix.js'
-import { openTab, projectScope, SETTINGS_HASH, SHARED_SCOPE } from './settingsStore.js'
+import { openTab, projectScope, SETTINGS_HASH, SHARED_SCOPE, sourceScope } from './settingsStore.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { profileGroup } from './ProfileRules.js'
@@ -29,8 +29,9 @@ export function FixButton({ project, fix, className = 'button button--small noti
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
   if (fix.to === 'enableProfile') return <SendButton command="profiles/disable" bodies={[{ id: fix.profile, disabled: false }]} label={t.fix.enableProfile} className={className} />
   if (fix.to === 'stopChains') return <SendButton command="chain/stop" bodies={fix.projects.map((each) => ({ project: each }))} label={t.fix.stopChains(fix.projects.length)} className={className} />
-  const target = fix.to === 'project' ? (fix.project ?? project) : fix.to === 'moves' || fix.to === 'packages' ? project : null
-  if ((fix.to === 'project' || fix.to === 'moves' || fix.to === 'packages') && target === null) return null
+  const own = fix.to === 'moves' || fix.to === 'packages' || fix.to === 'milestoneOrder'
+  const target = fix.to === 'project' ? (fix.project ?? project) : own ? project : null
+  if ((fix.to === 'project' || own) && target === null) return null
   return (
     <button type="button" className={className} onClick={() => go(fix, target)}>
       {fixLabel(fix)}
@@ -39,8 +40,9 @@ export function FixButton({ project, fix, className = 'button button--small noti
 }
 
 /** What the button to a place in the settings or the accounts says. */
-export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' | 'git' }>): string {
+export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' | 'git' | 'milestoneOrder' }>): string {
   if (fix.to === 'git') return t.fix.git
+  if (fix.to === 'milestoneOrder') return t.fix.milestoneOrder
   if (fix.to === 'moves') return t.fix.moves
   if (fix.to === 'packages') return t.fix.packages
   return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
@@ -88,8 +90,9 @@ export function useFix() {
       openTab(SHARED_SCOPE, state === null ? 'rules' : (movesProfile(state, id, fix.task) ?? 'rules'))
       return void navigate('/settings')
     }
-    // A source's own moves are in its window on the project's Tracker tab, a feed's too.
-    openTab(projectScope(id), fix.to === 'moves' ? 'tracker' : fix.tab)
+    // A source's own moves are in its window on the project's Tracker tab, a feed's too; the milestone order in the main tracker's.
+    if (fix.to === 'milestoneOrder') openTab(sourceScope(id), 'milestones')
+    openTab(projectScope(id), fix.to === 'project' ? fix.tab : 'tracker')
     navigate({ pathname: projectPath(id), hash: SETTINGS_HASH })
   }
 }

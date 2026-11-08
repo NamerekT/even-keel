@@ -25,6 +25,7 @@ import { returned as returnedSession, shelve } from './shelved.js'
 import { wasSkipped } from './skippedown.js'
 import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
+import { withMilestoneOrder } from './milestone-sequence.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead } from './order.js'
 import { excludes, isDone, isTerminal } from './rules.js'
 import type { HandoffSession } from './relay.js'
@@ -109,7 +110,8 @@ export class Dispatcher {
     })
   }
 
-  setTasks(project: string, tasks: Task[]): void {
+  setTasks(project: string, read: Task[]): void {
+    const tasks = withMilestoneOrder(read, this.deps.milestoneOrder?.(project) ?? [])
     this.lists.listed.set(project, tasks)
     const rules = (task: Task) => this.deps.rules(project, task.id)
     const { chain, waiting } = this.lists.sorted(project, tasks)
@@ -485,8 +487,8 @@ export class Dispatcher {
   }
 
   /** The view `setTasks(project, tasks)` would give, the lists left as they are. */
-  preview(project: string, tasks: Task[]): ChainView {
-    const { chain, waiting } = this.lists.sorted(project, tasks)
+  preview(project: string, read: Task[]): ChainView {
+    const { chain, waiting } = this.lists.sorted(project, withMilestoneOrder(read, this.deps.milestoneOrder?.(project) ?? []))
     const outside = this.lists.outside.get(project) ?? []
     return { tasks: chain, blockers: waiting.filter((task) => !outside.includes(task)), current: this.currentOf(project) }
   }

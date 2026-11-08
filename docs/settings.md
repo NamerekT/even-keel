@@ -87,6 +87,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask`, `.rerunFailed` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
+| `milestoneOrder` | P | — | page ("Milestone order" in the main tracker's window, sent at once, `project/milestone-order`; not the form), hand | `[]` — the automatic order. Milestone labels, trimmed and deduplicated, else `config.milestoneOrder`; the chain ranks live milestones by it, a label not in it goes after its closest automatic predecessor, one gone is ignored (`src/chain/milestone-sequence.ts`, BTN-792) |
 | `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain/projects.md`, "Carrying a release project forward") |
 | `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain/projects.md`, "The carry session") |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain/pr-mode.md`) |

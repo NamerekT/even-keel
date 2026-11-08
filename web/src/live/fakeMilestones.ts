@@ -1,6 +1,31 @@
+import { milestoneSequence } from '../../../src/chain/milestone-sequence.js'
 import { activeMilestone, milestoneCandidate } from '../../../src/chain/milestones.js'
 import { chainOrder, withFresh } from '../../../src/chain/order.js'
 import type { EvenKeelState } from '../../../src/state.js'
+
+/**
+ * Each project's live milestones (BTN-792) as the service lists them: those of its chain, waiting and backlog tasks,
+ * in its saved order. The fake does not reorder the chain by it.
+ */
+export function withLiveMilestones(state: EvenKeelState): EvenKeelState {
+  const projects = Object.fromEntries(Object.entries(state.chain.projects).map(([project, order]) => {
+    const ids = new Set([...order.order, ...order.waiting, ...order.backlog])
+    const live = state.tasks.filter((task) => ids.has(task.id)).flatMap((task) => (task.milestone === null ? [] : [task.milestone]))
+    return [project, { ...order, milestones: milestoneSequence(live, state.config.projects[project]?.milestoneOrder ?? []) }]
+  }))
+  return { ...state, chain: { ...state.chain, projects } }
+}
+
+/** `project/milestone-order`: the project's saved order, an empty one back to automatic. */
+export function withSavedMilestoneOrder(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
+  const project = String(body.project)
+  const form = state.config.projects[project]
+  if (form === undefined) return state
+  const { milestoneOrder: _, ...rest } = form
+  const order = Array.isArray(body.order) ? body.order.map(String) : []
+  const next = order.length === 0 ? rest : { ...rest, milestoneOrder: order }
+  return withLiveMilestones({ ...state, config: { ...state.config, projects: { ...state.config.projects, [project]: next } } })
+}
 
 /** A bare backlog task whose preview lands among the active milestone's rows. */
 export function withMilestonePreview(state: EvenKeelState, mode: string): EvenKeelState {

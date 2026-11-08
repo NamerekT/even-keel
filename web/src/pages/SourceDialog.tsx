@@ -28,6 +28,8 @@ interface SourceDialogProps<T extends string> {
   /** The source's profile name, which names its tracker; the tracker's title without a profile. */
   title: string
   tabs: readonly SourceTab<T>[]
+  /** The tab the window opens on, when it has it and no tab holds an invalid field; the first one otherwise. */
+  initialTab?: string
   /** A save is under way or the draft cannot be sent. */
   canSave: boolean
   failure: Notice | null
@@ -80,13 +82,14 @@ export function SourceLine({ kind, title, sourceKey, own, dirty, onConfigure, me
  * The settings of one source of the project's tasks (BTN-553), its main tracker or a feed: the parts as tabs across
  * the top, one save for all of them at the bottom.
  */
-export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, canSave, failure, onSave, onRevert, onClose }: SourceDialogProps<T>) {
+export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, initialTab, canSave, failure, onSave, onRevert, onClose }: SourceDialogProps<T>) {
   const tableDraft = useTableDraft()
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const invalidTab = tabs.find((each) => each.fields?.some((key) => tableDraft?.draft.adding?.[key]?.valid === false))
-  const [open, setOpen] = useState<T>(invalidTab?.id ?? tabs[0]!.id)
+  const asked = tabs.find((each) => each.id === initialTab)
+  const [open, setOpen] = useState<T>(invalidTab?.id ?? asked?.id ?? tabs[0]!.id)
   const tab = tabs.find((each) => each.id === open) ?? tabs[0]!
   const dirty = tabs.some((each) => each.dirty)
   const frame = useRef<HTMLDivElement>(null)

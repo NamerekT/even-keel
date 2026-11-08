@@ -1,15 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot } from '../state.js'
-import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
 import { QueueIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { useDragList } from '../ui/useDragList.js'
 import { chainWaits } from '../waits.js'
 import { usePopover } from './usePopover.js'
 
@@ -111,15 +111,6 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
   )
 }
 
-interface Drag {
-  pointer: number
-  from: number
-  startY: number
-  dy: number
-  mids: number[]
-  step: number
-}
-
 interface ListProps {
   state: EvenKeelState
   queue: string[]
@@ -129,67 +120,13 @@ interface ListProps {
 }
 
 function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
-  const listRef = useRef<HTMLOListElement>(null)
-  const refocus = useRef<string | null>(null)
-  const [drag, setDrag] = useState<Drag | null>(null)
-  const [landing, setLanding] = useState<{ project: string; offset: number } | null>(null)
-  const target = drag === null ? null : dropIndex(drag.mids, drag.mids[drag.from]! + drag.dy)
-
-  useEffect(() => {
-    if (landing === null) return
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => setLanding(null))
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [landing])
-
-  useLayoutEffect(() => {
-    if (refocus.current === null) return
-    listRef.current?.querySelector<HTMLElement>(`[data-handle="${refocus.current}"]`)?.focus()
-    refocus.current = null
-  })
-
-  const grab = (index: number) => (event: PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || disabled || listRef.current === null) return
-    const rects = [...listRef.current.children].map((row) => row.getBoundingClientRect())
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setDrag({
-      pointer: event.pointerId,
-      from: index,
-      startY: event.clientY,
-      dy: 0,
-      mids: rects.map((rect) => rect.top + rect.height / 2),
-      step: rects.length > 1 ? rects[1]!.top - rects[0]!.top : rects[0]!.height,
-    })
-  }
-
-  const follow = (event: PointerEvent<HTMLButtonElement>) => {
-    if (drag?.pointer === event.pointerId) setDrag({ ...drag, dy: event.clientY - drag.startY })
-  }
-
-  const drop = (event: PointerEvent<HTMLButtonElement>) => {
-    if (drag?.pointer !== event.pointerId) return
-    setDrag(null)
-    if (target === null || target === drag.from) return
-    setLanding({ project: queue[drag.from]!, offset: drag.dy - (target - drag.from) * drag.step })
-    onMove(moveItem(queue, drag.from, target))
-  }
-
-  const nudge = (index: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
-    const to = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : null
-    if (to === null) return
-    event.preventDefault()
-    if (disabled || to < 0 || to >= queue.length) return
-    refocus.current = queue[index]!
-    onMove(moveItem(queue, index, to))
-  }
+  const list = useDragList<HTMLOListElement>(queue, disabled, onMove)
 
   return (
-    <ol ref={listRef} className={listClass(drag !== null, landing !== null)}>
+    <ol ref={list.listRef} className={listClass(list.dragging, list.landing)}>
       {queue.map((project, index) => {
-        const dragged = drag?.from === index
-        let offset = landing?.project === project ? landing.offset : 0
-        if (drag !== null) offset = dragged ? drag.dy : dragShift(index, drag.from, target!, drag.step)
+        const dragged = list.isDragged(index)
+        const offset = list.offsetOf(index)
         return (
           <li
             key={project}
@@ -202,14 +139,9 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
             <button
               type="button"
               className="queue__handle"
-              data-handle={project}
               aria-label={t.queue.move(projectLabel(state, project))}
               disabled={queue.length < 2}
-              onPointerDown={grab(index)}
-              onPointerMove={follow}
-              onPointerUp={drop}
-              onPointerCancel={() => setDrag(null)}
-              onKeyDown={nudge(index)}
+              {...list.handle(index)}
             >
               ⠿
             </button>

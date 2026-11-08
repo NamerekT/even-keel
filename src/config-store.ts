@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
 import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -121,6 +121,11 @@ export class ConfigStore {
   /** Writes a task source's own status moves (BTN-554): the main tracker's with `feed` null, by the same rule as `saveProject`. */
   saveMoves(project: string, feed: string | null, moves: StatusMoves): void {
     this.write(withSourceMoves(this.raw(), this.idOf(project), feed, moves))
+  }
+
+  /** Writes the project's own milestone order (BTN-792); an empty one goes back to the automatic order. */
+  saveMilestoneOrder(project: string, labels: readonly string[]): void {
+    this.write(withSavedMilestoneOrder(this.raw(), this.idOf(project), labels))
   }
 
   /** Drops the project's feed, by the same rule as `saveProject`. */

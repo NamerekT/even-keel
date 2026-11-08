@@ -151,8 +151,8 @@ export const en = {
     `chain: ${p.task} in ${p.milestone} cannot go before ${p.earlier} in the earlier ${p.earlierMilestone}`,
   'order.cycle': (p: { path: string }) => `blocker cycle: ${p.path}`,
   'order.later': (p: { task: string; milestone: string; blocker: string; blockerMilestone: string }) =>
-    `${p.task} in ${p.milestone} is blocked by ${p.blocker} in the later ${p.blockerMilestone}`,
-  'order.against': (p: { path: string }) => `blockers go against the milestone order: ${p.path}`,
+    `${p.task} in ${p.milestone} is blocked by ${p.blocker} in the later ${p.blockerMilestone}: move ${p.blockerMilestone} up in "Milestone order" of the tracker's window, or drop the link`,
+  'order.against': (p: { path: string }) => `blockers go against the milestone order: ${p.path}; change "Milestone order" in the tracker's window or the links`,
 
   'cleanup.failed': () => 'cleanup failed',
   'cleanup.syncFailed': () => 'sync of the main branch failed',
@@ -473,6 +473,7 @@ export const en = {
   'request.taskId': () => 'task must look like ABC-12',
   'request.taskList': () => 'order must be a list of task ids',
   'request.projectList': () => 'order must be a list of projects',
+  'request.milestoneList': () => 'order must be a list of milestone names',
 
   'task.noTracker': (p: { task: string }) => `no connected tracker serves ${p.task}`,
   'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} can neither put the required label on it nor move it to Todo`,
@@ -649,6 +650,7 @@ export const en = {
     `config: ${p.where} must be an object of chain rules (${p.keys.join(', ')}), each a list of names; active and terminal may be null`,
   'config.statusMoves': (p: { where: string }) =>
     `config: ${p.where} must be an object of status names: start and review a name or null, done a name`,
+  'config.milestoneOrder': (p: { where: string }) => `config: ${p.where} must be a list of milestone names`,
   'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
     `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
   'config.feedPlace': (p: { project: string; other: string }) =>

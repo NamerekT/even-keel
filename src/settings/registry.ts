@@ -390,6 +390,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   // The statuses the project's main tracker moves its tasks into (BTN-554), over its profile's; a feed keeps its own.
   { key: 'statusMoves', kind: 'json', scopes: ['project'], lands: ['settings'], default: {}, check: (value, place) => statusMovesOf(value, at(place, 'statusMoves')) },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
+  // The project's own milestone order by label (BTN-792), over the automatic one; `[]` — automatic.
+  { key: 'milestoneOrder', kind: 'list', scopes: ['project'], lands: ['settings'], default: [], check: (value, place) => {
+    if (!Array.isArray(value) || value.some((label) => typeof label !== 'string')) throw fail('config.milestoneOrder', { where: at(place, 'milestoneOrder') })
+    const labels = value.map((label: string) => label.trim()).filter((label) => label !== '')
+    return labels.filter((label, index) => labels.indexOf(label) === index)
+  } },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null
     if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })

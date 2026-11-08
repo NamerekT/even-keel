@@ -163,11 +163,16 @@ export function precedence(tasks: Task[]): Map<string, string[]> {
   return new Map([...plan.blockers].map(([id, deps]) => [id, [...deps, ...plan.earlier.get(id)!]]))
 }
 
+/** The `trackerOrder` source of a project's saved milestone order (`withMilestoneOrder`): one rank per label, no fallback. */
+export const MANUAL_ORDER = 'even-keel:manual'
+
 /** Choose one ordering policy for the complete set, so missing or foreign positions cannot introduce cycles. */
 export function milestoneComparator(milestones: readonly TaskMilestone[]): typeof compareMilestones {
   const source = milestones[0]?.trackerOrder?.source
   const native = source !== undefined && milestones.every((each) => each.trackerOrder?.source === source && Number.isFinite(each.trackerOrder.value))
-  return native ? (a, b) => a.trackerOrder!.value - b.trackerOrder!.value || compareMilestones(a, b) : compareMilestones
+  if (!native) return compareMilestones
+  if (source === MANUAL_ORDER) return (a, b) => a.trackerOrder!.value - b.trackerOrder!.value
+  return (a, b) => a.trackerOrder!.value - b.trackerOrder!.value || compareMilestones(a, b)
 }
 
 /** The total fallback order, also used when native positions tie. */

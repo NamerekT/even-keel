@@ -12,7 +12,8 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
  * column on /tools; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
- * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830).
+ * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
+ * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792).
  */
 export type NoticeFix =
   | { to: 'enableProfile'; profile: string }
@@ -25,6 +26,7 @@ export type NoticeFix =
   | { to: 'resume' }
   | { to: 'tracker'; task: string }
   | { to: 'moves'; level: MoveLevel; task: string }
+  | { to: 'milestoneOrder' }
 
 export const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
@@ -64,6 +66,8 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'git.missing': { to: 'resume' },
   'git.noIdentity': { to: 'git' },
   'chain.packagesNotReady': { to: 'packages' },
+  'order.later': { to: 'milestoneOrder' },
+  'order.against': { to: 'milestoneOrder' },
 }
 
 

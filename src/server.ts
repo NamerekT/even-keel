@@ -191,6 +191,8 @@ export interface SettingsControl {
   profileMoves(id: string, moves: StatusMoves): Promise<void>
   /** A task source's own status moves: the project's main tracker with `feed` null, else the feed; checked the same way. */
   sourceMoves(project: string, feed: string | null, moves: StatusMoves): Promise<void>
+  /** The project's own milestone order by label (BTN-792), all of it at once; an empty list goes back to the automatic order. */
+  milestoneOrder(project: string, labels: string[]): void
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** A banner's "Got it" (BTN-759): its ids with the stamps of what they said; one comes back once its stamp changes. */
@@ -343,6 +345,7 @@ const COMMANDS: Record<string, Command> = {
   'project/feed/rules': ({ settings }, body) => settings.feedRules(projectOf(body), textOf(body.feed, 'feed'), profileRulesOf(body.rules, RULE_KEYS)),
   'project/moves': ({ settings }, body) =>
     settings.sourceMoves(projectOf(body), body.feed === null || body.feed === undefined ? null : textOf(body.feed, 'feed'), statusMovesOf(body.moves, 'moves')),
+  'project/milestone-order': ({ settings }, body) => settings.milestoneOrder(projectOf(body), listOf(body, 'request.milestoneList')),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),

@@ -296,6 +296,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     parallel: () => ctx.configStore.current.parallel,
     rules: ctx.rulesOf,
     fillsMilestone: (project) => ctx.configStore.current.settings[project]?.fillMilestone ?? false,
+    milestoneOrder: (project) => ctx.configStore.current.settings[project]?.milestoneOrder ?? [],
     launch: async (project, task, extra) => {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)

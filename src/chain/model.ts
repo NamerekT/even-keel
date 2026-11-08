@@ -6,6 +6,7 @@ import type { Notice } from '../notice/notice.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
 import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
+import type { SequencedMilestone } from './milestone-sequence.js'
 import type { MoveWhen } from './moves.js'
 import type { ChainRules } from './rules.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession, LimitHold, RelayAction } from './relay.js'
@@ -262,6 +263,11 @@ export interface ProjectOrder {
   requiredLabel?: Record<string, boolean>
   /** The project's tasks with a pull request open or closed but not cleaned up after; set when there are any. */
   reviews?: ReviewView[]
+  /**
+   * The milestones of the chain's and the backlog's tasks in the order the chain goes by (BTN-792): the saved one with
+   * `fresh` for a milestone it lacks, else the automatic one. Set when there are any.
+   */
+  milestones?: SequencedMilestone[]
   error: Notice | null
 }
 
@@ -313,6 +319,8 @@ export interface DispatcherDeps {
   rules: (project: string, task?: string) => ChainRules
   /** The project's current `fillMilestone` setting; absent means off. */
   fillsMilestone?: (project: string) => boolean
+  /** The project's saved milestone order by label (BTN-792); empty or absent — the automatic one. */
+  milestoneOrder?: (project: string) => readonly string[]
   /**
    * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
    * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.

@@ -419,6 +419,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.saveMoves(project, feed, moves)
         console.log(`page: the status moves of ${found === undefined ? 'the main tracker' : `the task feed ${found.key}`} of ${projectLabel(config, project)} are written to the config`)
       },
+      milestoneOrder: (project, labels) => {
+        ctx.configStore.saveMilestoneOrder(project, labels)
+        const label = projectLabel(ctx.configStore.current, project)
+        console.log(labels.length === 0 ? `page: the milestone order of ${label} is back to automatic` : `page: the milestone order of ${label} is written to the config`)
+      },
       dismissUpdate: (version) => {
         ctx.dismissedUpdate = version
         ctx.writes.add('the dismissed update', setStateValue(ctx.db, 'updates.dismissed', version))

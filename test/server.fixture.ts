@@ -82,6 +82,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       add: record('add'),
       profileMoves: async (id, moves) => record('profileMoves')(id, moves),
       sourceMoves: async (project, feed, moves) => record('sourceMoves')(project, feed, moves),
+      milestoneOrder: record('milestoneOrder'),
       remove: record('removeProject'),
       dismissUpdate: record('dismiss'),
       muteUpdates: record('mute'),

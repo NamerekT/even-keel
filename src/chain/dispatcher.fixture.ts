@@ -78,6 +78,8 @@ export interface SetupOptions {
   /** By project, or by the id prefix of a feed's tasks. */
   rules?: Record<string, ChainRules>
   fillMilestone?: boolean
+  /** The saved milestone order by project (BTN-792), read on every `setTasks`; none — automatic. */
+  milestoneOrder?: Record<string, string[]>
   /** The status moves reject, as the service's never do. */
   failMove?: boolean
   main?: MainCheckDeps
@@ -127,6 +129,7 @@ export function setup(options: SetupOptions = {}) {
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
     fillsMilestone: () => options.fillMilestone ?? false,
+    milestoneOrder: (project) => options.milestoneOrder?.[project] ?? [],
     rules: (project, task) => (task === undefined ? undefined : options.rules?.[task.slice(0, task.lastIndexOf('-'))]) ?? options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id, extra) => {
       tried.push(`${project}/${id}`)

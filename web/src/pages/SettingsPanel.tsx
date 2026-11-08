@@ -53,6 +53,7 @@ import {
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
 import { useSourceMoves } from './SourceMoves.js'
+import { MilestoneOrder } from './MilestoneOrder.js'
 import { Band } from '../ui/blocks.js'
 import { useVocabularies } from './useVocabularies.js'
 import { SuggestField } from '../ui/SuggestField.js'
@@ -70,7 +71,7 @@ import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
-import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
+import { projectScope as scopeOf, sourceScope, useDraft, useTab } from './settingsStore.js'
 import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
 import { AddPullProfile, PullHint } from './PullButtons.js'
 import { FORGES } from '../../../src/notice/en.js'
@@ -155,6 +156,8 @@ export function SettingsPanel({
   const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
   const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
   const [configuring, setConfiguring] = useState(false)
+  // A fix button may ask for the window open on a tab of its own ("Milestone order", BTN-792).
+  const [sourceTab, openSourceTab] = useTab<string>(sourceScope(project), '')
   const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
@@ -482,9 +485,10 @@ export function SettingsPanel({
             }
           />
         )}
-        {configuring && (
+        {(configuring || sourceTab !== '') && (
           <SourceDialog
             kind={text('tracker')}
+            initialTab={sourceTab === '' ? undefined : sourceTab}
             sourceKey={state?.projectKeys[project] ?? project}
             title={ruleProfile?.name ?? trackerTitle}
             tabs={[
@@ -519,6 +523,7 @@ export function SettingsPanel({
                 title: t.settings.milestones,
                 dirty: changed(draft, ['requiredMilestones', 'excludedMilestones'], same).length > 0,
                 render: () => (
+                  <>
                   <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
                     <MilestoneFields
                       level="project"
@@ -533,6 +538,8 @@ export function SettingsPanel({
                       marks={marks}
                     />
                   </Section>
+                  <MilestoneOrder project={project} milestones={state?.chain.projects[project]?.milestones ?? []} saved={form.milestoneOrder ?? []} />
+                  </>
                 ),
               },
               ...(moves.tab === null || onBuiltin ? [] : [moves.tab]),
@@ -544,7 +551,10 @@ export function SettingsPanel({
               revert(statusesReset || text('tracker') !== saved.tracker ? RULE_KEYS.filter((key) => !STATUS_KEYS.includes(key)) : RULE_KEYS)
               moves.revert()
             }}
-            onClose={() => setConfiguring(false)}
+            onClose={() => {
+              setConfiguring(false)
+              openSourceTab('')
+            }}
           />
         )}
       </>

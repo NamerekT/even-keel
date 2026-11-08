@@ -121,8 +121,8 @@ export const noticesRu: NoticeTexts = {
   'order.blocked': (p) => `${p.task} не может идти раньше ${p.blocker}: та её блокирует`,
   'order.milestone': (p) => `${p.task} из ${p.milestone} не может идти раньше ${p.earlier} из более раннего ${p.earlierMilestone}`,
   'order.cycle': (p) => `блокеры замкнулись в кольцо: ${p.path}`,
-  'order.later': (p) => `${p.task} из ${p.milestone} ждёт ${p.blocker} из более позднего ${p.blockerMilestone}`,
-  'order.against': (p) => `блокеры идут против порядка вех: ${p.path}`,
+  'order.later': (p) => `${p.task} из ${p.milestone} ждёт ${p.blocker} из более позднего ${p.blockerMilestone}: поднимите ${p.blockerMilestone} в «Порядке вех» окна трекера или уберите связь`,
+  'order.against': (p) => `блокеры идут против порядка вех: ${p.path}; поменяйте «Порядок вех» в окне трекера или связи`,
 
   'cleanup.failed': () => 'уборка не удалась',
   'cleanup.syncFailed': () => 'синхронизация главной ветки не удалась',
@@ -419,6 +419,7 @@ export const noticesRu: NoticeTexts = {
   'request.taskId': () => 'задача должна выглядеть как ABC-12',
   'request.taskList': () => 'порядок должен быть списком ID задач',
   'request.projectList': () => 'порядок должен быть списком проектов',
+  'request.milestoneList': () => 'порядок должен быть списком названий вех',
 
   'task.noTracker': (p) => `${p.task} не обслуживает ни один подключённый трекер`,
   'task.cannotReady': (p) => `трекер ${p.task} не умеет ни ставить ей обязательную метку, ни переводить в Todo`,
@@ -574,6 +575,7 @@ export const noticesRu: NoticeTexts = {
   'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,
   'config.feedRules': (p) => `${p.where} должен быть объектом правил цепочки (${p.keys.join(', ')}), каждое — список имён; active и terminal могут быть null`,
   'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
+  'config.milestoneOrder': (p) => `${p.where} должен быть списком названий вех`,
   'config.feedPrefix': (p) => `источник задач ${p.project} даёт ID задач ${p.prefix}-…, как и ${p.other}: дайте источнику другой ключ`,
   'config.feedPlace': (p) => `источник задач ${p.project} читает то же место трекера, что и ${p.other}, и задача попала бы в цепочку дважды`,
   'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,

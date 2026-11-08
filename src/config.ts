@@ -387,6 +387,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     mergeInto: values.mergeInto as string | null,
     carryAgent: values.carryAgent as boolean,
     fillMilestone: values.fillMilestone as boolean,
+    milestoneOrder: values.milestoneOrder as string[],
     changelog: values.changelog as string,
     standards: values.standards as Standard[],
     provider: (own.provider as string | undefined) ?? null,
