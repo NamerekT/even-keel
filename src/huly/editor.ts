@@ -2,6 +2,7 @@ import { EditRefused, patchText, revisionOf, type TaskEditor } from '../tracker/
 import type { TaskPriority, TrackerTask } from '../tracker/model.js'
 import { tracker } from './ids.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
+import { fixCodeMarks, marksNote, type FixedMarks, type HulyMarkdown } from './marks.js'
 import { hulyPriority, ISSUE_CLASS, namedStatus, toStatus, type HulyCardIssue, type HulyStatusDoc } from './model.js'
 
 const ISSUE = tracker.class.Issue
@@ -39,6 +40,7 @@ export interface HulyEditorClient extends HulyLabelClient {
 
 export interface HulyEditorDeps {
   client: HulyEditorClient
+  markdown: HulyMarkdown
   /** Throws `TrackerNotFound` when there is no such issue. */
   findIssue(identifier: string): Promise<HulyFullIssue>
   /** The Huly project of Even Keel's project. */
@@ -56,10 +58,27 @@ export interface HulyEditorDeps {
  * Huly's writes for the tasks MCP server (BTN-779). Huly has no revision of a description nor a write checked against
  * the value it replaces, so a short field is set whatever it holds, a patch is a read, `patchText` and a write with a
  * small window between them, and the revision is a hash of the description's Markdown (`revisionOf`). A parent is set
- * only on a new issue: moving an issue between parents rewrites its subtree in Huly, so these tools refuse it.
+ * only on a new issue: moving an issue between parents rewrites its subtree in Huly, so these tools refuse it. Every
+ * text is written with its code marks fixed (`fixCodeMarks`); a patch's `new` and appended section are fixed before
+ * `patchText` too, so a repeated patch finds them as written and is "already so".
  */
 export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
   const { client, findIssue } = deps
+  const fixer = () => {
+    const fixes: FixedMarks[] = []
+    return {
+      fix(text: string): string {
+        const fixed = fixCodeMarks(text, deps.markdown)
+        fixes.push(fixed)
+        return fixed.text
+      },
+      /** After the write: its note, if anything was fixed. */
+      tell(notes: string[] | undefined): void {
+        const note = marksNote(fixes)
+        if (note !== null) notes?.push(note)
+      },
+    }
+  }
   const markdownOf = async (issue: HulyFullIssue): Promise<string> =>
     issue.description ? client.fetchMarkup(ISSUE, issue._id, 'description', issue.description, 'markdown') : ''
   const writeDescription = async (issue: HulyFullIssue, text: string): Promise<void> => {
@@ -94,8 +113,9 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
 
   return {
     list: async (project) => deps.issuesOf((await deps.spaceOf(project))._id),
-    async create(project, draft) {
+    async create(project, draft, notes) {
       const space = await deps.spaceOf(project)
+      const marks = fixer()
       const parent = draft.parent === null ? null : await findIssue(draft.parent)
       if (parent !== null && parent.space !== space._id) throw new EditRefused(`the parent ${draft.parent} is of another project`)
       const [status, milestone] = await Promise.all([
@@ -104,12 +124,13 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       ])
       const created = await deps.addIssue(space, {
         title: draft.title,
-        description: draft.description,
+        description: marks.fix(draft.description),
         status: status._id,
         priority: draft.priority ?? 'none',
         milestone,
         parent,
       })
+      marks.tell(notes)
       if (draft.labels.length > 0) await relabelHuly(client, { _id: created.id, space: space._id }, { add: draft.labels, remove: [] })
       return created.identifier
     },
@@ -143,21 +164,28 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       }
     },
     revision: async (id) => revisionOf(await markdownOf(await findIssue(id))),
-    async describe(id, text, rev) {
+    async describe(id, text, rev, notes) {
       const issue = await findIssue(id)
       const now = await markdownOf(issue)
       if (revisionOf(now) !== rev) {
         throw new EditRefused(`${issue.identifier}: the description was changed since rev ${rev} (now rev ${revisionOf(now)}); read it again, or patch it with "replace"`)
       }
-      if (lf(now).trim() === lf(text).trim()) return false
-      await writeDescription(issue, text)
+      const marks = fixer()
+      const next = marks.fix(text)
+      if (lf(now).trim() === lf(next).trim()) return false
+      await writeDescription(issue, next)
+      marks.tell(notes)
       return true
     },
-    async patch(id, patches, append) {
+    async patch(id, patches, append, notes) {
       const issue = await findIssue(id)
-      const next = patchText(await markdownOf(issue), patches, append)
+      const marks = fixer()
+      const fixedPatches = patches.map((each) => ({ old: each.old, new: marks.fix(each.new) }))
+      const next = patchText(await markdownOf(issue), fixedPatches, append === null ? null : marks.fix(append))
       if (next === null) return false
-      await writeDescription(issue, next)
+      // A `new` that puts code inside a mark around it is fixed only in the whole text.
+      await writeDescription(issue, marks.fix(next))
+      marks.tell(notes)
       return true
     },
     async link(id, other, link, on) {
@@ -175,7 +203,12 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
     },
     relabel: async (id, change) => relabelHuly(client, await findIssue(id), change),
     // Huly's comment has no field for the session's model: the author is the account of Even Keel's profile.
-    comment: async (id, body) => deps.comment(id, body),
+    async comment(id, body, _model, notes) {
+      const marks = fixer()
+      const posted = await deps.comment(id, marks.fix(body))
+      marks.tell(notes)
+      return posted
+    },
   }
 }
 

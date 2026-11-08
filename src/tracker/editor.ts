@@ -37,29 +37,30 @@ export interface TextPatch {
  * The writes an agent makes through the tasks MCP server (BTN-768, `src/taskmcp/`): optional for an adapter, the tools
  * are served only for a tracker that has it. Everything is named as the tracker names it — a task by its id, a status, a
  * label, a milestone by its name; checking a label or a milestone against the project's vocabulary is the server's.
+ * `notes` gets a line for the agent's answer when a text was written not as given (Huly's mark fixes, BTN-894).
  */
 export interface TaskEditor {
   /** Every task of the project, whatever its status. */
   list(project: string): Promise<TrackerTask[]>
   /** Creates the task and returns its id. */
-  create(project: string, draft: TaskDraft): Promise<string>
+  create(project: string, draft: TaskDraft, notes?: string[]): Promise<string>
   /** `false` — the field held the value already. */
   set(id: string, field: TaskField): Promise<boolean>
   /** The description's revision: it grows only with a change of the description, not of any other field. */
   revision(id: string): Promise<number>
   /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */
-  describe(id: string, text: string, rev: number): Promise<boolean>
+  describe(id: string, text: string, rev: number, notes?: string[]): Promise<boolean>
   /**
    * Applies the patches and the appended section by `patchText`, all or none, against the description as it is when
    * written: no revision needed. `false` — it is so already.
    */
-  patch(id: string, patches: readonly TextPatch[], append: string | null): Promise<boolean>
+  patch(id: string, patches: readonly TextPatch[], append: string | null, notes?: string[]): Promise<boolean>
   /** Adds or removes a link to another task; adding one there already, or removing one not there, is nothing. */
   link(id: string, other: string, link: TaskLink, on: boolean): Promise<void>
   /** Removes, then adds labels, ignoring case; returns the task's labels. */
   relabel(id: string, change: LabelChange): Promise<string[]>
   /** Posts the agent's comment and returns its id; `model` — `<Provider> | <model>` of its session, if known. */
-  comment(id: string, body: string, model: string | null): Promise<string>
+  comment(id: string, body: string, model: string | null, notes?: string[]): Promise<string>
 }
 
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */

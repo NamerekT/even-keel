@@ -107,10 +107,11 @@ The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", t
 
 - A patch of a real description with headings, lists, code and links comes back as it was; only a table turns into HTML, and a second trip adds one blank line, then holds.
 - A batch with `#N` links, a parent inside the batch, labels and a milestone lands in Huly as one filed by hand, the links on both sides where Huly shows them; a task without a status lands in Backlog.
+- A text with inline code inside bold, italics, strikethrough or a link, written through these tools, opens and stays editable in Huly's editor (BTN-894): the tests check only that Huly's markup of the text written has no code mark beside another (`src/huly/marks.test.ts`), not the editor itself.
 - A hand session with the `tasks` plugin finds a Huly project by its task key, also when the project's `huly` identifier differs from Even Keel's key.
 - It costs a session fewer calls and tokens than the `huly` plugin's own server.
 
-If one is wrong, a patch spoils a description's formatting or a link is missing in Huly. **Workaround:** keep the `huly` plugin's own server (the plugin still uses it) and fix the description in Huly's editor. To check (BTN-873): on the Huly bench with the `tasks@even-keel` package on, patch copies of real BTN descriptions, file a batch with links and a parent, try a parent change (refused), comment; a hand session by key; Tally's cost against `huly-mcp`.
+If one is wrong, a patch spoils a description's formatting or a link is missing in Huly. **Workaround:** keep the `huly` plugin's own server (the plugin still uses it) and fix the description in Huly's editor. To check (BTN-873): on the Huly bench with the `tasks@even-keel` package on, patch copies of real BTN descriptions, file a batch with links and a parent, try a parent change (refused), comment; patch and comment with code inside bold and a link, then open both in Huly's editor; a hand session by key; Tally's cost against `huly-mcp`.
 
 ## The tasks server on GitHub, Linear, Jira, GitLab and Forgejo (BTN-875)
 

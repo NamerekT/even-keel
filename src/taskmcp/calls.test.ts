@@ -134,6 +134,21 @@ describe('task_update of the description', () => {
     expect(await description(1)).toBe('## Plan\n\nfirst step, done\n\nsecond step\n\n## Notes')
   })
 
+  it("adds the tracker's note of a text written not as given to the answer", async () => {
+    const editor = tracker.editor!
+    const note = 'fixed 1 mark: code moved out of bold'
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes) => (notes?.push(note), editor.create(project, draft)),
+      patch: async (id, patches, append, notes) => (notes?.push(note), editor.patch(id, patches, append)),
+      comment: async (id, body, model, notes) => (notes?.push(note), editor.comment(id, body, model)),
+    }
+    expect(await call('tasks_create', { tasks: [{ title: 'Core' }, { title: 'Page' }] })).toBe(`ABC-2 Core (${note})\nABC-3 Page (${note})`)
+    const edit = { key: 'ABC-1', append: '## Notes', title: 'Plan' }
+    expect(await call('task_update', edit)).toBe(`ABC-1: description patched; ${note}; title → Plan`)
+    expect(await call('task_comment', { key: 'ABC-1', text: 'Done' })).toBe(`ABC-1: comment added; ${note}`)
+  })
+
   it('a whole description needs rev, and not with patches', async () => {
     expect(await refusal(call('task_update', { key: 'ABC-1', description: 'x' }))).toMatch(/needs "rev"/)
     expect(await refusal(call('task_update', { key: 'ABC-1', description: 'x', rev: 0, append: 'y' }))).toMatch(/not both/)

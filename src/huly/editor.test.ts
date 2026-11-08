@@ -3,8 +3,10 @@ import { EditRefused, revisionOf } from '../tracker/editor.js'
 import { TrackerNotFound } from '../tracker/source.js'
 import { hulyClient } from './client.js'
 import { hulyEditor, type HulyEditorClient, type HulyFullIssue, type HulyNewIssue } from './editor.js'
+import type { HulyMarkdown } from './marks.js'
 
 const ISSUE = 'tracker:class:Issue'
+const markdown = hulyClient.require<HulyMarkdown>('@hcengineering/text-markdown')
 const STATUSES = [
   { _id: 'backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
   { _id: 'todo', name: 'Todo', category: 'task:statusCategory:ToDo' },
@@ -36,6 +38,7 @@ function fixture() {
     return ref
   })
   const addCollection = vi.fn(async () => 'ref')
+  const comments: string[] = []
   const client: HulyEditorClient = {
     findAll: async <T>(cls: string) => (cls.endsWith('TagElement') ? [{ _id: 'tag-bug', title: 'Bug', color: 1 }] : []) as T[],
     findOne: async <T>(cls: string, query: Record<string, unknown>) =>
@@ -50,6 +53,7 @@ function fixture() {
   const added: HulyNewIssue[] = []
   const editor = hulyEditor({
     client,
+    markdown,
     findIssue: async (identifier) => {
       const found = issues.get(identifier)
       if (found === undefined) throw new TrackerNotFound(`huly: issue ${identifier} not found`)
@@ -62,9 +66,12 @@ function fixture() {
       added.push(fields)
       return { id: 'id-new', identifier: 'ABC-4' }
     },
-    comment: async () => 'comment',
+    comment: async (_identifier, body) => {
+      comments.push(body)
+      return 'comment'
+    },
   })
-  return { editor, issues, blobs, updates, uploadMarkup, addCollection, added }
+  return { editor, issues, blobs, updates, uploadMarkup, addCollection, added, comments }
 }
 
 const refusal = async (work: Promise<unknown>): Promise<string> => {
@@ -139,6 +146,55 @@ describe('hulyEditor', () => {
     expect(uploadMarkup).toHaveBeenCalledOnce()
     expect(await editor.revision('ABC-1')).toBe(revisionOf('New text'))
     expect(await editor.revision('ABC-2')).toBe(revisionOf(''))
+  })
+
+  it('writes inline code inside another mark fixed, says so, and takes a repeated patch for already so', async () => {
+    const { editor, issues, blobs, uploadMarkup } = fixture()
+    const stored = () => blobs.get(issues.get('ABC-1')!.description!)
+    const notes: string[] = []
+    const patch = [{ old: 'One line.', new: 'Run **the `check` script**, see [the `run` guide](https://example.com/guide).' }]
+    expect(await editor.patch('ABC-1', patch, '## Decisions\n\n_keep `x`_', notes)).toBe(true)
+    expect(stored()).toBe('# Goal\n\nRun **the** `check` **script**, see [the run guide](https://example.com/guide).\n\n- a\n- b\n\n## Decisions\n\n_keep_ `x`')
+    expect(notes).toEqual(['fixed 3 marks: code moved out of bold, italics; code mark removed inside a link'])
+    const again: string[] = []
+    expect(await editor.patch('ABC-1', patch, '## Decisions\n\n_keep `x`_', again)).toBe(false)
+    expect(again).toEqual([])
+    expect(uploadMarkup).toHaveBeenCalledOnce()
+  })
+
+  it('fixes code a patch puts inside a mark already there, and takes its repeat for already so', async () => {
+    const { editor, issues, blobs, uploadMarkup } = fixture()
+    blobs.set('blob-1', 'Use **the npm script** here.')
+    const notes: string[] = []
+    expect(await editor.patch('ABC-1', [{ old: 'npm', new: '`npm`' }], null, notes)).toBe(true)
+    expect(blobs.get(issues.get('ABC-1')!.description!)).toBe('Use **the** `npm` **script** here.')
+    expect(notes).toEqual(['fixed 1 mark: code moved out of bold'])
+    expect(await editor.patch('ABC-1', [{ old: 'npm', new: '`npm`' }], null)).toBe(false)
+    expect(uploadMarkup).toHaveBeenCalledOnce()
+  })
+
+  it('replaces, creates and comments with the marks fixed, and says nothing of a clean text', async () => {
+    const { editor, issues, blobs, added, comments } = fixture()
+    const notes: string[] = []
+    expect(await editor.describe('ABC-1', '**a `b`**', await editor.revision('ABC-1'), notes)).toBe(true)
+    expect(blobs.get(issues.get('ABC-1')!.description!)).toBe('**a** `b`')
+    expect(await editor.describe('ABC-1', '**a `b`**', await editor.revision('ABC-1'), notes)).toBe(false)
+    const draft = { title: 'New', description: '~~old `x`~~', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('project', draft, notes)
+    expect(added[0]!.description).toBe('~~old~~ `x`')
+    await editor.comment('ABC-1', 'Done in [`src/a.ts`](https://example.com/a)', null, notes)
+    expect(comments).toEqual(['Done in [src/a.ts](https://example.com/a)'])
+    expect(notes).toEqual([
+      'fixed 1 mark: code moved out of bold',
+      'fixed 1 mark: code moved out of strikethrough',
+      'fixed 1 mark: code mark removed inside a link',
+    ])
+    const clean: string[] = []
+    await editor.comment('ABC-1', '**Done** in `src/a.ts`', null, clean)
+    await editor.create('project', { ...draft, description: '* a\n* b' }, clean)
+    expect(comments[1]).toBe('**Done** in `src/a.ts`')
+    expect(added[1]!.description).toBe('* a\n* b')
+    expect(clean).toEqual([])
   })
 
   it('links by blockedBy of the blocked issue and relations on both sides, once', async () => {

@@ -104,12 +104,14 @@ export class TasksTools {
       const planned = items.map((item, index) => plannedTask(item, index, items.length, known))
       const retry = retryKey === undefined ? { ids: [] } : this.retryOf(`${project}\u0000${retryKey}`)
       const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
-      const done = () => planned.flatMap((each, index) => (retry.ids[index] === undefined ? [] : [`${retry.ids[index]} ${each.draft.title}`]))
+      const notes = planned.map((): string[] => [])
+      const noted = (index: number) => (notes[index]!.length === 0 ? '' : ` (${notes[index]!.join('; ')})`)
+      const done = () => planned.flatMap((each, index) => (retry.ids[index] === undefined ? [] : [`${retry.ids[index]} ${each.draft.title}${noted(index)}`]))
       try {
         for (const [index, each] of planned.entries()) {
           if (retry.ids[index] !== undefined) continue
           try {
-            retry.ids[index] = await editor.create(project, { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) })
+            retry.ids[index] = await editor.create(project, { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) }, notes[index])
           } catch (error) {
             throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
           }
@@ -160,8 +162,9 @@ export class TasksTools {
       const add = labels.add.map((each) => labelName(each, known))
       const said: string[] = []
       try {
-        if (whole !== undefined && (await editor.describe(key, whole, rev!))) said.push('description replaced')
-        if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append))) said.push('description patched')
+        const notes: string[] = []
+        if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
+        if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append, notes))) said.push('description patched', ...notes)
         for (const field of fields) if (await editor.set(key, field)) said.push(fieldLine(field))
         if (add.length > 0 || labels.remove.length > 0) {
           const before = (await tracker.tasks([key]))[0]?.labels ?? []
@@ -192,9 +195,10 @@ export class TasksTools {
     const body = args.required('text')
     const project = this.projectOfTask(key, scope)
     const model = scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
-    await this.deps.run(project, async (tracker) => editorOf(tracker).comment(key, body, model))
+    const notes: string[] = []
+    await this.deps.run(project, async (tracker) => editorOf(tracker).comment(key, body, model, notes))
     await this.deps.refresh(project)
-    return `${key}: comment added`
+    return [`${key}: comment added`, ...notes].join('; ')
   }
 
   private projectOf(args: Args, scope: TasksScope): string {

@@ -442,6 +442,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     },
     editor: hulyEditor({
       client,
+      markdown: { markdownToMarkup, markupToMarkdown },
       findIssue,
       spaceOf,
       statusesOf: async (space) => {
