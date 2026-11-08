@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { Harness } from '../e2e/service.fixture.js'
 import { root } from '../locations.js'
 
-/** What the shared scenarios (`chainOnRealCli`) need of one CLI: its checked copy, its account and its project keys. */
+/** What the shared scenarios (`chainOnRealCli`) need of one CLI: its copy, its account and its project keys. */
 export interface CliKit {
   /** The CLI's name in the scenarios' title. */
   title: string
@@ -11,7 +11,7 @@ export interface CliKit {
   agent: string
   /** The kind every session of the scenarios must be (`AgentEntry.kind`), where the adapter has more than one. */
   kind?: string
-  /** The checked copy, downloaded once (`checkedCopy`). */
+  /** The selected copy (checked by default), downloaded once (`checkedCopy`). */
   binary(): Promise<string>
   /** The project's provider, accounts and model on the bench's config, before `start`. */
   configure(run: Harness): void
@@ -24,8 +24,18 @@ export interface CliKit {
   release?(run: Harness, binary: string): void | Promise<void>
 }
 
+/** The nightly's selected CLI version; an absent override keeps the ordinary run on checked. */
+export function cliVersion(checked: string): string {
+  const version = process.env.EVEN_KEEL_E2E_CLI_VERSION
+  if (version === undefined) return checked
+  if (!/^\d+\.\d+\.\d+$/.test(version) || version.trim() !== version) {
+    throw new Error(`EVEN_KEEL_E2E_CLI_VERSION: not a version: ${JSON.stringify(version.slice(0, 40))}`)
+  }
+  return version
+}
+
 /**
- * The checked copy of a CLI in `EVEN_KEEL_E2E_CLI_DIR` (`.temp/e2e-cli/` of the checkout by default), under
+ * A CLI copy in `EVEN_KEEL_E2E_CLI_DIR` (`.temp/e2e-cli/` of the checkout by default), under
  * `<name>/<version>/`: fetched once by `fetch` into an empty folder and reused by later runs.
  */
 export async function checkedCopy(name: string, version: string, binaryIn: (folder: string) => string, fetch: (folder: string) => Promise<void>): Promise<string> {

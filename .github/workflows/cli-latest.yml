@@ -1,0 +1,65 @@
+name: Latest CLIs
+
+# An early warning about an unchecked CLI release, not a broken dev: this workflow never holds an Even Keel release.
+# Keep it out of scripts/nights-green.sh. SDK sessions always use checked, so only installed CLIs are here.
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    name: ${{ matrix.cli }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        cli: [claude, codex, opencode]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Resolve latest and checked versions
+        id: resolve
+        run: npx tsx scripts/cli-latest.ts ${{ matrix.cli }}
+
+      - if: steps.resolve.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .temp/e2e-cli/${{ matrix.cli }}/${{ steps.resolve.outputs.latest }}
+          key: e2e-cli-latest-${{ matrix.cli }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve.outputs.latest }}
+
+      - name: Chain scenarios on latest
+        if: steps.resolve.outputs.run == 'true'
+        run: npx vitest run src/e2e-cli/${{ matrix.cli }}.test.ts
+        env:
+          EVEN_KEEL_E2E_CLI_VERSION: ${{ steps.resolve.outputs.latest }}
+
+      - name: Version and result summary
+        if: always()
+        env:
+          CLI: ${{ matrix.cli }}
+          CHECKED: ${{ steps.resolve.outputs.checked || 'unknown' }}
+          LATEST: ${{ steps.resolve.outputs.latest || 'unknown' }}
+          RUN: ${{ steps.resolve.outputs.run }}
+          RESULT: ${{ job.status }}
+        run: |
+          printf 'CLI: %s\n\nChecked: %s\n\nLatest: %s\n\n' "$CLI" "$CHECKED" "$LATEST" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$RUN" = false ]; then
+            printf 'latest = checked = %s, nothing to run\n' "$LATEST" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'Result: %s\n' "$RESULT" >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -8,7 +8,7 @@ import { claudeBinaryIn, fetchClaude } from '../claude/release.js'
 import { parseSdkSession, SDK_KIND } from '../claude/sdk/registry.js'
 import { fetchSdk, sdkModuleIn, sdkVersionOf } from '../claude/sdk/release.js'
 import { ACCOUNT, type Harness } from '../e2e/service.fixture.js'
-import { checkedCopy, type CliKit } from './kit.fixture.js'
+import { checkedCopy, cliVersion, type CliKit } from './kit.fixture.js'
 
 /** The CLI's remote default that decides whether it reads a lone `AGENTS.md` (CLI 2.1.319, `cachedGrowthBookFeatures`). */
 export const AGENTS_MD_FLAG = 'tengu_agents_md_mod'
@@ -24,7 +24,7 @@ const BENCH_KEY = 'local-only-scripted-bench'
 const ALLOWED = ['Bash(git commit:*)', 'Bash(git -C:*)', 'mcp__notes']
 
 /**
- * The checked Claude Code (`claude.checked`) on `--bg` sessions and its daemon, the account `ACCOUNT` of the bench
+ * The selected Claude Code (`claude.checked` by default) on `--bg` sessions and its daemon, the account `ACCOUNT` of the bench
  * signed in by an API key against the scripted model's Messages API (`ANTHROPIC_BASE_URL`). The daemon is started by
  * the first launch with the service's environment and keeps it (`docs/accounts.md`), so the variables are set before
  * the service starts and the daemon is stopped after each scenario.
@@ -32,7 +32,7 @@ const ALLOWED = ['Bash(git commit:*)', 'Bash(git -C:*)', 'mcp__notes']
 export const claudeCode: CliKit = {
   title: 'Claude Code',
   agent: 'claude',
-  binary: () => checkedCopy('claude', claude.checked, claudeBinaryIn, (folder) => fetchClaude(claude.checked, folder)),
+  binary: () => claudeCopy(cliVersion(claude.checked)),
   configure() {},
   prepare(run, binary, baseURL) {
     process.env.EVEN_KEEL_CLAUDE_BIN = binary
@@ -66,7 +66,7 @@ export const claudeSdk: CliKit = {
     const version = sdkVersionOf(claude.checked)
     if (version === null) throw new Error(`no Agent SDK goes with Claude Code ${claude.checked}`)
     sdkModule = await checkedCopy(CLAUDE_SDK, version, sdkModuleIn, (folder) => fetchSdk(version, folder))
-    return claudeCode.binary()
+    return claudeCopy(claude.checked)
   },
   configure(run) {
     run.config.cli = { [CLAUDE]: 'checked' }
@@ -92,6 +92,10 @@ export const claudeSdk: CliKit = {
       for (const version of existsSync(folder) ? readdirSync(folder) : []) unlinkSync(join(folder, version))
     }
   },
+}
+
+function claudeCopy(version: string): Promise<string> {
+  return checkedCopy('claude', version, claudeBinaryIn, (folder) => fetchClaude(version, folder))
 }
 
 /** The bench service's `state/`. */

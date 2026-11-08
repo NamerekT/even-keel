@@ -4,7 +4,7 @@ import { codexBinaryIn, codexTarget, fetchCodex } from '../codex/release.js'
 import { vi } from 'vitest'
 import { CODEX_CHECKED } from '../codex/version.js'
 import { ACCOUNT, CODEX_ACCOUNT } from '../e2e/service.fixture.js'
-import { checkedCopy, type CliKit } from './kit.fixture.js'
+import { checkedCopy, cliVersion, type CliKit } from './kit.fixture.js'
 
 /** The model of the account's own provider; Codex has no metadata for it and falls back to its defaults. */
 export const CODEX_MODEL = 'scripted'
@@ -20,7 +20,7 @@ function withOpenAi(fetchOver: typeof fetch): typeof fetch {
 }
 
 /**
- * The checked Codex (`CODEX_CHECKED`), the platform's npm package, on `codex exec` turns. The account `CODEX_ACCOUNT`
+ * The selected Codex (`CODEX_CHECKED` by default), the platform's npm package, on `codex exec` turns. The account `CODEX_ACCOUNT`
  * has the provider `scripted` of its `config.toml` (`model_providers`, the Responses API) as its default, and a key in
  * `auth.json`, which `codex login status` reads as signed in; the provider sends none. The service would ask OpenAI
  * about that key and take its 401 for an expired login, so the bench answers for OpenAI (`withOpenAi`).
@@ -31,7 +31,8 @@ export const codex: CliKit = {
   binary: () => {
     const target = codexTarget(process.platform, process.arch)
     if (target === null) throw new Error(`Codex has no build for ${process.platform}-${process.arch}`)
-    return checkedCopy('codex', CODEX_CHECKED, (folder) => codexBinaryIn(folder, target), (folder) => fetchCodex(CODEX_CHECKED, folder))
+    const version = cliVersion(CODEX_CHECKED)
+    return checkedCopy('codex', version, (folder) => codexBinaryIn(folder, target), (folder) => fetchCodex(version, folder))
   },
   configure(run) {
     run.config.provider = 'codex'

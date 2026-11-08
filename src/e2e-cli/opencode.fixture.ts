@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { ACCOUNT } from '../e2e/service.fixture.js'
 import { opencode } from '../opencode/adapter.js'
 import { fetchOpenCode, openCodeBinaryIn } from '../opencode/release.js'
-import { checkedCopy, type CliKit } from './kit.fixture.js'
+import { checkedCopy, cliVersion, type CliKit } from './kit.fixture.js'
 
 /** The OpenCode account folder of the bench: no credential, one provider — the scripted model. */
 export const OPENCODE_ACCOUNT = 'probe'
@@ -11,14 +11,17 @@ export const OPENCODE_ACCOUNT = 'probe'
 export const OPENCODE_MODEL = 'scripted/scripted'
 
 /**
- * The checked OpenCode (`opencode.checked`), the platform's npm package. Its account `OPENCODE_ACCOUNT` has one
+ * The selected OpenCode (`opencode.checked` by default), the platform's npm package. Its account `OPENCODE_ACCOUNT` has one
  * provider, `scripted`, through `@ai-sdk/openai-compatible`, also as the small model, so a title or a summary never
  * leaves the machine; OpenCode installs that npm package into the account's cache at the first turn.
  */
 export const openCode: CliKit = {
   title: 'OpenCode',
   agent: 'opencode',
-  binary: () => checkedCopy('opencode', opencode.checked, (folder) => openCodeBinaryIn(folder), (folder) => fetchOpenCode(opencode.checked, folder)),
+  binary: () => {
+    const version = cliVersion(opencode.checked)
+    return checkedCopy('opencode', version, (folder) => openCodeBinaryIn(folder), (folder) => fetchOpenCode(version, folder))
+  },
   configure(run) {
     run.config.provider = 'opencode'
     run.config.accounts = { claude: ACCOUNT, opencode: OPENCODE_ACCOUNT }
