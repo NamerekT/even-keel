@@ -11,14 +11,14 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
- * column on /tools; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
+ * packages, with the add dialog of `plugin` over them while the catalog lacks it; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
  * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
  * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792).
  */
 export type NoticeFix =
   | { to: 'enableProfile'; profile: string }
   | { to: 'stopChains'; projects: string[] }
-  | { to: 'packages' }
+  | { to: 'packages'; plugin?: string }
   | { to: 'git' }
   | { to: 'project'; project?: string; tab: ProjectTab }
   | { to: 'shared'; tab: SharedTab }

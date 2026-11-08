@@ -227,7 +227,7 @@ export const en = {
   'chain.noTrackerMcp': (p: { project: string; server: string }) =>
     `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package of the project brings the tracker's MCP server ${p.server}, so a session would not see its task; turn on a package with it or turn the description on, and the chain goes on by itself`,
   'chain.packagesNotReady': (p: { project: string; packages: string[] }) =>
-    `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install or lack${p.packages.length === 1 ? 's' : ''} a key; fix that on the Tools page, and the chain goes on by itself`,
+    `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install or lack${p.packages.length === 1 ? 's' : ''} a key; fix that in the project's packages, and the chain goes on by itself`,
   'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub, GitLab or Forgejo to open a pull request on`,
   'review.noToken': (p: { remote: string; kind: CiKind; web: string }) =>
     `no profile has a token for the remote ${p.remote} (${p.web}); add a ${FORGES[p.kind]} profile for its host`,

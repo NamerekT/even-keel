@@ -193,7 +193,7 @@ export const noticesRu: NoticeTexts = {
   'chain.noTrackerMcp': (p) =>
     `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}, так что сессия не увидит свою задачу; включите пакет с ним или описание задачи — цепочка пойдёт сама`,
   'chain.packagesNotReady': (p) =>
-    `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'} или без ключа; исправьте это на странице «Инструменты» — цепочка пойдёт сама`,
+    `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'} или без ключа; исправьте это в пакетах проекта — цепочка пойдёт сама`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub, GitLab или Forgejo, где открыть pull request`,
   'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
   'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub, GitLab и Forgejo`,

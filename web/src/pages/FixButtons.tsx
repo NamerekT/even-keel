@@ -85,7 +85,7 @@ export function useFix() {
     }
     if (project === null) return
     const id = state === null ? project : projectOfPath(state, project).project
-    if (fix.to === 'packages') return void navigate(packagesPath(id))
+    if (fix.to === 'packages') return void navigate(packagesPath(id, fix.plugin ?? null))
     if (fix.to === 'moves' && fix.level === 'profile') {
       openTab(SHARED_SCOPE, state === null ? 'rules' : (movesProfile(state, id, fix.task) ?? 'rules'))
       return void navigate('/settings')

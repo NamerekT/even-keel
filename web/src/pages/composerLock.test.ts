@@ -1,9 +1,43 @@
 import { describe, expect, it } from 'vitest'
 import { lampOf } from '../../../src/sessions/agents.js'
 import { t } from '../i18n/index.js'
-import { lockReason } from './composerLock.js'
+import type { PackageCell, PackagesView } from '../../../src/state.js'
+import { checkpointOffer, lockReason } from './composerLock.js'
 
 const stopped = { lamp: 'error' as const, waitingFor: null, asking: false }
+
+const cell = (enabled: boolean): PackageCell => ({ choice: null, enabled, settings: {}, problems: [] })
+const packages = (cells: Record<string, PackageCell>, marketplace: PackagesView['marketplace'] = { name: 'even-keel', dir: 'C:\\even-keel', known: true }): PackagesView => ({
+  gateway: null,
+  packages: [],
+  projects: { ABC: { cells, problems: [], blocked: false, tracker: null } },
+  keys: [],
+  available: [],
+  marketplace,
+  imports: {},
+  skills: { package: 'my-skills@even-keel-skills', list: [] },
+})
+
+describe('checkpointOffer', () => {
+  it('offers the checkpoint plugin of the own marketplace to a project without it', () => {
+    expect(checkpointOffer(packages({}), 'ABC')).toBe('checkpoint@even-keel')
+    expect(checkpointOffer(packages({ 'checkpoint@even-keel': cell(false) }), 'ABC')).toBe('checkpoint@even-keel')
+    expect(checkpointOffer(packages({}), 'XYZ')).toBe('checkpoint@even-keel')
+  })
+
+  it('offers nothing once the project has it on', () => {
+    expect(checkpointOffer(packages({ 'checkpoint@even-keel': cell(true) }), 'ABC')).toBeNull()
+  })
+
+  it('names the marketplace the checkout has', () => {
+    expect(checkpointOffer(packages({}, { name: 'my-fork', dir: 'C:\\fork', known: true }), 'ABC')).toBe('checkpoint@my-fork')
+  })
+
+  it('offers nothing without an own marketplace or the packages view', () => {
+    expect(checkpointOffer(packages({}, null), 'ABC')).toBeNull()
+    expect(checkpointOffer(null, 'ABC')).toBeNull()
+  })
+})
 
 describe('lockReason', () => {
   it('allows a reply after a turn ended on an API error', () => {

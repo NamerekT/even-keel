@@ -501,6 +501,19 @@ button.tools__toggle:hover {
   font-size: var(--text-12);
 }
 
+/* The hint with the button that fixes it, the button beside the text while it fits, under it on a narrow window. */
+.chat__hint--fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+}
+
+.chat__hint--fix p {
+  flex: 1 1 260px;
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .transcript__scroll {
     margin: 0 calc(-1 * var(--gutter));
