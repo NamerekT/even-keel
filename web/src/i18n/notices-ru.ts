@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, whose, type BuiltinField, type GitStep, type LoggedPackageProblem } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, whose, type BuiltinField, type ContinuedWhy, type GitStep, type HandoffWhy, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -658,6 +658,8 @@ export const noticesRu: NoticeTexts = {
   'eventLog.chainResumed': () => 'цепочка продолжает',
   'eventLog.chainHeld': () => 'цепочка встала на ошибке',
   'eventLog.launch': () => 'сессия запущена',
+  'eventLog.continued': (p) => (p.why === undefined ? 'сессия продолжена' : CONTINUED[p.why]),
+  'eventLog.handoff': (p) => `новая сессия по хендоффу${p.why === undefined ? '' : `, ${HANDOFFS[p.why]}`}`,
   'eventLog.stopped': () => 'цепочка остановила сессию',
   'eventLog.fixLaunch': () => 'запущена сессия починки main',
   'eventLog.carryLaunch': () => 'запущена сессия переноса',
@@ -678,4 +680,23 @@ const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string>
   noKey: (keys) => `не задан: ${keys}`,
   noResponse: (servers) => `${servers} не отвечает`,
   noTrackerMcp: (server) => `нет MCP трекера ${server}`,
+}
+
+const CONTINUED: Record<ContinuedWhy, string> = {
+  answer: 'сессия продолжена после ответа',
+  resume: 'сессия возобновлена',
+  review: 'сессия получила отзыв на pull request',
+}
+
+const HANDOFFS: Record<HandoffWhy, string> = {
+  restart: 'перезапуск вручную',
+  checkpoint: 'по контрольной точке',
+  message: 'с вашим сообщением',
+  limit: 'после лимита',
+  credit: 'на ключе кончились деньги',
+  mainFixed: 'после починки main',
+  review: 'после отзыва на pull request',
+  returned: 'после возврата задачи',
+  unblocked: 'после закрытия блокеров',
+  unskipped: 'после отмены пропуска',
 }

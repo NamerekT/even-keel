@@ -229,14 +229,24 @@ function projectsOf(raw: RawSettings): Map<string, Record<string, unknown>> {
 
 /**
  * The entry of a session launched, from the launch log; its releases and outcomes are no launch. A fix of main or a
- * carry has no task: its entry names the project (BTN-781).
+ * carry has no task: its entry names the project (BTN-781). A task's entry with a `previous` session is the same
+ * session going on, or a new one in its place by a handoff (BTN-853).
  */
 export function launchDraft(entry: LaunchEntry): EventDraft | null {
   if (!isLaunch(entry)) return null
-  const { project, task } = entry
+  const { project, task, sessionId, previous, reason, cause } = entry
   if (isFixName(task)) return { level: 'info', notice: notice('eventLog.fixLaunch', { project }), place: { view: 'project', project } }
   if (isCarryName(task)) return { level: 'info', notice: notice('eventLog.carryLaunch', { project }), place: { view: 'project', project } }
-  return { level: 'info', notice: notice('eventLog.launch', { task }), place: { view: 'task', project, task } }
+  const place = { view: 'task', project, task } as const
+  if (previous === sessionId) {
+    const why = reason === 'answer' || reason === 'resume' || reason === 'review' ? reason : undefined
+    return { level: 'info', notice: notice('eventLog.continued', { task, ...(why === undefined ? {} : { why }) }), place }
+  }
+  if (previous !== undefined) {
+    const why = cause ?? (reason === 'restart' || reason === 'checkpoint' ? reason : undefined)
+    return { level: 'info', notice: notice('eventLog.handoff', { task, ...(why === undefined ? {} : { why }) }), place }
+  }
+  return { level: 'info', notice: notice('eventLog.launch', { task }), place }
 }
 
 /** The entry of a session the chain stopped mid-turn: a red main or subscription overage (invariant 1). */

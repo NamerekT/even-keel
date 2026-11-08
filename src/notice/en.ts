@@ -1,3 +1,4 @@
+import type { RelayCause } from '../chain/model.js'
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
@@ -746,6 +747,8 @@ export const en = {
   'eventLog.chainResumed': (_: { project: string }) => 'the chain goes on',
   'eventLog.chainHeld': (_: { project: string }) => 'the chain paused on an error',
   'eventLog.launch': (_: { task: string }) => 'a session started',
+  'eventLog.continued': (p: { task: string; why?: ContinuedWhy }) => (p.why === undefined ? 'the session goes on' : CONTINUED[p.why]),
+  'eventLog.handoff': (p: { task: string; why?: HandoffWhy }) => `a new session took over by a handoff${p.why === undefined ? '' : `, ${HANDOFFS[p.why]}`}`,
   'eventLog.stopped': (_: { task: string }) => 'the chain stopped its session',
   'eventLog.fixLaunch': (_: { project: string }) => 'started a session to fix main',
   'eventLog.carryLaunch': (_: { project: string }) => 'started a session to resolve a carry',
@@ -770,4 +773,28 @@ const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string>
   noKey: (keys) => `not set: ${keys}`,
   noResponse: (servers) => `${servers} does not answer`,
   noTrackerMcp: (server) => `no tracker MCP ${server}`,
+}
+
+/** What moved a session that goes on (`launchDraft`): the reason of its launch log entry. */
+export type ContinuedWhy = 'answer' | 'resume' | 'review'
+/** What made a new session in place of the previous one: the entry's cause, or a restart or a checkpoint without one. */
+export type HandoffWhy = RelayCause | 'restart' | 'checkpoint'
+
+const CONTINUED: Record<ContinuedWhy, string> = {
+  answer: 'the session goes on after an answer',
+  resume: 'the session was resumed',
+  review: 'the session got the pull request feedback',
+}
+
+const HANDOFFS: Record<HandoffWhy, string> = {
+  restart: 'started by hand',
+  checkpoint: 'from a checkpoint',
+  message: 'with your message',
+  limit: 'after the usage limit',
+  credit: 'after the key ran out of credit',
+  mainFixed: 'after main was fixed',
+  review: 'after the pull request feedback',
+  returned: 'after the task came back',
+  unblocked: 'after the blockers closed',
+  unskipped: 'after Skip was undone',
 }

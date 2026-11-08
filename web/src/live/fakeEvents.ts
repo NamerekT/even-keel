@@ -26,6 +26,8 @@ export function fakeEventLog(projects: string[]): EventEntry[] {
   const drafts: [number, EventDraft][] = [
     [540, { level: 'info', notice: notice('eventLog.chainStarted', { project: first }), place: { view: 'project', project: first } }],
     [539, { level: 'info', notice: notice('eventLog.launch', { task: `${first}-1` }), place: { view: 'task', project: first, task: `${first}-1` } }],
+    [500, { level: 'info', notice: notice('eventLog.continued', { task: `${first}-1`, why: 'answer' }), place: { view: 'task', project: first, task: `${first}-1` } }],
+    [480, { level: 'info', notice: notice('eventLog.handoff', { task: `${first}-1`, why: 'checkpoint' }), place: { view: 'task', project: first, task: `${first}-1` } }],
     [470, { level: 'info', notice: notice('eventLog.projectSettings', { project: second }), place: { view: 'settings', project: second } }],
     [400, { level: 'error', notice: notice('eventLog.red', { project: first, commit: 'a1b2c3d', cis: ['github'] }), place: { view: 'ci', project: first } }],
     [398, { level: 'info', notice: notice('eventLog.stopped', { task: `${first}-2` }), place: { view: 'project', project: first } }],

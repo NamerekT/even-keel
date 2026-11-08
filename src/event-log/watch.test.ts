@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { LaunchEntry } from '../chain/model.js'
 import { notice } from '../notice/notice.js'
 import type { EventsInput } from './page-events.js'
 import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type WatchInput } from './watch.js'
@@ -210,6 +211,37 @@ describe('launchDraft', () => {
       notice: notice('eventLog.carryLaunch', { project: 'p1' }),
       place: { view: 'project', project: 'p1' },
     })
+  })
+
+  const at = '2026-11-07T23:40:00Z'
+  const task = (entry: Partial<LaunchEntry>) => launchDraft({ at, project: 'p1', task: 'ABC-1', sessionId: 's1', ...entry })
+
+  it('writes the same session going on as continued, with what moved it (BTN-853)', () => {
+    expect(task({ reason: 'answer', previous: 's1' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.continued', { task: 'ABC-1', why: 'answer' }),
+      place: { view: 'task', project: 'p1', task: 'ABC-1' },
+    })
+    expect(task({ reason: 'resume', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'resume' }))
+    expect(task({ reason: 'review', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1', why: 'review' }))
+    expect(task({ reason: 'restart', previous: 's1' })?.notice).toEqual(notice('eventLog.continued', { task: 'ABC-1' }))
+  })
+
+  it('writes a new session in place of the previous one as a handoff, with its cause (BTN-853)', () => {
+    expect(task({ sessionId: 's2', reason: 'checkpoint', previous: 's1' })).toEqual({
+      level: 'info',
+      notice: notice('eventLog.handoff', { task: 'ABC-1', why: 'checkpoint' }),
+      place: { view: 'task', project: 'p1', task: 'ABC-1' },
+    })
+    expect(task({ sessionId: 's2', reason: 'restart', previous: 's1' })?.notice).toEqual(notice('eventLog.handoff', { task: 'ABC-1', why: 'restart' }))
+    expect(task({ sessionId: 's2', reason: 'restart', cause: 'message', previous: 's1' })?.notice).toEqual(notice('eventLog.handoff', { task: 'ABC-1', why: 'message' }))
+    expect(task({ sessionId: 's2', reason: 'relay', cause: 'mainFixed', previous: 's1' })?.notice).toEqual(notice('eventLog.handoff', { task: 'ABC-1', why: 'mainFixed' }))
+    expect(task({ sessionId: 's2', reason: 'review', cause: 'review', previous: 's1' })?.notice).toEqual(notice('eventLog.handoff', { task: 'ABC-1', why: 'review' }))
+    expect(task({ sessionId: 's2', reason: 'relay', previous: 's1' })?.notice).toEqual(notice('eventLog.handoff', { task: 'ABC-1' }))
+  })
+
+  it('writes a session started on pull request feedback, with no previous one, as a launch', () => {
+    expect(task({ reason: 'review' })?.notice).toEqual(notice('eventLog.launch', { task: 'ABC-1' }))
   })
 })
 
