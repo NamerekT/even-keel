@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { runLabelView } from './runLabel.js'
+import { modelName, runLabelView } from './runLabel.js'
+
+describe('modelName', () => {
+  it.each([
+    ['minimax-m3.1-flash', 'minimax-m3.1-flash'],
+    ['opencode/deepseek-v4.1-flash-free', 'deepseek-v4.1-flash-free'],
+    ['openrouter/minimax/minimax-m3.1-flash', 'minimax-m3.1-flash'],
+  ])('shows %s as %s', (model, expected) => {
+    expect(modelName(model)).toBe(expected)
+  })
+})
 
 describe('runLabelView', () => {
   it.each([

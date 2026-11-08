@@ -96,6 +96,15 @@
   gap: 12px;
 }
 
+.ui-fact.panel__inline dt,
+.ui-fact.panel__inline .panel__total {
+  white-space: nowrap;
+}
+
+.ui-fact.panel__inline dt {
+  flex-shrink: 0;
+}
+
 /* Model and Tokens share a row: the model takes two of the three columns, a long name is cut. */
 .ui-fact.panel__model,
 .ui-fact.panel__context:not(.ui-fact--wide) {
@@ -140,11 +149,21 @@
   min-width: 0;
 }
 
+/* As a run label (`runLabel.css`): the provider stays whole, only the model's tail is cut. */
 .panel__model .panel__total {
+  display: inline-flex;
   max-width: 100%;
+  white-space: nowrap;
+}
+
+.panel__model-provider {
+  flex: none;
+}
+
+.panel__model-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .panel__total {

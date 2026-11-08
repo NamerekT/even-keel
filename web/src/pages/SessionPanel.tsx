@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { PullButton } from '../ui/PullChip.js'
+import { modelName } from '../ui/runLabel.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useTip } from '../ui/useTip.js'
@@ -409,10 +410,16 @@ function CacheFact({ cache }: { cache: CacheWindow }) {
   )
 }
 
-/** The model the session answers with; the provider beside it when not Claude. */
+/**
+ * The model the session answers with, without its route, as a run label shows it; the provider beside it when not Claude.
+ * Only the model's tail is cut; the tip has the full name.
+ */
 function ModelFact({ agent, model }: { agent: string; model: string | null }) {
   const provider = agentLabel(agent)
-  const value = model === null ? '—' : agent === CLAUDE ? model : `${provider} · ${model}`
+  const value = model === null ? '—' : <>
+    {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' · '}</span>}
+    <span className="panel__model-name">{modelName(model)}</span>
+  </>
   return (
     <Fact label={t.session.model} className="panel__inline panel__model">
       <TipValue value={value}>
