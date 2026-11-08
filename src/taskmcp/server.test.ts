@@ -7,13 +7,14 @@ describe('servesTasks', () => {
     expect(servesTasks(ADAPTERS.builtin)).toBe(true)
   })
 
-  it('serves a tracker whose source edits tasks', () => {
-    expect(servesTasks(ADAPTERS.huly)).toBe(true)
+  it('serves every tracker whose source edits tasks', () => {
+    for (const name of ['huly', 'github', 'linear', 'jira', 'gitlab', 'forgejo'] as const) expect(servesTasks(ADAPTERS[name]), name).toBe(true)
   })
 
   it('does not serve a tracker without an editor', () => {
-    expect(servesTasks(ADAPTERS.github)).toBe(false)
-    expect(servesTasks(ADAPTERS.linear)).toBe(false)
+    const { editsTasks, ...plain } = ADAPTERS.github
+    expect(editsTasks).toBe(true)
+    expect(servesTasks(plain)).toBe(false)
   })
 
   it('does not serve an unknown tracker', () => {

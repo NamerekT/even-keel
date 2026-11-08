@@ -65,6 +65,50 @@ export interface TaskEditor {
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */
 export class EditRefused extends Error {}
 
+/** A task's description as a tracker reads and writes it whole, in Markdown. */
+export interface DescriptionStore {
+  read(id: string): Promise<string>
+  write(id: string, text: string): Promise<void>
+}
+
+/**
+ * `revision`, `describe` and `patch` of a tracker that keeps no revision of a description of its own: the revision is
+ * `revisionOf` the text, a patch is a read, `patchText` and a whole write, with no lock between the read and the write.
+ */
+export function descriptionEdits(store: DescriptionStore): Pick<TaskEditor, 'revision' | 'describe' | 'patch'> {
+  return {
+    revision: async (id) => revisionOf(await store.read(id)),
+    async describe(id, text, rev) {
+      const now = await store.read(id)
+      if (revisionOf(now) !== rev) {
+        throw new EditRefused(`${id}: the description was changed since rev ${rev} (now rev ${revisionOf(now)}); read it again, or patch it with "replace"`)
+      }
+      if (lf(now).trim() === lf(text).trim()) return false
+      await store.write(id, text)
+      return true
+    },
+    async patch(id, patches, append) {
+      const next = patchText(await store.read(id), patches, append)
+      if (next === null) return false
+      await store.write(id, next)
+      return true
+    },
+  }
+}
+
+/**
+ * The description's revision on a tracker that keeps none fit for it (an `updated_at` grows with any field): a 32-bit
+ * FNV-1a hash of its Markdown with line ends as `\n`. It changes with the text only, never with another field.
+ */
+export function revisionOf(markdown: string): number {
+  let hash = 0x811c9dc5
+  for (const char of lf(markdown).trim()) {
+    hash ^= char.codePointAt(0)!
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
+
 /**
  * The description after the patches and the appended section, `null` when nothing changes. Each `old` must be found
  * exactly once, compared literally but for line ends (`\r\n` is `\n`); one refusal refuses the whole batch. A patch

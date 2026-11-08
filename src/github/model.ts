@@ -49,7 +49,8 @@ const DUPLICATE: TaskStatus = { name: 'Duplicate', category: 'Lost' }
 
 export const GITHUB_STATUSES: readonly TaskStatus[] = [OPEN, COMPLETED, NOT_PLANNED, DUPLICATE]
 
-const PRIORITY_LABEL = /^priority\s*[:/]\s*(\w+)$/i
+/** A label that carries a priority, `priority: <level>` or `priority/<level>`; the level is group 1. */
+export const PRIORITY_LABEL = /^priority\s*[:/]\s*(\w+)$/i
 
 export function githubStatus(state: IssueState, reason: IssueStateReason | null): TaskStatus {
   if (state === 'OPEN') return OPEN

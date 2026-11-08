@@ -12,6 +12,7 @@ export const forgejo: TrackerAdapter = {
   hostVariables: [FORGEJO_URL],
   help: 'https://forgejo.org/docs/latest/user/token-scope/',
   mcpServer: 'forgejo',
+  editsTasks: true,
   mcpKeys: { GITEA_ACCESS_TOKEN: FORGEJO_TOKEN },
   // gitea-mcp wants the address with its scheme; a profile may hold the host alone.
   mcpValues: { GITEA_HOST: { from: [FORGEJO_URL], value: (env) => (env[FORGEJO_URL] ? forgejoBase(env[FORGEJO_URL]) : undefined) } },

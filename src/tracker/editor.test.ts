@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { EditRefused, patchText } from './editor.js'
+import { descriptionEdits, EditRefused, patchText, revisionOf } from './editor.js'
+
+describe('revisionOf', () => {
+  it('ignores line ends and the blank around the text, and changes with the text', () => {
+    expect(revisionOf('a\r\nb\n')).toBe(revisionOf('a\nb'))
+    expect(revisionOf('a\nb')).not.toBe(revisionOf('a\nc'))
+    expect(Number.isSafeInteger(revisionOf('текст'))).toBe(true)
+  })
+})
+
+describe('descriptionEdits', () => {
+  const store = (text: string) => {
+    const writes: string[] = []
+    const edits = descriptionEdits({ read: async () => writes.at(-1) ?? text, write: async (_id, next) => void writes.push(next) })
+    return { edits, writes }
+  }
+
+  it('replaces the description by its revision and refuses a stale one', async () => {
+    const { edits, writes } = store('Old')
+    await expect(edits.describe('ABC-1', 'New', revisionOf('Other'))).rejects.toThrow(/changed since rev/)
+    expect(await edits.describe('ABC-1', 'New', await edits.revision('ABC-1'))).toBe(true)
+    expect(await edits.describe('ABC-1', 'New\n', revisionOf('New'))).toBe(false)
+    expect(writes).toEqual(['New'])
+  })
+
+  it('patches the text read now and writes it whole', async () => {
+    const { edits, writes } = store('a b c')
+    expect(await edits.patch('ABC-1', [{ old: 'b', new: 'B' }], '## Notes')).toBe(true)
+    expect(await edits.patch('ABC-1', [{ old: 'b', new: 'B' }], '## Notes')).toBe(false)
+    expect(writes).toEqual(['a B c\n\n## Notes'])
+  })
+})
 
 const refusal = (work: () => unknown): string => {
   try {

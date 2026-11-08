@@ -1,4 +1,4 @@
-import { EditRefused, patchText, type TaskEditor } from '../tracker/editor.js'
+import { EditRefused, patchText, revisionOf, type TaskEditor } from '../tracker/editor.js'
 import type { TaskPriority, TrackerTask } from '../tracker/model.js'
 import { tracker } from './ids.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
@@ -182,19 +182,6 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
 /** The parents of a new issue under `parent`: the parent first, then its own. */
 export function parentsUnder(parent: HulyFullIssue): HulyParent[] {
   return [{ parentId: parent._id, identifier: parent.identifier, parentTitle: parent.title, space: parent.space }, ...(parent.parents ?? [])]
-}
-
-/**
- * The description's revision on Huly, which keeps none: a 32-bit FNV-1a hash of its Markdown with line ends as `\n`.
- * It changes with the text only, never with another field.
- */
-export function revisionOf(markdown: string): number {
-  let hash = 0x811c9dc5
-  for (const char of lf(markdown).trim()) {
-    hash ^= char.codePointAt(0)!
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return hash >>> 0
 }
 
 function lf(text: string): string {

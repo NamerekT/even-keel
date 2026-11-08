@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { EditRefused } from '../tracker/editor.js'
+import { EditRefused, revisionOf } from '../tracker/editor.js'
 import { TrackerNotFound } from '../tracker/source.js'
 import { hulyClient } from './client.js'
-import { hulyEditor, revisionOf, type HulyEditorClient, type HulyFullIssue, type HulyNewIssue } from './editor.js'
+import { hulyEditor, type HulyEditorClient, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 
 const ISSUE = 'tracker:class:Issue'
 const STATUSES = [
@@ -190,13 +190,5 @@ describe("a patched description through Huly's markup", () => {
     const twice = trip(once)
     expect(twice).toBe(once.replace('</table>\n\n', '</table>\n\n\n\n'))
     expect(trip(twice)).toBe(twice)
-  })
-})
-
-describe('revisionOf', () => {
-  it('ignores line ends and the blank around the text, and changes with the text', () => {
-    expect(revisionOf('a\r\nb\n')).toBe(revisionOf('a\nb'))
-    expect(revisionOf('a\nb')).not.toBe(revisionOf('a\nc'))
-    expect(Number.isSafeInteger(revisionOf('текст'))).toBe(true)
   })
 })

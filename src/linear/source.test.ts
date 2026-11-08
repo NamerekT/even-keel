@@ -346,11 +346,13 @@ describe('linear source', () => {
     expect(await source.file!('ENG-7', 'https://example.com/steal')).toBeNull()
   })
 
-  it('names the states of the team and the labels of the team and the workspace, without label groups', async () => {
+  it('names the states of the team, the labels of the team and the workspace, without label groups, and the milestones of its projects', async () => {
+    const milestones = (names: string[]) => ({ projectMilestones: { nodes: names.map((name) => ({ id: name, name })) } })
     const { source, calls } = await connect([
       team(),
       { body: { data: { issueLabels: page([{ name: 'Bug', isGroup: false }, { name: 'Area', isGroup: true }], 'cursor-1') } } },
       { body: { data: { issueLabels: page([{ name: 'Question', isGroup: false }, { name: 'Bug', isGroup: false }]) } } },
+      { body: { data: { team: { projects: { nodes: [{ id: 'p-1', ...milestones(['Beta', 'GA']) }, { id: 'p-2', ...milestones(['GA']) }] } } } } },
     ])
     expect(await source.vocabulary!('ENG')).toEqual({
       statuses: [
@@ -361,6 +363,7 @@ describe('linear source', () => {
         { name: 'Canceled', category: 'Lost' },
       ],
       labels: ['Bug', 'Question'],
+      milestones: ['Beta', 'GA'],
     })
     expect(calls[2]!.variables).toEqual({ team: 'team-eng', after: null })
     expect(calls[3]!.variables).toEqual({ team: 'team-eng', after: 'cursor-1' })

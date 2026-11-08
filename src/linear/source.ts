@@ -5,6 +5,7 @@ import { trackedFetch } from '../tracker/diagnostics.js'
 import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
+import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
 import { backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
@@ -153,7 +154,6 @@ const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
   issueCreate(input: $input) { success issue { identifier } }
 }`
 
-const LINEAR_PRIORITY: Readonly<Record<TaskPriority, number>> = { none: 0, urgent: 1, high: 2, medium: 3, low: 4 }
 
 /** Where Linear keeps uploaded files; they need the key like the API does. */
 const UPLOADS = /^https:\/\/uploads\.linear\.app\//
@@ -233,7 +233,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
   const { organization }= await graphql<{ organization: { urlKey: string } }>('query { organization { urlKey } }')
 
-  return {
+  const source: LinearSource = {
     urlKey: organization.urlKey,
     projectUrls,
 
@@ -408,7 +408,8 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         for (const label of issueLabels.nodes) if (!label.isGroup) labels.add(label.name)
         after = issueLabels.pageInfo.hasNextPage ? issueLabels.pageInfo.endCursor : null
       } while (after !== null)
-      return { statuses: team.states.map(linearStatus), labels: [...labels] }
+      const milestones = [...new Set((await teamMilestones(graphql, team.id, team.project)).map((each) => each.name))]
+      return { statuses: team.states.map(linearStatus), labels: [...labels], milestones }
     },
 
     async relabel(id, change) {
@@ -472,6 +473,18 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     close: async () => {},
   }
+  source.editor = linearEditor({
+    graphql,
+    teamOf,
+    async list(key) {
+      const team = await teamOf(key)
+      const issues = await collect({ team: { id: { eq: team.id } }, ...(team.project === undefined ? {} : { project: { id: { eq: team.project } } }) })
+      return issues.map(toTrackerTask)
+    },
+    relabel: (id, change) => source.relabel!(id, change),
+    comment: (id, body) => source.comment!(id, body),
+  })
+  return source
 }
 
 function newestBody(comments: CommentNode[]): string | null {

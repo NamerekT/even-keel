@@ -4,6 +4,7 @@ import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
+import { githubEditor } from './editor.js'
 import { Skipped, trustedAuthor } from './trust.js'
 import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
 
@@ -154,6 +155,10 @@ const REPOSITORY_LABELS = `query($owner: String!, $name: String!, $after: String
   repository(owner: $owner, name: $name) { labels(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { name } } }
 }`
 
+const OPEN_MILESTONES = `query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { milestones(states: OPEN, first: 100) { nodes { title } } }
+}`
+
 export async function connectGithub(
   settings: GithubSettings,
   timeoutMs: number,
@@ -260,7 +265,7 @@ export async function connectGithub(
   const { viewer } = await graphql<{ viewer: { login: string } }>('query { viewer { login } }')
   const trusted = (comment: Authored) => trustedAuthor(comment.authorAssociation, comment.author?.login, viewer.login)
 
-  return {
+  const source: TaskSource = {
     async chainTasks(project, open) {
       const repo = repoOf(project)
       const slug = `${repo.owner}/${repo.name}`
@@ -446,7 +451,8 @@ export async function connectGithub(
     async vocabulary(project) {
       const repo = repoOf(project)
       const labels = await collect<{ name: string }>(REPOSITORY_LABELS, { ...repo }, (data) => data.repository?.labels as Connection<{ name: string }>, `${repo.owner}/${repo.name}`)
-      return { statuses: [...GITHUB_STATUSES], labels: labels.map((label) => label.name) }
+      const { repository } = await graphql<{ repository: { milestones: { nodes: { title: string }[] } } | null }>(OPEN_MILESTONES, { ...repo })
+      return { statuses: [...GITHUB_STATUSES], labels: labels.map((label) => label.name), milestones: (repository?.milestones.nodes ?? []).map((each) => each.title) }
     },
 
     async relabel(id, change) {
@@ -516,6 +522,18 @@ export async function connectGithub(
 
     close: async () => {},
   }
+  source.editor = githubEditor({
+    graphql,
+    repos,
+    async list(project) {
+      const repo = repoOf(project)
+      const issues = await collect(REPOSITORY_ISSUES, { ...repo, states: ['OPEN', 'CLOSED'] }, (data) => data.repository?.issues as Connection<GithubIssue>, `${repo.owner}/${repo.name}`)
+      return issues.map((issue) => toTrackerTask(issue, repos))
+    },
+    relabel: (id, change) => source.relabel!(id, change),
+    comment: (id, body) => source.comment!(id, body),
+  })
+  return source
 }
 
 function statesOf(statuses: readonly TaskStatus[]): IssueState[] {

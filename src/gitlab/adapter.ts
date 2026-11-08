@@ -10,6 +10,7 @@ export const gitlab: TrackerAdapter = {
   hostVariables: [GITLAB_URL],
   help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/',
   mcpServer: 'gitlab',
+  editsTasks: true,
   mcpKeys: { GITLAB_PERSONAL_ACCESS_TOKEN: GITLAB_TOKEN },
   logsTime: true,
   profileName: (_values, account) => account?.name ?? 'GitLab',

@@ -401,10 +401,11 @@ describe('github source', () => {
     })
   })
 
-  it('names its own statuses and every label of the repository, page by page', async () => {
+  it('names its own statuses, every label of the repository, page by page, and its open milestones', async () => {
     const { source, calls } = await connect([
       { body: { data: { repository: { labels: page([{ name: 'bug' }, { name: 'priority: high' }], 'cursor-1') } } } },
       { body: { data: { repository: { labels: page([{ name: 'Question' }]) } } } },
+      { body: { data: { repository: { milestones: { nodes: [{ title: 'v1.0' }] } } } } },
     ])
     expect(await source.vocabulary!('ABC')).toEqual({
       statuses: [
@@ -414,6 +415,7 @@ describe('github source', () => {
         { name: 'Duplicate', category: 'Lost' },
       ],
       labels: ['bug', 'priority: high', 'Question'],
+      milestones: ['v1.0'],
     })
     expect(calls[1]!.variables).toMatchObject({ owner: 'octo-org', name: 'abc', after: null })
     expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })

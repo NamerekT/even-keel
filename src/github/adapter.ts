@@ -8,6 +8,7 @@ export const github: TrackerAdapter = {
   hostVariables: [],
   help: 'https://github.com/settings/personal-access-tokens/new',
   mcpServer: 'github',
+  editsTasks: true,
   profileName: (_values, account) => account?.name ?? 'GitHub',
   account: async (values, timeoutMs) => (await import('./profile.js')).githubAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).githubProjects(values, query, timeoutMs),
