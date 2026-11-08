@@ -6,11 +6,13 @@ const GUARD_MS = 600
 /**
  * Glides the element's height from the old content's to the new one's when `key` changes (a tab), instead of a jump.
  * The element needs a `transition` on `height` in its CSS; while it glides, a child with `overflow: auto` shrinks.
- * A height that stays (a full-screen dialog) and reduced motion change nothing.
+ * A height that stays (a full-screen dialog) and reduced motion change nothing, and neither does an effect run again
+ * for the same key: StrictMode's second run comes after a dialog's `showModal` and would glide it up from 0.
  */
 export function useHeightGlide(ref: RefObject<HTMLElement | null>, key: unknown): void {
   const last = useRef<number | null>(null)
   const gliding = useRef(false)
+  const seen = useRef(key)
 
   useLayoutEffect(() => {
     const element = ref.current
@@ -25,6 +27,8 @@ export function useHeightGlide(ref: RefObject<HTMLElement | null>, key: unknown)
   useLayoutEffect(() => {
     const element = ref.current
     const from = last.current
+    if (seen.current === key) return
+    seen.current = key
     if (element === null || from === null || matchMedia('(prefers-reduced-motion: reduce)').matches) return
     element.style.height = ''
     const to = element.offsetHeight
