@@ -109,6 +109,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'hub'
   | 'importedProfiles'
   | 'keyOrganizations'
+  | 'keySpend'
   | 'knownTask'
   | 'ledger'
   | 'limitRetries'
@@ -289,6 +290,7 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
     await ctx.requireModel(home, start)
     if (home.agent === CLAUDE && start.settings !== undefined) ctx.sayBlankedSecrets(home)
     const trusted = withTrust(ctx, start, project)
+    await ctx.keySpend.beforeTurn(home.key)
     try {
       return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, trusted))
     } catch (error) {
@@ -306,6 +308,7 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
     await ctx.requireModel(home, start)
     const project = ctx.projectOf(start.name)
     const trusted = withTrust(ctx, start, project)
+    await ctx.keySpend.beforeTurn(home.key)
     try {
       return await ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, trusted))
     } catch (error) {
@@ -613,6 +616,7 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
     onAgents: (list) => {
       const before = JSON.stringify(ctx.account.view.loginBlock)
       ctx.agents = list
+      ctx.keySpend.observe(list.flatMap((agent) => (agent.account === undefined ? [] : [{ account: agent.account, sessionId: agent.sessionId, busy: agent.status === 'busy' || agent.status === 'shell' }])))
       // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
       void ctx.stopLingering()
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))

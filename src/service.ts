@@ -4,6 +4,9 @@ import { type AccountHome } from './account/homes.js'
 import { openAccountHomes } from './account/globals.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
+import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from './account/service-defaults.js'
+import { KeySpend, openRouterUsage, saveKeySpend } from './account/spend.js'
+import { keyVendor } from './opencode/home.js'
 import { loadSavedLimits } from './limits/saved.js'
 import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
 import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
@@ -203,6 +206,7 @@ const context = {
   get intakePlaces() { return intakePlaces },
   get keepWarm() { return keepWarm },
   get keyOrganizations() { return keyOrganizations },
+  get keySpend() { return keySpend },
   get knownTask() { return knownTask },
   get launchIn() { return launchIn },
   get launches() { return launches },
@@ -557,6 +561,24 @@ const homeOf = (key: string): AccountHome => {
 }
 
 const reach = accountsService.wireReach(context)
+/** The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860). */
+const keySpend = new KeySpend({
+  metered: (key) => {
+    const home = homes.find(key)
+    if (home === undefined || home.agent !== OPENCODE || home.global) return false
+    const apiKey = homes.apiKeyOf(home)
+    return apiKey !== null && keyVendor(apiKey) === 'openrouter'
+  },
+  read: async (key) => {
+    const home = homes.find(key)
+    const apiKey = home === undefined ? null : homes.apiKeyOf(home)
+    return apiKey === null ? null : await openRouterUsage(apiKey, KEY_SPEND_TIMEOUT_MS)
+  },
+  onSpend: (growth) => writes.add(`the key spend of session ${growth.sessionId}`, saveKeySpend(db, growth)),
+  now: () => Date.now(),
+  tailMs: KEY_SPEND_TAIL_MS,
+  pollMs: KEY_SPEND_POLL_MS,
+})
 const online = (home: AccountHome) => reach.up(providerUrl(home.agent, home.agent === OPENCODE ? homes.apiKeyOf(home) : null))
 const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   homeOf: (key) => homes.find(key),

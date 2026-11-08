@@ -3,6 +3,11 @@ import { checkApiKey, checkGitHubToken, checkOpenAiKey, checkOpenRouterKey } fro
 export const KEY_CHECK_MS = 60 * 60_000
 export const KEY_CHECK_TIMEOUT_MS = 15_000
 export const CREDIT_CHECK_MS = 5 * 60_000
+/** The OpenRouter key's `usage` is read before a turn too: a short wait, a missed read only moves the growth on (BTN-860). */
+export const KEY_SPEND_TIMEOUT_MS = 5_000
+/** How long after the last turn a growth of `usage` still goes to its session, and how often the key is read meanwhile. */
+export const KEY_SPEND_TAIL_MS = 10 * 60_000
+export const KEY_SPEND_POLL_MS = 60_000
 /**
  * The key and credit checks by whose key it is (`keyProvider`). GitHub has no way to ask about a token's AI credits: a
  * Copilot account waits out spent credit by its monthly allowance instead (`Agent.keyUsage`, BTN-341).

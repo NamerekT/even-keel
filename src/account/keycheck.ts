@@ -2,7 +2,8 @@ const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=1'
 const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models'
 const OPENAI_ME_URL = 'https://api.openai.com/v1/me'
 const GITHUB_USER_URL = 'https://api.github.com/user'
-const OPENROUTER_KEY_URL = 'https://openrouter.ai/api/v1/key'
+/** Describes the key that asks, for free: whether it works and what it has spent (`usage`, BTN-860). */
+export const OPENROUTER_KEY_URL = 'https://openrouter.ai/api/v1/key'
 const API_VERSION = '2023-06-01'
 
 /**

@@ -466,6 +466,18 @@ export const STEPS: readonly string[] = [
   );
   create index rare_events_seen on rare_events (seen_at);
   `,
+  // A session's real spend on a key that tells it, an OpenRouter key's `usage` (BTN-860); Tally takes the rows.
+  `
+  create table key_spends (
+    session_id text primary key,
+    account    text not null,
+    usd        double precision not null,
+    shared     boolean not null,
+    reads      integer not null,
+    first_at   text not null,
+    last_at    text not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */
