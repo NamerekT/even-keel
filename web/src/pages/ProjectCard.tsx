@@ -31,9 +31,10 @@ import { Tipped } from '../ui/Tipped.js'
 import { chainWaits } from '../waits.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ChainWaits } from './ChainWaits.js'
-import { NoticeFixButton } from './FixButtons.js'
+import { FixButton, NoticeFixButton } from './FixButtons.js'
 import { offProfile, readingTasks } from './profileOff.js'
 import { PullFixButton } from './PullButtons.js'
+import { unreadWhy } from './trackerDown.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 
 /** `turn` — which card of its empty kind this one is on the page (`emptyTurns`). */
@@ -50,6 +51,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const off = offProfile(state, project)
   const reading = off === null && canStart && readingTasks(state, project)
+  const down = unreadWhy(state.trackers.find((each) => each.projects.includes(project)))
   const call = off === null ? emptyCall(state, project) : null
   const pages = call === null ? [] : projectPages(state, project)
   const [asking, setAsking] = useState(false)
@@ -100,7 +102,13 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         <p className="card__task card__task--empty">{t.project.profileOff(off.name)}</p>
       ) : task === null ? (
         order === undefined ? (
-          <p className="card__task card__task--empty">{t.project.notLoaded}</p>
+          down === null ? (
+            <p className="card__task card__task--empty">{t.project.notLoaded}</p>
+          ) : (
+            <Tipped className="card__error card__error--tipped" tip={down.detail ?? ''} align="start" focusable={down.detail !== null} off={down.detail === null}>
+              {down.why}
+            </Tipped>
+          )
         ) : (
           <>
             <EmptyLine progress={{ done, total, backlog }} turn={turn} />
@@ -133,6 +141,11 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           <button type="button" className="button button--primary" disabled={sending} onClick={() => (canStart ? setAsking(true) : enable(off.id))}>
             {canStart ? (startsNow(state.chain) ? t.project.start : t.project.enqueue) : t.project.enableProfile}
           </button>
+        </footer>
+      )}
+      {off === null && task === null && order === undefined && down !== null && down.fix !== null && (
+        <footer className="card__foot">
+          <FixButton project={project} fix={down.fix} />
         </footer>
       )}
       {off === null && canStart && (

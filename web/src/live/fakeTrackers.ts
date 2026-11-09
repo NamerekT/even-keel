@@ -71,6 +71,32 @@ export function withProfileOff(state: EvenKeelState): EvenKeelState {
 }
 
 /**
+ * `?trackers=down` (BTN-947): XYZ reads on a GitLab profile whose host does not answer and was never read, so it has no
+ * tasks; its archive still holds a fix of the main branch, so its chain is not empty.
+ */
+export function withTrackerDown(state: EvenKeelState): EvenKeelState {
+  const gitlab: TrackerView = {
+    name: FAKE_OFF_PROFILE,
+    kind: 'gitlab',
+    title: 'GitLab · bench',
+    projects: ['XYZ'],
+    ready: false,
+    health: { state: 'down', lastOkAt: null, error: 'call timed out after 15000 ms' },
+    readAt: {},
+  }
+  const trackers = state.trackers.map((tracker) => (tracker.name === FAKE_HULY_PROFILE ? { ...tracker, projects: tracker.projects.filter((project) => project !== 'XYZ') } : tracker))
+  const { XYZ: _, ...projects } = state.chain.projects
+  const fix = { id: 'XYZ-FIX.1', red: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(1_400), end: { at: ago(1_390), how: 'landed' as const, commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d' } }
+  return {
+    ...state,
+    trackers: [...trackers, gitlab],
+    tasks: state.tasks.filter((task) => task.project !== 'XYZ'),
+    chain: { ...state.chain, projects },
+    fixes: { ...state.fixes, XYZ: [fix] },
+  }
+}
+
+/**
  * `?trackers=scope` (BTN-788): XYZ reads on a Forgejo profile whose token was made for the CI, without the issue scope;
  * Forgejo refused its first read, so XYZ has no tasks yet.
  */

@@ -133,7 +133,8 @@
   overflow-wrap: anywhere;
 }
 
-.card__error--cut {
+.card__error--cut,
+.card__error--tipped {
   position: relative;
   z-index: 1;
 }

@@ -37,7 +37,7 @@ import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
-import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withProfileOff, withScopeRefusal } from './fakeTrackers.js'
+import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withProfileOff, withScopeRefusal, withTrackerDown } from './fakeTrackers.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -338,6 +338,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (params.get('trackers') === 'scope' && current.state !== null) current.state = withScopeRefusal(current.state)
   if (params.get('trackers') === 'off' && current.state !== null) current.state = withProfileOff(current.state)
+  if (params.get('trackers') === 'down' && current.state !== null) current.state = withTrackerDown(current.state)
   if (params.get('hulyClient') === 'installing' && current.state !== null) current.state.hulyClient = notice('huly.clientInstalling', {})
   if (params.get('hulyClient') === 'failed' && current.state !== null) {
     current.state.hulyClient = notice('huly.clientFailed', {}, { detail: 'npm ERR! code ECONNRESET npm ERR! network aborted' })

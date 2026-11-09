@@ -63,8 +63,7 @@ import { SETTINGS_HASH } from './settingsStore.js'
 import { ProjectNotices } from './ProjectNotices.js'
 import { DemoNotice } from './Demo.js'
 import { FixButton, NoticeFixButton } from './FixButtons.js'
-import { noticeFixOf, PROFILES } from './noticeFix.js'
-import { trackerDownText } from './trackerDown.js'
+import { unreadWhy } from './trackerDown.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
@@ -224,6 +223,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <DemoNotice state={state} project={key} />
         {/* The built-in tracker's empty state is the chain's own ghost. */}
         {!builtin && <EmptyCall state={state} project={key} />}
+        {blocks.length > 0 && order === undefined && <TrackerDown project={key} tracker={tracker} />}
         <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
           {blocks.length === 0 && (adding === null || order === undefined) ? (
             emptyCall(state, key) === null && (order === undefined ? <NotLoaded project={key} tracker={tracker} /> : <p className="placeholder">{t.project.chainEmpty}</p>)
@@ -373,14 +373,17 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
 
 /** Tasks not read yet; while the project's tracker is down, why, with the place it is fixed at (BTN-788). */
 function NotLoaded({ project, tracker }: { project: string; tracker: TrackerView | undefined }) {
-  const why = tracker === undefined ? null : trackerDownText(tracker.health)
-  if (tracker === undefined || why === null) return <p className="placeholder">{t.project.chainNotLoaded}</p>
-  const own = tracker.kind === BUILTIN
-  const fix = noticeFixOf(tracker.health.notice) ?? (own ? null : PROFILES)
+  return unreadWhy(tracker) === null ? <p className="placeholder">{t.project.chainNotLoaded}</p> : <TrackerDown project={project} tracker={tracker} />
+}
+
+/** Why the tasks are not read while the tracker is down, also over the archive's rows of a chain (BTN-947); nothing while it is not down. */
+function TrackerDown({ project, tracker }: { project: string; tracker: TrackerView | undefined }) {
+  const unread = unreadWhy(tracker)
+  if (unread === null) return null
   return (
     <div className="project__unread">
-      <p className="project__error">{t.project.notLoadedBecause(own ? t.system.lost : why)}</p>
-      {fix !== null && <FixButton project={project} fix={fix} />}
+      <p className="project__error">{t.project.notLoadedBecause(unread.why)}</p>
+      {unread.fix !== null && <FixButton project={project} fix={unread.fix} />}
     </div>
   )
 }
