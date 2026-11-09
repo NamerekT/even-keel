@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tally/src/**/*.test.ts', 'plugins/**/*.test.mjs', 'scripts/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tally/src/**/*.test.ts', 'plugins/**/*.test.mjs', 'scripts/**/*.test.ts', 'deploy/*/src/**/*.test.ts'],
     globalSetup: ['test/pglite-template.ts'],
     setupFiles: ['test/pglite.ts'],
     // On a 12-core workstation half the cores run `npm test` in 105 s; all of them in 90 s, but then tests that wait on

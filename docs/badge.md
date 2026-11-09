@@ -5,7 +5,8 @@ the chain's queue, the milestone and a few numbers from the stats. The service b
 Cloudflare Worker (BTN-916), the Worker stores the last state and draws it on every request. Nothing reaches the PC from
 outside: the README's `<img>` hits the Worker, never the service.
 
-The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wireBadges`).
+The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wireBadges`); the Worker is
+`deploy/badge/` ("The Worker" below).
 
 ## The state: contract v1
 
@@ -101,3 +102,30 @@ They are read in the background at most every 15 min; with Tally off the badge h
 
 `GET /api/projects/<id>/badge.svg?theme=dark|light` draws the badge of the service's current state (anything but
 `light` is dark), `no-store`; an unknown project is 404. It does not need the badge to be on.
+
+## The Worker
+
+`deploy/badge/` is the Cloudflare Worker a user deploys for their badges (BTN-916): `src/worker.ts` (`handle`), KV bound
+as `BADGE`, the secret `BADGE_SECRET`. How to deploy and connect it is its own `README.md`, written for users.
+
+- `POST /push/<slug>` — the bearer secret, compared by SHA-256 digests; none set on the Worker refuses every push (401).
+  The body (at most 64 KB) must be a state of version 1: `parseBadgeState` (`src/state.ts`) checks the type of every key
+  `renderBadge` reads, a left-out field is absent, never `null` (except `milestone` and `action`). 400 otherwise, 204
+  and one KV write on success.
+- `GET /<slug>.svg?theme=light` — `renderBadge` with `now` taken at the request, so the age and the modes are counted
+  when the picture is shown; a missing or unreadable stored value draws the `unpublished` placeholder.
+  `Cache-Control: no-cache, max-age=0`, a strong `ETag` of the SVG's SHA-256, 304 on a match (`W/` and `*` too).
+- The slug follows the service's rule (`src/badge/settings.ts`); any other path or method is 404.
+
+### Kept apart from the package
+
+The folder has its own `package.json` and lock (wrangler, vitest, typescript), is not in the root `files`, and the root
+dependencies have no wrangler. The Deploy to Cloudflare button takes a subfolder URL as the root of the user's new
+repository and fails a build that reaches outside it (Cloudflare's deploy-button docs, read 2026-11-09), so the Worker
+cannot import `src/badge/`: `deploy/badge/src/badge/` is a copy of `render.ts`, everything it imports and the fonts'
+licenses. `npm run badge-worker` (`scripts/badge-worker-copy.ts`) rewrites it, and `scripts/badge-worker-copy.test.ts`
+fails while it differs from `src/badge/`: a change of the drawing is a run of the script in the same commit.
+
+The Worker's tests (`deploy/badge/src/worker.test.ts`, a fake KV) run in the root `npm test`; `npm run typecheck`
+checks the folder with its own `tsconfig.json` (DOM types, no Node). `npx wrangler deploy --dry-run` in the folder
+bundles it (66 KiB, 2026-11-09), and `wrangler dev` served pushes from `postBadge` live (`docs/verified/page.md`).

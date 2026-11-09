@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "even-keel-badge",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  // No id: the Deploy button and `wrangler deploy` create the namespace on the first deploy and keep it linked.
+  "kv_namespaces": [{ "binding": "BADGE" }]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "even-keel-badge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Cloudflare Worker behind an Even Keel project's README badge: stores the pushed chain state and draws it as SVG",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.159.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "BADGE": {
+        "description": "The KV namespace that keeps the last pushed state of each badge."
+      },
+      "BADGE_SECRET": {
+        "description": "The push secret: any long random string. Even Keel sends it as `Authorization: Bearer <secret>`; put the same value into Even Keel's badge settings."
+      }
+    }
+  }
+}

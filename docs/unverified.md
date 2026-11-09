@@ -39,13 +39,14 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - Milestone order by hand: 113 — BTN-865 (next to 102 — BTN-849).
 - `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
-- The README badge: 122 — BTN-919.
+- The README badge: 122, 126 — BTN-919.
 - Background commands of a session stopped under load: 123 — BTN-936.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02, 2026-11-07 and 2026-11-09, then a launch on a kept snapshot half a second before the first poll and a task held on a spent week's kept snapshot; what is left needs a kept snapshot a reset made stale, due right at the restart, or a slow or failed first poll with no kept snapshot).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main on Forgejo from a runner failure), 92 (a watched branch fast-forwarded to an already green commit), 94 (GitLab runners running short, or a rerun of a run no runner took), 109 (the next red main on GitHub or GitLab), 112 (a chain that holds its next task for a run), 124 (the next held folder after a Done followed by that restart: `removed the worktree folder … once nothing held it` after the start), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 126 | [The badge's Worker on Cloudflare](unverified/page.md#the-badges-worker-on-cloudflare-btn-916) | projects that publish a badge and deploy its Worker with the button or `wrangler deploy` | the button fails to build or makes no KV namespace, or the deployed Worker answers otherwise than the tests; deploy by hand and create the namespace with `wrangler kv namespace create BADGE` |
 | 124 | [A held folder after Done through a restart](unverified/sessions.md#a-held-folder-after-done-through-a-restart-btn-925) | Windows chains whose project restarts the service after a green CI (`commands.afterGreen`) | the folder stays after the restart without a warning, as before; remove it by hand |
 | 123 | [Background commands of a session stopped under load](unverified/sessions.md#background-commands-of-a-session-stopped-under-load-btn-924) | Claude `--bg` chains on Windows whose sessions start a dev server or watcher in the background and are stopped mid-turn on a loaded machine | the command outlives the stop and the worktree stays after Done; kill its tree by its port, the cleanup then removes the folder |
 | 122 | [The README badge](unverified/page.md#the-readme-badge-btn-915) | projects that publish a badge | GitHub shows a broken or plain picture, the Worker refuses the pushes, or the free KV runs out of writes; turn the badge off |
