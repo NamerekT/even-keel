@@ -1,4 +1,5 @@
 import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PINNED_PROVIDERS, PROVIDERS } from '../agent/providers.js'
+import { badgeSettingsOf } from '../badge/settings.js'
 import { statusMovesOf } from '../chain/moves.js'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
@@ -396,6 +397,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     const labels = value.map((label: string) => label.trim()).filter((label) => label !== '')
     return labels.filter((label, index) => labels.indexOf(label) === index)
   } },
+  // The README badge (BTN-915): whether the project publishes its chain, to which Worker, under which name, what fields.
+  { key: 'badge', kind: 'json', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => badgeSettingsOf(value, at(place, 'badge')) },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null
     if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="68" viewBox="0 0 840 68" role="img" aria-label="NOT PUBLISHED YET">
+<title>NOT PUBLISHED YET</title>
+<style>.s{font-family:ek-sans,system-ui,sans-serif}.m{font-family:ek-mono,ui-monospace,monospace}@keyframes ek-ring{from{transform:scale(1);opacity:.6}to{transform:scale(2.6);opacity:0}}@keyframes ek-breathe{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ek-blink{0%,49%{opacity:1}50%,100%{opacity:0}}@keyframes ek-glow{0%,100%{opacity:.15}50%{opacity:.6}}.ring{opacity:0;transform-box:fill-box;transform-origin:center;animation:ek-ring 2s ease-out infinite}.breathe{animation:ek-breathe 4s ease-in-out infinite}.blink{animation:ek-blink 1.1s step-end infinite}.glow{animation:ek-glow 3s ease-in-out infinite}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<rect x="0.5" y="0.5" width="839" height="67" rx="14" fill="#f4f3ef" stroke="#dddbd3"/>
+<circle cx="40" cy="34" r="5" fill="#9a988f"/>
+<text x="56" y="39" class="s" font-size="13" font-weight="600" fill="#66645d" letter-spacing="1.5">NOT PUBLISHED YET</text>
+</svg>

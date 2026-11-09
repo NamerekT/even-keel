@@ -1,3 +1,5 @@
+import { BADGE_SECRET } from '../badge/model.js'
+
 /**
  * Where a variable is written: Even Keel's `.env`, and the `env` of the global `~/.claude/settings.json` sessions read at
  * their start. Packages read the same `.env` through the MCP gateway; a key they should get apart from Even Keel's own
@@ -38,7 +40,8 @@ const PLAIN = /_(URL|WORKSPACE|EMAIL|HOST|PORT|NAME|MODEL)$/
 export const isSecret = (name: string): boolean => !PLAIN.test(name)
 
 /**
- * The `.env` credentials the page's "Access" tab offers: Tally's and the page token, each once with all its readers. The
+ * The `.env` credentials the page's "Access" tab offers: Tally's, the page token and the README badge's push secret
+ * (BTN-915, read by the service itself), each once with all its readers. The
  * trackers' and the CIs' credentials are their profiles' (`src/profiles/`), not variables.
  */
 export function secretCatalog(): SecretSpec[] {
@@ -51,5 +54,6 @@ export function secretCatalog(): SecretSpec[] {
   }
   for (const name of TALLY) add(name, ['env']).tally = true
   add(PAGE_TOKEN, ['env']).page = true
+  add(BADGE_SECRET, ['env'])
   return [...specs.values()]
 }

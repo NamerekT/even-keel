@@ -81,6 +81,7 @@ import * as trackersService from './service/trackers.js'
 import * as lifecycleService from './service/lifecycle.js'
 import * as cliCheckService from './service/cli-check.js'
 import * as demoService from './service/demo.js'
+import { wireBadges } from './service/badge.js'
 import { AccountLease } from './cli-check/lease.js'
 import type { CheckHistory } from './cli-check/scheduler.js'
 
@@ -148,6 +149,7 @@ const context = {
   get activeAccount() { return activeAccount },
   get agentExtras() { return agentExtras },
   get agentOf() { return agentOf },
+  get badges() { return badges },
   get agentStatus() { return agentStatus },
   get agents() { return agents },
   set agents(value: typeof agents) { agents = value },
@@ -808,6 +810,11 @@ function removalFacts(project: string, repo: string): RemovalFacts { return chai
 const branches = chainService.wireBranches(context)
 
 const getState = hostingService.wireGetState(context)
+
+// The README badge (BTN-915): pushed on a state change, and on a timer for its delayed change and its pulse.
+const badges = wireBadges({ config: () => configStore.current, state: getState, period: (query) => stats.period(query) })
+hub.watch('state', () => void badges.tick(), 2_000)
+setInterval(() => void badges.tick(), 30_000).unref()
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
 const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = {

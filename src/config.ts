@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { needsCheckedCli } from './agent/providers.js'
+import type { BadgeSettings } from './badge/model.js'
 import { fixStem, shortId } from './chain/fix.js'
 import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import { sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
@@ -388,6 +389,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     carryAgent: values.carryAgent as boolean,
     fillMilestone: values.fillMilestone as boolean,
     milestoneOrder: values.milestoneOrder as string[],
+    badge: values.badge as BadgeSettings | null,
     changelog: values.changelog as string,
     standards: values.standards as Standard[],
     provider: (own.provider as string | undefined) ?? null,

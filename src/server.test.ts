@@ -795,4 +795,13 @@ describe('Even Keel HTTP server', () => {
     const response = await fetch(base + '/api/launches')
     expect(await response.json()).toEqual([{ task: 'ABC-1' }])
   })
+
+  it('serves a project\'s badge preview as SVG, dark unless light is asked, and 404 for an unknown project', async () => {
+    const dark = await fetch(base + '/api/projects/p%201/badge.svg')
+    expect(dark.headers.get('content-type')).toBe('image/svg+xml; charset=utf-8')
+    expect(await dark.text()).toBe('<svg data-theme="dark"/>')
+    expect(await (await fetch(base + '/api/projects/p%201/badge.svg?theme=light')).text()).toBe('<svg data-theme="light"/>')
+    expect(await (await fetch(base + '/api/projects/p%201/badge.svg?theme=pink')).text()).toBe('<svg data-theme="dark"/>')
+    expect((await fetch(base + '/api/projects/nope/badge.svg')).status).toBe(404)
+  })
 })

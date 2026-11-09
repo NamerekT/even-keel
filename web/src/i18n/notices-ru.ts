@@ -594,6 +594,8 @@ export const noticesRu: NoticeTexts = {
   'config.feedRules': (p) => `${p.where} должен быть объектом правил цепочки (${p.keys.join(', ')}), каждое — список имён; active и terminal могут быть null`,
   'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
   'config.milestoneOrder': (p) => `${p.where} должен быть списком названий вех`,
+  'config.badge': (p) =>
+    `${p.where} должен быть null или { on, url, slug, fields }: on — true или false, url — адрес http(s), slug — строчные буквы, цифры и дефисы, fields — известные поля бейджа`,
   'config.feedPrefix': (p) => `источник задач ${p.project} даёт ID задач ${p.prefix}-…, как и ${p.other}: дайте источнику другой ключ`,
   'config.feedPlace': (p) => `источник задач ${p.project} читает то же место трекера, что и ${p.other}, и задача попала бы в цепочку дважды`,
   'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,

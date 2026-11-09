@@ -284,8 +284,8 @@ describe('TranscriptFold', () => {
     expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
       { kind: 'prompt', text: `ABC-7\n\n${long}` },
       { kind: 'text', text: long },
-      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test', tool: 'toolu_Bash', name: 'Bash', subject: 'Build and test' },
-      { kind: 'tool', text: 'Read a.ts', tool: 'toolu_Read', name: 'Read', subject: 'a.ts' },
+      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test', tool: 'toolu_Bash', name: 'Bash', subject: 'Build and test', badge: { tool: 'Bash', text: 'Bash Build and test' } },
+      { kind: 'tool', text: 'Read a.ts', tool: 'toolu_Read', name: 'Read', subject: 'a.ts', badge: { tool: 'Read', text: 'Read a.ts' } },
     ])
   })
 
@@ -300,8 +300,8 @@ describe('TranscriptFold', () => {
     for (const line of lines) whole.push(line)
 
     expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
-      { kind: 'tool', text: 'Read .temp/shot.png', tool: 'toolu_Read', name: 'Read', subject: `${CWD}\\.temp\\shot.png` },
-      { kind: 'tool', text: 'Grep x', tool: 'toolu_Grep', name: 'Grep', subject: 'x' },
+      { kind: 'tool', text: 'Read .temp/shot.png', tool: 'toolu_Read', name: 'Read', subject: `${CWD}\\.temp\\shot.png`, badge: { tool: 'Read', text: 'Read .temp/shot.png' } },
+      { kind: 'tool', text: 'Grep x', tool: 'toolu_Grep', name: 'Grep', subject: 'x', badge: { tool: 'Grep', text: 'Grep' } },
       { kind: 'image', text: 'shot.png', tool: 'toolu_Read', images: 2 },
       { kind: 'image', text: '', tool: 'toolu_mcp', images: 1 },
     ])

@@ -180,6 +180,16 @@
       "carryAgent": false,
       "fillMilestone": true,
       "milestoneOrder": [],
+      "badge": {
+        "on": true,
+        "url": "https://badge.example.com/",
+        "slug": "example",
+        "fields": [
+          "title",
+          "context",
+          "chain"
+        ]
+      },
       "changelog": "docs/CHANGELOG.md",
       "standards": [
         {
@@ -279,6 +289,7 @@
       "carryAgent": false,
       "fillMilestone": false,
       "milestoneOrder": [],
+      "badge": null,
       "changelog": "CHANGELOG.md",
       "standards": [],
       "provider": null,
@@ -347,6 +358,7 @@
       "carryAgent": false,
       "fillMilestone": false,
       "milestoneOrder": [],
+      "badge": null,
       "changelog": "CHANGELOG.md",
       "standards": [],
       "provider": null,
@@ -415,6 +427,7 @@
       "carryAgent": true,
       "fillMilestone": false,
       "milestoneOrder": [],
+      "badge": null,
       "changelog": "CHANGELOG.md",
       "standards": [],
       "provider": null,

@@ -68,6 +68,7 @@ type HostingContext = Pick<ServiceContext,
   | 'activeAccount'
   | 'agentOf'
   | 'answerSession'
+  | 'badges'
   | 'applyTally'
   | 'approvals'
   | 'archive'
@@ -601,6 +602,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     carry: (project) => ctx.forwards.carry(project),
     resolveCarry: (project) => ctx.forwards.resolve(project),
     stats: ctx.stats,
+    badge: (project, theme) => ctx.badges.svg(project, theme),
     guard: () => ({ hosts: guardHosts(ctx.listen.host, ctx.configStore.current.allowedHosts), token: ctx.token, language: ctx.configStore.current.language ?? ctx.promptLanguage() }),
   })
 }
