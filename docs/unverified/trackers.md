@@ -135,15 +135,12 @@ If wrong, an interrupted create may be duplicated; a Jira property refusal preve
 
 ## The tasks server on Huly (BTN-779)
 
-The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`. Live, a description's append and replace (BTN-906) and two days of the chain's and a hand session's everyday calls on BTN (2026-11-09) are in the [verified log](../verified/trackers.md): comments, appends and replaces on real descriptions, labels, links by `#N`, components, attachments, a refused patch. Assumed:
+The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`. Live, a description's append and replace (BTN-906) and two days of the chain's and a hand session's everyday calls on BTN (2026-11-09) are in the [verified log](../verified/trackers.md): comments, appends and replaces on real descriptions, labels, links by `#N`, components, attachments, a refused patch; so is the bench run on HIN (tables, a duplicate `old`, `already so`, a parent in a batch and its change, a task without a status, fixed code marks, the cost against `huly-mcp`). Assumed:
 
-- A patch of a description with a table turns the table into HTML, and a second trip adds one blank line, then holds; a patch whose `old` is there twice is refused, and its repeat answers `already so`.
-- A parent inside a batch lands as Huly's subtask, and a later parent change is refused; a task without a status lands in Backlog.
-- A text with inline code inside bold, italics, strikethrough or a link, written through these tools, opens and stays editable in Huly's editor (BTN-894): the tests check only that Huly's markup of the text written has no code mark beside another (`src/huly/marks.test.ts`), not the editor itself.
+- A text with inline code inside bold, italics, strikethrough or a link, written through these tools, opens and stays editable in Huly's editor (BTN-894): the tests and the bench check only that Huly's markup of the text written has no code mark beside another (`src/huly/marks.test.ts`), not the editor itself.
 - A hand session with the `tasks` plugin finds a Huly project by its task key also when the project's `huly` identifier differs from Even Keel's key.
-- It costs a session fewer calls and tokens than the `huly` plugin's own server.
 
-If one is wrong, a patch spoils a description's formatting or a link is missing in Huly. **Workaround:** keep the `huly` plugin's own server (the plugin still uses it) and fix the description in Huly's editor. To check (BTN-873): on the Huly bench with the `tasks@even-keel` package on, patch a copy of a BTN description with a table twice, patch with a duplicate `old` and repeat a patch, file a batch with a parent and no status, try a parent change (refused); patch and comment with code inside bold and a link, then open both in Huly's editor; a hand session by key on a project whose `huly` differs; Tally's cost against `huly-mcp`.
+If one is wrong, a description or a comment does not open in Huly's editor, or a hand session does not find the task. **Workaround:** fix the text in Huly's editor; give the session the project's own address. To check (BTN-873): open HIN-24's description and comment in Huly's editor and edit them; a hand session by key on a project whose `huly` differs from its key.
 
 ## The tasks server on GitHub, Linear, Jira, GitLab and Forgejo (BTN-875)
 
