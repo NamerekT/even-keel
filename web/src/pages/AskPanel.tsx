@@ -1,4 +1,5 @@
 import { Fold } from '../ui/Fold.js'
+import { ChevronIcon } from '../ui/icons.js'
 import { useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
 import { NO_PICK, chooseLabel, toggleOther, typeOther, type Pick } from './askPick.js'
@@ -55,11 +56,11 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
         {count > 1 && (
           <span className="ask__pager">
             <button type="button" className="ask__step" aria-label={t.session.chat.previous} disabled={index === 0} onClick={() => setTab(index - 1)}>
-              ‹
+              <ChevronIcon />
             </button>
-            {t.session.chat.of(index + 1, count)}
-            <button type="button" className="ask__step" aria-label={t.session.chat.nextQuestion} disabled={last} onClick={() => setTab(index + 1)}>
-              ›
+            <span className="ask__position">{t.session.chat.of(index + 1, count)}</span>
+            <button type="button" className="ask__step ask__step--next" aria-label={t.session.chat.nextQuestion} disabled={last} onClick={() => setTab(index + 1)}>
+              <ChevronIcon />
             </button>
           </span>
         )}

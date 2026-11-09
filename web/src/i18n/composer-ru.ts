@@ -2,7 +2,6 @@ export const composerRu = {
   removeFile: (name: string) => `Убрать ${name}`,
   other: 'Другое',
   otherPlaceholder: 'Свой ответ…',
-  unanswered: (count: number) => `Осталось ответить: ${count}`,
   unsaved: 'Claude Code записывает сообщение с этим вопросом только после ответа. Ответ отсюда продолжит сессию без него, с вопросом и вашим ответом; ответ через Remote Control его сохранит.',
   sent: 'Ответ отправлен — сессия продолжит с ним.',
   working: 'Отправить можно, когда сессия остановится.',

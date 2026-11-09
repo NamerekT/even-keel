@@ -212,39 +212,69 @@
   font-weight: 600;
 }
 
+/* The question switcher: a box on the card's surface, so it parts from the muted head. */
 .ask__pager {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 4px;
-  color: var(--fg-muted);
-  font-size: var(--text-13);
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.ask__position {
+  padding: 0 var(--space-4);
+  font-size: var(--text-14);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .ask__step {
-  padding: 0 6px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-small);
   background: none;
   color: var(--fg);
-  font: inherit;
-  font-size: var(--text-16);
-  line-height: 1;
   cursor: pointer;
-  position: relative;
+  transition: background-color var(--motion-fast), color var(--motion-fast);
 }
 
-.ask__step::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
+.ask__step .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+  transform: rotate(90deg);
+}
+
+.ask__step--next .icon {
+  transform: rotate(-90deg);
+}
+
+.ask__step:not(:disabled):hover,
+.ask__step:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--accent);
 }
 
 .ask__step:disabled {
-  color: var(--fg-muted);
-  opacity: 0.5;
+  opacity: 0.35;
   cursor: default;
+}
+
+@media (pointer: coarse) {
+  .ask__step {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 .ask__body {

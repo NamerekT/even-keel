@@ -96,7 +96,7 @@ export function ChatComposer({ project, task, session, aside, renews, accepts, m
   const sendOff = disabled || !ready
   // A command goes only at the start of the message, so the button inserts one into an empty field only.
   const slashFree = text.trim() === '' && !sending
-  const hint = sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : session.lamp === 'error' ? t.session.chat.error : ''))
+  const hint = sent.on ? t.session.chat.sent : (locked ?? (session.lamp === 'error' ? t.session.chat.error : ''))
 
   // A reply that would resume a session whose cache went cold first asks how to send it (BTN-757).
   const [cold, setCold] = useState<{ since: string; tokens: number } | null>(null)

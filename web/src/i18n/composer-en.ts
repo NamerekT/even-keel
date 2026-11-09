@@ -2,7 +2,6 @@ export const composerEn = {
   removeFile: (name: string) => `Remove ${name}`,
   other: 'Other',
   otherPlaceholder: 'Your own answer…',
-  unanswered: (count: number) => `Left to answer: ${count}`,
   unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
   sent: 'The reply is sent — the session goes on with it.',
   working: 'You can send once the session stops.',
