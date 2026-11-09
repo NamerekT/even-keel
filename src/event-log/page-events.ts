@@ -39,9 +39,11 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   }
   for (const chain of state.chain.active) {
     const { project, error } = chain
-    if (chain.limitUntil !== undefined) events.push({ key: `limit|${project}|${chain.limitUntil}`, kind: 'limit', project, until: chain.limitUntil })
-    else if (chain.modelWeek !== undefined) events.push({ key: `limit|${project}|model:${chain.modelWeek.model}`, kind: 'limit', project })
-    else if (chain.paused && error?.code === 'chain.limitSpent') events.push({ key: `limit|${project}|${error.params.until}`, kind: 'limit', project })
+    // One stop on the limit is one event: its reset time comes from sources of different precision and may move (BTN-944).
+    const limit = `limit|${project}`
+    if (chain.limitUntil !== undefined) events.push({ key: limit, kind: 'limit', project, until: chain.limitUntil })
+    else if (chain.modelWeek !== undefined) events.push({ key: limit, kind: 'limit', project })
+    else if (chain.paused && error?.code === 'chain.limitSpent') events.push({ key: limit, kind: 'limit', project })
     if (chain.paused && error !== null && /^(ci|check)\./.test(error.code) && 'commit' in error.params) red(project, String(error.params.commit))
   }
   for (const [project, views] of Object.entries(state.ci)) {

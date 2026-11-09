@@ -114,6 +114,16 @@ describe('observe', () => {
     expect(step(none, withChain({ fixOnly: true }))).toEqual([])
   })
 
+  it('writes one stop on the limit once, whatever its reset time comes to (BTN-944)', () => {
+    const spent = (until: string) => withChain({ paused: true, error: notice('chain.limitSpent', { until }) })
+    expect(step(withChain({ limitUntil: '2026-11-14T06:59:00Z' }), withChain({ limitUntil: '2026-11-14T07:00:00Z' }))).toEqual([])
+    expect(step(spent('07:59'), spent('08:00'))).toEqual([])
+    expect(step(withChain({ limitUntil: '2026-11-14T07:00:00Z' }), withChain({ modelWeek: { model: 'Fable', until: null } }))).toEqual([])
+    const first = observe(null, watchedOf(withChain({ limitUntil: '2026-11-14T07:00:00Z' })), at(0))
+    const out = observe(first.memory, watchedOf(withChain()), at(1))
+    expect(observe(out.memory, watchedOf(withChain({ limitUntil: '2026-11-21T07:00:00Z' })), at(2)).drafts.map((each) => each.notice.code)).toEqual(['eventLog.limit'])
+  })
+
   it('writes a CLI on a version not checked, a gateway that does not listen and settings that do not parse', () => {
     const cli = { agent: 'claude', account: null, installed: '2.2.0', checked: '2.1.0', notice: notice('text', { text: 'claude 2.2.0' }) }
     const gateway = notice('text', { text: 'gateway down' })
