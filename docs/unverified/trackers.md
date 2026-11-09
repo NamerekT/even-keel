@@ -133,15 +133,6 @@ If wrong, on Huly a repeat may still duplicate the task or fail on the found one
 
 If wrong, an interrupted create may be duplicated; a Jira property refusal prevents creation. The same risk exists after 25 newer tasks have pushed the original out of the page (PRs also consume GitHub page slots), or after the marker is removed. A found task gets every field of its draft written again (BTN-922); that the adapters' `set` calls take them on a task just recovered is checked only on the built-in tracker. **Workaround:** inspect the tracker before repeating an interrupted batch, and correct wrong fields with `task_update`; if creation refuses the marker, create without `retry` after checking for existing tasks. To check: on each registered tracker bench, create with a retry key, inspect the raw Markdown/property, interrupt between create and journal save, restart and repeat with the same key; check the recovered ID, labels, priority, status, parent, estimate and links and that only one task exists. Check the comment's rendered visibility, a closed task and a lookup failure as well.
 
-## The tasks server on Huly (BTN-779)
-
-The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`. Live, a description's append and replace (BTN-906) and two days of the chain's and a hand session's everyday calls on BTN (2026-11-09) are in the [verified log](../verified/trackers.md): comments, appends and replaces on real descriptions, labels, links by `#N`, components, attachments, a refused patch; so is the bench run on HIN (tables, a duplicate `old`, `already so`, a parent in a batch and its change, a task without a status, fixed code marks, the cost against `huly-mcp`). Assumed:
-
-- A text with inline code inside bold, italics, strikethrough or a link, written through these tools, opens and stays editable in Huly's editor (BTN-894): the tests and the bench check only that Huly's markup of the text written has no code mark beside another (`src/huly/marks.test.ts`), not the editor itself.
-- A hand session with the `tasks` plugin finds a Huly project by its task key also when the project's `huly` identifier differs from Even Keel's key.
-
-If one is wrong, a description or a comment does not open in Huly's editor, or a hand session does not find the task. **Workaround:** fix the text in Huly's editor; give the session the project's own address. To check (BTN-873): open HIN-24's description and comment in Huly's editor and edit them; a hand session by key on a project whose `huly` differs from its key.
-
 ## The tasks server on GitHub, Linear, Jira, GitLab and Forgejo (BTN-875)
 
 The same five tools on the outer trackers (`docs/trackers.md`, "The tasks server", a paragraph of limits each) are checked by tests that record every request against a fake API (`src/<tracker>/editor.test.ts`); no live tracker has taken a write from them. The requests are written from each API's documentation and the live seed scripts of the benches. Assumed:
