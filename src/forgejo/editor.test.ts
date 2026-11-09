@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RepoMap } from '../github/model.js'
 import { revisionOf } from '../tracker/editor.js'
+import { ForgejoHttpError } from './api.js'
 import { forgejoEditor } from './editor.js'
 import { issue, milestone } from './fixture.js'
 import type { ForgejoIssue } from './model.js'
@@ -9,6 +10,7 @@ const BASE = '/repos/example-org/app/issues'
 
 function fixture(dependencies: 'on' | 'off' = 'on') {
   const recent = { issues: [] as unknown[], error: null as Error | null }
+  const state = { refusedClose: null as number | null }
   const reads: string[] = []
   const issues: Record<number, ForgejoIssue> = {
     1: issue({ number: 1, body: 'Old text' }),
@@ -28,6 +30,7 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
     }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      if (state.refusedClose !== null && (body as { state?: string } | undefined)?.state === 'closed') throw new ForgejoHttpError(412)
       const description = (body as { body?: string } | undefined)?.body
       if (description !== undefined && (path === BASE || path === `${BASE}/10`)) issues[10]!.body = description
       return { number: 10 } as T
@@ -48,7 +51,7 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
     comment: async () => '5',
     upload: async (path, file) => void uploads.push([path, file.name]),
   })
-  return { editor, writes, relabels, uploads, recent, reads }
+  return { editor, writes, relabels, uploads, recent, reads, state }
 }
 
 describe('forgejoEditor', () => {
@@ -157,6 +160,18 @@ describe('forgejoEditor', () => {
   it('refuses a link where the repository has dependencies turned off', async () => {
     const { editor } = fixture('off')
     await expect(editor.link('APP-1', 'APP-3', 'blocks', true)).rejects.toThrow(/dependencies turned off/)
+  })
+
+  it('says a clear reason when Forgejo refuses to close an issue still blocking an open one (BTN-930)', async () => {
+    const { editor, state, writes } = fixture()
+    state.refusedClose = 1
+    await expect(editor.set('APP-1', { field: 'status', to: 'Closed' })).rejects.toThrow(/APP-1 is still blocking an open issue; close that issue or remove the link first/)
+    expect(writes).toEqual([['PATCH', `${BASE}/1`, { state: 'closed' }]])
+  })
+
+  it('exports the links Forgejo keeps without "relates" (BTN-930)', () => {
+    const { editor } = fixture()
+    expect(editor.linkTypes).toEqual(['blocks', 'blockedBy'])
   })
 
   it('revises and patches the description as a hash of its text', async () => {

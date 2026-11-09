@@ -108,6 +108,11 @@ export interface TaskEditor {
    * to keep none, and `blocks`/`blockedBy` are refused before any write. Absent — the tracker keeps them.
    */
   blockingLinks?(): Promise<boolean>
+  /**
+   * The link kinds the tracker keeps (BTN-930): a tracker without `relates` (GitHub, Forgejo) lists only `blocks` and
+   * `blockedBy`, and such a link is refused before any write of a `task_update`. Absent — all three are kept.
+   */
+  linkTypes?: readonly TaskLink[]
   /** The description's revision: it grows only with a change of the description, not of any other field. */
   revision(id: string): Promise<number>
   /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */

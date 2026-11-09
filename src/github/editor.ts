@@ -232,6 +232,7 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
       await graphql(on ? ADD_BLOCKED_BY : REMOVE_BLOCKED_BY, { issue: blocked.id, blocker: blocker.id })
     },
     relabel: (id, change) => deps.relabel(id, change),
+    linkTypes: ['blocks', 'blockedBy'],
     // A GitHub comment has no field for the session's model: its author is the token's account.
     comment: (id, body) => deps.comment(id, body),
   }

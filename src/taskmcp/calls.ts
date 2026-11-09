@@ -273,6 +273,10 @@ export class TasksTools {
       const editor = editorOf(tracker)
       const terms = await this.termsOf(tracker, project)
       if (!terms.blocking && BLOCKING.some((link) => links[link].add.length > 0)) throw new EditRefused(NO_BLOCKING)
+      // A link kind the tracker does not keep (GitHub, Forgejo: "relates") refuses before anything is written (BTN-930).
+      const kept = editor.linkTypes ?? LINKS
+      const unsupported = LINKS.find((link) => (links[link].add.length > 0 || links[link].remove.length > 0) && !kept.includes(link))
+      if (unsupported !== undefined) throw new EditRefused(`this tracker keeps no "${unsupported}" link; name the other task in the description or a comment`)
       const status = args.text('status')
       if (status !== undefined) fields.push({ field: 'status', to: statusName(status, terms) })
       const milestone = args.nullable('milestone')
@@ -298,9 +302,13 @@ export class TasksTools {
           if (delta.length > 0) said.push(`labels ${delta.join(' ')}`)
         }
         for (const link of LINKS) {
+          for (const other of links[link].remove) await editor.link(key, other.trim().toUpperCase(), link, false)
+        }
+        for (const link of LINKS) {
+          for (const other of links[link].add) await editor.link(key, other.trim().toUpperCase(), link, true)
+        }
+        for (const link of LINKS) {
           const { add: on, remove: off } = links[link]
-          for (const other of off) await editor.link(key, other.trim().toUpperCase(), link, false)
-          for (const other of on) await editor.link(key, other.trim().toUpperCase(), link, true)
           const delta = [...on.map((each) => `+${each.trim().toUpperCase()}`), ...off.map((each) => `−${each.trim().toUpperCase()}`)]
           if (delta.length > 0) said.push(`${LINK_WORDS[link]} ${delta.join(' ')}`)
         }
