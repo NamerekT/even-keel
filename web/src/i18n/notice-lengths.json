@@ -1,6 +1,6 @@
 {
   "en": {
-    "account.overagePolicy": 231,
+    "account.overagePolicy": 219,
     "account.secondFree": 316,
     "chain.limitSpent": 213,
     "chain.noTrackerMcp": 258,
@@ -11,7 +11,7 @@
     "wizard.trackerShared": 218
   },
   "ru": {
-    "account.overagePolicy": 245,
+    "account.overagePolicy": 230,
     "account.secondFree": 306,
     "chain.noTrackerMcp": 228,
     "changelog.unnoticed": 229,

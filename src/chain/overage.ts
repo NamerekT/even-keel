@@ -10,8 +10,10 @@ export class OverageStops {
     const current = chain.current
     if (current?.sessionId == null || current.starting !== undefined) return true
     let held = current.limit?.overage
+    if (held?.stopped && current.limit?.acted === null) return true
+    const evidence = this.deps.overage?.(current.task)
     if (held === undefined || current.limit?.acted !== null) {
-      const session = this.deps.overage?.(current.task)
+      const session = evidence?.session
       if (session === undefined || session.sessionId !== current.sessionId) return true
       if (current.resumedAt !== undefined && Date.parse(session.limit.at) <= Date.parse(current.resumedAt)) return true
       const reset = this.deps.limitResetAfter(session.account, session.limit.at, session.limit.text)
@@ -24,7 +26,9 @@ export class OverageStops {
       if (this.deps.midTurn(current.task)) await this.deps.stop(held.session)
       held.stopped = true
       this.deps.save(this.state)
-      this.deps.log(`chain: ${current.task}: paid subscription usage detected on account ${held.session.account}; session ${held.session.sessionId} stopped; waiting for included allowance`)
+      const source = evidence?.session.sessionId === held.session.sessionId && evidence.session.limit.at === held.session.limit.at ? evidence.source : undefined
+      const reason = source !== undefined && source !== 'claude-usage' ? 'paid usage detected' : 'included allowance exhausted; paid usage possible, not confirmed'
+      this.deps.log(`chain: ${current.task}: ${reason} on account ${held.session.account}; session ${held.session.sessionId} stopped; waiting for included allowance`)
       return true
     } catch (error) {
       this.halt(chain, noticeOf(error))

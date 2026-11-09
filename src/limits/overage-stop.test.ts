@@ -13,23 +13,31 @@ const detect = (agent: string, data: RateLimits) => overageLimit({ ...entry, age
 
 describe('stopping subscription overage', () => {
   it('accepts a fresh direct SDK report even without a reset or a usage window', () => {
-    expect(detect('claude', limits({ fiveHour: null, source: 'sdk', overage: { source: 'claude-sdk', updatedAt: at, using: true } }))).toBe(at)
+    expect(detect('claude', limits({ fiveHour: null, source: 'sdk', overage: { source: 'claude-sdk', updatedAt: at, using: true } }))).toEqual({ at, source: 'claude-sdk' })
   })
 
   it('accepts Claude usage exhaustion and every supported credits or quota source', () => {
-    expect(detect('claude', limits({ source: 'usage' }))).toBe(at)
+    expect(detect('claude', limits({ source: 'usage' }))).toEqual({ at, source: 'claude-usage' })
     for (const agent of ['codex', 'opencode']) {
-      expect(detect(agent, limits({ pool: 'chatgpt:example', overage: { source: 'chatgpt', updatedAt: at, available: true } }))).toBe(at)
+      expect(detect(agent, limits({ pool: 'chatgpt:example', overage: { source: 'chatgpt', updatedAt: at, available: true } }))).toEqual({ at, source: 'chatgpt' })
     }
     for (const agent of ['copilot', 'opencode']) {
       expect(detect(agent, limits({ fiveHour: null, month: { usedPercentage: 100, left: 0, resetsAt: reset },
-        overage: { source: 'github-quota', updatedAt: at, enabled: true, count: 0 } }))).toBe(at)
+        overage: { source: 'github-quota', updatedAt: at, enabled: true, count: 0 } }))).toEqual({ at, source: 'github-quota' })
     }
+  })
+
+  it('prefers a fresh SDK signal over usage inference, but keeps usage protection without one', () => {
+    const reading = (using: boolean, updatedAt = at) => limits({ source: 'usage', overage: { source: 'claude-sdk', using, updatedAt } })
+    expect(detect('claude', reading(true))).toEqual({ at, source: 'claude-sdk' })
+    expect(detect('claude', reading(false))).toEqual({ at, source: 'claude-usage' })
+    expect(detect('claude', reading(true, '2026-10-29T09:49:59.999Z'))).toEqual({ at, source: 'claude-usage' })
+    expect(detect('claude', limits({ source: 'usage', fiveHour: null, sevenDay: { usedPercentage: 100, resetsAt: reset } }))).toEqual({ at, source: 'claude-usage' })
   })
 
   it('requires fresh windows and facts independently, including the exact ten minute boundary', () => {
     const credits = limits({ overage: { source: 'chatgpt', updatedAt: at, available: true } })
-    expect(overageLimit({ ...entry, agent: 'codex', limits: credits }, new Date('2026-10-29T10:10:00.000Z'))).toBe(at)
+    expect(overageLimit({ ...entry, agent: 'codex', limits: credits }, new Date('2026-10-29T10:10:00.000Z'))).toMatchObject({ at })
     expect(overageLimit({ ...entry, agent: 'codex', limits: credits }, new Date('2026-10-29T10:10:00.001Z'))).toBeNull()
     expect(detect('codex', { ...credits, updatedAt: '2026-10-29T09:49:59.999Z' })).toBeNull()
     expect(detect('codex', { ...credits, overage: { ...credits.overage!, updatedAt: '2026-10-29T09:49:59.999Z' } })).toBeNull()
@@ -56,6 +64,6 @@ describe('stopping subscription overage', () => {
     for (const fiveHour of [null, { usedPercentage: 99, resetsAt: reset }, { usedPercentage: 100, resetsAt: at }]) {
       expect(detect('codex', limits({ fiveHour, overage: extra }))).toBeNull()
     }
-    expect(detect('codex', limits({ fiveHour: null, sevenDay: { usedPercentage: 100, resetsAt: reset }, overage: extra }))).toBe(at)
+    expect(detect('codex', limits({ fiveHour: null, sevenDay: { usedPercentage: 100, resetsAt: reset }, overage: extra }))).toMatchObject({ at })
   })
 })

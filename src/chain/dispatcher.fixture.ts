@@ -38,7 +38,7 @@ export interface SetupOptions {
   modelRefusal?: DispatcherDeps['modelRefusal']
   modelBlock?: DispatcherDeps['modelBlock']
   limited?: Record<string, LimitedSession>
-  overage?: (task: string) => LimitedSession | undefined
+  overage?: DispatcherDeps['overage']
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
