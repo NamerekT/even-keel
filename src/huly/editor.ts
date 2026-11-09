@@ -36,6 +36,8 @@ export interface HulyEditorClient extends HulyLabelClient {
   updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>): Promise<unknown>
   fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
   uploadMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
+  /** Rewrites the collaborative document in place, as Huly's own editor does; Huly then points the attribute at it. */
+  updateMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<void>
 }
 
 export interface HulyEditorDeps {
@@ -81,9 +83,20 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
   }
   const markdownOf = async (issue: HulyFullIssue): Promise<string> =>
     issue.description ? client.fetchMarkup(ISSUE, issue._id, 'description', issue.description, 'markdown') : ''
-  const writeDescription = async (issue: HulyFullIssue, text: string): Promise<void> => {
-    const ref = await client.uploadMarkup(ISSUE, issue._id, 'description', text, 'markdown')
-    await client.updateDoc(ISSUE, issue.space, issue._id, { description: ref })
+  /**
+   * Once a description was opened, Huly's collaborator reads its own document of it and ignores a new blob the issue
+   * names (BTN-906): an existing description is rewritten in place, and only an issue without one gets a new blob. The
+   * text is read back, so a write Huly dropped is an error, not "patched".
+   */
+  const writeDescription = async (issue: HulyFullIssue, before: string, text: string): Promise<void> => {
+    if (issue.description) {
+      await client.updateMarkup(ISSUE, issue._id, 'description', text, 'markdown')
+    } else {
+      const ref = await client.uploadMarkup(ISSUE, issue._id, 'description', text, 'markdown')
+      await client.updateDoc(ISSUE, issue.space, issue._id, { description: ref })
+    }
+    const after = await markdownOf(await findIssue(issue.identifier))
+    if (lf(after).trim() === lf(before).trim()) throw new Error(`${issue.identifier}: Huly did not save the description; it still reads as before the write`)
   }
   const statusOf = async (space: string, name: string | null): Promise<HulyStatusDoc> => {
     const { statuses, allowed } = await deps.statusesOf(space)
@@ -173,7 +186,7 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       const marks = fixer()
       const next = marks.fix(text)
       if (lf(now).trim() === lf(next).trim()) return false
-      await writeDescription(issue, next)
+      await writeDescription(issue, now, next)
       marks.tell(notes)
       return true
     },
@@ -181,10 +194,11 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       const issue = await findIssue(id)
       const marks = fixer()
       const fixedPatches = patches.map((each) => ({ old: each.old, new: marks.fix(each.new) }))
-      const next = patchText(await markdownOf(issue), fixedPatches, append === null ? null : marks.fix(append))
+      const now = await markdownOf(issue)
+      const next = patchText(now, fixedPatches, append === null ? null : marks.fix(append))
       if (next === null) return false
       // A `new` that puts code inside a mark around it is fixed only in the whole text.
-      await writeDescription(issue, marks.fix(next))
+      await writeDescription(issue, now, marks.fix(next))
       marks.tell(notes)
       return true
     },

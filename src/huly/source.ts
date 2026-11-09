@@ -1,6 +1,7 @@
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { hulyClient, type HulyPackage } from './client.js'
+import { collabUpdater } from './collab.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { hulyEditor, parentsUnder, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 import { tracker } from './ids.js'
@@ -76,7 +77,7 @@ interface HulyModules {
   markupToJSON(markup: string): unknown
   jsonToMarkup(json: unknown): string
   markupToMarkdown(markup: unknown): string
-  markdownToMarkup(markdown: string): unknown
+  markdownToMarkup(markdown: string, options?: { refUrl: string; imageUrl: string }): unknown
 }
 
 const require = (name: HulyPackage): unknown => hulyClient.require(name)
@@ -441,7 +442,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       return { ...vocabularyOf(statuses, allowed, tags), milestones: milestones.map((milestone) => milestone.label) }
     },
     editor: hulyEditor({
-      client,
+      client: Object.assign(Object.create(client) as PlatformClient, { updateMarkup: collabUpdater(client, { markdownToMarkup, jsonToMarkup }) }),
       markdown: { markdownToMarkup, markupToMarkdown },
       findIssue,
       spaceOf,

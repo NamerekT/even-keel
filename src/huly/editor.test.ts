@@ -21,6 +21,8 @@ function fixture() {
   issues.set('ABC-1', issue(1, { description: 'blob-1', milestone: 'm-old' }))
   issues.set('XYZ-1', issue(9, { identifier: 'XYZ-1', space: 'other' }))
   const blobs = new Map([['blob-1', '# Goal\n\nOne line.\n\n- a\n- b']])
+  // As in live Huly: once a description was opened, the collaborator reads its own document and ignores the blob named.
+  const docs = new Map([['id-1', '# Goal\n\nOne line.\n\n- a\n- b']])
   const updates: [string, Record<string, unknown>][] = []
   const updateDoc = vi.fn(async (_cls: string, _space: string, id: string, update: Record<string, unknown>) => {
     updates.push([id, update])
@@ -37,6 +39,9 @@ function fixture() {
     blobs.set(ref, markup)
     return ref
   })
+  const updateMarkup = vi.fn(async (_cls: string, id: string, _attribute: string, markup: string) => {
+    docs.set(id, markup)
+  })
   const addCollection = vi.fn(async () => 'ref')
   const comments: string[] = []
   const client: HulyEditorClient = {
@@ -47,8 +52,9 @@ function fixture() {
     removeCollection: async () => undefined,
     addCollection,
     updateDoc,
-    fetchMarkup: async (_cls, _id, _attribute, markup) => blobs.get(markup) ?? '',
+    fetchMarkup: async (_cls, id, _attribute, markup) => docs.get(id) ?? blobs.get(markup) ?? '',
     uploadMarkup,
+    updateMarkup,
   }
   const added: HulyNewIssue[] = []
   const editor = hulyEditor({
@@ -71,7 +77,8 @@ function fixture() {
       return 'comment'
     },
   })
-  return { editor, issues, blobs, updates, uploadMarkup, addCollection, added, comments }
+  const stored = (id = 'id-1') => docs.get(id)
+  return { editor, issues, blobs, docs, stored, updates, uploadMarkup, updateMarkup, addCollection, added, comments }
 }
 
 const refusal = async (work: Promise<unknown>): Promise<string> => {
@@ -127,30 +134,45 @@ describe('hulyEditor', () => {
     expect(await refusal(editor.set('ABC-3', { field: 'parent', to: null }))).toMatch(/^Huly: .*parent only on a new task/)
   })
 
-  it('patches the description as Markdown and writes it as a new markup of the issue', async () => {
-    const { editor, issues, blobs, uploadMarkup } = fixture()
+  it('patches the description as Markdown in place, in the document the collaborator reads', async () => {
+    const { editor, stored, updateMarkup, uploadMarkup, updates } = fixture()
     expect(await editor.patch('ABC-1', [{ old: 'One line.', new: 'Two lines.' }], '## Decisions\n\nNone yet.')).toBe(true)
-    expect(uploadMarkup).toHaveBeenCalledWith(ISSUE, 'id-1', 'description', '# Goal\n\nTwo lines.\n\n- a\n- b\n\n## Decisions\n\nNone yet.', 'markdown')
-    expect(blobs.get(issues.get('ABC-1')!.description!)).toContain('Two lines.')
+    expect(updateMarkup).toHaveBeenCalledWith(ISSUE, 'id-1', 'description', '# Goal\n\nTwo lines.\n\n- a\n- b\n\n## Decisions\n\nNone yet.', 'markdown')
+    expect(stored()).toContain('Two lines.')
     expect(await editor.patch('ABC-1', [{ old: 'One line.', new: 'Two lines.' }], '## Decisions\n\nNone yet.')).toBe(false)
-    expect(uploadMarkup).toHaveBeenCalledTimes(1)
+    expect(updateMarkup).toHaveBeenCalledTimes(1)
+    expect(uploadMarkup).not.toHaveBeenCalled()
+    expect(updates).toEqual([])
     expect(await refusal(editor.patch('ABC-1', [{ old: '- ', new: '* ' }], null))).toMatch(/found 2 times/)
   })
 
+  it('gives a task without a description a new markup of the issue', async () => {
+    const { editor, issues, blobs, updateMarkup } = fixture()
+    expect(await editor.patch('ABC-2', [], '## Decisions\n\nNone yet.')).toBe(true)
+    expect(blobs.get(issues.get('ABC-2')!.description!)).toBe('## Decisions\n\nNone yet.')
+    expect(updateMarkup).not.toHaveBeenCalled()
+  })
+
+  it('fails, not says it wrote, when the description reads back as it was', async () => {
+    const { editor, updateMarkup } = fixture()
+    updateMarkup.mockImplementation(async () => undefined)
+    await expect(editor.patch('ABC-1', [], 'More.')).rejects.toThrow(/ABC-1: Huly did not save the description/)
+    await expect(editor.describe('ABC-1', 'New text', await editor.revision('ABC-1'))).rejects.toThrow(/did not save/)
+  })
+
   it('replaces the description whole only at its current revision', async () => {
-    const { editor, uploadMarkup } = fixture()
+    const { editor, updateMarkup } = fixture()
     const rev = await editor.revision('ABC-1')
     expect(await refusal(editor.describe('ABC-1', 'New text', rev + 1))).toMatch(/changed since rev/)
     expect(await editor.describe('ABC-1', '# Goal\r\n\r\nOne line.\r\n\r\n- a\r\n- b\r\n', rev)).toBe(false)
     expect(await editor.describe('ABC-1', 'New text', rev)).toBe(true)
-    expect(uploadMarkup).toHaveBeenCalledOnce()
+    expect(updateMarkup).toHaveBeenCalledOnce()
     expect(await editor.revision('ABC-1')).toBe(revisionOf('New text'))
     expect(await editor.revision('ABC-2')).toBe(revisionOf(''))
   })
 
   it('writes inline code inside another mark fixed, says so, and takes a repeated patch for already so', async () => {
-    const { editor, issues, blobs, uploadMarkup } = fixture()
-    const stored = () => blobs.get(issues.get('ABC-1')!.description!)
+    const { editor, stored, updateMarkup } = fixture()
     const notes: string[] = []
     const patch = [{ old: 'One line.', new: 'Run **the `check` script**, see [the `run` guide](https://example.com/guide).' }]
     expect(await editor.patch('ABC-1', patch, '## Decisions\n\n_keep `x`_', notes)).toBe(true)
@@ -159,25 +181,25 @@ describe('hulyEditor', () => {
     const again: string[] = []
     expect(await editor.patch('ABC-1', patch, '## Decisions\n\n_keep `x`_', again)).toBe(false)
     expect(again).toEqual([])
-    expect(uploadMarkup).toHaveBeenCalledOnce()
+    expect(updateMarkup).toHaveBeenCalledOnce()
   })
 
   it('fixes code a patch puts inside a mark already there, and takes its repeat for already so', async () => {
-    const { editor, issues, blobs, uploadMarkup } = fixture()
-    blobs.set('blob-1', 'Use **the npm script** here.')
+    const { editor, docs, stored, updateMarkup } = fixture()
+    docs.set('id-1', 'Use **the npm script** here.')
     const notes: string[] = []
     expect(await editor.patch('ABC-1', [{ old: 'npm', new: '`npm`' }], null, notes)).toBe(true)
-    expect(blobs.get(issues.get('ABC-1')!.description!)).toBe('Use **the** `npm` **script** here.')
+    expect(stored()).toBe('Use **the** `npm` **script** here.')
     expect(notes).toEqual(['fixed 1 mark: code moved out of bold'])
     expect(await editor.patch('ABC-1', [{ old: 'npm', new: '`npm`' }], null)).toBe(false)
-    expect(uploadMarkup).toHaveBeenCalledOnce()
+    expect(updateMarkup).toHaveBeenCalledOnce()
   })
 
   it('replaces, creates and comments with the marks fixed, and says nothing of a clean text', async () => {
-    const { editor, issues, blobs, added, comments } = fixture()
+    const { editor, stored, added, comments } = fixture()
     const notes: string[] = []
     expect(await editor.describe('ABC-1', '**a `b`**', await editor.revision('ABC-1'), notes)).toBe(true)
-    expect(blobs.get(issues.get('ABC-1')!.description!)).toBe('**a** `b`')
+    expect(stored()).toBe('**a** `b`')
     expect(await editor.describe('ABC-1', '**a `b`**', await editor.revision('ABC-1'), notes)).toBe(false)
     const draft = { title: 'New', description: '~~old `x`~~', status: null, priority: null, milestone: null, labels: [], parent: null }
     await editor.create('project', draft, notes)

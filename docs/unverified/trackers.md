@@ -107,7 +107,7 @@ Tests cover a new tools instance over the same database after two tasks of a thr
 
 ## The tasks server on Huly (BTN-779)
 
-The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`; no live Huly has taken a write from them. Assumed:
+The same five tools on a Huly project (`docs/trackers.md`, "The tasks server", the Huly limits) are checked by tests on a fake client (`src/huly/editor.test.ts`), with the Markdown round trip through the real `@hcengineering/text-markdown`. Live, only a description's append and replace have been written through the editor (BTN-906, [verified log](../verified/trackers.md)). Assumed:
 
 - A patch of a real description with headings, lists, code and links comes back as it was; only a table turns into HTML, and a second trip adds one blank line, then holds.
 - A batch with `#N` links, a parent inside the batch, labels and a milestone lands in Huly as one filed by hand, the links on both sides where Huly shows them; a task without a status lands in Backlog.
