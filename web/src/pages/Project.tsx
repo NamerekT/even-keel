@@ -33,7 +33,7 @@ import {
   taskProject,
   type ChainControl,
 } from '../state.js'
-import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
+import { focusAfterClose, focusOnEntry, nextOpenAfter } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Said } from '../ui/ProjectLinks.js'
@@ -98,11 +98,28 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     if (entry !== null) navigate({ search: location.search, hash: entry }, { replace: true })
   })
   const previous = useRef(blocks)
+  // The task whose chat window is open, and whether its close moved the panel on while the chat held it there.
+  const chatting = useRef<string | null>(null)
+  const held = useRef(false)
   useEffect(() => {
     const next = focusAfterClose(previous.current, blocks, focus)
     previous.current = blocks
-    if (next !== null) navigate({ search: location.search, hash: next }, { replace: true })
+    if (next === null) return
+    if (chatting.current === focus) held.current = true
+    else navigate({ search: location.search, hash: next }, { replace: true })
   })
+  const latest = useRef({ focus, search: location.search })
+  latest.current = { focus, search: location.search }
+  const onChatting = useCallback(
+    (task: string, open: boolean) => {
+      chatting.current = open ? task : null
+      if (open || !held.current) return
+      held.current = false
+      const next = nextOpenAfter(previous.current, latest.current.focus)
+      if (latest.current.focus === task && next !== null) navigate({ search: latest.current.search, hash: next }, { replace: true })
+    },
+    [navigate],
+  )
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
@@ -234,7 +251,15 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <div className={tabs ? 'project__side project__side--tabs' : 'project__side'}>
           {tabs && <div className="side-tabs">{tools}</div>}
           {selected !== undefined && (
-            <SessionPanel key={selected.id} block={selected} scale={state.context} ci={ci !== undefined} onCard={openCard} onClose={close} />
+            <SessionPanel
+              key={selected.id}
+              block={selected}
+              scale={state.context}
+              ci={ci !== undefined}
+              onCard={openCard}
+              onClose={close}
+              onChatting={(open) => onChatting(selected.id, open)}
+            />
           )}
           {backlogOpen && (
             <BacklogPanel

@@ -35,6 +35,8 @@ export const composerEn = {
   running: (tool: string) => `Running: ${tool}`,
   delivering: 'Delivering the answer, the session is starting up',
   finished: 'The session has finished — it cannot be replied to.',
+  closed: 'The task is closed — nothing can be sent from here. What is left to do is a new task.',
+  elsewhere: 'Sessions are not answered from here — reply in the task’s chat.',
   limit: 'The session hit a limit — Even Keel resumes it by itself.',
   error: 'The session stopped on an API error. Send a reply to resume it.',
   dialog: (what: string) => `The session waits for ${what}. Answer it through Remote Control.`,

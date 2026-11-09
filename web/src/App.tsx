@@ -20,7 +20,7 @@ import { CliConsent } from './layout/CliCopies.js'
 import { AccountsPage } from './pages/Accounts.js'
 import { EventLogPage } from './pages/EventLogPage.js'
 import { LOG_PATH } from './layout/eventLog.js'
-import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
+import { knownSessions, knownTasks, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
@@ -45,7 +45,7 @@ export function App() {
   useEffect(() => {
     if (state === null || pruned.current) return
     pruned.current = true
-    void pruneDrafts(knownSessions(state))
+    void pruneDrafts(knownTasks(state), knownSessions(state))
   }, [state])
 
   if (blocked !== undefined)
