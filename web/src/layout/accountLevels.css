@@ -90,6 +90,7 @@
 
 .account-level__identity {
   flex: 1 1 10ch;
+  align-items: baseline;
   min-width: 10ch;
 }
 
@@ -98,6 +99,12 @@
 .account-level__number {
   flex: none;
   white-space: nowrap;
+}
+
+.account-level__head > .account-level__number,
+.account-level__head > .account-level__summary,
+.account-level__head > .account-level__stale {
+  margin-left: auto;
 }
 
 .account-level--0 .account-card__name {
@@ -113,8 +120,8 @@
   color: var(--fg-muted);
   background: var(--surface-muted);
   border: 1px solid var(--border);
-  text-box: trim-both ex alphabetic;
-  padding-block: calc((18px - 1ex) / 2);
+  text-box: trim-both cap alphabetic;
+  padding-block: calc((18px - 1cap) / 2);
 }
 
 .account-level__number {

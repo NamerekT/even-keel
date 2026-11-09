@@ -40,8 +40,8 @@ export function AccountLevels({ account, levels, now, spend, tokens }: { account
       return <div key={level.account} className={`account-level account-level--${index}${index === 0 && marked ? ' account-level--changed' : ''}`} style={seriesStyle(entrySlot(account, entry))}>
         <div className="account-level__head">
           <div className="account-level__identity"><span className="account-card__name">{label}</span>
-            {plan && <span className="tag">{plan}</span>}</div>
-          <span className="chip account-level__source">{sourceText(level.source)}{level.task && <> <span className="account-level__task">{level.task}</span></>}</span>
+            {plan && <span className="tag">{plan}</span>}
+            <span className="chip account-level__source">{sourceText(level.source)}{level.task && <> <span className="account-level__task">{level.task}</span></>}</span></div>
           {stale && index === 0 && <span className="account-level__stale">{formatAgo(entry.limits!.updatedAt, now)}</span>}
           {index > 0 && (tightest ? <span className="account-level__number">{windowValue(tightest.window, 100 - tightest.free)}</span> : <AccountSummary entry={entry} spend={spend} tokens={tokens} />)}
         </div>
