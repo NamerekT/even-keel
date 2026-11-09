@@ -88,6 +88,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask`, `.rerunFailed` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
 | `milestoneOrder` | P | — | page ("Milestone order" in the main tracker's window, sent at once, `project/milestone-order`; not the form), hand | `[]` — the automatic order. Milestone labels, trimmed and deduplicated, else `config.milestoneOrder`; the chain ranks live milestones by it, a label not in it goes after its closest automatic predecessor, one gone is ignored (`src/chain/milestone-sequence.ts`, BTN-792) |
+| `badge` | P | — | hand (`config-import`; the badge's dialog, BTN-917) | `null` — no badge. `{ on, url, slug, fields }`: `url` http(s) or empty, `slug` lower-case letters, digits and dashes, `fields` from `BADGE_FIELDS` (left out — every field), else `config.badge`; applied live (`src/badge/settings.ts`, BTN-915, `docs/badge.md`) |
 | `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain/projects.md`, "Carrying a release project forward") |
 | `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain/projects.md`, "The carry session") |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain/pr-mode.md`) |
@@ -117,7 +118,7 @@ schema version of a file of the format.
 
 - **Credentials** — never in a draft or the settings tables. The trackers' (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`)
   are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"), and so is Forgejo's
-  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, Tally's own Postgres and classifier stay in `.env`, written from the `/settings` tab each belongs to
+  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, `EVEN_KEEL_BADGE_SECRET` (BTN-915), Tally's own Postgres and classifier stay in `.env`, written from the `/settings` tab each belongs to
   (BTN-131, BTN-355, "Credentials" below). Both are outside git (invariant 3).
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
@@ -288,11 +289,12 @@ the "Span classifier" section next to it (`ClassifierSettings`, one "Save" for t
 a blank key keeps the saved one). Nothing of it goes into the drafts of the groups, and an empty field is not a removal
 ("Remove" is, or a cleared classifier address or model).
 
-- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: Tally's list and `EVEN_KEEL_TOKEN`. No tracker or CI
+- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: Tally's list, `EVEN_KEEL_TOKEN` and `EVEN_KEEL_BADGE_SECRET` (BTN-915: no field on the page yet, the badge's dialog
+  BTN-917 writes it). No tracker or CI
   variable is in it any more: both CI tokens are profiles'. `secrets/set`, `secrets/remove` and `secrets/update` (several
   at once, `null` removing one) refuse a name that is not in it.
 - **Places** — the default profile of each tracker goes to the `env` of the global `settings.json` (sessions started by
-  hand read it there, the tracker plugin with them); a Forgejo profile does not; Tally's and the page token only to `.env`. `.env` is edited one line at a
+  hand read it there, the tracker plugin with them); a Forgejo profile does not; Tally's, the page token and the badge secret only to `.env`. `.env` is edited one line at a
   time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
   reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
   `docs/accounts.md`) and the "Trackers and CI" tab says so while live sessions hold its stop (`sessionsPending`).

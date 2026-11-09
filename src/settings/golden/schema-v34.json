@@ -131,6 +131,7 @@
         "Beta",
         "MVP"
       ],
+      "badge": null,
       "changelog": "CHANGELOG.md",
       "standards": [],
       "provider": null,
@@ -211,6 +212,7 @@
       "carryAgent": false,
       "fillMilestone": false,
       "milestoneOrder": [],
+      "badge": null,
       "changelog": "CHANGELOG.md",
       "standards": [],
       "provider": "codex",

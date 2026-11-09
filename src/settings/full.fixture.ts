@@ -49,6 +49,7 @@ export const FULL = {
       remoteProfiles: { github: ' 33333333-3333-4333-8333-333333333333 ', forgejo: '' },
       pullRequests: true,
       testProject: true,
+      badge: { on: true, url: 'https://badge.example.com/', slug: 'example', fields: ['context', 'chain', 'title'] },
       intakeLabel: ' accepted ',
       fillMilestone: true,
       changelog: '\\docs\\CHANGELOG.md',

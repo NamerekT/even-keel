@@ -15,12 +15,17 @@ describe('secretCatalog', () => {
     expect(spec('EVEN_KEEL_TOKEN')?.readers.page).toBe(true)
   })
 
-  it('has no tracker or CI variable: those are the profiles\', and keeps Tally first, then the page', () => {
+  it('has no tracker or CI variable: those are the profiles\', and keeps Tally first, then the page, then the badge', () => {
     expect(spec('GITHUB_TOKEN')).toBeUndefined()
     expect(spec('HULY_PASSWORD')).toBeUndefined()
     expect(spec('FORGEJO_TOKEN')).toBeUndefined()
     expect(catalog[0]?.name).toBe('TALLY_DB_HOST')
-    expect(catalog.at(-1)?.name).toBe('EVEN_KEEL_TOKEN')
+    expect(catalog.at(-2)?.name).toBe('EVEN_KEEL_TOKEN')
+    expect(catalog.at(-1)?.name).toBe('EVEN_KEEL_BADGE_SECRET')
+  })
+
+  it('keeps the badge secret in .env only, hidden, read by no part but the service', () => {
+    expect(spec('EVEN_KEEL_BADGE_SECRET')).toEqual({ name: 'EVEN_KEEL_BADGE_SECRET', secret: true, places: ['env'], readers: { tally: false, page: false } })
   })
 })
 

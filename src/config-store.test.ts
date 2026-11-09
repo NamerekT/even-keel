@@ -122,6 +122,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       intakeLabel: null,
       fillMilestone: true,
       milestoneOrder: [],
+      badge: null,
       changelog: 'CHANGELOG.md',
       provider: null,
       models: {},

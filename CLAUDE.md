@@ -23,6 +23,7 @@ This file holds only the rules and traps every session needs. How things are bui
 | `docs/design.md` | how the page looks: tokens, the CSS test, shared blocks, the check of a screen |
 | `docs/settings.md` | every setting and its levels (Even Keel, project, task label) |
 | `docs/stats.md` | the `/stats` page, its server and URLs |
+| `docs/badge.md` | the README badge: state, drawing, pushes to the Worker |
 | `docs/tally.md` | the Tally collector and its database: sources, schema, steps, views, rule versions |
 | `docs/service.md` | the service on Windows, Linux and macOS |
 | `docs/releases.md` | branches `main`, `dev`, `release/*`; trackers `BTN`, `EKR`, GitHub issues; releases and the CLI check |

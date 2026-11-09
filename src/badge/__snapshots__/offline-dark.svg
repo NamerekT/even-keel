@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="236" viewBox="0 0 840 236" role="img" aria-label="ABC · Example. OFFLINE · last seen 3 h ago. ABC-15 Draw the badge and push the chain state to a Worker in work">
+<title>ABC · Example. OFFLINE · last seen 3 h ago. ABC-15 Draw the badge and push the chain state to a Worker in work</title>
+<style>.s{font-family:ek-sans,system-ui,sans-serif}.m{font-family:ek-mono,ui-monospace,monospace}@keyframes ek-ring{from{transform:scale(1);opacity:.6}to{transform:scale(2.6);opacity:0}}@keyframes ek-breathe{0%,100%{opacity:1}50%{opacity:.35}}@keyframes ek-blink{0%,49%{opacity:1}50%,100%{opacity:0}}@keyframes ek-glow{0%,100%{opacity:.15}50%{opacity:.6}}.ring{opacity:0;transform-box:fill-box;transform-origin:center;animation:ek-ring 2s ease-out infinite}.breathe{animation:ek-breathe 4s ease-in-out infinite}.blink{animation:ek-blink 1.1s step-end infinite}.glow{animation:ek-glow 3s ease-in-out infinite}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<rect x="0.5" y="0.5" width="839" height="235" rx="14" fill="#141413" stroke="#34332f"/>
+<circle cx="40" cy="34" r="5" fill="#6f6d66"/>
+<text x="56" y="39" class="s" font-size="13" font-weight="600" fill="#9a988f" letter-spacing="1.5">OFFLINE · last seen 3 h ago</text>
+<text x="277.1" y="39" class="s" font-size="13" fill="#9a988f">Example</text>
+<text x="32" y="82" class="s" font-size="13" fill="#9a988f">was working on</text>
+<text x="136.9" y="82" class="m" font-size="15" fill="#7ea2ff">ABC-15</text>
+<text x="206.9" y="82" class="s" font-size="18" font-weight="600" fill="#ecebe6">Draw the badge and push the chain state to a Worker</text>
+<text x="206.9" y="106" class="s" font-size="12.5" fill="#9a988f">Claude Code · opus · started 0 min ago</text>
+<g opacity="0.5"><rect x="32.5" y="128.5" width="775" height="29" rx="8" fill="#1d1d1b" stroke="#34332f"/><clipPath id="bar-128"><rect x="32" y="128" width="776" height="30" rx="8"/></clipPath><rect x="32" y="128" width="372.5" height="30" fill="#f0bd3c" fill-opacity="0.22" clip-path="url(#bar-128)"/><rect x="403.5" y="128" width="2" height="30" fill="#f3d58a" fill-opacity="0.4"/><g transform="translate(43 136) scale(0.875)" fill="none" stroke="#7ea2ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l1-3.5L11 2.5l2.5 2.5L6.5 12z M9.5 4l2.5 2.5"/></g>
+<text x="62" y="147.7" class="m" font-size="13" fill="#f3d58a">Edit src/badge/render.ts</text>
+<text x="794" y="147.7" class="m" font-size="12" text-anchor="end"><tspan fill="#9a988f">context </tspan><tspan fill="#f3d58a">48%</tspan></text>
+</g>
+<rect x="32.5" y="180.5" width="85" height="25" rx="13" fill="#47c075" fill-opacity="0.12" stroke="#47c075" stroke-opacity="0.45"/>
+<path d="M60.8 193l2.7 2.7 5-5.4" fill="none" stroke="#47c075" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="74.8" y="197" class="m" font-size="12" fill="#47c075">14</text>
+<rect x="126.5" y="180.5" width="85" height="25" rx="13" fill="#5b92ff" fill-opacity="0.14" stroke="#7ea2ff"/>
+<circle cx="158.8" cy="193" r="3.5" fill="#7ea2ff"/>
+<text x="168.8" y="197" class="m" font-size="12" fill="#7ea2ff">15</text>
+<rect x="220.5" y="180.5" width="85" height="25" rx="13" fill="#262624" stroke="#34332f"/>
+<text x="255.8" y="197" class="m" font-size="12" fill="#9a988f">16</text>
+<text x="808" y="197" class="s" font-size="12.5" fill="#9a988f" text-anchor="end">v1 · 4 done · 2 to go</text>
+<text x="808" y="222" class="s" font-size="11" fill="#6f6d66" text-anchor="end">12 sessions · median task $1.20* · 18 min<tspan dx="14">* at API list prices</tspan></text>
+</svg>

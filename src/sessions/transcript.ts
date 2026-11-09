@@ -1,4 +1,6 @@
 import { cloudErrorNotice } from '../account/cloud-errors.js'
+import { badgeActionOf } from '../badge/action.js'
+import type { BadgeAction } from '../badge/model.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import type { Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
@@ -65,6 +67,8 @@ export interface FeedLine {
   files?: string[]
   /** The files a `SendUserFile` tool line sent the user, only in a whole transcript; the page fetches them by the call's id. */
   share?: Share
+  /** A tool line as the README badge may publish it (`badgeActionOf`, BTN-915); absent on lines of agents that do not set it. */
+  badge?: BadgeAction
 }
 
 export interface TokenTotals {
@@ -328,7 +332,7 @@ export class TranscriptFold {
         this.pullRequest = null
         this.noChanges = null
         const input = block.input ?? {}
-        const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
+        const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd), badge: badgeActionOf(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
         if (this.whole) Object.assign(line, callFacts(block.name, input, editSize(block.name, input)))
         if (this.whole && typeof block.id === 'string') {
