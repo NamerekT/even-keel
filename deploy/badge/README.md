@@ -36,11 +36,12 @@ first, as in `.dev.vars.example`).
 
 ## Connect Even Keel
 
-- The secret goes into Even Keel's `.env` as `EVEN_KEEL_BADGE_SECRET=<the same string>`.
-- The project's `badge` setting names the Worker and the project's slug: `{ "on": true, "url": "<the Worker's address>",
-  "slug": "my-project" }`. The slug is lower-case letters, digits and dashes. Until the page has a dialog for it, set it
-  through `npm run storage -- config-export` and `config-import`
-  ([the reference](https://github.com/NamerekT/even-keel/blob/main/docs/guide/reference.md)).
+In the project's settings → **Repository** → **README badge**: enter the Worker's address, the project's name on it
+(lower-case letters, digits and dashes) and the same secret, press **Check**, turn **Publish the badge** on and copy the
+snippet for the README. By hand: the secret is `EVEN_KEEL_BADGE_SECRET=<the same string>` in Even Keel's `.env`, and
+the project's `badge` setting is `{ "on": true, "url": "<the Worker's address>", "slug": "my-project" }` through
+`npm run storage -- config-export` and `config-import`
+([the reference](https://github.com/NamerekT/even-keel/blob/main/docs/guide/reference.md)).
 
 Even Keel then pushes the project's state, and the picture is at `<the Worker's address>/<slug>.svg`:
 

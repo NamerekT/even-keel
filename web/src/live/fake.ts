@@ -30,6 +30,7 @@ import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
 import { builtinVocabulary, fakeAttach, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
+import { fakeBadgeCheck, fakeBadgeUrl, withFakeBadge } from './fakeBadge.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -309,6 +310,7 @@ export function createFakeSource(search: string): LiveSource {
     const entry = current.state.account.accounts.find((each) => each.key === 'codex')!
     entry.name = params.get('limit') === 'codexLong' ? 'Build account for the documentation and integration project with a deliberately long display name' : 'Build account'
   }
+  if (params.has('badgeState') && current.state !== null) current.state = withFakeBadge(current.state, params.get('badgeState')!)
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   if (params.get('models') === 'many' && current.state !== null) current.state.config.shared.modelPrompts = MANY_MODEL_PROMPTS
   const builtinTracker = params.get('tracker') === 'builtin'
@@ -796,6 +798,7 @@ export function createFakeSource(search: string): LiveSource {
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
     sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index),
+    badgeUrl: (project, theme) => fakeBadgeUrl(current.state, project, theme),
     tools: async (project) => {
       await answer()
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null
@@ -828,6 +831,7 @@ export function createFakeSource(search: string): LiveSource {
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account), params.get('models')) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
+      if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
         current = { ...current, state: builtin.state }

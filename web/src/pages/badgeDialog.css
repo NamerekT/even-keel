@@ -1,0 +1,65 @@
+/* The README badge dialog over the project page (BTN-917): the settings' section cards inside the packages' frame. */
+
+.badge-dialog__body {
+  gap: var(--space-16);
+}
+
+.badge-dialog__deploy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-13);
+  color: var(--accent);
+}
+
+.badge-dialog__secret {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.badge-dialog__secret > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge-dialog__field--text .settings__control {
+  width: min(100%, 22em);
+}
+
+/* An address is read whole: it takes the card's width. */
+.badge-dialog__field--wide .settings__control {
+  width: 100%;
+}
+
+.badge-dialog__check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.badge-dialog__result {
+  flex: 1;
+  min-width: 14em;
+}
+
+/* The picture keeps its own width up to the card's; a light preview sits on a light ground, as a README would show it. */
+.badge-dialog__preview {
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.badge-dialog__preview > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.badge-dialog__needs {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}

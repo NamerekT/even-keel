@@ -23,6 +23,8 @@ function rig() {
   const posts: BadgeState[] = []
   const queries: PeriodQuery[] = []
   let answer: StatsAnswer<StatsPeriod> = { state: 'ok', data: period }
+  let down = false
+  const lines: string[] = []
   const wiring = wireBadges({
     config: () => ({ settings: { [ABC]: { badge } } }) as unknown as EvenKeelConfig,
     state: () => state,
@@ -34,15 +36,19 @@ function rig() {
     tz: 'UTC',
     secret: () => 's3cret',
     post: async (_url, _secret, body) => {
+      if (down) throw new Error('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND other.example.com') })
       posts.push(JSON.parse(body) as BadgeState)
       return { ok: true, status: 200 }
     },
-    log: () => {},
+    get: async () => ({ status: 200, type: 'image/svg+xml' }),
+    log: (line) => lines.push(line),
   })
   return {
     wiring,
     posts,
     queries,
+    lines,
+    down: () => (down = true),
     set: (next: BadgeSettings | null) => (badge = next),
     wait: (ms: number) => (now += ms),
     answer: (next: StatsAnswer<StatsPeriod>) => (answer = next),
@@ -92,5 +98,23 @@ describe('wireBadges', () => {
     const r = rig()
     expect(r.wiring.svg(ABC, 'light')).toMatch(/^<svg[^>]*aria-label="ABC · Example\. CHAIN STOPPED"/)
     expect(r.wiring.svg('22222222-2222-4222-8222-222222222222', 'dark')).toBeUndefined()
+  })
+
+  it('checks an address and a name the dialog gives with the project\'s state and its picked fields, and refuses an unknown project', async () => {
+    const r = rig()
+    r.set({ ...on, on: false })
+    const result = await r.wiring.check(ABC, 'https://other.example.com', 'abc')
+    expect(result).toEqual({ ok: true, notice: { code: 'badge.checked', params: {} } })
+    expect(r.posts).toHaveLength(1)
+    expect(r.posts[0]!.chain.tasks).toEqual([])
+    expect(r.posts[0]!.milestone).toBeUndefined()
+    await expect(r.wiring.check('22222222-2222-4222-8222-222222222222', 'https://other.example.com', 'abc')).rejects.toThrow()
+  })
+
+  it('logs why a Worker did not answer and gives the page only the notice', async () => {
+    const r = rig()
+    r.down()
+    expect(await r.wiring.check(ABC, 'https://other.example.com', 'abc')).toEqual({ ok: false, notice: { code: 'badge.unreachable', params: {} } })
+    expect(r.lines.at(-1)).toContain('fetch failed: getaddrinfo ENOTFOUND other.example.com')
   })
 })

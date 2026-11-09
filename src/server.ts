@@ -9,6 +9,8 @@ import type { EditChoice } from './account/settingsLayer.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { ModelList } from './agent/contract.js'
+import type { BadgeCheck } from './badge/check.js'
+import type { BadgeSettings } from './badge/model.js'
 import { formatEvent, type EventHub } from './events.js'
 import type { GuardSettings } from './guard.js'
 import { guardedServer } from './server-guard.js'
@@ -203,6 +205,10 @@ export interface SettingsControl {
   sourceMoves(project: string, feed: string | null, moves: StatusMoves): Promise<void>
   /** The project's own milestone order by label (BTN-792), all of it at once; an empty list goes back to the automatic order. */
   milestoneOrder(project: string, labels: string[]): void
+  /** The project's README badge (BTN-917), all of it at once; `null` — none. Refuses a bad address or name. */
+  badge(project: string, badge: BadgeSettings | null): void
+  /** The badge dialog's "Check" of a Worker's address and name with the push secret: a push, then a read of the picture. */
+  checkBadge(project: string, url: string, slug: string): Promise<BadgeCheck>
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** A banner's "Got it" (BTN-759): its ids with the stamps of what they said; one comes back once its stamp changes. */
@@ -361,7 +367,8 @@ const COMMANDS: Record<string, Command> = {
   'project/moves': ({ settings }, body) =>
     settings.sourceMoves(projectOf(body), body.feed === null || body.feed === undefined ? null : textOf(body.feed, 'feed'), statusMovesOf(body.moves, 'moves')),
   'project/milestone-order': ({ settings }, body) => settings.milestoneOrder(projectOf(body), listOf(body, 'request.milestoneList')),
-  settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
+  'project/badge': ({ settings }, body) => settings.badge(projectOf(body), body.badge === null ? null : (body.badge as BadgeSettings)),
+  settings:({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
   'notices/dismiss': ({ settings }, body) => settings.dismissNotices(mapOf<string>(body.entries, 'entries', (stamp) => typeof stamp === 'string')),
@@ -447,6 +454,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
   'models/list': ({ models }, body) => models(textOf(body.account, 'account')),
   'project/branches': ({ settings }, body) => settings.branches(projectOf(body)),
+  'project/badge/check': ({ settings }, body) => settings.checkBadge(projectOf(body), textOf(body.url, 'url'), textOf(body.slug, 'slug')),
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withBadge, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -275,6 +275,20 @@ describe('withNotice', () => {
   it('refuses a kind a project cannot turn off, and a kind that is none', () => {
     expect(() => parseConfig({ projects: [abc({ notices: { 'cli.versions': false } })] })).toThrow('ABC.notices.cli.versions is no notice that can be turned off here')
     expect(() => parseConfig({ projects: [], notices: { 'chain.paused': false } })).toThrow('notices.chain.paused is no notice')
+  })
+})
+
+describe('withBadge', () => {
+  it('writes the project\'s badge as the dialog sends it, address and name trimmed, and null drops the row (BTN-917)', () => {
+    const own = withBadge({ projects: [abc(), xyz()] }, 'id-abc', { on: true, url: ' https://badge.example.com ', slug: ' ABC ', fields: ['context', 'chain'] })
+    const config = parseConfig(own)
+    expect(config.settings['id-abc']!.badge).toEqual({ on: true, url: 'https://badge.example.com', slug: 'abc', fields: ['context', 'chain'] })
+    expect(config.settings['id-xyz']!.badge).toBeNull()
+    expect(withBadge(own, 'id-abc', null).projects).toEqual([abc(), xyz()])
+  })
+
+  it('refuses a badge the config would not read', () => {
+    expect(() => withBadge({ projects: [abc()] }, 'id-abc', { on: true, url: 'badge.example.com', slug: 'abc', fields: [] })).toThrow()
   })
 })
 

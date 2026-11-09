@@ -7,6 +7,7 @@ import { sharedEn } from './shared-en.js'
 import { helpEn } from './help-en.js'
 import { sessionEn } from './session-en.js'
 import { ciEn, ciKindsEn } from './ci-en.js'
+import { badgeEn } from './badge-en.js'
 import { profilesEn } from './profiles-en.js'
 import { demoEn } from './demo-en.js'
 import { noticesEn } from './notices-en.js'
@@ -320,6 +321,7 @@ export const en: Messages = {
     count: counted('question', 'questions'),
   },
   ci: ciEn,
+  badge: badgeEn,
   cache: {
     ttl: { '5m': '5 min', '30m': '30 min', '1h': '1 h' },
     cold: (at: string) => `The prompt cache went cold at ${at}: the next turn rereads the whole context at the write price`,

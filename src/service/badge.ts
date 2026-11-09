@@ -1,4 +1,6 @@
+import { checkBadge, getBadge, type BadgeCheck, type BadgeCheckDeps } from '../badge/check.js'
 import { ALL_BADGE_FIELDS, badgeStateOf } from '../badge/collect.js'
+import { englishOf, fail } from '../notice/notice.js'
 import { BADGE_SECRET, type BadgeField, type BadgeStats } from '../badge/model.js'
 import { BadgePusher, postBadge, type BadgePushDeps } from '../badge/push.js'
 import { renderBadge } from '../badge/render.js'
@@ -19,6 +21,7 @@ export interface BadgeWiringDeps {
   now?: () => number
   tz?: string
   post?: BadgePushDeps['post']
+  get?: BadgeCheckDeps['get']
   secret?: () => string | undefined
   log?: (line: string) => void
 }
@@ -28,6 +31,8 @@ export interface BadgeWiring {
   tick: () => Promise<void>
   /** The project's badge as the page previews it; `undefined` — no such project. */
   svg: (project: string, theme: 'dark' | 'light') => string | undefined
+  /** The badge dialog's "Check": the project's state pushed to the address and name, its picture read back. */
+  check: (project: string, url: string, slug: string) => Promise<BadgeCheck>
 }
 
 /**
@@ -61,23 +66,33 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project) })
   }
 
+  const secret = deps.secret ?? (() => process.env[BADGE_SECRET])
+  const post = deps.post ?? postBadge
+  const log = deps.log ?? ((line: string) => console.log(line))
+  const fieldsOf = (project: string) => deps.config().settings[project]?.badge?.fields ?? ALL_BADGE_FIELDS
   const pusher = new BadgePusher({
     targets: () =>
       Object.entries(deps.config().settings).flatMap(([project, { badge }]) =>
         badgePushes(badge) ? [{ project, settings: badge, state: () => stateOf(project, badge.fields) }] : [],
       ),
-    secret: deps.secret ?? (() => process.env[BADGE_SECRET]),
-    post: deps.post ?? postBadge,
+    secret,
+    post,
     now,
-    log: deps.log ?? ((line) => console.log(line)),
+    log,
   })
 
   return {
     tick: () => pusher.tick(),
     svg: (project, theme) => {
-      const fields = deps.config().settings[project]?.badge?.fields ?? ALL_BADGE_FIELDS
-      const state = stateOf(project, fields)
+      const state = stateOf(project, fieldsOf(project))
       return state === undefined ? undefined : renderBadge(state, { theme, now: new Date(now()) })
+    },
+    check: async (project, url, slug) => {
+      const state = stateOf(project, fieldsOf(project))
+      if (state === undefined) throw fail('chain.unknownProject', { project })
+      const { cause, ...result } = await checkBadge({ url, slug }, { secret: secret(), state, now, post, get: deps.get ?? getBadge })
+      log(`badge: the check of ${url.trim()} for ${state.project.key}: ${englishOf(result.notice)}${cause === undefined ? '' : ` (${cause})`}`)
+      return result
     },
   }
 }

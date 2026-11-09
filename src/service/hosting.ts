@@ -22,6 +22,7 @@ import { gitSetup } from '../git/setup.js'
 import { withDismissed } from '../notice/kinds.js'
 import { saveBrowserHotkeys } from '../storage/browser-hotkeys.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
+import { isBadgeSlug, isHttp } from '../badge/settings.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
 import { checkDraft, isTrusted } from '../projects/check.js'
@@ -428,6 +429,14 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         const label = projectLabel(ctx.configStore.current, project)
         console.log(labels.length === 0 ? `page: the milestone order of ${label} is back to automatic` : `page: the milestone order of ${label} is written to the config`)
       },
+      badge: (project, badge) => {
+        if (badge !== null && typeof badge.url === 'string' && badge.url.trim() !== '' && !isHttp(badge.url.trim())) throw fail('badge.url', {})
+        if (badge !== null && typeof badge.slug === 'string' && badge.slug.trim() !== '' && !isBadgeSlug(badge.slug.trim().toLowerCase())) throw fail('badge.slug', {})
+        ctx.configStore.saveBadge(project, badge)
+        console.log(`page: the README badge of ${projectLabel(ctx.configStore.current, project)} is written to the config`)
+        void ctx.badges.tick()
+      },
+      checkBadge: (project, url, slug) => ctx.badges.check(project, url, slug),
       dismissUpdate: (version) => {
         ctx.dismissedUpdate = version
         ctx.writes.add('the dismissed update', setStateValue(ctx.db, 'updates.dismissed', version))

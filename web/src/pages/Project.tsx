@@ -70,12 +70,14 @@ import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsChip } from './ToolsLink.js'
 import { ADD_PARAM, PACKAGES_PARAM } from '../tools/packageGroups.js'
+import { BADGE_PARAM } from './BadgeButton.js'
 import { useArrival } from './useArrival.js'
 import { chainRunControl } from '../hotkeys/actions.js'
 import { useHotkey } from '../hotkeys/useHotkeys.js'
 import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
+const BadgeDialog = lazy(async () => ({ default: (await import('./BadgeDialog.js')).BadgeDialog }))
 const ProjectPackages = lazy(async () => ({ default: (await import('../tools/ProjectPackages.js')).ProjectPackages }))
 const CARD_PARAM = 'task'
 
@@ -176,6 +178,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   // The project's packages over its page (BTN-802), the settings panel kept open under them.
   const search = new URLSearchParams(location.search)
   const packagesOpen = search.has(PACKAGES_PARAM)
+  const badgeOpen = search.has(BADGE_PARAM)
   const leavePackages = (...params: string[]) => {
     const next = new URLSearchParams(location.search)
     for (const param of params) next.delete(param)
@@ -278,6 +281,11 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
       )}
       {flight !== null && (
         <Flight key={flight.id} task={flight.id} title={flight.title} since={flight.since} onLand={() => arrival.land(flight.id)} />
+      )}
+      {badgeOpen && (
+        <Suspense fallback={null}>
+          <BadgeDialog key={`badge-${key}`} state={state} project={key} onClose={() => leavePackages(BADGE_PARAM)} />
+        </Suspense>
       )}
       {packagesOpen && (
         <Suspense fallback={null}>

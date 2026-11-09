@@ -93,10 +93,39 @@ They are read in the background at most every 15 min; with Tally off the badge h
 
 ## Setting and secret
 
-- `badge` — a project setting (`docs/settings.md`): `null` — no badge, else `{ on, url, slug, fields }`. Read only for
-  now: the page's form does not write it until the badge's dialog (BTN-917); set it by hand through `config-import`.
-  A bad value is `config.badge`; it applies live.
-- `EVEN_KEEL_BADGE_SECRET` in `.env` — the Worker's push secret.
+- `badge` — a project setting (`docs/settings.md`): `null` — no badge, else `{ on, url, slug, fields }`. The project
+  form leaves it alone; the badge's dialog writes it (below), `config-import` by hand. A bad value is `config.badge`;
+  it applies live.
+- `EVEN_KEEL_BADGE_SECRET` in `.env` — the Worker's push secret, one for all projects.
+
+## The dialog
+
+Project settings → Repository has a line "README badge" after the Repository card (`BadgeButton.tsx`, the look of
+"Project packages"): off, no address yet, or `published: <host>/<slug>`. It opens `?badge=1` over the project page,
+the settings tab kept (`BadgeDialog.tsx`, lazy). Four cards, each change written at once — no "Save" of its own:
+
+- **Where to publish** — the switch `on`, the Worker address (`url`) and its name on the Worker (`slug`, the project
+  key in lower case until one is given, `defaultSlug`), written on blur or Enter; the push secret through
+  `secrets/set` (the page sees only whether it is set; one from outside `.env` disables the field); a link to
+  `deploy/badge/README.md` on GitHub. "Check" pushes the project's current state to the address and name in the
+  fields, saved or not, then reads the picture back (`checkBadge`, `src/badge/check.ts`). Its answer is a band under
+  the button: `badge.checked`, or `badge.url`, `badge.slug`, `badge.noSecret`, `badge.unreachable` (the network error
+  only in the log), `badge.refused` (401), `badge.notWorker` (404), `badge.rejected` (400), `badge.pushStatus`, then
+  for the picture `badge.imageStatus`, `badge.notSvg`.
+- **What to show** — eight switches over `fields` (`BADGE_GROUPS` in `badgeParts.ts`): tasks in work and the action
+  (`agent`, `model`, `time`, `action` together), context, the chain, the milestone, sessions, median cost, median time,
+  English titles. The dialog always writes the full list.
+- **Preview** — the picture from the preview route above, dark or light, fetched again as the state moves but at most
+  every 5 s, and at once when a field changes.
+- **For the README** — the link a press on the badge leads to, guessed from the project's remotes (`releasesLink`:
+  a GitHub remote's releases first, then GitLab's `/-/releases`, then any other hosted one), editable and not saved;
+  under it the snippet (`badgeMarkdown`): a `<picture>` with the light theme for a light reader and the dark one
+  otherwise, inside `<a>` when the link is not empty. Without an address and a name only a line saying so.
+
+The commands: `project/badge` `{ project, badge }` — `badge.url`/`badge.slug` for a bad address or name, else
+`ConfigStore.saveBadge` (`withBadge` in `src/config-form.ts`) and a push tick; the query `project/badge/check`
+`{ project, url, slug }` → `{ ok, notice }`. In `dev:fake`: `?badgeState=filled`, `?badgeCheck=refused|unreachable`
+(`docs/web/fake-states.md`).
 
 ## Preview
 

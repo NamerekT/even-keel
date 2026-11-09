@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { needsCheckedCli } from './agent/providers.js'
+import type { BadgeSettings } from './badge/model.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
 import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -126,6 +127,11 @@ export class ConfigStore {
   /** Writes the project's own milestone order (BTN-792); an empty one goes back to the automatic order. */
   saveMilestoneOrder(project: string, labels: readonly string[]): void {
     this.write(withSavedMilestoneOrder(this.raw(), this.idOf(project), labels))
+  }
+
+  /** The project's README badge (BTN-917), as the badge dialog writes it; `null` — none. */
+  saveBadge(project: string, badge: BadgeSettings | null): void {
+    this.write(withBadge(this.raw(), this.idOf(project), badge))
   }
 
   /** Drops the project's feed, by the same rule as `saveProject`. */

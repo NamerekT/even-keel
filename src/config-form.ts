@@ -1,3 +1,5 @@
+import type { BadgeSettings } from './badge/model.js'
+import { badgeSettingsOf } from './badge/settings.js'
 import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import { DEFAULT_RULES, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import { CI_KINDS } from './ci/model.js'
@@ -363,6 +365,15 @@ export function withSavedMilestoneOrder(raw: unknown, project: string, labels: r
   const trimmed = labels.map((label) => label.trim()).filter((label) => label !== '')
   const clean = trimmed.filter((label, index) => trimmed.indexOf(label) === index)
   return withRows(raw, [clean.length === 0 ? { op: 'unset', key: 'milestoneOrder', project, qualifier: '' } : { op: 'set', key: 'milestoneOrder', project, qualifier: '', value: clean }])
+}
+
+/**
+ * The raw config with the project's README badge (BTN-917): what the badge dialog writes, read back as the config reads
+ * it, so a bad address or name is refused here; `null` drops the row — no badge.
+ */
+export function withBadge(raw: unknown, project: string, badge: BadgeSettings | null): Record<string, unknown> {
+  const clean = badge === null ? null : badgeSettingsOf(badge, 'badge')
+  return withRows(raw, [clean === null ? { op: 'unset', key: 'badge', project, qualifier: '' } : { op: 'set', key: 'badge', project, qualifier: '', value: clean }])
 }
 
 /** The raw config with Tally's place set: what the page's stats setup and settings write. */

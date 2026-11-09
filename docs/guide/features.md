@@ -407,6 +407,19 @@ OpenCode and Copilot accounts on the machine's sign-in can continue without an e
 
 Several projects in separate clones of one repository, on the same main branch, share a red `main`: while one of them fixes it, the others start no new task and start no second fix of the same break; their sessions already at work go on. Once the fix is green, they all go on.
 
+## README badge
+
+A project can show its chain in its README the way a CI badge shows a build: the tasks in work and what the agent is doing, the context fill, the chain as chips, the milestone and the last 30 days' numbers. Even Keel pushes the project's state to a small Cloudflare Worker you deploy once for all your projects ([`deploy/badge`](../../deploy/badge/README.md)); the README shows the Worker's picture, so the page itself stays private.
+
+Set it up in the project's settings → **Repository** → **README badge**:
+
+1. **Where to publish** — the Worker's address, the project's name on it (its key in lower case by default) and the push secret you gave the Worker, one for all projects. **Check** pushes the project's state and reads the picture back, and says what is wrong: the address, the secret, or a Worker that needs deploying again. Turn **Publish the badge** on.
+2. **What to show** — a switch per part of the badge. A task's tracker title never leaves Even Keel: the badge shows only its English title, and the task's key alone where there is none.
+3. **Preview** — the badge as it looks now, in the dark and the light theme.
+4. **For the README** — the snippet to paste: the light picture for readers with a light theme, the dark one otherwise, linked to the repository's releases page (edit the link if it should lead elsewhere).
+
+Each change applies at once; turning the badge off publishes a stopped chain one last time.
+
 ## A check without CI
 
 A project with no CI, or whose CI does not answer, can name its own check commands, such as `npm run typecheck && npm test`. A session's merge into `main` waits until they pass in the task's worktree (a hook of the [checkpoint](../../plugins/checkpoint) plugin), and a failure goes back to the session to fix. If `main` moved while the task ran, Even Keel runs the check again on `main` in the next task's worktree before that task starts; a failure there is handled like a red CI.

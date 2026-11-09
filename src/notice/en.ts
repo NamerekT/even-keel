@@ -613,6 +613,17 @@ export const en = {
   'config.milestoneOrder': (p: { where: string }) => `config: ${p.where} must be a list of milestone names`,
   'config.badge': (p: { where: string }) =>
     `config: ${p.where} must be null or { on, url, slug, fields }: on true or false, url an http(s) address, slug lower-case letters, digits and dashes, fields known badge fields`,
+  'badge.url': () => 'The Worker address must start with https://, like https://even-keel-badge.example.workers.dev',
+  'badge.slug': () => 'The name on the Worker may hold only lower-case Latin letters, digits and dashes, not at its ends',
+  'badge.noSecret': () => 'The push secret is not set: enter the secret you gave the Worker when you deployed it',
+  'badge.unreachable': () => 'The Worker did not answer: check its address and that it is deployed',
+  'badge.refused': () => 'The Worker refused the push secret: enter the same secret as the Worker has',
+  'badge.notWorker': () => 'Nothing at this address takes badge pushes: check that it is the address of your badge Worker',
+  'badge.rejected': () => 'The Worker refused the badge as unreadable: deploy it again to take its latest version',
+  'badge.pushStatus': (p: { status: number }) => `The Worker answered the push with error ${p.status}: try again later`,
+  'badge.imageStatus': (p: { status: number }) => `The Worker took the push, but its picture answered with error ${p.status}: deploy the Worker again`,
+  'badge.notSvg': () => 'The Worker took the push, but the address gives no badge picture: check that it is the address of your badge Worker',
+  'badge.checked': () => 'The Worker took the push and draws the badge',
   'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
     `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
   'config.feedPlace': (p: { project: string; other: string }) =>

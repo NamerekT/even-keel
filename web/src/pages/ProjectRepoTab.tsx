@@ -2,6 +2,7 @@ import type { BranchDrift, ConfigView, EvenKeelState, ProjectForm, RepoBranches 
 import { t } from '../i18n/index.js'
 import { PROJECT_SLOTS, projectLabel } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
+import { BadgeButton } from './BadgeButton.js'
 import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import type { PanelFields } from './projectSettingsFields.js'
@@ -121,6 +122,7 @@ export function ProjectRepoTab({
           {notes('color')}
         </div>
       </Section>
+      <BadgeButton project={project} badge={form.badge} />
       <ProjectRemove project={project} />
     </>
   )
