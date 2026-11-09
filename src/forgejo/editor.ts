@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
+import { markerComment, withMarker } from '../tracker/markers.js'
 import type { Repo, RepoMap } from '../github/model.js'
 import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
@@ -23,6 +25,7 @@ export interface ForgejoEditorDeps {
 }
 
 const NO_PARENT = 'Forgejo has no subtasks; name the parent in the description instead'
+const MARKER_LIMIT = 25
 
 /**
  * Forgejo's writes for the tasks MCP server (BTN-875), over the Gitea API. A status is the issue's state, a priority
@@ -73,7 +76,7 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
   return {
     list: (project) => deps.list(project),
     priorities: (labels) => labels.some((each) => forgejoPriority([each]) !== 'none'),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       const repo = repos.repoOf(project)
       const key = repos.projectKey(project)
       if (repo === undefined || key === undefined) throw new EditRefused(`project ${project} has no Forgejo repository`)
@@ -85,7 +88,7 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
       ])
       const created = await rest<ForgejoIssue>(`/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/issues`, 'POST', {
         title: draft.title,
-        body: draft.description,
+        body: withMarker(draft.description, marker),
         ...(milestone === null ? {} : { milestone }),
       })
       const id = `${key}-${created.number}`
@@ -97,6 +100,19 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
         throw new EditRefused(`${id} was created, but ${error instanceof Error ? error.message : String(error)}; do not create it again`)
       }
       return id
+    },
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker, limit = MARKER_LIMIT) {
+        const repo = repos.repoOf(project)
+        const key = repos.projectKey(project)
+        if (repo === undefined || key === undefined) throw new EditRefused(`project ${project} has no Forgejo repository`)
+        const issues = await rest<Pick<ForgejoIssue, 'number' | 'body' | 'pull_request'>[]>(
+          `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/issues?state=all&type=issues&sort=latest&limit=${limit}`,
+        )
+        const found = issues.find((each) => each.pull_request == null && each.body?.includes(markerComment(marker)))
+        return found === undefined ? null : `${key}-${found.number}`
+      },
     },
     async set(id, field) {
       const issue = await issueOf(id)

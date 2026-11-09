@@ -44,6 +44,25 @@ async function connect(replies: Reply[]) {
 }
 
 describe('github source', () => {
+  it('looks up retry markers through authenticated REST and refuses HTTP failures', async () => {
+    const marker = 'test-marker'
+    const urls: string[] = []
+    const requests: RequestInit[] = []
+    let status = 200
+    const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+      urls.push(String(url))
+      requests.push(init!)
+      if (String(url).endsWith('/graphql')) return Response.json({ data: { viewer: { login: 'octocat' } } })
+      return Response.json([{ number: 17, body: `<!-- even-keel:${marker} -->` }], { status })
+    }
+    const source = await connectGithub({ token: 'github_pat_example', projects: PROJECTS }, 5_000, fetchImpl)
+    expect(await source.editor!.markers!.find('ABC', marker)).toBe('ABC-17')
+    expect(urls[1]).toBe('https://api.github.com/repos/octo-org/abc/issues?state=all&sort=created&direction=desc&per_page=25')
+    expect(requests[1]).toMatchObject({ headers: { authorization: 'bearer github_pat_example', accept: 'application/vnd.github+json' }, signal: expect.any(AbortSignal) })
+    status = 403
+    await expect(source.editor!.markers!.find('ABC', marker)).rejects.toThrow(/HTTP 403/)
+  })
+
   it('checks the token on connect and refuses a bad one', async () => {
     const fake = fakeFetch([{ status: 401, body: { message: 'Bad credentials' } }])
     await expect(connectGithub({ token: 'bad', projects: PROJECTS }, 5_000, fake.fetch)).rejects.toThrow(/401.*Bad credentials/)

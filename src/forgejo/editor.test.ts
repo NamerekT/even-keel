@@ -8,6 +8,8 @@ import type { ForgejoIssue } from './model.js'
 const BASE = '/repos/example-org/app/issues'
 
 function fixture(dependencies: 'on' | 'off' = 'on') {
+  const recent = { issues: [] as unknown[], error: null as Error | null }
+  const reads: string[] = []
   const issues: Record<number, ForgejoIssue> = {
     1: issue({ number: 1, body: 'Old text' }),
     2: issue({ number: 2, state: 'closed', labels: [], milestone: null }),
@@ -19,8 +21,15 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
   const relabels: [string, unknown][] = []
   const uploads: [string, string][] = []
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+    if (method === 'GET' && path.includes('?')) {
+      reads.push(path)
+      if (recent.error !== null) throw recent.error
+      return recent.issues as T
+    }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      const description = (body as { body?: string } | undefined)?.body
+      if (description !== undefined && (path === BASE || path === `${BASE}/10`)) issues[10]!.body = description
       return { number: 10 } as T
     }
     return issues[Number(/\/issues\/(\d+)$/.exec(path)![1])] as T
@@ -39,10 +48,41 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
     comment: async () => '5',
     upload: async (path, file) => void uploads.push([path, file.name]),
   })
-  return { editor, writes, relabels, uploads }
+  return { editor, writes, relabels, uploads, recent, reads }
 }
 
 describe('forgejoEditor', () => {
+  it('creates a retry marker in the description, including an empty one', async () => {
+    const { editor, writes } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).not.toBe(editor.markers!.make())
+    const draft = { title: 'New', description: 'Text', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('P1', draft, [], marker)
+    await editor.create('P1', { ...draft, description: '' }, [], marker)
+    expect(writes.map((each) => each[2])).toEqual([{ title: 'New', body: `Text\n\n<!-- even-keel:${marker} -->` }, { title: 'New', body: `<!-- even-keel:${marker} -->` }])
+    const comment = `<!-- even-keel:${marker} -->`
+    expect(await editor.revision('APP-10')).toBe(revisionOf(comment))
+    await editor.patch('APP-10', [], 'Section')
+    expect(writes.at(-1)![2]).toEqual({ body: `${comment}\n\nSection` })
+    await editor.describe('APP-10', 'Replacement', revisionOf(`${comment}\n\nSection`))
+    expect(writes.at(-1)![2]).toEqual({ body: 'Replacement' })
+  })
+
+  it('finds exact markers on the newest issue page, excludes PRs and propagates failures', async () => {
+    const { editor, recent, reads } = fixture()
+    const marker = editor.markers!.make()
+    recent.issues = [{ number: 9, body: `<!-- even-keel:${marker} -->`, pull_request: {} }, { number: 8, body: null }, { number: 7, body: `<!-- even-keel:${marker}x -->` }]
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.issues.push({ number: 6, body: `Text\n\n<!-- even-keel:${marker} -->` })
+    expect(await editor.markers!.find('P1', marker, 7)).toBe('APP-6')
+    expect(reads).toEqual([`${BASE}?state=all&type=issues&sort=latest&limit=25`, `${BASE}?state=all&type=issues&sort=latest&limit=7`])
+    recent.issues = []
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.error = new Error('offline')
+    await expect(editor.markers!.find('P1', marker)).rejects.toThrow('offline')
+    await expect(editor.markers!.find('missing', marker)).rejects.toThrow(/no Forgejo repository/)
+  })
+
   it('uploads files as assets of the issue, and of a comment after posting it (BTN-895)', async () => {
     const { editor, uploads } = fixture()
     const file = { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1]) }

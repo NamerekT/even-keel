@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/editor.js'
+import { markerComment, withMarker } from '../tracker/markers.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound } from '../tracker/source.js'
@@ -6,6 +8,7 @@ import { GITHUB_STATUSES, githubPriority, githubStatus, PRIORITY_LABEL, type Iss
 
 export interface GithubEditorDeps {
   graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T>
+  rest<T>(path: string): Promise<T>
   repos: RepoMap
   /** Every issue of the project's repository, open and closed. */
   list(project: string): Promise<TrackerTask[]>
@@ -29,6 +32,7 @@ interface EditIssue extends NodeRef {
 }
 
 const REF = 'id number repository { nameWithOwner }'
+const MARKER_LIMIT = 25
 
 const EDIT_ISSUE = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
@@ -156,7 +160,7 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
   return {
     list: (project) => deps.list(project),
     priorities: (labels) => labels.some((each) => PRIORITY_LABEL.test(each.trim())),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       const repo = repos.repoOf(project)
       const key = repos.projectKey(project)
       if (repo === undefined || key === undefined) throw new EditRefused(`project ${project} has no GitHub repository`)
@@ -166,7 +170,7 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
       const input = {
         repositoryId: context.id,
         title: draft.title,
-        body: draft.description,
+        body: withMarker(draft.description, marker),
         ...(draft.milestone === null ? {} : { milestoneId: context.milestoneId() }),
         ...(parent === null ? {} : { parentIssueId: parent.id }),
       }
@@ -176,6 +180,19 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
       if (labels.length > 0) await deps.relabel(id, { add: labels, remove: [] })
       if (draft.status !== null && CLOSED_REASONS[draft.status.toLocaleLowerCase()] !== undefined) await setStatus(await issueOf(id), draft.status)
       return id
+    },
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker, limit = MARKER_LIMIT) {
+        const repo = repos.repoOf(project)
+        const key = repos.projectKey(project)
+        if (repo === undefined || key === undefined) throw new EditRefused(`project ${project} has no GitHub repository`)
+        const issues = await deps.rest<{ number: number; body?: string | null; pull_request?: unknown }[]>(
+          `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/issues?state=all&sort=created&direction=desc&per_page=${limit}`,
+        )
+        const found = issues.find((each) => each.pull_request == null && each.body?.includes(markerComment(marker)))
+        return found === undefined ? null : `${key}-${found.number}`
+      },
     },
     async set(id, field) {
       const issue = await issueOf(id)

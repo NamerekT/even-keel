@@ -7,6 +7,8 @@ const status = (name: string) => ({ id: name, name, statusCategory: { key: 'new'
 const ref = (key: string) => ({ key, fields: { summary: key, status: status('To Do') } })
 
 function fixture() {
+  const recent = { issues: [] as unknown[], error: null as Error | null }
+  const searches: unknown[] = []
   const issues: Record<string, Record<string, unknown>> = {
     'ABC-1': { summary: 'Epic', status: status('To Do'), priority: { id: '3', name: 'Medium' }, fixVersions: [{ id: 'v1', name: '1.0' }], issuetype: { hierarchyLevel: 1 }, description: markdownToAdf('Old text') },
     'ABC-2': {
@@ -20,6 +22,11 @@ function fixture() {
   const comments: [string, string][] = []
   const uploads: [string, string[]][] = []
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+    if (path === '/search/jql') {
+      searches.push(body)
+      if (recent.error !== null) throw recent.error
+      return { issues: recent.issues } as T
+    }
     if (method !== 'GET') {
       writes.push([method, path, body])
       return { key: 'ABC-10' } as T
@@ -44,10 +51,32 @@ function fixture() {
     componentsOf: async () => [{ id: 'c-ui', name: 'UI' }, { id: 'c-server', name: 'Server' }],
     upload: async (id, files) => void uploads.push([id, files.map((file) => file.name)]),
   })
-  return { editor, writes, issues, comments, uploads }
+  return { editor, writes, issues, comments, uploads, recent, searches }
 }
 
 describe('jiraEditor', () => {
+  it('creates a retry marker as an issue property without changing the description', async () => {
+    const { editor, writes } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).not.toBe(editor.markers!.make())
+    await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null }, [], marker)
+    expect(writes).toEqual([['POST', '/issue', { fields: { project: { key: 'ABC' }, issuetype: { id: 'task' }, summary: 'New', description: markdownToAdf('') }, properties: [{ key: 'even-keel', value: marker }] }]])
+  })
+
+  it('finds the exact marker property on the newest project issues and propagates failures', async () => {
+    const { editor, recent, searches } = fixture()
+    const marker = editor.markers!.make()
+    recent.issues = [{ key: 'ABC-9' }, { key: 'ABC-8', properties: { 'even-keel': `${marker}x` } }]
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.issues.push({ key: 'ABC-7', properties: { 'even-keel': marker } })
+    expect(await editor.markers!.find('P1', marker, 7)).toBe('ABC-7')
+    expect(searches).toEqual([{ jql: 'project = "ABC" ORDER BY created DESC', fields: [], maxResults: 25, properties: ['even-keel'] }, { jql: 'project = "ABC" ORDER BY created DESC', fields: [], maxResults: 7, properties: ['even-keel'] }])
+    recent.issues = []
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.error = new Error('offline')
+    await expect(editor.markers!.find('P1', marker)).rejects.toThrow('offline')
+  })
+
   it('creates a task under an epic with every field, then moves it through a transition', async () => {
     const { editor, writes } = fixture()
     expect(await editor.create('P1', { title: 'New', description: 'Text', status: 'In Progress', priority: 'urgent', milestone: '2.0', labels: ['bug'], parent: 'ABC-1' })).toBe('ABC-10')

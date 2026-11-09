@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
+import { markerComment, withMarker } from '../tracker/markers.js'
 import { descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
@@ -28,6 +30,7 @@ const SET_PARENT = `mutation($id: WorkItemID!, $parent: WorkItemID) {
 }`
 
 const LINK_TYPES: Record<TaskLink, GitlabLink['link_type']> = { blocks: 'blocks', blockedBy: 'is_blocked_by', relates: 'relates_to' }
+const MARKER_LIMIT = 25
 
 /** An issue's work item: GitLab gives an issue and its work item the same id. */
 const workItem = (issue: Pick<GitlabIssue, 'id'>) => `gid://gitlab/WorkItem/${issue.id}`
@@ -91,7 +94,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
   return {
     list: (project) => deps.list(project),
     priorities: (labels) => labels.some((each) => gitlabPriority([each]) !== 'none'),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       const path = projects.pathOf(project)
       const key = projects.keyOf(project)
       if (path === undefined || key === undefined) throw new EditRefused(`project ${project} has no GitLab path`)
@@ -103,7 +106,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
       ])
       const created = await rest<GitlabIssue>(`${projectBase(path)}/issues`, 'POST', {
         title: draft.title,
-        description: draft.description,
+        description: withMarker(draft.description, marker),
         // An issue takes only tasks as children.
         ...(parent?.issue_type === 'issue' ? { issue_type: 'task' } : {}),
         ...(milestone === null ? {} : { milestone_id: milestone }),
@@ -120,6 +123,19 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
         throw new EditRefused(`${id} was created, but ${error instanceof Error ? error.message : String(error)}; do not create it again`)
       }
       return id
+    },
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker, limit = MARKER_LIMIT) {
+        const path = projects.pathOf(project)
+        const key = projects.keyOf(project)
+        if (path === undefined || key === undefined) throw new EditRefused(`project ${project} has no GitLab path`)
+        const issues = await rest<Pick<GitlabIssue, 'iid' | 'description'>[]>(
+          `${projectBase(path)}/issues?state=all&scope=all&order_by=created_at&sort=desc&per_page=${limit}`,
+        )
+        const found = issues.find((each) => each.description?.includes(markerComment(marker)))
+        return found === undefined ? null : `${key}-${found.iid}`
+      },
     },
     async set(id, field) {
       const issue = await issueOf(id)

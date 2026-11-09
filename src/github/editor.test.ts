@@ -7,6 +7,8 @@ import { RepoMap } from './model.js'
 const REPO = { nameWithOwner: 'octo-org/abc' }
 
 function fixture() {
+  const recent = { issues: [] as unknown[], error: null as Error | null }
+  const reads: string[] = []
   const issue = (number: number, more: Record<string, unknown> = {}) => ({
     id: `I${number}`, number, repository: REPO, title: `Issue ${number}`, body: '', state: 'OPEN', stateReason: null,
     milestone: null, parent: null, labels: { nodes: [] as { name: string }[] }, blockedBy: { nodes: [] as unknown[] }, ...more,
@@ -22,7 +24,11 @@ function fixture() {
     const name = /mutation[^{]*\{\s*(\w+)/.exec(query)?.[1]
     if (name !== undefined) {
       mutations.push([name, variables])
-      if (name === 'createIssue') issues.set(10, issue(10))
+      if (name === 'createIssue') issues.set(10, issue(10, { body: (variables.input as { body: string }).body }))
+      if (name === 'updateIssue') {
+        const input = variables.input as { id: string; body?: string }
+        if (input.body !== undefined) issues.get(Number(input.id.slice(1)))!.body = input.body
+      }
       return { createIssue: { issue: { number: 10 } } } as T
     }
     if (query.includes('query: "priority"')) {
@@ -34,6 +40,11 @@ function fixture() {
   }
   const editor = githubEditor({
     graphql,
+    rest: async <T>(path: string): Promise<T> => {
+      reads.push(path)
+      if (recent.error !== null) throw recent.error
+      return recent.issues as T
+    },
     repos: new RepoMap({ P1: { key: 'ABC', value: 'octo-org/abc' } }),
     list: async () => [],
     relabel: async (id, change) => {
@@ -42,10 +53,42 @@ function fixture() {
     },
     comment: async () => 'C1',
   })
-  return { editor, mutations, relabels }
+  return { editor, mutations, relabels, recent, reads }
 }
 
 describe('githubEditor', () => {
+  it('creates a hidden retry marker, counts it in revisions and preserves it on patches', async () => {
+    const { editor, mutations } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).not.toBe(editor.markers!.make())
+    const comment = `<!-- even-keel:${marker} -->`
+    const draft = { title: 'New', description: 'Text', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('P1', draft, [], marker)
+    expect(mutations[0]![1]).toMatchObject({ input: { body: `Text\n\n${comment}` } })
+    expect(await editor.revision('ABC-10')).toBe(revisionOf(`Text\n\n${comment}`))
+    await editor.patch('ABC-10', [{ old: 'Text', new: 'Edited' }], null)
+    expect(mutations.at(-1)![1]).toMatchObject({ input: { body: `Edited\n\n${comment}` } })
+    await editor.describe('ABC-10', 'Replacement', revisionOf(`Edited\n\n${comment}`))
+    expect(mutations.at(-1)![1]).toMatchObject({ input: { body: 'Replacement' } })
+    await editor.create('P1', { ...draft, description: '' }, [], marker)
+    expect(mutations.at(-1)![1]).toMatchObject({ input: { body: comment } })
+  })
+
+  it('finds exact markers on the newest issue page, excludes PRs and propagates failures', async () => {
+    const { editor, recent, reads } = fixture()
+    const marker = editor.markers!.make()
+    recent.issues = [{ number: 9, body: `<!-- even-keel:${marker} -->`, pull_request: {} }, { number: 8, body: null }, { number: 7, body: `<!-- even-keel:${marker}x -->` }]
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.issues.push({ number: 6, body: `Text\n\n<!-- even-keel:${marker} -->` })
+    expect(await editor.markers!.find('P1', marker, 7)).toBe('ABC-6')
+    expect(reads).toEqual(['/repos/octo-org/abc/issues?state=all&sort=created&direction=desc&per_page=25', '/repos/octo-org/abc/issues?state=all&sort=created&direction=desc&per_page=7'])
+    recent.issues = []
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.error = new Error('offline')
+    await expect(editor.markers!.find('P1', marker)).rejects.toThrow('offline')
+    await expect(editor.markers!.find('missing', marker)).rejects.toThrow(/no GitHub repository/)
+  })
+
   it('keeps a priority only where the repository has a priority label, and no estimate', () => {
     const { editor } = fixture()
     expect(editor.priorities!(['bug', 'Priority: High'])).toBe(true)
@@ -134,7 +177,7 @@ describe('githubEditor', () => {
     expect(await editor.revision('ABC-1')).toBe(revisionOf('Old text'))
     await expect(editor.describe('ABC-1', 'New', revisionOf('x'))).rejects.toThrow(/changed since rev/)
     expect(await editor.describe('ABC-1', 'New', revisionOf('Old text'))).toBe(true)
-    expect(await editor.patch('ABC-1', [{ old: 'Old', new: 'Older' }], null)).toBe(true)
+    expect(await editor.patch('ABC-1', [{ old: 'New', new: 'Older text' }], null)).toBe(true)
     expect(mutations).toEqual([
       ['updateIssue', { input: { id: 'I1', body: 'New' } }],
       ['updateIssue', { input: { id: 'I1', body: 'Older text' } }],

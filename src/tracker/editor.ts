@@ -79,7 +79,7 @@ export interface TaskEditor {
   /** Creates the task and returns its id; `marker` — one of `markers.make`, which the task is given. */
   create(project: string, draft: TaskDraft, notes?: string[], marker?: string): Promise<string>
   /**
-   * The marker a new task is created with, kept where a person does not read it (BTN-905): a repeat of `tasks_create`
+   * The marker a new task is created with, hidden in the rendered task (BTN-905, BTN-907): a repeat of `tasks_create`
    * after a crash between a create and the save of its id finds the task by it instead of creating it again. Absent —
    * the tracker has no such place, and such a repeat can duplicate the task.
    */
@@ -126,8 +126,8 @@ export interface TaskEditor {
  */
 export interface TaskMarkers {
   make(): string
-  /** The id of the project's task created with the marker; `null` — there is none. */
-  find(project: string, marker: string): Promise<string | null>
+  /** The id of the project's task with the marker; `null` — not found. Some adapters search only the newest `limit`. */
+  find(project: string, marker: string, limit?: number): Promise<string | null>
 }
 
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */

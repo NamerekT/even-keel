@@ -9,6 +9,8 @@ const BASE = '/projects/group%2Fsubgroup%2Fapp/issues'
 const url = (iid: number) => `${WEB}/group/subgroup/app/-/issues/${iid}`
 
 function fixture(made: string | undefined = undefined) {
+  const recent = { issues: [] as unknown[], error: null as Error | null }
+  const reads: string[] = []
   const issues: Record<number, GitlabIssue> = {
     1: issue({ iid: 1, web_url: url(1), issue_type: 'issue', description: 'Old text' }),
     2: issue({ iid: 2, web_url: url(2), issue_type: 'issue', labels: ['bug'], milestone: null, time_stats: { time_estimate: 1200 } }),
@@ -23,8 +25,15 @@ function fixture(made: string | undefined = undefined) {
   const uploaded: [string, string][] = []
   let refuseParent = false
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+    if (method === 'GET' && path.includes('?')) {
+      reads.push(path)
+      if (recent.error !== null) throw recent.error
+      return recent.issues as T
+    }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      const description = (body as { description?: string } | undefined)?.description
+      if (description !== undefined && (path === BASE || path === `${BASE}/10`)) issues[10]!.description = description
       if (path.endsWith('/links')) {
         const { target_issue_iid: target, link_type: asked } = body as { target_issue_iid: number; link_type: string }
         const type = (made ?? asked) as Parameters<typeof linked>[0]
@@ -61,10 +70,41 @@ function fixture(made: string | undefined = undefined) {
       return { markdown: `${file.type.startsWith('image/') ? '!' : ''}[${file.name}](/uploads/${'a'.repeat(32)}/${file.name})` }
     },
   })
-  return { editor, writes, graphqlCalls, relabels, comments, uploaded, refuse: () => { refuseParent = true } }
+  return { editor, writes, graphqlCalls, relabels, comments, uploaded, recent, reads, refuse: () => { refuseParent = true } }
 }
 
 describe('gitlabEditor', () => {
+  it('creates a retry marker in the description, including an empty one', async () => {
+    const { editor, writes } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).not.toBe(editor.markers!.make())
+    const draft = { title: 'New', description: 'Text', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('P1', draft, [], marker)
+    await editor.create('P1', { ...draft, description: '' }, [], marker)
+    expect(writes.map((each) => each[2])).toEqual([{ title: 'New', description: `Text\n\n<!-- even-keel:${marker} -->` }, { title: 'New', description: `<!-- even-keel:${marker} -->` }])
+    const comment = `<!-- even-keel:${marker} -->`
+    expect(await editor.revision('APP-10')).toBe(revisionOf(comment))
+    await editor.patch('APP-10', [], 'Section')
+    expect(writes.at(-1)![2]).toEqual({ description: `${comment}\n\nSection` })
+    await editor.describe('APP-10', 'Replacement', revisionOf(`${comment}\n\nSection`))
+    expect(writes.at(-1)![2]).toEqual({ description: 'Replacement' })
+  })
+
+  it('finds an exact marker among the newest project issues and propagates failures', async () => {
+    const { editor, recent, reads } = fixture()
+    const marker = editor.markers!.make()
+    recent.issues = [{ iid: 9, description: null }, { iid: 8, description: `<!-- even-keel:${marker}x -->` }]
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.issues.push({ iid: 7, description: `Text\n\n<!-- even-keel:${marker} -->` })
+    expect(await editor.markers!.find('P1', marker, 7)).toBe('APP-7')
+    expect(reads).toEqual([`${BASE}?state=all&scope=all&order_by=created_at&sort=desc&per_page=25`, `${BASE}?state=all&scope=all&order_by=created_at&sort=desc&per_page=7`])
+    recent.issues = []
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
+    recent.error = new Error('offline')
+    await expect(editor.markers!.find('P1', marker)).rejects.toThrow('offline')
+    await expect(editor.markers!.find('missing', marker)).rejects.toThrow(/no GitLab path/)
+  })
+
   it('uploads files into the project and links them from the description or the note (BTN-895)', async () => {
     const { editor, writes, comments, uploaded } = fixture()
     expect(editor.components).toBeUndefined()

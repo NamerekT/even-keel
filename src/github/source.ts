@@ -524,6 +524,17 @@ export async function connectGithub(
   }
   source.editor = githubEditor({
     graphql,
+    async rest<T>(path: string): Promise<T> {
+      const response = await trackedFetch(fetchImpl, `https://api.github.com${path}`, {
+        headers: { authorization: `bearer ${settings.token}`, accept: 'application/vnd.github+json', 'user-agent': 'even-keel' },
+        signal: AbortSignal.timeout(timeoutMs),
+      }, '/repos/issues')
+      if (!response.ok) {
+        await response.body?.cancel()
+        throw new Error(`github: HTTP ${response.status} reading recent issues`)
+      }
+      return await response.json() as T
+    },
     repos,
     async list(project) {
       const repo = repoOf(project)

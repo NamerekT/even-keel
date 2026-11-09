@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
 import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
@@ -40,6 +41,8 @@ export interface JiraEditorDeps {
 
 const FIELDS = ['summary', 'status', 'priority', 'fixVersions', 'components', 'parent', 'issuelinks', 'issuetype', 'description']
 const RELATES = 'Relates'
+const MARKER_LIMIT = 25
+const MARKER_PROPERTY = 'even-keel'
 
 /**
  * Jira's writes for the tasks MCP server (BTN-875). A status moves only through a transition of the issue's workflow;
@@ -109,7 +112,7 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
 
   return {
     list: (project) => deps.list(project),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       const key = deps.keyOf(project)
       const parent = draft.parent === null ? null : await issueOf(draft.parent)
       if (parent !== null && parseTaskId(parent.key)?.project !== key) throw new EditRefused(`the parent ${parent.key} is of another project`)
@@ -131,7 +134,10 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         ...(parent === null ? {} : { parent: { key: parent.key } }),
         ...(draft.estimate == null ? {} : { timetracking: { originalEstimate: `${draft.estimate}m` } }),
       }
-      const created = await rest<{ key: string }>('/issue', 'POST', { fields })
+      const created = await rest<{ key: string }>('/issue', 'POST', {
+        fields,
+        ...(marker === undefined ? {} : { properties: [{ key: MARKER_PROPERTY, value: marker }] }),
+      })
       if (draft.status !== null) {
         try {
           await moveTo(await issueOf(created.key), draft.status)
@@ -140,6 +146,19 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         }
       }
       return created.key
+    },
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker, limit = MARKER_LIMIT) {
+        const key = deps.keyOf(project)
+        const { issues } = await rest<{ issues: { key: string; properties?: Record<string, unknown> }[] }>('/search/jql', 'POST', {
+          jql: `project = ${JSON.stringify(key)} ORDER BY created DESC`,
+          fields: [],
+          maxResults: limit,
+          properties: [MARKER_PROPERTY],
+        })
+        return issues.find((each) => each.properties?.[MARKER_PROPERTY] === marker)?.key ?? null
+      },
     },
     async set(id, field) {
       const issue = await issueOf(id)
