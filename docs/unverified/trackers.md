@@ -137,11 +137,11 @@ If wrong, an interrupted create may be duplicated; a Jira property refusal preve
 
 The same five tools on the outer trackers (`docs/trackers.md`, "The tasks server", a paragraph of limits each) are checked by tests that record every request against a fake API (`src/<tracker>/editor.test.ts`). On 2026-11-09 a hand session ran them live on each tracker's bench (`docs/verified/trackers.md`): GitHub, Linear, Forgejo and GitLab.com held as written, and a hand session found every project by its task key, the chain reading the new tasks and links at its next poll. Two assumptions were wrong: Jira's `POST /issueLink` blocks with `inwardIssue`, so a `blocks` link landed the other way round (BTN-926), and GitLab CE refused `link_type: blocks` with HTTP 400 rather than taking it as `relates_to` (BTN-927). Still assumed:
 
-- Jira: a new task under a story takes the sub-task type and lands as its child; a failed transition after a create leaves one issue, not two.
+- Jira: BTN-926 corrects `POST /issueLink` to put the blocker in `inwardIssue`, and refuses removal of a missing link. Fake API tests cover both directions, card and chain reads, duplicate adds and repeated removals; the corrected writes still need a live recheck in BTN-898. A new task under a story takes the sub-task type and lands as its child; a failed transition after a create leaves one issue, not two.
 - GitLab: `milestone_id: 0` clears a milestone.
 - A chain session writes the same through the gateway as a hand session through the plugin.
 
-If one is wrong, a write fails with the tracker's own error, or a link lands the other way round (the chain then waits on the wrong task). **Workaround:** make the change in the tracker's own interface; the chain reads it as usual. To check: on the Jira bench, file a task under a story and one into a status the workflow refuses; on GitLab, clear a milestone; then run one batch from a chain session.
+If one is wrong, a write fails with the tracker's own error, or a link lands the other way round (the chain then waits on the wrong task). **Workaround:** make the change in the tracker's own interface; the chain reads it as usual. To check: on the Jira bench, create links through both `blocks` and `blockedBy`, read both cards and the chain order, remove each and repeat the removal (a refusal, never success); file a task under a story and one into a status the workflow refuses; on GitLab, clear a milestone; then run one batch from a chain session.
 
 ## The tasks server on a project's feeds (BTN-892)
 

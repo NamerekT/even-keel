@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { revisionOf } from '../tracker/editor.js'
 import { markdownToAdf } from './adf.js'
 import { jiraEditor } from './editor.js'
+import { toCard, toTrackerTask, type JiraIssue } from './model.js'
 
 const status = (name: string) => ({ id: name, name, statusCategory: { key: 'new' } })
 const ref = (key: string) => ({ key, fields: { summary: key, status: status('To Do') } })
@@ -9,7 +10,7 @@ const ref = (key: string) => ({ key, fields: { summary: key, status: status('To 
 function fixture() {
   const recent = { issues: [] as unknown[], error: null as Error | null }
   const searches: unknown[] = []
-  const issues: Record<string, Record<string, unknown>> = {
+  const issues: Record<string, JiraIssue['fields']> = {
     'ABC-1': { summary: 'Epic', status: status('To Do'), priority: { id: '3', name: 'Medium' }, fixVersions: [{ id: 'v1', name: '1.0' }], issuetype: { hierarchyLevel: 1 }, description: markdownToAdf('Old text') },
     'ABC-2': {
       summary: 'Story', status: status('To Do'), issuetype: { hierarchyLevel: 0 }, parent: ref('ABC-1'),
@@ -21,6 +22,7 @@ function fixture() {
   const writes: [string, string, unknown][] = []
   const comments: [string, string][] = []
   const uploads: [string, string[]][] = []
+  let nextLink = 3
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     if (path === '/search/jql') {
       searches.push(body)
@@ -29,6 +31,19 @@ function fixture() {
     }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      if (path === '/issueLink' && method === 'POST') {
+        const link = body as { type: { name: string }; inwardIssue: { key: string }; outwardIssue: { key: string } }
+        const id = `l-${nextLink++}`
+        // Jira returns the opposite endpoint on each issue; POST's inward issue is the blocker.
+        const inward = issues[link.inwardIssue.key]!
+        const outward = issues[link.outwardIssue.key]!
+        inward.issuelinks = [...(inward.issuelinks ?? []), { id, type: link.type, outwardIssue: ref(link.outwardIssue.key) }]
+        outward.issuelinks = [...(outward.issuelinks ?? []), { id, type: link.type, inwardIssue: ref(link.inwardIssue.key) }]
+      }
+      if (path.startsWith('/issueLink/') && method === 'DELETE') {
+        const id = decodeURIComponent(path.slice('/issueLink/'.length))
+        for (const fields of Object.values(issues)) fields.issuelinks = (fields.issuelinks ?? []).filter((each) => each.id !== id)
+      }
       return { key: 'ABC-10' } as T
     }
     if (path.endsWith('/transitions')) return { transitions: [{ id: 't-31', to: { name: 'Done' } }, { id: 't-21', to: { name: 'In Progress' } }] } as T
@@ -51,7 +66,8 @@ function fixture() {
     componentsOf: async () => [{ id: 'c-ui', name: 'UI' }, { id: 'c-server', name: 'Server' }],
     upload: async (id, files) => void uploads.push([id, files.map((file) => file.name)]),
   })
-  return { editor, writes, issues, comments, uploads, recent, searches }
+  const read = (key: string): JiraIssue => ({ id: key, key, fields: issues[key]! })
+  return { editor, writes, issues, comments, uploads, recent, searches, read }
 }
 
 describe('jiraEditor', () => {
@@ -159,19 +175,57 @@ describe('jiraEditor', () => {
     await expect(editor.files!.attach('nope', [file])).rejects.toThrow(/not a task key/)
   })
 
-  it('links with the blocker outward and removes a link from either side of "relates"', async () => {
+  it('links with the blocker inward and removes the requested direction', async () => {
     const { editor, writes } = fixture()
     await editor.link('ABC-2', 'ABC-3', 'blockedBy', true)
     await editor.link('ABC-2', 'ABC-3', 'blocks', true)
+    await editor.link('ABC-2', 'ABC-3', 'blocks', false)
     await editor.link('ABC-2', 'ABC-3', 'blockedBy', false)
     await editor.link('ABC-2', 'ABC-1', 'relates', false)
     await editor.link('ABC-1', 'ABC-3', 'relates', true)
     expect(writes).toEqual([
-      ['POST', '/issueLink', { type: { name: 'Blocks' }, outwardIssue: { key: 'ABC-2' }, inwardIssue: { key: 'ABC-3' } }],
+      ['POST', '/issueLink', { type: { name: 'Blocks' }, inwardIssue: { key: 'ABC-2' }, outwardIssue: { key: 'ABC-3' } }],
+      ['DELETE', '/issueLink/l-3', undefined],
       ['DELETE', '/issueLink/l-1', undefined],
       ['DELETE', '/issueLink/l-2', undefined],
       ['POST', '/issueLink', { type: { name: 'Relates' }, outwardIssue: { key: 'ABC-1' }, inwardIssue: { key: 'ABC-3' } }],
     ])
+  })
+
+  it.each(['blocks', 'blockedBy'] as const)('creates %s in the direction read by the cards and chain, without duplicates', async (link) => {
+    const { editor, writes, read } = fixture()
+    const [blocker, blocked] = link === 'blocks' ? ['ABC-1', 'ABC-3'] : ['ABC-3', 'ABC-1']
+    await editor.link('ABC-1', 'ABC-3', link, true)
+    expect(writes).toEqual([
+      ['POST', '/issueLink', { type: { name: 'Blocks' }, inwardIssue: { key: blocker }, outwardIssue: { key: blocked } }],
+    ])
+    expect(toCard(read(blocker), [], []).blocks.map((each) => each.id)).toEqual([blocked])
+    expect(toCard(read(blocked), [], []).blockedBy.map((each) => each.id)).toEqual([blocker])
+    expect(toTrackerTask(read(blocked), []).blockedBy).toEqual([blocker])
+    expect(toTrackerTask(read(blocker), []).blockedBy).toEqual([])
+    await editor.link('ABC-1', 'ABC-3', link, true)
+    expect(writes).toHaveLength(1)
+    await editor.link('ABC-1', 'ABC-3', link, false)
+    expect(writes.at(-1)).toEqual(['DELETE', '/issueLink/l-3', undefined])
+    expect(toCard(read(blocker), [], []).blocks).toEqual([])
+    expect(toTrackerTask(read(blocked), []).blockedBy).toEqual([])
+    await expect(editor.link('ABC-1', 'ABC-3', link, false)).rejects.toThrow(`ABC-1 has no "${link}" link to ABC-3`)
+    expect(writes).toHaveLength(2)
+  })
+
+  it.each(['blocks', 'blockedBy', 'relates'] as const)('refuses to remove an absent %s link, including missing link data', async (link) => {
+    const { editor, writes, issues } = fixture()
+    for (const issuelinks of [undefined, [], [{ id: 'different', type: { name: 'Duplicate' }, outwardIssue: ref('ABC-3') }]]) {
+      issues['ABC-1']!.issuelinks = issuelinks
+      await expect(editor.link('ABC-1', 'ABC-3', link, false)).rejects.toThrow(`ABC-1 has no "${link}" link to ABC-3`)
+    }
+    expect(writes).toEqual([])
+  })
+
+  it('refuses to remove the opposite blocking direction', async () => {
+    const { editor, writes } = fixture()
+    await expect(editor.link('ABC-2', 'ABC-3', 'blocks', false)).rejects.toThrow('ABC-2 has no "blocks" link to ABC-3')
+    expect(writes).toEqual([])
   })
 
   it('patches the description through Markdown and writes it back as ADF', async () => {

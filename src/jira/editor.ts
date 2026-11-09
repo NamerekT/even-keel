@@ -212,13 +212,15 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         if (link === 'relates') return same(each.inwardIssue) || same(each.outwardIssue)
         return link === 'blocks' ? same(each.outwardIssue) : same(each.inwardIssue)
       })
-      if ((found.length > 0) === on) return
+      if (on && found.length > 0) return
       if (!on) {
+        if (found.length === 0) throw new EditRefused(`${id} has no "${link}" link to ${other}`)
         for (const each of found) await rest(`/issueLink/${encodeURIComponent(each.id!)}`, 'DELETE')
         return
       }
-      const [blocker, blocked] = link === 'blockedBy' ? [other, issue.key] : [issue.key, other]
-      await rest('/issueLink', 'POST', { type: { name: type }, outwardIssue: { key: blocker }, inwardIssue: { key: blocked } })
+      // POST names both endpoints: for Blocks the inward issue is the blocker, the outward one is blocked.
+      const [inward, outward] = link === 'blocks' ? [issue.key, other] : [other, issue.key]
+      await rest('/issueLink', 'POST', { type: { name: type }, inwardIssue: { key: inward }, outwardIssue: { key: outward } })
     },
     relabel: (id, change) => deps.relabel(id, change),
     // A Jira comment has no field for the session's model: its author is the profile's account.
