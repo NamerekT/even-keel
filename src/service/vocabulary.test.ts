@@ -23,14 +23,14 @@ describe('promptTrackers', () => {
     expect(trackers.map((each) => [each.prefix, each.title])).toEqual([['BTN', 'Huly'], ['BTNGH', 'GitHub']])
     expect(promptLines(trackers, 'BTN')).toEqual([
       'trackers: BTN — Huly (this task), BTNGH — GitHub',
-      'BTN chain: into it — Ready; skip — Manual; question — Question; milestones v1; priority: yes; estimate: no',
-      'BTNGH chain: into it — Backlog; skip — Manual; question — Question; priority: yes; estimate: no',
+      'BTN chain: into it — Ready; skip — Manual; question — Question; milestones v1; priority: yes; estimate: no; attachments: no',
+      'BTNGH chain: into it — Backlog; skip — Manual; question — Question; priority: yes; estimate: no; attachments: no',
     ])
   })
 
   it('a tracker that does not answer gets no line instead of holding the prompt', async () => {
     const trackers = await promptTrackers(context(['p1']), 'p1')
     expect(trackers[0]!.terms).toBeNull()
-    expect(promptLines(trackers, 'BTN')).toEqual(['trackers: BTN — Huly (this task), BTNGH — GitHub', 'BTNGH chain: into it — Backlog; skip — Manual; question — Question; priority: yes; estimate: no'])
+    expect(promptLines(trackers, 'BTN')).toEqual(['trackers: BTN — Huly (this task), BTNGH — GitHub', 'BTNGH chain: into it — Backlog; skip — Manual; question — Question; priority: yes; estimate: no; attachments: no'])
   })
 })

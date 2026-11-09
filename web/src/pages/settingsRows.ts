@@ -20,7 +20,7 @@ export const lineOf = ([from, to]: readonly string[]): string => `${from} ${ARRO
  * The labels and milestones the rules may name: what the tasks at hand carry and what the trackers name, a name once
  * whatever its case (the tasks' spelling first); the user may still type one they all lack. The statuses are `knownStatuses`.
  */
-export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly TrackerVocabulary[] = []): Required<Omit<TrackerVocabulary, 'statuses'>> {
+export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly TrackerVocabulary[] = []): Required<Pick<TrackerVocabulary, 'labels' | 'milestones'>> {
   const sorted = (names: string[]) =>
     names.filter((name, index) => names.findIndex((each) => sameName(each, name)) === index).sort((a, b) => a.localeCompare(b))
   return {

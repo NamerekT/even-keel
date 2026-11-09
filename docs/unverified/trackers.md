@@ -169,6 +169,19 @@ The `chain:` line, the `estimate` field and the `tasks` plugin's calibration hoo
 
 If one is wrong, a filed task stays out of the chain or lands in it when it should not, an estimate is off by a factor of 60, or an estimate call is refused every time. **Workaround:** set the status, the labels and the estimate in the tracker itself; turn the `tasks` plugin's hook off by sending no estimate. To check: on the Huly bench, run a chain task told to file a blocker with an estimate of 20 and read it in Huly; then repeat on a project whose rules take tasks from another status.
 
+## Components and attachments through the tasks server (BTN-895)
+
+The `component` and `attach` fields and the path guard (`docs/trackers.md`, "The tasks server", Components and attachments) are checked by unit tests against stubs of each tracker's API (`src/taskmcp/calls.test.ts`, `src/taskmcp/files.test.ts`, the editor and source tests of `src/huly/`, `src/jira/`, `src/gitlab/`, `src/forgejo/`, `src/linear/`, `src/builtin/`); no upload has reached a live tracker. Assumed:
+
+- Huly shows a file attached by the tools on the issue and on the comment, and serves it back through the card; a component set by name lands in the issue's Component field.
+- Jira takes the multipart upload with `x-atlassian-token: no-check`, and the comment's `Attached:` line names files the issue then lists; the component replaces the issue's components.
+- GitLab's project upload Markdown renders in the description and the note, and the card then lists it as an attachment.
+- Forgejo's `…/assets` take the field `attachment` on both the issue and the comment.
+- Linear's signed `PUT` succeeds with the returned headers and no key, `attachmentCreate` shows the file on the issue, and the asset link in a comment opens for the workspace's members.
+- A chain session's working folder is its worktree, so a screenshot in its `.temp/` is attached and a file of the main checkout or a `.env` is refused.
+
+If one is wrong, an attach call fails with the tracker's error or reports a file the tracker does not show. **Workaround:** attach the file in the tracker's own interface, or link it in the text. To check: BTN-898.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:
