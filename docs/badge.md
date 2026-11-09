@@ -119,13 +119,29 @@ as `BADGE`, the secret `BADGE_SECRET`. How to deploy and connect it is its own `
 
 ### Kept apart from the package
 
-The folder has its own `package.json` and lock (wrangler, vitest, typescript), is not in the root `files`, and the root
-dependencies have no wrangler. The Deploy to Cloudflare button takes a subfolder URL as the root of the user's new
-repository and fails a build that reaches outside it (Cloudflare's deploy-button docs, read 2026-11-09), so the Worker
-cannot import `src/badge/`: `deploy/badge/src/badge/` is a copy of `render.ts`, everything it imports and the fonts'
-licenses. `npm run badge-worker` (`scripts/badge-worker-copy.ts`) rewrites it, and `scripts/badge-worker-copy.test.ts`
-fails while it differs from `src/badge/`: a change of the drawing is a run of the script in the same commit.
+The folder has its own `package.json` (`even-keel-badge-worker`: wrangler, vitest, typescript), is not in the root
+`files`, and the root dependencies have no wrangler. The Deploy to Cloudflare button takes a subfolder URL as the root of
+the user's new repository and fails a build that reaches outside it (Cloudflare's deploy-button docs, read 2026-11-09),
+so the Worker cannot import `src/badge/`: it takes the drawing from the npm package `even-keel-badge` (BTN-941).
 
-The Worker's tests (`deploy/badge/src/worker.test.ts`, a fake KV) run in the root `npm test`; `npm run typecheck`
-checks the folder with its own `tsconfig.json` (DOM types, no Node). `npx wrangler deploy --dry-run` in the folder
-bundles it (66 KiB, 2026-11-09), and `wrangler dev` served pushes from `postBadge` live (`docs/verified/page.md`).
+- **The package** is `packages/badge/`: `package.json`, `tsconfig.json` and `build.mjs`, no source of its own. Its entry
+  is `src/badge/drawing.ts` (`renderBadge`, `badgeMode`, `BADGE_VERSION` and the state's types); `build.mjs` compiles it
+  with what it imports into `packages/badge/dist` and copies the fonts' licenses (`dist/fonts/`) and `LICENSE`. `files`
+  is `dist` alone, so `push.ts`, `collect.ts`, `settings.ts`, `action.ts`, `stats.ts` and the tests never ship;
+  `src/badge/drawing.test.ts` fails if the entry reaches a module of the service or any import outside `src/badge/`.
+  `npm pack --dry-run` in the folder builds and lists it.
+- **Its version** is Even Keel's: the file says `0.0.0`, and `publish.yml` sets the tag's version before publishing it
+  with the release (`docs/releases.md`, "Publishing to npm"). A change of the drawing reaches deployed Workers only
+  with a release.
+- **The Worker** depends on `even-keel-badge@latest` and keeps no lock (`/deploy/badge/package-lock.json` is in the
+  root `.gitignore`): Cloudflare's build installs the latest release each time, and a lock could only name the release
+  before the one whose tag publishes the package. Between a release's push to `main` and the end of its `Publish` run
+  the button would install the previous version.
+- **In this repository** the Worker sees the current `src/badge/`, not the published package: the root `vitest.config.ts`
+  aliases `even-keel-badge` to `src/badge/drawing.ts`, and `npm run typecheck` checks the folder through
+  `packages/badge/worker.tsconfig.json` (its own `tsconfig.json` — DOM types, no Node — plus that one `paths` entry).
+  The folder's own `tsconfig.json` has no `paths`: a user's clone resolves the package from `node_modules`.
+
+The Worker's tests (`deploy/badge/src/worker.test.ts`, a fake KV) run in the root `npm test`. `npx wrangler deploy
+--dry-run` in the folder bundles it (66 KiB, 2026-11-09; again 2026-11-09 with the packed `even-keel-badge` installed
+from its tarball, 66.53 KiB), and `wrangler dev` served pushes from `postBadge` live (`docs/verified/page.md`).

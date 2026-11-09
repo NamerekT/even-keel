@@ -1,0 +1,7 @@
+{
+  "extends": "../../deploy/badge/tsconfig.json",
+  "compilerOptions": {
+    "paths": { "even-keel-badge": ["../../src/badge/drawing.ts"] }
+  },
+  "include": ["../../deploy/badge/src"]
+}

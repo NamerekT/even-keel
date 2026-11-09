@@ -1,4 +1,4 @@
-import { renderBadge } from './badge/render.js'
+import { renderBadge } from 'even-keel-badge'
 import { parseBadgeState } from './state.js'
 
 /** The part of a KV namespace the Worker uses. */

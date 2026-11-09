@@ -1,6 +1,9 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // The badge's Worker tests the drawing of this checkout, not the published package (docs/badge.md, "The Worker").
+  resolve: { alias: [{ find: /^even-keel-badge$/, replacement: fileURLToPath(new URL('src/badge/drawing.ts', import.meta.url)) }] },
   test: {
     include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tally/src/**/*.test.ts', 'plugins/**/*.test.mjs', 'scripts/**/*.test.ts', 'deploy/*/src/**/*.test.ts'],
     globalSetup: ['test/pglite-template.ts'],

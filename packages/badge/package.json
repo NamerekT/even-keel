@@ -1,0 +1,26 @@
+{
+  "name": "even-keel-badge",
+  "version": "0.0.0",
+  "description": "Draws an Even Keel project's README badge as SVG: the drawing the badge's Cloudflare Worker serves",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NamerekT/even-keel.git",
+    "directory": "packages/badge"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/drawing.d.ts",
+      "default": "./dist/drawing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs"
+  }
+}

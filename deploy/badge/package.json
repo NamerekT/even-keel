@@ -1,5 +1,5 @@
 {
-  "name": "even-keel-badge",
+  "name": "even-keel-badge-worker",
   "version": "1.0.0",
   "private": true,
   "description": "The Cloudflare Worker behind an Even Keel project's README badge: stores the pushed chain state and draws it as SVG",
@@ -10,6 +10,9 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "even-keel-badge": "latest"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

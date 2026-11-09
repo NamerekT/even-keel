@@ -67,7 +67,14 @@ Even Keel then pushes the project's state, and the picture is at `<the Worker's 
 
 ## Updating
 
-The drawing in `src/badge/` is a copy of Even Keel's `src/badge/` (the button can only take this folder, so it cannot
-import from outside it). In Even Keel's repository `npm run badge-worker` refreshes the copy and a test fails while it is
-stale. A Worker deployed with the button is updated by pulling this folder's changes into its own repository; Cloudflare
-deploys it again on the push.
+The drawing comes from the npm package [`even-keel-badge`](https://www.npmjs.com/package/even-keel-badge), released
+with Even Keel under its version. The folder asks for its `latest` release and keeps no lock, so every build installs
+the newest drawing:
+
+- **Deployed with the button**: a new build picks it up — a push to the Worker's repository, or a retry of the last
+  build in the Cloudflare dashboard.
+- **Deployed by hand**: `npm update even-keel-badge`, then `npx wrangler deploy`.
+
+The Worker's own code (`src/worker.ts`, `src/state.ts`) changes rarely; when it does, pull this folder's changes into
+your repository. A Worker deployed before the package existed has its own copy of the drawing in `src/badge/`: pulling
+this folder replaces it with the package.

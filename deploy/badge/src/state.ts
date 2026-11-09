@@ -1,4 +1,4 @@
-import { BADGE_VERSION, type BadgeState } from './badge/model.js'
+import { BADGE_VERSION, type BadgeState } from 'even-keel-badge'
 
 const TASK_STATES = ['working', 'waiting']
 const CHAIN_STATES = ['running', 'paused', 'stopped', 'idle']

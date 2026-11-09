@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BadgeState } from './badge/model.js'
-import { badgeMode, renderBadge } from './badge/render.js'
+import { badgeMode, renderBadge, type BadgeState } from 'even-keel-badge'
 import { handle, type BadgeStore, type Env } from './worker.js'
 
 const SECRET = 'test-secret'

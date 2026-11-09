@@ -11,3 +11,5 @@ dist/
 logs/
 service/bin/
 .playwright-mcp/
+# The badge's Worker installs the latest even-keel-badge on every build (docs/badge.md, "The Worker").
+/deploy/badge/package-lock.json

@@ -40,7 +40,7 @@
     "dev:fake": "vite --config web/vite.config.ts --mode fake",
     "build": "tsc -p tsconfig.json && tsx scripts/copy-assets.ts && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
     "prepack": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && npm run build",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json && tsc -p tally/tsconfig.json && tsc -p deploy/badge/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json && tsc -p tally/tsconfig.json && tsc -p packages/badge/worker.tsconfig.json",
     "test": "vitest run --exclude \"src/e2e/**\" --exclude \"src/e2e-cli/**\" --exclude \"src/e2e-trackers/**\"",
     "test:e2e": "vitest run src/e2e/",
     "test:cli": "vitest run src/e2e-cli/",
@@ -54,8 +54,7 @@
     "cli-compare": "tsx scripts/cli-sample-compare.ts",
     "cli-fetch": "tsx scripts/cli-fetch.ts",
     "design-baseline": "tsx scripts/design-baseline.ts",
-    "notice-lengths": "tsx scripts/notice-lengths.ts",
-    "badge-worker": "tsx scripts/badge-worker.ts"
+    "notice-lengths": "tsx scripts/notice-lengths.ts"
   },
   "devDependencies": {
     "@hcengineering/api-client": "0.7.423",
