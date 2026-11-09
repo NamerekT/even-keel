@@ -9,6 +9,8 @@ import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from '
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyLimit, type KeyVerdict } from './keycheck.js'
 import type { BalanceVerdict } from './management.js'
+import type { AccountSettings, EditChoice } from './settingsLayer.js'
+import { CLAUDE } from '../claude/name.js'
 import type { AwsProfiles, AzureCredentials, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
 import type { Transport } from './transport.js'
@@ -90,6 +92,8 @@ export interface AccountWatcherOptions {
   removing: (key: string) => boolean
   markRemoving: (key: string, on: boolean) => void
   configPending: (key: string) => boolean
+  /** Optional. The edits made right in a Claude folder's `settings.json` and the account's own layer (BTN-901). */
+  settings?: Pick<AccountSettings, 'edits' | 'own' | 'resolve' | 'dropOwn'>
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
   /** Optional. The limits are old and unconfirmed since the start (`LimitsWatcher.outdated`). */
@@ -211,6 +215,7 @@ export class AccountWatcher {
         projects: this.options.projectsOn(home.key),
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
+        ...this.settingsOf(home),
         apiKey: isApiKey(status),
         keyReplaceable: isApiKey(status) && keyHeld,
         ...(cloud !== null && { cloud }),
@@ -511,6 +516,36 @@ export class AccountWatcher {
     if (!this.options.removing(key)) throw fail('account.notRemoving', { key })
     this.options.markRemoving(key, false)
     this.options.onChange()
+  }
+
+  private settingsOf(home: AccountHome): Pick<AccountEntry, 'settingsEdits' | 'ownSettings'> {
+    const settings = this.options.settings
+    if (settings === undefined || home.global || home.agent !== CLAUDE) return {}
+    const edits = settings.edits(home)
+    const own = settings.own(home.key)
+    return { ...(edits.length > 0 && { settingsEdits: edits }), ...(own.length > 0 && { ownSettings: own }) }
+  }
+
+  /** An edit right in the folder's `settings.json`: made shared, kept as the account's own or dropped, then transferred. */
+  async resolveSettingsEdit(key: string, setting: string, choice: EditChoice): Promise<void> {
+    const home = this.claudeHome(key)
+    this.options.settings?.resolve(home, setting, choice)
+    await this.options.prepare(home)
+    this.options.onChange()
+  }
+
+  /** A key of the account's own layer goes, and the global value comes back at once. */
+  async dropOwnSetting(key: string, setting: string): Promise<void> {
+    const home = this.claudeHome(key)
+    this.options.settings?.dropOwn(home, setting)
+    await this.options.prepare(home)
+    this.options.onChange()
+  }
+
+  private claudeHome(key: string): AccountHome {
+    const home = this.options.homes.find(key)
+    if (home === undefined || home.global || home.agent !== CLAUDE) throw fail('account.unknown', { key })
+    return home
   }
 
   /** Only the name the page shows: the folder and its key stay as they are; a blank name goes back to the default. */

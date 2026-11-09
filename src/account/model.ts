@@ -66,6 +66,10 @@ export interface AccountEntry {
   projects: string[]
   removing: boolean
   configPending: boolean
+  /** Top-level keys of a Claude folder's `settings.json` changed right there since the last transfer, held there (BTN-901). */
+  settingsEdits?: string[]
+  /** The keys of the account's own layer, put on top of the global settings at every transfer (BTN-901). */
+  ownSettings?: string[]
   apiKey: boolean
   /** An API account whose folder keeps the key itself, so the page can put a new one in its place (BTN-418). */
   keyReplaceable?: boolean

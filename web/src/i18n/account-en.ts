@@ -169,4 +169,15 @@ export const accountEn = {
     keyName: 'Account name',
     removeKeyWhenDone: (sessions: string) => `Remove the folder with the key once its sessions finish (${sessions})?`,
     removeKeyNow: 'Remove the folder with the key?',
+    settingsEdit: {
+      share: 'Make shared',
+      shareTip: 'The value goes into the shared settings and from there into every account at its next start.',
+      own: 'Keep for this account only',
+      ownTip: 'The value stays this account\'s own and is put over the shared settings at every transfer. It is listed on the Accounts page, where it can be removed.',
+      discard: 'Discard',
+      discardTip: 'The shared settings go into the account as usual: the change is lost.',
+    },
+    ownSettings: 'Own settings:',
+    ownSettingsTip: 'This account\'s own values, put over the shared settings at every transfer. × brings the shared value back.',
+    dropOwnSetting: (key: string) => `Bring the shared "${key}" back`,
   }

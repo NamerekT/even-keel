@@ -4,6 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { type Spend, type Tokens } from './accountParts.js'
 import { AccountGroups, AccountProblems } from './accountRows.js'
+import { AccountSettingsEdits } from './accountSettings.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { useNow } from './useNow.js'
 
@@ -23,6 +24,7 @@ export function AccountPanel({ account, spend, tokens, onClose }: { account: Acc
         <Link to="/accounts" className="accounts__all" onClick={onClose}>{t.account.all}</Link>
       </div>
       <AccountProblems {...props} />
+      <AccountSettingsEdits {...props} />
       {account.accounts.length === 0 ? <p className="queue__empty">{t.account.groupEmpty}</p> : <AccountGroups {...props} />}
     </section>
     {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}

@@ -3,6 +3,7 @@ import { fail, type NoticeCode } from './notice/notice.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { ATTACHMENT_LIMIT_MB } from './builtin/model.js'
 import { DEFAULT_CI } from './settings/defaults.js'
+import { EDIT_CHOICES, type EditChoice } from './account/settingsLayer.js'
 import { OWN_KEYS } from './settings/registry.js'
 import type { AnswerRequest } from './server.js'
 import type { Language } from './language.js'
@@ -316,6 +317,11 @@ export function accountOf(body: Record<string, unknown>): string {
 export function appOf(body: Record<string, unknown>): string {
   if (typeof body.app !== 'string' || body.app === '') throw fail('request.required', { field: 'app' })
   return body.app
+}
+
+export function editChoiceOf(raw: unknown): EditChoice {
+  if (!(EDIT_CHOICES as readonly unknown[]).includes(raw)) throw fail('request.required', { field: 'choice' })
+  return raw as EditChoice
 }
 
 export function nameOf(body: Record<string, unknown>): string {

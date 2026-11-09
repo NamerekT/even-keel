@@ -339,6 +339,9 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
+  if (mode === 'settings') {
+    return { ...signedIn, accounts: [{ ...global, settingsEdits: ['model'], ownSettings: ['permissions'] }, { ...work, settingsEdits: ['skillOverrides', 'env'], ownSettings: ['model', 'effortLevel'] }] }
+  }
   if (mode === 'vscode-chats') {
     const sessions = [
       { name: 'Header colours on the accounts page', session: 'example-12', account: 'jane.roe', status: 'busy' as const },
@@ -610,6 +613,15 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   }
   if (name === 'account/keep') {
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: false } : entry)) }
+  }
+  if (name === 'account/settings-edit' || name === 'account/own-setting') {
+    const setting = String(body.key)
+    return { ...account, accounts: account.accounts.map((entry) => {
+      if (entry.key !== key) return entry
+      const own = (entry.ownSettings ?? []).filter((one) => one !== setting)
+      if (name === 'account/own-setting') return { ...entry, ownSettings: own }
+      return { ...entry, settingsEdits: (entry.settingsEdits ?? []).filter((one) => one !== setting), ownSettings: body.choice === 'own' ? [...own, setting] : own }
+    }) }
   }
   if (name === 'account/name') {
     const given = String(body.name ?? '').trim()

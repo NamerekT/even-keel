@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { type AccountHome } from './account/homes.js'
 import { openAccountHomes } from './account/globals.js'
+import { AccountSettings, loadAccountSettings, saveAccountSettings } from './account/settingsLayer.js'
 import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
 import { loadKeyOrganizations } from './account/organizations.js'
 import { loadManagementKeys } from './account/management.js'
@@ -203,6 +204,7 @@ const context = {
   get hasAccount() { return hasAccount },
   get homeOf() { return homeOf },
   get homes() { return homes },
+  get accountSettings() { return accountSettings },
   get hub() { return hub },
   get importedProfiles() { return importedProfiles },
   get inHomes() { return inHomes },
@@ -479,6 +481,10 @@ const transcriptWatch = new TranscriptWatch(
   (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
 )
 const homes = await openAccountHomes(db, process.env)
+/** What the transfer wrote into each account folder's settings.json and each account's own layer (BTN-901), written behind. */
+const accountSettings = new AccountSettings(await loadAccountSettings(db), homes.global.dir, (account, record) =>
+  writes.add(`the settings of ${account}`, saveAccountSettings(db, account, record, new Date())))
+homes.useSettings(accountSettings)
 /** The demo on the first run (BTN-776): its account folder is listed from here on, before anything reads the folders. */
 const demo = demoService.wireDemo(context)
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */

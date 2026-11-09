@@ -1,10 +1,11 @@
 import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic, eventWriter } from './server-response.js'
 import type { LabelChange } from './tracker/labels.js'
 import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList, browserOf, hotkeysOf } from './server-request.js'
+import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, editChoiceOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList, browserOf, hotkeysOf } from './server-request.js'
 import type { NoticeKind } from './notice/kinds.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import { cloudConnectionOf, type CloudConnection } from './account/cloud.js'
+import type { EditChoice } from './account/settingsLayer.js'
 export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { ModelList } from './agent/contract.js'
@@ -123,6 +124,10 @@ export interface AccountControl {
   keep(account: string): void
   /** The name the page shows for the account; blank — its default. */
   rename(account: string, name: string): void
+  /** A key changed right in a Claude folder's `settings.json` (BTN-901): made shared, kept as the account's own, or dropped. */
+  resolveSettingsEdit(account: string, key: string, choice: EditChoice): Promise<void>
+  /** A key of the account's own settings layer goes; the global value comes back. */
+  dropOwnSetting(account: string, key: string): Promise<void>
   code(code: string): void
   cancel(): void
 }
@@ -398,6 +403,8 @@ const COMMANDS: Record<string, Command> = {
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/name': ({ account }, body) => account.rename(accountOf(body), typeof body.name === 'string' ? body.name : ''),
+  'account/settings-edit': ({ account }, body) => account.resolveSettingsEdit(accountOf(body), textOf(body.key, 'key'), editChoiceOf(body.choice)),
+  'account/own-setting': ({ account }, body) => account.dropOwnSetting(accountOf(body), textOf(body.key, 'key')),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),

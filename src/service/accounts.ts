@@ -82,6 +82,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'activeAccount'
   | 'agentOf'
   | 'agents'
+  | 'accountSettings'
   | 'agentsRead'
   | 'approvals'
   | 'branchOf'
@@ -541,6 +542,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     removing: (key) => ctx.ledger.removing.includes(key),
     markRemoving: (key, on) => ctx.saveAccounts(markRemoving(ctx.ledger, key, on)),
     configPending: (key) => ctx.daemons.pending(key),
+    settings: ctx.accountSettings,
     limits: (key) => ctx.limits.limits(key),
     usage: (key) => ctx.limits.usage(key),
     limitsOutdated: (key) => ctx.limits.outdated(key),

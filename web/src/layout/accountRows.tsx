@@ -13,6 +13,7 @@ import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
+import { OwnSettings } from './accountSettings.js'
 import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
@@ -156,6 +157,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
       <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
     </div>
     <OverageWarning entry={entry} view={view} />
+    {page && <OwnSettings entry={entry} send={send} sending={sending} />}
     {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__note">{say(copilotNote())}</p>}
   </AccountRowMenu>
 }

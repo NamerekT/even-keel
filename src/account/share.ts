@@ -104,11 +104,14 @@ export function shareProjects(global: Json, folder: Json, platform: NodeJS.Platf
   return JSON.stringify(shared) === JSON.stringify(folder) ? undefined : shared
 }
 
-export function shareConfig(global: SharedSources, dir: string, warn: (message: string) => void = console.warn): boolean {
+/** What goes into the folder's `settings.json`, from the global one and the folder's own (`planSettings`, BTN-901). */
+export type SettingsPlanner = (global: Json, folder: Json | undefined) => Json
+
+export function shareConfig(global: SharedSources, dir: string, warn: (message: string) => void = console.warn, planner: SettingsPlanner = mergeSettings): boolean {
   mkdirSync(dir, { recursive: true })
   let changed = false
   const settings = readJson(join(global.dir, 'settings.json'))
-  if (settings !== undefined) changed = writeIfChanged(join(dir, 'settings.json'), mergeSettings(settings, readJson(join(dir, 'settings.json')))) || changed
+  if (settings !== undefined) changed = writeIfChanged(join(dir, 'settings.json'), planner(settings, readJson(join(dir, 'settings.json')))) || changed
 
   const config = readJson(global.config)
   if (config !== undefined) {

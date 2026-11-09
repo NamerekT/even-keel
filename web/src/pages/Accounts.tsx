@@ -4,6 +4,7 @@ import { useCommand } from '../live/useCommand.js'
 import { useFreshAccounts, useOpenAdd } from '../layout/AddAccountDialog.js'
 import { useSpend, useTokens } from '../layout/accountParts.js'
 import { AccountGroups, AccountProblems } from '../layout/accountRows.js'
+import { AccountSettingsEdits } from '../layout/accountSettings.js'
 import { useNow } from '../layout/useNow.js'
 import { EmptyState, PageHead } from '../ui/blocks.js'
 import './accounts.css'
@@ -18,6 +19,7 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
     <PageHead title={t.account.title} actions={account.accounts.length > 0 ? add : undefined} />
     {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     <AccountProblems {...props} />
+    <AccountSettingsEdits {...props} />
     {account.accounts.length === 0 ? <EmptyState action={add}>{t.account.groupEmpty}</EmptyState> : <AccountGroups {...props} marketplace={state.packages.marketplace} page />}
   </div>
 }

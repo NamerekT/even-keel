@@ -14,6 +14,7 @@ import { userCredentials } from './gcloud.js'
 import { cloudEnv, cloudOf, type CloudConnection, type CloudSummary } from './cloud.js'
 import { KeychainCredentials, keychainService } from './keychain.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
+import type { AccountSettings } from './settingsLayer.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
 
 const PENDING_PREFIX = '.pending-'
@@ -295,10 +296,17 @@ export class AccountHomes {
     }
   }
 
+  private settings: AccountSettings | null = null
+
+  /** What the transfer wrote into each folder's `settings.json` and each account's own layer (BTN-901). */
+  useSettings(settings: AccountSettings): void {
+    this.settings = settings
+  }
+
   /** Claude's shared configuration into an account folder; Codex reads its own `config.toml`. */
   share(home: AccountHome): boolean {
     if (home.global || home.agent !== CLAUDE) return false
-    return shareConfig({ dir: this.global.dir, config: this.configFile(this.global) }, home.dir)
+    return shareConfig({ dir: this.global.dir, config: this.configFile(this.global) }, home.dir, console.warn, this.settings?.planner(home.key))
   }
 
   /** The `.claude.json` the CLI reads with this folder. */
@@ -315,6 +323,7 @@ export class AccountHomes {
       return
     }
     rmSync(home.dir, { recursive: true, force: true, maxRetries: 3 })
+    this.settings?.forget(home.key)
     this.forget()
   }
 

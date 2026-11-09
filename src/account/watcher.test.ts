@@ -1,10 +1,11 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CloudConnection } from './cloud.js'
 import { OPENCODE } from '../opencode/name.js'
-import { AccountHomes } from './homes.js'
+import { AccountHomes, type AccountHome } from './homes.js'
+import { AccountSettings } from './settingsLayer.js'
 import type { KeyVerdict } from './keycheck.js'
 import type { BalanceVerdict } from './management.js'
 import { AccountWatcher, type AccountWatcherOptions } from './watcher.js'
@@ -411,5 +412,67 @@ describe('AccountWatcher.setManagementKey (BTN-868)', () => {
     expect(changes()).toBe(before + 1)
     await accounts.readBalance('work')
     expect(read).toHaveLength(3)
+  })
+})
+
+describe('AccountWatcher settings edits (BTN-901)', () => {
+  let root: string
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it('shows an edit made right in the folder, keeps it as the account\'s own on request and drops it again', async () => {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-watcher-'))
+    const globalDir = join(root, 'global')
+    mkdirSync(globalDir, { recursive: true })
+    writeFileSync(join(globalDir, 'settings.json'), JSON.stringify({ model: 'opus' }))
+    const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: globalDir, CODEX_HOME: join(root, 'no-codex') }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+    homes.addApiKey('work', OLD)
+    const settings = new AccountSettings(new Map(), globalDir, () => {})
+    homes.useSettings(settings)
+    const home = homes.find('work')!
+    homes.share(home)
+    const options = {
+      homes,
+      settings,
+      agentOf: () => ({ authStatus: async () => API_STATUS }),
+      apps: { list: () => [] },
+      prepare: async (target: AccountHome) => void homes.share(target),
+      active: () => 'work',
+      nameOf: () => null,
+      transportOf: () => null,
+      loginBlock: () => null,
+      sessionsIn: () => [],
+      projectsOn: () => [],
+      pool: () => [],
+      missing: () => [],
+      online: async () => true,
+      sessionsKnown: () => true,
+      removing: () => false,
+      configPending: () => false,
+      limits: () => null,
+      usage: () => ({ state: 'ok' }),
+      checkKey: async () => ({ state: 'ok' }),
+      keyCheckMs: 60 * 60_000,
+      checkCredit: async () => ({ state: 'unknown', reason: 'none' }),
+      creditCheckMs: 60 * 60_000,
+      organizations: { of: () => undefined, note: () => {}, forget: () => {} },
+      now: () => new Date('2026-11-09T12:00:00.000Z'),
+      onChange: () => {},
+      onError: (error: unknown) => {
+        throw error
+      },
+    } as unknown as AccountWatcherOptions
+    const accounts = new AccountWatcher(options)
+    await accounts.refresh()
+    const file = join(home.dir, 'settings.json')
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), model: 'sonnet' }))
+    expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', settingsEdits: ['model'] })
+    await expect(accounts.resolveSettingsEdit('work', 'theme', 'own')).rejects.toThrow(/theme/)
+    await accounts.resolveSettingsEdit('work', 'model', 'own')
+    expect(accounts.view.accounts[0]).toMatchObject({ ownSettings: ['model'] })
+    expect(accounts.view.accounts[0]?.settingsEdits).toBeUndefined()
+    await accounts.dropOwnSetting('work', 'model')
+    expect(accounts.view.accounts[0]?.ownSettings).toBeUndefined()
+    expect(JSON.parse(readFileSync(file, 'utf8')).model).toBe('opus')
+    await expect(accounts.resolveSettingsEdit('global', 'model', 'own')).rejects.toThrow(/global/)
   })
 })

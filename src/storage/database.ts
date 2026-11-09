@@ -512,6 +512,15 @@ export const STEPS: readonly string[] = [
   `
   alter table task_retries add column started text;
   `,
+  // What the last transfer wrote into each Claude account folder's settings.json and the account's own layer (BTN-901).
+  `
+  create table account_settings (
+    account  text primary key,
+    written  text not null,
+    own      text not null,
+    saved_at text not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

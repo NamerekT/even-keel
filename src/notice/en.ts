@@ -365,6 +365,10 @@ export const en = {
   'account.extraFree': (p: { account: string }) =>
     `codex: a second free Codex account next to ${p.account}; OpenAI's terms do not allow several free accounts to get round the limits, so sessions do not start here until it is on a paid plan`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
+  'account.settingsEdited': (p: { account: string; key: string }) =>
+    `In ${p.account}, "${p.key}" was changed directly; the change stays there until you choose what to do with it`,
+  'account.settingsNoEdit': (p: { account: string; key: string }) => `claude: ${p.account} has no change of "${p.key}" to resolve any more; reload the page`,
+  'account.settingsNoOwn': (p: { account: string; key: string }) => `claude: ${p.account} keeps no "${p.key}" of its own any more; reload the page`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
   'account.apiKeyUnchecked': (p: { reason: string }) => `claude: could not check the key with Anthropic (${p.reason}); try again later`,
