@@ -3,8 +3,11 @@ import type { Queryable } from './database.js'
 
 /** The newest answers kept; an older one only costs one more question of the agent. */
 export const CONTEXT_WINDOWS_KEPT = 200
-/** The sessions whose last window is kept, as many as the monitor holds in memory. */
-export const SESSION_WINDOWS_KEPT = 500
+/**
+ * The sessions whose last window is kept, here and in the monitor's memory. Above what the page shows (936
+ * sessions on 2026-11-09): fewer, and every start writes the shown ones that fell out again.
+ */
+export const SESSION_WINDOWS_KEPT = 2000
 
 /**
  * The context windows the agents named (BTN-946), kept through a restart; tables `context_windows` and
@@ -36,12 +39,18 @@ export async function loadSessionWindows(db: Queryable): Promise<[string, number
   return rows.map((row) => [row.session_id, row.window_size])
 }
 
-/** Starts its write at the call: see `Writes`. */
-export async function saveSessionWindow(db: Queryable, sessionId: string, window: number, at: number): Promise<void> {
+/**
+ * One poll's new and changed windows, a session once, in two statements however many they are: a write per
+ * session with its own trim kept the database busy for a quarter of the time (BTN-951). Starts its write at
+ * the call: see `Writes`.
+ */
+export async function saveSessionWindows(db: Queryable, windows: [string, number][], at: number): Promise<void> {
+  if (windows.length === 0) return
   await db.query(
-    `insert into session_windows (session_id, window_size, seen_at) values ($1, $2, $3)
+    `insert into session_windows (session_id, window_size, seen_at)
+       select session_id, window_size, $2 from json_to_recordset($1::json) as fresh(session_id text, window_size integer)
        on conflict (session_id) do update set window_size = excluded.window_size`,
-    [sessionId, window, at],
+    [JSON.stringify(windows.map(([sessionId, window]) => ({ session_id: sessionId, window_size: window }))), at],
   )
   await db.query(
     'delete from session_windows where session_id in (select session_id from session_windows order by seen_at desc, session_id desc offset $1)',

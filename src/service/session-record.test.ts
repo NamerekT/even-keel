@@ -6,6 +6,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { TranscriptFold } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
+import { SESSION_WINDOWS_KEPT } from '../storage/context-windows.js'
 import { wireServer } from './hosting.js'
 
 vi.mock('../server.js', () => ({ createEvenKeelServer: vi.fn() }))
@@ -31,7 +32,7 @@ function rig(sessionWindows?: [string, number][]) {
     homes: () => [home], agentOf: () => ({ sessions: async () => entries, tail: () => tail }),
     emailOf: () => null, apiKey: () => false, projectKeys: () => ['ABC'], intervalMs: 10,
     contextWindow: () => window, onAgents: () => {}, onChange: () => {}, onError: error,
-    sessionWindows, onSessionWindow: (sessionId, value) => saved.push([sessionId, value]),
+    sessionWindows, onSessionWindows: (windows) => saved.push(...windows),
   })
   monitors.push(monitor)
   const record = vi.fn(async (_home: AccountHome, sessionId: string): Promise<SessionRecord | undefined> => ({
@@ -107,16 +108,16 @@ describe('the context window of a session record', () => {
     expect(await r.read('first')).toMatchObject({ contextWindow })
   })
 
-  it('evicts the oldest session on the 501st, without renewing it on updates or reads', async () => {
-    const r = rig()
-    await r.poll('session-0')
-    await r.poll('session-1')
+  it('evicts the oldest session past the limit, without renewing it on updates or reads', async () => {
+    const kept = Array.from({ length: SESSION_WINDOWS_KEPT - 2 }, (_, i): [string, number] => [`kept-${i}`, 250_000])
+    const r = rig([['session-0', 250_000], ['session-1', 250_000], ...kept])
     await r.poll('session-0', 300_000)
     await r.read('session-0')
-    for (let i = 2; i <= 500; i++) await r.poll(`session-${i}`)
+    expect(await r.read('session-0')).toMatchObject({ contextWindow: 300_000 })
+    await r.poll('session-2')
     expect(await r.read('session-0')).toMatchObject({ contextWindow: null })
     expect(await r.read('session-1')).toMatchObject({ contextWindow: 250_000 })
-    expect(await r.read('session-500')).toMatchObject({ contextWindow: 250_000 })
+    expect(await r.read('session-2')).toMatchObject({ contextWindow: 250_000 })
   })
 
   it('does not synthesize a missing record or hide a read failure', async () => {

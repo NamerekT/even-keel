@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { CONTEXT_WINDOWS_KEPT, loadContextWindows, loadSessionWindows, saveContextWindow, saveSessionWindow, SESSION_WINDOWS_KEPT } from './context-windows.js'
+import { CONTEXT_WINDOWS_KEPT, loadContextWindows, loadSessionWindows, saveContextWindow, saveSessionWindows, SESSION_WINDOWS_KEPT } from './context-windows.js'
 import { insertRows, rowsOf } from './copy.js'
 import { fixture, readsWhole, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
@@ -55,17 +55,18 @@ it('a new answer replaces the one of the same launch, settings or none, and only
 it('a session keeps its last window, the oldest sessions go past the limit', { timeout: 60_000 }, async () => {
   const db = await openDatabase(undefined)
   try {
-    await saveSessionWindow(db, 'first', 200_000, 1)
-    await saveSessionWindow(db, 'first', 250_000, 5)
-    await saveSessionWindow(db, 'second', 400_000, 2)
-    expect(await loadSessionWindows(db)).toEqual([['first', 250_000], ['second', 400_000]])
+    await saveSessionWindows(db, [], 1)
+    await saveSessionWindows(db, [['first', 200_000]], 1)
+    await saveSessionWindows(db, [['first', 250_000], ['third', 300_000]], 5)
+    await saveSessionWindows(db, [['second', 400_000]], 2)
+    expect(await loadSessionWindows(db)).toEqual([['first', 250_000], ['second', 400_000], ['third', 300_000]])
     await db.exec(`insert into session_windows (session_id, window_size, seen_at)
-      select 's' || n, 1, 10 + n from generate_series(1, ${SESSION_WINDOWS_KEPT}) as n`)
-    await saveSessionWindow(db, 'last', 1, 10_000)
+      select 's' || n, 1, 10 + n from generate_series(1, ${SESSION_WINDOWS_KEPT - 2}) as n`)
+    await saveSessionWindows(db, [['last', 1], ['later', 2]], 10_000)
     const kept = await loadSessionWindows(db)
     expect(kept).toHaveLength(SESSION_WINDOWS_KEPT)
-    expect(kept.map(([id]) => id)).not.toContain('first')
-    expect(kept.at(-1)).toEqual(['last', 1])
+    expect(kept[0]).toEqual(['s1', 1])
+    expect(kept.slice(-2)).toEqual([['last', 1], ['later', 2]])
   } finally {
     await db.close()
   }

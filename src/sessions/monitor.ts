@@ -3,6 +3,7 @@ import { GLOBAL_ACCOUNT } from '../account/model.js'
 import type { Agent, SessionTail } from '../agent/contract.js'
 import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
+import { SESSION_WINDOWS_KEPT } from '../storage/context-windows.js'
 import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
 import type { Ask } from './ask.js'
 import { WARM_CACHE_MS } from './cache.js'
@@ -25,8 +26,8 @@ export interface SessionMonitorOptions {
   contextWindow?: (account: string, model: string, task: string, settings?: string) => number | null
   /** Optional. The sessions' windows kept before this start, oldest first (BTN-946). */
   sessionWindows?: [string, number][]
-  /** Optional. A session's window seen for the first time or changed, to keep through a restart. */
-  onSessionWindow?: (sessionId: string, window: number) => void
+  /** Optional. The windows seen for the first time or changed in one poll, a session once, to keep through a restart. */
+  onSessionWindows?: (windows: [string, number][]) => void
   /** Optional. The tool call a waiting session's permission hook holds, as a question (BTN-269). */
   approval?: (sessionId: string) => Ask | null
   intervalMs: number
@@ -57,7 +58,7 @@ export class SessionMonitor {
   private readonly remoteEnabled = new Map<string, boolean | null>()
   /** The compactions seen in each transcript followed since the start, kept after its session leaves the agents' list. */
   private readonly compactions = new Map<string, number>()
-  /** Last non-null windows of up to 500 sessions, in first-observed order; kept through a restart (`session_windows`). */
+  /** Last non-null windows in first-observed order: of every session shown and up to `SESSION_WINDOWS_KEPT` in all; kept through a restart (`session_windows`). */
   private readonly contextWindows: Map<string, number>
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
@@ -203,11 +204,11 @@ export class SessionMonitor {
       for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 
       const views = this.views()
+      const changed = new Map<string, number>()
       for (const view of views) {
         if (byTask.has(view.task) && view.contextWindow !== null && this.contextWindows.get(view.sessionId) !== view.contextWindow) {
           this.contextWindows.set(view.sessionId, view.contextWindow)
-          this.options.onSessionWindow?.(view.sessionId, view.contextWindow)
-          if (this.contextWindows.size > 500) this.contextWindows.delete(this.contextWindows.keys().next().value!)
+          changed.set(view.sessionId, view.contextWindow)
         }
         rareEvents.observe(view, this.tails.get(view.sessionId)?.path !== undefined)
         const agent = byTask.get(view.task)
@@ -216,6 +217,10 @@ export class SessionMonitor {
             `background-blocked detail=${JSON.stringify(agent.backgroundBlock.detail)}; treating the session as waiting`)
         }
       }
+      if (changed.size > 0) {
+        this.options.onSessionWindows?.([...changed])
+        this.forgetWindows(new Set(views.map((view) => view.sessionId)))
+      }
       const snapshot = JSON.stringify([views, [...this.compactions]])
       if (snapshot !== this.lastSnapshot) {
         this.lastSnapshot = snapshot
@@ -223,6 +228,14 @@ export class SessionMonitor {
       }
     } catch (error) {
       this.options.onError(error)
+    }
+  }
+
+  /** Drops the oldest windows past the limit; a session the page still shows keeps its own, or it would be written again every poll (BTN-951). */
+  private forgetWindows(shown: Set<string>): void {
+    for (const id of this.contextWindows.keys()) {
+      if (this.contextWindows.size <= SESSION_WINDOWS_KEPT) return
+      if (!shown.has(id)) this.contextWindows.delete(id)
     }
   }
 

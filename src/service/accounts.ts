@@ -20,7 +20,7 @@ import type { Agent, SessionHandle, SessionStart } from '../agent/contract.js'
 import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
 import { ModelCatalog } from '../agent/models.js'
 import { ContextWindows, type SavedWindow } from '../agent/windows.js'
-import { saveContextWindow, saveSessionWindow } from '../storage/context-windows.js'
+import { saveContextWindow, saveSessionWindows } from '../storage/context-windows.js'
 import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
@@ -661,7 +661,7 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
     projectKeys: () => sessionPrefixes(ctx.configStore.current),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
     sessionWindows,
-    onSessionWindow: (sessionId, window) => ctx.writes.add(`the context window of session ${sessionId}`, saveSessionWindow(ctx.db, sessionId, window, Date.now())),
+    onSessionWindows: (windows) => ctx.writes.add(`the context windows of ${windows.length} sessions`, saveSessionWindows(ctx.db, windows, Date.now())),
     approval: (sessionId) => ctx.approvals.ask(sessionId),
     intervalMs: ctx.SESSION_POLL_MS,
     onAgents: (list) => {
