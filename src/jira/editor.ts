@@ -4,6 +4,7 @@ import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from 
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
+import { JiraHttpError } from './api.js'
 import { BLOCKS, jiraEstimate, priorityFor, type JiraIssue, type JiraLink, type JiraVersion } from './model.js'
 
 export interface JiraIssueType {
@@ -86,7 +87,18 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
       const reachable = [...new Set(transitions.map((each) => each.to.name))]
       throw new EditRefused(`${issue.key}: its workflow has no transition from ${issue.fields.status.name} to "${name}"; from here it goes to ${reachable.join(', ') || 'nothing'}`)
     }
-    await rest(`${path(issue.key)}/transitions`, 'POST', { transition: { id: found.id } })
+    try {
+      await rest(`${path(issue.key)}/transitions`, 'POST', { transition: { id: found.id } })
+    } catch (error) {
+      // Some transitions require fields the tasks server does not set (BTN-930).
+      if (error instanceof JiraHttpError && error.status === 400) {
+        const required = error.fields.length > 0
+          ? `the field${error.fields.length > 1 ? 's' : ''} ${error.fields.join(', ')}`
+          : 'a field Jira named in its answer'
+        throw new EditRefused(`the transition to "${name}" requires ${required}, which the tasks server does not set; set it in Jira`)
+      }
+      throw error
+    }
     return true
   }
   /** The issue type of a new issue: a standard one, or a sub-task under a standard parent. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { revisionOf } from '../tracker/editor.js'
 import { markdownToAdf } from './adf.js'
+import { JiraHttpError } from './api.js'
 import { jiraEditor } from './editor.js'
 import { toCard, toTrackerTask, type JiraIssue } from './model.js'
 
@@ -22,6 +23,7 @@ function fixture() {
   const writes: [string, string, unknown][] = []
   const comments: [string, string][] = []
   const uploads: [string, string[]][] = []
+  const state = { transition: null as JiraHttpError | null }
   let nextLink = 3
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     if (path === '/search/jql') {
@@ -31,6 +33,7 @@ function fixture() {
     }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      if (state.transition !== null && path.endsWith('/transitions')) throw state.transition
       if (path === '/issueLink' && method === 'POST') {
         const link = body as { type: { name: string }; inwardIssue: { key: string }; outwardIssue: { key: string } }
         const id = `l-${nextLink++}`
@@ -67,7 +70,7 @@ function fixture() {
     upload: async (id, files) => void uploads.push([id, files.map((file) => file.name)]),
   })
   const read = (key: string): JiraIssue => ({ id: key, key, fields: issues[key]! })
-  return { editor, writes, issues, comments, uploads, recent, searches, read }
+  return { editor, writes, issues, comments, uploads, recent, searches, read, state }
 }
 
 describe('jiraEditor', () => {
@@ -226,6 +229,15 @@ describe('jiraEditor', () => {
     const { editor, writes } = fixture()
     await expect(editor.link('ABC-2', 'ABC-3', 'blocks', false)).rejects.toThrow('ABC-2 has no "blocks" link to ABC-3')
     expect(writes).toEqual([])
+  })
+
+  it('says a clear reason when a transition requires a field the tasks server does not set (BTN-930)', async () => {
+    const { editor, state, writes } = fixture()
+    state.transition = new JiraHttpError(400, 'Нужен срок', ['duedate'])
+    await expect(editor.set('ABC-1', { field: 'status', to: 'Done' })).rejects.toThrow(
+      'the transition to "Done" requires the field duedate, which the tasks server does not set; set it in Jira',
+    )
+    expect(writes).toEqual([['POST', '/issue/ABC-1/transitions', { transition: { id: 't-31' } }]])
   })
 
   it('patches the description through Markdown and writes it back as ADF', async () => {

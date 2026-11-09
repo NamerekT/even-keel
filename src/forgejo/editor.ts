@@ -3,6 +3,7 @@ import { sameName } from '../chain/rules.js'
 import { markerComment, withMarker } from '../tracker/markers.js'
 import type { Repo, RepoMap } from '../github/model.js'
 import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
+import { ForgejoHttpError } from './api.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound } from '../tracker/source.js'
@@ -59,7 +60,15 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
   const setStatus = async (id: string, issue: Pick<ForgejoIssue, 'state'>, name: string): Promise<boolean> => {
     const target = statusOf(name)
     if (forgejoStatus(issue.state).name === target.name) return false
-    return update(id, { state: target.category === 'Won' ? 'closed' : 'open' })
+    try {
+      return await update(id, { state: target.category === 'Won' ? 'closed' : 'open' })
+    } catch (error) {
+      // Forgejo refuses to close an issue that still blocks an open one (BTN-930).
+      if (error instanceof ForgejoHttpError && error.status === 412) {
+        throw new EditRefused(`${id} is still blocking an open issue; close that issue or remove the link first`)
+      }
+      throw error
+    }
   }
   const slug = (repo: Repo) => `${repo.owner}/${repo.name}`
   const priorityLabel = async (repo: Repo, level: TaskPriority): Promise<string> => {
@@ -159,6 +168,7 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
       await rest(`${to.base}/dependencies`, on ? 'POST' : 'DELETE', { owner: from.repo.owner, repo: from.repo.name, index: from.number })
     },
     relabel: (id, change) => deps.relabel(id, change),
+    linkTypes: ['blocks', 'blockedBy'],
     // A Forgejo comment has no field for the session's model: its author is the token's account.
     comment: (id, body) => deps.comment(id, body),
     // Assets of the issue, and of the comment once it is posted.

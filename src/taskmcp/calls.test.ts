@@ -664,6 +664,23 @@ describe('components and attachments (BTN-895)', () => {
     expect(linked).toEqual([['ABC-1', 'ABC-3', 'blockedBy', false], ['ABC-1', 'ABC-2', 'relates', true]])
   })
 
+  it('removes links before it adds them across the kinds (BTN-930)', async () => {
+    const ordered: [string, string, TaskLink, boolean][] = []
+    trackers.set(ABC, like((editor) => ({
+      ...editor,
+      link: async (id, other, link, on) => void ordered.push([id, other, link, on]),
+    })))
+    await call('task_update', { key: 'ABC-1', relates: { remove: ['ABC-2'] }, blocks: { add: ['ABC-2'] } })
+    expect(ordered).toEqual([['ABC-1', 'ABC-2', 'relates', false], ['ABC-1', 'ABC-2', 'blocks', true]])
+  })
+
+  it('refuses an unsupported link kind before any write of the update (BTN-930)', async () => {
+    trackers.set(ABC, like((editor) => ({ ...editor, linkTypes: ['blocks', 'blockedBy'] })))
+    const before = await description(1)
+    expect(await refusal(call('task_update', { key: 'ABC-1', append: '## Notes', relates: { add: ['ABC-2'] } }))).toMatch(/keeps no "relates" link/)
+    expect(await description(1)).toBe(before)
+  })
+
   it('sets a component by its name and refuses an unknown one with the list', async () => {
     const set: TaskField[] = []
     trackers.set(ABC, withComponents(set))
