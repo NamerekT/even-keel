@@ -127,6 +127,18 @@ describe('Updater', () => {
     await expect(subject.update(RELEASE)).rejects.toMatchObject({ notice: { code: 'updates.running' } })
   })
 
+  it('starts the update without waiting for a chain held on a distant limit', async () => {
+    const held: ActiveChain = { project: 'ABC', current: null, paused: false, error: null, limitUntil: new Date(Date.now() + 600_000).toISOString() }
+    const { updater: subject, plans } = updater({
+      chains: [[held]],
+      sleep: async () => { throw new Error('must not wait for the limit') },
+    })
+    await subject.start()
+    await subject.update(RELEASE)
+    expect(plans).toHaveLength(1)
+    expect(subject.view().progress).toMatchObject({ phase: 'running', waiting: [] })
+  })
+
   it('waits for a chain in a launch before it launches', async () => {
     const launching = { project: 'ABC', current: { task: 'ABC-1', sessionId: null }, paused: false, error: null } as unknown as ActiveChain
     const { updater: subject, plans } = updater({ chains: [[launching], [launching], []] })

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LimitWindow } from '../limits/model.js'
+import { busyChains } from '../updates/settle.js'
 import { commitAndMerge, Gate } from './agent.fixture.js'
 import { ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
 
@@ -75,11 +76,14 @@ describe('limits end to end', { timeout: 60_000 }, () => {
     await run.until(() => run.log.some((line) => line.includes('ABC-1 waits for the first limits poll of script')), 'the wait for the first poll')
     await run.pass(3 * 60_000)
     expect(launches()).toEqual([])
+    expect(busyChains(run.service.dispatcher.state.active, new Date())).toEqual([PROJECT_ID])
 
     gate.open()
     await run.until(() => run.service.limits.usage(ACCOUNT).state === 'ok', 'the first poll answered')
     await run.pass(3 * 60_000)
     expect(launches()).toEqual([])
+    expect(run.service.dispatcher.state.active[0]?.limitUntil).toBe(reset)
+    expect(busyChains(run.service.dispatcher.state.active, new Date())).toEqual([])
 
     await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 60_000, limitMs: 2 * 60 * 60_000 })
     expect(Date.now()).toBeGreaterThanOrEqual(Date.parse(reset))
@@ -180,6 +184,7 @@ describe('limits end to end', { timeout: 60_000 }, () => {
 
     await run.until(() => run.service.dispatcher.state.active[0]?.modelWeek?.model === 'Fable', 'the week of the model holds the chain')
     expect(launches()).toEqual([])
+    expect(busyChains(run.service.dispatcher.state.active, new Date())).toEqual([])
 
     await run.pass(25 * 60_000)
     await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 30_000, limitMs: 10 * 60_000 })
