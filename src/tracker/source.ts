@@ -189,6 +189,8 @@ export interface TrackerVocabulary {
   milestones?: string[]
   /** The project's components (BTN-895); a tracker without components leaves it out. */
   components?: string[]
+  /** `false` — the project keeps no estimate though its tracker may (a Linear team with no scale, BTN-911). */
+  estimate?: boolean
 }
 
 export interface NewTask {

@@ -54,6 +54,8 @@ export interface JiraFields {
   issuetype?: { hierarchyLevel?: number; subtask?: boolean } | null
   description?: AdfNode | null
   attachment?: JiraAttachment[]
+  /** Empty where time tracking is off or nothing is estimated. */
+  timetracking?: { originalEstimate?: string; originalEstimateSeconds?: number } | null
 }
 
 export interface JiraIssue {
@@ -70,7 +72,7 @@ export interface JiraComment {
 }
 
 /** The fields a task of the chain needs; the card adds the description and the files. */
-export const TASK_FIELDS = ['summary', 'status', 'priority', 'labels', 'fixVersions', 'parent', 'issuelinks', 'subtasks', 'issuetype']
+export const TASK_FIELDS = ['summary', 'status', 'priority', 'labels', 'fixVersions', 'parent', 'issuelinks', 'subtasks', 'issuetype', 'timetracking']
 export const CARD_FIELDS = [...TASK_FIELDS, 'description', 'attachment']
 
 /** The link type the chain orders by; it is found by this name, so a site that renamed it has no blockers (`jira.blocksType`). */
@@ -147,8 +149,14 @@ export function toTrackerTask(issue: JiraIssue, order: readonly string[], childr
     milestone: milestoneOf(earliestVersion(fields.fixVersions)),
     priority: jiraPriority(fields.priority, order),
     labels: fields.labels ?? [],
-    estimate: 0,
+    estimate: (fields.timetracking?.originalEstimateSeconds ?? 0) / 3600,
   }
+}
+
+/** The original estimate in whole minutes; `null` — none. */
+export function jiraEstimate(fields: JiraFields): number | null {
+  const seconds = fields.timetracking?.originalEstimateSeconds ?? 0
+  return seconds > 0 ? Math.round(seconds / 60) : null
 }
 
 /** An issue that may have children other than its sub-tasks: an epic, or a level above it. */
@@ -175,6 +183,7 @@ export function toCard(issue: JiraIssue, comments: readonly JiraComment[], order
   const links = fields.issuelinks ?? []
   const media = mediaLinks(issue.key, fields.attachment ?? [])
   const attachments: TaskAttachment[] = (fields.attachment ?? []).map((each) => ({ file: each.id, name: each.filename, type: each.mimeType ?? '', size: each.size ?? 0, url: null }))
+  const estimate = jiraEstimate(fields)
   return {
     id: issue.key,
     title: fields.summary,
@@ -191,5 +200,6 @@ export function toCard(issue: JiraIssue, comments: readonly JiraComment[], order
       .sort((a, b) => Date.parse(a.created) - Date.parse(b.created))
       .map((comment) => ({ author: comment.author?.displayName ?? null, at: Date.parse(comment.created), text: adfToMarkdown(comment.body, media) })),
     attachments,
+    ...(estimate === null ? {} : { estimate }),
   }
 }

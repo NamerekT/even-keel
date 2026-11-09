@@ -135,6 +135,12 @@ describe('linear card', () => {
     expect(toCard(raw({ description: null, projectMilestone: null })).description).toBe('')
   })
 
+  it("reads the points back as minutes by the team's scale, none where the team estimates nothing", () => {
+    expect(toCard(raw({ estimate: 3, team: { issueEstimationType: 'fibonacci' } })).estimate).toBe(20)
+    expect(toCard(raw({ estimate: 3, team: { issueEstimationType: 'notUsed' } })).estimate).toBeUndefined()
+    expect(toCard(raw()).estimate).toBeUndefined()
+  })
+
   it('reads blocks both ways and related from either side', () => {
     const card = toCard(
       raw({

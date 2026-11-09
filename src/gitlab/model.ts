@@ -25,6 +25,14 @@ export interface GitlabIssue extends GitlabRef {
   milestone: GitlabMilestone | null
   /** `issue`, `task`, `incident`…; a task is the child type of an issue. */
   issue_type?: string
+  /** The estimate in seconds; 0 — none. */
+  time_stats?: { time_estimate?: number }
+}
+
+/** The time estimate in whole minutes; `null` — none. */
+export function gitlabEstimate(issue: Pick<GitlabIssue, 'time_stats'>): number | null {
+  const seconds = issue.time_stats?.time_estimate ?? 0
+  return seconds > 0 ? Math.round(seconds / 60) : null
 }
 
 export interface GitlabLink extends GitlabRef {
@@ -81,7 +89,8 @@ export function toTrackerTask(issue: GitlabIssue, links: GitlabLink[], projects:
     id: projects.idOf(issue), title: issue.title, status: gitlabStatus(issue.state),
     blockedBy: links.filter((link) => link.link_type === 'is_blocked_by').map((link) => projects.idOf(link)),
     parent: hierarchy.parent === null ? null : projects.idOf(hierarchy.parent), subtasks: hierarchy.children.length,
-    milestone: milestoneOf(issue.milestone), priority: gitlabPriority(issue.labels), labels: issue.labels, estimate: 0,
+    milestone: milestoneOf(issue.milestone), priority: gitlabPriority(issue.labels), labels: issue.labels,
+    estimate: (issue.time_stats?.time_estimate ?? 0) / 3600,
   }
 }
 
@@ -91,6 +100,7 @@ export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNot
   const comments = notes.filter((note) => !note.system).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id)
   const attachments = new Map([issue.description ?? '', ...comments.map((note) => note.body)].flatMap((text) => uploads.files(text)).map((file) => [file.file, file]))
   const refOf = (ref: GitlabRef): TaskRef => ({ id: projects.idOf(ref), title: ref.title, status: gitlabStatus(ref.state) })
+  const estimate = gitlabEstimate(issue)
   return {
     id: task.id, title: task.title, description: uploads.rewrite(issue.description ?? '', task.id), status: task.status, priority: task.priority,
     labels: task.labels, milestone: task.milestone, parent: hierarchy.parent === null ? null : refOf(hierarchy.parent),
@@ -98,5 +108,6 @@ export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNot
     blocks: links.filter((link) => link.link_type === 'blocks').map(refOf), related: links.filter((link) => link.link_type === 'relates_to').map(refOf),
     comments: comments.map((note) => ({ author: note.author?.username ?? null, at: Date.parse(note.created_at), text: uploads.rewrite(note.body, task.id) })),
     attachments: [...attachments.values()],
+    ...(estimate === null ? {} : { estimate }),
   }
 }

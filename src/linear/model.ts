@@ -1,5 +1,6 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import type { StatusCategory, TaskMilestone, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
+import { linearMinutes, linearScale, type LinearEstimation } from './estimate.js'
 
 export interface LinearMilestone {
   name: string
@@ -54,6 +55,9 @@ export interface LinearCardIssue {
   labels: { nodes: { name: string }[] }
   projectMilestone: LinearMilestone | null
   comments: { nodes: { user: { name: string } | null; createdAt: string; body: string }[] }
+  /** The team's points; the team's scale turns them into minutes. */
+  estimate?: number | null
+  team?: LinearEstimation
 }
 
 export interface TeamStateDoc extends LinearState {
@@ -101,6 +105,7 @@ export function toCard(issue: LinearCardIssue): TrackerCard {
   const refOf = (ref: LinearRef): TaskRef => ({ id: ref.identifier, title: ref.title, status: linearStatus(ref.state) })
   const unique = (refs: TaskRef[]) => [...new Map(refs.map((ref) => [ref.id, ref])).values()]
   const milestone = issue.projectMilestone
+  const estimate = linearMinutes(issue.estimate, linearScale(issue.team))
   return {
     id: issue.identifier,
     title: issue.title,
@@ -120,6 +125,7 @@ export function toCard(issue: LinearCardIssue): TrackerCard {
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       .map((node) => ({ author: node.user?.name ?? null, at: Date.parse(node.createdAt), text: node.body })),
     attachments: [],
+    ...(estimate === null ? {} : { estimate }),
   }
 }
 

@@ -36,6 +36,8 @@ export interface BuiltinTask extends TaskKey {
   version: number
   createdAt: string
   updatedAt: string
+  /** Minutes of the agent's work (BTN-911); `null` — none. */
+  estimate: number | null
 }
 
 export interface BuiltinComment {
@@ -69,6 +71,8 @@ export interface NewBuiltinTask {
   milestone?: string | null
   parent?: number | null
   labels?: string[]
+  /** Minutes of the agent's work; none by default. */
+  estimate?: number | null
   /** The row's id, chosen by the caller (a tasks_create marker, BTN-905); a new UUID by default. */
   id?: string
 }
@@ -143,8 +147,8 @@ export class BuiltinStore {
       const id = task.id ?? randomUUID()
       const milestone = task.milestone == null ? null : await this.milestoneId(tx, task.project, task.milestone)
       await tx.query(
-        `insert into builtin_tasks (${TASK_COLUMNS}) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9)`,
-        [id, task.project, number, title, task.description ?? '', status.name, priority, milestone, at],
+        `insert into builtin_tasks (${TASK_COLUMNS}, estimate) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9, $10)`,
+        [id, task.project, number, title, task.description ?? '', status.name, priority, milestone, at, estimateOf(task.estimate ?? null)],
       )
       if (task.parent != null) await this.setParent(tx, { id, project_id: task.project, number }, task.parent)
       for (const name of uniqueNames(task.labels ?? [])) await this.attach(tx, id, task.project, name)
@@ -226,6 +230,14 @@ export class BuiltinStore {
           break
       }
       return true
+    })
+  }
+
+  /** Sets the estimate in minutes of the agent's work; `null` removes it. */
+  setEstimate(key: TaskKey, minutes: number | null): Promise<BuiltinTask> {
+    return this.change(key, async (tx, row) => {
+      const { affectedRows } = await tx.query('update builtin_tasks set estimate = $2 where id = $1 and estimate is distinct from $2', [row.id, estimateOf(minutes)])
+      return (affectedRows ?? 0) > 0
     })
   }
 
@@ -575,9 +587,9 @@ export class BuiltinStore {
 
   private async read(projects: readonly string[], number?: number): Promise<BuiltinTask[]> {
     if (projects.length === 0) return []
-    const { rows } = await this.db.query<TaskRow & { milestone: string | null; milestone_date: number | null; parent: number | null; subtasks: number }>(
+    const { rows } = await this.db.query<TaskRow & { estimate: number | null; milestone: string | null; milestone_date: number | null; parent: number | null; subtasks: number }>(
       `select t.id, t.project_id, t.number, t.title, t.description, t.description_rev, t.status, t.priority, t.version,
-              t.created_at, t.updated_at, m.name as milestone, m.date::float8 as milestone_date, p.number as parent,
+              t.created_at, t.updated_at, t.estimate, m.name as milestone, m.date::float8 as milestone_date, p.number as parent,
               (select count(*)::int from builtin_tasks c where c.parent_id = t.id) as subtasks
          from builtin_tasks t
          left join builtin_milestones m on m.id = t.milestone_id
@@ -622,9 +634,15 @@ export class BuiltinStore {
         version: row.version,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        estimate: row.estimate,
       }
     })
   }
+}
+
+/** Whole minutes; the tasks server already refuses anything below one. */
+function estimateOf(minutes: number | null): number | null {
+  return minutes === null ? null : Math.round(minutes)
 }
 
 function titleOf(title: string): string {

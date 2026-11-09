@@ -81,6 +81,14 @@ describe('toTrackerTask', () => {
     })
     expect(toTrackerTask(issue('ABC-7'), ORDER, 4).subtasks).toBe(4)
   })
+
+  it('reads the original estimate as hours for the chain and minutes for the card', () => {
+    const sized = issue('ABC-8', { timetracking: { originalEstimate: '1h 30m', originalEstimateSeconds: 5400 } })
+    expect(toTrackerTask(sized, ORDER).estimate).toBe(1.5)
+    expect(toCard(sized, [], ORDER).estimate).toBe(90)
+    expect(toTrackerTask(issue('ABC-9', { timetracking: {} }), ORDER).estimate).toBe(0)
+    expect(toCard(issue('ABC-9'), [], ORDER).estimate).toBeUndefined()
+  })
 })
 
 describe('toCard', () => {

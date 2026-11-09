@@ -521,6 +521,10 @@ export const STEPS: readonly string[] = [
     saved_at text not null
   );
   `,
+  // The estimate of a built-in task in minutes of the agent's work (BTN-911); null — none.
+  `
+  alter table builtin_tasks add column estimate integer;
+  `,
 ]
 
 /** The version this code reads and writes. */

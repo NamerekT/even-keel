@@ -4,6 +4,7 @@ import { descriptionEdits, EditRefused, fileLinks, withFileLinks, type TaskEdito
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound } from '../tracker/source.js'
+import { ESTIMATION_FIELDS, linearPoints, linearScale, type LinearEstimation } from './estimate.js'
 import { linearStatus, type LinearState } from './model.js'
 
 interface TeamState extends LinearState {
@@ -13,7 +14,7 @@ interface TeamState extends LinearState {
 export interface LinearEditorDeps {
   graphql<T>(query: string, variables?: Record<string, unknown>): Promise<T>
   /** The team of Even Keel's project and the Linear project it is narrowed to, if any. */
-  teamOf(project: string): Promise<{ id: string; states: TeamState[]; project?: string }>
+  teamOf(project: string): Promise<{ id: string; states: TeamState[]; project?: string; estimation?: LinearEstimation }>
   /** Every issue of Even Keel's project, open and closed. */
   list(project: string): Promise<TrackerTask[]>
   relabel(id: string, change: LabelChange): Promise<string[]>
@@ -28,11 +29,13 @@ interface EditIssue {
   title: string
   description: string | null
   priority: number
+  /** The team's points. */
+  estimate: number | null
   state: { id: string }
   parent: { id: string; identifier: string } | null
   project: { id: string } | null
   projectMilestone: { id: string; name: string } | null
-  team: { id: string; key: string; states: { nodes: TeamState[] } }
+  team: { id: string; key: string; states: { nodes: TeamState[] } } & LinearEstimation
   relations: { nodes: { id: string; type: string; relatedIssue: { id: string } }[] }
 }
 
@@ -41,12 +44,12 @@ export const LINEAR_PRIORITY: Readonly<Record<TaskPriority, number>> = { none: 0
 const EDIT_ISSUE = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) {
     nodes {
-      id identifier title description priority
+      id identifier title description priority estimate
       state { id }
       parent { id identifier }
       project { id }
       projectMilestone { id name }
-      team { id key states(first: 100) { nodes { id name type } } }
+      team { id key ${ESTIMATION_FIELDS} states(first: 100) { nodes { id name type } } }
       relations(first: 50) { nodes { id type relatedIssue { id } } }
     }
   }
@@ -129,11 +132,17 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
     if (places.length > 1) throw new EditRefused(`several Linear projects of the team have a milestone "${name}"; put the task into its project in Linear first`)
     return places[0]!
   }
+  const pointsOf = (team: LinearEstimation | undefined, minutes: number): number => {
+    const scale = linearScale(team)
+    if (scale === null) throw new EditRefused("the team estimates nothing: Linear keeps an estimate as the team's points, and its scale is off in the team's settings; send the task without one")
+    return linearPoints(minutes, scale)
+  }
 
   return {
     list: (project) => deps.list(project),
     async create(project, draft, _notes, marker) {
       const team = await deps.teamOf(project)
+      const estimate = draft.estimate == null ? null : pointsOf(team.estimation, draft.estimate)
       const state = draft.status === null ? (team.states.find((each) => linearStatus(each).category === 'UnStarted') ?? team.states[0]) : stateOf(team.states, draft.status)
       if (state === undefined) throw new EditRefused('the team has no statuses')
       const parent = draft.parent === null ? null : await issueOf(draft.parent)
@@ -149,6 +158,7 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
         ...(projectId === undefined ? {} : { projectId }),
         ...(place === null ? {} : { projectMilestoneId: place.milestone }),
         ...(parent === null ? {} : { parentId: parent.id }),
+        ...(estimate === null ? {} : { estimate }),
       }
       const { issueCreate } = await graphql<{ issueCreate: { success: boolean; issue: { identifier: string } | null } }>(CREATE_ISSUE, { input })
       if (!issueCreate.success || issueCreate.issue === null) throw new Error('linear: the issue was not created')
@@ -194,6 +204,11 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
         case 'component':
           throw new EditRefused('Linear has no components')
       }
+    },
+    async estimate(id, minutes) {
+      const issue = await issueOf(id)
+      const estimate = pointsOf(issue.team, minutes)
+      return issue.estimate === estimate ? false : update(issue, { estimate })
     },
     ...descriptionEdits({
       read: async (id) => (await issueOf(id)).description ?? '',

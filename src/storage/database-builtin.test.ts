@@ -13,6 +13,8 @@ it('step 30 keeps the built-in tracker\'s tasks, labels, milestones, links and c
     expect(await databaseVersion(frozen)).toBe(30)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 30, 30)
+    // The store reads the columns of later steps: the sample is read as an upgrade brings it to the latest.
+    for (const step of STEPS.slice(28)) await frozen.exec(step)
     const store = new BuiltinStore(frozen)
     const [first, second] = await store.list([ABC])
     expect(first).toMatchObject({
@@ -21,10 +23,9 @@ it('step 30 keeps the built-in tracker\'s tasks, labels, milestones, links and c
       blocks: [{ project: ABC, number: 2 }],
     })
     expect(second).toMatchObject({ number: 2, parent: 1, labels: ['Bug'], blockedBy: [{ project: ABC, number: 1 }] })
-    // The store reads the model step 31 added: the comments of step 30 are read by hand.
     expect((await frozen.query('select author, body from builtin_comments order by id')).rows).toEqual([{ author: 'agent', body: 'Done: the parser.' }])
     await upgraded.exec(fixture(29))
-    await upgraded.exec(STEPS[27]!)
+    for (const step of STEPS.slice(27)) await upgraded.exec(step)
     expect(await new BuiltinStore(upgraded).list([ABC])).toEqual([])
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])

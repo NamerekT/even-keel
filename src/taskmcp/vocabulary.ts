@@ -30,7 +30,7 @@ function fieldsOf(editor: TaskEditor | undefined, known: TrackerVocabulary | nul
   const labels = known?.labels ?? []
   return {
     priority: editor?.priorities?.(labels) ?? true,
-    estimate: editor?.estimate !== undefined,
+    estimate: editor?.estimate !== undefined && known?.estimate !== false,
     components: editor?.components === true ? (known?.components ?? []) : null,
     attachments: editor?.files !== undefined,
   }

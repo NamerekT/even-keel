@@ -390,6 +390,7 @@ describe('linear source', () => {
       ],
       labels: ['Bug', 'Question'],
       milestones: ['Beta', 'GA'],
+      estimate: false,
     })
     expect(calls[2]!.variables).toEqual({ team: 'team-eng', after: null })
     expect(calls[3]!.variables).toEqual({ team: 'team-eng', after: 'cursor-1' })

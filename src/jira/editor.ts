@@ -3,7 +3,7 @@ import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from 
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
-import { BLOCKS, priorityFor, type JiraIssue, type JiraLink, type JiraVersion } from './model.js'
+import { BLOCKS, jiraEstimate, priorityFor, type JiraIssue, type JiraLink, type JiraVersion } from './model.js'
 
 export interface JiraIssueType {
   id: string
@@ -129,6 +129,7 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         ...(component === null ? {} : { components: [{ id: component.id }] }),
         ...(draft.labels.length === 0 ? {} : { labels: draft.labels }),
         ...(parent === null ? {} : { parent: { key: parent.key } }),
+        ...(draft.estimate == null ? {} : { timetracking: { originalEstimate: `${draft.estimate}m` } }),
       }
       const created = await rest<{ key: string }>('/issue', 'POST', { fields })
       if (draft.status !== null) {
@@ -170,6 +171,12 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
           return components.length === 1 && components[0]!.id === component.id ? false : update(id, { components: [{ id: component.id }] })
         }
       }
+    },
+    // Time tracking keeps the estimate: off on the site, or the field off the edit screen, and Jira refuses it.
+    async estimate(id, minutes) {
+      const issue = await rest<JiraIssue>(`${path(id)}?fields=timetracking`)
+      if (jiraEstimate(issue.fields) === minutes) return false
+      return update(id, { timetracking: { originalEstimate: `${minutes}m` } })
     },
     ...descriptionEdits({
       read: async (id) => adfToMarkdown((await rest<JiraIssue>(`${path(id)}?fields=description`)).fields.description),

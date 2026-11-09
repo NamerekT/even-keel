@@ -74,7 +74,8 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     milestone: task.milestone === null ? null : { label: task.milestone.name, targetDate: task.milestone.date },
     priority: task.priority,
     labels: task.labels,
-    estimate: null,
+    // TrackerTask counts hours, the store minutes.
+    estimate: task.estimate === null ? null : task.estimate / 60,
   })
   const refs = async (keys: TaskKey[]): Promise<TaskRef[]> => {
     const found: TaskRef[] = []
@@ -166,6 +167,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         priority: task.priority,
         labels: task.labels,
         milestone: task.milestone === null ? null : { label: task.milestone.name, targetDate: task.milestone.date },
+        ...(task.estimate === null ? {} : { estimate: task.estimate }),
         parent,
         blockedBy: await refs(task.blockedBy),
         blocks: await refs(task.blocks),

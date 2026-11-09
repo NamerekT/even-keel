@@ -6,6 +6,7 @@ import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
+import { ESTIMATION_FIELDS, linearScale, type LinearEstimation } from './estimate.js'
 import { backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
@@ -47,12 +48,12 @@ const ISSUE = `id identifier title priority
   projectMilestone { id name targetDate sortOrder project { id } }`
 
 const TEAM = `query($team: String!) {
-  team(id: $team) { id states(first: 100) { nodes { id name type } } }
+  team(id: $team) { id ${ESTIMATION_FIELDS} states(first: 100) { nodes { id name type } } }
 }`
 
 const TEAM_PROJECT = `query($team: String!, $project: String!) {
   team(id: $team) {
-    id states(first: 100) { nodes { id name type } }
+    id ${ESTIMATION_FIELDS} states(first: 100) { nodes { id name type } }
     projects(first: 1, filter: { name: { eqIgnoreCase: $project } }) { nodes { id url } }
   }
 }`
@@ -92,7 +93,8 @@ const CARD_REF = 'identifier title state { name type }'
 const ISSUE_CARD = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) {
     nodes {
-      identifier title description priority
+      identifier title description priority estimate
+      team { ${ESTIMATION_FIELDS} }
       state { name type }
       parent { ${CARD_REF} }
       relations(first: 25) { nodes { type relatedIssue { ${CARD_REF} } } }
@@ -196,9 +198,9 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     return place === undefined ? linearPlace(key, undefined) : linearPlace(place.key, place.value)
   }
 
-  async function teamOf(key: string): Promise<{ id: string; states: TeamState[]; project?: string }> {
+  async function teamOf(key: string): Promise<{ id: string; states: TeamState[]; project?: string; estimation: LinearEstimation }> {
     const { team: teamKey, project } = placeOf(key)
-    type Team = { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string; url: string }[] } }
+    type Team = LinearEstimation & { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string; url: string }[] } }
     let team: Team | null
     try {
       ;({ team } = await graphql<{ team: Team | null }>(project === null ? TEAM : TEAM_PROJECT, project === null ? { team: teamKey } : { team: teamKey, project }))
@@ -206,11 +208,12 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       throw new Error(`linear: team ${teamKey}: ${(error as Error).message.replace(/^linear: /, '')}`)
     }
     if (team === null) throw new TrackerNotFound(`linear: team ${teamKey} not found or the key cannot see it`)
-    if (project === null) return { id: team.id, states: team.states.nodes }
+    const estimation = { issueEstimationType: team.issueEstimationType, issueEstimationExtended: team.issueEstimationExtended }
+    if (project === null) return { id: team.id, states: team.states.nodes, estimation }
     const found = team.projects?.nodes[0]
     if (found === undefined) throw new Error(`linear: team ${teamKey} has no project "${project}"`)
     projectUrls.set(key, `${found.url}/issues`)
-    return { id: team.id, states: team.states.nodes, project: found.id }
+    return { id: team.id, states: team.states.nodes, project: found.id, estimation }
   }
 
   function byNumber(id: string): IssueFilter {
@@ -413,7 +416,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         after = issueLabels.pageInfo.hasNextPage ? issueLabels.pageInfo.endCursor : null
       } while (after !== null)
       const milestones = [...new Set((await teamMilestones(graphql, team.id, team.project)).map((each) => each.name))]
-      return { statuses: team.states.map(linearStatus), labels: [...labels], milestones }
+      return { statuses: team.states.map(linearStatus), labels: [...labels], milestones, estimate: linearScale(team.estimation) !== null }
     },
 
     async relabel(id, change) {

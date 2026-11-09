@@ -9,15 +9,15 @@ const STATES = [
   { id: 's-done', name: 'Done', type: 'completed' },
 ]
 
-function fixture() {
+function fixture(estimation = 'fibonacci') {
   const issue = (number: number, more: Record<string, unknown> = {}) => ({
-    id: `u${number}`, identifier: `ENG-${number}`, title: `Issue ${number}`, description: null, priority: 0, state: { id: 's-todo' },
-    parent: null, project: null, projectMilestone: null, team: { id: 'team', key: 'ENG', states: { nodes: STATES } }, relations: { nodes: [] as unknown[] }, ...more,
+    id: `u${number}`, identifier: `ENG-${number}`, title: `Issue ${number}`, description: null, priority: 0, estimate: null, state: { id: 's-todo' },
+    parent: null, project: null, projectMilestone: null, team: { id: 'team', key: 'ENG', states: { nodes: STATES }, issueEstimationType: estimation }, relations: { nodes: [] as unknown[] }, ...more,
   })
   const issues = new Map([
     [1, issue(1, { description: 'Old text', priority: 3, project: { id: 'p-web' }, projectMilestone: { id: 'm-1', name: 'Beta' } })],
     [2, issue(2, { parent: { id: 'u1', identifier: 'ENG-1' }, relations: { nodes: [{ id: 'r-1', type: 'blocks', relatedIssue: { id: 'u3' } }] } })],
-    [3, issue(3, { relations: { nodes: [{ id: 'r-2', type: 'related', relatedIssue: { id: 'u1' } }] } })],
+    [3, issue(3, { estimate: 2, relations: { nodes: [{ id: 'r-2', type: 'related', relatedIssue: { id: 'u1' } }] } })],
   ])
   const mutations: [string, Record<string, unknown>][] = []
   const relabels: [string, LabelChange][] = []
@@ -43,7 +43,7 @@ function fixture() {
   }
   const editor = linearEditor({
     graphql,
-    teamOf: async () => ({ id: 'team', states: STATES }),
+    teamOf: async () => ({ id: 'team', states: STATES, estimation: { issueEstimationType: estimation } }),
     list: async () => [],
     relabel: async (id, change) => {
       relabels.push([id, change])
@@ -67,6 +67,25 @@ const FILES: TaskUpload[] = [
 ]
 
 describe('linearEditor', () => {
+  it("keeps an estimate in minutes as the point at the same step of the team's scale", async () => {
+    const { editor, mutations } = fixture()
+    await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, estimate: 20 })
+    expect(mutations[0]![1]).toMatchObject({ input: { estimate: 3 } })
+    expect(await editor.estimate!('ENG-1', 10)).toBe(true)
+    expect(mutations[1]).toEqual(['issueUpdate', { id: 'u1', input: { estimate: 2 } }])
+  })
+
+  it('says an estimate already held, and refuses one where the team estimates nothing', async () => {
+    const sized = fixture()
+    await expect(sized.editor.estimate!('ENG-3', 10)).resolves.toBe(false)
+    expect(sized.mutations).toEqual([])
+    const off = fixture('notUsed')
+    const draft = { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, estimate: 20 }
+    await expect(off.editor.create('P1', draft)).rejects.toThrow(/team estimates nothing/)
+    await expect(off.editor.estimate!('ENG-1', 20)).rejects.toThrow(/team estimates nothing/)
+    expect(off.mutations).toEqual([])
+  })
+
   it('creates an issue in the backlog by default, under its parent, with labels after', async () => {
     const { editor, mutations, relabels } = fixture()
     expect(await editor.create('P1', { title: 'New', description: 'Text', status: null, priority: 'high', milestone: null, labels: ['Bug'], parent: 'ENG-1' })).toBe('ENG-10')

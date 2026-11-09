@@ -57,6 +57,20 @@ describe('jiraEditor', () => {
     ])
   })
 
+  it('keeps an estimate in minutes as the original estimate, on create and on its own', async () => {
+    const { editor, writes, issues } = fixture()
+    await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, estimate: 20 })
+    expect((writes[0]![2] as { fields: { timetracking: unknown } }).fields.timetracking).toEqual({ originalEstimate: '20m' })
+    issues['ABC-2']!.timetracking = { originalEstimate: '20m', originalEstimateSeconds: 1200 }
+    expect(await editor.estimate!('ABC-2', 20)).toBe(false)
+    expect(await editor.estimate!('ABC-2', 80)).toBe(true)
+    expect(await editor.estimate!('ABC-3', 5)).toBe(true)
+    expect(writes.slice(1)).toEqual([
+      ['PUT', '/issue/ABC-2', { fields: { timetracking: { originalEstimate: '80m' } } }],
+      ['PUT', '/issue/ABC-3', { fields: { timetracking: { originalEstimate: '5m' } } }],
+    ])
+  })
+
   it('takes the sub-task type under a standard parent, refuses one under a sub-task, and says a created task stays', async () => {
     const { editor, writes } = fixture()
     await editor.create('P1', { title: 'Child', description: '', status: null, priority: null, milestone: null, labels: [], parent: 'ABC-2' })

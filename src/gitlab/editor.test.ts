@@ -11,7 +11,7 @@ const url = (iid: number) => `${WEB}/group/subgroup/app/-/issues/${iid}`
 function fixture(made: string | undefined = undefined) {
   const issues: Record<number, GitlabIssue> = {
     1: issue({ iid: 1, web_url: url(1), issue_type: 'issue', description: 'Old text' }),
-    2: issue({ iid: 2, web_url: url(2), issue_type: 'issue', labels: ['bug'], milestone: null }),
+    2: issue({ iid: 2, web_url: url(2), issue_type: 'issue', labels: ['bug'], milestone: null, time_stats: { time_estimate: 1200 } }),
     3: issue({ iid: 3, web_url: url(3), issue_type: 'task', state: 'closed', labels: [] }),
     10: issue({ iid: 10, web_url: url(10) }),
   }
@@ -75,6 +75,18 @@ describe('gitlabEditor', () => {
     expect(await editor.files!.comment('APP-2', 'Look.', [png], null)).toBe('5')
     expect(comments).toEqual([['APP-2', `Look.\n\n![shot.png](/uploads/${hash}/shot.png)`]])
     expect(uploaded.map(([path]) => path)).toEqual(['group/subgroup/app', 'group/subgroup/app', 'group/subgroup/app'])
+  })
+
+  it('keeps an estimate in minutes as the time estimate, after the create and on its own', async () => {
+    const { editor, writes } = fixture()
+    expect(await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, estimate: 20 })).toBe('APP-10')
+    expect(writes).toEqual([
+      ['POST', BASE, { title: 'New', description: '' }],
+      ['POST', `${BASE}/10/time_estimate`, { duration: '20m' }],
+    ])
+    expect(await editor.estimate!('APP-2', 20)).toBe(false)
+    expect(await editor.estimate!('APP-2', 80)).toBe(true)
+    expect(writes.slice(2)).toEqual([['POST', `${BASE}/2/time_estimate`, { duration: '80m' }]])
   })
 
   it('keeps a priority only where the project has a priority label', () => {

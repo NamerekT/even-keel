@@ -44,6 +44,7 @@ export function builtinEditor({ store, names, must, trackerTask, files }: Builti
           milestone: draft.milestone,
           parent,
           labels: draft.labels,
+          estimate: draft.estimate ?? null,
           ...(marker === undefined ? {} : { id: marker }),
         },
         names.sharing(project),
@@ -77,6 +78,10 @@ export function builtinEditor({ store, names, must, trackerTask, files }: Builti
         case 'component':
           throw new EditRefused('the built-in tracker has no components; name the area with a label')
       }
+    },
+    async estimate(id, minutes) {
+      const task = await must(id)
+      return changed(task, await store.setEstimate(task, minutes))
     },
     revision: async (id) => (await must(id)).descriptionRev,
     async describe(id, text, rev) {

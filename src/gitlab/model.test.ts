@@ -18,6 +18,14 @@ describe('GitLab issue model', () => {
     expect(toTrackerTask(issue({ description: 'blocked by #99', milestone: null }), [], projects)).toMatchObject({ blockedBy: [], milestone: null })
   })
 
+  it('reads the time estimate as hours for the chain and minutes for the card', () => {
+    const sized = issue({ time_stats: { time_estimate: 5400 } })
+    expect(toTrackerTask(sized, [], projects).estimate).toBe(1.5)
+    expect(toCard(sized, [], [], projects).estimate).toBe(90)
+    expect(toCard(issue({ time_stats: { time_estimate: 0 } }), [], [], projects).estimate).toBeUndefined()
+    expect(toCard(issue(), [], [], projects).estimate).toBeUndefined()
+  })
+
   it('builds a card with directional links and chronological human notes', () => {
     const card = toCard(issue(), [linked('is_blocked_by', 2), linked('blocks', 3), linked('relates_to', 4, 'elsewhere/app')], [note(3), note(1), note(2, { system: true })], projects)
     expect(card).toMatchObject({ id: 'APP-1', description: 'Implement the example.', parent: null, attachments: [] })

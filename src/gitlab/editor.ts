@@ -2,7 +2,7 @@ import { sameName } from '../chain/rules.js'
 import { descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
-import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabRef, type ProjectMap } from './model.js'
+import { GITLAB_STATUSES, gitlabEstimate, gitlabPriority, gitlabStatus, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabRef, type ProjectMap } from './model.js'
 
 export interface GitlabEditorDeps {
   rest<T>(path: string, method?: string, body?: unknown): Promise<T>
@@ -82,6 +82,10 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
       throw new EditRefused(`GitLab refused ${what}: ${errors.join('; ')}`)
     }
   }
+  const setEstimate = async (id: string, minutes: number): Promise<true> => {
+    await rest(`${addressOf(id).base}/time_estimate`, 'POST', { duration: `${minutes}m` })
+    return true
+  }
   const sameTask = (link: GitlabLink, other: string) => projects.idOf(link).toUpperCase() === other.toUpperCase()
 
   return {
@@ -110,6 +114,8 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
         if (labels.length > 0) await deps.relabel(id, { add: labels, remove: [] })
         if (parent !== null) await setParent(created, id, parent, draft.parent)
         if (status !== null) await setStatus(id, { state: 'opened' }, status.name)
+        // A new issue takes no estimate: it is set through its own call.
+        if (draft.estimate != null) await setEstimate(id, draft.estimate)
       } catch (error) {
         throw new EditRefused(`${id} was created, but ${error instanceof Error ? error.message : String(error)}; do not create it again`)
       }
@@ -147,6 +153,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
           throw new EditRefused('GitLab has no components; name the area with a label such as component::ui')
       }
     },
+    estimate: async (id, minutes) => (gitlabEstimate(await issueOf(id)) === minutes ? false : setEstimate(id, minutes)),
     ...descriptionEdits({
       read: async (id) => (await issueOf(id)).description ?? '',
       write: async (id, text) => void (await update(id, { description: text })),

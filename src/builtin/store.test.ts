@@ -119,6 +119,18 @@ describe('field edits', () => {
     await store.comment(abc(1), 'agent', 'done')
     expect((await store.get(abc(1)))!.version).toBe(before + 3)
   })
+
+  it('an estimate is none by default, kept in minutes from creation, and moves the version only when it changes', async () => {
+    expect((await store.get(abc(1)))!.estimate).toBeNull()
+    const number = await store.create({ project: ABC, title: 'Estimated', estimate: 20 })
+    const created = (await store.get(abc(number)))!
+    expect(created.estimate).toBe(20)
+    const same = await store.setEstimate(created, 20)
+    expect(same.version).toBe(created.version)
+    const longer = await store.setEstimate(created, 45)
+    expect([longer.estimate, longer.version]).toEqual([45, created.version + 1])
+    expect((await store.setEstimate(created, null)).estimate).toBeNull()
+  })
 })
 
 describe('description', () => {
