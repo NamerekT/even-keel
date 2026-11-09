@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { PackageCell, PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { catalogIssues, isTrackerPlugin, looseKeys, marketplaceOf, packageGroups, packageKeys, packagesPath, projectGroups, projectIssues, shortName } from './packageGroups.js'
+import { catalogIssues, enabledPackages, isTrackerPlugin, looseKeys, marketplaceOf, packageGroups, packageKeys, packagesPath, projectGroups, projectIssues, shortName } from './packageGroups.js'
 
 const base: PackageView = {
   name: '',
@@ -125,6 +125,18 @@ describe('projectIssues', () => {
   it('has no package for the tracker’s server the catalog lacks', () => {
     const projects = { ABC: project({}, { problems: [{ kind: 'noTrackerMcp', server: 'huly' }] }) }
     expect(projectIssues(view({ projects }), 'ABC')).toEqual([{ name: null, problem: { kind: 'noTrackerMcp', server: 'huly' } }])
+  })
+})
+
+describe('enabledPackages', () => {
+  it('lists the project’s enabled packages by name, without the ones off or removed', () => {
+    const packages = [pkg('tasks@even-keel'), pkg('forgejo'), pkg('old@even-keel', { removed: true }), pkg('checkpoint@even-keel'), pkg('idle@even-keel')]
+    const projects = { ABC: project({ 'tasks@even-keel': cell(true), forgejo: cell(true), 'old@even-keel': cell(true), 'checkpoint@even-keel': cell(true), 'idle@even-keel': cell(false) }) }
+    expect(enabledPackages(view({ packages, projects }), 'ABC').map(shortName)).toEqual(['checkpoint', 'forgejo', 'tasks'])
+  })
+
+  it('has none for a project the view does not know', () => {
+    expect(enabledPackages(view({ packages: [pkg('forgejo')] }), 'XYZ')).toEqual([])
   })
 })
 

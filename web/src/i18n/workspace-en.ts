@@ -103,7 +103,7 @@ export const packagesEN: Messages['packages'] = {
     details: (name: string) => `Details of ${name}`,
     catalog: 'Package catalog',
     catalogHint:
-      'Everything that changes a package for every project at once: install, update, the default, the shared values of its settings and the keys. A package in one project is turned on in the project’s settings → Sessions → What the session gets → Project packages.',
+      'Everything that changes a package for every project at once: install, update, the default, the shared values of its settings and the keys. A package in one project is turned on in the project’s settings → Sessions → Project packages, the first button of the tab.',
     checkAll: 'Check all',
     checkAllTip: 'Fetch the marketplaces again and install newer versions of the installed packages where there are any.',
     group: { own: 'Even Keel', mcp: 'MCP servers' },
@@ -123,6 +123,7 @@ export const packagesEN: Messages['packages'] = {
     projectNone: 'The catalog has no packages for this project: add a plugin or an MCP server.',
     open: 'Project packages',
     openTip: 'Turn packages on or off in this project and set their values for it.',
+    openNone: 'none turned on',
     addToProject: 'Add to the project',
     trackerAdd: 'Add the tracker’s plugin',
     done: 'Done',

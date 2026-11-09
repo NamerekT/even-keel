@@ -1,0 +1,76 @@
+/* The project's packages, the first line of the settings' Sessions tab (BTN-914): one line across the tab, never taller. */
+.packages-button {
+  display: block;
+}
+
+/* Over `a.button`'s inline-block, whichever stylesheet comes later. */
+.packages-button a.packages-button__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.packages-button .packages-button__link:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.packages-button .packages-button__link--warn {
+  border-color: color-mix(in srgb, var(--warn-fg) 55%, transparent);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.packages-button .packages-button__link--warn:hover {
+  background: color-mix(in srgb, var(--warn-fg) 10%, var(--warn-bg));
+}
+
+.packages-button__label {
+  flex: none;
+  font-weight: 600;
+}
+
+/* The names or the problem: cut with an ellipsis, the descenders still drawn under the trimmed box. */
+.packages-button__line {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: clip;
+  overflow-clip-margin: 0.4em;
+  text-overflow: ellipsis;
+  color: var(--fg-muted);
+}
+
+.packages-button__link--warn .packages-button__line {
+  color: inherit;
+}
+
+.packages-button__more {
+  flex: none;
+}
+
+/* The icons stand out of the letters' box, so the line stays a button's height. */
+.packages-button__link > .icon {
+  margin-block: calc((1cap - 14px) / 2);
+}
+
+.packages-button__link > .icon:first-child {
+  margin-right: 0;
+}
+
+.packages-button__link > .icon:last-child {
+  margin-left: auto;
+}
+
+.packages-button__tip-line {
+  display: block;
+  margin-top: var(--space-4);
+}
+
+/* The button's padding counts on a box trimmed to the letters; a flex container is not trimmed, so its items are. */
+@supports (text-box: trim-both cap alphabetic) {
+  .packages-button__link > span {
+    text-box: trim-both cap alphabetic;
+  }
+}
