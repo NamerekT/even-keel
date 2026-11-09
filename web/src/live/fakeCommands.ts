@@ -110,8 +110,14 @@ export function takeNext(state: EvenKeelState, project: string): EvenKeelState {
     taskSessions:
       next === undefined
         ? state.taskSessions
-        : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[next] ?? [])] },
+        : { ...state.taskSessions, [next]: launched(state, next, session(next, 0).sessionId, since) },
   }
+}
+
+/** A task's session rows with its launch on top; the fake's session ids repeat per task, so a row of that id gives way. */
+function launched(state: EvenKeelState, id: string, sessionId: string, at: string): EvenKeelState['taskSessions'][string] {
+  const rows = (state.taskSessions[id] ?? []).filter((row) => row.sessionId !== sessionId)
+  return [{ sessionId, at, how: 'launch', resumed: 0, answers: 0 }, ...rows]
 }
 
 /** A task that shows up in the chain with each close, so the page has an entry to mark. */
@@ -158,7 +164,7 @@ export function startChain(state: EvenKeelState, project: string, launches: Laun
     chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId, since }, paused: false, error: null }] },
     sessions: [...state.sessions.filter((view) => view.task !== first), session(first, 12_000)],
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
-    taskSessions: { ...state.taskSessions, [first]: [{ sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[first] ?? [])] },
+    taskSessions: { ...state.taskSessions, [first]: launched(state, first, sessionId, since) },
   }
 }
 
