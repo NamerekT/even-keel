@@ -281,6 +281,36 @@ describe('tasks_create', () => {
     broken = ''
     expect(await call('tasks_create', batch)).toBe('ABC-2 One (found in the tracker after an interrupted call)\nABC-3 Two')
   })
+
+  it('a batch the tracker broke off says what was created and to repeat with the same retry (BTN-929)', async () => {
+    const editor = tracker.editor!
+    let breakOff!: (error: Error) => void
+    const broken = new Promise<never>((_, reject) => { breakOff = reject })
+    let creates = 0
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes, marker) => {
+        if (++creates === 1) return editor.create(project, draft, notes, marker)
+        breakOff(new Error('gitlab: create got no answer for 15000 ms'))
+        return new Promise<never>(() => {})
+      },
+    }
+    const writes: (string | undefined)[] = []
+    tools = new TasksTools({
+      ...deps(),
+      run: async <T>(_: string, work: (each: Tracker) => Promise<T>, write?: string) => {
+        writes.push(write)
+        return Promise.race([work(tracker), broken])
+      },
+    })
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'One' }, { title: 'Two' }], retry: 'cut' }))).toBe(
+      'Created ABC-2 One; then the call broke off: gitlab: create got no answer for 15000 ms. More of the batch may be in the tracker: repeat with the same retry, it creates only the rest',
+    )
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'Three' }] }))).toBe(
+      'The call broke off: gitlab: create got no answer for 15000 ms. More of the batch may be in the tracker: read tasks_list before repeating, and pass retry next time',
+    )
+    expect(writes).toEqual(['create', 'create'])
+  })
 })
 
 describe('task_update of the description', () => {

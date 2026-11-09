@@ -31,8 +31,11 @@ export interface TaskReader {
 
 export interface TasksDeps {
   db: Queryable
-  /** Runs `call` on the reader's tracker; throws when the tracker is off. */
-  run<T>(reader: string, call: (tracker: Tracker) => Promise<T>): Promise<T>
+  /**
+   * Runs `call` on the reader's tracker; throws when the tracker is off. `write` names a write (`create`, `update`,
+   * `comment`): it runs while the tracker keeps answering, not under one read's timeout (BTN-929).
+   */
+  run<T>(reader: string, call: (tracker: Tracker) => Promise<T>, write?: string): Promise<T>
   /** The project's trackers, its own first, then its feeds. */
   readers(project: string): TaskReader[]
   /** The tracker the tools serve whose task keys carry this prefix, a project's or a feed's; `null` — none. */
@@ -148,7 +151,9 @@ export class TasksTools {
     const project = reader.id
     const items = args.objects('tasks')
     const retryKey = args.text('retry')
-    return this.deps.run(project, async (tracker) => {
+    // What the batch has created, for the answer when the tracker breaks the call off.
+    let made: () => string[] = () => []
+    const batch = async (tracker: Tracker): Promise<string> => {
       const editor = editorOf(tracker)
       const terms = await this.termsOf(tracker, project)
       const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix))
@@ -161,6 +166,7 @@ export class TasksTools {
         const notes = planned.map((): string[] => [])
         const noted = (index: number) => (notes[index]!.length === 0 ? '' : ` (${notes[index]!.join('; ')})`)
         const done = () => planned.flatMap((each, index) => (retry.ids[index] === undefined ? [] : [`${retry.ids[index]} ${each.draft.title}${noted(index)}`]))
+        made = done
         try {
           for (const [index, each] of planned.entries()) {
             if (retry.ids[index] !== undefined) continue
@@ -222,7 +228,20 @@ export class TasksTools {
         return done().join('\n')
       }
       return retryKey === undefined ? run(unsavedRetry()) : this.retries.run(project, retryKey, run)
-    })
+    }
+    // The batch's own failures say what was created; anything else is the tracker breaking the call off (BTN-929).
+    let failed: unknown
+    try {
+      return await this.deps.run(project, (tracker) => batch(tracker).catch((error: unknown) => {
+        failed = error
+        throw error
+      }), 'create')
+    } catch (error) {
+      if (error === failed || error instanceof EditRefused) throw error
+      const soFar = made()
+      const after = retryKey === undefined ? 'read tasks_list before repeating, and pass retry next time' : 'repeat with the same retry, it creates only the rest'
+      throw new EditRefused(`${soFar.length === 0 ? 'The call' : `Created ${soFar.join(', ')}; then the call`} broke off: ${refusalText(error)}. More of the batch may be in the tracker: ${after}`)
+    }
   }
 
   private async update(args: Args, scope: TasksScope): Promise<string> {
@@ -296,7 +315,7 @@ export class TasksTools {
         if (said.length > 0) await this.deps.refresh(reader.project)
       }
       return said.length === 0 ? `${key}: already so` : `${key}: ${said.join('; ')}`
-    })
+    }, 'update')
   }
 
   private async comment(args: Args, scope: TasksScope): Promise<string> {
@@ -316,7 +335,7 @@ export class TasksTools {
       const uploads = await this.uploads(attach, scope, reader)
       await files.comment(key, body, uploads, model, notes)
       return uploads.map((file) => file.name)
-    })
+    }, 'comment')
     await this.deps.refresh(reader.project)
     return [`${key}: comment added${attached.length === 0 ? '' : ` with ${attached.join(', ')}`}`, ...notes].join('; ')
   }

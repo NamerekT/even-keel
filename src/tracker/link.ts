@@ -42,29 +42,62 @@ export class TrackerLink {
   }
 
   async run<T>(call: (source: Tracker) => Promise<T>, operation?: string): Promise<T> {
+    return this.call(call, operation, false)
+  }
+
+  /**
+   * A write: a batch of `tasks_create`, a `task_update` (BTN-929). It runs as long as the tracker keeps answering:
+   * `timeoutMs` bounds the silence between two answers — a finished HTTP request or a settled call of the source, its
+   * editor and the editor's parts — not the whole call. After a timeout every next call of the source in it throws, so a
+   * batch stops instead of going on behind the session's back. A timeout after an answer does not put the tracker down:
+   * it answers, and the chain's reads judge its health. `operation` names the write in the log.
+   */
+  async write<T>(call: (source: Tracker) => Promise<T>, operation: string): Promise<T> {
+    return this.call(call, operation, true)
+  }
+
+  private async call<T>(call: (source: Tracker) => Promise<T>, operation: string | undefined, write: boolean): Promise<T> {
     if (this.closed) throw new Error(`${this.options.name}: link is closed`)
-    const retry = operation === undefined ? undefined : this.timeouts.get(operation)
+    const retry = operation === undefined || write ? undefined : this.timeouts.get(operation)
     if (retry !== undefined && Date.now() < retry.retryAt) throw retry.error
     const started = Date.now()
     const controller = new AbortController()
-    const diagnostics: CallDiagnostics = { operation: 'connect', requests: 0, measured: false, active: new Map(), signal: controller.signal }
+    const timer = write
+      ? new Timer(this.options.timeoutMs, () => new CallTimeout(`${this.options.name}: ${operation} got no answer for ${this.options.timeoutMs} ms`))
+      : new Timer(this.options.timeoutMs, () => new CallTimeout(`${this.options.name}: call timed out after ${this.options.timeoutMs} ms`))
+    let answers = 0
+    const answer = () => {
+      answers++
+      if (write) timer.restart()
+    }
+    const diagnostics: CallDiagnostics = { operation: write ? operation! : 'connect', requests: 0, measured: false, active: new Map(), signal: controller.signal, onAnswer: answer }
     const pending = callDiagnostics.run(diagnostics, () => (this.source ??= this.options.connect()))
     try {
-      const work = callDiagnostics.run(diagnostics, () => pending.then((source) => call(new Proxy(source, {
+      const steps = <S extends object>(target: S): S => new Proxy(target, {
         get(target, property, receiver) {
           const value = Reflect.get(target, property, receiver)
+          if (write && typeof value === 'object' && value !== null && !Array.isArray(value)) return steps(value)
           if (typeof value !== 'function') return value
           return (...args: unknown[]) => {
-            diagnostics.operation = String(property)
-            return Reflect.apply(value, target, args)
+            if (!write) {
+              diagnostics.operation = String(property)
+              return Reflect.apply(value, target, args)
+            }
+            if (controller.signal.aborted) throw controller.signal.reason
+            const result: unknown = Reflect.apply(value, target, args)
+            if (result instanceof Promise) return result.then((settled: unknown) => (answer(), settled))
+            return result
           }
         },
-      }))))
-      const result = await withTimeout(work, this.options.timeoutMs, this.options.name)
-      const previous = this.timeouts.get(operation ?? diagnostics.operation)
-      if (previous !== undefined) {
-        this.timeouts.delete(operation ?? diagnostics.operation)
-        ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${diagnostics.operation} reads again after ${previous.count} failure${previous.count === 1 ? '' : 's'}`)
+      })
+      const work = callDiagnostics.run(diagnostics, () => pending.then((source) => call(steps(source))))
+      const result = await timer.race(work)
+      if (!write) {
+        const previous = this.timeouts.get(operation ?? diagnostics.operation)
+        if (previous !== undefined) {
+          this.timeouts.delete(operation ?? diagnostics.operation)
+          ;(this.options.onDiagnostic ?? console.warn)(`${this.options.name}: ${diagnostics.operation} reads again after ${previous.count} failure${previous.count === 1 ? '' : 's'}`)
+        }
       }
       const elapsed = Date.now() - started
       if (elapsed > this.options.timeoutMs / 2 && Date.now() - (this.slowLogged.get(diagnostics.operation) ?? -Infinity) >= 600_000) {
@@ -77,11 +110,21 @@ export class TrackerLink {
       const failure = error instanceof Error ? error : new Error(String(error))
       if (didNotAnswer(error)) {
         controller.abort(error)
+        const kind = failure instanceof CallTimeout ? 'call timed out' : 'connection failed'
+        if (write) {
+          // Writes are rare and each is a session's call: every failure is logged, none is delayed.
+          this.diagnostic(kind, Date.now() - started, diagnostics)
+          if (answers > 0) {
+            this.answered()
+            throw error
+          }
+        } else {
+          const key = operation ?? diagnostics.operation
+          const count = (this.timeouts.get(key)?.count ?? 0) + 1
+          this.timeouts.set(key, { count, retryAt: Date.now() + Math.min(300_000, 20_000 * 2 ** Math.min(count - 1, 4)), error: failure })
+          if (count === 1) this.diagnostic(kind, Date.now() - started, diagnostics)
+        }
         this.unanswered = failure
-        const key = operation ?? diagnostics.operation
-        const count = (this.timeouts.get(key)?.count ?? 0) + 1
-        this.timeouts.set(key, { count, retryAt: Date.now() + Math.min(300_000, 20_000 * 2 ** Math.min(count - 1, 4)), error: failure })
-        if (count === 1) this.diagnostic(failure instanceof CallTimeout ? 'call timed out' : 'connection failed', Date.now() - started, diagnostics)
       }
       if (error instanceof TrackerNotFound) {
         this.answered()
@@ -161,10 +204,29 @@ function didNotAnswer(error: unknown): boolean {
   return false
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
-  let timer: NodeJS.Timeout | undefined
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new CallTimeout(`${name}: call timed out after ${ms} ms`)), ms)
-  })
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+/** A timeout a call races against; `restart` gives it the whole `ms` again from now. */
+class Timer {
+  private timer: NodeJS.Timeout | undefined
+  private reject: ((error: Error) => void) | undefined
+  private settled = false
+
+  constructor(private readonly ms: number, private readonly error: () => Error) {}
+
+  race<T>(promise: Promise<T>): Promise<T> {
+    const timeout = new Promise<never>((_, reject) => {
+      this.reject = reject
+      this.restart()
+    })
+    return Promise.race([promise, timeout]).finally(() => {
+      this.settled = true
+      clearTimeout(this.timer)
+    })
+  }
+
+  restart(): void {
+    if (this.settled || this.reject === undefined) return
+    clearTimeout(this.timer)
+    const reject = this.reject
+    this.timer = setTimeout(() => reject(this.error()), this.ms)
+  }
 }

@@ -201,10 +201,10 @@ export function wirePackages(ctx: AccountsContext): Packages {
     tasks: new TasksMcp(
       {
         db: ctx.db,
-        run: async (reader, call) => {
+        run: async (reader, call, write) => {
           const link = ctx.linkOf(reader)
           if (link === undefined) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
-          return link.run(call)
+          return write === undefined ? link.run(call) : link.write(call, write)
         },
         // By the prefix of the task keys: a Huly project may read another identifier than its own key (BTN-892).
         readers: (project) => {

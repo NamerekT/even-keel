@@ -333,3 +333,78 @@ describe('TrackerLink', () => {
     expect(tasks).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('TrackerLink.write (BTN-929)', () => {
+  /** A source whose editor creates a task in `ms[i]` milliseconds; `Infinity` — never answers. */
+  function slowEditor(ms: number[]): { source: Tracker; create: ReturnType<typeof vi.fn> } {
+    const source = fakeSource()
+    let next = 0
+    const create = vi.fn(async () => {
+      const wait = ms[next++]!
+      await new Promise((resolve) => { if (wait !== Infinity) setTimeout(resolve, wait) })
+      return `ABC-${next}`
+    })
+    return { source: { ...source, editor: { create } as never }, create }
+  }
+  const batch = (count: number) => async (tracker: Tracker) => {
+    const ids: string[] = []
+    for (let i = 0; i < count; i++) ids.push(await tracker.editor!.create('p', {} as never))
+    return ids
+  }
+
+  it('lets a batch longer than one timeout finish while each step answers', async () => {
+    vi.useFakeTimers()
+    const { source } = slowEditor([600, 600, 600])
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+    const pending = link.write(batch(3), 'create')
+    await vi.advanceTimersByTimeAsync(1800)
+    await expect(pending).resolves.toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+    expect(link.health.state).toBe('live')
+  })
+
+  it('counts every HTTP answer as progress', async () => {
+    vi.useFakeTimers()
+    const api = new GitlabApi('https://example.com', 'fake', 5000, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      return new Response('{}')
+    })
+    const source = fakeSource()
+    source.tasks = async () => {
+      for (let i = 0; i < 3; i++) await api.request('/api/v4/issues', 'POST')
+      return []
+    }
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+    const pending = link.write((tracker) => tracker.tasks([]), 'create')
+    await vi.advanceTimersByTimeAsync(1800)
+    await expect(pending).resolves.toEqual([])
+  })
+
+  it('names the write in the log, stops the batch and keeps a tracker that answered up', async () => {
+    vi.useFakeTimers()
+    const log = vi.fn()
+    const { source, create } = slowEditor([100, 2000, 100])
+    const connect = vi.fn(async () => source)
+    const link = new TrackerLink({ name: 'gitlab', connect, timeoutMs: 1000, onDiagnostic: log })
+    const pending = link.write(batch(3), 'create')
+    const rejected = expect(pending).rejects.toThrow('gitlab: create got no answer for 1000 ms')
+    await vi.advanceTimersByTimeAsync(1100)
+    await rejected
+    expect(log).toHaveBeenCalledWith(expect.stringMatching(/^gitlab: call timed out create, 1100 ms/))
+    expect(link.health.state).toBe('live')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(create).toHaveBeenCalledTimes(2)
+    await expect(link.page(async () => 'read')).resolves.toBe('read')
+    expect(connect).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats a write without a single answer as the tracker down', async () => {
+    vi.useFakeTimers()
+    const { source } = slowEditor([Infinity])
+    const link = new TrackerLink({ name: 'gitlab', connect: async () => source, timeoutMs: 1000 })
+    const rejected = expect(link.write(batch(1), 'create')).rejects.toThrow('got no answer')
+    await vi.advanceTimersByTimeAsync(1000)
+    await rejected
+    expect(link.health.state).toBe('down')
+    await expect(link.page(async () => 'read')).rejects.toThrow('got no answer')
+  })
+})

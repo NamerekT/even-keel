@@ -7,6 +7,8 @@ export interface CallDiagnostics {
   longest?: { path: string; ms: number }
   active: Map<symbol, { path: string; started: number }>
   signal?: AbortSignal
+  /** The tracker answered a request: a write's timeout starts again (BTN-929). */
+  onAnswer?: () => void
 }
 
 export const callDiagnostics = new AsyncLocalStorage<CallDiagnostics>()
@@ -14,8 +16,11 @@ export const callDiagnostics = new AsyncLocalStorage<CallDiagnostics>()
 export async function trackedFetch(fetchImpl: typeof fetch, input: string, init: RequestInit, path: string): Promise<Response> {
   const finish = trackRequest(path)
   try {
-    const signal = callDiagnostics.getStore()?.signal
-    return await fetchImpl(input, signal === undefined ? init : { ...init, signal: init.signal ? AbortSignal.any([init.signal, signal]) : signal })
+    const call = callDiagnostics.getStore()
+    const signal = call?.signal
+    const response = await fetchImpl(input, signal === undefined ? init : { ...init, signal: init.signal ? AbortSignal.any([init.signal, signal]) : signal })
+    call?.onAnswer?.()
+    return response
   } finally {
     finish()
   }
