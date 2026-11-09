@@ -10,7 +10,7 @@ import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { secretInput } from '../ui/secret.js'
 import { Tipped } from '../ui/Tipped.js'
 import { shortName, type PackageGroup, type PackageIssue } from './packageGroups.js'
-import { importOffers, keyLabel, problemText, type Dismissed } from './packageView.js'
+import { importOffers, keyLabel, passes, problemText, type Dismissed } from './packageView.js'
 import './packages.css'
 
 const DISMISSED_KEY = 'even-keel.packages.imports'
@@ -74,7 +74,7 @@ export function IssueBands({ issues, go, action }: { issues: PackageIssue[]; go:
       {issues.map((issue) => (
         <Band
           key={`${issue.name ?? ''}:${JSON.stringify(issue.problem)}`}
-          tone="error"
+          tone={passes(issue.problem) ? 'note' : 'error'}
           action={
             action?.(issue) ??
             (issue.name !== null && (

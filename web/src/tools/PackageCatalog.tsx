@@ -10,6 +10,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { catalogIssues, looseKeys, PACKAGE_PARAM, packageGroups, packageKeys } from './packageGroups.js'
 import { GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId } from './PackagesParts.js'
+import { passes } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 
 const SCOPE = 'catalog'
@@ -61,7 +62,7 @@ export function PackageCatalog({ state }: { state: EvenKeelState }) {
                   pkg={pkg}
                   view={view}
                   open={open === pkg.name}
-                  alert={issues.some((issue) => issue.name === pkg.name)}
+                  alert={issues.some((issue) => issue.name === pkg.name && !passes(issue.problem))}
                   onToggle={() => setOpen(open === pkg.name ? null : pkg.name)}
                 />
               ))}

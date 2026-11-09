@@ -35,7 +35,7 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
  * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
  * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
  * prompt and the add dialog offers it, `probing` — no server has answered since the service started, `silent` — the
- * forgejo server does not answer; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * forgejo server does not answer, `installing` — the playwright plugin is being installed; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -62,6 +62,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     skills: { 'code-review': 'claude', 'release-notes': 'claude', 'test-first': 'claude', deploy: 'codex' },
     wrapped: [],
   }
+  if (mode === 'installing') Object.assign(catalog.packages[2]!, { installing: true, version: null })
   if (mode === 'empty') catalog.packages = []
   if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
   return viewOf(catalog, projects)

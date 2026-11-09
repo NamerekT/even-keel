@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { heldLong, importOffers, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerPackage, trackerPackageOf } from './packageView.js'
+import { heldLong, importOffers, passes, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -60,6 +60,15 @@ describe('heldLong', () => {
     expect(heldLong(project(true))).toBe(true)
     expect(heldLong(held({ a: cell(true, [{ kind: 'installing' }]), b: cell(true, [{ kind: 'probing' }]), c: cell(false, [{ kind: 'notInstalled' }]) }))).toBe(false)
     expect(heldLong(held({ a: cell(true, [{ kind: 'probing' }]), b: cell(true, [{ kind: 'noResponse', servers: ['b'] }]) }))).toBe(true)
+  })
+})
+
+describe('passes', () => {
+  it('is true only for a problem that goes by itself: an install under way, a probe', () => {
+    expect(passes({ kind: 'installing' })).toBe(true)
+    expect(passes({ kind: 'probing' })).toBe(true)
+    expect(passes({ kind: 'notInstalled' })).toBe(false)
+    expect(passes({ kind: 'installFailed', notice: { code: 'x' } } as never)).toBe(false)
   })
 })
 

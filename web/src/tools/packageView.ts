@@ -38,6 +38,9 @@ export function serverPairs(transport: Transport, text: string): Record<string, 
 /** Hold the chain for a moment after an install, and pass by themselves. */
 export const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
 
+/** Goes by itself: shown as a note, not an error. */
+export const passes = (problem: PackageProblem) => PASSING.has(problem.kind)
+
 /** A problem in a few words, as /tools shows it and a project's wait names it. */
 export function problemText(problem: PackageProblem): string {
   const text = t.packages.problem

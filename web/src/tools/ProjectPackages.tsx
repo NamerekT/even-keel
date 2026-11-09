@@ -12,7 +12,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { AddPackage, AddPlugin } from './AddPackage.js'
 import { PACKAGE_PARAM, projectGroups,projectIssues, type PackageIssue, type ProjectGroup } from './packageGroups.js'
 import { GroupBox, IssueBands, PackageBrings, PackageLine, PackageSettings, problemTip, rowId } from './PackagesParts.js'
-import { problemText, trackerPackage } from './packageView.js'
+import { passes, problemText, trackerPackage } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 import '../pages/settings.css'
 import './addPackage.css'
@@ -151,7 +151,7 @@ function ProjectGroupBox({ group, view, project, open, setOpen, issues }: GroupP
             cell={cell}
             project={project}
             open={open === pkg.name}
-            alert={issues.some((issue) => issue.name === pkg.name)}
+            alert={issues.some((issue) => issue.name === pkg.name && !passes(issue.problem))}
             onToggle={() => setOpen(open === pkg.name ? null : pkg.name)}
           />
         )
