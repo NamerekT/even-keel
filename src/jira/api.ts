@@ -68,13 +68,27 @@ export class JiraApi {
     return (text === '' ? undefined : JSON.parse(text)) as T
   }
 
+  /**
+   * A multipart call of REST v3 (BTN-895): fetch sets the form's content type, and Jira takes an upload only with
+   * `X-Atlassian-Token: no-check`.
+   */
+  async upload<T>(path: string, form: FormData): Promise<T> {
+    return (await (await this.request(`/rest/api/3${path}`, 'POST', form)).json()) as T
+  }
+
   async request(path: string, method = 'GET', body?: unknown): Promise<Response> {
+    const form = body instanceof FormData
     const response = await trackedFetch(this.fetchImpl, `${this.base}${path}`, {
       method,
-      headers: { authorization: this.auth, accept: 'application/json', 'content-type': 'application/json', 'user-agent': 'even-keel' },
+      headers: {
+        authorization: this.auth,
+        accept: 'application/json',
+        ...(form ? { 'x-atlassian-token': 'no-check' } : { 'content-type': 'application/json' }),
+        'user-agent': 'even-keel',
+      },
       signal: AbortSignal.timeout(this.timeoutMs),
       redirect: 'error',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: form ? body : JSON.stringify(body) }),
     }, path)
     if (response.ok) return response
     const answer: unknown = await response.json().catch(() => ({}))

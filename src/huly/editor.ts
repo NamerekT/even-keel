@@ -1,4 +1,4 @@
-import { EditRefused, patchText, revisionOf, type TaskEditor } from '../tracker/editor.js'
+import { EditRefused, patchText, revisionOf, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { TaskPriority, TrackerTask } from '../tracker/model.js'
 import { tracker } from './ids.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
@@ -22,6 +22,8 @@ export type HulyFullIssue = Omit<HulyCardIssue, 'parents'> & {
   parents?: HulyParent[]
   /** Hours reported on the issue. */
   reportedTime?: number
+  /** The `_id` of the issue's component. */
+  component?: string | null
 }
 
 /** Minutes of an estimate as Huly's hours, to the hundredth: 20 min — 0.33 h. */
@@ -37,6 +39,8 @@ export interface HulyNewIssue {
   parent: HulyFullIssue | null
   /** Hours; absent — none. */
   estimation?: number
+  /** The component's `_id`; absent — none. */
+  component?: string
   /** The new issue's `_id`, chosen by the caller (a tasks_create marker, BTN-905); a generated one by default. */
   id?: string
 }
@@ -64,7 +68,10 @@ export interface HulyEditorDeps {
   issuesOf(space: string): Promise<TrackerTask[]>
   /** Creates the issue under its parent, or at the top, and returns its `_id` and identifier. */
   addIssue(space: { _id: string; identifier: string }, issue: HulyNewIssue): Promise<{ id: string; identifier: string }>
-  comment(identifier: string, body: string): Promise<string>
+  /** Posts a comment with the files attached to it, if any. */
+  comment(identifier: string, body: string, files?: readonly TaskUpload[]): Promise<string>
+  /** Uploads the files and attaches them to the issue. */
+  attach(issue: HulyFullIssue, files: readonly TaskUpload[]): Promise<void>
 }
 
 /**
@@ -128,6 +135,11 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
     if (found === undefined) throw new EditRefused(`there is no milestone "${label}" in the project`)
     return found._id
   }
+  const componentOf = async (space: string, label: string): Promise<string> => {
+    const found = await client.findOne<{ _id: string }>(tracker.class.Component, { space, label })
+    if (found === undefined) throw new EditRefused(`there is no component "${label}" in the project`)
+    return found._id
+  }
   const related = (issue: HulyFullIssue, other: HulyFullIssue) => (issue.relations ?? []).some((ref) => ref._id === other._id)
   const relate = async (issue: HulyFullIssue, other: HulyFullIssue, on: boolean): Promise<void> => {
     if (related(issue, other) === on) return
@@ -142,9 +154,10 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       const marks = fixer()
       const parent = draft.parent === null ? null : await findIssue(draft.parent)
       if (parent !== null && parent.space !== space._id) throw new EditRefused(`the parent ${draft.parent} is of another project`)
-      const [status, milestone] = await Promise.all([
+      const [status, milestone, component] = await Promise.all([
         statusOf(space._id, draft.status),
         draft.milestone === null ? null : milestoneOf(space._id, draft.milestone),
+        draft.component == null ? null : componentOf(space._id, draft.component),
       ])
       const created = await deps.addIssue(space, {
         title: draft.title,
@@ -154,6 +167,7 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
         milestone,
         parent,
         ...(draft.estimate == null ? {} : { estimation: hulyHours(draft.estimate) }),
+        ...(component === null ? {} : { component }),
         ...(marker === undefined ? {} : { id: marker }),
       })
       marks.tell(notes)
@@ -196,8 +210,11 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
           if (current?.toUpperCase() === field.to?.toUpperCase() || (current === null && field.to === null)) return false
           throw new EditRefused(`Huly: these tools set a parent only on a new task; move ${issue.identifier} under another parent in Huly itself`)
         }
-        case 'component':
-          throw new EditRefused('these tools set no Huly component yet')
+        case 'component': {
+          if (field.to === null) return issue.component ? update({ component: null }) : false
+          const component = await componentOf(issue.space, field.to)
+          return issue.component === component ? false : update({ component })
+        }
       }
     },
     async estimate(id, minutes) {
@@ -254,6 +271,16 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
       const posted = await deps.comment(id, marks.fix(body))
       marks.tell(notes)
       return posted
+    },
+    components: true,
+    files: {
+      attach: async (id, files) => deps.attach(await findIssue(id), files),
+      async comment(id, body, files, _model, notes) {
+        const marks = fixer()
+        const posted = await deps.comment(id, marks.fix(body), files)
+        marks.tell(notes)
+        return posted
+      },
     },
   }
 }

@@ -49,7 +49,9 @@ function fixture() {
     findOne: async <T>(cls: string, query: Record<string, unknown>) =>
       (cls === ISSUE
         ? [...issues.values()].find((each) => each._id === query._id && each.space === query.space)
-        : cls === 'tracker:class:Milestone' ? (query.label === 'v1' ? { _id: 'm-v1' } : undefined) : { _id: 'category' }) as T | undefined,
+        : cls === 'tracker:class:Milestone' ? (query.label === 'v1' ? { _id: 'm-v1' } : undefined)
+        : cls === 'tracker:class:Component' ? (query.label === 'UI' && query.space === 'space' ? { _id: 'c-ui' } : undefined)
+        : { _id: 'category' }) as T | undefined,
     createDoc: async () => 'created',
     removeCollection: async () => undefined,
     addCollection,
@@ -59,6 +61,7 @@ function fixture() {
     updateMarkup,
   }
   const added: HulyNewIssue[] = []
+  const attached: [string, string[]][] = []
   let ids = 0
   const editor = hulyEditor({
     client,
@@ -80,9 +83,10 @@ function fixture() {
       comments.push(body)
       return 'comment'
     },
+    attach: async (issue, files) => void attached.push([issue.identifier, files.map((file) => file.name)]),
   })
   const stored = (id = 'id-1') => docs.get(id)
-  return { editor, issues, blobs, docs, stored, updates, uploadMarkup, updateMarkup, addCollection, added, comments }
+  return { editor, issues, blobs, docs, stored, updates, uploadMarkup, updateMarkup, addCollection, added, comments, attached }
 }
 
 const refusal = async (work: Promise<unknown>): Promise<string> => {
@@ -127,6 +131,36 @@ describe('hulyEditor', () => {
     expect(await refusal(editor.create('project', { ...draft, milestone: 'v9' }))).toMatch(/no milestone "v9"/)
     expect(await refusal(editor.create('project', { ...draft, parent: 'XYZ-1' }))).toMatch(/XYZ-1 is of another project/)
     expect(added).toHaveLength(1)
+  })
+
+  it('keeps one component of the project on a new task and sets or clears it by name', async () => {
+    const { editor, added, updates, issues } = fixture()
+    expect(editor.components).toBe(true)
+    const draft = { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('project', { ...draft, component: 'UI' })
+    await editor.create('project', draft)
+    expect(added.map((each) => each.component)).toEqual(['c-ui', undefined])
+    expect(await refusal(editor.create('project', { ...draft, component: 'Docs' }))).toMatch(/no component "Docs"/)
+    expect(await editor.set('ABC-2', { field: 'component', to: 'UI' })).toBe(true)
+    expect(await editor.set('ABC-2', { field: 'component', to: 'UI' })).toBe(false)
+    expect(await editor.set('ABC-2', { field: 'component', to: null })).toBe(true)
+    expect(await editor.set('ABC-3', { field: 'component', to: null })).toBe(false)
+    expect(updates).toEqual([
+      ['id-2', { component: 'c-ui' }],
+      ['id-2', { component: null }],
+    ])
+    expect(issues.get('ABC-2')!.component).toBeNull()
+  })
+
+  it('attaches files to the issue and posts a comment with its files, code marks fixed', async () => {
+    const { editor, attached, comments } = fixture()
+    const file = { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1]) }
+    await editor.files!.attach('ABC-1', [file])
+    expect(attached).toEqual([['ABC-1', ['shot.png']]])
+    const notes: string[] = []
+    expect(await editor.files!.comment('ABC-1', 'See **a `x`**', [file], null, notes)).toBe('comment')
+    expect(comments).toEqual(['See **a** `x`'])
+    expect(notes).toEqual(['fixed 1 mark: code moved out of bold'])
   })
 
   it('keeps an estimate in minutes as Huly hours, the time left less what was reported', async () => {

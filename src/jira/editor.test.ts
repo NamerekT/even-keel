@@ -17,6 +17,8 @@ function fixture() {
     'ABC-10': { summary: 'New', status: status('To Do'), issuetype: { hierarchyLevel: 0 } },
   }
   const writes: [string, string, unknown][] = []
+  const comments: [string, string][] = []
+  const uploads: [string, string[]][] = []
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     if (method !== 'GET') {
       writes.push([method, path, body])
@@ -35,9 +37,14 @@ function fixture() {
     issueTypes: async () => [{ id: 'epic', name: 'Epic', hierarchyLevel: 1 }, { id: 'task', name: 'Task', hierarchyLevel: 0 }, { id: 'sub', name: 'Subtask', subtask: true, hierarchyLevel: -1 }],
     linkTypes: ['Blocks', 'Relates', 'Duplicate'],
     relabel: async () => [],
-    comment: async () => 'c-1',
+    comment: async (id, body) => {
+      comments.push([id, body])
+      return 'c-1'
+    },
+    componentsOf: async () => [{ id: 'c-ui', name: 'UI' }, { id: 'c-server', name: 'Server' }],
+    upload: async (id, files) => void uploads.push([id, files.map((file) => file.name)]),
   })
-  return { editor, writes }
+  return { editor, writes, issues, comments, uploads }
 }
 
 describe('jiraEditor', () => {
@@ -79,6 +86,34 @@ describe('jiraEditor', () => {
       ['PUT', '/issue/ABC-2', { fields: { parent: null } }],
       ['POST', '/issue/ABC-1/transitions', { transition: { id: 't-31' } }],
     ])
+  })
+
+  it('creates with one component and sets it as the only one, by name (BTN-895)', async () => {
+    const { editor, writes, issues } = fixture()
+    expect(editor.components).toBe(true)
+    await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, component: 'ui' })
+    expect((writes[0]![2] as { fields: { components: unknown } }).fields.components).toEqual([{ id: 'c-ui' }])
+    await expect(editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, component: 'Docs' })).rejects.toThrow(/no component "Docs" in ABC/)
+    issues['ABC-1']!.components = [{ id: 'c-ui', name: 'UI' }, { id: 'c-server', name: 'Server' }]
+    issues['ABC-2']!.components = [{ id: 'c-ui', name: 'UI' }]
+    expect(await editor.set('ABC-2', { field: 'component', to: 'UI' })).toBe(false)
+    expect(await editor.set('ABC-1', { field: 'component', to: 'UI' })).toBe(true)
+    expect(await editor.set('ABC-3', { field: 'component', to: null })).toBe(false)
+    expect(await editor.set('ABC-2', { field: 'component', to: null })).toBe(true)
+    expect(writes.slice(1)).toEqual([
+      ['PUT', '/issue/ABC-1', { fields: { components: [{ id: 'c-ui' }] } }],
+      ['PUT', '/issue/ABC-2', { fields: { components: [] } }],
+    ])
+  })
+
+  it('attaches files to the issue, and a comment with files names them after its text', async () => {
+    const { editor, comments, uploads } = fixture()
+    const file = { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1]) }
+    await editor.files!.attach('ABC-1', [file])
+    expect(await editor.files!.comment('ABC-1', 'Look.\n', [file, { ...file, name: 'b.log' }], null)).toBe('c-1')
+    expect(uploads).toEqual([['ABC-1', ['shot.png']], ['ABC-1', ['shot.png', 'b.log']]])
+    expect(comments).toEqual([['ABC-1', 'Look.\n\nAttached: shot.png, b.log']])
+    await expect(editor.files!.attach('nope', [file])).rejects.toThrow(/not a task key/)
   })
 
   it('links with the blocker outward and removes a link from either side of "relates"', async () => {

@@ -21,9 +21,11 @@ export interface Reply {
 }
 
 export function fakeFetch(replies: Reply[]) {
-  const calls: { url: string; method: string; headers: Headers; body: Record<string, unknown> | undefined }[] = []
+  const calls: { url: string; method: string; headers: Headers; body: Record<string, unknown> | undefined; form?: FormData }[] = []
   const fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    calls.push({ url: String(url), method: init?.method ?? 'GET', headers: new Headers(init?.headers), body: init?.body === undefined ? undefined : JSON.parse(String(init.body)) })
+    const form = init?.body instanceof FormData ? init.body : undefined
+    const body = init?.body === undefined || form !== undefined ? undefined : JSON.parse(String(init.body))
+    calls.push({ url: String(url), method: init?.method ?? 'GET', headers: new Headers(init?.headers), body, ...(form === undefined ? {} : { form }) })
     const reply = replies.shift()
     if (reply === undefined) throw new Error(`unexpected call: ${init?.method ?? 'GET'} ${url}`)
     const status = reply.status ?? 200

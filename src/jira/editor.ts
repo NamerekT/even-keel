@@ -1,5 +1,5 @@
 import { sameName } from '../chain/rules.js'
-import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/editor.js'
+import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
@@ -32,9 +32,13 @@ export interface JiraEditorDeps {
   linkTypes: readonly string[]
   relabel(id: string, change: LabelChange): Promise<string[]>
   comment(id: string, body: string): Promise<string>
+  /** The project's components. */
+  componentsOf(key: string): Promise<{ id: string; name: string }[]>
+  /** Uploads the files as the issue's attachments. */
+  upload(id: string, files: readonly TaskUpload[]): Promise<void>
 }
 
-const FIELDS = ['summary', 'status', 'priority', 'fixVersions', 'parent', 'issuelinks', 'issuetype', 'description']
+const FIELDS = ['summary', 'status', 'priority', 'fixVersions', 'components', 'parent', 'issuelinks', 'issuetype', 'description']
 const RELATES = 'Relates'
 
 /**
@@ -64,6 +68,11 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
   const versionOf = async (key: string, name: string): Promise<JiraVersion> => {
     const found = (await deps.versionsOf(key)).find((each) => sameName(each.name, name))
     if (found === undefined) throw new EditRefused(`there is no version "${name}" in ${key}`)
+    return found
+  }
+  const componentOf = async (key: string, name: string): Promise<{ id: string }> => {
+    const found = (await deps.componentsOf(key)).find((each) => sameName(each.name, name))
+    if (found === undefined) throw new EditRefused(`there is no component "${name}" in ${key}`)
     return found
   }
   const moveTo = async (issue: JiraIssue, name: string): Promise<boolean> => {
@@ -104,10 +113,11 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
       const key = deps.keyOf(project)
       const parent = draft.parent === null ? null : await issueOf(draft.parent)
       if (parent !== null && parseTaskId(parent.key)?.project !== key) throw new EditRefused(`the parent ${parent.key} is of another project`)
-      const [type, priority, version] = await Promise.all([
+      const [type, priority, version, component] = await Promise.all([
         typeOf(key, parent),
         draft.priority === null || draft.priority === 'none' ? null : priorityOf(draft.priority),
         draft.milestone === null ? null : versionOf(key, draft.milestone),
+        draft.component == null ? null : componentOf(key, draft.component),
       ])
       const fields = {
         project: { key },
@@ -116,6 +126,7 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         description: markdownToAdf(draft.description),
         ...(priority === null ? {} : { priority: { id: priority.id } }),
         ...(version === null ? {} : { fixVersions: [{ id: version.id }] }),
+        ...(component === null ? {} : { components: [{ id: component.id }] }),
         ...(draft.labels.length === 0 ? {} : { labels: draft.labels }),
         ...(parent === null ? {} : { parent: { key: parent.key } }),
       }
@@ -151,8 +162,13 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
           if (current?.toUpperCase() === field.to?.toUpperCase() || (current === null && field.to === null)) return false
           return update(id, { parent: field.to === null ? null : { key: field.to } })
         }
-        case 'component':
-          throw new EditRefused('these tools set no Jira component yet')
+        // An issue may be in several components; setting one leaves it in that one only.
+        case 'component': {
+          const components = issue.fields.components ?? []
+          if (field.to === null) return components.length === 0 ? false : update(id, { components: [] })
+          const component = await componentOf(parseTaskId(issue.key)!.project, field.to)
+          return components.length === 1 && components[0]!.id === component.id ? false : update(id, { components: [{ id: component.id }] })
+        }
       }
     },
     ...descriptionEdits({
@@ -181,5 +197,19 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
     relabel: (id, change) => deps.relabel(id, change),
     // A Jira comment has no field for the session's model: its author is the profile's account.
     comment: (id, body) => deps.comment(id, body),
+    components: true,
+    // A comment's files are the issue's attachments; the comment names them, since its ADF would need their media ids.
+    files: {
+      attach: async (id, files) => deps.upload(issueKey(id), files),
+      async comment(id, body, files) {
+        await deps.upload(issueKey(id), files)
+        return deps.comment(id, `${body.trimEnd()}\n\nAttached: ${files.map((file) => file.name).join(', ')}`)
+      },
+    },
   }
+}
+
+const issueKey = (id: string): string => {
+  if (parseTaskId(id) === null) throw new EditRefused(`"${id}" is not a task key such as ABC-12`)
+  return id
 }

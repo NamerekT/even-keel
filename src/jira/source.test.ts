@@ -323,12 +323,32 @@ describe('Jira task source', () => {
       { body: { values: ['ui'], isLast: false } },
       { body: { values: ['Question'], isLast: true } },
       { body: [{ id: '20', name: 'v1.0' }, { id: '19', name: 'v0.9', released: true }] },
+      { body: [{ id: '30', name: 'UI' }, { id: '31', name: 'Server' }] },
     ])
     expect(await source.vocabulary!('project-id')).toEqual({
       statuses: [{ name: 'Backlog', category: 'UnStarted' }, { name: 'To Do', category: 'ToDo' }, { name: 'In Progress', category: 'Active' }, { name: 'Done', category: 'Won' }],
       labels: ['ui', 'Question'],
       milestones: ['v1.0'],
+      components: ['UI', 'Server'],
     })
+  })
+
+  it('uploads each file as a multipart form with the no-check header (BTN-895)', async () => {
+    const { source, calls, remaining } = await connect([{ body: [{ id: 'a-1' }] }, { body: [{ id: 'a-2' }] }])
+    await source.editor!.files!.attach('ABC-1', [
+      { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1, 2]) },
+      { name: 'notes.txt', type: 'text/plain', bytes: new Uint8Array([3]) },
+    ])
+    const uploads = calls.slice(2)
+    expect(uploads.map((call) => [call.method, call.url])).toEqual([
+      ['POST', `${SITE}/rest/api/3/issue/ABC-1/attachments`],
+      ['POST', `${SITE}/rest/api/3/issue/ABC-1/attachments`],
+    ])
+    expect(uploads[0]!.headers.get('x-atlassian-token')).toBe('no-check')
+    expect(uploads[0]!.headers.get('content-type')).toBeNull()
+    const file = uploads[0]!.form!.get('file') as File
+    expect([file.name, file.type, file.size]).toEqual(['shot.png', 'image/png', 2])
+    expect(remaining()).toBe(0)
   })
 
   it('lists the tasks of a version with their newest comment', async () => {

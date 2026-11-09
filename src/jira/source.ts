@@ -123,6 +123,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   }
 
   const versionsOf = (key: string) => api.rest<JiraVersion[]>(`/project/${encodeURIComponent(key)}/versions`)
+  const componentsOf = (key: string) => api.rest<{ id: string; name: string }[]>(`/project/${encodeURIComponent(key)}/components`)
   async function orderedVersionsOf(key: string): Promise<JiraVersion[]> {
     const versions: JiraVersion[] = []
     for (let startAt = 0; ; ) {
@@ -396,6 +397,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
         statuses: [...new Map(statuses.map((status) => [status.name, jiraStatus(status)])).values()],
         labels,
         milestones: openVersions(await versionsOf(key)).map((version) => version.name),
+        components: (await componentsOf(key)).map((component) => component.name),
       }
     },
 
@@ -426,6 +428,15 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     linkTypes: issueLinkTypes.map((type) => type.name),
     relabel: (id, change) => source.relabel!(id, change),
     comment: (id, body) => source.comment!(id, body),
+    componentsOf,
+    // One file per call: a failed upload leaves the ones before it attached and names the file it stopped at.
+    async upload(id, files) {
+      for (const file of files) {
+        const form = new FormData()
+        form.append('file', new Blob([Buffer.from(file.bytes)], { type: file.type }), file.name)
+        await api.upload(`${issuePath(id)}/attachments`, form)
+      }
+    },
   })
   return source
 }

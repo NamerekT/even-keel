@@ -1,3 +1,4 @@
+import type { TaskUpload } from '../tracker/editor.js'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { hulyClient, type HulyPackage } from './client.js'
@@ -65,6 +66,7 @@ interface PlatformClient extends HulyLabelClient {
 
 interface StorageClient {
   get(file: string): Promise<AsyncIterable<Uint8Array>>
+  put(objectName: string, bytes: Buffer, contentType: string, size?: number): Promise<{ _id?: string }>
 }
 
 interface ApiClientModule {
@@ -150,16 +152,27 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     comments.length === 0 ? [] : client.findAll<ChatMessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: comments.map((doc) => doc._id) } }, options)
 
   let storage: Promise<StorageClient> | null = null
-  // The storage token may expire while the service runs: a failed read connects anew once.
-  async function readFile(file: string): Promise<AsyncIterable<Uint8Array>> {
+  // The storage token may expire while the service runs: a failed call connects anew once.
+  async function withStorage<T>(work: (each: StorageClient) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       storage ??= api.connectStorage(credentials.url, account)
       try {
-        return await (await storage).get(file)
+        return await work(await storage)
       } catch (error) {
         storage = null
         if (attempt > 0) throw error
       }
+    }
+  }
+  const readFile = (file: string) => withStorage((each) => each.get(file))
+
+  /** Uploads the files and attaches them to an issue or a comment, as Huly's own client does (BTN-895). */
+  async function attachFiles(space: string, attachedTo: string, attachedToClass: string, files: readonly TaskUpload[]): Promise<void> {
+    for (const file of files) {
+      const name = generateId()
+      const blob = await withStorage((each) => each.put(name, Buffer.from(file.bytes), file.type, file.bytes.length))
+      const attributes = { name: file.name, file: blob._id ?? name, type: file.type, size: file.bytes.length, lastModified: Date.now() }
+      await client.addCollection(ATTACHMENT, space, attachedTo, attachedToClass, 'attachments', attributes)
     }
   }
 
@@ -229,10 +242,13 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     return space
   }
 
-  async function comment(identifier: string, body: string): Promise<string> {
+  // A comment's files are its own attachments; adding each counts it in the comment's `attachments`.
+  async function comment(identifier: string, body: string, files: readonly TaskUpload[] = []): Promise<string> {
     const issue = await findIssue(identifier)
     const message = jsonToMarkup(markdownToMarkup(body))
-    return client.addCollection(CHAT_MESSAGE, issue.space, issue._id, tracker.class.Issue, 'comments', { message, attachments: 0 })
+    const id = await client.addCollection(CHAT_MESSAGE, issue.space, issue._id, tracker.class.Issue, 'comments', { message, attachments: 0 })
+    await attachFiles(issue.space, id, CHAT_MESSAGE, files)
+    return id
   }
 
   async function addIssue(space: { _id: string; identifier: string }, issue: HulyNewIssue): Promise<{ id: string; identifier: string }> {
@@ -261,7 +277,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         identifier,
         priority: hulyPriority(issue.priority),
         assignee: null,
-        component: null,
+        component: issue.component ?? null,
         milestone: issue.milestone,
         estimation: issue.estimation ?? 0,
         remainingTime: issue.estimation ?? 0,
@@ -443,13 +459,18 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     },
     async vocabulary(project) {
       const space = await spaceOf(project)
-      const [statuses, allowed, tags, milestones] = await Promise.all([
+      const [statuses, allowed, tags, milestones, components] = await Promise.all([
         findStatuses(),
         projectStatuses(space._id),
         client.findAll<{ title: string }>(TAG_ELEMENT, { targetClass: tracker.class.Issue }, { projection: { title: 1 } }),
         client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { space: space._id, status: { $nin: CLOSED_MILESTONES } }, { projection: MILESTONE_FIELDS }),
+        client.findAll<{ label: string }>(tracker.class.Component, { space: space._id }, { projection: { label: 1 } }),
       ])
-      return { ...vocabularyOf(statuses, allowed, tags), milestones: milestones.map((milestone) => milestone.label) }
+      return {
+        ...vocabularyOf(statuses, allowed, tags),
+        milestones: milestones.map((milestone) => milestone.label),
+        components: components.map((component) => component.label),
+      }
     },
     editor: hulyEditor({
       client: Object.assign(Object.create(client) as PlatformClient, { updateMarkup: collabUpdater(client, { markdownToMarkup, jsonToMarkup }) }),
@@ -466,7 +487,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         return resolve(issues, statuses)
       },
       addIssue,
-      comment: (identifier, body) => comment(identifier, body),
+      comment: (identifier, body, files) => comment(identifier, body, files),
+      attach: (issue, files) => attachFiles(issue.space, issue._id, tracker.class.Issue, files),
     }),
     close: () => client.close(),
   }

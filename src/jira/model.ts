@@ -47,6 +47,7 @@ export interface JiraFields {
   priority?: { id: string; name: string } | null
   labels?: string[]
   fixVersions?: JiraVersion[]
+  components?: { id: string; name: string }[]
   parent?: JiraRef | null
   issuelinks?: JiraLink[]
   subtasks?: { key: string }[]
