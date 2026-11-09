@@ -6,7 +6,7 @@ import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
 import type { Tracker, TrackerVocabulary } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
 import { Args } from './args.js'
-import { TaskRetries, type Retry } from './retries.js'
+import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -109,15 +109,33 @@ export class TasksTools {
         try {
           for (const [index, each] of planned.entries()) {
             if (retry.ids[index] !== undefined) continue
+            const draft = { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) }
+            const started = retry.started?.at === index ? retry.started.marker : undefined
+            const marker = started ?? editor.markers?.make()
+            if (marker !== undefined && started === undefined) {
+              try {
+                await retry.start(index, marker)
+              } catch (error) {
+                throw new EditRefused(`${createdSoFar(done())}retry progress was not saved before task ${index + 1}: ${refusalText(error)}. A repeat with the same retry creates the rest`)
+              }
+            }
             try {
-              retry.ids[index] = await editor.create(project, { ...each.draft, parent: each.draft.parent === null ? null : refOf(each.draft.parent) }, notes[index])
+              const found = started === undefined || editor.markers === undefined ? null : await editor.markers.find(project, started)
+              if (found === null) retry.ids[index] = await editor.create(project, draft, notes[index], marker)
+              else {
+                // Labels go on after the create on some trackers: a crash between the two left none.
+                if (draft.labels.length > 0) await editor.relabel(found, { add: draft.labels, remove: [] })
+                notes[index]!.push('found in the tracker after an interrupted call')
+                retry.ids[index] = found
+              }
             } catch (error) {
               throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
             }
             try {
               await retry.save()
             } catch (error) {
-              throw new EditRefused(`${createdSoFar(done())}retry progress was not saved: ${refusalText(error)}. Check the created tasks in the tracker before repeating; an unsaved task may be duplicated`)
+              const after = marker === undefined ? 'Check the created tasks in the tracker before repeating; an unsaved task may be duplicated' : 'A repeat with the same retry finds the unsaved task in the tracker by its marker'
+              throw new EditRefused(`${createdSoFar(done())}retry progress was not saved: ${refusalText(error)}. ${after}`)
             }
           }
           for (const [index, each] of planned.entries()) {
@@ -136,7 +154,7 @@ export class TasksTools {
         }
         return done().join('\n')
       }
-      return retryKey === undefined ? run({ ids: [], save: async () => {} }) : this.retries.run(project, retryKey, run)
+      return retryKey === undefined ? run(unsavedRetry()) : this.retries.run(project, retryKey, run)
     })
   }
 

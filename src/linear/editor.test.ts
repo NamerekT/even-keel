@@ -31,7 +31,12 @@ function fixture() {
       const milestones = (id: string, names: string[]) => ({ id, projectMilestones: { nodes: names.map((each) => ({ id: `m-${id}-${each}`, name: each })) } })
       return { team: { projects: { nodes: [milestones('p-web', ['Beta', 'GA']), milestones('p-api', ['GA', 'Alpha'])] } } } as T
     }
-    const number = ((variables.filter as { number: { eq: number } }).number.eq)
+    const filter = variables.filter as { id?: { eq: string }; team: { id?: { eq: string } }; number: { eq: number } }
+    if (filter.id !== undefined) {
+      const found = [...issues.values()].find((each) => each.id === filter.id!.eq && each.team.id === filter.team.id?.eq)
+      return { issues: { nodes: found === undefined ? [] : [{ identifier: found.identifier }] } } as T
+    }
+    const number = filter.number.eq
     return { issues: { nodes: issues.has(number) ? [issues.get(number)] : [] } } as T
   }
   const editor = linearEditor({
@@ -55,6 +60,16 @@ describe('linearEditor', () => {
       ['issueCreate', { input: { teamId: 'team', title: 'New', description: 'Text', priority: 2, stateId: 's-backlog', projectId: 'p-web', parentId: 'u1' } }],
     ])
     expect(relabels).toEqual([['ENG-10', { add: ['Bug'], remove: [] }]])
+  })
+
+  it('a marker is the new issue\'s own UUID, looked up in the team', async () => {
+    const { editor, mutations } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    await editor.create('P1', { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null }, [], marker)
+    expect(mutations[0]![1]).toMatchObject({ input: { id: marker, title: 'New' } })
+    expect(await editor.markers!.find('P1', 'u2')).toBe('ENG-2')
+    expect(await editor.markers!.find('P1', marker)).toBeNull()
   })
 
   it('puts a new issue into the project of its milestone, and refuses a name two projects share', async () => {

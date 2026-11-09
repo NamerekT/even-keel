@@ -119,6 +119,59 @@ describe('tasks_create', () => {
     expect(await call('task_read', { key: 'ABC-4' })).toContain('blocked by ABC-3')
   })
 
+  it('a repeat after a crash between the create and the save finds the task by its marker, labels and all', async () => {
+    const editor = tracker.editor!
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes, marker) => {
+        if (draft.title !== 'Two') return editor.create(project, draft, notes, marker)
+        await editor.create(project, { ...draft, labels: [] }, notes, marker)
+        throw new Error('process killed')
+      },
+    }
+    const batch = { tasks: [{ title: 'One' }, { title: 'Two', labels: ['bug'], blockedBy: ['#1'] }, { title: 'Three' }], retry: 'crash' }
+    await refusal(call('tasks_create', batch))
+    const saved = await db.query<{ ids: string; started: string }>('select ids, started from task_retries')
+    expect(JSON.parse(saved.rows[0]!.ids)).toEqual(['ABC-2'])
+    expect(JSON.parse(saved.rows[0]!.started)).toEqual({ at: 1, marker: expect.any(String) })
+    tracker.editor = editor
+    tools = new TasksTools(deps())
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One\nABC-3 Two (found in the tracker after an interrupted call)\nABC-4 Three')
+    expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One', 'Two', 'Three'])
+    expect(await call('task_read', { key: 'ABC-3' })).toMatch(/labels Bug · blocked by ABC-2/)
+    expect((await db.query('select started from task_retries')).rows).toEqual([{ started: null }])
+  })
+
+  it('a started task the tracker never got is created on the repeat with the same marker', async () => {
+    const editor = tracker.editor!
+    const markers: (string | undefined)[] = []
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes, marker) => {
+        markers.push(marker)
+        if (markers.length === 2) throw new Error('process killed')
+        return editor.create(project, draft, notes, marker)
+      },
+    }
+    const batch = { tasks: [{ title: 'One' }, { title: 'Two' }], retry: 'lost' }
+    await refusal(call('tasks_create', batch))
+    tools = new TasksTools(deps())
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One\nABC-3 Two')
+    expect(markers).toHaveLength(3)
+    expect(markers[2]).toBe(markers[1])
+    expect(new Set(markers).size).toBe(2)
+    expect(await tracker.editor.markers!.find(ABC, markers[2]!)).toBe('ABC-3')
+  })
+
+  it('an editor without markers creates with none and journals no started position', async () => {
+    const editor = tracker.editor!
+    const markers: (string | undefined)[] = []
+    tracker.editor = { ...editor, markers: undefined, create: async (project, draft, notes, marker) => (markers.push(marker), editor.create(project, draft, notes)) }
+    expect(await call('tasks_create', { tasks: [{ title: 'One' }, { title: 'Two' }], retry: 'plain' })).toBe('ABC-2 One\nABC-3 Two')
+    expect(markers).toEqual([undefined, undefined])
+    expect((await db.query('select started from task_retries')).rows).toEqual([{ started: null }])
+  })
+
   it('a hand session names the project by its key', async () => {
     expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }] }, HAND))).toMatch(/"project" is required/)
     expect(await call('tasks_create', { project: 'xyz', tasks: [{ title: 'There' }] }, HAND)).toBe('XYZ-1 There')
@@ -147,7 +200,7 @@ describe('tasks_create', () => {
       ...deps(),
       db: {
         async query<R>(sql: string, params?: unknown[]) {
-          if (sql.startsWith(broken) || sql.startsWith('delete from task_retries')) throw new Error('disk unavailable')
+          if (broken !== '' && (sql.startsWith(broken) || sql.startsWith('delete from task_retries'))) throw new Error('disk unavailable')
           return db.query<R>(sql, params)
         },
       },
@@ -155,12 +208,18 @@ describe('tasks_create', () => {
     const batch = { retry: 'disk', tasks: [{ title: 'One' }, { title: 'Two' }] }
     expect(await refusal(call('tasks_create', batch))).toBe('disk unavailable')
     expect((await store.list([ABC])).length).toBe(1)
-    broken = 'update task_retries'
+    broken = 'update task_retries set started'
+    const unstarted = await refusal(call('tasks_create', batch))
+    expect(unstarted).toBe('Nothing was created: retry progress was not saved before task 1: disk unavailable. A repeat with the same retry creates the rest')
+    expect((await store.list([ABC])).length).toBe(1)
+    broken = 'update task_retries set ids'
     const error = await refusal(call('tasks_create', batch))
     expect(error).toContain('Created ABC-2 One; then retry progress was not saved: disk unavailable')
-    expect(error).toContain('Check the created tasks in the tracker before repeating')
+    expect(error).toContain('A repeat with the same retry finds the unsaved task in the tracker by its marker')
     expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One'])
-    expect(refreshed).toEqual([ABC])
+    expect(refreshed).toEqual([ABC, ABC])
+    broken = ''
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One (found in the tracker after an interrupted call)\nABC-3 Two')
   })
 })
 

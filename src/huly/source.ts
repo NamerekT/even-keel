@@ -234,7 +234,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     const taken = (await client.updateDoc(tracker.class.Project, SPACE_OF_SPACES, space._id, { $inc: { sequence: 1 } }, true)) as { object?: { sequence?: number } }
     const number = taken.object?.sequence
     if (number === undefined) throw new Error(`huly: project ${space.identifier} gave no issue number`)
-    const id = generateId()
+    const id = issue.id ?? generateId()
     const identifier = `${space.identifier}-${number}`
     const description = await client.uploadMarkup(tracker.class.Issue, id, 'description', issue.description, 'markdown')
     const { parent } = issue
@@ -444,6 +444,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     editor: hulyEditor({
       client: Object.assign(Object.create(client) as PlatformClient, { updateMarkup: collabUpdater(client, { markdownToMarkup, jsonToMarkup }) }),
       markdown: { markdownToMarkup, markupToMarkdown },
+      newId: generateId,
       findIssue,
       spaceOf,
       statusesOf: async (space) => {

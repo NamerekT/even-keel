@@ -1,6 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { TaskRetries } from '../taskmcp/retries.js'
 import { insertRows, rowsOf } from './copy.js'
 import { ABC, fixture, readsWhole, schemaOf, XYZ } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
@@ -14,15 +13,14 @@ it('step 39 adds retry progress, preserves older state and round trips the froze
     expect(await databaseVersion(frozen)).toBe(39)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 39, 39)
-    const journal = new TaskRetries(frozen)
-    expect(await journal.run(ABC, 'batch-example', async ({ ids }) => ids)).toEqual(['ABC-4', 'ABC-5'])
-    expect(await journal.run(XYZ, 'batch-example', async ({ ids }) => ids)).toEqual(['XYZ-8'])
+    // The journal's code reads the newest schema: a v39 database is read by SQL.
+    const ids = async (project: string) =>
+      JSON.parse((await frozen.query<{ ids: string }>("select ids from task_retries where project_id = $1 and retry_key = 'batch-example'", [project])).rows[0]!.ids)
+    expect(await ids(ABC)).toEqual(['ABC-4', 'ABC-5'])
+    expect(await ids(XYZ)).toEqual(['XYZ-8'])
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
-    await new TaskRetries(made).run(ABC, 'next', async ({ ids, save }) => {
-      ids.push('ABC-6')
-      await save()
-    })
+    await made.query(`insert into task_retries (project_id, retry_key, ids) values ($1, 'next', '["ABC-6"]')`, [ABC])
     expect((await made.query('select * from task_retries')).rows).toHaveLength(3)
     await upgraded.exec(fixture(38))
     await upgraded.exec(STEPS[36]!)

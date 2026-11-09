@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { fail } from '../notice/notice.js'
 import { patchText, type TaskEditor } from '../tracker/editor.js'
 import type { TrackerTask } from '../tracker/model.js'
@@ -27,7 +28,7 @@ export function builtinEditor({ store, names, must, trackerTask }: BuiltinEditor
 
   return {
     list: async (project) => (await store.list([project])).map(trackerTask),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       if (!names.knows(project)) throw fail('builtin.noProject', { project })
       const parent = draft.parent === null ? null : await parentOf(project, draft.parent)
       const number = await store.create(
@@ -40,10 +41,19 @@ export function builtinEditor({ store, names, must, trackerTask }: BuiltinEditor
           milestone: draft.milestone,
           parent,
           labels: draft.labels,
+          ...(marker === undefined ? {} : { id: marker }),
         },
         names.sharing(project),
       )
       return names.name({ project, number })
+    },
+    // The marker is the task's row id.
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker) {
+        const number = await store.numberOf(project, marker)
+        return number === null ? null : names.name({ project, number })
+      },
     },
     async set(id, field) {
       const task = await must(id)

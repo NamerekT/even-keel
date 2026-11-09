@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
 import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
@@ -52,6 +53,10 @@ const EDIT_ISSUE = `query($filter: IssueFilter!) {
 /** The milestones of the team's Linear projects: Linear keeps a milestone in a project, not in a team. */
 const TEAM_MILESTONES = `query($team: String!) {
   team(id: $team) { projects(first: 50) { nodes { id projectMilestones(first: 50) { nodes { id name } } } } }
+}`
+
+const MARKED_ISSUE = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) { nodes { identifier } }
 }`
 
 const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
@@ -121,7 +126,7 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
 
   return {
     list: (project) => deps.list(project),
-    async create(project, draft) {
+    async create(project, draft, _notes, marker) {
       const team = await deps.teamOf(project)
       const state = draft.status === null ? (team.states.find((each) => linearStatus(each).category === 'UnStarted') ?? team.states[0]) : stateOf(team.states, draft.status)
       if (state === undefined) throw new EditRefused('the team has no statuses')
@@ -129,6 +134,7 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
       const place = draft.milestone === null ? null : await milestoneOf(team.id, draft.milestone, parent?.project?.id ?? team.project)
       const projectId = place?.project ?? parent?.project?.id ?? team.project
       const input = {
+        ...(marker === undefined ? {} : { id: marker }),
         teamId: team.id,
         title: draft.title,
         description: draft.description,
@@ -143,6 +149,15 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
       const id = issueCreate.issue.identifier
       if (draft.labels.length > 0) await deps.relabel(id, { add: draft.labels, remove: [] })
       return id
+    },
+    // The marker is the issue's own id: `issueCreate` takes a UUID v4 chosen by the caller.
+    markers: {
+      make: () => randomUUID(),
+      async find(project, marker) {
+        const team = await deps.teamOf(project)
+        const { issues } = await graphql<{ issues: { nodes: { identifier: string }[] } }>(MARKED_ISSUE, { filter: { id: { eq: marker }, team: { id: { eq: team.id } } } })
+        return issues.nodes[0]?.identifier ?? null
+      },
     },
     async set(id, field) {
       const issue = await issueOf(id)

@@ -42,8 +42,14 @@ export interface TextPatch {
 export interface TaskEditor {
   /** Every task of the project, whatever its status. */
   list(project: string): Promise<TrackerTask[]>
-  /** Creates the task and returns its id. */
-  create(project: string, draft: TaskDraft, notes?: string[]): Promise<string>
+  /** Creates the task and returns its id; `marker` — one of `markers.make`, which the task is given. */
+  create(project: string, draft: TaskDraft, notes?: string[], marker?: string): Promise<string>
+  /**
+   * The marker a new task is created with, kept where a person does not read it (BTN-905): a repeat of `tasks_create`
+   * after a crash between a create and the save of its id finds the task by it instead of creating it again. Absent —
+   * the tracker has no such place, and such a repeat can duplicate the task.
+   */
+  markers?: TaskMarkers
   /** `false` — the field held the value already. */
   set(id: string, field: TaskField): Promise<boolean>
   /** The description's revision: it grows only with a change of the description, not of any other field. */
@@ -61,6 +67,16 @@ export interface TaskEditor {
   relabel(id: string, change: LabelChange): Promise<string[]>
   /** Posts the agent's comment and returns its id; `model` — `<Provider> | <model>` of its session, if known. */
   comment(id: string, body: string, model: string | null, notes?: string[]): Promise<string>
+}
+
+/**
+ * A marker is made before the create, random, so a retry key used again after eviction never meets an old task; where
+ * the tracker lets the caller choose a new task's own id, the marker is that id.
+ */
+export interface TaskMarkers {
+  make(): string
+  /** The id of the project's task created with the marker; `null` — there is none. */
+  find(project: string, marker: string): Promise<string | null>
 }
 
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */

@@ -47,7 +47,9 @@ function fixture() {
   const client: HulyEditorClient = {
     findAll: async <T>(cls: string) => (cls.endsWith('TagElement') ? [{ _id: 'tag-bug', title: 'Bug', color: 1 }] : []) as T[],
     findOne: async <T>(cls: string, query: Record<string, unknown>) =>
-      (cls === 'tracker:class:Milestone' ? (query.label === 'v1' ? { _id: 'm-v1' } : undefined) : { _id: 'category' }) as T | undefined,
+      (cls === ISSUE
+        ? [...issues.values()].find((each) => each._id === query._id && each.space === query.space)
+        : cls === 'tracker:class:Milestone' ? (query.label === 'v1' ? { _id: 'm-v1' } : undefined) : { _id: 'category' }) as T | undefined,
     createDoc: async () => 'created',
     removeCollection: async () => undefined,
     addCollection,
@@ -57,9 +59,11 @@ function fixture() {
     updateMarkup,
   }
   const added: HulyNewIssue[] = []
+  let ids = 0
   const editor = hulyEditor({
     client,
     markdown,
+    newId: () => `generated-${++ids}`,
     findIssue: async (identifier) => {
       const found = issues.get(identifier)
       if (found === undefined) throw new TrackerNotFound(`huly: issue ${identifier} not found`)
@@ -99,6 +103,19 @@ describe('hulyEditor', () => {
     expect(added[0]).toMatchObject({ title: 'New', description: 'Text', status: 'backlog', priority: 'high', milestone: 'm-v1' })
     expect(added[0]!.parent?.identifier).toBe('ABC-2')
     expect(addCollection).toHaveBeenCalledWith('tags:class:TagReference', 'space', 'id-new', ISSUE, 'labels', { tag: 'tag-bug', title: 'Bug', color: 1 })
+  })
+
+  it('a marker is the new issue\'s own _id, found only in the project', async () => {
+    const { editor, added, issues } = fixture()
+    const marker = editor.markers!.make()
+    expect(marker).toBe('generated-1')
+    const draft = { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null }
+    await editor.create('project', draft, [], marker)
+    await editor.create('project', draft)
+    expect(added.map((each) => each.id)).toEqual(['generated-1', undefined])
+    expect(await editor.markers!.find('project', 'id-2')).toBe('ABC-2')
+    expect(await editor.markers!.find('project', 'generated-9')).toBeNull()
+    expect(await editor.markers!.find('project', issues.get('XYZ-1')!._id)).toBeNull()
   })
 
   it('creates a task in a named status and refuses an unknown status, a missing milestone and a parent of another project', async () => {

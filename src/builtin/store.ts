@@ -69,6 +69,8 @@ export interface NewBuiltinTask {
   milestone?: string | null
   parent?: number | null
   labels?: string[]
+  /** The row's id, chosen by the caller (a tasks_create marker, BTN-905); a new UUID by default. */
+  id?: string
 }
 
 /**
@@ -138,7 +140,7 @@ export class BuiltinStore {
         [task.project, number],
       )
       const at = this.stamp()
-      const id = randomUUID()
+      const id = task.id ?? randomUUID()
       const milestone = task.milestone == null ? null : await this.milestoneId(tx, task.project, task.milestone)
       await tx.query(
         `insert into builtin_tasks (${TASK_COLUMNS}) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9)`,
@@ -152,6 +154,12 @@ export class BuiltinStore {
 
   async get(key: TaskKey): Promise<BuiltinTask | undefined> {
     return (await this.read([key.project], key.number))[0]
+  }
+
+  /** The number of the project's task with this row id; `null` — none. */
+  async numberOf(project: string, id: string): Promise<number | null> {
+    const { rows } = await this.db.query<{ number: number }>('select number from builtin_tasks where project_id = $1 and id = $2', [project, id])
+    return rows[0]?.number ?? null
   }
 
   /** Every task of the projects, by project and number. */

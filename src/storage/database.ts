@@ -508,6 +508,10 @@ export const STEPS: readonly string[] = [
     unique (project_id, retry_key)
   );
   `,
+  // The position of a tasks_create batch being created and the marker its task gets in the tracker (BTN-905).
+  `
+  alter table task_retries add column started text;
+  `,
 ]
 
 /** The version this code reads and writes. */

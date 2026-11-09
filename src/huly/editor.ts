@@ -30,6 +30,8 @@ export interface HulyNewIssue {
   priority: TaskPriority
   milestone: string | null
   parent: HulyFullIssue | null
+  /** The new issue's `_id`, chosen by the caller (a tasks_create marker, BTN-905); a generated one by default. */
+  id?: string
 }
 
 export interface HulyEditorClient extends HulyLabelClient {
@@ -43,6 +45,8 @@ export interface HulyEditorClient extends HulyLabelClient {
 export interface HulyEditorDeps {
   client: HulyEditorClient
   markdown: HulyMarkdown
+  /** A new document id, as Huly's `generateId` makes it. */
+  newId(): string
   /** Throws `TrackerNotFound` when there is no such issue. */
   findIssue(identifier: string): Promise<HulyFullIssue>
   /** The Huly project of Even Keel's project. */
@@ -126,7 +130,7 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
 
   return {
     list: async (project) => deps.issuesOf((await deps.spaceOf(project))._id),
-    async create(project, draft, notes) {
+    async create(project, draft, notes, marker) {
       const space = await deps.spaceOf(project)
       const marks = fixer()
       const parent = draft.parent === null ? null : await findIssue(draft.parent)
@@ -142,10 +146,20 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
         priority: draft.priority ?? 'none',
         milestone,
         parent,
+        ...(marker === undefined ? {} : { id: marker }),
       })
       marks.tell(notes)
       if (draft.labels.length > 0) await relabelHuly(client, { _id: created.id, space: space._id }, { add: draft.labels, remove: [] })
       return created.identifier
+    },
+    // The marker is the issue's `_id`: Huly takes one chosen by the caller, and a person never sees it.
+    markers: {
+      make: () => deps.newId(),
+      async find(project, marker) {
+        const space = await deps.spaceOf(project)
+        const found = await client.findOne<{ identifier: string }>(ISSUE, { _id: marker, space: space._id })
+        return found?.identifier ?? null
+      },
     },
     async set(id, field) {
       const issue = await findIssue(id)
