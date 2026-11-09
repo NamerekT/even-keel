@@ -40,11 +40,13 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Milestone order by hand: 113 — BTN-865 (next to 102 — BTN-849).
 - `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
 - The README badge: 122 — BTN-919.
+- Background commands of a session stopped under load: 123 — BTN-936.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again), 109 (the next red main on GitHub or GitLab), 112 (the next green `dev` of Even Keel's own project, whose commands restart the service), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 123 | [Background commands of a session stopped under load](unverified/sessions.md#background-commands-of-a-session-stopped-under-load-btn-924) | Claude `--bg` chains on Windows whose sessions start a dev server or watcher in the background and are stopped mid-turn on a loaded machine | the command outlives the stop and the worktree stays after Done; kill its tree by its port, the cleanup then removes the folder |
 | 122 | [The README badge](unverified/page.md#the-readme-badge-btn-915) | projects that publish a badge | GitHub shows a broken or plain picture, the Worker refuses the pushes, or the free KV runs out of writes; turn the badge off |
 | 121 | [Account settings edit hook](unverified/accounts.md#account-settings-edit-hook-btn-902) | managed Claude account folders in any project | an edit passes without guidance, or uninstall leaves the hook; change shared settings in the global file and remove only the marked command if needed |
 | 120 | [Settings edits in account folders](unverified/accounts.md#settings-edits-in-account-folders-btn-901) | everyone with several Claude accounts who changes a setting from a terminal, VS Code or a session under one of them | a CLI update or start raises a band for a change nobody made; press "Discard" |

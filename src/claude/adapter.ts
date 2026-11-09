@@ -16,6 +16,7 @@ import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
 import { TranscriptTail } from '../sessions/tail.js'
 import { addMarketplace, updateMarketplace, ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
+import { FolderCalls } from './calls.js'
 import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
 import { agentsFallback } from './instructions.js'
@@ -56,7 +57,7 @@ export const claude: AgentAdapter = {
     const bin = () => resolveClaudeBinary(env(), pinned())
     const system = () => resolveClaudeBinary(env())
     const onMachine = () => findBinary(system(), env())
-    const cli = new ClaudeCli(bin, timeoutMs, envOf)
+    const cli = new ClaudeCli(bin, timeoutMs, envOf, new FolderCalls(), log)
     const oauthShapes = new Map<string, OAuthShape>()
     const observeOAuth = async (home: AccountHome) => {
       const current = await readOAuthShape(home.dir)

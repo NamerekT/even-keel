@@ -19,7 +19,7 @@ import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls, QueueWait } from './calls.js'
 import { contextArgs } from './context.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
-import { descendantsOf, killLeftovers, sessionProcessAlive } from './tree.js'
+import { descendantsOf, killLeftovers, leftoversAfterStop, sessionProcessAlive } from './tree.js'
 
 const run = promisify(execFile)
 
@@ -68,6 +68,7 @@ export class ClaudeCli {
     private readonly timeoutMs: number,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
     private readonly calls = new FolderCalls(),
+    private readonly log: (line: string) => void = () => {},
   ) {}
 
   /** `priority` — a listing the chain waits on (a launch, a resume, a stop) goes ahead of the folder's waiting calls. */
@@ -171,13 +172,15 @@ export class ClaudeCli {
   /**
    * `claude stop`, then waits for the session's process to exit and kills what it left. The exit is watched by its pid,
    * `claude agents` only confirms it. The Windows process listing takes 1–2 s, so it runs alongside the stop: an orphan
-   * keeps its `ParentProcessId` there, while `ps` is taken first, before orphans are reparented.
+   * keeps its `ParentProcessId` there, while `ps` is taken first, before orphans are reparented. A failed listing is
+   * logged and, on Windows, taken again after the exit (`leftoversAfterStop`).
    */
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
     const running = (await this.listIn(home, new QueueWait(0))).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isGone(running)) return
     if (running.pid !== undefined && !(await sessionProcessAlive(running.pid, running.processStartedAt, true))) return
-    const children = running.pid === undefined ? Promise.resolve([]) : descendantsOf({ pid: running.pid, startedAt: running.processStartedAt })
+    const root = running.pid === undefined ? undefined : { pid: running.pid, startedAt: running.processStartedAt }
+    const children = root === undefined ? Promise.resolve([]) : descendantsOf(root, this.log)
     if (process.platform !== 'win32') await children
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
@@ -191,7 +194,7 @@ export class ClaudeCli {
         continue
       }
       if (isGone((await this.listIn(home, wait)).find((entry) => entry.sessionId === sessionId))) {
-        await killLeftovers(await children)
+        await killLeftovers(await leftoversAfterStop(children, root, sessionId, this.log))
         return
       }
       await delay(APPEAR_POLL_MS)

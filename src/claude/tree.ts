@@ -46,29 +46,69 @@ export function descendantProcesses(table: ProcessRow[], root: ProcessRef): Proc
   return found
 }
 
-/**
- * The processes a session started. On Linux and macOS it is taken while the session lives: once it is gone, its orphans
- * are reparented and no longer lead back to it. Windows keeps an orphan's `ParentProcessId`, so there it may finish later.
- */
-export async function descendantsOf(root: ProcessRef): Promise<ProcessRef[]> {
-  try {
-    const { stdout } =
-      process.platform === 'win32'
-        ? await run(
-            'powershell.exe',
-            ['-NoProfile', '-NonInteractive', '-Command', "Get-CimInstance Win32_Process | ForEach-Object { $start = ''; try { $start = ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } catch {}; '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $start }"],
-            { timeout: LIST_TIMEOUT_MS, windowsHide: true },
-          )
-        : await run('ps', ['-A', '-o', 'pid=', '-o', 'ppid='], { timeout: LIST_TIMEOUT_MS })
-    const table = parseProcessTable(stdout)
-    if (process.platform !== 'win32') {
-      const candidates = new Set([root.pid, ...descendants(table.map(([pid, ppid]) => [pid, ppid]), root.pid)])
-      await Promise.all(table.filter(([pid]) => candidates.has(pid)).map(async (row) => { row[2] = await processStartedAt(row[0]) }))
-    }
-    return descendantProcesses(table, root)
-  } catch {
-    return []
+export type ProcessListing = (root: ProcessRef) => Promise<ProcessRow[]>
+
+/** The process table, with creation times of every process on Windows and of the root's tree elsewhere. */
+async function processTable(root: ProcessRef): Promise<ProcessRow[]> {
+  const { stdout } =
+    process.platform === 'win32'
+      ? await run(
+          'powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-Command', "Get-CimInstance Win32_Process | ForEach-Object { $start = ''; try { $start = ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } catch {}; '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $start }"],
+          { timeout: LIST_TIMEOUT_MS, windowsHide: true },
+        )
+      : await run('ps', ['-A', '-o', 'pid=', '-o', 'ppid='], { timeout: LIST_TIMEOUT_MS })
+  const table = parseProcessTable(stdout)
+  if (process.platform !== 'win32') {
+    const candidates = new Set([root.pid, ...descendants(table.map(([pid, ppid]) => [pid, ppid]), root.pid)])
+    await Promise.all(table.filter(([pid]) => candidates.has(pid)).map(async (row) => { row[2] = await processStartedAt(row[0]) }))
   }
+  return table
+}
+
+/**
+ * The processes a session started; `null` — the listing failed, which is logged. On Linux and macOS it is taken while
+ * the session lives: once it is gone, its orphans are reparented and no longer lead back to it. Windows keeps an
+ * orphan's `ParentProcessId`, so there it may finish later, and a failed one may be taken again (`leftoversAfterStop`).
+ */
+export async function descendantsOf(root: ProcessRef, log: (line: string) => void, list: ProcessListing = processTable): Promise<ProcessRef[] | null> {
+  const started = Date.now()
+  try {
+    return descendantProcesses(await list(root), root)
+  } catch (error) {
+    log(`sessions: listing the processes under pid ${root.pid} ${listFailure(error, Date.now() - started)}`)
+    return null
+  }
+}
+
+export function listFailure(error: unknown, ms: number): string {
+  const { killed, code, stderr } = (typeof error === 'object' && error !== null ? error : {}) as { killed?: boolean; code?: unknown; stderr?: unknown }
+  if (killed === true) return `timed out after ${ms} ms (limit ${LIST_TIMEOUT_MS} ms)`
+  const printed = typeof stderr === 'string' ? stderr.trim() : ''
+  const reason = typeof code === 'number' ? [`exit code ${code}`, printed].filter(Boolean).join(' / ') : error instanceof Error ? error.message : String(error)
+  return `failed after ${ms} ms: ${reason}`
+}
+
+/**
+ * What `killLeftovers` gets once the session's process has exited: the listing taken alongside the stop, or, when it
+ * failed (under load `Get-CimInstance` may outrun its limit), a second one on Windows, where orphans still name their
+ * dead parent and the creation-time filter keeps a reused pid's processes out. Elsewhere the orphans are reparented by
+ * then, so the failure is only logged. The stop itself goes on either way.
+ */
+export async function leftoversAfterStop(
+  first: Promise<ProcessRef[] | null>,
+  root: ProcessRef | undefined,
+  sessionId: string,
+  log: (line: string) => void,
+  again = process.platform === 'win32',
+  list: ProcessListing = processTable,
+): Promise<ProcessRef[]> {
+  const found = await first
+  if (found !== null) return found
+  const second = root !== undefined && again ? await descendantsOf(root, log, list) : null
+  if (second !== null) return second
+  log(`sessions: ${sessionId} stopped, but its process tree could not be listed: background commands it started may still run and hold its folder`)
+  return []
 }
 
 /**
