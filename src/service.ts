@@ -60,6 +60,7 @@ import { importForgejo, importProfiles } from './profiles/store.js'
 import type { ProjectForm, SessionView } from './state.js'
 import { Writes } from './storage/database.js'
 import { dropLeftFolder, loadLeftFolders, saveLeftFolder } from './storage/left-folders.js'
+import { loadContextWindows, loadSessionWindows } from './storage/context-windows.js'
 import { keptDatabase } from './storage/owner.js'
 import { stateValue } from './storage/service-state.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
@@ -381,6 +382,9 @@ const keyOrganizations = await loadKeyOrganizations(db)
 const managementKeys = await loadManagementKeys(db)
 /** What polls and sessions last told of each account's limits before this start (BTN-631). */
 const savedLimits = await loadSavedLimits(db)
+/** The context windows the agents named before this start, per launch and per session (BTN-946). */
+const savedWindows = await loadContextWindows(db)
+const savedSessionWindows = await loadSessionWindows(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
 /** The `rare:` lines already written and the pairs still open (BTN-814); unreadable rows only risk a repeated line. */
@@ -667,9 +671,9 @@ const sessionAccount = accountsService.wireSessionAccount(context)
 /** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
 const accountNow = accountsService.wireAccountNow(context)
 
-const contextWindows = accountsService.wireContextWindows(context)
+const contextWindows = accountsService.wireContextWindows(context, savedWindows)
 
-const monitor = accountsService.wireMonitor(context)
+const monitor = accountsService.wireMonitor(context, savedSessionWindows)
 
 const wedgedSessions = new Set<string>()
 

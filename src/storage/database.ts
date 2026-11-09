@@ -535,6 +535,23 @@ export const STEPS: readonly string[] = [
     until      bigint not null
   );
   `,
+  // The context windows the agents named, kept through a restart: per account, model and launch settings, and per session (BTN-946).
+  `
+  create table context_windows (
+    account     text not null,
+    model       text not null,
+    settings    text,
+    stamp       text not null,
+    window_size integer,
+    measured_at bigint not null,
+    unique nulls not distinct (account, model, settings)
+  );
+  create table session_windows (
+    session_id  text primary key,
+    window_size integer not null,
+    seen_at     bigint not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

@@ -38,8 +38,9 @@ A session's context bar and the cap of its checkpoint threshold measure against 
 
 Finished session records keep their own window when present. Otherwise `sessionRecord` uses the last non-null
 window `SessionMonitor` observed for that session, without a new CLI probe. The monitor retains up to 500 sessions
-in first-observed order; repeated observations update the value without renewing its place. This memory is lost
-on service restart, so older cards with no window in their record fall back to `context.window` again.
+in first-observed order; repeated observations update the value without renewing its place. A new or changed value
+is written behind into the state database's `session_windows` and read back at the start (BTN-946), so a restart
+keeps them; a session older than the newest 500 falls back to `context.window`.
 
 `autoCompactWindow` sets a separate window in tokens for Claude chain sessions, shared and per project (project wins).
 An omitted project value inherits the shared one; explicit `null` selects the account's window even over a shared
@@ -84,6 +85,7 @@ block below keeps Cache TTL and keep-warm.
 - **Claude** gives it to `claude -p /context --output-format json --no-session-persistence --model <model>`, a local command with no turn: the `result` has the line `**Tokens:** 23.8k / 250k (10%)` (`parseContextWindow` in `src/claude/context.ts`). It answers the window the account's settings make, `autoCompactWindow` included: with 250k in `~/.claude/settings.json` every model answered 250k on 2.1.303, `opus[1m]` too. It runs spawned directly, never through Git Bash (`docs/accounts.md`), in the account's environment with the `--settings` of a chain session of the task's project.
 - The model asked about is the `--model` the session was started with, from `respawnFlags` of its `jobs/<id>/state.json` (`launchedModel`): the transcript names `claude-opus-5-5` for an `opus[1m]` launch. A session without a job file or a `--model` is asked about the transcript's model.
 - The answers are kept per account, model and original launch settings (`ContextWindows` in `src/agent/windows.ts`): the first session that needs one asks in the background and the bar shows the fallback window until the answer comes. Every 60 s the stamp is compared — the binary's path and change time and the account's `settings.json` change time (`windowStamp`); a new stamp asks again with the original launch settings, a failed question is asked again a minute later and keeps the last answer.
+- The answers outlive a restart (BTN-946): each one is written behind with its stamp into the state database's `context_windows` and read back at the start, so the bar and the checkpoint threshold use the saved window at once; the first peek compares the stamp and asks again only if it changed, showing the saved window until the answer. The questions go one at a time: a folder's CLI calls queue (`FolderCalls`) and a call's timeout runs while it waits, so eight probes at once after a restart timed out together.
 - `npm run cli-check` has a step for it: Claude's `/context`, Codex's window in the record of the check's session.
 
 ## Prompts (`src/sessions/prompt.ts`)

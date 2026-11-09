@@ -23,6 +23,10 @@ export interface SessionMonitorOptions {
   projectKeys: () => string[]
   /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
   contextWindow?: (account: string, model: string, task: string, settings?: string) => number | null
+  /** Optional. The sessions' windows kept before this start, oldest first (BTN-946). */
+  sessionWindows?: [string, number][]
+  /** Optional. A session's window seen for the first time or changed, to keep through a restart. */
+  onSessionWindow?: (sessionId: string, window: number) => void
   /** Optional. The tool call a waiting session's permission hook holds, as a question (BTN-269). */
   approval?: (sessionId: string) => Ask | null
   intervalMs: number
@@ -53,14 +57,16 @@ export class SessionMonitor {
   private readonly remoteEnabled = new Map<string, boolean | null>()
   /** The compactions seen in each transcript followed since the start, kept after its session leaves the agents' list. */
   private readonly compactions = new Map<string, number>()
-  /** Last non-null windows of up to 500 sessions, in first-observed order; lost on service restart, so old cards use the shared window. */
-  private readonly contextWindows = new Map<string, number>()
+  /** Last non-null windows of up to 500 sessions, in first-observed order; kept through a restart (`session_windows`). */
+  private readonly contextWindows: Map<string, number>
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
   private stopped = true
 
-  constructor(private readonly options: SessionMonitorOptions) {}
+  constructor(private readonly options: SessionMonitorOptions) {
+    this.contextWindows = new Map(options.sessionWindows)
+  }
 
   start(): void {
     if (!this.stopped) return
@@ -198,8 +204,9 @@ export class SessionMonitor {
 
       const views = this.views()
       for (const view of views) {
-        if (byTask.has(view.task) && view.contextWindow !== null) {
+        if (byTask.has(view.task) && view.contextWindow !== null && this.contextWindows.get(view.sessionId) !== view.contextWindow) {
           this.contextWindows.set(view.sessionId, view.contextWindow)
+          this.options.onSessionWindow?.(view.sessionId, view.contextWindow)
           if (this.contextWindows.size > 500) this.contextWindows.delete(this.contextWindows.keys().next().value!)
         }
         rareEvents.observe(view, this.tails.get(view.sessionId)?.path !== undefined)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ContextWindows } from './windows.js'
+import { ContextWindows, type SavedWindow } from './windows.js'
 
 /** The cache whose `peek` needs no task: the probe below does not read it. */
 function windows(answers: Record<string, number | null | Error>) {
@@ -79,6 +79,50 @@ describe('ContextWindows', () => {
     await cache.idle()
     expect(cache.peek('a', 'opus')).toBe(400_000)
     expect(state.probes).toHaveLength(2)
+  })
+
+  it('answers at once from the windows saved before a restart and asks again only for a changed stamp', async () => {
+    const asked: string[] = []
+    const saved: SavedWindow[] = []
+    const cache = new ContextWindows({
+      probe: async (account, model) => {
+        asked.push(`${account}/${model}`)
+        return 300_000
+      },
+      stamp: async (account) => (account === 'a' ? 'v1' : 'v2'),
+      recheckMs: 60_000,
+      now: () => 5_000,
+      onError: () => {},
+      saved: [
+        { account: 'a', model: 'opus', settings: '{"autoCompactWindow":250000}', stamp: 'v1', window: 250_000, measuredAt: 1 },
+        { account: 'b', model: 'opus', settings: null, stamp: 'v1', window: 200_000, measuredAt: 1 },
+      ],
+      save: (window) => saved.push(window),
+    })
+    expect(cache.peek('a', 'opus', 'ABC-1', '{"autoCompactWindow":250000}')).toBe(250_000)
+    expect(cache.peek('b', 'opus', 'ABC-2')).toBe(200_000)
+    await cache.idle()
+    expect(asked).toEqual(['b/opus'])
+    expect(cache.peek('b', 'opus', 'ABC-2')).toBe(300_000)
+    expect(saved).toEqual([{ account: 'b', model: 'opus', settings: null, stamp: 'v2', window: 300_000, measuredAt: 5_000 }])
+  })
+
+  it('asks the agent one question at a time', async () => {
+    let running = 0
+    let most = 0
+    const cache = new ContextWindows({
+      probe: async () => {
+        most = Math.max(most, ++running)
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        running--
+        return 250_000
+      },
+      stamp: async () => 'v1', recheckMs: 60_000, onError: () => {},
+    })
+    for (const account of ['a', 'b', 'c']) for (const model of ['opus', 'sonnet']) cache.peek(account, model, 'ABC-1')
+    await cache.idle()
+    expect(most).toBe(1)
+    expect(cache.peek('c', 'sonnet', 'ABC-1')).toBe(250_000)
   })
 
   it('keeps what it knew when the agent fails, reports it and asks again after the recheck time', async () => {

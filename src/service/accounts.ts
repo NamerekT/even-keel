@@ -19,7 +19,8 @@ import { AGENTS } from '../agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from '../agent/contract.js'
 import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
 import { ModelCatalog } from '../agent/models.js'
-import { ContextWindows } from '../agent/windows.js'
+import { ContextWindows, type SavedWindow } from '../agent/windows.js'
+import { saveContextWindow, saveSessionWindow } from '../storage/context-windows.js'
 import { VersionWatcher } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
@@ -625,8 +626,11 @@ export function wireOwners(ctx: AccountsContext): TranscriptOwners {
   })
 }
 
-export function wireContextWindows(ctx: AccountsContext): ContextWindows {
+/** `saved` — the windows measured before this start (BTN-946). */
+export function wireContextWindows(ctx: AccountsContext, saved: SavedWindow[] = []): ContextWindows {
   return new ContextWindows({
+    saved,
+    save: (window) => ctx.writes.add(`the context window of ${window.account} on ${window.model}`, saveContextWindow(ctx.db, window)),
     probe: async (key, model, _task, settings) => {
       const home = ctx.homeOf(key)
       return (await ctx.agentOf(home).contextWindow?.(home, model, settings)) ?? null
@@ -640,7 +644,8 @@ export function wireContextWindows(ctx: AccountsContext): ContextWindows {
   })
 }
 
-export function wireMonitor(ctx: AccountsContext): SessionMonitor {
+/** `sessionWindows` — the sessions' windows kept before this start, oldest first (BTN-946). */
+export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, number][] = []): SessionMonitor {
   rareEvents.projectOf = (session) => {
     const launched = ctx.launches.find((entry) => entry.sessionId === session.sessionId)
     const candidates = Object.entries(ctx.configStore.current.projects).filter(([, repo]) => isInside(session.cwd, repo))
@@ -655,6 +660,8 @@ export function wireMonitor(ctx: AccountsContext): SessionMonitor {
     keyLimits: (key) => ctx.account.apiKey(key) && !ctx.spendsByKey(key),
     projectKeys: () => sessionPrefixes(ctx.configStore.current),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
+    sessionWindows,
+    onSessionWindow: (sessionId, window) => ctx.writes.add(`the context window of session ${sessionId}`, saveSessionWindow(ctx.db, sessionId, window, Date.now())),
     approval: (sessionId) => ctx.approvals.ask(sessionId),
     intervalMs: ctx.SESSION_POLL_MS,
     onAgents: (list) => {

@@ -18,7 +18,8 @@ afterEach(async () => {
   vi.clearAllMocks()
 })
 
-function rig() {
+function rig(sessionWindows?: [string, number][]) {
+  const saved: [string, number][] = []
   let entries: AgentEntry[] = []
   let window: number | null = 250_000
   const home: AccountHome = { key: 'global', dir: '/account', global: true, agent: 'claude' }
@@ -30,6 +31,7 @@ function rig() {
     homes: () => [home], agentOf: () => ({ sessions: async () => entries, tail: () => tail }),
     emailOf: () => null, apiKey: () => false, projectKeys: () => ['ABC'], intervalMs: 10,
     contextWindow: () => window, onAgents: () => {}, onChange: () => {}, onError: error,
+    sessionWindows, onSessionWindow: (sessionId, value) => saved.push([sessionId, value]),
   })
   monitors.push(monitor)
   const record = vi.fn(async (_home: AccountHome, sessionId: string): Promise<SessionRecord | undefined> => ({
@@ -43,7 +45,7 @@ function rig() {
   const read = vi.mocked(createEvenKeelServer).mock.calls.at(-1)![0].sessionRecord
   monitor.start()
   return {
-    read, record, monitor,
+    read, record, monitor, saved,
     async poll(sessionId: string | null, value: number | null = 250_000) {
       window = value
       entries = sessionId === null ? [] : [{
@@ -68,12 +70,23 @@ describe('the context window of a session record', () => {
     expect(await r.read('second')).toMatchObject({ contextWindow: 400_000 })
   })
 
-  it('keeps null for an unseen session, including after a service restart', async () => {
+  it('keeps null for an unseen session', async () => {
     const r = rig()
     await r.poll('first')
     expect(await r.read('unseen')).toMatchObject({ contextWindow: null })
-    const restarted = rig()
-    expect(await restarted.read('first')).toMatchObject({ contextWindow: null })
+    expect(await rig().read('first')).toMatchObject({ contextWindow: null })
+  })
+
+  it('hands each new or changed window over to be kept and reads the kept ones after a restart', async () => {
+    const r = rig()
+    await r.poll('first')
+    await r.poll('first')
+    await r.poll('first', 300_000)
+    await r.poll('second', 400_000)
+    expect(r.saved).toEqual([['first', 250_000], ['first', 300_000], ['second', 400_000]])
+    const restarted = rig([['first', 300_000], ['second', 400_000]])
+    expect(await restarted.read('first')).toMatchObject({ contextWindow: 300_000 })
+    expect(await restarted.read('second')).toMatchObject({ contextWindow: 400_000 })
   })
 
   it('updates the last non-null window and does not erase it on an unknown reading', async () => {
