@@ -14,7 +14,7 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 ## Claude account settings
 
-Before launching Claude in an account folder, Even Keel transfers shared settings from `~/.claude/settings.json` and adds a hook that explains this when an agent tries to edit the account's `settings.json`. The agent is asked to change shared settings in the global file. Changes made directly by CLI commands such as `/model` are kept until you resolve them in **Accounts**: make them shared, keep them for that account only, or discard them. An account's own settings survive later transfers.
+Claude Code settings shared by all accounts live in `~/.claude/settings.json`: change them there. Before each launch in an account folder, Even Keel copies them into that folder's `settings.json`. A change made right in an account folder's file — by hand or by a CLI command such as `/model` — is kept, not overwritten: the account shows a band in **Accounts** with **Make shared**, **Keep for this account only** and **Discard**. An account's own settings are listed with it in **Accounts**, where × brings the shared value back, and survive later transfers. An agent that tries to edit an account folder's `settings.json` is refused by a hook Even Keel adds there, and the refusal points it to the global file.
 
 The hook preserves your other hooks and applies only in managed Claude account folders. Other files and the global settings file remain editable. When Even Keel is unavailable, the hook lets the edit proceed; the settings-change band can handle it later. Removing Even Keel removes its hook and keeps your settings and hooks. [Real CLI and platform checks are still pending](../unverified/accounts.md#account-settings-edit-hook-btn-902).
 
