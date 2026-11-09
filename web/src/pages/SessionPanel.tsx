@@ -40,7 +40,7 @@ import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
 import './facts.css'
 
-type WindowTask = { key: string; title: string | null }
+import type { WindowTask } from './TranscriptWindow.js'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
@@ -55,9 +55,12 @@ interface Props {
   ci: boolean
   onCard: (task: string) => void
   onClose: () => void
+  /** The task's chat window opened or closed: the page keeps the panel on a task that closes under an open chat. */
+  onChatting?: (open: boolean) => void
 }
 
-export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
+export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: Props) {
+  const { state } = useLive()
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
   const [refusal, setRefusal] = useState<(LimitRefusal & { sessionId: string | undefined }) | null>(null)
@@ -73,11 +76,18 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
   // The current session is read and answered in the chat window, opened from the actions.
   const chat = (block.current || block.aside === true || block.loose === true) && block.session !== null
-  const [chatting, setChatting] = useState(false)
-  // A press on the feed opens what the panel answers the session in: the chat, else the read-only whole transcript.
+  const [chatting, setChat] = useState(false)
+  const setChatting = (open: boolean) => {
+    setChat(open)
+    onChatting?.(open)
+  }
+  const chatClosed = useRef(onChatting)
+  chatClosed.current = onChatting
+  useEffect(() => () => chatClosed.current?.(false), [])
+  // A press on the feed opens what the panel answers the session in: the chat, else the whole transcript with the field shut.
   const openChat = chat ? () => setChatting(true) : undefined
-  // The session windows name the task as this panel's head does.
-  const windowTask: WindowTask = { key: block.id, title: block.title }
+  // The session windows name the task as this panel's head does, and share its draft.
+  const windowTask: WindowTask = { key: block.id, title: block.title, project: taskProject(state, block.id), closed: !block.open }
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -124,7 +134,7 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         </p>
       )}
-      <Actions block={block} scale={scale} ci={ci} chatting={chatting} onChat={setChatting} onCard={onCard} onFailure={onFailure} />
+      <Actions block={block} task={windowTask} scale={scale} ci={ci} chatting={chatting} onChat={setChatting} onCard={onCard} onFailure={onFailure} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
@@ -156,6 +166,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
 
 interface ActionsProps {
   block: ChainBlock
+  /** The chat window's task: its head, its draft, and whether it is closed. */
+  task: WindowTask
   scale: ContextScale
   ci: boolean
   /** The chat window is open; the panel keeps it, since a press on the feed opens it too. */
@@ -166,7 +178,7 @@ interface ActionsProps {
   onFailure: (failure: Notice | null) => void
 }
 
-function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFailure }: ActionsProps) {
+function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard, onFailure }: ActionsProps) {
   const { send, sending, failure } = useCommand()
   const lastFailure = useRef(failure)
   useEffect(() => {
@@ -187,6 +199,7 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFa
   // Once the chain stopped, the session that lives on is still answered from the chat.
   const talking = live ?? (aside || block.loose === true ? session : null)
   // A reply stops the session and resumes it: for those seconds it is gone from the state, the open chat stays on its last view.
+  // So does a handoff until the new session is up, and the task's close: the chat stays open on the last session, shut.
   const lastTalking = useRef(talking)
   if (talking !== null) lastTalking.current = talking
   const chatSession = talking ?? (chatting ? lastTalking.current : null)
@@ -312,12 +325,12 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFa
       {failure !== null && failure.code !== 'chain.limitSpent' && <p className="notice notice--error">{say(failure)}</p>}
       {chatting && chatSession !== null && (
         <Suspense fallback={null}>
+          {/* One window per task: a handoff swaps only its feed, without closing and opening it again. */}
           <TranscriptWindow
-            key={chatSession.sessionId}
             sessionId={chatSession.sessionId}
             account={chatSession.account}
-            live={chatSession.lamp !== 'finished' || talking === null}
-            task={{ key: block.id, title: block.title }}
+            live={block.open && (chatSession.lamp !== 'finished' || talking === null)}
+            task={task}
             chat={{
               project: body.project,
               task: body.task,

@@ -22,6 +22,7 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
+import { ShutComposer, type DraftOwner } from './ComposerBox.js'
 import { ChatStatus, useStatusFacts } from './ChatStatus.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { answeredAsks } from './composerHold.js'
@@ -68,14 +69,24 @@ export interface ChatTarget {
   review?: ReviewView
 }
 
+export interface WindowTask {
+  key: string
+  title: string | null
+  project?: string
+  closed?: boolean
+}
+
 interface Props {
   sessionId: string
   account: string | null
   /** The session still runs: new lines are fetched every few seconds. */
   live: boolean
   chat?: ChatTarget
-  /** The session's task, for the head: its key and title; without it the head shows the session's id. */
-  task?: { key: string; title: string | null }
+  /**
+   * The session's task, for the head: its key and title; without it the head shows the session's id. With `project` the
+   * window has the task's field and draft; without a chat it is shut, `closed` — because the task is.
+   */
+  task?: WindowTask
   /** Opens the full card of a task; with it a chat of a tracker task gets its task panel (BTN-891). */
   onCard?: (task: string) => void
   onClose: () => void
@@ -153,6 +164,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
     onCard?.(key)
   }
   const onHotkey = useDialogHotkey('chatTask', toggleTask)
+  const owner: DraftOwner | null = task?.project === undefined ? null : { project: task.project, task: task.key }
 
   useEffect(() => {
     // Otherwise the dialog focuses its first focusable element, the head's title, and its tip opens at once.
@@ -161,10 +173,14 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
     dialogRef.current?.showModal()
   }, [])
 
+  // A handoff keeps the window open and swaps only its feed for the new session's.
   useEffect(() => {
     count.current = 0
+    pinned.current = true
     setLines(undefined)
     setTurn(null)
+    setSent([])
+    setViewing(null)
   }, [sessionId])
 
   // Delivering an answer stops the session for a while: the lines read so far stay, reading goes on from them.
@@ -317,7 +333,18 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
             </div>
           )}
           {chat === undefined ? (
-            <div className="transcript__foot">{status}</div>
+            <div className="transcript__foot">
+              {owner === null ? (
+                status
+              ) : (
+                <ShutComposer
+                  owner={owner}
+                  sessionId={sessionId}
+                  reason={task?.closed === true ? t.session.chat.closed : live ? t.session.chat.elsewhere : t.session.chat.finished}
+                  status={status}
+                />
+              )}
+            </div>
           ) : (
             <div className="transcript__foot">
               {chat.session.lamp === 'working' && (
@@ -332,9 +359,10 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                 />
               )}
               <ChatComposer
-                key={chat.session.sessionId}
                 project={chat.project}
                 task={chat.task}
+                owner={owner ?? { project: chat.project, task: chat.task }}
+                closed={task?.closed === true}
                 session={chat.session}
                 aside={chat.aside}
                 renews={chat.renews}

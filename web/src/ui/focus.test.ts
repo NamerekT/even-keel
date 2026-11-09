@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { focusAfterClose, focusOnEntry } from './focus.js'
+import { focusAfterClose, focusOnEntry, nextOpenAfter } from './focus.js'
 
 const block = (id: string, open: boolean) => ({ id, open })
 
@@ -49,5 +49,18 @@ describe('focusAfterClose', () => {
 
   it('keeps the focus when nothing open is left after the closed task', () => {
     expect(focusAfterClose([block('A-1', true)], [block('A-1', false)], 'A-1')).toBeNull()
+  })
+})
+
+describe('nextOpenAfter', () => {
+  const chain = [block('A-1', false), block('A-2', false), block('A-3', true)]
+
+  it('gives the next open task after a closed one, for a move held while its chat was open', () => {
+    expect(nextOpenAfter(chain, 'A-2')).toBe('A-3')
+  })
+
+  it('stays on a task that is open again or gone', () => {
+    expect(nextOpenAfter(chain, 'A-3')).toBeNull()
+    expect(nextOpenAfter(chain, 'A-9')).toBeNull()
   })
 })
