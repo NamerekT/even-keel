@@ -129,7 +129,7 @@ class Runner {
       let busy: string[]
       try {
         const chain = (await this.state()).chain as { active?: Parameters<typeof busyChains>[0] } | undefined
-        busy = busyChains(chain?.active ?? [])
+        busy = busyChains(chain?.active ?? [], new Date())
       } catch {
         return
       }

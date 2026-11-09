@@ -183,7 +183,7 @@ export class Updater {
     if (blocked !== null) throw fail('updates.blocked', { reason: blocked })
     const checkout = this.checkout ?? null
     const control = this.control!
-    this.progress = { mode, target: version, phase: 'settling', waiting: busyChains(this.options.active()) }
+    this.progress = { mode, target: version, phase: 'settling', waiting: busyChains(this.options.active(), new Date()) }
     this.options.log(`updates: ${mode} to ${version} asked from the page`)
     this.options.onChange()
     void this.settleAndLaunch({ mode, version, tag, checkout, control })
@@ -196,7 +196,7 @@ export class Updater {
     const deadline = Date.now() + (options.settleMs ?? SETTLE_MS)
     while (this.progress !== null && this.progress.waiting.length > 0 && Date.now() < deadline) {
       await sleep(SETTLE_POLL_MS)
-      const waiting = busyChains(options.active())
+      const waiting = busyChains(options.active(), new Date())
       if (JSON.stringify(waiting) !== JSON.stringify(this.progress.waiting)) {
         this.progress = { ...this.progress, waiting }
         options.onChange()

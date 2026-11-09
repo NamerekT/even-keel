@@ -362,7 +362,7 @@ The gear menu in the header ends with the installed version. Even Keel asks GitH
 
 The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to &lt;version&gt;**. A release marked as a revert release (its notes have a **Reverted** section) says what of an earlier release it takes back. The update:
 
-1. waits, up to 5 minutes, until no chain is starting a session, handing over or closing a task — a restart in that moment would pause the chain; the page shows which projects it waits for;
+1. waits, up to 5 minutes, until no chain is starting a session, handing over or closing a task — a restart in that moment would pause the chain; the page shows which projects it waits for. A chain held by an account or model limit, with no current task or closing, does not delay the update if the reset is more than a minute away, or unknown for a model's week;
 2. stops the service, checks out the release's tag (`git fetch --tags`, `git checkout`), runs `npm ci` and `npm run build`, and starts the service again; installed with npm, it runs `npm install --global even-keel@<version>` into the same global folder instead;
 3. waits up to 2 minutes for the service to answer with the new version and keep running.
 
