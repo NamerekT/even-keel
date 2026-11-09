@@ -2,6 +2,7 @@ import type pg from 'pg'
 import type { ClassifySettings } from './config.js'
 import type { SignKind } from './signs.js'
 import type { MessageRow } from './parse.js'
+import type { Queryable } from '../../src/storage/database.js'
 
 export interface PendingSpan {
   id: string
@@ -52,7 +53,7 @@ export async function pendingSpans(client: pg.Client, settings: ClassifySettings
   }))
 }
 
-export async function writeReason(client: pg.Client, transaction: (work: () => Promise<void>) => Promise<void>, upsert: (sql: string, rows: MessageRow[]) => Promise<void>, span: PendingSpan, reason: SpanReason, costs: MessageRow[]): Promise<void> {
+export async function writeReason(client: pg.Client, transaction: (work: () => Promise<void>) => Promise<void>, span: PendingSpan, reason: SpanReason, costs: MessageRow[]): Promise<void> {
   await transaction(async () => {
     await client.query(
       `insert into span_reasons (span_id, session_id, agent_id, from_at, to_at, kinds, reason, note, prompt_version, model, classifier_session)
@@ -61,14 +62,19 @@ export async function writeReason(client: pg.Client, transaction: (work: () => P
       [span.id, span.sessionId, span.agentId ?? '', span.fromAt, span.toAt, span.kinds,
         reason.reason, reason.note, reason.promptVersion, reason.model, reason.classifierSession],
     )
-    await upsert(
-      `insert into messages
-       select * from jsonb_to_recordset($1::jsonb) as x(
-         message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
-         branch text, entrypoint text, model text, speed text, at timestamptz,
-         input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text)
-       on conflict (message_id) do nothing`,
-      costs,
-    )
+    await writeLlmCosts(client, costs)
   })
+}
+
+export async function writeLlmCosts(db: Queryable, costs: MessageRow[]): Promise<void> {
+  if (costs.length === 0) return
+  const rows = costs.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key.replace(/([a-z])([A-Z0-9])/g, '$1_$2').toLowerCase(), value])))
+  await db.query(
+    `insert into messages
+     select * from jsonb_to_recordset($1::jsonb) as x(
+       message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
+       branch text, entrypoint text, model text, speed text, at timestamptz,
+       input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text)
+     on conflict (message_id) do nothing`, [JSON.stringify(rows)],
+  )
 }

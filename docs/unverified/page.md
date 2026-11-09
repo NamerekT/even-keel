@@ -2,6 +2,15 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## The badge's English titles (BTN-918)
+
+Unit tests cover selection of current tasks, the title-only LiteLLM request, cleanup, persistent cache and retry claims,
+title changes, in-flight deduplication and idempotent import of usage into Tally's `messages`. Not checked live: the
+actual free-tier Gemini response through LiteLLM (including its fallback model name and zero pricing), response time,
+the key-only badge on refusal, reuse after a service restart and usage appearing on `/stats` after collection. BTN-919
+owns the run on a bench from `stands/README.md` in `even-keel-backstage`. **If it is wrong:** turn English titles off;
+the badge still shows task keys.
+
 ## Lightweight commands and tray polling (BTN-826)
 
 HTTP tests and the built page against a real HTTP fixture populated from a read-only TSK bench snapshot cover command acknowledgements, two repeated Stop/Keep going presses, SSE-only startup, gzip JSON, flushed SSE patches/pings, disconnect cleanup and reconnect bases. The Windows tray host compiles. Not checked on a deployed service: a phone over Tailscale, a stream kept open for hours, and the actual tray's language/count/paused/question icons with its new `/api/tray` poll. Since BTN-840 every command answers only `{ok:true}`, and the server ignores the old `X-Even-Keel-Command: ack` header (an HTTP test covers a command without it); a tab opened before the update to this version must be reloaded. **If it is wrong:** reload the page, use its chain/question controls to inspect status, and open the page from the tray rather than relying on its icon. Live checks use the TSK bench and restore any changed settings.

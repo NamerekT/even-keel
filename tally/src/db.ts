@@ -22,7 +22,7 @@ import type { HandoffRow } from './handoffs.js'
 import { migrate, pgDb, type Migration } from './migrations.js'
 import { firstPrompt } from './prompt.js'
 import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
-import { pendingSpans, writeReason, type PendingSpan, type SpanReason } from './db-classify.js'
+import { pendingSpans, writeLlmCosts, writeReason, type PendingSpan, type SpanReason } from './db-classify.js'
 export type { PendingSpan, SpanReason } from './db-classify.js'
 
 export interface SignState {
@@ -741,7 +741,11 @@ export class TallyDb implements Store {
   }
 
   writeReason(span: PendingSpan, reason: SpanReason, costs: MessageRow[]): Promise<void> {
-    return writeReason(this.client, (work) => this.transaction(work), (sql, rows) => this.upsert(sql, rows), span, reason, costs)
+    return writeReason(this.client, (work) => this.transaction(work), span, reason, costs)
+  }
+
+  writeLlmCosts(costs: MessageRow[]): Promise<void> {
+    return writeLlmCosts(this.client, costs)
   }
 
   async close(): Promise<void> {

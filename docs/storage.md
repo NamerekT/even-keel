@@ -6,6 +6,11 @@ The remaining JSON files written through `writeAtomic` (`src/storage/atomic.ts`)
 
 ## The database (`src/storage/database.ts`, `src/storage/owner.ts`)
 
+Step 45 adds the README badge's `badge_translations` cache (tracker source, task, title hash, attempt time and English
+title) and `badge_translation_spend`, its retained usage ledger. Translation attempts are claimed before the request,
+so a restart keeps the 30-minute retry interval; Tally reads the ledger through the owner and imports it by message id
+without duplicates. See [English titles](badge.md#english-titles).
+
 - The engine is PGlite (Postgres in WASM, the one Tally embeds): the folder holds `pgdata/` and, while a process holds it, `owner.json`.
 - A PGlite folder has one session in one process. The service's main thread owns it: `src/main.ts` opens it before the service module loads (`prepareDatabase` → `keepDatabase`), `src/service.ts` takes it (`keptDatabase`) and closes it last on shutdown. The owner serves the database to `pg` clients on a loopback port of its own (`@electric-sql/pglite-socket`) and writes `{ pid, port }` into `owner.json`; an owner is live only when its pid runs and its port answers, so a file left by a crash is no owner.
 - The folder is claimed before PGlite opens it (BTN-301; `src/storage/claim.ts`, which Tally's local database uses too, BTN-320): `owner.json` with `{ pid, since }` and no port yet is put in place as a hard link, which fails while one is there, so of two processes starting together one gets it and the other sees the claim. The port is written over it (a rename) once the server listens; the claim goes when the open fails or the database closes. A claim without a port is an open in progress while its pid runs, for at most 10 minutes; a stale claim is removed and taken again. An open refused because another process holds the folder leaves the service with the page's "process … holds the database" and the API at 503 until a restart, even after the holder closes.

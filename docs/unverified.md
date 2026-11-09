@@ -39,13 +39,14 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - Milestone order by hand: 113 — BTN-865 (next to 102 — BTN-849).
 - `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
-- The README badge: 122, 126, 127 — BTN-919.
+- The README badge: 122, 126, 127, 129 — BTN-919.
 - Background commands of a session stopped under load: 123 — BTN-936.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02, 2026-11-07 and 2026-11-09, then a launch on a kept snapshot half a second before the first poll and a task held on a spent week's kept snapshot; what is left needs a kept snapshot a reset made stale, due right at the restart, or a slow or failed first poll with no kept snapshot).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main on Forgejo from a runner failure), 92 (a watched branch fast-forwarded to an already green commit), 94 (GitLab runners running short, or a rerun of a run no runner took), 109 (the next red main on GitHub or GitLab), 112 (a chain that holds its next task for a run), 124 (the next held folder after a Done followed by that restart: `removed the worktree folder … once nothing held it` after the start), 128 (the next restart with live Claude chain sessions), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 129 | [The badge's English titles](unverified/page.md#the-badges-english-titles-btn-918) | projects with badge title translation on | Gemini refuses or returns an unexpected model name, the title stays absent or usage is not priced at zero; turn English titles off |
 | 128 | [Context windows through a restart](unverified/sessions.md#context-windows-through-a-restart-btn-946) | Claude chains whose sessions run on a window other than the shared `context.window` | after a restart the cards and the checkpoint threshold measure against `context.window` for a minute, as before; wait for the recheck |
 | 127 | [The README badge dialog](unverified/page.md#the-readme-badge-dialog-btn-917) | projects that set their badge up from the page | "Check" passes or fails against a real Worker otherwise than it says, or the copied snippet shows no picture on GitHub; set `badge` and the secret by hand and write the `<picture>` from `docs/badge.md` |
 | 126 | [The badge's Worker on Cloudflare](unverified/page.md#the-badges-worker-on-cloudflare-btn-916) | projects that publish a badge and deploy its Worker with the button or `wrangler deploy` | the button fails to build or makes no KV namespace, or the deployed Worker answers otherwise than the tests; deploy by hand and create the namespace with `wrangler kv namespace create BADGE` |

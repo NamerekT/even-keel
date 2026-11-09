@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot, type AccountHome } from '../../src/account/homes.js'
 import { readKeySpends, type SessionKeySpend } from '../../src/account/spend.js'
+import { readTranslationSpend } from '../../src/badge/translate.js'
 import { samePath } from '../../src/paths.js'
 import { taskSources } from '../../src/chain/launches.js'
 import type { LaunchEntry } from '../../src/chain/model.js'
@@ -26,7 +27,7 @@ import { hulyOfProfiles } from './huly-profiles.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, loadRollout, type Source } from './load.js'
 import { deniedLine, migratedLine } from './migrations.js'
-import { launchMap } from './parse.js'
+import { launchMap, type MessageRow } from './parse.js'
 import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
 import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
@@ -51,7 +52,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env)).all()
-  const { launches: journal, handoffs: saved, repos, closed, builtin, keySpends } = await evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved, repos, closed, builtin, keySpends, translations } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
   const taskHomes = taskSources(journal)
   const hulyOf = hulyOfProfiles(huly, new Map(taskHomes.flatMap((home) => (home.profile === null ? [] : [[home.task, home.profile] as const]))))
@@ -74,6 +75,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const migrated = migratedLine(migration)
     if (migrated !== null) log(migrated)
     await db.syncPrices(config.prices)
+    await db.writeLlmCosts(translations ?? [])
 
     const projects = repos ?? trackedProjects(home, log)
     const ruleScan = await ruleSources(homes, projects.map((project) => project.repo), homedir(), log)
@@ -187,7 +189,8 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
       const builtin = database === undefined ? [] : await builtinTasks(reader.db)
       // A service on the code before step 35 has no table yet: the rest of the state is read all the same.
       const keySpends = database === undefined ? undefined : await readKeySpends(reader.db).catch(() => undefined)
-      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin, keySpends }
+      const translations = database === undefined ? undefined : await readTranslationSpend(reader.db)
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin, keySpends, translations }
     } finally {
       await reader.close()
     }
@@ -198,7 +201,7 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
 }
 
 /** `builtin` — the built-in tracker's tasks (BTN-785), only in the database. */
-type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[]; keySpends?: SessionKeySpend[] }
+type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[]; keySpends?: SessionKeySpend[]; translations?: MessageRow[] }
 
 async function legacyReader(stateDir: string): Promise<StateReader | undefined> {
   const file = join(stateDir, SQLITE_FILE)

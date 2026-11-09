@@ -6,7 +6,9 @@ import { BadgePusher, postBadge, type BadgePushDeps } from '../badge/push.js'
 import { renderBadge } from '../badge/render.js'
 import { badgePushes } from '../badge/settings.js'
 import { badgeStatsOf, badgeStatsRange } from '../badge/stats.js'
-import type { EvenKeelConfig } from '../config.js'
+import { BadgeTranslations } from '../badge/translate.js'
+import { readerOf, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
+import { keptDatabase } from '../storage/owner.js'
 import type { EvenKeelState } from '../state.js'
 import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 
@@ -24,6 +26,7 @@ export interface BadgeWiringDeps {
   get?: BadgeCheckDeps['get']
   secret?: () => string | undefined
   log?: (line: string) => void
+  translations?: BadgeTranslations
 }
 
 export interface BadgeWiring {
@@ -44,6 +47,21 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   const tz = deps.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const numbers = new Map<string, { at: number; stats: BadgeStats | null }>()
   const reading = new Set<string>()
+  let translations = deps.translations
+
+  const titleOf = (state: EvenKeelState, project: string, id: string): string | undefined => {
+    const task = state.tasks.find((each) => each.project === project && each.id === id)
+    if (task === undefined || task.title.trim() === '') return undefined
+    const config = deps.config()
+    const reader = readerOf(config, project, id)
+    const readers = readersOf(config)
+    const kind = readers.trackers[reader]!
+    const profiles = state.profiles?.profiles ?? []
+    const profile = profiles.find((each) => each.kind === kind && each.projectIds.includes(reader)) ?? profiles.find((each) => each.kind === kind && each.isDefault)
+    const tracker = JSON.stringify([kind, profile?.id ?? '', kind === 'builtin' ? reader : readKeyOf(readers, reader)])
+    translations ??= new BadgeTranslations(keptDatabase().db, { now, log: deps.log })
+    return translations.title({ tracker, id, title: task.title }, config.settings[project]?.badge?.on === true)
+  }
 
   const statsOf = (project: string): BadgeStats | null => {
     const known = numbers.get(project)
@@ -63,7 +81,7 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   const stateOf = (project: string, fields: readonly BadgeField[]) => {
     const state = deps.state()
     if (!state.projects.includes(project)) return undefined
-    return badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project) })
+    return badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id) })
   }
 
   const secret = deps.secret ?? (() => process.env[BADGE_SECRET])

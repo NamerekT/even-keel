@@ -4,6 +4,8 @@ import type { EvenKeelConfig } from '../config.js'
 import type { EvenKeelState } from '../state.js'
 import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 import { BADGE_STATS_MS, wireBadges } from './badge.js'
+import { BadgeTranslations } from '../badge/translate.js'
+import { memoryDatabase } from '../storage/memory.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const state = {
@@ -17,7 +19,7 @@ const state = {
 } as unknown as EvenKeelState
 const period = { current: { sessions: 4 }, tasks: [{ done: true, cost: 2, priceEstimate: null, activeS: 600 }] } as unknown as StatsPeriod
 
-function rig() {
+function rig(snapshot = state, translations?: BadgeTranslations) {
   let now = Date.parse('2026-11-09T12:00:00Z')
   let badge: BadgeSettings | null = null
   const posts: BadgeState[] = []
@@ -26,8 +28,9 @@ function rig() {
   let down = false
   const lines: string[] = []
   const wiring = wireBadges({
-    config: () => ({ settings: { [ABC]: { badge } } }) as unknown as EvenKeelConfig,
-    state: () => state,
+    config: () => ({ projects: { [ABC]: 'C:/repos/example' }, keys: { [ABC]: 'ABC' }, trackers: { [ABC]: 'builtin' }, trackerProjects: {}, feeds: {}, settings: { [ABC]: { badge } } }) as unknown as EvenKeelConfig,
+    state: () => snapshot,
+    translations,
     period: async (query) => {
       queries.push(query)
       return answer
@@ -58,6 +61,41 @@ const on: BadgeSettings = { on: true, url: 'https://badge.example.com', slug: 'e
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('wireBadges', () => {
+  it('translates only current tasks when the badge and English titles are on, and uses the cache in previews', async () => {
+    const db = await memoryDatabase()
+    const calls: string[] = []
+    const translations = new BadgeTranslations(db, {
+      env: () => ({ TALLY_LLM_URL: 'https://llm.example.com', TALLY_LLM_KEY: 'fake-key' }),
+      request: async (_url, init) => {
+        calls.push(JSON.parse(init!.body as string).messages[1].content)
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'Fix the badge' } }], model: 'google-gemini-test' }))
+      },
+    })
+    const snapshot = { ...state, tasks: [
+      { project: ABC, id: 'ABC-1', title: 'Починить бейдж', status: { category: 'Started' }, milestone: null },
+      { project: ABC, id: 'ABC-2', title: 'Не отправлять', status: { category: 'ToDo' }, milestone: null },
+    ], chain: { ...state.chain, active: [{ project: ABC, current: { task: 'ABC-1', sessionId: null, since: '2026-11-09T12:00:00Z' } }] } } as unknown as EvenKeelState
+    const r = rig(snapshot, translations)
+    r.wiring.svg(ABC, 'dark')
+    await translations.settle()
+    expect(calls).toEqual([])
+    r.set(on)
+    await r.wiring.tick()
+    await translations.settle()
+    expect(calls).toEqual([])
+    r.set({ ...on, fields: ['title'] })
+    await r.wiring.tick()
+    await translations.settle()
+    expect(calls).toEqual(['Починить бейдж'])
+    expect(r.wiring.svg(ABC, 'dark')).toContain('Fix the badge')
+    r.wait(2 * 60_000)
+    await r.wiring.tick()
+    expect(r.posts.at(-1)?.active[0]?.titleEn).toBe('Fix the badge')
+    r.set({ ...on, on: false, fields: ['title'] })
+    expect(r.wiring.svg(ABC, 'dark')).toContain('Fix the badge')
+    expect(calls).toHaveLength(1)
+  })
+
   it('follows the live config: nothing until the badge is on, a stopped chain once it goes off', async () => {
     const r = rig()
     await r.wiring.tick()

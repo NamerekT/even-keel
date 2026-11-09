@@ -552,6 +552,20 @@ export const STEPS: readonly string[] = [
     seen_at     bigint not null
   );
   `,
+  `
+  create table badge_translations (
+    tracker      text not null,
+    task         text not null,
+    title_hash   text not null,
+    attempted_at bigint not null,
+    title_en     text,
+    primary key (tracker, task, title_hash)
+  );
+  create table badge_translation_spend (
+    message_id text primary key,
+    message    text not null
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

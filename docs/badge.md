@@ -21,8 +21,8 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
 - `stats` — `sessions`, `medianCost`, `medianMinutes`.
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
-(`badgeStateOf` in `src/badge/collect.ts`). A task's tracker title never leaves the service: only `titleEn`, the English
-title of BTN-918; without it the badge shows the key alone.
+(`badgeStateOf` in `src/badge/collect.ts`). A task's tracker title never reaches the Worker: only `titleEn`, the English
+title (`translate.ts`); without it the badge shows the key alone.
 
 ### The action text
 
@@ -90,6 +90,34 @@ The service ticks on a state change (at most every 2 s) and every 30 s.
 `stats` are Tally's numbers over the last 30 local days, all scope, tests included (`src/badge/stats.ts`): the session
 count, the median cost of done tasks at API list prices (`priceEstimate`, else `cost`) and their median active minutes.
 They are read in the background at most every 15 min; with Tally off the badge has none.
+
+## English titles
+
+`BadgeTranslations` (`src/badge/translate.ts`, BTN-918) translates only the current tasks of an enabled badge whose
+fields include `title`. No task or an empty title means no request. Preview and Check can read an existing translation
+with publishing off, but do not ask for a new one. Requests run in the background: until a title is ready, only the
+task's key is available. The next push follows the usual two-minute minimum gap.
+
+It uses the classifier's live `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL` (`llmSettings`,
+`tally/src/classify.ts`): `POST <url>/chat/completions`, bearer key, `temperature: 0`, the default model
+`google-gemini-3.1-flash-lite`. LiteLLM owns model fallbacks. The system prompt asks for concise English within 90
+characters and unchanged code and file names; the user message is **only the title**, never the task's description,
+comments or question. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
+formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
+
+Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use
+the project GUID), task id and SHA-256 of the original title. An in-flight request is shared by all badge consumers.
+Success stays cached across restarts and changes of model or credentials; a changed title uses another cache key.
+An attempt is saved **before** the request: missing settings, failure, an empty answer or a restart during a request
+leave no `titleEn` and delay another attempt for at least 30 minutes. Each failure reason is logged once per service
+lifetime, without the response body, original title or credentials.
+
+`badge_translation_spend` retains the usage as Tally message rows, even for an unusable title. The next collector run
+reads it through the state database's owner and writes `messages` (`entrypoint: badge-translate`, account `litellm`,
+project and folder as for the classifier). Message ids make replay idempotent after a failed collection; the retained
+ledger also lets translation work while Tally is off. The classifier's free Gemini/Gemma prices are 0, tokens visible.
+Unit tests cover the request, cache, restart, retries, cleanup, selection and spend replay; the actual LiteLLM request
+and free-tier accounting await BTN-919 ([unverified](unverified/page.md#the-badges-english-titles-btn-918)).
 
 ## Setting and secret
 

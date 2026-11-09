@@ -418,7 +418,7 @@ A project can show its chain in its README the way a CI badge shows a build: the
 Set it up in the project's settings → **Repository** → **README badge**:
 
 1. **Where to publish** — the Worker's address, the project's name on it (its key in lower case by default) and the push secret you gave the Worker, one for all projects. **Check** pushes the project's state and reads the picture back, and says what is wrong: the address, the secret, or a Worker that needs deploying again. Turn **Publish the badge** on.
-2. **What to show** — a switch per part of the badge. A task's tracker title never leaves Even Keel: the badge shows only its English title, and the task's key alone where there is none.
+2. **What to show** — a switch per part of the badge. The Worker receives only a task's English title, and the badge shows the key alone where there is none. With **English titles** and publishing on, Even Keel sends only the current task's title to your LiteLLM proxy, using `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL`; descriptions, comments and questions are never sent. It uses the same free Gemini setup as the stats classifier. Translations are cached across restarts; a changed title is translated again. Missing settings or an error leave the key alone, with another attempt no sooner than 30 minutes later. With publishing off, the preview uses cached translations only.
 3. **Preview** — the badge as it looks now, in the dark and the light theme.
 4. **For the README** — the snippet to paste: the light picture for readers with a light theme, the dark one otherwise, linked to the repository's releases page (edit the link if it should lead elsewhere).
 
