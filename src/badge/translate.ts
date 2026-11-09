@@ -52,6 +52,8 @@ export class BadgeTranslations {
   private readonly pending = new Map<string, Promise<void>>()
   private readonly logged = new Set<string>()
   private readonly now: () => number
+  private settings: string | undefined
+  private reset: Promise<void> = Promise.resolve()
 
   constructor(private readonly db: Db, private readonly options: Options = {}) {
     this.now = options.now ?? Date.now
@@ -59,11 +61,12 @@ export class BadgeTranslations {
 
   title(task: TranslationTask, enabled: boolean): string | undefined {
     if (task.title.trim() === '') return undefined
+    this.watch()
     const hash = createHash('sha256').update(task.title).digest('hex')
     const key = JSON.stringify([task.tracker, task.id, hash])
     const cached = this.known.get(key)
     if (!this.pending.has(key) && (cached === undefined || (enabled && cached.title_en === null && this.now() - Number(cached.attempted_at) >= TRANSLATION_RETRY_MS))) {
-      const work = this.load(task, hash, key, enabled).catch(() => this.log('storage')).finally(() => this.pending.delete(key))
+      const work = this.run(task, hash, key, enabled).catch(() => this.log('storage')).finally(() => this.pending.delete(key))
       this.pending.set(key, work)
     }
     return cached?.title_en ?? undefined
@@ -71,6 +74,32 @@ export class BadgeTranslations {
 
   async settle(): Promise<void> {
     await Promise.all(this.pending.values())
+    await this.reset
+  }
+
+  /** A change of the LiteLLM settings lifts the pause of every failed title; ready titles stay (BTN-955). */
+  private watch(): void {
+    const llm = llmSettings((this.options.env ?? (() => process.env))())
+    const settings = createHash('sha256').update(JSON.stringify(llm ?? null)).digest('hex')
+    if (settings === this.settings) return
+    const first = this.settings === undefined
+    this.settings = settings
+    if (first) return
+    this.logged.clear()
+    for (const [key, cached] of this.known) if (cached.title_en === null) this.known.delete(key)
+    this.reset = this.reset
+      .then(() => this.db.query('update badge_translations set attempted_at = 0 where title_en is null'))
+      .then(() => undefined, () => this.log('storage'))
+  }
+
+  private async run(task: TranslationTask, hash: string, key: string, enabled: boolean): Promise<void> {
+    const settings = this.settings
+    await this.reset
+    await this.load(task, hash, key, enabled)
+    // A failure answered after the settings changed belongs to the old ones: it must not start a pause.
+    if (settings === this.settings || this.known.get(key)?.title_en != null) return
+    this.known.delete(key)
+    await this.db.query('update badge_translations set attempted_at = 0 where tracker = $1 and task = $2 and title_hash = $3 and title_en is null', [task.tracker, task.id, hash])
   }
 
   private async load(task: TranslationTask, hash: string, key: string, enabled: boolean): Promise<void> {

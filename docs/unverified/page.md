@@ -7,7 +7,8 @@ One area of [What has not been verified](../unverified.md), which says what an e
 Unit tests cover selection of current tasks, the title-only LiteLLM request, cleanup, persistent cache and retry claims,
 title changes, in-flight deduplication and idempotent import of usage into Tally's `messages`. Not checked live: the
 actual free-tier Gemini response through LiteLLM (including its fallback model name and zero pricing), response time,
-the key-only badge on refusal, reuse after a service restart and usage appearing on `/stats` after collection. BTN-919
+the key-only badge on refusal, reuse after a service restart, the retry at once after a live change of the URL, key or
+model (BTN-955) and usage appearing on `/stats` after collection. BTN-919
 owns the run on a bench from `stands/README.md` in `even-keel-backstage`. **If it is wrong:** turn English titles off;
 the badge still shows task keys.
 

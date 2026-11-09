@@ -79,6 +79,73 @@ describe('badge title translations', () => {
     expect(lines.join()).not.toContain('secret response data')
   })
 
+  it.each(['TALLY_LLM_URL', 'TALLY_LLM_KEY', 'TALLY_LLM_MODEL'])('retries a failed title at once when %s changes, and keeps ready ones', async (name) => {
+    const db = await memoryDatabase()
+    const current: NodeJS.ProcessEnv = { ...env }
+    const lines: string[] = []
+    const ready = { ...task, id: 'ABC-2' }
+    const request = vi.fn(async (_url: unknown, init?: RequestInit) =>
+      (init!.body as string).includes('ABC-2 title') || current[name] === 'changed' ? response() : new Response('', { status: 401 }))
+    const translations = new BadgeTranslations(db, { env: () => current, now: () => 1_800_000, request, log: (line) => lines.push(line) })
+    translations.title(task, true)
+    translations.title({ ...ready, title: 'ABC-2 title' }, true)
+    await translations.settle()
+    translations.title(task, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(2)
+    current[name] = 'changed'
+    translations.title({ ...ready, title: 'ABC-2 title' }, true)
+    translations.title(task, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(3)
+    expect(translations.title(task, true)).toBe('Fix src/file.ts')
+    current[name] = 'broken'
+    const another = { ...task, id: 'ABC-3' }
+    translations.title(another, true)
+    await translations.settle()
+    expect(lines).toHaveLength(2) // The same reason is logged again after a change of settings.
+    translations.title(another, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(4)
+  })
+
+  it('retries at once when missing settings appear, also for a failure saved before a restart', async () => {
+    const db = await memoryDatabase()
+    const current: NodeJS.ProcessEnv = {}
+    const request = vi.fn(async () => response())
+    const options = { env: () => current, now: () => 1_800_000, request, log: () => undefined }
+    const before = new BadgeTranslations(db, options)
+    before.title({ ...task, id: 'ABC-2' }, true)
+    await before.settle()
+    const translations = new BadgeTranslations(db, options)
+    translations.title(task, true)
+    await translations.settle()
+    Object.assign(current, env)
+    translations.title(task, true)
+    translations.title({ ...task, id: 'ABC-2' }, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(translations.title(task, true)).toBe('Fix src/file.ts')
+  })
+
+  it('does not hold a request answered after a change of settings to the pause', async () => {
+    const db = await memoryDatabase()
+    const current: NodeJS.ProcessEnv = { ...env }
+    let release = (_response: Response): void => undefined
+    const request = vi.fn(async () => request.mock.calls.length === 1 ? new Promise<Response>((resolve) => { release = resolve }) : response())
+    const translations = new BadgeTranslations(db, { env: () => current, now: () => 1_800_000, request, log: () => undefined })
+    translations.title(task, true)
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+    current.TALLY_LLM_KEY = 'another-fake-key'
+    translations.title(task, true)
+    release(new Response('', { status: 401 }))
+    await translations.settle()
+    translations.title(task, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(translations.title(task, true)).toBe('Fix src/file.ts')
+  })
+
   it('reads a cached title with requests disabled, and sends neither missing nor empty titles', async () => {
     const db = await memoryDatabase()
     const request = vi.fn(async () => response())

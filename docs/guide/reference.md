@@ -51,7 +51,7 @@ Most variables below can also be set on the page, where they belong: the page to
 | `EVEN_KEEL_BADGE_SECRET` | the secret the README badge's Worker takes pushes with; without it no badge is pushed |
 | `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/` of the data folder. Read at startup |
 | `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics, used when `tally` is `server`: the collector writes as `tally_writer`, the page reads as `tally_reader`. Settings → Stats writes them for you after checking the connection. `tally/deploy/` has a Compose file that creates both roles |
-| `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of stuck spans on `/stats` and English titles on README badges: your LiteLLM endpoint, its bearer key and model (default `google-gemini-3.1-flash-lite`, free tier; fallbacks set in LiteLLM). Without them spans have no explanation and badges show task keys. Badge translation reads changes live and retries failures after 30 minutes |
+| `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of stuck spans on `/stats` and English titles on README badges: your LiteLLM endpoint, its bearer key and model (default `google-gemini-3.1-flash-lite`, free tier; fallbacks set in LiteLLM). Without them spans have no explanation and badges show task keys. Badge translation reads changes live and retries failures after 30 minutes, or at once after a change of these three |
 
 ## Configuration
 

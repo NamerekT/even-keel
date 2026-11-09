@@ -110,7 +110,12 @@ the project GUID), task id and SHA-256 of the original title. An in-flight reque
 Success stays cached across restarts and changes of model or credentials; a changed title uses another cache key.
 An attempt is saved **before** the request: missing settings, failure, an empty answer or a restart during a request
 leave no `titleEn` and delay another attempt for at least 30 minutes. Each failure reason is logged once per service
-lifetime, without the response body, original title or credentials.
+lifetime and set of settings, without the response body, original title or credentials.
+
+A live change of the URL, key or model (BTN-955) lifts that delay for every failed title, in memory and in the table
+(`attempted_at = 0`), and lets each reason be logged again; a request still in flight under the old settings starts no
+delay either. Ready titles are kept. The change is seen by the running service only: settings edited while it is down
+leave the saved delay to run out.
 
 `badge_translation_spend` retains the usage as Tally message rows, even for an unusable title. The next collector run
 reads it through the state database's owner and writes `messages` (`entrypoint: badge-translate`, account `litellm`,
