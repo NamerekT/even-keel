@@ -341,6 +341,32 @@ describe('linear source', () => {
     ])
   })
 
+  it('uploads a file by a signed URL with no key, then attaches its asset to the issue', async () => {
+    const requests: { url: string; method: string; headers: Headers; body: unknown }[] = []
+    const replies: unknown[] = [
+      { data: { organization: { urlKey: 'example-org' } } },
+      { data: { issues: { nodes: [{ id: 'issue-7', identifier: 'ENG-7', team: { states: { nodes: [] } }, relations: { nodes: [] } }] } } },
+      { data: { fileUpload: { success: true, uploadFile: { uploadUrl: 'https://storage.example.com/put?sig=1', assetUrl: 'https://uploads.linear.app/org/a/shot.png', headers: [{ key: 'x-goog-meta', value: 'm' }] } } } },
+      null,
+      { data: { attachmentCreate: { success: true } } },
+    ]
+    const fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      requests.push({ url: String(url), method: init?.method ?? 'GET', headers: new Headers(init?.headers), body: init?.body })
+      const reply = replies.shift()
+      return reply === null ? new Response(null, { status: 200 }) : new Response(JSON.stringify(reply), { status: 200 })
+    }
+    const source = await connectLinear({ token: 'lin_api_example', projects: {} }, 5_000, fetch as typeof globalThis.fetch)
+    const bytes = new Uint8Array([1, 2, 3])
+    await source.editor!.files!.attach('ENG-7', [{ name: 'shot.png', type: 'image/png', bytes }])
+    expect(JSON.parse(String(requests[2]!.body))).toMatchObject({ variables: { contentType: 'image/png', filename: 'shot.png', size: 3 } })
+    const put = requests[3]!
+    expect([put.url, put.method, [...(put.body as Uint8Array)]]).toEqual(['https://storage.example.com/put?sig=1', 'PUT', [1, 2, 3]])
+    expect(put.headers.get('authorization')).toBeNull()
+    expect(put.headers.get('content-type')).toBe('image/png')
+    expect(put.headers.get('x-goog-meta')).toBe('m')
+    expect(JSON.parse(String(requests[4]!.body)).variables).toEqual({ input: { issueId: 'issue-7', url: 'https://uploads.linear.app/org/a/shot.png', title: 'shot.png' } })
+  })
+
   it('serves no file from outside the upload host', async () => {
     const { source } = await connect([])
     expect(await source.file!('ENG-7', 'https://example.com/steal')).toBeNull()

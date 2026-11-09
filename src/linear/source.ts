@@ -155,6 +155,10 @@ const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
 }`
 
 
+const FILE_UPLOAD = `mutation($contentType: String!, $filename: String!, $size: Int!) {
+  fileUpload(contentType: $contentType, filename: $filename, size: $size) { success uploadFile { uploadUrl assetUrl headers { key value } } }
+}`
+
 /** Where Linear keeps uploaded files; they need the key like the API does. */
 const UPLOADS = /^https:\/\/uploads\.linear\.app\//
 
@@ -483,6 +487,21 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     },
     relabel: (id, change) => source.relabel!(id, change),
     comment: (id, body) => source.comment!(id, body),
+    // Linear signs a storage URL for the bytes: the PUT carries the signed headers, never the key.
+    async upload(file) {
+      type Signed = { fileUpload: { success: boolean; uploadFile: { uploadUrl: string; assetUrl: string; headers: { key: string; value: string }[] } | null } }
+      const { fileUpload } = await graphql<Signed>(FILE_UPLOAD, { contentType: file.type, filename: file.name, size: file.bytes.byteLength })
+      if (!fileUpload.success || fileUpload.uploadFile === null) throw new Error(`linear: no upload URL for ${file.name}`)
+      const { uploadUrl, assetUrl, headers } = fileUpload.uploadFile
+      const response = await trackedFetch(fetchImpl, uploadUrl, {
+        method: 'PUT',
+        headers: { 'content-type': file.type, 'cache-control': 'public, max-age=31536000', ...Object.fromEntries(headers.map((each) => [each.key, each.value])) },
+        body: Buffer.from(file.bytes),
+        signal: AbortSignal.timeout(timeoutMs),
+      }, '/upload/[signed]')
+      if (!response.ok) throw new Error(`linear: the upload of ${file.name} failed: HTTP ${response.status}`)
+      return assetUrl
+    },
   })
   return source
 }

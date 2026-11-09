@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { revisionOf } from '../tracker/editor.js'
+import { revisionOf, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { linearEditor } from './editor.js'
 
@@ -21,6 +21,8 @@ function fixture() {
   ])
   const mutations: [string, Record<string, unknown>][] = []
   const relabels: [string, LabelChange][] = []
+  const uploads: TaskUpload[] = []
+  const comments: [string, string][] = []
   const graphql = async <T>(query: string, variables: Record<string, unknown> = {}): Promise<T> => {
     const name = /mutation[^{]*\{\s*(\w+)/.exec(query)?.[1]
     if (name !== undefined) {
@@ -47,10 +49,22 @@ function fixture() {
       relabels.push([id, change])
       return []
     },
-    comment: async () => 'c-1',
+    comment: async (id, body) => {
+      comments.push([id, body])
+      return 'c-1'
+    },
+    upload: async (file) => {
+      uploads.push(file)
+      return `https://uploads.linear.app/asset/${file.name}`
+    },
   })
-  return { editor, mutations, relabels }
+  return { editor, mutations, relabels, uploads, comments }
 }
+
+const FILES: TaskUpload[] = [
+  { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1, 2]) },
+  { name: 'log.txt', type: 'text/plain', bytes: new Uint8Array([3]) },
+]
 
 describe('linearEditor', () => {
   it('creates an issue in the backlog by default, under its parent, with labels after', async () => {
@@ -124,5 +138,22 @@ describe('linearEditor', () => {
     expect(await editor.revision('ENG-1')).toBe(revisionOf('Old text'))
     expect(await editor.patch('ENG-1', [{ old: 'Old', new: 'New' }], null)).toBe(true)
     expect(mutations).toEqual([['issueUpdate', { id: 'u1', input: { description: 'New text' } }]])
+  })
+
+  it('attaches uploaded files to the issue, one attachment each', async () => {
+    const { editor, mutations, uploads } = fixture()
+    await editor.files!.attach('ENG-1', FILES)
+    expect(uploads.map((each) => each.name)).toEqual(['shot.png', 'log.txt'])
+    expect(mutations).toEqual([
+      ['attachmentCreate', { input: { issueId: 'u1', url: 'https://uploads.linear.app/asset/shot.png', title: 'shot.png' } }],
+      ['attachmentCreate', { input: { issueId: 'u1', url: 'https://uploads.linear.app/asset/log.txt', title: 'log.txt' } }],
+    ])
+    await expect(editor.files!.attach('ENG-9', FILES)).rejects.toThrow(/not found/)
+  })
+
+  it('posts a comment with the links of its uploaded files', async () => {
+    const { editor, comments } = fixture()
+    expect(await editor.files!.comment('ENG-1', 'Done.', FILES, null)).toBe('c-1')
+    expect(comments).toEqual([['ENG-1', 'Done.\n\n![shot.png](https://uploads.linear.app/asset/shot.png)\n[log.txt](https://uploads.linear.app/asset/log.txt)']])
   })
 })

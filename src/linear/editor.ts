@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
-import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/editor.js'
+import { descriptionEdits, EditRefused, fileLinks, withFileLinks, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound } from '../tracker/source.js'
@@ -18,6 +18,8 @@ export interface LinearEditorDeps {
   list(project: string): Promise<TrackerTask[]>
   relabel(id: string, change: LabelChange): Promise<string[]>
   comment(id: string, body: string): Promise<string>
+  /** Puts the file into Linear's storage and returns its asset URL. */
+  upload(file: TaskUpload): Promise<string>
 }
 
 interface EditIssue {
@@ -73,6 +75,10 @@ const CREATE_RELATION = `mutation($input: IssueRelationCreateInput!) {
 
 const DELETE_RELATION = `mutation($id: String!) {
   issueRelationDelete(id: $id) { success }
+}`
+
+const CREATE_ATTACHMENT = `mutation($input: AttachmentCreateInput!) {
+  attachmentCreate(input: $input) { success }
 }`
 
 interface MilestonePlace {
@@ -211,5 +217,21 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
     relabel: (id, change) => deps.relabel(id, change),
     // A Linear comment has no field for the session's model: its author is the key's account.
     comment: (id, body) => deps.comment(id, body),
+    // An attachment is a link on the issue to the uploaded asset; a comment keeps its files as links in its text.
+    files: {
+      async attach(id, files) {
+        const issue = await issueOf(id)
+        for (const file of files) {
+          const url = await deps.upload(file)
+          const { attachmentCreate } = await graphql<{ attachmentCreate: { success: boolean } }>(CREATE_ATTACHMENT, { input: { issueId: issue.id, url, title: file.name } })
+          if (!attachmentCreate.success) throw new Error(`linear: ${file.name} was not attached to ${issue.identifier}`)
+        }
+      },
+      async comment(id, body, files) {
+        const links: { name: string; type: string; url: string }[] = []
+        for (const file of files) links.push({ name: file.name, type: file.type, url: await deps.upload(file) })
+        return deps.comment(id, withFileLinks(body, fileLinks(links)))
+      },
+    },
   }
 }
