@@ -12,6 +12,12 @@ During first-run setup, CLI downloads and sign-in state appear on the agent card
 
 **Check new CLI versions on this machine** (Settings → Providers and models, off by default) lets Even Keel try a new CLI version itself before you move to it. When a provider releases a newer CLI than the checked one, and once a week on the checked one, it runs a short live session on a cheap model in the account folder your projects use: launch, a question and its answer, a file written, the hooks, the limits and the stop. It waits until that folder has no live session, and the chains on that account wait while it runs, a few minutes. A banner says whether the version passed or at which step it failed; the service log has the whole run. A pass means that version works on this machine, a reason to switch that provider to Yours if you want it before the next Even Keel release. Each run spends the account's limits.
 
+## Claude account settings
+
+Before launching Claude in an account folder, Even Keel transfers shared settings from `~/.claude/settings.json` and adds a hook that explains this when an agent tries to edit the account's `settings.json`. The agent is asked to change shared settings in the global file. Changes made directly by CLI commands such as `/model` are kept until you resolve them in **Accounts**: make them shared, keep them for that account only, or discard them. An account's own settings survive later transfers.
+
+The hook preserves your other hooks and applies only in managed Claude account folders. Other files and the global settings file remain editable. When Even Keel is unavailable, the hook lets the edit proceed; the settings-change band can handle it later. Removing Even Keel removes its hook and keeps your settings and hooks. [Real CLI and platform checks are still pending](../unverified/accounts.md#account-settings-edit-hook-btn-902).
+
 ## Claude folder trust
 
 Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.

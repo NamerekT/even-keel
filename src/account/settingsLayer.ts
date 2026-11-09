@@ -5,6 +5,7 @@ import type { Queryable } from '../storage/database.js'
 import { isCloudVariable } from './cloud.js'
 import type { AccountHome } from './homes.js'
 import { API_KEY_VARIABLE, mergeSettings, type SettingsPlanner } from './share.js'
+import { stripSettingsGuard } from './settingsGuard.js'
 
 type Json = Record<string, unknown>
 
@@ -47,11 +48,17 @@ function ownVariables(value: unknown): Json {
 
 function comparable(key: string, value: unknown): string | undefined {
   if (value === undefined) return undefined
+  if (key === 'hooks') {
+    const hooks = Object.fromEntries(Object.entries(objectOf(value)).filter(([, groups]) => !Array.isArray(groups) || groups.length > 0))
+    return Object.keys(hooks).length === 0 ? undefined : JSON.stringify(hooks)
+  }
   return JSON.stringify(key === 'env' ? sharedEnv(value) : value)
 }
 
 /** The top-level keys of the folder's file whose value moved away from what the last transfer wrote there. */
 export function editedKeys(folder: Json, written: Json): string[] {
+  folder = stripSettingsGuard(folder)
+  written = stripSettingsGuard(written)
   const keys = new Set([...Object.keys(folder), ...Object.keys(written)])
   return [...keys].filter((key) => !SILENT_KEYS.has(key) && !FOLDER_KEYS.has(key) && comparable(key, folder[key]) !== comparable(key, written[key])).sort()
 }
@@ -141,7 +148,7 @@ export class AccountSettings {
   resolve(home: AccountHome, key: string, choice: EditChoice): void {
     const record = this.records.get(home.key)
     if (record === undefined || !this.edits(home).includes(key)) throw fail('account.settingsNoEdit', { account: home.key, key })
-    const value = readJson(join(home.dir, 'settings.json'))?.[key]
+    const value = stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {})[key]
     if (choice === 'discard') {
       this.discards.set(home.key, new Set([...(this.discards.get(home.key) ?? []), key]))
       this.version++

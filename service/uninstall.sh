@@ -7,11 +7,18 @@ name=even-keel
 label=local.even-keel
 root=$(cd "$(dirname "$0")/.." && pwd)
 
+cleanup_hooks() {
+  if [ -f "$root/dist/src/account/settingsUninstall.js" ]; then
+    node "$root/dist/src/account/settingsUninstall.js"
+  fi
+}
+
 case "$(uname -s)" in
 Linux)
   unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$name.service"
   if [ ! -f "$unit" ]; then
     echo "Service $name is not installed."
+    cleanup_hooks
     exit 0
   fi
   systemctl --user disable --now "$name.service"
@@ -23,6 +30,7 @@ Darwin)
   plist="$HOME/Library/LaunchAgents/$label.plist"
   if [ ! -f "$plist" ]; then
     echo "Agent $label is not installed."
+    cleanup_hooks
     exit 0
   fi
   log=$(sed -n 's:.*<string>\(.*even-keel\.log\)</string>.*:\1:p' "$plist" | head -n 1)
@@ -35,3 +43,5 @@ Darwin)
   exit 1
   ;;
 esac
+
+cleanup_hooks

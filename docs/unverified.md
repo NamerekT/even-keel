@@ -38,12 +38,13 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (an OpenRouter key with money) — BTN-861; 114 (an OpenRouter management key) — has no task yet.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet.
 - Milestone order by hand: 113 — BTN-865 (next to 102 — BTN-849).
-- `settings.json` edits in account folders: 120 — BTN-904.
+- `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main from a runner failure), 92 (the next push of an already green commit), 94 (GitHub runners running short again), 109 (the next red main on GitHub or GitLab), 112 (the next green `dev` of Even Keel's own project, whose commands restart the service), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 121 | [Account settings edit hook](unverified/accounts.md#account-settings-edit-hook-btn-902) | managed Claude account folders in any project | an edit passes without guidance, or uninstall leaves the hook; change shared settings in the global file and remove only the marked command if needed |
 | 120 | [Settings edits in account folders](unverified/accounts.md#settings-edits-in-account-folders-btn-901) | everyone with several Claude accounts who changes a setting from a terminal, VS Code or a session under one of them | a CLI update or start raises a band for a change nobody made; press "Discard" |
 | 119 | [A reply in a Huly thread as the answer to a question](unverified/trackers.md#a-reply-in-a-huly-thread-as-the-answer-to-a-question-btn-897) | Huly projects whose people answer a session's question in the question comment's thread | the answer does not reach the session, which keeps waiting; answer with a comment on the task itself |
 | 118 | [Accept as answer](unverified/sessions.md#accept-as-answer-btn-885) | chain tasks whose session answers without the `NO CHANGES:` mark, Codex most often | the button is missing where a session answered, or the comment is refused and the task stays open; ask the session for the mark or close the task by hand |

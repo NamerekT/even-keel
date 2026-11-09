@@ -6,7 +6,9 @@ import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
 import { commandOf, serviceScriptOf, updateTargetOf } from './cli-args.js'
-import { home, root, source } from './locations.js'
+import { home, loadEnv, root, source } from './locations.js'
+import { accountsRoot } from './account/homes.js'
+import { removeAccountSettingsGuards } from './account/settingsGuard.js'
 import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
 import { samePath } from './paths.js'
 import { autostartControl, launchdControl, systemdControl, windowsControl, type ServiceControl } from './updates/control.js'
@@ -94,6 +96,10 @@ function service(action: 'install' | 'uninstall'): void {
   } else {
     const [program, args] = serviceScriptOf(process.platform, root, action)
     run([program, ...args], `service/${action}`)
+  }
+  if (action === 'uninstall') {
+    loadEnv()
+    removeAccountSettingsGuards(accountsRoot(process.env), process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'))
   }
   if (action === 'uninstall' && source === 'npm') console.log(`The package stays: npm uninstall --global ${name}. The data stays in ${home}.`)
 }

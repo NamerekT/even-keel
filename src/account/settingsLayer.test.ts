@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from './homes.js'
 import { AccountSettings, editedKeys, planSettings, type SettingsRecord } from './settingsLayer.js'
 import { shareConfig } from './share.js'
+import { stripSettingsGuard } from './settingsGuard.js'
 
 describe('editedKeys', () => {
   it('names the top-level keys whose value moved away from what the last transfer wrote, added and removed ones too', () => {
@@ -116,7 +117,7 @@ describe('AccountSettings', () => {
     share()
     write(globalDir, { model: 'fable', theme: 'light' })
     share()
-    expect(read(home.dir)).toEqual({ model: 'sonnet', theme: 'light' })
+    expect(stripSettingsGuard(read(home.dir))).toEqual({ model: 'sonnet', theme: 'light' })
     expect(settings.own('example')).toEqual(['model'])
     expect(settings.edits(home)).toEqual([])
     settings.dropOwn(home, 'model')
@@ -130,6 +131,27 @@ describe('AccountSettings', () => {
     settings.resolve(home, 'model', 'discard')
     share()
     expect(read(home.dir).model).toBe('opus')
+    expect(settings.edits(home)).toEqual([])
+  })
+
+  it('keeps the guard over own hooks, never shares it, and survives rebuilding the planner', () => {
+    const hook = { matcher: 'Write', hooks: [{ type: 'command', command: 'echo user' }] }
+    write(home.dir, { ...read(home.dir), hooks: { PreToolUse: [hook] } })
+    settings.resolve(home, 'hooks', 'own')
+    share()
+    expect((read(home.dir).hooks as { PreToolUse: unknown[] }).PreToolUse).toHaveLength(2)
+    expect(settings.edits(home)).toEqual([])
+    const record = saved.get(home.key)!
+    settings = new AccountSettings(new Map([[home.key, record!]]), globalDir, (account, value) => saved.set(account, value))
+    share()
+    expect(settings.edits(home)).toEqual([])
+    settings.dropOwn(home, 'hooks')
+    share()
+    const current = read(home.dir).hooks as { PreToolUse: unknown[] }
+    write(home.dir, { ...read(home.dir), hooks: { PreToolUse: [...current.PreToolUse, { matcher: 'Edit', hooks: [{ type: 'command', command: 'echo another' }] }] } })
+    settings.resolve(home, 'hooks', 'share')
+    expect(JSON.stringify(read(globalDir))).not.toContain('--even-keel-account-settings')
+    share()
     expect(settings.edits(home)).toEqual([])
   })
 

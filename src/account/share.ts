@@ -15,8 +15,10 @@ import {
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { cloudOf, isCloudVariable } from './cloud.js'
-import { pathKey, sameSpelling } from '../paths.js'
+import { pathKey, samePath, sameSpelling } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
+import { listenOf, localUrlOf } from '../config.js'
+import { stripSettingsGuard, withSettingsGuard } from './settingsGuard.js'
 
 type Json = Record<string, unknown>
 
@@ -111,7 +113,13 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
   mkdirSync(dir, { recursive: true })
   let changed = false
   const settings = readJson(join(global.dir, 'settings.json'))
-  if (settings !== undefined) changed = writeIfChanged(join(dir, 'settings.json'), planner(settings, readJson(join(dir, 'settings.json')))) || changed
+  const folderFile = join(dir, 'settings.json')
+  const folder = readJson(folderFile)
+  if (!samePath(dir, global.dir) && (folder !== undefined || !existsSync(folderFile))) {
+    const merged = planner(stripSettingsGuard(settings ?? {}), folder === undefined ? undefined : stripSettingsGuard(folder))
+    const guarded = withSettingsGuard(merged, { accountsDir: dirname(dir), globalDir: global.dir, url: localUrlOf(listenOf(process.env)) })
+    changed = writeIfChanged(folderFile, guarded) || changed
+  }
 
   const config = readJson(global.config)
   if (config !== undefined) {
