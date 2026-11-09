@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { TaskWork } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import type { ReadyButton, TaskLinks } from '../state.js'
-import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
+import { ByPriorityIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
+import { Tipped } from '../ui/Tipped.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { BACKLOG_PLACE } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
+import { BACKLOG_ORDERS, type BacklogOrder, sortBacklog, useBacklogOrder } from './backlogOrder.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
+import '../stats/overview.css'
 import './backlog.css'
 
 /** The address hash that opens the backlog panel; a task id never equals it. */
@@ -82,9 +85,11 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
   const known = useRef<ReadonlySet<string> | null>(null)
   known.current ??= new Set(tasks.map((task) => task.id))
   const mixed = new Set(tasks.map((task) => task.status.name)).size > 1
+  const [order, setOrder] = useBacklogOrder()
+  const sorted = sortBacklog(tasks, order)
   // The row finishes sliding out even when the chain takes the task before it is gone.
   const rows =
-    out === null || tasks.some((task) => task.id === out.task.id) ? tasks : [...tasks.slice(0, out.index), out.task, ...tasks.slice(out.index)]
+    out === null || sorted.some((task) => task.id === out.task.id) ? sorted : [...sorted.slice(0, out.index), out.task, ...sorted.slice(out.index)]
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => () => point.current(null), [])
@@ -97,7 +102,7 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
   // mousemove, not mouseenter: Chrome fires a synthetic enter when the row under a still cursor disappears.
   const pointAt = (event: SyntheticEvent) => onPoint((event.target as HTMLElement).closest<HTMLElement>('[data-ready]')?.dataset.ready ?? null)
   const ready = (task: Task) => {
-    setOut({ task, index: tasks.indexOf(task) })
+    setOut({ task, index: sorted.indexOf(task) })
     onMove(task)
     void send('task/ready', { task: task.id }).then(() => onSettled(task.id))
   }
@@ -117,6 +122,7 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
           <StackIcon />
           {t.project.backlog(tasks.length)}
         </h2>
+        <OrderSwitch value={order} onChange={setOrder} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>
@@ -187,5 +193,30 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
         })}
       </ol>
     </aside>
+  )
+}
+
+const ORDER_ICONS: Record<BacklogOrder, () => ReactNode> = { new: NewestFirstIcon, old: OldestFirstIcon, priority: ByPriorityIcon }
+
+function OrderSwitch({ value, onChange }: { value: BacklogOrder; onChange: (order: BacklogOrder) => void }) {
+  return (
+    <div className="segmented backlog__order" role="group" aria-label={t.project.backlogOrder}>
+      {BACKLOG_ORDERS.map((order) => {
+        const Icon = ORDER_ICONS[order]
+        return (
+          <Tipped key={order} tip={t.project.backlogOrders[order]} inline>
+            <button
+              type="button"
+              className={order === value ? 'segmented__item segmented__item--on' : 'segmented__item'}
+              aria-label={t.project.backlogOrders[order]}
+              aria-pressed={order === value}
+              onClick={() => onChange(order)}
+            >
+              <Icon />
+            </button>
+          </Tipped>
+        )
+      })}
+    </div>
   )
 }

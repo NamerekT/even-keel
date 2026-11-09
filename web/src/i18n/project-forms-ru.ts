@@ -167,6 +167,12 @@ export const projectRU = {
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',
+    backlogOrder: 'Порядок бэклога',
+    backlogOrders: {
+      new: 'Новые сверху',
+      old: 'Старые сверху',
+      priority: 'По приоритету, внутри одного — новые сверху',
+    },
     ...projectNoticesRu,
     pullAddRemote: 'Добавьте remote или выключите PR-режим',
     trackerPackageOn: (name: string) => `Включить ${name}`,

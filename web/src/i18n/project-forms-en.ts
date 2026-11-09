@@ -169,6 +169,12 @@ export const projectEN: Messages['project'] = {
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
+    backlogOrder: 'Order the backlog',
+    backlogOrders: {
+      new: 'Newest first',
+      old: 'Oldest first',
+      priority: 'By priority, the newest first within one',
+    },
     ...projectNoticesEn,
     pullAddRemote: 'Add a remote or turn PR mode off',
     trackerPackageOn: (name: string) => `Turn on ${name}`,

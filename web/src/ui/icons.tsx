@@ -377,6 +377,33 @@ export function ColumnsIcon() {
   )
 }
 
+/** The backlog with the newest task on top: an arrow down beside bars that shorten. */
+export function NewestFirstIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 2.75v10.5M1.75 11 4 13.25 6.25 11M8.5 3.5h5.5M8.5 7h4M8.5 10.5h2.5" />
+    </svg>
+  )
+}
+
+/** The backlog with the oldest task on top: an arrow up beside bars that lengthen. */
+export function OldestFirstIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 13.25V2.75M1.75 5 4 2.75 6.25 5M8.5 5.5h2.5M8.5 9h4M8.5 12.5h5.5" />
+    </svg>
+  )
+}
+
+/** The backlog by priority: three rising bars, as a task's priority mark. */
+export function ByPriorityIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.5 13v-3M8 13V7M12.5 13V3.5" />
+    </svg>
+  )
+}
+
 /** A side panel at the left, as the sidebar switch of desktop apps: the chat's task panel. */
 export function SidebarIcon() {
   return (
