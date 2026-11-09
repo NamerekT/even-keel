@@ -95,6 +95,16 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     expect(lines).toEqual([`- ../../evil.txt (1 B) — ${join(dir(), '.._.._evil.txt')}`])
   })
 
+  it('downloads distinct URLs of one file name into distinct paths', async () => {
+    const urls = ['https://uploads.linear.app/org/first', 'https://uploads.linear.app/org/second']
+    bodies.set(urls[0]!, Buffer.from('first'))
+    bodies.set(urls[1]!, Buffer.from('second'))
+    const lines = await attachmentLines('ABC-1', urls.map((url) => attachment(url, 'image.png', 0)), source, folder, 1024)
+    const paths = lines.map((line) => line.split(' — ')[1]!)
+    expect(new Set(paths).size).toBe(2)
+    expect(paths.map((path) => readFileSync(path, 'utf8'))).toEqual(['first', 'second'])
+  })
+
   it('a public file goes by its url, a built-in one by its path; a tracker without file downloads nothing', async () => {
     const lines = await attachmentLines(
       'ABC-1',

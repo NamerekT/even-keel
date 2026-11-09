@@ -1,12 +1,13 @@
 import { Skipped } from '../github/trust.js'
 import { RepoMap, type Repo } from '../github/model.js'
 import { limitedMap } from '../gitlab/batch.js'
+import { uploadType } from '../gitlab/uploads.js'
 import { resolveLabels } from '../tracker/labels.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { ForgejoApi, ForgejoHttpError, ForgejoScopeError } from './api.js'
 import { forgejoEditor } from './editor.js'
-import { FORGEJO_STATUSES, forgejoPriority, forgejoStatus, labelNames, toCard, toTrackerTask, type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone } from './model.js'
+import { FORGEJO_STATUSES, attachmentsOf, forgejoPriority, forgejoStatus, labelNames, toCard, toTrackerTask, type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone } from './model.js'
 import { forgejoTrust } from './trust.js'
 
 export interface ForgejoSettings {
@@ -157,6 +158,15 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
       const [blockedBy, comments] = await Promise.all([dependenciesOf(base, 'dependencies'), commentsOf(id)])
       const blocks = blockedBy === null ? [] : await dependenciesOf(base, 'blocks')
       return toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos)
+    },
+
+    async file(id, file) {
+      const [issue, comments] = await Promise.all([rawIssue(id), commentsOf(id)])
+      const asset = attachmentsOf(issue, comments).find((each) => each.file === file)
+      if (asset === undefined) return null
+      const response = await api.attachment(asset.file)
+      if (response === null) return null
+      return { type: uploadType(asset.name, response.headers.get('content-type') ?? ''), size: asset.size, body: response.body! }
     },
 
     async comment(id, body) {

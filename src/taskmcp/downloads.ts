@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, open, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { megabytes } from '../notice/en.js'
@@ -32,7 +33,8 @@ export async function attachmentLines(key: string, attachments: readonly TaskAtt
       if (each.url !== null) return line(each.url)
       if (each.size > limit) return line('too large')
       if (source.file === undefined || dir === null) return line('not downloaded')
-      const name = counts.get(safeName(each.name))! > 1 ? `${safeName(each.file).slice(0, 8)}-${safeName(each.name)}` : safeName(each.name)
+      const prefix = /^https?:\/\//.test(each.file) ? createHash('sha256').update(each.file).digest('hex').slice(0, 8) : safeName(each.file).slice(0, 8)
+      const name = counts.get(safeName(each.name))! > 1 ? `${prefix}-${safeName(each.name)}` : safeName(each.name)
       const target = join(dir, name)
       try {
         if (each.size > 0 && (await stat(target).catch(() => null))?.size === each.size) return line(target)

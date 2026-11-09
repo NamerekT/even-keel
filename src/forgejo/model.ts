@@ -1,5 +1,5 @@
 import { RepoMap } from '../github/model.js'
-import type { TaskRef, TrackerCard } from '../tracker/card.js'
+import type { TaskAttachment, TaskRef, TrackerCard } from '../tracker/card.js'
 import { PRIORITIES, type TaskMilestone, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 
 export interface ForgejoMilestone {
@@ -14,6 +14,12 @@ export interface ForgejoLabel {
   name: string
 }
 
+export interface ForgejoAsset {
+  uuid: string
+  name: string
+  size: number
+}
+
 /** An issue as the API gives it, also inside `/dependencies` and `/blocks`. */
 export interface ForgejoIssue {
   number: number
@@ -25,6 +31,7 @@ export interface ForgejoIssue {
   repository: { owner: string; name: string; full_name: string }
   /** Set on a pull request: the issues endpoints list them too unless asked for `type=issues`. */
   pull_request?: unknown
+  assets?: ForgejoAsset[] | null
 }
 
 export interface ForgejoComment {
@@ -32,6 +39,7 @@ export interface ForgejoComment {
   body: string
   created_at: string
   user: { login: string } | null
+  assets?: ForgejoAsset[] | null
 }
 
 const OPEN: TaskStatus = { name: 'Open', category: 'ToDo' }
@@ -78,7 +86,15 @@ export function toTrackerTask(issue: ForgejoIssue, blockedBy: ForgejoIssue[], re
   }
 }
 
-/** The card; no attachments: a file is a link in the text, as on GitHub. No subtasks in Forgejo, no "related" links. */
+export function attachmentsOf(issue: ForgejoIssue, comments: ForgejoComment[]): TaskAttachment[] {
+  const files = new Map<string, TaskAttachment>()
+  for (const asset of [issue, ...comments].flatMap((each) => each.assets ?? [])) {
+    if (!files.has(asset.uuid)) files.set(asset.uuid, { file: asset.uuid, name: asset.name, size: asset.size, type: '', url: null })
+  }
+  return [...files.values()]
+}
+
+/** No subtasks in Forgejo, no "related" links. */
 export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: ForgejoIssue[], comments: ForgejoComment[], repos: RepoMap): TrackerCard {
   const task = toTrackerTask(issue, blockedBy, repos)
   const refOf = (ref: ForgejoIssue): TaskRef => ({ id: idOf(repos, ref), title: ref.title, status: forgejoStatus(ref.state) })
@@ -97,6 +113,6 @@ export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: F
     comments: [...comments]
       .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id)
       .map((comment) => ({ author: comment.user?.login ?? null, at: Date.parse(comment.created_at), text: comment.body })),
-    attachments: [],
+    attachments: attachmentsOf(issue, comments),
   }
 }

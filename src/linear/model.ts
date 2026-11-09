@@ -1,4 +1,5 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
+import { linkedFiles } from '../tracker/comments.js'
 import type { StatusCategory, TaskMilestone, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
 import { linearMinutes, linearScale, type LinearEstimation } from './estimate.js'
 
@@ -43,6 +44,14 @@ export interface LinearRef {
   state: LinearState
 }
 
+/** Where Linear keeps private uploads; never send the profile key to an external attachment URL. */
+export const LINEAR_UPLOADS = /^https:\/\/uploads\.linear\.app\//
+
+export interface LinearAttachment {
+  title: string
+  url: string
+}
+
 export interface LinearCardIssue {
   identifier: string
   title: string
@@ -55,6 +64,7 @@ export interface LinearCardIssue {
   labels: { nodes: { name: string }[] }
   projectMilestone: LinearMilestone | null
   comments: { nodes: { user: { name: string } | null; createdAt: string; body: string }[] }
+  attachments?: { nodes: LinearAttachment[] }
   /** The team's points; the team's scale turns them into minutes. */
   estimate?: number | null
   team?: LinearEstimation
@@ -106,6 +116,10 @@ export function toCard(issue: LinearCardIssue): TrackerCard {
   const unique = (refs: TaskRef[]) => [...new Map(refs.map((ref) => [ref.id, ref])).values()]
   const milestone = issue.projectMilestone
   const estimate = linearMinutes(issue.estimate, linearScale(issue.team))
+  const files = new Map((issue.attachments?.nodes ?? []).map((each) => [each.url, { name: each.title, file: each.url }]))
+  for (const text of [issue.description ?? '', ...issue.comments.nodes.map((each) => each.body)]) {
+    for (const file of linkedFiles(text, LINEAR_UPLOADS)) if (!files.has(file.file)) files.set(file.file, file)
+  }
   return {
     id: issue.identifier,
     title: issue.title,
@@ -124,7 +138,7 @@ export function toCard(issue: LinearCardIssue): TrackerCard {
     comments: [...issue.comments.nodes]
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       .map((node) => ({ author: node.user?.name ?? null, at: Date.parse(node.createdAt), text: node.body })),
-    attachments: [],
+    attachments: [...files.values()].map((each) => ({ ...each, size: 0, type: '', url: LINEAR_UPLOADS.test(each.file) ? null : each.file })),
     ...(estimate === null ? {} : { estimate }),
   }
 }

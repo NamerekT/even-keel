@@ -7,7 +7,7 @@ import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
 import { ESTIMATION_FIELDS, linearScale, type LinearEstimation } from './estimate.js'
-import { backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
+import { LINEAR_UPLOADS, backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearAttachment, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
   token: string
@@ -102,6 +102,7 @@ const ISSUE_CARD = `query($filter: IssueFilter!) {
       labels(first: 25) { nodes { name } }
       projectMilestone { name targetDate sortOrder project { id } }
       comments(first: 100) { nodes { user { name } createdAt body } }
+      attachments(first: ${PAGE}) { pageInfo { hasNextPage endCursor } nodes { title url } }
     }
   }
 }`
@@ -109,6 +110,12 @@ const ISSUE_CARD = `query($filter: IssueFilter!) {
 const ISSUE_READY = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) {
     nodes { id state { name type } team { states(first: 100) { nodes { id name type position } } } }
+  }
+}`
+
+const ISSUE_ATTACHMENTS = `query($filter: IssueFilter!, $after: String) {
+  issues(first: 1, filter: $filter) {
+    nodes { attachments(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { title url } } }
   }
 }`
 
@@ -160,9 +167,6 @@ const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
 const FILE_UPLOAD = `mutation($contentType: String!, $filename: String!, $size: Int!) {
   fileUpload(contentType: $contentType, filename: $filename, size: $size) { success uploadFile { uploadUrl assetUrl headers { key value } } }
 }`
-
-/** Where Linear keeps uploaded files; they need the key like the API does. */
-const UPLOADS = /^https:\/\/uploads\.linear\.app\//
 
 export async function connectLinear(settings: LinearSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<LinearSource> {
   const projectUrls = new Map<string, string>()
@@ -285,7 +289,18 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     },
 
     async card(id) {
-      return toCard(await oneIssue<LinearCardIssue>(id, ISSUE_CARD))
+      type WithFiles = LinearCardIssue & { attachments?: Connection<LinearAttachment> }
+      const issue = await oneIssue<WithFiles>(id, ISSUE_CARD)
+      let files = issue.attachments
+      const nodes = [...(files?.nodes ?? [])]
+      while (files?.pageInfo.hasNextPage && files.pageInfo.endCursor !== null) {
+        const next = await graphql<{ issues: { nodes: WithFiles[] } }>(ISSUE_ATTACHMENTS, { filter: byNumber(id), after: files.pageInfo.endCursor })
+        const found = next.issues.nodes[0]
+        if (found === undefined) throw new TrackerNotFound(`linear: issue ${id} not found or the key cannot see it`)
+        files = found.attachments
+        nodes.push(...(files?.nodes ?? []))
+      }
+      return toCard({ ...issue, attachments: { nodes } })
     },
 
     async children(id) {
@@ -334,7 +349,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       const issue = await oneIssue<{ comments: { nodes: { id: string; body: string; createdAt: string }[] } }>(id, ISSUE_COMMENTS)
       const comments = [...issue.comments.nodes]
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-        .map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
+        .map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, LINEAR_UPLOADS) }))
       return commentsAfterId(comments, after)
     },
 
@@ -471,9 +486,12 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.
     async file(_id, file) {
-      if (!UPLOADS.test(file)) return null
-      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs) }, '/uploads/[redacted]')
-      if (!response.ok || response.body === null) return null
+      if (!LINEAR_UPLOADS.test(file)) return null
+      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' }, '/uploads/[redacted]')
+      if (!response.ok || response.body === null) {
+        await response.body?.cancel()
+        return null
+      }
       const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
       return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
     },

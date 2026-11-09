@@ -64,6 +64,18 @@ export class ForgejoApi {
     return (response.status === 204 ? undefined : await response.json()) as T
   }
 
+  /** The authenticated web route serves bytes; the issue assets API serves only metadata. */
+  async attachment(uuid: string): Promise<Response | null> {
+    const response = await trackedFetch(this.fetchImpl, `${this.base.slice(0, -'/api/v1'.length)}/attachments/${encodeURIComponent(uuid)}`, {
+      headers: { authorization: `token ${this.token}`, 'user-agent': 'even-keel' },
+      signal: AbortSignal.timeout(this.timeoutMs),
+      redirect: 'error',
+    }, '/attachments/[redacted]')
+    if (response.ok && response.body !== null) return response
+    await response.body?.cancel()
+    return null
+  }
+
   async collect<T>(path: string, limit = 50): Promise<T[]> {
     const result: T[] = []
     for (let page = 1; ; page++) {
