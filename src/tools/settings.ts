@@ -1,3 +1,4 @@
+import { stripSettingsGuard } from '../account/settingsGuardStrip.js'
 import { strictest, type CodexDecision, type CodexRule } from '../codex/rules.js'
 import type { SessionReach } from '../packages/model.js'
 import type { SettingKind, SettingRow, ToolScope } from './model.js'
@@ -102,10 +103,19 @@ export function forPackageOff(row: SettingRow, reach: SessionReach): boolean {
   return !reach.servers.includes(server) && !plugins.some((prefix) => server.startsWith(prefix))
 }
 
-/** Key names only: values may hold secrets (`env`). */
+/** Key names only: values may hold secrets (`env`). Even Keel's own settings guard in the folder is no difference. */
 export function accountDrift(global: Json, folder: Json): string[] {
+  global = stripSettingsGuard(global)
+  folder = stripSettingsGuard(folder)
   const keys = new Set([...Object.keys(global), ...Object.keys(folder)])
-  return [...keys].filter((key) => JSON.stringify(global[key]) !== JSON.stringify(folder[key])).sort()
+  return [...keys].filter((key) => comparable(key, global[key]) !== comparable(key, folder[key])).sort()
+}
+
+/** Removing the guard may leave an empty event list or no `hooks` at all where the global file had them empty. */
+function comparable(key: string, value: unknown): string | undefined {
+  if (key !== 'hooks' || value === undefined) return JSON.stringify(value)
+  const hooks = Object.entries(objectOf(value)).filter(([, groups]) => !Array.isArray(groups) || groups.length > 0)
+  return hooks.length === 0 ? undefined : JSON.stringify(Object.fromEntries(hooks))
 }
 
 function onOff(value: unknown): string {

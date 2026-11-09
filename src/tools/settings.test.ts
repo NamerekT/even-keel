@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { withSettingsGuard } from '../account/settingsGuard.js'
 import type { SettingKind, SettingRow } from './model.js'
 import { accountDrift, forPackageOff, settingRows, trimSettings } from './settings.js'
 
@@ -106,8 +107,26 @@ describe('forPackageOff', () => {
 
 describe('accountDrift', () => {
   it('names the keys an account folder sets differently, without their values', () => {
-    const global = { env: { TOKEN: 'a' }, model: 'opus', hooks: {} }
+    const global = { env: { TOKEN: 'a' }, model: 'opus', hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo stop' }] }] } }
     expect(accountDrift(global, { env: { TOKEN: 'b' }, model: 'opus', theme: 'dark' })).toEqual(['env', 'hooks', 'theme'])
     expect(accountDrift(global, { ...global })).toEqual([])
+  })
+
+  it('does not count Even Keel\'s own settings guard as a difference', () => {
+    const config = { accountsDir: '/accounts', globalDir: '/global', url: 'http://127.0.0.1:4747' }
+    const userHook = { matcher: 'Write', hooks: [{ type: 'command', command: 'echo user' }] }
+    for (const global of [{ model: 'opus' }, { model: 'opus', hooks: {} }, { hooks: { PreToolUse: [] } }, { hooks: { PreToolUse: [userHook] } }]) {
+      expect(accountDrift(global, withSettingsGuard(global, config))).toEqual([])
+    }
+    const guarded = withSettingsGuard({ hooks: { PreToolUse: [structuredClone(userHook)] } }, config)
+    const hooks = (guarded.hooks as { PreToolUse: typeof userHook[] }).PreToolUse
+    hooks[0]!.hooks.push(...hooks.pop()!.hooks)
+    expect(accountDrift({ hooks: { PreToolUse: [userHook] } }, guarded)).toEqual([])
+  })
+
+  it('still names hooks when the folder has another hook beside the guard', () => {
+    const config = { accountsDir: '/accounts', globalDir: '/global', url: 'http://127.0.0.1:4747' }
+    const other = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo other' }] }
+    expect(accountDrift({ model: 'opus' }, withSettingsGuard({ model: 'opus', hooks: { PreToolUse: [other] } }, config))).toEqual(['hooks'])
   })
 })

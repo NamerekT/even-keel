@@ -2,9 +2,11 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { pathsOf, samePath } from '../paths.js'
+import { SETTINGS_GUARD_MARK as MARK, stripSettingsGuard } from './settingsGuardStrip.js'
+
+export { stripSettingsGuard }
 
 type Json = Record<string, unknown>
-const MARK = '--even-keel-account-settings'
 
 export interface SettingsGuardConfig {
   accountsDir: string
@@ -14,32 +16,6 @@ export interface SettingsGuardConfig {
 
 function object(value: unknown): Json {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Json : {}
-}
-
-/** Removes only Even Keel's command, even when somebody put it beside a user's command in one group. */
-export function stripSettingsGuard(settings: Json): Json {
-  const hooks = { ...object(settings.hooks) }
-  let changed = false
-  for (const [event, groups] of Object.entries(hooks)) {
-    if (!Array.isArray(groups)) continue
-    const kept = groups.flatMap((group: unknown) => {
-      const entry = object(group)
-      if (!Array.isArray(entry.hooks)) return [group]
-      const commands = entry.hooks.filter((hook: unknown) => {
-        const command = object(hook).command
-        const args = object(hook).args
-        return !(typeof command === 'string' && command.includes(` ${MARK} `)) && !(Array.isArray(args) && args.includes(MARK))
-      })
-      if (commands.length === entry.hooks.length) return [group]
-      changed = true
-      return commands.length === 0 ? [] : [{ ...entry, hooks: commands }]
-    })
-    if (kept.length > 0 || groups.length === 0) hooks[event] = kept
-    else delete hooks[event]
-  }
-  if (!changed) return settings
-  const { hooks: _, ...rest } = settings
-  return Object.keys(hooks).length === 0 ? rest : { ...rest, hooks }
 }
 
 export function withSettingsGuard(settings: Json, config: SettingsGuardConfig): Json {
