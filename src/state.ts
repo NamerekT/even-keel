@@ -69,7 +69,7 @@ export interface SessionRecord {
   startedAt: string | null
   lastActivityAt: string | null
   contextTokens: number
-  /** As `SessionView.contextWindow`, only from the transcript. */
+  /** The record's own window, falling back to the last window observed by the session monitor. */
   contextWindow: number | null
   tokens: TokenTotals
   stage: Stage | null

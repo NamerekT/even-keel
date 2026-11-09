@@ -498,7 +498,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     sessionRecord: async (sessionId) => {
       for (const home of ctx.homes.list()) {
         const found = await ctx.agentOf(home).record(home, sessionId)
-        if (found !== undefined) return { ...found, account: ctx.sessionAccount(sessionId, found.startedAt) ?? ctx.emailAt(home.key, found.startedAt) }
+        if (found !== undefined) return {
+          ...found,
+          contextWindow: found.contextWindow ?? ctx.monitor.contextWindowOf(sessionId),
+          account: ctx.sessionAccount(sessionId, found.startedAt) ?? ctx.emailAt(home.key, found.startedAt),
+        }
       }
       return undefined
     },

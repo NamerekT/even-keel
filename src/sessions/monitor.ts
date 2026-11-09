@@ -53,6 +53,8 @@ export class SessionMonitor {
   private readonly remoteEnabled = new Map<string, boolean | null>()
   /** The compactions seen in each transcript followed since the start, kept after its session leaves the agents' list. */
   private readonly compactions = new Map<string, number>()
+  /** Last non-null windows of up to 500 sessions, in first-observed order; lost on service restart, so old cards use the shared window. */
+  private readonly contextWindows = new Map<string, number>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
@@ -88,6 +90,10 @@ export class SessionMonitor {
   /** The context of a live session as of the last poll; `undefined` — its transcript is not followed. */
   contextOf(sessionId: string): number | undefined {
     return this.tails.get(sessionId)?.summary().contextTokens
+  }
+
+  contextWindowOf(sessionId: string): number | null {
+    return this.contextWindows.get(sessionId) ?? null
   }
 
   compactionsOf(sessionId: string): number {
@@ -192,6 +198,10 @@ export class SessionMonitor {
 
       const views = this.views()
       for (const view of views) {
+        if (byTask.has(view.task) && view.contextWindow !== null) {
+          this.contextWindows.set(view.sessionId, view.contextWindow)
+          if (this.contextWindows.size > 500) this.contextWindows.delete(this.contextWindows.keys().next().value!)
+        }
         rareEvents.observe(view, this.tails.get(view.sessionId)?.path !== undefined)
         const agent = byTask.get(view.task)
         if (view.lamp === 'waiting' && agent?.backgroundBlock !== undefined) {

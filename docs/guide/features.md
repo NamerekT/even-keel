@@ -43,6 +43,10 @@ An account with known paid usage available shows a warning and **Provider spendi
 
 Open **?** above the side panel for a legend grouped by location: the header, project row, tabs, task card and session strip. Its queue and account samples match the header. It explains task states separately from priority numbers, dependency counters, the cache ring, release-carry agents and context usage. State marks have different shapes as well as colours. Fix and release-carry rows show their state beside the row key.
 
+A finished session's context figure uses its recorded window, or the last window the service observed for it.
+The service remembers up to 500 sessions; after a restart, a session whose record has no window uses the shared
+context window setting again.
+
 ## Protection
 
 **Sessions → Protection**, in shared settings or a project's settings, enables default groups of destructive-action

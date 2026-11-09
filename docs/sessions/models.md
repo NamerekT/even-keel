@@ -36,6 +36,11 @@ If OpenCode still reports `is not supported when using Codex with a ChatGPT acco
 
 A session's context bar and the cap of its checkpoint threshold measure against the window its agent gives (`SessionView.contextWindow`); the `context.window` setting only stands in while there is none. `warn` and `danger` stay settings.
 
+Finished session records keep their own window when present. Otherwise `sessionRecord` uses the last non-null
+window `SessionMonitor` observed for that session, without a new CLI probe. The monitor retains up to 500 sessions
+in first-observed order; repeated observations update the value without renewing its place. This memory is lost
+on service restart, so older cards with no window in their record fall back to `context.window` again.
+
 `autoCompactWindow` sets a separate window in tokens for Claude chain sessions, shared and per project (project wins).
 An omitted project value inherits the shared one; explicit `null` selects the account's window even over a shared
 number. `chainSettings` sends a number as `autoCompactWindow` in `--settings`, and omits `null`. Live edits apply to
