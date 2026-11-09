@@ -200,15 +200,20 @@ export function wirePackages(ctx: AccountsContext): Packages {
     tasks: new TasksMcp(
       {
         db: ctx.db,
-        run: async (project, call) => {
-          const link = ctx.linkOf(project)
+        run: async (reader, call) => {
+          const link = ctx.linkOf(reader)
           if (link === undefined) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
           return link.run(call)
         },
-        projectOfKey: (key) => {
-          const config = ctx.configStore.current
-          // By the prefix of the task keys: a Huly project may read another identifier than its own key.
-          return Object.keys(config.keys).find((project) => idPrefixOf(config, project).toUpperCase() === key && servesTasks(ADAPTERS[config.trackers[project]!])) ?? null
+        // By the prefix of the task keys: a Huly project may read another identifier than its own key (BTN-892).
+        readers: (project) => {
+          const readers = ctx.readers()
+          return readerIds(ctx.configStore.current, project).map((id) => ({ id, project, prefix: idPrefixOf(readers, id).toUpperCase() }))
+        },
+        readerOfPrefix: (prefix) => {
+          const readers = ctx.readers()
+          const id = Object.keys(readers.projects).find((each) => idPrefixOf(readers, each).toUpperCase() === prefix && servesTasks(ADAPTERS[readers.trackers[each]!]))
+          return id === undefined ? null : { id, project: ownerOf(readers, id), prefix }
         },
         modelOf: (_project, task) => {
           const ofTask = ctx.sessions.filter((each) => each.task === task)
@@ -236,11 +241,10 @@ export function briefOn(ctx: AccountsContext, project: string, reader = project)
   const adapter = ADAPTERS[tracker]!
   const { mcpServer: server, keepsBrief } = adapter
   if (server === undefined || keepsBrief === true) return true
-  if (!ctx.packages.bringsServer(project, server)) {
-    // The tasks server reads the project's own tasks only: a feed's task keeps its brief (BTN-882).
-    return reader !== project || !servesTasks(adapter) || !ctx.packages.bringsServer(project, TASKS_SERVER)
-  }
-  if (reader === project) return false
+  // The tasks server stands in for the tracker's own (BTN-882), for a feed too: it reads the feed on the feed's profile (BTN-892).
+  const tasks = servesTasks(adapter) && ctx.packages.bringsServer(project, TASKS_SERVER)
+  if (!ctx.packages.bringsServer(project, server)) return !tasks
+  if (reader === project || tasks) return false
   const { trackers, feeds } = ctx.configStore.current
   const set = ctx.profiles.current()
   return serverProfile(set, project, trackers[project]!, feeds[project] ?? [], tracker)?.id !== profileFor(set, reader, tracker)?.id

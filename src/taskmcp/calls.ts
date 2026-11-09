@@ -15,12 +15,24 @@ export interface TasksScope {
   task: string | null
 }
 
+/** A tracker of a project the tools serve (BTN-892): the project's own or one of its feeds. */
+export interface TaskReader {
+  /** What the tracker layer reads it by: the project's GUID or the feed's. */
+  id: string
+  /** The project it belongs to. */
+  project: string
+  /** The prefix of its task keys, in upper case. */
+  prefix: string
+}
+
 export interface TasksDeps {
   db: Queryable
-  /** Runs `call` on the project's tracker; throws when the tracker is off. */
-  run<T>(project: string, call: (tracker: Tracker) => Promise<T>): Promise<T>
-  /** The project of this key whose tracker the tools serve; `null` — none. */
-  projectOfKey(key: string): string | null
+  /** Runs `call` on the reader's tracker; throws when the tracker is off. */
+  run<T>(reader: string, call: (tracker: Tracker) => Promise<T>): Promise<T>
+  /** The project's trackers, its own first, then its feeds. */
+  readers(project: string): TaskReader[]
+  /** The tracker the tools serve whose task keys carry this prefix, a project's or a feed's; `null` — none. */
+  readerOfPrefix(prefix: string): TaskReader | null
   /** `<Provider> | <model>` of the live session of the project's task; `null` — not known. */
   modelOf(project: string, task: string): string | null
   /** The project's tasks changed: the chain reads them anew. */
@@ -61,13 +73,19 @@ export class TasksTools {
   }
 
   private async list(args: Args, scope: TasksScope): Promise<string> {
-    const project = this.projectOf(args, scope)
+    const { readers } = this.projectOf(args, scope)
     const statuses = args.texts('status').map((each) => each.trim().toLocaleLowerCase())
     const milestone = args.text('milestone')?.trim().toLocaleLowerCase()
     const label = args.text('label')?.trim().toLocaleLowerCase()
     const parent = args.text('parent')?.trim().toUpperCase()
     const words = args.text('text')?.trim().toLocaleLowerCase()
-    const tasks = await this.deps.run(project, async (tracker) => editorOf(tracker).list(project))
+    const named = trackerArg(args, readers)
+    const searched = named === null ? readers : [named]
+    // One tracker down must not fail the rest; a quietly short list would lead to duplicates, so it is named.
+    const answers = await Promise.allSettled(searched.map((reader) => this.deps.run(reader.id, async (tracker) => editorOf(tracker).list(reader.id))))
+    const tasks = answers.flatMap((answer) => (answer.status === 'fulfilled' ? answer.value : []))
+    const missed = answers.flatMap((answer, index) => (answer.status === 'rejected' ? [`${searched[index]!.prefix}: unreachable, not searched (${refusalText(answer.reason)})`] : []))
+    if (searched.length === 1 && missed.length > 0) throw (answers[0] as PromiseRejectedResult).reason
     const found = tasks.filter((task) => {
       const status = task.status.name.toLocaleLowerCase()
       if (statuses.length === 0 ? task.status.category === 'Won' || task.status.category === 'Lost' : !statuses.includes('all') && !statuses.includes(status)) return false
@@ -76,16 +94,15 @@ export class TasksTools {
       if (parent !== undefined && task.parent?.toUpperCase() !== parent) return false
       return words === undefined || task.title.toLocaleLowerCase().includes(words)
     })
-    if (found.length === 0) return 'No tasks.'
-    const lines = found.slice(0, LIST_LIMIT).map(listLine)
+    const lines = found.length === 0 ? ['No tasks.'] : found.slice(0, LIST_LIMIT).map(listLine)
     if (found.length > LIST_LIMIT) lines.push(`… ${found.length - LIST_LIMIT} more; narrow the filter`)
-    return lines.join('\n')
+    return [...lines, ...missed].join('\n')
   }
 
   private async read(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
-    const project = this.projectOfTask(key, scope)
-    const { card, rev } = await this.deps.run(project, async (tracker) => {
+    const reader = this.readerOfTask(key, scope)
+    const { card, rev } = await this.deps.run(reader.id, async (tracker) => {
       const editor = editorOf(tracker)
       if (tracker.card === undefined) throw new EditRefused('this tracker gives no task cards')
       return { card: await tracker.card(key), rev: await editor.revision(key) }
@@ -94,13 +111,17 @@ export class TasksTools {
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
-    const project = this.projectOf(args, scope)
+    const { readers, named } = this.projectOf(args, scope)
+    // A blocker lives with the task it holds: by default the tracker of the session's task.
+    const own = scope.task === null ? undefined : readers.find((each) => each.prefix === parseTaskId(scope.task!.toUpperCase())?.project)
+    const reader = trackerArg(args, readers) ?? named ?? own ?? readers[0]!
+    const project = reader.id
     const items = args.objects('tasks')
     const retryKey = args.text('retry')
     return this.deps.run(project, async (tracker) => {
       const editor = editorOf(tracker)
       const known = await vocabularyOf(tracker, project)
-      const planned = items.map((item, index) => plannedTask(item, index, items.length, known))
+      const planned = items.map((item, index) => plannedTask(item, index, items.length, known, reader.prefix))
       const run = async (retry: Retry): Promise<string> => {
         const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
         const notes = planned.map((): string[] => [])
@@ -150,7 +171,7 @@ export class TasksTools {
             }
           }
         } finally {
-          await this.deps.refresh(project)
+          await this.deps.refresh(reader.project)
         }
         return done().join('\n')
       }
@@ -160,7 +181,8 @@ export class TasksTools {
 
   private async update(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
-    const project = this.projectOfTask(key, scope)
+    const reader = this.readerOfTask(key, scope)
+    const project = reader.id
     const fields: TaskField[] = []
     const title = args.text('title')
     if (title !== undefined) fields.push({ field: 'title', to: title })
@@ -176,6 +198,9 @@ export class TasksTools {
     const rev = args.integer('rev')
     if (whole !== undefined && (patches.length > 0 || append !== null)) throw new EditRefused('pass either "description" or "replace"/"append", not both')
     if (whole !== undefined && rev === undefined) throw new EditRefused('a whole "description" needs "rev", the description revision task_read shows; a patch with "replace" needs none')
+    const others = [...(parent === undefined || parent === null ? [] : [parent]), ...LINKS.flatMap((link) => [...links[link].add, ...links[link].remove])]
+    const foreign = others.map((each) => each.trim().toUpperCase()).find((each) => crossesTrackers(each, reader.prefix))
+    if (foreign !== undefined) throw new EditRefused(crossRefusal(foreign))
     return this.deps.run(project, async (tracker) => {
       const editor = editorOf(tracker)
       const known = await vocabularyOf(tracker, project)
@@ -208,7 +233,7 @@ export class TasksTools {
       } catch (error) {
         throw new EditRefused(`${said.length === 0 ? '' : `${key}: ${said.join('; ')}; then `}${refusalText(error)}`)
       } finally {
-        if (said.length > 0) await this.deps.refresh(project)
+        if (said.length > 0) await this.deps.refresh(reader.project)
       }
       return said.length === 0 ? `${key}: already so` : `${key}: ${said.join('; ')}`
     })
@@ -217,32 +242,59 @@ export class TasksTools {
   private async comment(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
     const body = args.required('text')
-    const project = this.projectOfTask(key, scope)
+    const reader = this.readerOfTask(key, scope)
     const model = scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
     const notes: string[] = []
-    await this.deps.run(project, async (tracker) => editorOf(tracker).comment(key, body, model, notes))
-    await this.deps.refresh(project)
+    await this.deps.run(reader.id, async (tracker) => editorOf(tracker).comment(key, body, model, notes))
+    await this.deps.refresh(reader.project)
     return [`${key}: comment added`, ...notes].join('; ')
   }
 
-  private projectOf(args: Args, scope: TasksScope): string {
-    if (scope.project !== null) return scope.project
+  /**
+   * The trackers of the call's project: the address's, or in a hand session the project whose key — its own or a
+   * feed's — `project` gives; `named` — the tracker that key gives.
+   */
+  private projectOf(args: Args, scope: TasksScope): { readers: TaskReader[]; named: TaskReader | null } {
+    if (scope.project !== null) return { readers: this.deps.readers(scope.project), named: null }
     const key = args.text('project')?.trim().toUpperCase()
     if (key === undefined || key === '') throw new EditRefused('"project" is required: the key of the project, as in its task keys')
-    const project = this.deps.projectOfKey(key)
-    if (project === null) throw new EditRefused(`no project ${key} keeps its tasks where these tools reach`)
-    return project
+    const named = this.deps.readerOfPrefix(key)
+    if (named === null) throw new EditRefused(`no project ${key} keeps its tasks where these tools reach`)
+    return { readers: this.deps.readers(named.project), named }
   }
 
-  private projectOfTask(key: string, scope: TasksScope): string {
-    if (scope.project !== null) return scope.project
-    const parsed = parseTaskId(key.toUpperCase())
+  /** The tracker of a task by its key's prefix: one of the address's project, or of any project in a hand session. */
+  private readerOfTask(key: string, scope: TasksScope): TaskReader {
+    const parsed = parseTaskId(key)
     if (parsed === null) throw new EditRefused(`"${key}" is not a task key such as ABC-12`)
-    const project = this.deps.projectOfKey(parsed.project)
-    if (project === null) throw new EditRefused(`no project ${parsed.project} keeps its tasks where these tools reach`)
-    return project
+    if (scope.project === null) {
+      const found = this.deps.readerOfPrefix(parsed.project)
+      if (found === null) throw new EditRefused(`no project ${parsed.project} keeps its tasks where these tools reach`)
+      return found
+    }
+    const readers = this.deps.readers(scope.project)
+    const found = readers.find((each) => each.prefix === parsed.project)
+    if (found === undefined) throw new EditRefused(`${key} is not a task of this project; its trackers give ${readers.map((each) => each.prefix).join(', ')} keys`)
+    return found
   }
 }
+
+/** The tracker `tracker` names among the project's; `null` — none named. */
+function trackerArg(args: Args, readers: TaskReader[]): TaskReader | null {
+  const prefix = args.text('tracker')?.trim().toUpperCase()
+  if (prefix === undefined || prefix === '') return null
+  const found = readers.find((each) => each.prefix === prefix)
+  if (found === undefined) throw new EditRefused(`the project has no tracker ${prefix}; its trackers are ${readers.map((each) => each.prefix).join(', ')}`)
+  return found
+}
+
+/** A key of another tracker than the one of `prefix`: links and parents never cross trackers. */
+function crossesTrackers(key: string, prefix: string): boolean {
+  const parsed = parseTaskId(key)
+  return parsed !== null && parsed.project !== prefix
+}
+
+const crossRefusal = (key: string) => `${key} is in another tracker; links don't cross trackers; name the key in the description`
 
 interface PlannedTask {
   draft: TaskDraft
@@ -250,11 +302,12 @@ interface PlannedTask {
 }
 
 /** Checks every name and reference of a batch's task before anything is created. */
-function plannedTask(item: Args, index: number, count: number, known: TrackerVocabulary): PlannedTask {
+function plannedTask(item: Args, index: number, count: number, known: TrackerVocabulary, prefix: string): PlannedTask {
   const ref = (value: string, earlier: boolean): string => {
     const trimmed = value.trim()
     if (!trimmed.startsWith('#')) {
       if (parseTaskId(trimmed.toUpperCase()) === null) throw new EditRefused(`task ${index + 1}: "${trimmed}" is neither a task key nor #N`)
+      if (crossesTrackers(trimmed.toUpperCase(), prefix)) throw new EditRefused(`task ${index + 1}: ${crossRefusal(trimmed.toUpperCase())}`)
       return trimmed
     }
     const number = Number(trimmed.slice(1))

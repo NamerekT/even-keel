@@ -22,8 +22,9 @@ describe('briefOn', () => {
     expect(briefOn(context('github', ['tasks']), 'p1')).toBe(false)
   })
 
-  it('keeps the brief of a feed task the tasks server alone would not reach', () => {
-    expect(briefOn(context('huly', ['tasks']), 'p1', 'f1')).toBe(true)
+  it("takes the tasks server for a feed's tracker server too (BTN-892)", () => {
+    expect(briefOn(context('huly', ['tasks']), 'p1', 'f1')).toBe(false)
+    expect(briefOn(context('huly', []), 'p1', 'f1')).toBe(true)
   })
 
   it('keeps the brief of the built-in tracker whatever the set brings', () => {

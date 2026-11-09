@@ -7,6 +7,8 @@ description: Working a task through Even Keel's tasks MCP server (any tracker of
 
 The tracker is reached only through the `tasks` server: `tasks_list`, `task_read`, `tasks_create`, `task_update`, `task_comment`. There is no delete. Labels, milestones and statuses go by name; an unknown one is refused with the list of existing ones — take a name from it, never invent one. Neighbour skill: `tasks:split`.
 
+A project may read several trackers (its own and its feeds), each with its key prefix (`ABC-12`, `ABCGH-7`). A call on a key goes to that key's tracker; `tasks_list` searches all of them, `tracker: "<prefix>"` narrows it; `tasks_create` creates in your task's tracker unless `tracker` names another. Links and parents never cross trackers — name the other key in the description. A list line `<prefix>: unreachable, not searched` means that tracker was not searched: do not file a duplicate on its strength.
+
 Even Keel runs the chain: it starts a session on the first open task, closes it when the branch lands in the main branch, cleans up and starts the next. The session does the task and merges; the rest is Even Keel's.
 
 ## 1. The task

@@ -9,14 +9,23 @@ import { BuiltinStore } from '../builtin/store.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
-import { TasksTools, cardText, type TasksScope } from './calls.js'
+import { EditRefused } from '../tracker/editor.js'
+import { TasksTools, cardText, type TaskReader, type TasksScope } from './calls.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const XYZ = '22222222-2222-4222-8222-222222222222'
-const PLACES = { [ABC]: { key: 'ABC' }, [XYZ]: { key: 'XYZ' } }
+/** The feed of ABC: in the test one tracker serves every place, so where a call went is told by `ran`. */
+const GHI = '44444444-4444-4444-8444-444444444444'
+const PLACES = { [ABC]: { key: 'ABC' }, [XYZ]: { key: 'XYZ' }, [GHI]: { key: 'GHI' } }
+const READERS: TaskReader[] = [
+  { id: ABC, project: ABC, prefix: 'ABC' },
+  { id: GHI, project: ABC, prefix: 'GHI' },
+  { id: XYZ, project: XYZ, prefix: 'XYZ' },
+]
 const CHAIN: TasksScope = { project: ABC, task: 'ABC-1' }
+const FEED: TasksScope = { project: ABC, task: 'GHI-1' }
 const HAND: TasksScope = { project: null, task: null }
 
 let db: PGlite
@@ -24,11 +33,18 @@ let store: BuiltinStore
 let tracker: Tracker
 let tools: TasksTools
 let refreshed: string[]
+let ran: string[]
+let off: Set<string>
 
 const deps = () => ({
   db,
-  run: <T>(_project: string, call: (each: Tracker) => Promise<T>) => call(tracker),
-  projectOfKey: (key: string) => Object.entries(PLACES).find(([, place]) => place.key === key)?.[0] ?? null,
+  run: async <T>(reader: string, call: (each: Tracker) => Promise<T>) => {
+    ran.push(reader)
+    if (off.has(reader)) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
+    return call(tracker)
+  },
+  readers: (project: string) => READERS.filter((each) => each.project === project),
+  readerOfPrefix: (prefix: string) => READERS.find((each) => each.prefix === prefix) ?? null,
   modelOf: () => 'Claude | opus',
   refresh: async (project: string) => void refreshed.push(project),
 })
@@ -54,6 +70,8 @@ beforeEach(async () => {
   store = new BuiltinStore(db)
   tools = new TasksTools(deps())
   refreshed = []
+  ran = []
+  off = new Set()
   await store.saveMilestone(ABC, 'v0.3', null)
   await store.create({ project: ABC, title: 'Parent', description: '## Plan\n\nfirst step\n\nsecond step\n' })
 })
@@ -355,7 +373,74 @@ describe('the rest', () => {
   it('has no tool that deletes', async () => {
     expect(toolSpecs(true).map((tool) => tool.name)).toEqual(['tasks_list', 'task_read', 'tasks_create', 'task_update', 'task_comment'])
     expect(toolSpecs(false).find((tool) => tool.name === 'tasks_create')!.inputSchema).toMatchObject({ properties: { project: { type: 'string' } } })
+    for (const name of ['tasks_list', 'tasks_create']) {
+      expect(toolSpecs(true).find((tool) => tool.name === name)!.inputSchema).toMatchObject({ properties: { tracker: { type: 'string' } } })
+    }
     expect(await refusal(call('task_delete', { key: 'ABC-1' }))).toBe('there is no tool task_delete')
+  })
+})
+
+describe("the project's feeds (BTN-892)", () => {
+  beforeEach(async () => {
+    await store.create({ project: GHI, title: 'Feed task' })
+  })
+
+  it('reads, comments and updates a task in the tracker its key names', async () => {
+    expect(await call('task_comment', { key: 'ghi-1', text: 'done' }, FEED)).toBe('GHI-1: comment added')
+    expect(ran).toEqual([GHI])
+    expect(await call('task_read', { key: 'GHI-1', comments: true }, FEED)).toMatch(/# GHI-1 Feed task[\s\S]*done/)
+    expect(await call('task_update', { key: 'GHI-1', priority: 'high' }, CHAIN)).toBe('GHI-1: priority → high')
+    expect(await call('task_read', { key: 'ABC-1' }, FEED)).toContain('# ABC-1 Parent')
+    expect(ran).toEqual([GHI, GHI, GHI, ABC])
+    expect(refreshed).toEqual([ABC, ABC])
+  })
+
+  it('refuses a task of another project, and a hand session reaches a feed by its key', async () => {
+    expect(await refusal(call('task_read', { key: 'XYZ-1' }, FEED))).toBe('XYZ-1 is not a task of this project; its trackers give ABC, GHI keys')
+    expect(await call('task_read', { key: 'GHI-1' }, HAND)).toContain('# GHI-1 Feed task')
+    expect(await call('tasks_create', { project: 'GHI', tasks: [{ title: 'By hand' }] }, HAND)).toBe('GHI-2 By hand')
+    expect(await call('tasks_create', { project: 'GHI', tracker: 'abc', tasks: [{ title: 'Main' }] }, HAND)).toBe('ABC-2 Main')
+    expect(await call('tasks_list', { project: 'ABC', tracker: 'GHI' }, HAND)).toBe('GHI-1 · Todo · Feed task\nGHI-2 · Todo · By hand')
+  })
+
+  it("creates in the session task's tracker, or in the one tracker names", async () => {
+    expect(await call('tasks_create', { tasks: [{ title: 'Blocker', status: 'Todo', blocks: ['GHI-1'] }], retry: 'r1' }, FEED)).toBe('GHI-2 Blocker')
+    expect(await call('task_read', { key: 'GHI-1' }, FEED)).toContain('blocked by GHI-2')
+    expect(await call('tasks_create', { tracker: 'ABC', tasks: [{ title: 'Main', milestone: 'v0.3' }], retry: 'r1' }, FEED)).toBe('ABC-2 Main')
+    expect(await call('tasks_create', { tasks: [{ title: 'Own' }] }, CHAIN)).toBe('ABC-3 Own')
+    expect(await refusal(call('tasks_create', { tracker: 'XYZ', tasks: [{ title: 'Away' }] }, FEED))).toBe('the project has no tracker XYZ; its trackers are ABC, GHI')
+    expect(refreshed).toEqual([ABC, ABC, ABC])
+  })
+
+  it('refuses links across trackers before the first task of the batch is created', async () => {
+    const batches = [
+      [{ title: 'A' }, { title: 'B', blocks: ['ABC-1'] }],
+      [{ title: 'A', parent: 'ABC-1' }],
+      [{ title: 'A', relates: ['abc-1'] }],
+    ]
+    for (const tasks of batches) {
+      expect(await refusal(call('tasks_create', { tasks }, FEED))).toMatch(/^task \d: ABC-1 is in another tracker; links don't cross trackers; name the key in the description$/)
+    }
+    expect(await refusal(call('task_update', { key: 'GHI-1', priority: 'high', blockedBy: { add: ['ABC-1'] } }, FEED))).toBe(
+      "ABC-1 is in another tracker; links don't cross trackers; name the key in the description",
+    )
+    expect(await call('tasks_list', { status: ['all'] }, FEED)).toBe('ABC-1 · Todo · Parent\nGHI-1 · Todo · Feed task')
+  })
+
+  it('lists every tracker of the project in one answer; a filter one tracker lacks gives nothing from it', async () => {
+    await store.edit({ project: ABC, number: 1 }, { field: 'milestone', from: null, to: 'v0.3' })
+    expect(await call('tasks_list', {}, CHAIN)).toBe('ABC-1 · Todo · v0.3 · Parent\nGHI-1 · Todo · Feed task')
+    expect(await call('tasks_list', { milestone: 'v0.3' }, CHAIN)).toBe('ABC-1 · Todo · v0.3 · Parent')
+    expect(await call('tasks_list', { tracker: 'ghi' }, CHAIN)).toBe('GHI-1 · Todo · Feed task')
+  })
+
+  it('names an unreachable tracker at the end instead of failing the list', async () => {
+    off.add(GHI)
+    expect(await call('tasks_list', {}, CHAIN)).toBe(
+      "ABC-1 · Todo · Parent\nGHI: unreachable, not searched (the project's tracker is off in Even Keel; turn it on on the page)",
+    )
+    off.add(ABC)
+    expect(await call('tasks_list', { text: 'nothing' }, CHAIN)).toMatch(/^No tasks\.\nABC: unreachable, not searched \(.*\)\nGHI: unreachable, not searched \(.*\)$/)
   })
 })
 

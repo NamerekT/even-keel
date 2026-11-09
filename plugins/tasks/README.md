@@ -15,13 +15,15 @@ Every limit in detail: [`docs/trackers.md`](../../docs/trackers.md), "The tasks 
 
 | Tool | What it does |
 | --- | --- |
-| `tasks_list` | one line per task: key, status, milestone, title; open tasks unless `status` says otherwise |
+| `tasks_list` | one line per task: key, status, milestone, title; open tasks unless `status` says otherwise; every tracker of the project, `tracker` narrows it to one |
 | `task_read` | Markdown: a short head with the description revision, the description, comments on request |
-| `tasks_create` | a batch of tasks with every field at once; links inside the batch as `#1`, `#2`; `retry` makes a repeat safe |
+| `tasks_create` | a batch of tasks with every field at once; links inside the batch as `#1`, `#2`; `retry` makes a repeat safe; `tracker` picks another tracker of the project |
 | `task_update` | any fields at once; labels and links by `add`/`remove`; the description by `replace` patches, `append` or whole with `rev` |
 | `task_comment` | a comment |
 
 Nothing is deleted. Labels and milestones that do not exist are refused with the list of the existing ones, never created.
+
+A project with task feeds has several trackers, told apart by the prefix of their task keys. A call on a task goes to the tracker of its key; `tasks_create` creates in the tracker of the session's own task, or the one `tracker` names. A link or a parent across two trackers is refused before anything is created. A tracker that does not answer leaves a line `<prefix>: unreachable, not searched` at the end of `tasks_list`, so a short list is never taken for a full one.
 
 ## Chain sessions
 

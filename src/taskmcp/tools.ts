@@ -10,6 +10,7 @@ const texts = { type: 'array', items: text }
 const ref = { ...texts, description: 'task keys, or #N for the N-th task of this call' }
 const change = (what: string) => ({ type: 'object', properties: { add: texts, remove: texts }, additionalProperties: false, description: what })
 const project = { type: 'string', description: 'project key; needed only without a project in the server address' }
+const tracker = (fallback: string) => ({ type: 'string', description: `one tracker of the project by its key prefix (GH of GH-12); none — ${fallback}` })
 
 /**
  * The five tools (BTN-768): short enough that an agent loads them at once, with no deferred schemas. Names, never ids;
@@ -20,10 +21,11 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
   return [
     {
       name: 'tasks_list',
-      description: 'Tasks of the project, one line each: key, status, milestone, title. Open tasks unless status says otherwise.',
+      description: 'Tasks of the project, one line each: key, status, milestone, title. Open tasks unless status says otherwise; every tracker of the project at once.',
       inputSchema: {
         type: 'object',
         properties: scoped({
+          tracker: tracker('all of them'),
           status: { ...texts, description: 'status names; ["all"] for every status' },
           milestone: text,
           label: text,
@@ -41,10 +43,11 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
     {
       name: 'tasks_create',
       description:
-        'Creates tasks with every field at once. Links inside the call go by #N. Unknown labels and milestones are refused, never created. Pass retry: a repeat with the same retry returns the tasks already created.',
+        'Creates tasks with every field at once. Links inside the call go by #N and stay within one tracker. Unknown labels and milestones are refused, never created. Pass retry: a repeat with the same retry returns the tasks already created.',
       inputSchema: {
         type: 'object',
         properties: scoped({
+          tracker: tracker("the session task's"),
           tasks: {
             type: 'array',
             items: {

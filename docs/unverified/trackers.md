@@ -149,6 +149,16 @@ The same five tools on the outer trackers (`docs/trackers.md`, "The tasks server
 
 If one is wrong, a write fails with the tracker's own error, or a link lands the other way round (the chain then waits on the wrong task). **Workaround:** make the change in the tracker's own interface; the chain reads it as usual. To check: on each tracker's bench with the `tasks@even-keel` package on, file a batch with every field, a parent and `#N` links, move a status, swap a priority and a milestone, link and unlink both ways, patch a description, and read each task back in the tracker and on the card.
 
+## The tasks server on a project's feeds (BTN-892)
+
+The tools route a call by the prefix of its task key to the project's own tracker or a feed's, and `tasks_list` asks all of them at once (`docs/trackers.md`, "The tasks server", Scope). This is checked by unit tests (`src/taskmcp/calls.test.ts`) and one e2e run with the project and its feed both on the built-in tracker (`src/e2e/builtin.test.ts`); no live session has run on a feed of another tracker. Assumed:
+
+- On a Huly project with a GitHub feed, `task_comment(GHI-1)` and a blocker from `tasks_create` land in the GitHub repository through the feed's own profile, and the chain then holds the feed task behind that blocker.
+- A feed whose tracker is down leaves the other trackers' lines with an `unreachable, not searched` line, and the call returns before the tracker layer's own timeouts make the session wait long.
+- With the tasks server on, a feed task's prompt carries only its ID (`briefOn`), and the session reads it through `task_read`, even when the feed's profile is not the one the tracker's own plugin signs in as.
+
+If one is wrong, a feed task's comment or blocker lands in the wrong tracker or is refused, or the session starts with no brief and cannot read the task. **Workaround:** turn the feed tracker's own plugin on in the project's packages and set `brief: true`. To check: on the Huly bench with a GitHub feed and `tasks@even-keel` on, run a feed task told to comment, file a blocker and list the tasks; read both trackers back.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:
