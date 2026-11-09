@@ -93,17 +93,21 @@ export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<voi
         if (retry !== undefined) ctx.dispatcher.leftover(retry.project, task, notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
       }
     }
+    // The folders a previous run left wait for the first read of the sessions, as the cleanup itself does (BTN-646).
+    if (ctx.agentsRead) ctx.lingering.wake()
     for (const folder of ctx.lingering.dueFolders(Date.now())) {
       const left = await removeLeftFolder(git, folder.repo, folder.path)
       if (left === null) {
+        ctx.lingering.settle(folder)
         console.log(`cleanup: removed the worktree folder ${folder.path} of ${folder.task} once nothing held it`)
         continue
       }
       // A stopped process lets go of the folder a moment after it exits, its children later still (BTN-870).
       if (left.code === 'cleanup.folderLeft' && Date.now() < folder.until) {
-        ctx.lingering.leave(folder)
+        ctx.lingering.again(folder)
         continue
       }
+      ctx.lingering.settle(folder)
       console.warn(`git: ${folder.task}: ${englishOf(left)}`)
       ctx.dispatcher.leftover(folder.project, folder.task, left)
     }

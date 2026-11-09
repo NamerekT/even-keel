@@ -15,6 +15,12 @@ export interface LeftFolder {
   until: number
 }
 
+/** Where the left folders outlive a restart (BTN-925): the state database's `left_folders`, written behind. */
+export interface LeftFolderStore {
+  save(folder: LeftFolder): void
+  drop(path: string): void
+}
+
 interface Kept {
   task: string
   project?: string
@@ -24,14 +30,28 @@ interface Kept {
 /**
  * The sessions a cleanup after Done left running (BTN-616): found mid-turn, or whose stop timed out (EKR-99). Nothing
  * else stops them once their task has left the chain, and a Codex session would rest as `waiting` for good. Each is
- * stopped once its turn ends (exception 4 of invariant 1), and the worktree folder it held is removed after it. In
- * memory: a restart loses them, as it loses the cleanup that kept them.
+ * stopped once its turn ends (exception 4 of invariant 1), and the worktree folder it held is removed after it. The
+ * sessions are in memory: a restart loses them, as it loses the cleanup that kept them. The left folders are saved
+ * (BTN-925) and come back after a restart once the monitor has read the sessions (`wake`).
  */
 export class Lingering {
   /** By session id. */
   private readonly sessions = new Map<string, Kept>()
   private readonly folders = new Map<string, LeftFolder>()
+  /** The folders a previous run left, held back until the first read of the sessions (BTN-646). */
+  private asleep: LeftFolder[] = []
+  private store: LeftFolderStore | undefined
   private running = false
+
+  restore(folders: LeftFolder[], store: LeftFolderStore): void {
+    this.asleep = folders
+    this.store = store
+  }
+
+  wake(): void {
+    for (const folder of this.asleep) if (!this.folders.has(folder.path)) this.folders.set(folder.path, folder)
+    this.asleep = []
+  }
 
   keep(task: string, sessionId: string, retry?: StopRetry, project?: string): void {
     this.sessions.set(sessionId, { task, ...(retry === undefined ? {} : { retry }), ...(project === undefined ? {} : { project }) })
@@ -39,6 +59,17 @@ export class Lingering {
 
   leave(folder: LeftFolder): void {
     this.folders.set(folder.path, folder)
+    this.store?.save(folder)
+  }
+
+  /** A folder given by `dueFolders` and still held within its wait: tried again, its saved row as it is. */
+  again(folder: LeftFolder): void {
+    this.folders.set(folder.path, folder)
+  }
+
+  /** A folder given by `dueFolders` is removed or warned about: its saved row goes. */
+  settle(folder: LeftFolder): void {
+    this.store?.drop(folder.path)
   }
 
   /** The kept sessions whose turn has ended, to stop now, forgotten as they are given; a session gone meanwhile is forgotten too. */
