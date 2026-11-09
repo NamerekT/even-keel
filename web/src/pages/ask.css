@@ -288,14 +288,9 @@
 .ask__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 8px 12px 10px;
-}
-
-.ask__actions .button--primary {
-  display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px 10px;
 }
 
 .ask__actions .button:disabled {
@@ -303,7 +298,10 @@
   cursor: default;
 }
 
+/* Inline, not a flex button: a flex container drops the button's `text-box` trim and grows it by a line. */
 .ask__keys {
+  margin-left: 8px;
+  vertical-align: 1px;
   padding: 0 4px;
   border: 1px solid currentColor;
   border-radius: var(--radius-small);
