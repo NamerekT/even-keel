@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
@@ -456,6 +456,21 @@ describe('the rest', () => {
     rmSync(join(dir, gone.sha256))
     const card = await call('task_read', { key: 'ABC-1' })
     expect(card).toContain(`## Attachments\n\n- screen.png (2 KB) — ${join(dir, picture.sha256)}\n- old.log (1 B) — file missing`)
+  })
+
+  it('task_read downloads the files a tracker serves into the working folder (BTN-923)', async () => {
+    const base = trackerOf(builtinSource(db, PLACES, filesDir))
+    const card = base.card!
+    trackers.set(ABC, {
+      ...base,
+      card: async (id) => ({ ...(await card(id)), attachments: [{ file: 'blob-1', name: 'mockup.svg', type: 'image/svg+xml', size: 5, url: null }] }),
+      file: async (_id, file) => (file === 'blob-1' ? { type: 'image/svg+xml', size: 5, body: (async function* () { yield Buffer.from('<svg>') })() } : null),
+    })
+    const path = join(folder!, '.temp', 'task-files', 'ABC-1', 'mockup.svg')
+    expect(await call('task_read', { key: 'ABC-1' })).toContain(`## Attachments\n\n- mockup.svg (5 B) — ${path}`)
+    expect(readFileSync(path, 'utf8')).toBe('<svg>')
+    folder = null
+    expect(await call('task_read', { key: 'ABC-1' })).toContain('## Attachments\n\n- mockup.svg (5 B) — not downloaded')
   })
 
   it('has no tool that deletes', async () => {

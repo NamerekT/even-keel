@@ -192,6 +192,17 @@ The `component` and `attach` fields and the path guard (`docs/trackers.md`, "The
 
 If one is wrong, an attach call fails with the tracker's error or reports a file the tracker does not show. **Workaround:** attach the file in the tracker's own interface, or link it in the text. To check: BTN-898.
 
+## Task files downloaded by task_read (BTN-923)
+
+`task_read` downloads the files a tracker serves into the session's `.temp/task-files/<KEY>/` and lists their paths (`docs/trackers.md`, "The tasks server", Files in `task_read`). Checked by unit tests against a fake source (`src/taskmcp/downloads.test.ts`, `src/taskmcp/calls.test.ts`): the download, no second download of a copy of the same size, the size limit by the card, by the served size and by the stream, no folder, one failed file among good ones, two files of one name, a name with `..`. On 2026-11-09, before the change, the card route served all three SVGs of a Huly task whole, so Huly's `file` is the same call. Still assumed:
+
+- On Huly the card's `size` of a file equals the bytes its storage serves, so a copy is not downloaded again on every `task_read`; a file of a comment's thread reply comes through the same way.
+- Jira, GitLab and Linear serve their files to the service the same way they serve the page, so a session gets the copy and Claude's Read opens it (SVG as text, a raster picture as an image).
+- The worktree's `.temp/` is ignored by the project's git, so the copies never land in a commit; Even Keel removes them with the worktree after Done.
+- A hand session whose address names the project gets the copies in the project's repository, not in the folder it was started from.
+
+If one is wrong, a session works without the screenshot or mockup it was given, or downloads it on every read. **Workaround:** describe the file in the text, or put it into the repository and name its path. To check: run BTN-915 on Huly and see its session open the three mockups from `.temp/task-files/BTN-915/`; attach a file to a Jira, a GitLab and a Linear bench task and `task_read` it twice from a chain session.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:

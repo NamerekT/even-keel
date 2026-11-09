@@ -1,4 +1,3 @@
-import { megabytes } from '../notice/en.js'
 import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
@@ -10,6 +9,7 @@ import { Args } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
 import { readUploads } from './files.js'
+import { attachmentLines } from './downloads.js'
 import type { ToolFields } from './tools.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
@@ -129,14 +129,15 @@ export class TasksTools {
   private async read(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
     const reader = this.readerOfTask(key, scope)
-    const { card, rev, terms } = await this.deps.run(reader.id, async (tracker) => {
+    const { card, rev, terms, files } = await this.deps.run(reader.id, async (tracker) => {
       const editor = editorOf(tracker)
       if (tracker.card === undefined) throw new EditRefused('this tracker gives no task cards')
       // The roles line helps, the card is the answer: a vocabulary that did not read only leaves the line out.
       const [card, rev, terms] = await Promise.all([tracker.card(key), editor.revision(key), this.termsOf(tracker, reader.id).catch(() => null)])
-      return { card, rev, terms }
+      const files = await attachmentLines(card.id, card.attachments, tracker, this.deps.folderOf(scope, reader.project), this.deps.attachmentLimit())
+      return { card, rev, terms, files }
     })
-    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms))
+    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files)
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
@@ -528,8 +529,11 @@ function listLine(task: TrackerTask): string {
   return [task.id, task.status.name, ...(task.milestone === null ? [] : [task.milestone.label]), task.title].join(' · ')
 }
 
-/** The card as Markdown: a head of what the task has, then its description and, on request, its comments. */
-export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null): string {
+/**
+ * The card as Markdown: a head of what the task has, its description, the lines of its files (`attachmentLines`) and,
+ * on request, its comments.
+ */
+export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null, files: readonly string[] = []): string {
   const refs = (list: { id: string }[]) => list.map((each) => each.id).join(', ')
   const head = [
     card.status.name,
@@ -545,11 +549,7 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean, role
   ]
   const top = roles === null ? head.join(' · ') : `${head.join(' · ')}\n${roles}`
   const parts = [`# ${card.id} ${card.title}`, top, card.description.trim() === '' ? '(no description)' : card.description.trim()]
-  const files = card.attachments.filter((each) => each.path !== undefined)
-  if (files.length > 0) {
-    const lines = files.map((each) => `- ${each.name} (${sizeText(each.size)}) — ${each.missing ? 'file missing' : each.path}`)
-    parts.push(`## Attachments\n\n${lines.join('\n')}`)
-  }
+  if (files.length > 0) parts.push(`## Attachments\n\n${files.join('\n')}`)
   if (comments) {
     const head = (each: TaskComment) => {
       const model = each.journal?.model == null ? '' : ` (${each.journal.model})`
@@ -561,12 +561,6 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean, role
     parts.push(list.length === 0 ? '## Comments\n\nnone' : `## Comments\n\n${list.join('\n\n')}`)
   }
   return parts.join('\n\n')
-}
-
-function sizeText(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${megabytes(bytes)} MB`
 }
 
 /** The reason of a failed write in a line for the agent. */
