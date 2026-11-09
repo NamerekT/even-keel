@@ -62,6 +62,13 @@ export function projectGroups(view: PackagesView, project: string): ProjectGroup
   })
 }
 
+/** The packages a project's sessions get, by name: what the button to its packages lists (BTN-914). */
+export function enabledPackages(view: PackagesView, project: string): PackageView[] {
+  const cells = view.projects[project]?.cells
+  if (cells === undefined) return []
+  return shownPackages(view).filter((each) => !each.removed && cells[each.name]?.enabled === true)
+}
+
 /** A problem and the package it is fixed at; `null` — the catalog has no package for it yet. */
 export interface PackageIssue {
   name: string | null

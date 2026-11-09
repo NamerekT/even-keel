@@ -7,6 +7,7 @@ import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { TokensInput } from '../ui/TokensInput.js'
 import { tokensShown } from '../ui/tokens.js'
+import { PackagesButton } from './PackagesButton.js'
 import { ProjectStandards } from './ProjectStandards.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { ProviderChoices } from './ProviderChoices.js'
@@ -20,7 +21,7 @@ import { ErrorStrip, FieldHead, fieldId, FieldNote, Inherit, Row, Section, SHARE
 import { accountOptions, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { offersOf, type ModelAnswer } from './useModels.js'
 
-/** The "Sessions" tab of the project settings panel: the agent, the prompt, the standards, protection and context. */
+/** The "Sessions" tab of the project settings panel: the project's packages, the agent, the prompt, the standards, protection and context. */
 export function ProjectSessionsTab({
   fields,
   project,
@@ -83,6 +84,7 @@ export function ProjectSessionsTab({
 
   return (
     <>
+      {state !== null && <PackagesButton project={project} packages={state.packages} />}
       <Section title={t.settings.sections.agent}>
         <ProviderChoices
           label={t.settings.provider}
