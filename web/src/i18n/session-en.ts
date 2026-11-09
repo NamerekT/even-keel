@@ -66,6 +66,9 @@ export const sessionEn = {
   skipCarry: 'The chain stops waiting for the carry and goes on with the tasks; the conflict waits on the release project’s page. The session does not change.',
   interrupted: 'stopped until main is fixed',
   skip: 'Skip',
+  accept: 'Accept as answer',
+  acceptTitle: "The session's last message goes on the task as a comment, the task moves to Done, and the chain cleans up and takes the next one. For a task with no change in the repository.",
+  acceptHint: "The session ended its turn without a mark. If its last message is the answer, close the task with it.",
   silent: (quiet: string, restartAt: string, hungAt: string) =>
     `Silent for ${quiet}. New session — with confirmation from ${restartAt}, on its own at ${hungAt}.`,
   confirmSilent: (since: string) => `The session has written nothing since ${since}. Interrupt the turn and start a new session?`,

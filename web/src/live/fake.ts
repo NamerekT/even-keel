@@ -596,6 +596,13 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
+  // A turn that ended on an answer without the `NO CHANGES:` mark: "Accept as answer" (BTN-885).
+  if (params.get('chain') === 'answered' && current.state !== null && active) {
+    const base = session('ABC-5', contextTokens, 'waiting')
+    const answered: SessionView = { ...base, waitingFor: null, asking: false, ask: null, feed: [...base.feed, { at: ago(0), kind: 'text', text: 'Both formats are supported; details are in the task description.' }] }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? answered : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: answered.sessionId, since: ago(42) } }]
+  }
   if ((params.get('chain') === 'mail' || params.get('chain') === 'steer') && current.state !== null && active) {
     const working = session('ABC-5', contextTokens)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? working : each))

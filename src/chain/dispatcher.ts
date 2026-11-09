@@ -12,7 +12,7 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { Cleanups } from './cleanup.js'
-import { answerable } from './answers.js'
+import { acceptable, answerable } from './answers.js'
 import { MainCarry } from './carry.js'
 import { isCarryName, isFixName, isOwnName } from './fix.js'
 import { Handovers } from './handover.js'
@@ -400,6 +400,23 @@ export class Dispatcher {
       this.unhold(chain)
       return this.handovers.renew(chain, current, session, prompt)
     })
+  }
+
+  /** "Accept as answer" (BTN-885): resolves once the task is done in the tracker, rejects with why it was not. */
+  async accept(project: string, task: string, sessionId: string): Promise<void> {
+    const check = () => {
+      // A second press while the first one's Done waits for its cleanup would comment the answer twice.
+      if (this.lists.done.get(project)?.has(task)) throw fail('accept.closed', { task })
+      return acceptable(this.state, this.deps, project, task, sessionId)
+    }
+    check()
+    // Checked again in turn: a step before it may have moved the session on.
+    const accepted = this.work.then(() => {
+      const { chain, current, session, message } = check()
+      return this.unchanged.accept(chain, current, session, message)
+    })
+    this.work = accepted.catch(() => undefined)
+    return accepted
   }
 
   /** A pause for the user to tell the session of a mark refused what to do ends once they do: its next mark opens at once. */

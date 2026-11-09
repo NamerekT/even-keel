@@ -276,6 +276,8 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
   if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task), body.confirmed)
+  // The task goes to Done: the chain lets it go as the cleanup after Done would.
+  if (name === 'chain/accept') return closeCurrent(state)
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'stats/tally') return fakeTally(state, body)

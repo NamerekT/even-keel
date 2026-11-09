@@ -136,6 +136,17 @@ export const en = {
     `chain: the session of ${p.task} marked it as needing no change, but its folder could not be checked (answer its session from the chat, or skip the task)`,
   'chain.unchangedNotCompleted': (p: { task: string }) =>
     `chain: ${p.task} needs no change and its branch has nothing to merge, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
+  'accept.asking': (p: { task: string }) =>
+    `${p.task} was not closed: its session waits on a question. Answer it in the chat; Accept as answer is for a turn that ended without one.`,
+  'accept.closed': (p: { task: string }) => `${p.task} is already done; its answer went on it as a comment.`,
+  'accept.noMessage': (p: { task: string }) => `${p.task} was not closed: its session has written no message to take as the answer.`,
+  'accept.ahead': (p: { task: string; count: number; main: string }) =>
+    `${p.task} was not closed: its branch has ${p.count} commit(s) beyond ${p.main}, and closing it would lose them. Such work closes by a merge: ask the session in the chat to merge it.`,
+  'accept.dirty': (p: { task: string; count: number }) =>
+    `${p.task} was not closed: its worktree has ${p.count} file(s) left out of a commit, which the cleanup after Done would leave behind. Ask the session in the chat to commit and merge them or to remove them.`,
+  'accept.notChecked': (p: { task: string }) => `${p.task} was not closed: its folder could not be checked for work beyond the main branch. Try again in a moment.`,
+  'accept.notCompleted': (p: { task: string }) =>
+    `${p.task} was not closed: the tracker did not take the answer as a comment or did not move the task to done. Try again, or close it in the tracker yourself.`,
   'chain.notRead': (p: { project: string }) => `chain: the tasks of ${p.project} are not read from the tracker yet; try again once it answers`,
   'chain.empty': (p: { project: string }) => `chain: ${p.project} has no task to run, not started`,
   'chain.emptyNone': () => 'it has no open tasks',

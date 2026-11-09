@@ -31,6 +31,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { useTip } from '../ui/useTip.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { Loading } from '../ui/Loader.js'
+import { offersAccept } from './acceptAnswer.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import { sessionStatus } from './sessionStatus.js'
@@ -215,6 +216,14 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFa
     (earlyRestart && !starting ? null : midTurn && quietText !== null && !starting ? quietText : wait) ??
     (block.skipped ? t.session.held.skipped : !block.current ? t.session.held.notCurrent : live === null ? t.session.held.noSession : null)
 
+  const accepts =
+    live !== null &&
+    block.open &&
+    !starting &&
+    block.answering === undefined &&
+    block.review === undefined &&
+    offersAccept(live, block.id, state?.works[body.project]?.[block.id], completionTasks(state).has(live.task))
+
   // The runs of the commits a fix of main went from and landed, beside its chat.
   const runs = isFixName(block.id) && ci && block.fix !== undefined
 
@@ -232,6 +241,11 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFa
           >
             {t.session.chat.open}
           </button>
+        )}
+        {accepts && (
+          <PanelButton tip={t.session.acceptTitle} held={null} sending={sending} onClick={() => void send('chain/accept', { ...body, sessionId: live.sessionId })}>
+            {t.session.accept}
+          </PanelButton>
         )}
         {block.review !== undefined && <PullButton review={block.review} />}
         {runs && (
@@ -310,6 +324,7 @@ function Actions({ block, scale, ci, chatting, onChat: setChatting, onCard, onFa
               session: chatSession,
               aside,
               renews: live !== null,
+              accepts,
               scale,
               answeredAt: block.answering ?? block.sessions.find((run) => run.sessionId === chatSession.sessionId)?.answeredAt ?? null,
               delivering: block.answering !== undefined,

@@ -91,6 +91,8 @@ export interface ChainControl {
   unskip(project: string, task: string): void
   restart(project: string, task: string, confirmed?: import('./sessions/silence.js').SilentRestart): void
   dismiss(project: string, task: string): void
+  /** "Accept as answer" (BTN-885): the last message of the task's session `sessionId` goes on it as a comment, the task to Done. */
+  accept(project: string, task: string, sessionId: string): Promise<void>
   setUnattended(on: boolean): void
   setTrimTools(on: boolean): void
 }
@@ -329,6 +331,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body), restartConfirmation(body.confirmed)),
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
+  'chain/accept': ({ control }, body) => control.accept(projectOf(body), taskOf(body), textOf(body.sessionId, 'sessionId')),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'chain/refresh': ({ tasks }, body) => tasks.refresh(projectOf(body)),

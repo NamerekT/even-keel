@@ -53,6 +53,8 @@ export interface ChatTarget {
   aside: boolean
   /** The session is the current one of a running chain: a reply to it may go to a new session instead (BTN-757). */
   renews: boolean
+  /** "Accept as answer" is offered under the field (BTN-885, `offersAccept`). */
+  accepts?: boolean
   /** For the status line's ring of the session's context. */
   scale: ContextScale
   /** When the service began delivering the last answer to the session, for the turn line; `null` without one. */
@@ -334,6 +336,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                 session={chat.session}
                 aside={chat.aside}
                 renews={chat.renews}
+                accepts={chat.accepts === true}
                 mail={chat.mail}
                 queued={queued}
                 handle={composerRef}

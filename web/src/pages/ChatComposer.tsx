@@ -38,6 +38,8 @@ interface Props {
   aside: boolean
   /** The chain runs the task, so a reply may go to a new session instead (BTN-757); `false` — a session left after its chain stopped. */
   renews: boolean
+  /** "Accept as answer" is offered (BTN-885): the session's last message may close the task. */
+  accepts: boolean
   /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
   /** Messages the working session has queued and not taken yet. */
@@ -55,7 +57,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, renews, mail, queued, onSent, handle, status }: Props) {
+export function ChatComposer({ project, task, session, aside, renews, accepts, mail, queued, onSent, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
@@ -239,6 +241,21 @@ export function ChatComposer({ project, task, session, aside, renews, mail, queu
         </div>
       ) : (
         hint !== '' && <p className="chat__hint">{hint}</p>
+      )}
+      {accepts && !sent.on && (
+        <div className="chat__hint chat__hint--fix">
+          <p>{t.session.acceptHint}</p>
+          <Tipped inline tip={t.session.acceptTitle}>
+            <button
+              type="button"
+              className="button button--small"
+              disabled={sending}
+              onClick={() => void send('chain/accept', { project, task, sessionId: session.sessionId })}
+            >
+              {t.session.accept}
+            </button>
+          </Tipped>
+        </div>
       )}
     </form>
   )

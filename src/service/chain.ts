@@ -507,6 +507,15 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
           console.warn(`chain: ${task}: the comment on the task closed with no change did not reach the tracker: ${englishOf(noticeOf(error))}`)
         })
       },
+      accept: async (project, task, comment) => {
+        const link = ctx.linkFor(project, task)
+        if (link === undefined) throw new Error(`no tracker is linked to ${task}`)
+        await link.run(async (tracker) => {
+          if (tracker.comment === undefined || tracker.complete === undefined) throw new Error('the tracker cannot comment or close a task')
+          await tracker.comment(task, comment)
+          await tracker.complete(task)
+        })
+      },
     },
     main: mainCheckDeps({
       projects: () => Object.keys(ctx.configStore.current.projects),

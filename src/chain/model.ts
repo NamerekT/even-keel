@@ -312,6 +312,11 @@ export interface UnchangedDeps {
   changes: (project: string, workdir: string) => Promise<Changes>
   /** Moves the task to Done in the tracker and puts `comment` on it; one closed already is fine. */
   complete: (project: string, task: string, comment: string) => Promise<void>
+  /**
+   * "Accept as answer" (BTN-885): puts `comment` on the task, then moves it to Done. The comment is the answer, so
+   * one that fails rejects and the task stays open.
+   */
+  accept: (project: string, task: string, comment: string) => Promise<void>
 }
 
 export interface DispatcherDeps {

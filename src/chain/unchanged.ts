@@ -1,9 +1,10 @@
 import type { Changes } from '../git/types.js'
-import { notice, noticeOf, type Notice } from '../notice/notice.js'
+import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isFixName } from './fix.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, CurrentTask, DispatcherDeps } from './model.js'
 import { PROMPTS } from './prompts.js'
+import type { HandoffSession } from './relay.js'
 
 // Out of PR mode a session merges its branch, and the merge closes the task. A task with nothing to merge — done in
 // main already, research, an answer — never closes that way: its session ends the turn with `NO CHANGES: <why>`
@@ -43,6 +44,36 @@ export class Unchanged {
     this.deps.log(`chain: ${task} is moved to done in the tracker`)
     await this.deps.refresh(project).catch(() => undefined)
     return true
+  }
+
+  /**
+   * "Accept as answer" (BTN-885): the user takes the last message of a session that stopped without the mark for the
+   * task's answer. Only a clean branch with nothing beyond main closes this way, since commits close by a merge. The
+   * message goes on the task as a comment, the task to Done, and the chain's own Done cleans up (exception 4). A
+   * refusal rejects for the page and leaves the chain as it is.
+   */
+  async accept(chain: ActiveChain, current: CurrentTask, session: HandoffSession, message: string): Promise<void> {
+    const { project } = chain
+    const { task } = current
+    const unchanged = this.deps.unchanged
+    if (unchanged === undefined) throw fail('accept.notChecked', { task })
+    let changes: Changes
+    try {
+      changes = await unchanged.changes(project, session.workdir)
+    } catch (error) {
+      throw fail('accept.notChecked', { task }, { cause: noticeOf(error) })
+    }
+    if (changes.ahead > 0) throw fail('accept.ahead', { task, count: changes.ahead, main: this.deps.mainBranch(task) })
+    if (changes.files > 0) throw fail('accept.dirty', { task, count: changes.files })
+    const texts = PROMPTS[this.deps.promptLanguage(task)].unchanged
+    this.deps.log(`chain: ${task}: the user accepted the last message of its session ${session.sessionId} as the answer; the task is done`)
+    try {
+      await unchanged.accept(project, task, texts.accepted(message))
+    } catch (error) {
+      throw fail('accept.notCompleted', { task }, { cause: noticeOf(error) })
+    }
+    this.deps.log(`chain: ${task} is moved to done in the tracker`)
+    await this.deps.refresh(project).catch(() => undefined)
   }
 
   /**

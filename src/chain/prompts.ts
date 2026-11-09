@@ -37,6 +37,8 @@ export interface UnchangedTexts {
   dirty: (main: string) => string
   /** The tracker comment on the task closed by the mark; `reason` — what the session wrote, `''` — nothing. */
   comment: (reason: string) => string
+  /** The tracker comment on the task the user closed by "Accept as answer" (BTN-885): the session's last message whole. */
+  accepted: (message: string) => string
 }
 
 /** `main` in the texts is the project's main branch, whatever it is called. */
@@ -113,6 +115,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       dirty: (main) =>
         fill`Задача не закрыта: в worktree есть незакоммиченные изменения. Если они нужны — закоммить их и влей ветку в ${main} основного чекаута, как обычно. Если нет — убери их, чтобы git status был пуст, и снова закончи ход строкой \`NO CHANGES: <почему>\`.`,
       comment: (reason) => (reason === '' ? 'Задача закрыта без изменений в репозитории.' : fill`Задача закрыта без изменений в репозитории: ${reason}`),
+      accepted: (message) => fill`Ответ сессии, принятый в Even Keel кнопкой «Принять как ответ»:\n\n${message}`,
     },
     pullRequest: (main) =>
       [
@@ -233,6 +236,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       dirty: (main) =>
         fill`The task is not closed: the worktree has uncommitted changes. If they are needed, commit them and merge the branch into ${main} of the main checkout as usual. If not, remove them so that git status is clean, and end the turn with the line \`NO CHANGES: <why>\` again.`,
       comment: (reason) => (reason === '' ? 'The task is closed with no change in the repository.' : fill`The task is closed with no change in the repository: ${reason}`),
+      accepted: (message) => fill`The session's answer, accepted in Even Keel with "Accept as answer":\n\n${message}`,
     },
     pullRequest: (main) =>
       [
