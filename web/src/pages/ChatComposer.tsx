@@ -7,13 +7,14 @@ import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon, SlashIcon } from '../ui/icons.js'
+import { FoldPresence } from '../ui/Fold.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
-import { holdKey, shownAsk } from './composerHold.js'
+import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { checkpointOffer, lockReason } from './composerLock.js'
 import { FixButton } from './FixButtons.js'
 import { ChatMail } from './ChatMail.js'
@@ -44,8 +45,10 @@ interface Props {
   mail: SessionMail | undefined
   /** Messages the working session has queued and not taken yet. */
   queued: FeedLine[]
-  /** `steered` — the message went straight into the working session. */
-  onSent: (line: FeedLine, steered: boolean) => void
+  /** Questions the feed holds answers to: their panel is never offered again. */
+  answered: ReadonlySet<string>
+  /** `steered` — the message goes straight into the working session; called before the server answers, it gives what takes the line back. */
+  onSent: (line: FeedLine, steered: boolean) => () => void
   handle?: Ref<ComposerHandle>
   /** The session's status line, under the field. */
   status?: ReactNode
@@ -57,17 +60,19 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, renews, accepts, mail, queued, onSent, handle, status }: Props) {
+export function ChatComposer({ project, task, session, aside, renews, accepts, mail, queued, answered, onSent, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const coarsePointer = useCoarsePointer()
   const { send, sending, failure } = useCommand()
-  const [answered, setAnswered] = useState<string | null>(null)
-  const ask = shownAsk(session.ask, answered)
-  const [asked, setAsked] = useState(ask?.id ?? null)
-  const [picks, setPicks] = useState<Pick[]>(() => ask?.questions.map(() => NO_PICK) ?? [])
-  if ((ask?.id ?? null) !== asked) {
-    setAsked(ask?.id ?? null)
-    setPicks(ask?.questions.map(() => NO_PICK) ?? [])
+  // The question being answered leaves at once; a refusal brings it back with its picks, which follow the session's
+  // question rather than the shown one.
+  const [pending, setPending] = useState<string | null>(null)
+  const ask = shownAsk(session.ask, pending === null ? answered : new Set([...answered, pending]))
+  const [asked, setAsked] = useState(session.ask?.id ?? null)
+  const [picks, setPicks] = useState<Pick[]>(() => session.ask?.questions.map(() => NO_PICK) ?? [])
+  if ((session.ask?.id ?? null) !== asked) {
+    setAsked(session.ask?.id ?? null)
+    setPicks(session.ask?.questions.map(() => NO_PICK) ?? [])
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
@@ -104,15 +109,20 @@ export function ChatComposer({ project, task, session, aside, renews, accepts, m
   const submit = async (renew = false) => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)), renew }
-    if (!(await send('session/answer', body))) return
+    // The reply's card stands in the feed before the server answers, so the question's panel and card never come back
+    // in between; a new session replaces this one on `renew` and never gets the reply in its transcript.
+    const show = () => {
+      if (ask !== null) setPending(ask.id)
+      const retract = !mailing && !renew ? onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering) : () => {}
+      return () => {
+        setPending(null)
+        retract()
+      }
+    }
+    if (!(await sendAhead(show, () => send('session/answer', body)))) return
     // Also when the window was closed while the reply went out: its last save kept the reply as a draft.
     void writeDraft(session.sessionId, { text: '', files: [] })
-    if (ask !== null) setAnswered(ask.id)
-    // A new session replaces this one: its transcript never gets the reply, the panel shows the new session instead.
-    if (!mailing && !renew) {
-      if (!steering) sent.begin()
-      onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering)
-    }
+    if (!mailing && !renew && !steering) sent.begin()
     setText('')
     setFiles([])
   }
@@ -144,7 +154,9 @@ export function ChatComposer({ project, task, session, aside, renews, accepts, m
           }}
         />
       )}
-      {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
+      <FoldPresence className="chat__ask">
+        {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
+      </FoldPresence>
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
       <ChatMail sessionId={session.sessionId} mail={mail?.mail ?? []} queued={queued} onReply={setText} />
       <div className="chat__box">

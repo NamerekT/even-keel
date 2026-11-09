@@ -281,6 +281,38 @@ button.tools__toggle:hover {
   gap: 6px;
 }
 
+/*
+ * The open question's panel (BTN-921) slides up out of the field through `appear` and leaves sliding down through
+ * `fold`; its slot's height moves with it, so the feed above glides instead of jumping. A closed slot gives back the
+ * form's gap.
+ */
+.ui-fold__body.chat__ask {
+  margin-bottom: -6px;
+  transform: translateY(var(--space-12));
+  transition:
+    grid-template-rows var(--motion-fold) ease-out,
+    opacity var(--motion-fold) ease-out,
+    transform var(--motion-fold) ease-out,
+    margin-bottom var(--motion-fold) ease-out;
+}
+
+.ui-fold__body--open.chat__ask {
+  margin-bottom: 0;
+  transform: none;
+  transition:
+    grid-template-rows var(--motion-appear) ease-out,
+    opacity var(--motion-appear) ease-out,
+    transform var(--motion-appear) ease-out,
+    margin-bottom var(--motion-appear) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-fold__body.chat__ask,
+  .ui-fold__body--open.chat__ask {
+    transition: none;
+  }
+}
+
 .chat__box {
   display: flex;
   flex-direction: column;

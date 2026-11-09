@@ -1,7 +1,7 @@
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { ReviewView } from '../../../src/chain/dispatcher.js'
-import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
+import type { Ask } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import { isOwnName } from '../../../src/chain/fix.js'
@@ -24,6 +24,7 @@ import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { ChatStatus, useStatusFacts } from './ChatStatus.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
+import { answeredAsks } from './composerHold.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
@@ -113,7 +114,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
   const inQueue = chat?.session.lamp === 'working' ? (turn?.queued ?? []) : []
   const queued = [...inQueue, ...unread.filter((each) => each.steered && !inQueue.some((line) => line.text === each.line.text)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
-  const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
+  // A reply sent from here counts after the transcript took over too: a late view of the session never brings its question back.
+  const answered = answeredAsks([...(all ?? []), ...sent.map((each) => each.line)])
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
   const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
   const media = transcriptMedia(
@@ -339,11 +341,14 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                 accepts={chat.accepts === true}
                 mail={chat.mail}
                 queued={queued}
+                answered={answered}
                 handle={composerRef}
                 status={status}
                 onSent={(line, steered) => {
                   pinned.current = true
-                  setSent((now) => [...now, { line, after: lines?.length ?? 0, steered }])
+                  const entry = { line, after: lines?.length ?? 0, steered }
+                  setSent((now) => [...now, entry])
+                  return () => setSent((now) => now.filter((each) => each !== entry))
                 }}
               />
             </div>
