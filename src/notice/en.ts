@@ -8,7 +8,7 @@ export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, whose, ty
 // The English texts of the server's messages: the log and the English page both read them.
 export const en = {
   'account.overageRisk': () => 'Paid usage may start before Even Keel detects it.',
-  'account.overagePolicy': () => 'Even Keel stops a chain session after detecting extra usage and waits for the included allowance to reset. Detection follows a request or a usage poll, which may lag by up to five minutes. Set a hard spending cap with the provider.',
+  'account.overagePolicy': () => 'Even Keel stops on paid usage or, for Claude, an exhausted included allowance, which does not confirm payment. It waits for the allowance reset. Detection may lag five minutes. Set a hard spending cap with the provider.',
   'account.overageAdvice': (p: { provider: 'claude' | 'chatgpt' | 'github' }) => p.provider === 'chatgpt'
     ? 'For this chain account, turn off automatic credit reload or set its monthly spending cap in ChatGPT where supported.'
     : p.provider === 'claude' ? 'For this chain account, turn off Extra usage or set its monthly spending limit in Claude.'

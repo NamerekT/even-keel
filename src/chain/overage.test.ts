@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { pause, setup, task } from './dispatcher.fixture.js'
 import type { LimitedSession } from './relay.js'
+import type { OverageSession } from '../limits/overage-session.js'
 
 const at = '2026-09-26T12:00:00.000Z'
 const session: LimitedSession = {
@@ -10,14 +11,14 @@ const session: LimitedSession = {
   limit: { at, text: 'Included subscription allowance exhausted; paid usage detected' },
 }
 async function running(reset: string | null = '2026-09-26T12:30:00.000Z') {
-  const evidence = { current: undefined as LimitedSession | undefined, reset }
+  const evidence = { current: undefined as OverageSession | undefined, reset }
   const c = setup({ busy: new Set(['ABC-1']), overage: (id) => id === 'ABC-1' ? evidence.current : undefined,
     limitResetAfter: () => evidence.reset })
   c.dispatcher.setTasks('ABC', [task('ABC-1')])
   await c.dispatcher.start('ABC')
   await c.dispatcher.idle()
   c.handoffs['ABC-1'] = session
-  evidence.current = session
+  evidence.current = { session, source: 'claude-sdk' }
   return { ...c, evidence }
 }
 async function check(c: ReturnType<typeof setup>) {
@@ -26,6 +27,29 @@ async function check(c: ReturnType<typeof setup>) {
 }
 
 describe('chain overage stop', () => {
+  it.each(['claude-sdk', 'chatgpt', 'github-quota', 'claude-usage'] as const)('logs the evidence source %s without changing the retained ban', async (source) => {
+    const c = await running()
+    c.evidence.current!.source = source
+    await check(c)
+    const reason = source === 'claude-usage' ? 'included allowance exhausted; paid usage possible, not confirmed' : 'paid usage detected'
+    expect(c.log).toContain(`chain: ABC-1: ${reason} on account global; session session-1 stopped; waiting for included allowance`)
+    expect(c.dispatcher.state.active[0]?.current?.limit?.overage?.session).toEqual(session)
+    await check(c)
+    expect(c.log.filter((line) => line.includes('waiting for included allowance'))).toHaveLength(1)
+  })
+
+  it('uses cautious wording when a pending stop survives a restart without its original evidence', async () => {
+    const c = await running()
+    await check(c)
+    const state = structuredClone(c.dispatcher.state)
+    state.active[0]!.current!.limit!.overage!.stopped = false
+    const restored = setup({ state, busy: new Set(['ABC-1']), limitReset: c.evidence.reset })
+    restored.dispatcher.setTasks('ABC', [task('ABC-1')])
+    await restored.dispatcher.idle()
+    expect(restored.stopped).toEqual(['session-1'])
+    expect(restored.log).toContain('chain: ABC-1: included allowance exhausted; paid usage possible, not confirmed on account global; session session-1 stopped; waiting for included allowance')
+  })
+
   it('stops once mid-turn, preserves context and waits even after the source disappears', async () => {
     const c = await running()
     await check(c)
@@ -41,8 +65,9 @@ describe('chain overage stop', () => {
     expect(c.dispatcher.state.active[0]?.current?.limit).toBeDefined()
   })
 
-  it('resumes with a warm cache after reset and does not consume the same evidence again', async () => {
+  it.each(['claude-sdk', 'claude-usage'] as const)('resumes %s with a warm cache after reset without consuming the same evidence again', async (source) => {
     const c = await running()
+    c.evidence.current!.source = source
     await check(c)
     c.clock.now = new Date('2026-09-26T12:31:00Z')
     await check(c)
@@ -113,13 +138,13 @@ describe('chain overage stop', () => {
     await c.dispatcher.idle()
     expect(c.stopped).toEqual(['session-1'])
     const other = await running()
-    other.evidence.current = { ...session, sessionId: 'external-session' }
+    other.evidence.current = { session: { ...session, sessionId: 'external-session' }, source: 'claude-sdk' }
     await check(other)
     expect(other.stopped).toEqual([])
   })
 
   it('pauses on a failed stop without starting a replacement', async () => {
-    const c = setup({ failStop: true, busy: new Set(['ABC-1']), overage: () => session })
+    const c = setup({ failStop: true, busy: new Set(['ABC-1']), overage: () => ({ session, source: 'claude-sdk' }) })
     c.dispatcher.setTasks('ABC', [task('ABC-1')])
     await c.dispatcher.start('ABC')
     await c.dispatcher.idle()

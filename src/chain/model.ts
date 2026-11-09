@@ -3,6 +3,7 @@ import type { EventDraft } from '../event-log/model.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
+import type { OverageSession } from '../limits/overage-session.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
 import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
@@ -367,8 +368,8 @@ export interface DispatcherDeps {
   moveStatus?: (project: string, task: string, when: MoveWhen) => Promise<void>
   now: () => Date
   limited: (task: string) => LimitedSession | undefined
-  /** Fresh paid-usage evidence for this working session; never an account-wide list of sessions to stop. */
-  overage?: (task: string) => LimitedSession | undefined
+  /** Fresh paid-usage or exhausted-allowance evidence for this working session. */
+  overage?: (task: string) => OverageSession | undefined
   handoff: (task: string) => HandoffSession | undefined
   locate: (session: HandoffSession) => Promise<HandoffSession>
   /** The account a new session of the project (or of `task`) would start on. */

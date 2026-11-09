@@ -43,7 +43,7 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
 export const noticesRu: NoticeTexts = {
   'account.overageRisk': () => 'Расход сверх лимита возможен до его обнаружения Even Keel.',
-  'account.overagePolicy': () => 'Even Keel останавливает сессию цепочки после обнаружения расхода сверх лимита и ждёт сброса запаса подписки. Сигнал приходит после запроса или опроса расхода, который может отставать до пяти минут. Жёсткий денежный потолок задаётся у провайдера.',
+  'account.overagePolicy': () => 'Even Keel останавливает сессию при платном расходе, а у Claude — и при исчерпанном запасе подписки: это не подтверждает оплату. Ждёт сброса запаса. Сигнал может отставать на пять минут. Задайте жёсткий денежный лимит у провайдера.',
   'account.overageAdvice': (p) => p.provider === 'chatgpt'
     ? 'Для этого аккаунта цепочки выключите автопополнение кредитов или задайте месячный денежный лимит в ChatGPT, где это поддерживается.'
     : p.provider === 'claude' ? 'Для этого аккаунта цепочки выключите Extra usage или задайте месячный денежный лимит в Claude.'

@@ -33,7 +33,7 @@ describe('paid usage scope and recovery', () => {
     watcher.refresh()
     for (let i = 0; i < 8; i++) await new Promise((resolve) => setImmediate(resolve))
     expect(watcher.limits('opencode')).toMatchObject({ fiveHour: { usedPercentage: 100 }, overage: { balance: 12 } })
-    expect(overageLimit({ agent: 'opencode', needsLogin: false, apiKey: false, working: true, limits: watcher.limits('opencode') }, now)).toBe(at)
+    expect(overageLimit({ agent: 'opencode', needsLogin: false, apiKey: false, working: true, limits: watcher.limits('opencode') }, now)).toEqual({ at, source: 'chatgpt' })
     expect(watcher.limits('other')?.fiveHour?.usedPercentage).toBe(99)
     notBefore = '2026-10-29T10:00:01.000Z'
     expect(watcher.limits('opencode')?.fiveHour?.usedPercentage).toBe(99)
@@ -53,7 +53,9 @@ describe('paid usage scope and recovery', () => {
     const session = { sessionId: 'owned', agentId: 'owned', account: 'global', cwd: '/fake', workdir: '/fake', branch: null,
       transcript: null, lastReplyAt: null, recent: [], lastMessage: null, checkpoint: null }
     const agent = { sessionId: 'owned', kind: 'sdk', cwd: '/fake', startedAt: now.getTime(), resting: true, status: 'busy' as const }
-    expect(overageSession(session, agent, account, now)?.sessionId).toBe('owned')
+    expect(overageSession(session, agent, account, now)).toEqual({ source: 'claude-sdk', session: { ...session, limit: { at, text: OVERAGE_LIMIT_TEXT } } })
+    const inferred = { ...account, limits: { ...data('unused'), source: 'usage' as const, fiveHour: { usedPercentage: 100, resetsAt: reset } } }
+    expect(overageSession(session, agent, inferred, now)).toEqual({ source: 'claude-usage', session: { ...session, limit: { at, text: OVERAGE_LIMIT_TEXT } } })
     expect(overageSession(session, { ...agent, resting: false }, account, now)).toBeUndefined()
     expect(overageSession(session, { ...agent, status: 'idle' }, account, now)).toBeUndefined()
     expect(overageSession(session, { ...agent, sessionId: 'external' }, account, now)).toBeUndefined()
