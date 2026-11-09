@@ -1,4 +1,4 @@
-import type { TaskRef, TrackerCard } from '../tracker/card.js'
+import type { TaskComment, TaskRef, TrackerCard } from '../tracker/card.js'
 import { uniqueStatuses, type StatusCategory, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerVocabulary } from '../tracker/source.js'
 import { tracker } from './ids.js'
@@ -41,8 +41,11 @@ export interface HulyCardIssue extends HulyIssueDoc {
   relations?: { _id: string; _class: string }[]
 }
 
-/** A comment with its text already in Markdown. */
+/** A comment or a reply in a comment's thread, with its text already in Markdown. */
 export interface HulyCommentDoc {
+  _id: string
+  /** A reply's comment. */
+  attachedTo?: string
   createdBy?: string
   createdOn: number
   text: string
@@ -59,9 +62,11 @@ export interface HulyCardDocs {
   milestones: HulyMilestoneDoc[]
   labels: HulyLabelDoc[]
   comments: HulyCommentDoc[]
+  /** The replies in the threads of `comments` (`chunter:class:ThreadMessage`). */
+  replies: HulyCommentDoc[]
   /** A person's name as Huly keeps it, by social id. */
   people: ReadonlyMap<string, string>
-  /** The files of the issue and of its comments. */
+  /** The files of the issue, of its comments and of their replies. */
   attachments: HulyAttachmentDoc[]
 }
 
@@ -226,6 +231,11 @@ export function toCard(docs: HulyCardDocs): TrackerCard {
   const linked = new Map(docs.linked.map((doc) => [doc._id, { id: doc.identifier, title: doc.title, status: statusOf(doc) }]))
   const refs = (ids: string[]): TaskRef[] => ids.flatMap((id) => linked.get(id) ?? [])
   const milestone = issue.milestone ? docs.milestones.find((doc) => doc._id === issue.milestone) : undefined
+  const byTime = (list: HulyCommentDoc[]) => [...list].sort((a, b) => a.createdOn - b.createdOn)
+  const commentOf = (doc: HulyCommentDoc): TaskComment => {
+    const name = doc.createdBy === undefined ? undefined : docs.people.get(doc.createdBy)
+    return { author: name === undefined ? null : personName(name), at: doc.createdOn, text: doc.text }
+  }
 
   return {
     id: issue.identifier,
@@ -239,16 +249,31 @@ export function toCard(docs: HulyCardDocs): TrackerCard {
     blockedBy: refs((issue.blockedBy ?? []).map((ref) => ref._id)),
     blocks: refs(docs.blocks),
     related: refs((issue.relations ?? []).filter((ref) => ref._class === ISSUE_CLASS).map((ref) => ref._id)),
-    comments: [...docs.comments]
-      .sort((a, b) => a.createdOn - b.createdOn)
-      .map((doc) => {
-        const name = doc.createdBy === undefined ? undefined : docs.people.get(doc.createdBy)
-        return { author: name === undefined ? null : personName(name), at: doc.createdOn, text: doc.text }
-      }),
+    comments: byTime(docs.comments).map((doc) => {
+      const replies = byTime(docs.replies.filter((reply) => reply.attachedTo === doc._id)).map(commentOf)
+      return replies.length === 0 ? commentOf(doc) : { ...commentOf(doc), replies }
+    }),
     attachments: [...docs.attachments]
       .sort((a, b) => (a.createdOn ?? a.modifiedOn) - (b.createdOn ?? b.modifiedOn))
       .map((doc) => ({ file: doc.file, name: doc.name, type: doc.type ?? '', size: doc.size ?? 0, url: null })),
   }
+}
+
+interface HulyMessage {
+  _id: string
+  attachedTo?: string
+  createdOn: number
+}
+
+/**
+ * What came after a session's question, oldest first: the issue's later comments, the replies in the question's own
+ * thread and the replies in the threads of those later comments.
+ */
+export function answersAfter<T extends HulyMessage>(question: HulyMessage, comments: T[], replies: T[]): T[] {
+  const later = comments.filter((doc) => doc.createdOn > question.createdOn)
+  const threads = new Set([question._id, ...later.map((doc) => doc._id)])
+  const answers = replies.filter((doc) => doc.attachedTo !== undefined && threads.has(doc.attachedTo))
+  return [...later, ...answers].sort((a, b) => a.createdOn - b.createdOn)
 }
 
 export function missingBlockers(issues: HulyIssueDoc[]): string[] {

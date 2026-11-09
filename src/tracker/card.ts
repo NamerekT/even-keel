@@ -67,6 +67,8 @@ export interface TaskComment {
   /** ms */
   at: number
   text: string
+  /** The replies in the comment's thread, oldest first; only a tracker with threads under comments gives them (Huly). */
+  replies?: TaskComment[]
   /** Only the built-in tracker's journal (BTN-774) gives the rest. */
   journal?: JournalEntry
 }

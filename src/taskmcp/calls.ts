@@ -4,7 +4,7 @@ import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
 import type { Tracker, TrackerVocabulary } from '../tracker/source.js'
-import type { TrackerCard } from '../tracker/card.js'
+import type { TaskComment, TrackerCard } from '../tracker/card.js'
 import { Args } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 
@@ -342,11 +342,13 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean): str
     parts.push(`## Attachments\n\n${lines.join('\n')}`)
   }
   if (comments) {
-    const list = card.comments.map((each) => {
-      const who = each.author ?? 'Person'
+    const head = (each: TaskComment) => {
       const model = each.journal?.model == null ? '' : ` (${each.journal.model})`
-      return `### ${who}${model}, ${new Date(each.at).toISOString().slice(0, 16).replace('T', ' ')}\n\n${each.text.trim()}`
-    })
+      return `${each.author ?? 'Person'}${model}, ${new Date(each.at).toISOString().slice(0, 16).replace('T', ' ')}\n\n${each.text.trim()}`
+    }
+    const list = card.comments.map((each) =>
+      [`### ${head(each)}`, ...(each.replies ?? []).map((reply) => `#### ↳ reply: ${head(reply)}`)].join('\n\n'),
+    )
     parts.push(list.length === 0 ? '## Comments\n\nnone' : `## Comments\n\n${list.join('\n\n')}`)
   }
   return parts.join('\n\n')

@@ -8,6 +8,7 @@ import { tracker } from './ids.js'
 import { quietModelNoise } from './quiet.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
 import {
+  answersAfter,
   cardLinks,
   closingStatus,
   hulyPriority,
@@ -37,6 +38,8 @@ type FullIssue = HulyFullIssue
 
 interface ChatMessageDoc {
   _id: string
+  /** The issue of a comment, the comment of a reply in its thread. */
+  attachedTo?: string
   message: string
   createdBy?: string
   createdOn: number
@@ -95,6 +98,8 @@ const TAG_REFERENCE = 'tags:class:TagReference'
 const TAG_ELEMENT = 'tags:class:TagElement'
 const PROJECT_TYPE = 'task:class:ProjectType'
 const CHAT_MESSAGE = 'chunter:class:ChatMessage'
+/** A reply in a comment's thread: attached to the comment, not to the issue. */
+const THREAD_MESSAGE = 'chunter:class:ThreadMessage'
 const ATTACHMENT = 'attachment:class:Attachment'
 const SOCIAL_IDENTITY = 'contact:class:SocialIdentity'
 const PERSON = 'contact:class:Person'
@@ -141,6 +146,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
   const findAttachments = (query: Query) => client.findAll<HulyAttachmentDoc>(ATTACHMENT, query, { projection: ATTACHMENT_FIELDS })
+  const repliesTo = async (comments: { _id: string }[], options?: { projection: Record<string, 1> }): Promise<ChatMessageDoc[]> =>
+    comments.length === 0 ? [] : client.findAll<ChatMessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: comments.map((doc) => doc._id) } }, options)
 
   let storage: Promise<StorageClient> | null = null
   // The storage token may expire while the service runs: a failed read connects anew once.
@@ -325,10 +332,12 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: issue._id }, { projection: LABEL_FIELDS }),
         client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id }),
       ])
+      const replies = await repliesTo(messages)
       const [people, attachments] = await Promise.all([
-        peopleOf(messages.flatMap((doc) => doc.createdBy ?? [])),
-        findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((doc) => doc._id)] } }),
+        peopleOf([...messages, ...replies].flatMap((doc) => doc.createdBy ?? [])),
+        findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((doc) => doc._id), ...replies.map((doc) => doc._id)] } }),
       ])
+      const markdownOf = (doc: ChatMessageDoc) => ({ ...doc, text: markupToMarkdown(markupToJSON(doc.message)) })
       return toCard({
         issue,
         description,
@@ -337,7 +346,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         blocks: blocked.map((doc) => doc._id),
         milestones,
         labels,
-        comments: messages.map((doc) => ({ createdBy: doc.createdBy, createdOn: doc.createdOn, text: markupToMarkdown(markupToJSON(doc.message)) })),
+        comments: messages.map(markdownOf),
+        replies: replies.map(markdownOf),
         people,
         attachments,
       })
@@ -345,7 +355,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     async file(identifier, file) {
       const issue = await findIssue(identifier)
       const messages = await client.findAll<{ _id: string }>(CHAT_MESSAGE, { attachedTo: issue._id }, { projection: { _id: 1 } })
-      const [doc] = await findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((each) => each._id)] }, file })
+      const replies = await repliesTo(messages, { projection: { _id: 1 } })
+      const [doc] = await findAttachments({ attachedTo: { $in: [issue._id, ...[...messages, ...replies].map((each) => each._id)] }, file })
       if (doc === undefined) return null
       return { type: doc.type ?? '', size: doc.size ?? null, body: await readFile(file) }
     },
@@ -358,9 +369,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       const issue = await findIssue(identifier)
       const question = await client.findOne<ChatMessageDoc>(CHAT_MESSAGE, { _id: after })
       if (question === undefined) return []
-      const messages = (await client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id, createdOn: { $gt: question.createdOn } })).sort(
-        (a, b) => a.createdOn - b.createdOn,
-      )
+      const later = await client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id, createdOn: { $gt: question.createdOn } })
+      const messages = answersAfter(question, later, await repliesTo([question, ...later]))
       const attachments = messages.length === 0 ? [] : await findAttachments({ attachedTo: { $in: messages.map((doc) => doc._id) } })
       return messages.map((doc) => ({
         id: doc._id,

@@ -8,7 +8,8 @@ import { builtinSource } from '../builtin/source.js'
 import { BuiltinStore } from '../builtin/store.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
-import { TasksTools, type TasksScope } from './calls.js'
+import type { TrackerCard } from '../tracker/card.js'
+import { TasksTools, cardText, type TasksScope } from './calls.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
 
@@ -308,6 +309,30 @@ describe('the rest', () => {
     expect(card).toMatch(/## Comments\n\n### .*\(Claude \| opus\)/)
     const [comment] = (await tracker.card!('ABC-1')).comments
     expect(comment!.journal).toMatchObject({ by: 'agent', model: 'Claude | opus' })
+  })
+
+  it('task_read puts the replies of a thread under their comment', () => {
+    const card: TrackerCard = {
+      id: 'ABC-1',
+      title: 'Parent',
+      description: 'Body',
+      status: { name: 'Todo', category: 'ToDo' },
+      priority: 'none',
+      labels: [],
+      milestone: null,
+      parent: null,
+      blockedBy: [],
+      blocks: [],
+      related: [],
+      comments: [
+        { author: 'John Doe', at: Date.UTC(2026, 0, 2, 10, 0), text: 'Which way?', replies: [{ author: 'Jane Roe', at: Date.UTC(2026, 0, 2, 11, 0), text: 'The first.' }] },
+        { author: null, at: Date.UTC(2026, 0, 3, 9, 0), text: 'Done.' },
+      ],
+      attachments: [],
+    }
+    expect(cardText(card, 1, true)).toContain(
+      '## Comments\n\n### John Doe, 2026-01-02 10:00\n\nWhich way?\n\n#### ↳ reply: Jane Roe, 2026-01-02 11:00\n\nThe first.\n\n### Person, 2026-01-03 09:00\n\nDone.',
+    )
   })
 
   it('a comment of a hand session is the agent with no model', async () => {

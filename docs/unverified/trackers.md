@@ -105,6 +105,16 @@ If one is wrong, a session cannot file or edit tasks of the built-in tracker, or
 
 Tests cover a new tools instance over the same database after two tasks of a three-task batch, every ID saved before the next create, the database folder closed and reopened, concurrent repeats, journal failures, retention and the frozen step-39 sample. A forced service kill against a live external tracker has not been run. Assumed: an ID whose awaited database write finished survives a process crash and the retry resumes with the same order and references. If wrong, a retry duplicates tasks. **Workaround:** check the tracker before repeating an interrupted batch and file only the missing tasks with a new key. A crash between the external create and the local save is closed by a marker on the built-in tracker, Huly and Linear (next entry) and remains a limitation on the other trackers, as does retrying an evicted key. To check: on a registered tracker bench, interrupt a three-task batch after its second saved ID, restart the service, repeat with the same key and check that only the third task is created and every link is correct.
 
+## A reply in a Huly thread as the answer to a question (BTN-897)
+
+A session's question posted as a Huly comment is answered by a reply in that comment's thread, and the reply reaches the session (`docs/trackers.md`, "Huly"). Tests cover the order of the later comments and the replies (`answersAfter`) and the card; the Huly source read a reply added through the API live (the [verified log](../verified/trackers.md)). Assumed:
+
+- a reply typed in Huly's own interface is a `chunter:class:ThreadMessage` attached to the comment, as the one the API added;
+- a file attached to such a reply is an `attachment` of the reply, so it is downloaded with the answer;
+- the chain passes such an answer on like any later comment: `TrackerQuestions` sees no difference.
+
+If wrong, an answer in the thread does not reach the session, which keeps waiting on its question. **Workaround:** answer with a comment on the task itself, not in the question's thread. To check: on the Huly bench HIN, let a chain session ask a question, reply in the question's thread in Huly's interface with a file attached, and see the session continue on the answer with the file in `.temp/inbox/`.
+
 ## Operation markers on Huly and Linear (BTN-905)
 
 A repeat of `tasks_create` after a crash between a create and the save of its ID finds the task by its marker, the task's own id chosen by Even Keel (`docs/trackers.md`, "Retries"). Tests cover it on the built-in tracker in a real database (`src/taskmcp/calls.test.ts`) and on fake Huly and Linear clients (`src/<tracker>/editor.test.ts`); neither tracker has taken a chosen id from these tools live. Assumed:

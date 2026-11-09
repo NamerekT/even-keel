@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answersAfter,
   backlogStatus,
   cardLinks,
   closingStatus,
@@ -246,6 +247,7 @@ describe('toCard', () => {
     milestones: [],
     labels: [],
     comments: [],
+    replies: [],
     people: new Map(),
     attachments: [],
     ...fields,
@@ -307,9 +309,9 @@ describe('toCard', () => {
     const card = toCard(
       docs({
         comments: [
-          { createdBy: 's2', createdOn: 20, text: 'second' },
-          { createdBy: 's1', createdOn: 10, text: 'first' },
-          { createdBy: 'unknown', createdOn: 30, text: 'third' },
+          { _id: 'c2', createdBy: 's2', createdOn: 20, text: 'second' },
+          { _id: 'c1', createdBy: 's1', createdOn: 10, text: 'first' },
+          { _id: 'c3', createdBy: 'unknown', createdOn: 30, text: 'third' },
         ],
         people: new Map([
           ['s1', 'Doe,John'],
@@ -321,6 +323,37 @@ describe('toCard', () => {
       { author: 'John Doe', at: 10, text: 'first' },
       { author: 'Jane Roe', at: 20, text: 'second' },
       { author: null, at: 30, text: 'third' },
+    ])
+  })
+
+  it('puts the replies of a thread under their comment, oldest first', () => {
+    const card = toCard(
+      docs({
+        comments: [
+          { _id: 'c2', createdOn: 30, text: 'later' },
+          { _id: 'c1', createdBy: 's1', createdOn: 10, text: 'question' },
+        ],
+        replies: [
+          { _id: 'r2', attachedTo: 'c1', createdBy: 's2', createdOn: 25, text: 'more' },
+          { _id: 'r1', attachedTo: 'c1', createdBy: 's2', createdOn: 20, text: 'answer' },
+        ],
+        people: new Map([
+          ['s1', 'Doe,John'],
+          ['s2', 'Roe,Jane'],
+        ]),
+      }),
+    )
+    expect(card.comments).toEqual([
+      {
+        author: 'John Doe',
+        at: 10,
+        text: 'question',
+        replies: [
+          { author: 'Jane Roe', at: 20, text: 'answer' },
+          { author: 'Jane Roe', at: 25, text: 'more' },
+        ],
+      },
+      { author: null, at: 30, text: 'later' },
     ])
   })
 
@@ -339,6 +372,22 @@ describe('toCard', () => {
       { file: 'b2', name: 'clip.mp4', type: 'video/mp4', size: 20, url: null },
       { file: 'b3', name: 'notes', type: '', size: 0, url: null },
     ])
+  })
+})
+
+describe('answersAfter', () => {
+  const doc = (_id: string, createdOn: number, attachedTo = 'i1') => ({ _id, createdOn, attachedTo })
+
+  it('merges the later comments with the replies in their threads and the question thread by time', () => {
+    const question = doc('q', 10)
+    const comments = [doc('c0', 5), question, doc('c3', 50), doc('c2', 30)]
+    const replies = [doc('r1', 40, 'q'), doc('r2', 35, 'c2'), doc('r3', 45, 'c0')]
+    expect(answersAfter(question, comments, replies).map((each) => each._id)).toEqual(['c2', 'r2', 'r1', 'c3'])
+  })
+
+  it('gives a reply in the question thread with no later comment', () => {
+    const question = doc('q', 10)
+    expect(answersAfter(question, [], [doc('r1', 20, 'q')]).map((each) => each._id)).toEqual(['r1'])
   })
 })
 

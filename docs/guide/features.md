@@ -274,7 +274,7 @@ Type `/` at the start of a message, or press the `/` button beside `+` in an emp
 
 A Claude session that stops on a permission dialog — a command an `ask` rule in your settings holds, a call the `auto` classifier keeps refusing — puts the call to you as a question: "Allow the session to run Bash?" with the command under "Allow", and "Deny". Answer it from the chat, the question panel or the tracker comment, and the session goes on at once, without a stop: the call runs, or the session gets your refusal and your words. While the chain runs unattended such a call is refused at once. A session on `--bg` needs the [checkpoint](../../plugins/checkpoint) plugin for it (its hook holds the dialog), one on the Agent SDK transport does not; without the plugin the dialog is answered through Remote Control. Codex and OpenCode sessions never stop on such a dialog.
 
-A question with options is also posted to the tracker as a numbered comment; reply with `2`, `1, 3` or text. Remote Control still works for Claude sessions: the page links each one's Remote Control ([setup](setup.md#answering-from-the-phone)).
+A question with options is also posted to the tracker as a numbered comment; reply with `2`, `1, 3` or text, in a comment of the task or in the question's thread where the tracker has threads (Huly, Linear, GitLab). Remote Control still works for Claude sessions: the page links each one's Remote Control ([setup](setup.md#answering-from-the-phone)).
 
 ## Task cards
 
