@@ -59,6 +59,7 @@ import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
 import type { ProjectForm, SessionView } from './state.js'
 import { Writes } from './storage/database.js'
+import { dropLeftFolder, loadLeftFolders, saveLeftFolder } from './storage/left-folders.js'
 import { keptDatabase } from './storage/owner.js'
 import { stateValue } from './storage/service-state.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
@@ -529,6 +530,11 @@ let agents: AgentEntry[] = []
  */
 let agentsRead = false
 const lingering = new Lingering()
+/** The worktree folders the cleanup left held before this start, tried again after the first read of the sessions (BTN-925). */
+lingering.restore(await loadLeftFolders(db), {
+  save: (folder) => writes.add(`the left folder ${folder.path}`, saveLeftFolder(db, folder)),
+  drop: (path) => writes.add(`the settled left folder ${path}`, dropLeftFolder(db, path)),
+})
 const launches: LaunchEntry[] = await readLaunches(db)
 /** The tasks the chain ran and saw closed, in memory as the database keeps them. */
 const archive: ClosedTask[] = await closedTasks(db)

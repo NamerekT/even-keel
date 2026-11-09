@@ -31,7 +31,7 @@ export interface Queryable {
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -524,6 +524,16 @@ export const STEPS: readonly string[] = [
   // The estimate of a built-in task in minutes of the agent's work (BTN-911); null — none.
   `
   alter table builtin_tasks add column estimate integer;
+  `,
+  // The worktree folders a cleanup after Done left held, tried again after a restart (BTN-925).
+  `
+  create table left_folders (
+    path       text primary key,
+    project_id text not null,
+    task       text not null,
+    repo       text not null,
+    until      bigint not null
+  );
   `,
 ]
 
