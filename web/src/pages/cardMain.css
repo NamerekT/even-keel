@@ -158,6 +158,26 @@
   font-size: var(--text-12);
 }
 
+/* The replies in a comment's thread (BTN-909): under the bubble, indented by the avatar's column. */
+
+.task-card__replies {
+  grid-column: 2;
+  gap: var(--space-12);
+  padding-left: var(--space-12);
+  border-left: 2px solid var(--border);
+}
+
+.task-card__replies .task-card__comment {
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-8);
+}
+
+.task-card__replies .task-card__avatar {
+  width: 24px;
+  height: 24px;
+  font-size: var(--text-11);
+}
+
 /* The journal of a task Even Keel keeps (BTN-774): the person's own notes read apart from the agent's and Even Keel's. */
 
 .task-card__comment--mine .task-card__avatar {

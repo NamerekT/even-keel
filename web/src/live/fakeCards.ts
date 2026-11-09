@@ -27,9 +27,18 @@ Huly writes its tables as HTML:
 
 Done when \`npm test\` is green — see [the docs](https://example.com/docs).`
 
+const HOUR = 3_600_000
+
 const COMMENTS = [
-  { author: 'John Doe', text: 'Should the card also show **estimates**? Not now — later, if it is missed.' },
-  { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n```' },
+  {
+    author: 'John Doe',
+    text: 'Should the card also show **estimates**? Not now — later, if it is missed.',
+    replies: [
+      { author: 'Jane Roe', text: 'Agreed, later. A tile in the facts would be enough.', ago: 1.5 * HOUR },
+      { author: 'John Doe', text: 'Then a task for it once someone asks.', ago: 1.2 * HOUR },
+    ],
+  },
+  { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n```', replies: [] },
 ]
 
 export const picture = (width: number, height: number, from: string, to: string, text: string): string =>
@@ -80,7 +89,13 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     blockedBy: refs(task.blockedBy),
     blocks: refs(state.tasks.filter((each) => each.blockedBy.includes(id)).map((each) => each.id)),
     related: plain ? [] : refs(state.tasks.filter((each) => each.id !== id && each.id.startsWith(id.split('-')[0]!)).slice(0, 1).map((each) => each.id)),
-    comments: plain ? [] : COMMENTS.map((comment, index) => ({ ...comment, at: Date.now() - (COMMENTS.length - index) * 3_600_000 })),
+    comments: plain
+      ? []
+      : COMMENTS.map(({ replies, ...comment }, index) => ({
+          ...comment,
+          at: Date.now() - (COMMENTS.length - index) * HOUR,
+          ...(replies.length === 0 ? {} : { replies: replies.map(({ ago, ...reply }) => ({ ...reply, at: Date.now() - ago })) }),
+        })),
     attachments: plain ? [] : ATTACHMENTS,
     ready: task.status.category === 'UnStarted',
     unready: task.status.category === 'ToDo' || task.status.category === 'Active',

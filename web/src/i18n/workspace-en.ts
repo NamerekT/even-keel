@@ -356,6 +356,7 @@ export const cardEN: Messages['card'] = {
     description: 'Description',
     noDescription: 'No description.',
     comments: (count: number) => `Comments · ${count}`,
+    replies: (count: number) => `Replies · ${count}`,
     noAuthor: 'no author',
     journal: {
       heading: (count: number) => (count === 0 ? 'Journal' : `Journal · ${count}`),

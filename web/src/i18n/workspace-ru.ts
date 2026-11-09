@@ -358,6 +358,7 @@ export const cardRU = {
     description: 'Описание',
     noDescription: 'Описания нет.',
     comments: (count: number) => `Комментарии · ${count}`,
+    replies: (count: number) => `Ответы · ${count}`,
     noAuthor: 'без автора',
     journal: {
       heading: (count: number) => (count === 0 ? 'Журнал' : `Журнал · ${count}`),

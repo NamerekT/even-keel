@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskComment } from '../../../src/tracker/card.js'
-import { journalAuthor, journalWindow, JOURNAL_SHOWN } from './journalView.js'
+import { journalAuthor, journalWindow, JOURNAL_SHOWN, repliesOf } from './journalView.js'
 
 const note = (at: number, journal?: TaskComment['journal']): TaskComment => ({ author: 'John Doe', at, text: `note ${at}`, journal })
 
@@ -47,5 +47,15 @@ describe('journalAuthor', () => {
   it('keeps the tracker author of a comment outside a journal', () => {
     expect(journalAuthor(note(1), texts)).toBe('John Doe')
     expect(journalAuthor({ author: null, at: 1, text: '' }, texts)).toBe('no author')
+  })
+})
+
+describe('repliesOf', () => {
+  it('gives the thread oldest first whatever order the tracker gave', () => {
+    expect(repliesOf({ ...note(1), replies: [note(4), note(2), note(3)] }).map((each) => each.at)).toEqual([2, 3, 4])
+  })
+
+  it('gives nothing for a comment without a thread', () => {
+    expect(repliesOf(note(1))).toEqual([])
   })
 })

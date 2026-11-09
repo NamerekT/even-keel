@@ -7,7 +7,7 @@ import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { EvenKeelIcon, SendIcon, TrashIcon } from '../ui/icons.js'
 import { sendsReply } from './chatKeys.js'
-import { journalAuthor, journalWindow } from './journalView.js'
+import { journalAuthor, journalWindow, repliesOf } from './journalView.js'
 import type { CardEditor } from './useCardEdit.js'
 
 interface Props {
@@ -62,6 +62,7 @@ export function CardJournal({ task, comments, editor, render, onDraft }: Props) 
 function Entry({ comment, render, onRemove, busy }: { comment: TaskComment; render: (text: string) => ReactNode; onRemove: (() => void) | null; busy: boolean }) {
   const author = journalAuthor(comment, { ...t.card.journal, noAuthor: t.card.noAuthor })
   const at = new Date(comment.at).toISOString()
+  const replies = repliesOf(comment)
   return (
     <li className={`task-card__comment${comment.journal?.by === 'person' ? ' task-card__comment--mine' : ''}`}>
       <span className="task-card__avatar" aria-hidden="true">
@@ -79,6 +80,13 @@ function Entry({ comment, render, onRemove, busy }: { comment: TaskComment; rend
         </div>
         {render(comment.text)}
       </div>
+      {replies.length > 0 && (
+        <ol className="task-card__comments task-card__replies" aria-label={t.card.replies(replies.length)}>
+          {replies.map((reply, index) => (
+            <Entry key={index} comment={reply} render={render} onRemove={null} busy={busy} />
+          ))}
+        </ol>
+      )}
     </li>
   )
 }

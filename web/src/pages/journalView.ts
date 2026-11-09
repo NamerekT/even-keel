@@ -10,6 +10,11 @@ export function journalWindow(comments: TaskComment[], all: boolean): { shown: T
   return { shown: sorted.slice(hidden), hidden }
 }
 
+/** The replies in a comment's thread (BTN-909), the oldest first; never folded. */
+export function repliesOf(comment: TaskComment): TaskComment[] {
+  return [...(comment.replies ?? [])].sort((a, b) => a.at - b.at)
+}
+
 export interface AuthorTexts {
   you: string
   agent: string
