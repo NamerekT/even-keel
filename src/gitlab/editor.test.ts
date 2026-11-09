@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { revisionOf } from '../tracker/editor.js'
+import { GitlabHttpError } from './api.js'
 import { gitlabEditor } from './editor.js'
 import { issue, linked } from './fixture.js'
 import { ProjectMap, type GitlabIssue } from './model.js'
@@ -8,9 +9,11 @@ const WEB = 'https://gitlab.example.com'
 const BASE = '/projects/group%2Fsubgroup%2Fapp/issues'
 const url = (iid: number) => `${WEB}/group/subgroup/app/-/issues/${iid}`
 
-function fixture(made: string | undefined = undefined) {
+/** `made` — the link type the instance makes; `refused` — the instance answers a blocking link with HTTP 400. */
+function fixture(made: string | undefined = undefined, { enterprise = true as boolean | null, refused = false } = {}) {
   const recent = { issues: [] as unknown[], error: null as Error | null }
   const reads: string[] = []
+  const editions: string[] = []
   const issues: Record<number, GitlabIssue> = {
     1: issue({ iid: 1, web_url: url(1), issue_type: 'issue', description: 'Old text' }),
     2: issue({ iid: 2, web_url: url(2), issue_type: 'issue', labels: ['bug'], milestone: null, time_stats: { time_estimate: 1200 } }),
@@ -30,8 +33,14 @@ function fixture(made: string | undefined = undefined) {
       if (recent.error !== null) throw recent.error
       return recent.issues as T
     }
+    if (path === '/metadata') {
+      editions.push(path)
+      if (enterprise === null) throw new GitlabHttpError(403)
+      return { version: '19.5.0', enterprise } as T
+    }
     if (method !== 'GET') {
       writes.push([method, path, body])
+      if (refused && path.endsWith('/links') && (body as { link_type: string }).link_type !== 'relates_to') throw new GitlabHttpError(400)
       const description = (body as { description?: string } | undefined)?.description
       if (description !== undefined && (path === BASE || path === `${BASE}/10`)) issues[10]!.description = description
       if (path.endsWith('/links')) {
@@ -70,7 +79,7 @@ function fixture(made: string | undefined = undefined) {
       return { markdown: `${file.type.startsWith('image/') ? '!' : ''}[${file.name}](/uploads/${'a'.repeat(32)}/${file.name})` }
     },
   })
-  return { editor, writes, graphqlCalls, relabels, comments, uploaded, recent, reads, refuse: () => { refuseParent = true } }
+  return { editor, writes, graphqlCalls, relabels, comments, uploaded, recent, reads, editions, refuse: () => { refuseParent = true } }
 }
 
 describe('gitlabEditor', () => {
@@ -204,6 +213,36 @@ describe('gitlabEditor', () => {
       ['POST', `${BASE}/2/links`, { target_project_id: 'group/subgroup/app', target_issue_iid: 10, link_type: 'blocks' }],
       ['DELETE', `${BASE}/2/links/99`, undefined],
     ])
+    expect(await editor.blockingLinks!()).toBe(false)
+  })
+
+  it('refuses a blocking link GitLab answers with HTTP 400 and every later one before the write (BTN-927)', async () => {
+    const { editor, writes } = fixture(undefined, { refused: true })
+    expect(await editor.blockingLinks!()).toBe(true)
+    await expect(editor.link('APP-2', 'APP-10', 'blocks', true)).rejects.toThrow(/keeps no blocking links \(GitLab Free/)
+    await expect(editor.link('APP-2', 'APP-10', 'blockedBy', true)).rejects.toThrow(/keeps no blocking links/)
+    await editor.link('APP-2', 'APP-10', 'relates', true)
+    expect(writes.map(([method, path, body]) => [method, path, (body as { link_type: string }).link_type])).toEqual([
+      ['POST', `${BASE}/2/links`, 'blocks'],
+      ['POST', `${BASE}/2/links`, 'relates_to'],
+    ])
+    expect(await editor.blockingLinks!()).toBe(false)
+  })
+
+  it('knows GitLab CE by its metadata, asks it once and refuses a blocking link before any read (BTN-927)', async () => {
+    const { editor, writes, editions } = fixture(undefined, { enterprise: false })
+    expect(await editor.blockingLinks!()).toBe(false)
+    await expect(editor.link('APP-2', 'APP-10', 'blocks', true)).rejects.toThrow(/keeps no blocking links/)
+    await editor.link('APP-1', 'APP-3', 'blockedBy', false)
+    expect(writes).toEqual([['DELETE', `${BASE}/1/links/71`, undefined]])
+    expect(editions).toEqual(['/metadata'])
+  })
+
+  it('takes an edition it cannot read for one with blocking links and asks again later', async () => {
+    const { editor, editions } = fixture(undefined, { enterprise: null })
+    expect(await editor.blockingLinks!()).toBe(true)
+    expect(await editor.blockingLinks!()).toBe(true)
+    expect(editions).toEqual(['/metadata', '/metadata'])
   })
 
   it('revises and patches the description as a hash of its text', async () => {

@@ -253,6 +253,7 @@ export class TasksTools {
     return this.deps.run(project, async (tracker) => {
       const editor = editorOf(tracker)
       const terms = await this.termsOf(tracker, project)
+      if (!terms.blocking && BLOCKING.some((link) => links[link].add.length > 0)) throw new EditRefused(NO_BLOCKING)
       const status = args.text('status')
       if (status !== undefined) fields.push({ field: 'status', to: statusName(status, terms) })
       const milestone = args.nullable('milestone')
@@ -404,6 +405,7 @@ function plannedTask(item: Args, index: number, count: number, terms: TrackerTer
   const parent = item.text('parent')
   const estimate = estimateArg(item)
   if (estimate !== null && !terms.estimate) throw new EditRefused(`task ${index + 1}: ${NO_ESTIMATE}`)
+  if (!terms.blocking && BLOCKING.some((link) => item.texts(link).length > 0)) throw new EditRefused(`task ${index + 1}: ${NO_BLOCKING}`)
   const component = item.text('component')?.trim()
   const attach = item.texts('attach')
   const task = (refuse: () => unknown) => {
@@ -437,6 +439,9 @@ function editorOf(tracker: Tracker): TaskEditor {
 }
 
 const NO_ESTIMATE = 'this tracker keeps no estimate; send the task without one'
+// A "relates" link in their place is never made silently: the chain does not read it as an order (BTN-927).
+const NO_BLOCKING = 'this tracker keeps no blocking links; name the order in the description, or link the tasks as "relates", which the chain does not read as an order'
+const BLOCKING: readonly TaskLink[] = ['blocks', 'blockedBy']
 
 /** Minutes of the agent's active work: a whole positive number; `null` — none given. */
 function estimateArg(args: Args): number | null {

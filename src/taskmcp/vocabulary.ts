@@ -16,12 +16,17 @@ export interface TrackerTerms {
   components: string[] | null
   /** The tracker takes files. */
   attachments: boolean
+  /** The tracker keeps blocking links (BTN-927): GitLab Free does not. */
+  blocking: boolean
 }
 
 /** The tracker's terms for the reader; a failed vocabulary read throws. */
 export async function termsOf(tracker: Tracker, reader: string, rules: ChainRules): Promise<TrackerTerms> {
-  const known = tracker.vocabulary === undefined ? null : await tracker.vocabulary(reader)
-  return { known, rules, ...fieldsOf(tracker.editor, known) }
+  const [known, blocking] = await Promise.all([
+    tracker.vocabulary === undefined ? null : tracker.vocabulary(reader),
+    tracker.editor?.blockingLinks === undefined ? true : tracker.editor.blockingLinks(),
+  ])
+  return { known, rules, blocking, ...fieldsOf(tracker.editor, known) }
 }
 
 type Fields = Pick<TrackerTerms, 'priority' | 'estimate' | 'components' | 'attachments'>
@@ -43,8 +48,8 @@ const spelled = (names: string[], labels: string[]) => names.flatMap((name) => l
 
 /**
  * The line of the chain's roles, e.g. `chain: into it — Todo; skip — Manual; question — Question; milestones v0.3;
- * priority: yes; estimate: no`, then the components where the tracker keeps them and `attachments: no` where it takes
- * no files. `full: false` leaves the milestones out: the line of another tracker than the task's.
+ * priority: yes; estimate: no`, then `blocking links: no` where the tracker keeps none, the components where it keeps
+ * them and `attachments: no` where it takes no files. `full: false` leaves the milestones out: the line of another tracker than the task's.
  */
 export function rolesLine(terms: TrackerTerms, full = true): string {
   const { known, rules } = terms
@@ -64,6 +69,7 @@ export function rolesLine(terms: TrackerTerms, full = true): string {
     parts.push(milestones.length === 0 ? 'no milestones' : `milestones ${milestones.join(', ')}`)
   }
   parts.push(`priority: ${terms.priority ? 'yes' : 'no'}`, `estimate: ${terms.estimate ? 'yes' : 'no'}`)
+  if (!terms.blocking) parts.push('blocking links: no')
   if (terms.components !== null) parts.push(`components: ${list(terms.components)}`)
   if (!terms.attachments) parts.push('attachments: no')
   return parts.join('; ')

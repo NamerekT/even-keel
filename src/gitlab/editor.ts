@@ -4,6 +4,7 @@ import { markerComment, withMarker } from '../tracker/markers.js'
 import { descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
+import { GitlabHttpError } from './api.js'
 import { GITLAB_STATUSES, gitlabEstimate, gitlabPriority, gitlabStatus, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabRef, type ProjectMap } from './model.js'
 
 export interface GitlabEditorDeps {
@@ -31,6 +32,7 @@ const SET_PARENT = `mutation($id: WorkItemID!, $parent: WorkItemID) {
 
 const LINK_TYPES: Record<TaskLink, GitlabLink['link_type']> = { blocks: 'blocks', blockedBy: 'is_blocked_by', relates: 'relates_to' }
 const MARKER_LIMIT = 25
+const NO_BLOCKING = 'this GitLab keeps no blocking links (GitLab Free; they need Premium or Ultimate); name the order in the description, or link the tasks as "relates", which the chain does not read as an order'
 
 /** An issue's work item: GitLab gives an issue and its work item the same id. */
 const workItem = (issue: Pick<GitlabIssue, 'id'>) => `gid://gitlab/WorkItem/${issue.id}`
@@ -91,9 +93,29 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
   }
   const sameTask = (link: GitlabLink, other: string) => projects.idOf(link).toUpperCase() === other.toUpperCase()
 
+  // CE says so in its metadata; an EE instance without the license is known only by its first refused blocking link.
+  let edition: Promise<boolean> | undefined
+  let refused = false
+  const blockingLinks = async (): Promise<boolean> => {
+    if (refused) return false
+    edition ??= rest<{ enterprise?: boolean }>('/metadata').then(
+      (answer) => answer.enterprise !== false,
+      () => {
+        edition = undefined
+        return true
+      },
+    )
+    return edition
+  }
+  const noBlocking = () => {
+    refused = true
+    return new EditRefused(NO_BLOCKING)
+  }
+
   return {
     list: (project) => deps.list(project),
     priorities: (labels) => labels.some((each) => gitlabPriority([each]) !== 'none'),
+    blockingLinks,
     async create(project, draft, _notes, marker) {
       const path = projects.pathOf(project)
       const key = projects.keyOf(project)
@@ -179,6 +201,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
       const own = addressOf(id)
       const target = addressOf(other)
       const type = LINK_TYPES[link]
+      if (on && link !== 'relates' && !(await blockingLinks())) throw noBlocking()
       const links = (await deps.linksOf(own.path, own.iid)).filter((each) => sameTask(each, other))
       const found = links.filter((each) => each.link_type === type)
       if ((found.length > 0) === on) return
@@ -189,13 +212,20 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
       if (links.length > 0) {
         throw new EditRefused(`${id} and ${other} are linked already as "${links[0]!.link_type}"; GitLab keeps one link per pair: remove that one first`)
       }
-      const made = await rest<{ link_type?: string }>(`${own.base}/links`, 'POST', { target_project_id: target.path, target_issue_iid: target.iid, link_type: type })
+      let made: { link_type?: string }
+      try {
+        made = await rest(`${own.base}/links`, 'POST', { target_project_id: target.path, target_issue_iid: target.iid, link_type: type })
+      } catch (error) {
+        // GitLab CE answers a blocking link with a bare 400 (BTN-927).
+        if (error instanceof GitlabHttpError && error.status === 400 && link !== 'relates') throw noBlocking()
+        throw error
+      }
       if (made.link_type === undefined || made.link_type === type) return
-      // An instance without blocking links (GitLab Free) makes a "relates" link instead: take it back.
+      // An instance that makes a "relates" link instead: take it back.
       for (const each of (await deps.linksOf(own.path, own.iid)).filter((each) => sameTask(each, other))) {
         await rest(`${own.base}/links/${each.issue_link_id}`, 'DELETE')
       }
-      throw new EditRefused(`this GitLab has no blocking links (they need Premium or Ultimate); name the order in the description or a comment, or link them as "relates"`)
+      throw noBlocking()
     },
     relabel: (id, change) => deps.relabel(id, change),
     // A GitLab note has no field for the session's model: its author is the token's user.

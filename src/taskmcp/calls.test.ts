@@ -10,7 +10,7 @@ import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
-import { EditRefused, type TaskEditor, type TaskField } from '../tracker/editor.js'
+import { EditRefused, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { TasksTools, cardText, type TaskReader, type TasksScope } from './calls.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
@@ -615,6 +615,23 @@ describe('components and attachments (BTN-895)', () => {
     expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', component: 'UI' }] }))).toBe('task 1: ABC has no components; send the task without one, or name the area with a label')
     expect(await refusal(call('task_update', { key: 'ABC-1', component: 'UI' }))).toBe('ABC has no components; send the task without one, or name the area with a label')
     expect((await store.list([ABC])).length).toBe(1)
+  })
+
+  it('a tracker without blocking links says so and refuses them before any write (BTN-927)', async () => {
+    const linked: [string, string, TaskLink, boolean][] = []
+    trackers.set(ABC, like((editor) => ({
+      ...editor,
+      blockingLinks: async () => false,
+      link: async (id, other, link, on) => void linked.push([id, other, link, on]),
+    })))
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; blocking links: no$/)
+    const refused = 'this tracker keeps no blocking links; name the order in the description, or link the tasks as "relates", which the chain does not read as an order'
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', blocks: ['#1'] }] }))).toBe(`task 2: ${refused}`)
+    expect((await store.list([ABC])).length).toBe(1)
+    expect(await refusal(call('task_update', { key: 'ABC-1', title: 'New', blockedBy: { add: ['ABC-2'] } }))).toBe(refused)
+    expect((await store.list([ABC]))[0]!.title).not.toBe('New')
+    await call('task_update', { key: 'ABC-1', relates: { add: ['ABC-2'] }, blockedBy: { remove: ['ABC-3'] } })
+    expect(linked).toEqual([['ABC-1', 'ABC-3', 'blockedBy', false], ['ABC-1', 'ABC-2', 'relates', true]])
   })
 
   it('sets a component by its name and refuses an unknown one with the list', async () => {

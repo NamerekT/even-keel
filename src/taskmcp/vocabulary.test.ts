@@ -21,6 +21,7 @@ const terms = (rules: Partial<ChainRules> = {}, more: Partial<TrackerTerms> = {}
   estimate: true,
   components: null,
   attachments: true,
+  blocking: true,
   ...more,
 })
 
@@ -50,6 +51,10 @@ describe('rolesLine', () => {
     expect(rolesLine(terms({}, { components: ['UI', 'Server'] }), false)).toMatch(/; estimate: yes; components: UI, Server$/)
     expect(rolesLine(terms({}, { components: [] }), false)).toMatch(/; components: none$/)
     expect(rolesLine(terms({}, { attachments: false }), false)).toMatch(/; estimate: yes; attachments: no$/)
+  })
+
+  it('says when a tracker keeps no blocking links (BTN-927)', () => {
+    expect(rolesLine(terms({}, { blocking: false, components: ['UI'] }), false)).toMatch(/; estimate: yes; blocking links: no; components: UI$/)
   })
 
   it('a tracker without a vocabulary says so', () => {

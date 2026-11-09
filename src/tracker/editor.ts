@@ -103,6 +103,11 @@ export interface TaskEditor {
    * Absent — the tracker has a priority of its own.
    */
   priorities?(labels: string[]): boolean
+  /**
+   * Optional, where blocking links depend on the instance (GitLab Free has none; BTN-927): `false` — the tracker is known
+   * to keep none, and `blocks`/`blockedBy` are refused before any write. Absent — the tracker keeps them.
+   */
+  blockingLinks?(): Promise<boolean>
   /** The description's revision: it grows only with a change of the description, not of any other field. */
   revision(id: string): Promise<number>
   /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */
