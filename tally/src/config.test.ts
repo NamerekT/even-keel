@@ -133,6 +133,14 @@ describe('the shipped tally.config.json', () => {
     })
   })
 
+  it('prices Fable 5.2 by its own entry, not the older Fable 5 prefix', () => {
+    expect(priceOf('claude-fable-5-2')).toEqual({
+      model: 'claude-fable-5-2',
+      input: 8, output: 40, cacheRead: 0.2, cacheWrite5m: 10, cacheWrite1h: 16,
+      longPrompt: null,
+    })
+  })
+
   it('prices paid and free DeepSeek V4.1 Flash at the same off-peak API rates', () => {
     for (const model of ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-free']) {
       expect(priceOf(model)).toEqual({
