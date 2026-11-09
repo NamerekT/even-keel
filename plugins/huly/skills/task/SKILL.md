@@ -9,7 +9,7 @@ Huly is reached only through the `huly` MCP server. If a tool is missing, tell t
 
 Even Keel runs the chain: it takes the open tasks of the project in order, starts a session on the first one, closes it in Huly when its branch lands in `main`, cleans up and starts the next. The session does the task and merges; everything else is Even Keel's.
 
-Two neighbouring skills: `huly:split` — when a task is too big or holds an unchosen fork, and for subtasks; `huly:setup` — putting a repository on the tracker.
+Two neighbouring skills: `huly:split` — when a task is too big or holds an unchosen fork, and for subtasks; `huly:setup` — putting a repository on the tracker. A session that has Even Keel's `tasks` server instead of `huly` works by `tasks:task`.
 
 ## 1. Read the task
 

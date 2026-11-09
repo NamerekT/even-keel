@@ -12,7 +12,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { AddPackage, AddPlugin } from './AddPackage.js'
 import { PACKAGE_PARAM, projectGroups,projectIssues, type PackageIssue, type ProjectGroup } from './packageGroups.js'
 import { GroupBox, IssueBands, PackageBrings, PackageLine, PackageSettings, problemTip, rowId } from './PackagesParts.js'
-import { passes, problemText, trackerPackage } from './packageView.js'
+import { choiceLabel, choiceTip, passes, problemText, trackerDoubled, trackerPackage, type TrackerChoice } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 import '../pages/settings.css'
 import './addPackage.css'
@@ -59,12 +59,25 @@ export function ProjectPackages({ state, project, adding, onAdded, onClose }: Pr
   }, [])
 
   const tracker = trackerPackage(view, project)
-  const fix = (issue: PackageIssue) =>
-    issue.name === null && issue.problem.kind === 'noTrackerMcp' && tracker?.state === 'missing' && tracker.plugin !== null ? (
-      <button type="button" className="button button--small" onClick={() => setPlugin(tracker.plugin)}>
-        {t.packages.trackerAdd}
-      </button>
-    ) : undefined
+  const doubled = trackerDoubled(view, project)
+  const { send, sending } = useCommand()
+  const pick = (choice: TrackerChoice) => (choice.plugin !== null ? setPlugin(choice.plugin) : void send('packages/project', { project, name: choice.name, choice: 'on' }))
+  // The tasks server first where it serves the tracker, the tracker's own server beside it (BTN-874).
+  const choices =
+    tracker?.state === 'missing' && tracker.choices.length > 0 ? (
+      <>
+        {tracker.choices.map((choice) => (
+          <Tipped key={choice.server} tip={choiceTip(choice)} inline>
+            <button type="button" className="button button--small" disabled={sending} onClick={() => pick(choice)}>
+              {choiceLabel(choice)}
+            </button>
+          </Tipped>
+        ))}
+      </>
+    ) : null
+  const fix = (issue: PackageIssue) => (issue.problem.kind === 'noTrackerMcp' && choices !== null ? choices : undefined)
+  // Without the problem a missing tracker package is advice: the task still reaches the sessions in the prompt.
+  const advice = tracker?.state === 'missing' && !tracker.problem && choices !== null ? tracker.choices.map((each) => each.server) : null
 
   return createPortal(
     <dialog
@@ -90,6 +103,12 @@ export function ProjectPackages({ state, project, adding, onAdded, onClose }: Pr
           <p className="packages__lead">{t.packages.projectHint}</p>
           {view.gateway !== null && <Band tone="error">{say(view.gateway)}</Band>}
           <IssueBands issues={issues} go={go} action={fix} />
+          {advice !== null && (
+            <Band tone="note" action={choices}>
+              {t.tools.trackerAdvice(advice)}
+            </Band>
+          )}
+          {doubled !== null && <Band tone="warn">{t.packages.trackerDoubled(doubled.server, doubled.also)}</Band>}
           {empty ? (
             <EmptyState action={<AddPackage view={view} project={project} label={t.packages.addToProject} className="button" />}>{t.packages.projectNone}</EmptyState>
           ) : (

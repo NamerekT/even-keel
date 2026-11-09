@@ -3,6 +3,9 @@ import { t } from '../i18n/index.js'
 
 export type Transport = 'http' | 'stdio'
 
+/** Even Keel's own tasks server (`TASKS_SERVER` of the service). */
+const TASKS_SERVER = 'tasks'
+
 const WORD = /"([^"]*)"|'([^']*)'|(\S+)/g
 const HEADER = /^[\w!#$%&'*+.^`|~-]+$/
 const VARIABLE = /^[A-Za-z_]\w*$/
@@ -99,21 +102,52 @@ export function keyLabel(name: string, known: Record<string, string>): string {
 export type TrackerPackage =
   /** `by` — the enabled package that brings the server, or the tasks server standing in for it (BTN-882). */
   | { state: 'brought'; server: string; by: string | null }
-  /** `problem` — `brief` is off, so the chain waits (`noTrackerMcp`); `plugin` — Even Keel's plugin of the tracker the add dialog offers, `null` while the catalog has it already. */
-  | { state: 'missing'; server: string; problem: boolean; plugin: string | null }
+  /** `problem` — `brief` is off, so the chain waits (`noTrackerMcp`); `choices` — what brings the tracker's tasks, the default first. */
+  | { state: 'missing'; server: string; problem: boolean; choices: TrackerChoice[] }
 
-/** Whether the project's sessions get the tracker's MCP server from a package; `null` — the tracker has none. */
+/** A server that brings the tracker's tasks: the catalog's installed package of it (`name`, one press turns it on), else Even Keel's plugin of it the add dialog offers (`plugin`). */
+export interface TrackerChoice {
+  server: string
+  name: string | null
+  plugin: string | null
+}
+
+/**
+ * Whether the project's sessions get the tracker's MCP server from a package; `null` — the tracker has none. Where
+ * Even Keel's tasks server serves the tracker it is the first choice, the tracker's own server beside it (BTN-874);
+ * a server neither installed nor offered by Even Keel's marketplace is no choice.
+ */
 export function trackerPackage(view: PackagesView, project: string): TrackerPackage | null {
   const found = view.projects[project]
   if (found?.tracker == null) return null
-  const { server, brought, through } = found.tracker
+  const { server, brought, through, also } = found.tracker
   if (brought) {
     const by = view.packages.find((each) => each.servers.includes(through ?? server) && found.cells[each.name]?.enabled === true)
     return { state: 'brought', server, by: by?.name ?? null }
   }
   const own = view.marketplace?.name
-  const plugin = view.available.some((each) => each.plugin === server && each.marketplace === own) ? `${server}@${own}` : null
-  return { state: 'missing', server, problem: found.problems.some((each) => each.kind === 'noTrackerMcp'), plugin }
+  const choices = [...(also === undefined ? [] : [also]), server].flatMap((each): TrackerChoice[] => {
+    const name = trackerPackageOf(view, each)
+    const plugin = name === null && own !== undefined && view.available.some((one) => one.plugin === each && one.marketplace === own) ? `${each}@${own}` : null
+    return name === null && plugin === null ? [] : [{ server: each, name, plugin }]
+  })
+  return { state: 'missing', server, problem: found.problems.some((each) => each.kind === 'noTrackerMcp'), choices }
+}
+
+/** How a choice differs from the other one, in a line: Even Keel's tasks server or the tracker's own. */
+export function choiceTip(choice: TrackerChoice): string {
+  return choice.server === TASKS_SERVER ? t.packages.trackerChoice.tasks : t.packages.trackerChoice.own
+}
+
+/** What a choice's button says and where it goes: the plugin to add, else the installed package to turn on. */
+export function choiceLabel(choice: TrackerChoice): string {
+  return choice.plugin !== null ? t.packages.trackerAdd(choice.plugin) : t.packages.trackerOn(choice.name ?? choice.server)
+}
+
+/** Both the tracker's own server and Even Keel's tasks server reach the project's sessions: two tool sets of one tracker (BTN-874). */
+export function trackerDoubled(view: PackagesView, project: string): { server: string; also: string } | null {
+  const tracker = view.projects[project]?.tracker
+  return tracker?.both === true && tracker.also !== undefined ? { server: tracker.server, also: tracker.also } : null
 }
 
 /** The catalog's installed package that brings the server, for one press to turn it on for a project; `null` — it is to be added first. */

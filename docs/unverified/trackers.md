@@ -193,6 +193,16 @@ If one is wrong, an attach call fails with the tracker's error or reports a file
 
 If one is wrong, a session works without the screenshot or mockup it was given, or downloads it on every read. **Workaround:** describe the file in the text, or put it into the repository and name its path. To check: a chain session on a raster screenshot, opened as an image; a Huly thread reply's file. On Forgejo and Linear, repeat through the running service's tasks gateway after the update, including two uploads of one name and more than one page of Linear attachments. Linear's unknown card size intentionally means a fresh download on each read (BTN-933).
 
+## The tasks plugin's note when the service is down (BTN-874)
+
+The `tasks` plugin's `SessionStart` hook (`plugins/tasks/hooks/check-service.mjs`) asks the tasks server's address from the plugin's `.mcp.json` and, when nothing answers in 2 s, prints a `systemMessage` and the same text as `additionalContext`: the service is not running or is restarting, the tasks tools are missing, start it and reconnect with `/mcp`. Checked by a unit test (`plugins/tasks/hooks/service-check.test.mjs`) and by running the script by hand: silent with the service up, the message on a dead port. Still assumed:
+
+- Claude Code shows the `systemMessage` of a plugin's `SessionStart` hook to the person at the start of an interactive session and on `resume`, and the agent gets the `additionalContext`;
+- the 2 s wait fits the hook's 5 s timeout on a cold `node` start on Windows;
+- a chain session never sees the note: it has `EVEN_KEEL_URL` and gets the package through the gateway, not the plugin.
+
+If wrong, a hand session with the service down shows only a failed server in `/mcp`, or the note shows up where it does not belong. **Workaround:** `/mcp` names the failed `tasks` server; start the service and reconnect. To check: stop the service on a bench, start `claude` by hand in a project with the `tasks` plugin, read the note, then start the service and reconnect with `/mcp`.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:

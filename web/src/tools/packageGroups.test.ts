@@ -93,6 +93,12 @@ describe('projectGroups', () => {
     ])
   })
 
+  it('keeps the tasks plugin in sight where it serves the tracker (BTN-874)', () => {
+    const own = [...packages, pkg('tasks@even-keel')]
+    const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'tasks@even-keel': cell(false) }, { tracker: { server: 'huly', brought: false, also: 'tasks' } }) }
+    expect(projectGroups(view({ packages: own, projects }), 'ABC')[0]).toMatchObject({ packages: [{ name: 'huly@even-keel' }, { name: 'tasks@even-keel' }], folded: [{ name: 'linear@even-keel' }] })
+  })
+
   it('folds every tracker plugin that is off for a project without a tracker server', () => {
     const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'github@even-keel': cell(false), 'checkpoint@even-keel': cell(true), forgejo: cell(false) }) }
     expect(projectGroups(view({ packages, projects }), 'ABC')[0]).toMatchObject({ packages: [{ name: 'checkpoint@even-keel' }], folded: [{ name: 'github@even-keel' }, { name: 'huly@even-keel' }, { name: 'linear@even-keel' }] })
@@ -113,13 +119,24 @@ describe('projectIssues', () => {
           forgejo: cell(true, { problems: [{ kind: 'noKey', variables: ['FORGEJO_TOKEN'] }, { kind: 'unsupported', agent: 'Codex' }] }),
           db: cell(true, { problems: [{ kind: 'probing' }] }),
         },
-        { problems: [{ kind: 'noTrackerMcp', server: 'huly' }] },
+        { problems: [{ kind: 'noTrackerMcp', server: 'huly' }], tracker: { server: 'huly', brought: false } },
       ),
     }
     expect(projectIssues(view({ packages, projects }), 'ABC')).toEqual([
       { name: 'huly@even-keel', problem: { kind: 'noTrackerMcp', server: 'huly' } },
       { name: 'forgejo', problem: { kind: 'noKey', variables: ['FORGEJO_TOKEN'] } },
     ])
+  })
+
+  it('names the installed tasks package at the tracker’s problem where it serves the tracker (BTN-874)', () => {
+    const packages = [pkg('huly@even-keel', { servers: ['huly'] }), pkg('tasks@even-keel', { servers: ['tasks'] })]
+    const projects = {
+      ABC: project(
+        { 'huly@even-keel': cell(false), 'tasks@even-keel': cell(false) },
+        { problems: [{ kind: 'noTrackerMcp', server: 'huly' }], tracker: { server: 'huly', brought: false, also: 'tasks' } },
+      ),
+    }
+    expect(projectIssues(view({ packages, projects }), 'ABC')).toEqual([{ name: 'tasks@even-keel', problem: { kind: 'noTrackerMcp', server: 'huly' } }])
   })
 
   it('has no package for the tracker’s server the catalog lacks', () => {

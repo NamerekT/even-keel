@@ -1,6 +1,6 @@
 import type { KeyView, PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
 import { projectPath } from '../state.js'
-import { shownPackages, trackerPackageOf } from './packageView.js'
+import { shownPackages, trackerPackage } from './packageView.js'
 import { TRACKER_SERVERS } from './trackerServers.js'
 
 /** The marketplace of a plugin (after its last `@`); `null` for an MCP server. */
@@ -49,15 +49,16 @@ export interface ProjectGroup extends PackageGroup {
   folded: PackageView[]
 }
 
-/** A project's packages by group: its tracker's plugin and the enabled ones shown, the rest of the tracker plugins folded. */
+/** A project's packages by group: its tracker's plugins and the enabled ones shown, the rest of the tracker plugins folded. */
 export function projectGroups(view: PackagesView, project: string): ProjectGroup[] {
   const found = view.projects[project]
   if (found === undefined) return []
   const own = view.marketplace?.name ?? null
-  const server = found.tracker?.server ?? null
+  // The tasks server stays in sight too where it serves the tracker: it is the default choice (BTN-874).
+  const servers = [found.tracker?.server, found.tracker?.also]
   const live = view.packages.filter((each) => !each.removed && found.cells[each.name] !== undefined)
   return packageGroups(live, own).map((group) => {
-    const folds = (each: PackageView) => isTrackerPlugin(each, own) && shortName(each) !== server && found.cells[each.name]?.enabled !== true
+    const folds = (each: PackageView) => isTrackerPlugin(each, own) && !servers.includes(shortName(each)) && found.cells[each.name]?.enabled !== true
     return { ...group, packages: group.packages.filter((each) => !folds(each)), folded: group.packages.filter(folds) }
   })
 }
@@ -82,7 +83,9 @@ const QUIET = new Set<PackageProblem['kind']>(['probing', 'unsupported'])
 export function projectIssues(view: PackagesView, project: string): PackageIssue[] {
   const found = view.projects[project]
   if (found === undefined) return []
-  const set = found.problems.map((problem) => ({ name: problem.kind === 'noTrackerMcp' ? trackerPackageOf(view, problem.server) : null, problem }))
+  const tracker = trackerPackage(view, project)
+  const first = tracker?.state === 'missing' ? (tracker.choices[0]?.name ?? null) : null
+  const set = found.problems.map((problem) => ({ name: problem.kind === 'noTrackerMcp' ? first : null, problem }))
   const cells = view.packages.flatMap((each) => {
     const cell = found.cells[each.name]
     return cell?.enabled === true && !each.removed ? cell.problems.filter((problem) => !QUIET.has(problem.kind)).map((problem) => ({ name: each.name, problem })) : []

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { heldLong, importOffers, passes, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerPackage, trackerPackageOf } from './packageView.js'
+import { heldLong, importOffers, passes, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerDoubled, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -124,20 +124,54 @@ describe('trackerPackage', () => {
 
   it('offers Even Keel’s plugin of the tracker while the catalog lacks it, and tells a problem from advice', () => {
     const available = [{ plugin: 'huly', marketplace: 'even-keel' }]
-    expect(trackerPackage(view({ available, marketplace, projects: { ABC: tracked(false) } }), 'ABC')).toEqual({ state: 'missing', server: 'huly', problem: false, plugin: 'huly@even-keel' })
+    expect(trackerPackage(view({ available, marketplace, projects: { ABC: tracked(false) } }), 'ABC')).toEqual({
+      state: 'missing',
+      server: 'huly',
+      problem: false,
+      choices: [{ server: 'huly', name: null, plugin: 'huly@even-keel' }],
+    })
     const off = tracked(false, [{ kind: 'noTrackerMcp', server: 'huly' }])
     expect(trackerPackage(view({ available, marketplace, projects: { ABC: off } }), 'ABC')).toMatchObject({ problem: true })
   })
 
-  it('offers no plugin when the catalog has it already or there is no own marketplace', () => {
-    expect(trackerPackage(view({ marketplace, projects: { ABC: tracked(false) } }), 'ABC')).toMatchObject({ state: 'missing', plugin: null })
+  it('offers the installed package to turn on, and nothing when there is no own marketplace', () => {
+    const packages = [{ ...base, name: 'huly@even-keel', servers: ['huly'] }]
+    expect(trackerPackage(view({ packages, marketplace, projects: { ABC: tracked(false) } }), 'ABC')).toMatchObject({ choices: [{ server: 'huly', name: 'huly@even-keel', plugin: null }] })
     const available = [{ plugin: 'huly', marketplace: 'even-keel' }]
-    expect(trackerPackage(view({ available, projects: { ABC: tracked(false) } }), 'ABC')).toMatchObject({ plugin: null })
+    expect(trackerPackage(view({ available, projects: { ABC: tracked(false) } }), 'ABC')).toMatchObject({ choices: [] })
+  })
+
+  it('offers the tasks server first where it serves the tracker, the tracker’s own server beside it (BTN-874)', () => {
+    const available = [{ plugin: 'huly', marketplace: 'even-keel' }, { plugin: 'tasks', marketplace: 'even-keel' }]
+    const served = { ...tracked(false), tracker: { server: 'huly', brought: false, also: 'tasks' } }
+    expect(trackerPackage(view({ available, marketplace, projects: { ABC: served } }), 'ABC')).toMatchObject({
+      choices: [
+        { server: 'tasks', name: null, plugin: 'tasks@even-keel' },
+        { server: 'huly', name: null, plugin: 'huly@even-keel' },
+      ],
+    })
+    const packages = [{ ...base, name: 'tasks@even-keel', servers: ['tasks'] }]
+    expect(trackerPackage(view({ packages, available: available.slice(0, 1), marketplace, projects: { ABC: served } }), 'ABC')).toMatchObject({
+      choices: [
+        { server: 'tasks', name: 'tasks@even-keel', plugin: null },
+        { server: 'huly', name: null, plugin: 'huly@even-keel' },
+      ],
+    })
   })
 
   it('has nothing to say for a tracker without a server or an unknown project', () => {
     expect(trackerPackage(view({ projects: { ABC: project(false) } }), 'ABC')).toBeNull()
     expect(trackerPackage(view(), 'ABC')).toBeNull()
+  })
+})
+
+describe('trackerDoubled', () => {
+  it('names both servers while the project’s sessions get both, nothing otherwise', () => {
+    const both: ProjectPackages = { cells: {}, problems: [], blocked: false, tracker: { server: 'huly', brought: true, also: 'tasks', both: true } }
+    expect(trackerDoubled(view({ projects: { ABC: both } }), 'ABC')).toEqual({ server: 'huly', also: 'tasks' })
+    const one: ProjectPackages = { ...both, tracker: { server: 'huly', brought: true, also: 'tasks' } }
+    expect(trackerDoubled(view({ projects: { ABC: one } }), 'ABC')).toBeNull()
+    expect(trackerDoubled(view(), 'ABC')).toBeNull()
   })
 })
 

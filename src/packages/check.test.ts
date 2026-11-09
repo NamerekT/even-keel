@@ -91,12 +91,20 @@ describe('projectPackages', () => {
     own.projects['p-1'] = { on: [], off: ['huly@even-keel'], settings: {} }
     const view = projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } }))
     expect(view.problems).toEqual([])
-    expect(view.tracker).toEqual({ server: 'huly', brought: true, through: 'tasks' })
+    expect(view.tracker).toEqual({ server: 'huly', brought: true, through: 'tasks', also: 'tasks' })
     expect(view.blocked).toBe(false)
     own.projects['p-1'] = { on: [], off: ['huly@even-keel', 'tasks@even-keel'], settings: {} }
     expect(projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } })).problems).toEqual([{ kind: 'noTrackerMcp', server: 'huly' }])
+  })
+
+  it('tells when both the tracker’s own server and the tasks server reach the sessions, without holding the chain', () => {
+    const own = file()
+    own.packages['tasks@even-keel'] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'even-keel' }, default: true, settings: {}, installs: [install(['tasks'])] }
     own.projects['p-1'] = { on: [], off: [], settings: {} }
-    expect(projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } })).tracker).toEqual({ server: 'huly', brought: true })
+    const view = projectPackages(input({ file: own, tracker: { server: 'huly', required: true, also: 'tasks' } }))
+    expect(view.tracker).toEqual({ server: 'huly', brought: true, also: 'tasks', both: true })
+    expect(view.problems).toEqual([])
+    expect(view.blocked).toBe(false)
   })
 
   it('tells whether an enabled package of the project brings a server', () => {

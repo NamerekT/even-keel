@@ -2,9 +2,11 @@
 
 Even Keel's own tasks server for the sessions of projects on any of its trackers — the built-in one, Huly, GitHub, Linear, Jira, GitLab and Forgejo — with the `tasks:task` and `tasks:split` skills. The server is not a separate process: Even Keel's MCP gateway answers it in the service, over the tracker layer, so it works only while Even Keel runs.
 
+It is the default tracker package of a project, not the only one: the tracker's own plugin (`huly`, `github`, `linear`, `gitlab`, `jira`, `forgejo`) brings that tracker's own MCP server, with more tools and more context, and works without the service. A project takes one of them; with both on, the page warns that two tool sets of one tracker double the context.
+
 Outside the built-in tracker the tools have a few limits: a description patch reads and writes the whole description with no lock in between, so an edit made in the tracker at that moment is lost, and a comment does not carry the session's model. What a tracker cannot hold is refused with a reason, never skipped quietly:
 
-- Huly: a parent is set only on a new task; a table in a description comes back as HTML. The `huly` plugin keeps its own server for now.
+- Huly: a parent is set only on a new task; a table in a description comes back as HTML; inline code inside bold, italics, strikethrough or a link is moved out of the mark, and the answer says so.
 - GitHub: no "relates" link; a priority is a `priority: <level>` label the repository must already have.
 - Linear: a milestone name found in two projects of the team is refused.
 - Jira: a status moves only along the workflow; every issue keeps a priority, so "none" is refused; a sub-task takes no children.
@@ -36,3 +38,5 @@ Turn the package `tasks@even-keel` on in the project's packages on Even Keel's p
 ## Sessions started by hand
 
 The plugin's `.mcp.json` points at `http://127.0.0.1:4748/tasks`, the gateway's default port (`EVEN_KEEL_MCP_PORT`): the calls name the project by its key. Another port — edit the address. The gateway takes only requests from this machine with no browser `Origin`.
+
+The service must be running. When it is not, or is restarting, the plugin's `SessionStart` hook says so at the session's start, with the address it asked, instead of leaving only a failed connection in `/mcp`; once the service is up, reconnect the server with `/mcp`.

@@ -85,7 +85,8 @@ export function projectPackages(input: CheckInput): ProjectPackages {
     cells[name] = { choice, enabled, settings, problems }
   }
   const through = !hasTracker && hasAlso ? { through: input.tracker!.also! } : {}
-  const tracker = input.tracker === undefined ? null : { server: input.tracker.server, brought: hasTracker || hasAlso, ...through }
+  const also = input.tracker?.also === undefined ? {} : { also: input.tracker.also, ...(hasTracker && hasAlso ? { both: true } : {}) }
+  const tracker = input.tracker === undefined ? null : { server: input.tracker.server, brought: hasTracker || hasAlso, ...through, ...also }
   const problems: PackageProblem[] = tracker !== null && input.tracker?.required === true && !tracker.brought ? [{ kind: 'noTrackerMcp', server: tracker.server }] : []
   const blocked = [...problems, ...Object.values(cells).flatMap((cell) => cell.problems)].some((problem) => !NOTES.has(problem.kind))
   return { cells, problems, blocked, tracker }

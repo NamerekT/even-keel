@@ -22,7 +22,9 @@ export const toolsEN: Messages['tools'] = {
       count === null ? 'What sessions get' : count === 0 ? 'What sessions get: everything reaches them' : `What sessions get: ${count} ${forms('problem', 'problems')(count)}`,
     open: 'Open →',
     trackerProblem: (server: string) => `Task description in the prompt is off and no package brings the tracker’s MCP server ${server}: the chain waits.`,
-    trackerAdvice: (server: string) => `Sessions get the task in the prompt. With the tracker’s plugin (${server}) they read the task, its comments and relations themselves.`,
+    trackerAdvice: (servers: string[]) =>
+      `Sessions get the task in the prompt. With a tracker package${servers.length === 0 ? '' : ` (${servers.join(' or ')})`} they read the task, its comments and relations themselves.`,
+    trackerDoubled: (server: string, also: string) => `Sessions get both ${also} and the tracker’s own server ${server}: two tool sets of one tracker double the context.`,
     problems: 'Problems',
     problemsNone: 'Everything reaches the sessions: settings get there, MCP servers connect.',
     problem: {
@@ -125,7 +127,14 @@ export const packagesEN: Messages['packages'] = {
     openTip: 'Turn packages on or off in this project and set their values for it.',
     openNone: 'none turned on',
     addToProject: 'Add to the project',
-    trackerAdd: 'Add the tracker’s plugin',
+    trackerAdd: (name: string) => `Add ${name}`,
+    trackerOn: (name: string) => `Turn on ${name}`,
+    trackerChoice: {
+      tasks: 'Even Keel’s tasks server: five tools with short answers, statuses and labels by name; a session started by hand needs the Even Keel service running.',
+      own: 'The tracker’s own MCP server: more tools and more context, works without the Even Keel service.',
+    },
+    trackerDoubled: (server: string, also: string) =>
+      `Both ${also} and the tracker’s own server ${server} are on: two tool sets of one tracker double the context, and the agent writes through one or the other. Keep one of them.`,
     done: 'Done',
     settings: 'Settings',
     settingsBase: 'For all projects',

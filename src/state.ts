@@ -698,9 +698,11 @@ export interface ProjectPackages {
   blocked: boolean
   /**
    * The tracker's MCP server and whether a package of the set brings it, whatever `brief` is; `through` — only another
-   * server brings its tasks: Even Keel's tasks server (BTN-882). `null` — the tracker has none.
+   * server brings its tasks: Even Keel's tasks server (BTN-882). `also` — Even Keel's tasks server serves the tracker,
+   * the page's default choice (BTN-874); `both` — packages of the set bring both servers, two tool sets of one tracker.
+   * `null` — the tracker has none.
    */
-  tracker: { server: string; brought: boolean; through?: string } | null
+  tracker: { server: string; brought: boolean; through?: string; also?: string; both?: boolean } | null
 }
 
 export interface PackageCell {

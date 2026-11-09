@@ -26,6 +26,7 @@ interface Catalog {
 }
 
 const SKILLS_PACKAGE = 'my-skills@even-keel-skills'
+const TASKS_PACKAGE = 'tasks@even-keel'
 
 const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
 const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
@@ -35,7 +36,8 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
  * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
  * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
  * prompt and the add dialog offers it, `probing` — no server has answered since the service started, `silent` — the
- * forgejo server does not answer, `installing` — the playwright plugin is being installed; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * forgejo server does not answer, `installing` — the playwright plugin is being installed, `both` — DEMO has the tasks
+ * plugin on beside the Huly plugin; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -65,6 +67,10 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
   if (mode === 'installing') Object.assign(catalog.packages[2]!, { installing: true, version: null })
   if (mode === 'empty') catalog.packages = []
   if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
+  if (mode === 'both') {
+    catalog.packages.push({ ...base, name: TASKS_PACKAGE, kind: 'plugin', version: '0.2.4', default: false, settings: {}, servers: ['tasks'], extras: true, keys: [] })
+    catalog.choices['DEMO'] = { ...catalog.choices['DEMO'], [TASKS_PACKAGE]: 'on' }
+  }
   return viewOf(catalog, projects)
 }
 
@@ -80,6 +86,7 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
       packages: catalog.packages.filter((each) => each.keys.includes(name)).map((each) => each.name),
     })),
     available: [
+      { plugin: 'tasks', marketplace: 'even-keel' },
       { plugin: 'huly', marketplace: 'even-keel' },
       { plugin: 'linear', marketplace: 'even-keel' },
       { plugin: 'github', marketplace: 'even-keel' },
@@ -110,9 +117,13 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
     if (each.extras && project === 'OPS') problems.push({ kind: 'unsupported', agent: 'Codex' })
     cells[each.name] = { choice, enabled, settings: { ...each.settings, ...catalog.own[project]?.[each.name] }, problems }
   }
-  const problems: PackageProblem[] = cells['huly@even-keel']?.enabled === false ? [{ kind: 'noTrackerMcp', server: 'huly' }] : []
+  // Even Keel's tasks server serves Huly too (BTN-874): either brings the tracker's tasks.
+  const huly = cells['huly@even-keel']?.enabled === true
+  const tasks = cells[TASKS_PACKAGE]?.enabled === true
+  const problems: PackageProblem[] = !huly && !tasks ? [{ kind: 'noTrackerMcp', server: 'huly' }] : []
   const blocked = !catalog.gateway || problems.length > 0 || Object.values(cells).some((cell) => cell.enabled && cell.problems.some((each) => each.kind !== 'unsupported'))
-  return { cells, problems, blocked, tracker: { server: 'huly', brought: cells['huly@even-keel']?.enabled === true } }
+  const tracker = { server: 'huly', brought: huly || tasks, also: 'tasks', ...(tasks && !huly ? { through: 'tasks' } : {}), ...(tasks && huly ? { both: true } : {}) }
+  return { cells, problems, blocked, tracker }
 }
 
 /** The packages' commands; `null` for another command. */

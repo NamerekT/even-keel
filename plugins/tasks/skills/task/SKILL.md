@@ -5,7 +5,7 @@ description: Working a task through Even Keel's tasks MCP server (any tracker of
 
 # Working a task
 
-The tracker is reached only through the `tasks` server: `tasks_list`, `task_read`, `tasks_create`, `task_update`, `task_comment`. There is no delete. Labels, milestones and statuses go by name; an unknown one is refused with the list of existing ones — take a name from it, never invent one. Neighbour skill: `tasks:split`.
+The tracker is reached only through the `tasks` server: `tasks_list`, `task_read`, `tasks_create`, `task_update`, `task_comment`. There is no delete. Labels, milestones and statuses go by name; an unknown one is refused with the list of existing ones — take a name from it, never invent one. Neighbour skill: `tasks:split`. A session with the tracker's own MCP server instead (such as `huly`) works by that plugin's skill (`huly:task`).
 
 **The `chain:` line** names each tracker's roles, e.g. `chain: into it — Ready; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no`. "Into it" is the status that puts a task into the chain, "skip" the label the chain passes over, "question" the label of a question. The names differ from project to project and between a project's trackers, so this skill names none of them: take each from the line. It is in a chain session's prompt (one per tracker when the project has feeds), under the head of every `task_read` and at the end of every refused status, label or milestone. A role with `none` has no name in that tracker: leave it out. `priority: no` or `estimate: no` — that tracker keeps none; send the task without it. `blocking links: no` — no `blocks` or `blockedBy` there: name the order in the description.
 
