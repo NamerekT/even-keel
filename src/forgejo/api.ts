@@ -38,13 +38,15 @@ export class ForgejoApi {
     this.base = `${forgejoBase(web)}/api/v1`
   }
 
+  /** A `FormData` body goes as multipart, its content type set by fetch (BTN-895); any other as JSON. */
   async request(path: string, method = 'GET', body?: unknown): Promise<Response> {
+    const form = body instanceof FormData
     const response = await trackedFetch(this.fetchImpl, `${this.base}${path}`, {
       method,
-      headers: { authorization: `token ${this.token}`, accept: 'application/json', 'content-type': 'application/json', 'user-agent': 'even-keel' },
+      headers: { authorization: `token ${this.token}`, accept: 'application/json', ...(form ? {} : { 'content-type': 'application/json' }), 'user-agent': 'even-keel' },
       signal: AbortSignal.timeout(this.timeoutMs),
       redirect: 'error',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: form ? body : JSON.stringify(body) }),
     }, path.replace(/\?.*$/, ''))
     if (response.ok) return response
     if (response.status === 403) {

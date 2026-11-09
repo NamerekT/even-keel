@@ -275,6 +275,11 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     linksOf,
     relabel: (id, change) => source.relabel!(id, change),
     comment: (id, body) => source.comment!(id, body),
+    async upload(path, file) {
+      const form = new FormData()
+      form.append('file', new Blob([Buffer.from(file.bytes)], { type: file.type }), file.name)
+      return api.rest<{ markdown: string }>(`${projectBase(path)}/uploads`, 'POST', form)
+    },
   })
   return source
 }

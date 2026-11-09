@@ -1,6 +1,6 @@
 import { sameName } from '../chain/rules.js'
 import type { Repo, RepoMap } from '../github/model.js'
-import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/editor.js'
+import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound } from '../tracker/source.js'
@@ -18,6 +18,8 @@ export interface ForgejoEditorDeps {
   blockersOf(repo: Repo, number: number): Promise<ForgejoIssue[] | null>
   relabel(id: string, change: LabelChange): Promise<string[]>
   comment(id: string, body: string): Promise<string>
+  /** Uploads a file as an asset of the issue or the comment `path` names (`…/assets`). */
+  upload(path: string, file: TaskUpload): Promise<void>
 }
 
 const NO_PARENT = 'Forgejo has no subtasks; name the parent in the description instead'
@@ -143,5 +145,19 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
     relabel: (id, change) => deps.relabel(id, change),
     // A Forgejo comment has no field for the session's model: its author is the token's account.
     comment: (id, body) => deps.comment(id, body),
+    // Assets of the issue, and of the comment once it is posted.
+    files: {
+      async attach(id, files) {
+        const { base } = addressOf(id)
+        for (const file of files) await deps.upload(`${base}/assets`, file)
+      },
+      async comment(id, body, files) {
+        const { base } = addressOf(id)
+        const posted = await deps.comment(id, body)
+        const comments = base.replace(/\/\d+$/, `/comments/${encodeURIComponent(posted)}/assets`)
+        for (const file of files) await deps.upload(comments, file)
+        return posted
+      },
+    },
   }
 }

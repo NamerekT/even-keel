@@ -17,6 +17,7 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
   const blockers: Record<number, ForgejoIssue[]> = { 1: [issues[3]!] }
   const writes: [string, string, unknown][] = []
   const relabels: [string, unknown][] = []
+  const uploads: [string, string][] = []
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     if (method !== 'GET') {
       writes.push([method, path, body])
@@ -36,11 +37,25 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
       return []
     },
     comment: async () => '5',
+    upload: async (path, file) => void uploads.push([path, file.name]),
   })
-  return { editor, writes, relabels }
+  return { editor, writes, relabels, uploads }
 }
 
 describe('forgejoEditor', () => {
+  it('uploads files as assets of the issue, and of a comment after posting it (BTN-895)', async () => {
+    const { editor, uploads } = fixture()
+    const file = { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1]) }
+    await editor.files!.attach('APP-1', [file, { ...file, name: 'a.log' }])
+    expect(await editor.files!.comment('APP-1', 'Look.', [file], null)).toBe('5')
+    expect(uploads).toEqual([
+      [`${BASE}/1/assets`, 'shot.png'],
+      [`${BASE}/1/assets`, 'a.log'],
+      [`${BASE}/comments/5/assets`, 'shot.png'],
+    ])
+    expect(editor.components).toBeUndefined()
+  })
+
   it('keeps a priority only where the repository has a priority label', () => {
     const { editor } = fixture()
     expect(editor.priorities!(['bug', 'priority/urgent'])).toBe(true)

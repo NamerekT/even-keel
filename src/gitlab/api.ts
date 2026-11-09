@@ -25,13 +25,15 @@ export class GitlabHttpError extends Error {
 export class GitlabApi {
   constructor(readonly web: string, private readonly token: string, private readonly timeoutMs: number, private readonly fetchImpl: typeof fetch = fetch) {}
 
+  /** A `FormData` body goes as multipart, its content type set by fetch (BTN-895); any other as JSON. */
   async request(path: string, method = 'GET', body?: unknown): Promise<Response> {
+    const form = body instanceof FormData
     const response = await trackedFetch(this.fetchImpl, `${this.web}${path}`, {
       method,
-      headers: { 'private-token': this.token, 'content-type': 'application/json', 'user-agent': 'even-keel' },
+      headers: { 'private-token': this.token, ...(form ? {} : { 'content-type': 'application/json' }), 'user-agent': 'even-keel' },
       signal: AbortSignal.timeout(this.timeoutMs),
       redirect: 'error',
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: form ? body : JSON.stringify(body) }),
     }, path)
     if (response.ok) return response
     await response.body?.cancel()

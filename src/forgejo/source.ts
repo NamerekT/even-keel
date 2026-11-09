@@ -261,6 +261,11 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
     blockersOf: (repo, number) => dependenciesOf(`${repoBase(repo)}/issues/${number}`, 'dependencies'),
     relabel: (id, change) => source.relabel!(id, change),
     comment: (id, body) => source.comment!(id, body),
+    async upload(path, file) {
+      const form = new FormData()
+      form.append('attachment', new Blob([Buffer.from(file.bytes)], { type: file.type }), file.name)
+      await api.rest(`${path}?name=${encodeURIComponent(file.name)}`, 'POST', form)
+    },
   })
   return source
 }

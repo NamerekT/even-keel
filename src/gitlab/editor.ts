@@ -1,5 +1,5 @@
 import { sameName } from '../chain/rules.js'
-import { descriptionEdits, EditRefused, type TaskEditor, type TaskLink } from '../tracker/editor.js'
+import { descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabRef, type ProjectMap } from './model.js'
@@ -19,6 +19,8 @@ export interface GitlabEditorDeps {
   linksOf(path: string, iid: number): Promise<GitlabLink[]>
   relabel(id: string, change: LabelChange): Promise<string[]>
   comment(id: string, body: string): Promise<string>
+  /** Uploads a file into the project; GitLab answers with the Markdown that links it. */
+  upload(path: string, file: TaskUpload): Promise<{ markdown: string }>
 }
 
 const SET_PARENT = `mutation($id: WorkItemID!, $parent: WorkItemID) {
@@ -175,5 +177,21 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
     relabel: (id, change) => deps.relabel(id, change),
     // A GitLab note has no field for the session's model: its author is the token's user.
     comment: (id, body) => deps.comment(id, body),
+    // An upload belongs to the project, not the issue: the issue keeps it as a link in its description or a note.
+    files: {
+      async attach(id, files) {
+        const links = await linksOf(id, files)
+        const issue = await issueOf(id)
+        await update(id, { description: withFileLinks(issue.description ?? '', links) })
+      },
+      comment: async (id, body, files) => deps.comment(id, withFileLinks(body, await linksOf(id, files))),
+    },
+  }
+
+  async function linksOf(id: string, files: readonly TaskUpload[]): Promise<string> {
+    const { path } = addressOf(id)
+    const lines: string[] = []
+    for (const file of files) lines.push((await deps.upload(path, file)).markdown)
+    return lines.join('\n')
   }
 }

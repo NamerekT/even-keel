@@ -19,6 +19,8 @@ function fixture(made: string | undefined = undefined) {
   const writes: [string, string, unknown][] = []
   const graphqlCalls: Record<string, unknown>[] = []
   const relabels: [string, unknown][] = []
+  const comments: [string, string][] = []
+  const uploaded: [string, string][] = []
   let refuseParent = false
   const rest = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
     if (method !== 'GET') {
@@ -50,12 +52,31 @@ function fixture(made: string | undefined = undefined) {
       relabels.push([id, change])
       return []
     },
-    comment: async () => '5',
+    comment: async (id, body) => {
+      comments.push([id, body])
+      return '5'
+    },
+    upload: async (path, file) => {
+      uploaded.push([path, file.name])
+      return { markdown: `${file.type.startsWith('image/') ? '!' : ''}[${file.name}](/uploads/${'a'.repeat(32)}/${file.name})` }
+    },
   })
-  return { editor, writes, graphqlCalls, relabels, refuse: () => { refuseParent = true } }
+  return { editor, writes, graphqlCalls, relabels, comments, uploaded, refuse: () => { refuseParent = true } }
 }
 
 describe('gitlabEditor', () => {
+  it('uploads files into the project and links them from the description or the note (BTN-895)', async () => {
+    const { editor, writes, comments, uploaded } = fixture()
+    expect(editor.components).toBeUndefined()
+    const png = { name: 'shot.png', type: 'image/png', bytes: new Uint8Array([1]) }
+    await editor.files!.attach('APP-1', [png, { name: 'a.log', type: 'text/plain', bytes: new Uint8Array([2]) }])
+    const hash = 'a'.repeat(32)
+    expect(writes).toEqual([['PUT', `${BASE}/1`, { description: `Old text\n\n![shot.png](/uploads/${hash}/shot.png)\n[a.log](/uploads/${hash}/a.log)` }]])
+    expect(await editor.files!.comment('APP-2', 'Look.', [png], null)).toBe('5')
+    expect(comments).toEqual([['APP-2', `Look.\n\n![shot.png](/uploads/${hash}/shot.png)`]])
+    expect(uploaded.map(([path]) => path)).toEqual(['group/subgroup/app', 'group/subgroup/app', 'group/subgroup/app'])
+  })
+
   it('keeps a priority only where the project has a priority label', () => {
     const { editor } = fixture()
     expect(editor.priorities!(['bug', 'priority::low'])).toBe(true)
