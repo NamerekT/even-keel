@@ -180,8 +180,7 @@ export class TasksTools {
                 retry.ids[index] = await editor.create(project, draft, notes[index], marker)
                 fresh = true
               } else {
-                // Labels go on after the create on some trackers: a crash between the two left none.
-                if (draft.labels.length > 0) await editor.relabel(found, { add: draft.labels, remove: [] })
+                await restoreFields(editor, found, draft)
                 notes[index]!.push('found in the tracker after an interrupted call')
                 retry.ids[index] = found
               }
@@ -503,6 +502,22 @@ function filesOf(editor: TaskEditor, terms: TrackerTerms, prefix: string): TaskF
 
 function fieldLine(field: TaskField): string {
   return `${field.field} → ${field.to ?? 'none'}`
+}
+
+/**
+ * A task found by its marker after an interrupted `tasks_create` gets every field of its draft again (BTN-922): some
+ * trackers write labels, a priority, a parent, an estimate or a status after the create, and a crash between them left
+ * those out. A value someone changed by hand since the crash is overwritten; a field holding its value already is no write.
+ */
+async function restoreFields(editor: TaskEditor, id: string, draft: TaskDraft): Promise<void> {
+  if (draft.labels.length > 0) await editor.relabel(id, { add: draft.labels, remove: [] })
+  if (draft.priority !== null && draft.priority !== 'none') await editor.set(id, { field: 'priority', to: draft.priority })
+  if (draft.milestone !== null) await editor.set(id, { field: 'milestone', to: draft.milestone })
+  if (draft.parent !== null) await editor.set(id, { field: 'parent', to: draft.parent })
+  if (draft.component != null && editor.components) await editor.set(id, { field: 'component', to: draft.component })
+  if (draft.estimate != null && editor.estimate !== undefined) await editor.estimate(id, draft.estimate)
+  // Last, as the adapters' own create moves it.
+  if (draft.status !== null) await editor.set(id, { field: 'status', to: draft.status })
 }
 
 function createdSoFar(lines: string[]): string {

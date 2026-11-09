@@ -180,6 +180,28 @@ describe('tasks_create', () => {
     expect((await db.query('select started from task_retries')).rows).toEqual([{ started: null }])
   })
 
+  it('a repeat after a crash right after the create writes every field of the batch to the found task', async () => {
+    const editor = tracker.editor!
+    const bare = { status: null, priority: null, milestone: null, labels: [], parent: null, estimate: null }
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes, marker) => {
+        await editor.create(project, { ...draft, ...bare }, notes, marker)
+        throw new Error('process killed')
+      },
+    }
+    const batch = {
+      tasks: [{ title: 'Core', parent: 'ABC-1', milestone: 'v0.3', labels: ['bug'], priority: 'high', status: 'In Progress', estimate: 20 }],
+      retry: 'fields',
+    }
+    await refusal(call('tasks_create', batch))
+    expect(await call('task_read', { key: 'ABC-2' })).toMatch(/^Todo · rev 0$/m)
+    tracker.editor = editor
+    tools = new TasksTools(deps())
+    expect(await call('tasks_create', batch)).toBe('ABC-2 Core (found in the tracker after an interrupted call)')
+    expect(await call('task_read', { key: 'ABC-2' })).toMatch(/^In Progress · priority high · milestone v0.3 · labels Bug · estimate 20 min · parent ABC-1 · rev 0$/m)
+  })
+
   it('a started task the tracker never got is created on the repeat with the same marker', async () => {
     const editor = tracker.editor!
     const markers: (string | undefined)[] = []
