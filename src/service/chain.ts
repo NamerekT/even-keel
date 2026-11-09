@@ -11,7 +11,7 @@ import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
 import { PROMPTS } from '../chain/prompts.js'
-import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, type HandoffSession } from '../chain/relay.js'
+import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, withVocabulary, type HandoffSession } from '../chain/relay.js'
 import { launchLine } from '../chain/log.js'
 import { mainCheckDeps } from '../chain/mainci.js'
 import { TaskPlaces } from '../chain/places.js'
@@ -25,7 +25,8 @@ import { TaskWorks, worksOf } from '../git/work.js'
 import { commitChangelog } from '../git/changelog.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, mergeTargetOf, projectLabel, readerIds } from '../config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, mergeTargetOf, projectLabel, readerIds } from '../config.js'
+import { promptLines } from '../taskmcp/vocabulary.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
@@ -50,6 +51,7 @@ import { issueLink } from '../tracker/model.js'
 import { readFresh } from '../tracker/health.js'
 import type { ServiceContext } from '../service.js'
 import { disabledBlock } from './accounts.js'
+import { promptTrackers } from './vocabulary.js'
 
 export type ChainContext = Pick<ServiceContext,
   | 'CHANGELOG_TIMEOUT_MS'
@@ -111,6 +113,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'pullRefusals'
   | 'pullRequestsOn'
   | 'readerFor'
+  | 'readerRules'
   | 'readers'
   | 'refreshProject'
   | 'remotes'
@@ -191,7 +194,10 @@ export function wireBriefed(ctx: ChainContext): (task: string, given: string, pr
   return async (task: string, given: string, project = ctx.projectOf(task)): Promise<string> => {
     if (project === undefined) return given
     const reader = ctx.readerFor(project, task)
-    const prompt = withTracker(given, ctx.trackerPlace(reader), ctx.promptLanguage(project))
+    const language = ctx.promptLanguage(project)
+    const own = idPrefixOf(ctx.readers(), reader).toUpperCase()
+    const vocabulary = promptLines(await promptTrackers(ctx, project), own)
+    const prompt = withVocabulary(withTracker(given, ctx.trackerPlace(reader), language), vocabulary, language)
     if (!ctx.briefOn(project, reader)) return prompt
     const link = ctx.linkOf(reader)
     return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), ctx.promptLanguage(project))

@@ -23,6 +23,10 @@ Every limit in detail: [`docs/trackers.md`](../../docs/trackers.md), "The tasks 
 
 Nothing is deleted. Labels and milestones that do not exist are refused with the list of the existing ones, never created.
 
+Each tracker has a `chain:` line of its roles: the status that puts a task into the chain, the label the chain skips, the question label, the milestones and whether it keeps a priority and an estimate — `chain: into it — Todo; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no`. It is built from the chain rules the tracker's tasks are judged by, so it stays true when a project puts tasks into the chain by another status. A chain session gets it in its prompt, `task_read` under the card's head, a refused name at the end of the refusal. A tracker that gives no vocabulary says so, and its statuses, labels and milestones are refused.
+
+`estimate` is minutes of the agent's own work (5, 10, 20, 40, 80); the tools convert it into the tracker's unit, Huly's hours for now. A tracker that keeps none refuses it. The plugin's hook shows the project's "estimate → actual" medians before a `tasks_create` or `task_update` with an estimate, once a session, as the `huly` plugin does.
+
 A project with task feeds has several trackers, told apart by the prefix of their task keys. A call on a task goes to the tracker of its key; `tasks_create` creates in the tracker of the session's own task, or the one `tracker` names. A link or a parent across two trackers is refused before anything is created. A tracker that does not answer leaves a line `<prefix>: unreachable, not searched` at the end of `tasks_list`, so a short list is never taken for a full one.
 
 ## Chain sessions

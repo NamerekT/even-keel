@@ -13,6 +13,8 @@ export interface TaskDraft {
   labels: string[]
   /** The parent's id, of the same project. */
   parent: string | null
+  /** Minutes of the agent's active work (BTN-893), given only to an editor with `estimate`; absent or `null` — none. */
+  estimate?: number | null
 }
 
 /** A short field set to a value, whatever it holds now: a field changed by someone else meanwhile is no conflict. */
@@ -52,6 +54,16 @@ export interface TaskEditor {
   markers?: TaskMarkers
   /** `false` — the field held the value already. */
   set(id: string, field: TaskField): Promise<boolean>
+  /**
+   * Optional: the tracker keeps an estimate (BTN-893). Sets it to `minutes` of the agent's active work, converted to
+   * the tracker's own unit; `false` — it held that already. Absent — the tools refuse an estimate for the tracker.
+   */
+  estimate?(id: string, minutes: number): Promise<boolean>
+  /**
+   * Optional, where a priority is one of the project's labels (GitHub, GitLab, Forgejo): whether `labels` hold one.
+   * Absent — the tracker has a priority of its own.
+   */
+  priorities?(labels: string[]): boolean
   /** The description's revision: it grows only with a change of the description, not of any other field. */
   revision(id: string): Promise<number>
   /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */

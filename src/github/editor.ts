@@ -155,6 +155,7 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
 
   return {
     list: (project) => deps.list(project),
+    priorities: (labels) => labels.some((each) => PRIORITY_LABEL.test(each.trim())),
     async create(project, draft) {
       const repo = repos.repoOf(project)
       const key = repos.projectKey(project)

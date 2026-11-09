@@ -129,6 +129,17 @@ describe('hulyEditor', () => {
     expect(added).toHaveLength(1)
   })
 
+  it('keeps an estimate in minutes as Huly hours, the time left less what was reported', async () => {
+    const { editor, added, issues, updates } = fixture()
+    const draft = { title: 'New', description: '', status: null, priority: null, milestone: null, labels: [], parent: null, estimate: 20 }
+    await editor.create('project', draft)
+    expect(added[0]).toMatchObject({ estimation: 0.33 })
+    issues.set('ABC-2', { ...issues.get('ABC-2')!, estimation: 0.33, reportedTime: 0.5 })
+    expect(await editor.estimate!('ABC-2', 20)).toBe(false)
+    expect(await editor.estimate!('ABC-2', 80)).toBe(true)
+    expect(updates).toEqual([['id-2', { estimation: 1.33, remainingTime: 0.83 }]])
+  })
+
   it('sets short fields and says false when the field holds the value already', async () => {
     const { editor, updates } = fixture()
     expect(await editor.set('ABC-2', { field: 'title', to: 'Task 2' })).toBe(false)

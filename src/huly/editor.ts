@@ -20,7 +20,12 @@ export type HulyFullIssue = Omit<HulyCardIssue, 'parents'> & {
   space: string
   description?: string | null
   parents?: HulyParent[]
+  /** Hours reported on the issue. */
+  reportedTime?: number
 }
+
+/** Minutes of an estimate as Huly's hours, to the hundredth: 20 min — 0.33 h. */
+export const hulyHours = (minutes: number) => Math.round((minutes / 60) * 100) / 100
 
 /** A new issue's fields, resolved to Huly's ids; the description is Markdown. */
 export interface HulyNewIssue {
@@ -30,6 +35,8 @@ export interface HulyNewIssue {
   priority: TaskPriority
   milestone: string | null
   parent: HulyFullIssue | null
+  /** Hours; absent — none. */
+  estimation?: number
   /** The new issue's `_id`, chosen by the caller (a tasks_create marker, BTN-905); a generated one by default. */
   id?: string
 }
@@ -146,6 +153,7 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
         priority: draft.priority ?? 'none',
         milestone,
         parent,
+        ...(draft.estimate == null ? {} : { estimation: hulyHours(draft.estimate) }),
         ...(marker === undefined ? {} : { id: marker }),
       })
       marks.tell(notes)
@@ -189,6 +197,14 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
           throw new EditRefused(`Huly: these tools set a parent only on a new task; move ${issue.identifier} under another parent in Huly itself`)
         }
       }
+    },
+    async estimate(id, minutes) {
+      const issue = await findIssue(id)
+      const estimation = hulyHours(minutes)
+      if ((issue.estimation ?? 0) === estimation) return false
+      const remainingTime = Math.max(0, Math.round((estimation - (issue.reportedTime ?? 0)) * 100) / 100)
+      await client.updateDoc(ISSUE, issue.space, issue._id, { estimation, remainingTime })
+      return true
     },
     revision: async (id) => revisionOf(await markdownOf(await findIssue(id))),
     async describe(id, text, rev, notes) {

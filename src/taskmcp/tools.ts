@@ -10,6 +10,7 @@ const texts = { type: 'array', items: text }
 const ref = { ...texts, description: 'task keys, or #N for the N-th task of this call' }
 const change = (what: string) => ({ type: 'object', properties: { add: texts, remove: texts }, additionalProperties: false, description: what })
 const project = { type: 'string', description: 'project key; needed only without a project in the server address' }
+const estimate = { type: 'integer', minimum: 1, description: 'minutes of your own active work; only where the chain: line says estimate: yes' }
 const tracker = (fallback: string) => ({ type: 'string', description: `one tracker of the project by its key prefix (GH of GH-12); none — ${fallback}` })
 
 /**
@@ -59,6 +60,7 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
                 priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low', 'none'] },
                 milestone: text,
                 labels: texts,
+                estimate,
                 parent: { ...text, description: 'a key, or #N of an earlier task of this call' },
                 blocks: ref,
                 blockedBy: ref,
@@ -87,6 +89,7 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
           priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low', 'none'] },
           milestone: { type: ['string', 'null'] },
           parent: { type: ['string', 'null'] },
+          estimate,
           labels: change('label names'),
           blocks: change('tasks this one blocks'),
           blockedBy: change('tasks that block this one'),

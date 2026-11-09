@@ -56,6 +56,12 @@ function fixture(made: string | undefined = undefined) {
 }
 
 describe('gitlabEditor', () => {
+  it('keeps a priority only where the project has a priority label', () => {
+    const { editor } = fixture()
+    expect(editor.priorities!(['bug', 'priority::low'])).toBe(true)
+    expect(editor.priorities!(['bug'])).toBe(false)
+  })
+
   it('creates a task under an issue with every field: a task type, labels, the parent, then the close', async () => {
     const { editor, writes, graphqlCalls, relabels } = fixture()
     expect(await editor.create('P1', { title: 'New', description: 'Text', status: 'closed', priority: 'high', milestone: 'V2.0', labels: ['bug'], parent: 'APP-1' })).toBe('APP-10')

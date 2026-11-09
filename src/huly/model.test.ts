@@ -282,6 +282,11 @@ describe('toCard', () => {
     })
   })
 
+  it('reads the estimate in hours back as minutes', () => {
+    expect(toCard(docs({ issue: { ...issue('i1', 'ABC-1', 'tracker:status:Backlog'), estimation: 0.33 } })).estimate).toBe(20)
+    expect(toCard(docs({ issue: { ...issue('i1', 'ABC-1', 'tracker:status:Backlog'), estimation: 0 } })).estimate).toBeUndefined()
+  })
+
   it('links the parent, blockers, blocked and related issues it got', () => {
     const card = toCard(
       docs({

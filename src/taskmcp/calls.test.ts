@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { BuiltinFiles } from '../builtin/files.js'
 import { builtinSource } from '../builtin/source.js'
 import { BuiltinStore } from '../builtin/store.js'
+import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
@@ -35,6 +36,7 @@ let tools: TasksTools
 let refreshed: string[]
 let ran: string[]
 let off: Set<string>
+let rules: Map<string, ChainRules>
 
 const deps = () => ({
   db,
@@ -45,6 +47,7 @@ const deps = () => ({
   },
   readers: (project: string) => READERS.filter((each) => each.project === project),
   readerOfPrefix: (prefix: string) => READERS.find((each) => each.prefix === prefix) ?? null,
+  rulesOf: (reader: string) => rules.get(reader) ?? DEFAULT_RULES,
   modelOf: () => 'Claude | opus',
   refresh: async (project: string) => void refreshed.push(project),
 })
@@ -72,6 +75,7 @@ beforeEach(async () => {
   refreshed = []
   ran = []
   off = new Set()
+  rules = new Map()
   await store.saveMilestone(ABC, 'v0.3', null)
   await store.create({ project: ABC, title: 'Parent', description: '## Plan\n\nfirst step\n\nsecond step\n' })
 })
@@ -90,7 +94,10 @@ describe('tasks_create', () => {
     expect(page).toContain('blocked by ABC-2')
     expect(page).toContain('relates ABC-1')
     const core = await call('task_read', { key: 'abc-2' })
-    expect(core.split('\n\n')[1]).toBe('Todo · priority high · milestone v0.3 · labels Bug · parent ABC-1 · blocks ABC-3 · rev 0')
+    expect(core.split('\n\n')[1]!.split('\n')).toEqual([
+      'Todo · priority high · milestone v0.3 · labels Bug · parent ABC-1 · blocks ABC-3 · rev 0',
+      'chain: into it — Todo; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no',
+    ])
     expect(refreshed).toEqual([ABC])
   })
 
@@ -310,6 +317,44 @@ describe('task_update of fields', () => {
     expect(await refusal(call('task_update', { key: 'ABC-1', status: 'Later' }))).toMatch(/no status "Later"; the statuses are Backlog, Todo/)
     expect(await refusal(call('task_update', { key: 'ABC-1', milestone: 'v1' }))).toMatch(/the milestones are v0.3. Only the user makes a new one/)
   })
+
+  it("ends a refused name with the tracker's roles line, by the project's chain rules", async () => {
+    rules.set(ABC, { ...DEFAULT_RULES, active: ['Backlog'] })
+    const refused = await refusal(call('task_update', { key: 'ABC-1', status: 'Ready' }))
+    expect(refused.split('\n')).toEqual([
+      'there is no status "Ready"; the statuses are Backlog, Todo, In Progress, In Review, Done, Canceled, Duplicate',
+      'chain: into it — Backlog; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no',
+    ])
+  })
+
+  it('a tracker with no vocabulary refuses a status honestly and still creates a bare task', async () => {
+    delete tracker.vocabulary
+    expect(await refusal(call('task_update', { key: 'ABC-1', status: 'Todo' }))).toMatch(/^this tracker gives no vocabulary/)
+    expect(await call('tasks_create', { tasks: [{ title: 'Bare' }] })).toBe('ABC-2 Bare')
+    expect(await call('task_read', { key: 'ABC-2' })).toContain('chain: this tracker gives no vocabulary')
+  })
+
+  it('refuses an estimate on a tracker that keeps none', async () => {
+    expect(await refusal(call('task_update', { key: 'ABC-1', estimate: 20 }))).toMatch(/keeps no estimate/)
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', estimate: 20 }] }))).toMatch(/task 1: this tracker keeps no estimate/)
+    expect(await refusal(call('task_update', { key: 'ABC-1', estimate: 0 }))).toMatch(/whole number from 1/)
+  })
+
+  it("passes an estimate in minutes to an editor that keeps one", async () => {
+    const editor = tracker.editor!
+    const drafts: unknown[] = []
+    const set: [string, number][] = []
+    tracker.editor = {
+      ...editor,
+      create: (project, draft, notes, marker) => (drafts.push(draft.estimate), editor.create(project, draft, notes, marker)),
+      estimate: async (id, minutes) => (set.push([id, minutes]), true),
+    }
+    expect(await call('tasks_create', { tasks: [{ title: 'Sized', estimate: 20 }] })).toBe('ABC-2 Sized')
+    expect(drafts).toEqual([20])
+    expect(await call('task_update', { key: 'ABC-2', estimate: 40 })).toBe('ABC-2: estimate → 40 min')
+    expect(set).toEqual([['ABC-2', 40]])
+    expect(await call('task_read', { key: 'ABC-2' })).toContain('priority: yes; estimate: yes')
+  })
 })
 
 describe('the rest', () => {
@@ -393,6 +438,13 @@ describe("the project's feeds (BTN-892)", () => {
     expect(await call('task_read', { key: 'ABC-1' }, FEED)).toContain('# ABC-1 Parent')
     expect(ran).toEqual([GHI, GHI, GHI, ABC])
     expect(refreshed).toEqual([ABC, ABC])
+  })
+
+  it("gives each tracker's roles line by its own rules", async () => {
+    rules.set(GHI, { ...DEFAULT_RULES, active: ['In Progress'], excludedLabels: [] })
+    const roles = async (key: string) => (await call('task_read', { key }, FEED)).split('\n\n')[1]!.split('\n')[1]
+    expect(await roles('ABC-1')).toBe('chain: into it — Todo; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no')
+    expect(await roles('GHI-1')).toBe('chain: into it — In Progress; skip — none; question — Question; no milestones; priority: yes; estimate: no')
   })
 
   it('refuses a task of another project, and a hand session reaches a feed by its key', async () => {

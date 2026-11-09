@@ -70,6 +70,7 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
 
   return {
     list: (project) => deps.list(project),
+    priorities: (labels) => labels.some((each) => forgejoPriority([each]) !== 'none'),
     async create(project, draft) {
       const repo = repos.repoOf(project)
       const key = repos.projectKey(project)

@@ -138,6 +138,7 @@ type AccountsContext = Pick<ServiceContext,
   | 'pullReadinessOf'
   | 'pullRefusals'
   | 'pullRequestsOn'
+  | 'readerRules'
   | 'readers'
   | 'refreshProject'
   | 'release'
@@ -215,6 +216,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
           const id = Object.keys(readers.projects).find((each) => idPrefixOf(readers, each).toUpperCase() === prefix && servesTasks(ADAPTERS[readers.trackers[each]!]))
           return id === undefined ? null : { id, project: ownerOf(readers, id), prefix }
         },
+        rulesOf: (reader) => ctx.readerRules(reader),
         modelOf: (_project, task) => {
           const ofTask = ctx.sessions.filter((each) => each.task === task)
           const live = ofTask.find((each) => each.lamp !== 'finished') ?? ofTask[0]

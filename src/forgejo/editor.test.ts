@@ -41,6 +41,12 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
 }
 
 describe('forgejoEditor', () => {
+  it('keeps a priority only where the repository has a priority label', () => {
+    const { editor } = fixture()
+    expect(editor.priorities!(['bug', 'priority/urgent'])).toBe(true)
+    expect(editor.priorities!(['bug', 'priority/none'])).toBe(false)
+  })
+
   it('creates an issue with every field it can hold, then closes it', async () => {
     const { editor, writes, relabels } = fixture()
     expect(await editor.create('P1', { title: 'New', description: 'Text', status: 'closed', priority: 'high', milestone: 'V2.0', labels: ['bug'], parent: null })).toBe('APP-10')

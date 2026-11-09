@@ -3,10 +3,12 @@ import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
-import type { Tracker, TrackerVocabulary } from '../tracker/source.js'
+import type { Tracker } from '../tracker/source.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
+import type { ChainRules } from '../chain/rules.js'
 import { Args } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
+import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -33,6 +35,8 @@ export interface TasksDeps {
   readers(project: string): TaskReader[]
   /** The tracker the tools serve whose task keys carry this prefix, a project's or a feed's; `null` — none. */
   readerOfPrefix(prefix: string): TaskReader | null
+  /** The chain rules the reader's tasks are judged by: the project's, or a feed's own (`feedRules`). */
+  rulesOf(reader: string): ChainRules
   /** `<Provider> | <model>` of the live session of the project's task; `null` — not known. */
   modelOf(project: string, task: string): string | null
   /** The project's tasks changed: the chain reads them anew. */
@@ -102,12 +106,14 @@ export class TasksTools {
   private async read(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
     const reader = this.readerOfTask(key, scope)
-    const { card, rev } = await this.deps.run(reader.id, async (tracker) => {
+    const { card, rev, terms } = await this.deps.run(reader.id, async (tracker) => {
       const editor = editorOf(tracker)
       if (tracker.card === undefined) throw new EditRefused('this tracker gives no task cards')
-      return { card: await tracker.card(key), rev: await editor.revision(key) }
+      // The roles line helps, the card is the answer: a vocabulary that did not read only leaves the line out.
+      const [card, rev, terms] = await Promise.all([tracker.card(key), editor.revision(key), this.termsOf(tracker, reader.id).catch(() => null)])
+      return { card, rev, terms }
     })
-    return cardText(card, rev, args.flag('comments'))
+    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms))
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
@@ -120,8 +126,8 @@ export class TasksTools {
     const retryKey = args.text('retry')
     return this.deps.run(project, async (tracker) => {
       const editor = editorOf(tracker)
-      const known = await vocabularyOf(tracker, project)
-      const planned = items.map((item, index) => plannedTask(item, index, items.length, known, reader.prefix))
+      const terms = await this.termsOf(tracker, project)
+      const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix))
       const run = async (retry: Retry): Promise<string> => {
         const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
         const notes = planned.map((): string[] => [])
@@ -196,6 +202,7 @@ export class TasksTools {
     const append = args.text('append') ?? null
     const whole = args.text('description')
     const rev = args.integer('rev')
+    const estimate = estimateArg(args)
     if (whole !== undefined && (patches.length > 0 || append !== null)) throw new EditRefused('pass either "description" or "replace"/"append", not both')
     if (whole !== undefined && rev === undefined) throw new EditRefused('a whole "description" needs "rev", the description revision task_read shows; a patch with "replace" needs none')
     const others = [...(parent === undefined || parent === null ? [] : [parent]), ...LINKS.flatMap((link) => [...links[link].add, ...links[link].remove])]
@@ -203,18 +210,20 @@ export class TasksTools {
     if (foreign !== undefined) throw new EditRefused(crossRefusal(foreign))
     return this.deps.run(project, async (tracker) => {
       const editor = editorOf(tracker)
-      const known = await vocabularyOf(tracker, project)
+      const terms = await this.termsOf(tracker, project)
       const status = args.text('status')
-      if (status !== undefined) fields.push({ field: 'status', to: statusName(status, known) })
+      if (status !== undefined) fields.push({ field: 'status', to: statusName(status, terms) })
       const milestone = args.nullable('milestone')
-      if (milestone !== undefined) fields.push({ field: 'milestone', to: milestone === null ? null : milestoneName(milestone, known) })
-      const add = labels.add.map((each) => labelName(each, known))
+      if (milestone !== undefined) fields.push({ field: 'milestone', to: milestone === null ? null : milestoneName(milestone, terms) })
+      const add = labels.add.map((each) => labelName(each, terms))
+      const setEstimate = estimate === null ? null : estimateOf(editor, terms)
       const said: string[] = []
       try {
         const notes: string[] = []
         if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
         if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append, notes))) said.push('description patched', ...notes)
         for (const field of fields) if (await editor.set(key, field)) said.push(fieldLine(field))
+        if (setEstimate !== null && (await setEstimate(key, estimate!))) said.push(`estimate → ${estimate} min`)
         if (add.length > 0 || labels.remove.length > 0) {
           const before = (await tracker.tasks([key]))[0]?.labels ?? []
           const after = await editor.relabel(key, { add, remove: labels.remove })
@@ -248,6 +257,10 @@ export class TasksTools {
     await this.deps.run(reader.id, async (tracker) => editorOf(tracker).comment(key, body, model, notes))
     await this.deps.refresh(reader.project)
     return [`${key}: comment added`, ...notes].join('; ')
+  }
+
+  private async termsOf(tracker: Tracker, reader: string): Promise<TrackerTerms> {
+    return termsOf(tracker, reader, this.deps.rulesOf(reader))
   }
 
   /**
@@ -302,7 +315,7 @@ interface PlannedTask {
 }
 
 /** Checks every name and reference of a batch's task before anything is created. */
-function plannedTask(item: Args, index: number, count: number, known: TrackerVocabulary, prefix: string): PlannedTask {
+function plannedTask(item: Args, index: number, count: number, terms: TrackerTerms, prefix: string): PlannedTask {
   const ref = (value: string, earlier: boolean): string => {
     const trimmed = value.trim()
     if (!trimmed.startsWith('#')) {
@@ -319,15 +332,18 @@ function plannedTask(item: Args, index: number, count: number, known: TrackerVoc
   const status = item.text('status')
   const milestone = item.text('milestone')
   const parent = item.text('parent')
+  const estimate = estimateArg(item)
+  if (estimate !== null && !terms.estimate) throw new EditRefused(`task ${index + 1}: ${NO_ESTIMATE}`)
   return {
     draft: {
       title: item.required('title').trim(),
       description: item.text('description') ?? '',
-      status: status === undefined ? null : statusName(status, known),
+      status: status === undefined ? null : statusName(status, terms),
       priority: item.priority('priority') ?? null,
-      milestone: milestone === undefined || milestone.trim() === '' ? null : milestoneName(milestone, known),
-      labels: item.texts('labels').map((each) => labelName(each, known)),
+      milestone: milestone === undefined || milestone.trim() === '' ? null : milestoneName(milestone, terms),
+      labels: item.texts('labels').map((each) => labelName(each, terms)),
       parent: parent === undefined || parent.trim() === '' ? null : ref(parent, true),
+      estimate,
     },
     links: Object.fromEntries(LINKS.map((link) => [link, item.texts(link).map((each) => ref(each, false))])) as Record<TaskLink, string[]>,
   }
@@ -338,28 +354,49 @@ function editorOf(tracker: Tracker): TaskEditor {
   return tracker.editor
 }
 
-async function vocabularyOf(tracker: Tracker, project: string): Promise<TrackerVocabulary> {
-  return (await tracker.vocabulary?.(project)) ?? { statuses: [], labels: [], milestones: [] }
+const NO_ESTIMATE = 'this tracker keeps no estimate; send the task without one'
+
+/** Minutes of the agent's active work: a whole positive number; `null` — none given. */
+function estimateArg(args: Args): number | null {
+  const minutes = args.integer('estimate')
+  if (minutes === undefined) return null
+  if (minutes < 1) throw new EditRefused('"estimate" is minutes of your active work, a whole number from 1')
+  return minutes
 }
 
-function statusName(name: string, known: TrackerVocabulary): string {
+function estimateOf(editor: TaskEditor, terms: TrackerTerms): (id: string, minutes: number) => Promise<boolean> {
+  const set = editor.estimate
+  if (set === undefined || !terms.estimate) throw new EditRefused(NO_ESTIMATE)
+  return (id, minutes) => set.call(editor, id, minutes)
+}
+
+/** A refused name: what was wrong with the tracker's list, then its roles line, so the retry picks by role. */
+const nameRefusal = (text: string, terms: TrackerTerms) => new EditRefused(`${text}\n${rolesLine(terms)}`)
+
+function statusName(name: string, terms: TrackerTerms): string {
+  const known = vocabularyFor(terms)
   const found = known.statuses.find((each) => each.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase())
-  if (found === undefined) throw new EditRefused(`there is no status "${name}"; the statuses are ${known.statuses.map((each) => each.name).join(', ')}`)
+  if (found === undefined) throw nameRefusal(`there is no status "${name}"; the statuses are ${known.statuses.map((each) => each.name).join(', ')}`, terms)
   return found.name
 }
 
-function milestoneName(name: string, known: TrackerVocabulary): string {
-  const list = known.milestones ?? []
+function milestoneName(name: string, terms: TrackerTerms): string {
+  const list = vocabularyFor(terms).milestones ?? []
   const found = list.find((each) => each.toLocaleLowerCase() === name.trim().toLocaleLowerCase())
-  if (found === undefined) throw new EditRefused(`there is no milestone "${name}"; ${list.length === 0 ? 'the project has none' : `the milestones are ${list.join(', ')}`}. Only the user makes a new one`)
+  if (found === undefined) {
+    throw nameRefusal(`there is no milestone "${name}"; ${list.length === 0 ? 'the project has none' : `the milestones are ${list.join(', ')}`}. Only the user makes a new one`, terms)
+  }
   return found
 }
 
-function labelName(name: string, known: TrackerVocabulary): string {
+function labelName(name: string, terms: TrackerTerms): string {
+  // A run label is not a name of the vocabulary: it goes on a tracker that gives none too.
+  if (terms.known === null && runLabelOf(name) !== null) return name.trim()
+  const known = vocabularyFor(terms)
   const found = known.labels.find((each) => each.toLocaleLowerCase() === name.trim().toLocaleLowerCase())
   if (found !== undefined) return found
   if (runLabelOf(name) !== null) return name.trim()
-  throw new EditRefused(`there is no label "${name}"; the labels are ${known.labels.join(', ')}. Only the user makes a new one`)
+  throw nameRefusal(`there is no label "${name}"; the labels are ${known.labels.join(', ')}. Only the user makes a new one`, terms)
 }
 
 function fieldLine(field: TaskField): string {
@@ -375,20 +412,22 @@ function listLine(task: TrackerTask): string {
 }
 
 /** The card as Markdown: a head of what the task has, then its description and, on request, its comments. */
-export function cardText(card: TrackerCard, rev: number, comments: boolean): string {
+export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null): string {
   const refs = (list: { id: string }[]) => list.map((each) => each.id).join(', ')
   const head = [
     card.status.name,
     ...(card.priority === 'none' ? [] : [`priority ${card.priority}`]),
     ...(card.milestone === null ? [] : [`milestone ${card.milestone.label}`]),
     ...(card.labels.length === 0 ? [] : [`labels ${card.labels.join(', ')}`]),
+    ...(card.estimate == null ? [] : [`estimate ${card.estimate} min`]),
     ...(card.parent === null ? [] : [`parent ${card.parent.id}`]),
     ...(card.blockedBy.length === 0 ? [] : [`blocked by ${refs(card.blockedBy)}`]),
     ...(card.blocks.length === 0 ? [] : [`blocks ${refs(card.blocks)}`]),
     ...(card.related.length === 0 ? [] : [`relates ${refs(card.related)}`]),
     `rev ${rev}`,
   ]
-  const parts = [`# ${card.id} ${card.title}`, head.join(' · '), card.description.trim() === '' ? '(no description)' : card.description.trim()]
+  const top = roles === null ? head.join(' · ') : `${head.join(' · ')}\n${roles}`
+  const parts = [`# ${card.id} ${card.title}`, top, card.description.trim() === '' ? '(no description)' : card.description.trim()]
   const files = card.attachments.filter((each) => each.path !== undefined)
   if (files.length > 0) {
     const lines = files.map((each) => `- ${each.name} (${sizeText(each.size)}) — ${each.missing ? 'file missing' : each.path}`)

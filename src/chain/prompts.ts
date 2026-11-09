@@ -56,6 +56,8 @@ export interface PromptTexts {
   /** The head of the brief's list of attachments (the built-in tracker), each `- name — path` below it. */
   files: string
   tracker: (title: string, project: string) => string
+  /** The roles lines of the project's trackers for the tasks tools (BTN-893), under a head; never called with none. */
+  vocabulary: (lines: string[]) => string
   shared: (text: string) => string
   project: (text: string) => string
   why: Record<HandoffReason, string>
@@ -148,6 +150,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     brief: (title) => fill`Задача из трекера: ${title}`,
     files: 'Вложения задачи — открой их через Read:',
     tracker: (title, project) => fill`Трекер: ${title}, проект ${project}.`,
+    vocabulary: (lines) =>
+      ['Словарь трекеров для инструментов задач: статус, с которым задача попадает в цепочку, метки пропуска и вопроса, вехи — бери отсюда, не из навыка.', ...lines.map((line) => fill`${line}`)].join('\n'),
     shared: (text) => fill`Указания для всех проектов:\n${text}`,
     project: (text) => fill`Указания для этого проекта:\n${text}`,
     why: {
@@ -269,6 +273,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     brief: (title) => fill`Task from the tracker: ${title}`,
     files: "The task's attachments — open them with Read:",
     tracker: (title, project) => fill`Tracker: ${title}, project ${project}.`,
+    vocabulary: (lines) =>
+      ["The trackers' terms for the task tools: the status that puts a task into the chain, the skip and question labels, the milestones — take them from here, not from a skill.", ...lines.map((line) => fill`${line}`)].join('\n'),
     shared: (text) => fill`Instructions for every project:\n${text}`,
     project: (text) => fill`Instructions for this project:\n${text}`,
     why: {

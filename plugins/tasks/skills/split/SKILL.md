@@ -22,7 +22,7 @@ A split is always proposed, never done silently: the split / as is / otherwise. 
 
 ## 3. Creating the children
 
-One `tasks_create` call: each child with `parent: "<parent key>"`, `status: "Todo"`, the parent's milestone, its own priority, order between them by `blocks: ["#2"]`, and a `retry`. Then `task_update(<parent>, append: "## Split\n…")` — what went into which child, what was left out. Children are self-contained; commits name only the child's id, never the parent's. Even Keel closes the parent once all its children are closed.
+One `tasks_create` call: each child with `parent: "<parent key>"`, the "into it" status of the `chain:` line (`tasks:task`), the parent's milestone, its own priority and estimate where the tracker keeps one, order between them by `blocks: ["#2"]`, and a `retry`. Then `task_update(<parent>, append: "## Split\n…")` — what went into which child, what was left out. Children are self-contained; commits name only the child's id, never the parent's. Even Keel closes the parent once all its children are closed.
 
 ## 4. Then the session ends
 

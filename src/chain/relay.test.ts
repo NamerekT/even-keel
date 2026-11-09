@@ -22,6 +22,7 @@ import {
   withReset,
   withTracker,
   withUnattended,
+  withVocabulary,
   type HandoffReason,
   type HandoffSession,
   type LimitHold,
@@ -495,6 +496,13 @@ describe('prompts in English', () => {
     expect(withTracker('ABC-1\n', { title: 'GitHub', project: 'octo-org/abc' }, 'en')).toBe('ABC-1\n\nTracker: GitHub, project octo-org/abc.\n')
     expect(withTracker('ABC-1\n', { title: 'GitHub', project: 'octo-org/abc' }, 'ru')).toBe('ABC-1\n\nТрекер: GitHub, проект octo-org/abc.\n')
     expect(withTracker('ABC-1\n', null, 'en')).toBe('ABC-1\n')
+  })
+
+  it("adds the trackers' roles lines under a head, and nothing when none was read", () => {
+    const line = 'chain: into it — Ready; skip — Manual; question — Question; no milestones; priority: yes; estimate: no'
+    expect(withVocabulary('ABC-1\n', [line], 'en')).toMatch(/^ABC-1\n\nThe trackers' terms for the task tools: .*not from a skill\.\nchain: into it — Ready; .*\n$/)
+    expect(withVocabulary('ABC-1\n', [line], 'ru')).toContain(`не из навыка.\n${line}\n`)
+    expect(withVocabulary('ABC-1\n', [], 'en')).toBe('ABC-1\n')
   })
 
   it('has every prompt in every language', () => {

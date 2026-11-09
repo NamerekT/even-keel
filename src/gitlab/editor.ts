@@ -84,6 +84,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
 
   return {
     list: (project) => deps.list(project),
+    priorities: (labels) => labels.some((each) => gitlabPriority([each]) !== 'none'),
     async create(project, draft) {
       const path = projects.pathOf(project)
       const key = projects.keyOf(project)

@@ -249,6 +249,8 @@ export function toCard(docs: HulyCardDocs): TrackerCard {
     blockedBy: refs((issue.blockedBy ?? []).map((ref) => ref._id)),
     blocks: refs(docs.blocks),
     related: refs((issue.relations ?? []).filter((ref) => ref._class === ISSUE_CLASS).map((ref) => ref._id)),
+    // Huly keeps hours; the tools speak minutes of the agent's work.
+    ...(issue.estimation ? { estimate: Math.round(issue.estimation * 60) } : {}),
     comments: byTime(docs.comments).map((doc) => {
       const replies = byTime(docs.replies.filter((reply) => reply.attachedTo === doc._id)).map(commentOf)
       return replies.length === 0 ? commentOf(doc) : { ...commentOf(doc), replies }

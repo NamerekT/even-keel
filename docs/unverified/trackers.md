@@ -159,6 +159,16 @@ The tools route a call by the prefix of its task key to the project's own tracke
 
 If one is wrong, a feed task's comment or blocker lands in the wrong tracker or is refused, or the session starts with no brief and cannot read the task. **Workaround:** turn the feed tracker's own plugin on in the project's packages and set `brief: true`. To check: on the Huly bench with a GitHub feed and `tasks@even-keel` on, run a feed task told to comment, file a blocker and list the tasks; read both trackers back.
 
+## The chain roles line and an estimate in minutes (BTN-893)
+
+The `chain:` line, the `estimate` field and the `tasks` plugin's calibration hook (`docs/trackers.md`, "The tasks server") are checked by unit tests (`src/taskmcp/vocabulary.test.ts`, `calls.test.ts`, `src/service/vocabulary.test.ts`, `src/huly/editor.test.ts`, `plugins/tasks/hooks/*.test.mjs`) and the chain e2e runs with the built-in tracker; no live session has read the line or set an estimate. Assumed:
+
+- A chain session files a task the chain takes — the status and labels of the line, not the skills' former literal `Todo` and `Manual` — also on a project whose rules put tasks in by another status.
+- On Huly, an estimate of 20 minutes shows as 20 minutes (0.33 h) in Huly's own estimate and remaining time, and reads back as `estimate 20 min` in `task_read`.
+- The hook fires on the gateway's tool name in a chain session and on the plugin's in a hand session, shows the medians once, and refuses a far-off step once so the repeat goes through; OpenCode's plugin does the same.
+
+If one is wrong, a filed task stays out of the chain or lands in it when it should not, an estimate is off by a factor of 60, or an estimate call is refused every time. **Workaround:** set the status, the labels and the estimate in the tracker itself; turn the `tasks` plugin's hook off by sending no estimate. To check: on the Huly bench, run a chain task told to file a blocker with an estimate of 20 and read it in Huly; then repeat on a project whose rules take tasks from another status.
+
 ## Attachments of the built-in tracker (BTN-773)
 
 A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Assumed:

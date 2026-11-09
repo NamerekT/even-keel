@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_tasks_tasks__(tasks_create|task_update)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-calibration.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

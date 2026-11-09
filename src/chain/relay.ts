@@ -78,6 +78,11 @@ export function withTracker(prompt: string, tracker: TrackerPlace | null, langua
   return tracker === null ? prompt : `${prompt}\n${PROMPTS[language].tracker(tracker.title, tracker.project)}\n`
 }
 
+/** The roles lines of the project's trackers (BTN-893); none read — the prompt goes as it is, since `fill` refuses an empty value. */
+export function withVocabulary(prompt: string, lines: string[], language: Language): string {
+  return lines.length === 0 ? prompt : `${prompt}\n${PROMPTS[language].vocabulary(lines)}\n`
+}
+
 /** The `prompt` settings of a new session: Even Keel's first, then the project's; an empty project one does not cancel Even Keel's. */
 export function withPrompts(prompt: string, texts: { shared: string | null; project: string | null }, language: Language): string {
   const shared = texts.shared === null ? prompt : `${prompt}\n${PROMPTS[language].shared(texts.shared)}\n`

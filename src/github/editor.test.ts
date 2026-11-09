@@ -46,6 +46,13 @@ function fixture() {
 }
 
 describe('githubEditor', () => {
+  it('keeps a priority only where the repository has a priority label, and no estimate', () => {
+    const { editor } = fixture()
+    expect(editor.priorities!(['bug', 'Priority: High'])).toBe(true)
+    expect(editor.priorities!(['bug', 'priority-high'])).toBe(false)
+    expect(editor.estimate).toBeUndefined()
+  })
+
   it('creates an issue with every field: milestone, parent, labels with the priority label, then the closed status', async () => {
     const { editor, mutations, relabels } = fixture()
     const id = await editor.create('P1', { title: 'New', description: 'Text', status: 'Not planned', priority: 'high', milestone: 'V2', labels: ['bug'], parent: 'ABC-1' })

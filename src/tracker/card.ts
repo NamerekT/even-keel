@@ -17,6 +17,8 @@ export interface TrackerCard {
   related: TaskRef[]
   comments: TaskComment[]
   attachments: TaskAttachment[]
+  /** Minutes of the agent's active work, where the tracker keeps an estimate (BTN-893); absent or `null` — none. */
+  estimate?: number | null
   /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
   edit?: CardEdit
 }
