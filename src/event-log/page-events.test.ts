@@ -37,14 +37,14 @@ describe('pageEvents', () => {
 
   it('sees a chain that waits for the limit or paused on it', () => {
     const waits = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ limitUntil: '2026-10-22T20:00:00Z' })] } })
-    expect(waits).toEqual([{ key: 'limit|p1|2026-10-22T20:00:00Z', kind: 'limit', project: 'p1', until: '2026-10-22T20:00:00Z' }])
+    expect(waits).toEqual([{ key: 'limit|p1', kind: 'limit', project: 'p1', until: '2026-10-22T20:00:00Z' }])
     const paused = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ paused: true, error: notice('chain.limitSpent', { until: '20:00' }) })] } })
-    expect(paused.map((each) => each.kind)).toEqual(['limit'])
+    expect(paused).toEqual([{ key: 'limit|p1', kind: 'limit', project: 'p1' }])
   })
 
   it('sees a chain that waits for the week of its model (BTN-816)', () => {
     const waits = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ modelWeek: { model: 'Fable', until: null } })] } })
-    expect(waits).toEqual([{ key: 'limit|p1|model:Fable', kind: 'limit', project: 'p1' }])
+    expect(waits).toEqual([{ key: 'limit|p1', kind: 'limit', project: 'p1' }])
   })
 
   it('sees a red main once, by its run, its fix or a failed check of it', () => {
