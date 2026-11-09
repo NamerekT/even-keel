@@ -198,6 +198,8 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
         }
         case 'parent':
           return setParent(issue, field.to)
+        case 'component':
+          throw new EditRefused('GitHub has no components')
       }
     },
     ...descriptionEdits({

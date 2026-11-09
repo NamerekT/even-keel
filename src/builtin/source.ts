@@ -233,7 +233,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         milestones: (await store.milestones(project)).map((each) => each.name),
       }
     },
-    editor: builtinEditor({ store, names, must, trackerTask }),
+    editor: builtinEditor({ store, names, must, trackerTask, ...(files === undefined ? {} : { files }) }),
     close: async () => {},
   }
 }

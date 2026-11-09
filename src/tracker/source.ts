@@ -187,6 +187,8 @@ export interface TrackerVocabulary {
   labels: string[]
   /** The project's open milestones, for `chain.requiredMilestones`; a tracker without milestones leaves it out. */
   milestones?: string[]
+  /** The project's components (BTN-895); a tracker without components leaves it out. */
+  components?: string[]
 }
 
 export interface NewTask {

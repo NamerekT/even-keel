@@ -223,6 +223,12 @@ export function wirePackages(ctx: AccountsContext): Packages {
           return live === undefined ? null : runLabelText({ provider: live.agent, model: live.model })
         },
         refresh: (project) => ctx.refreshProject(project),
+        // A chain session attaches files of its worktree; a hand session, of its project's repository (BTN-895).
+        folderOf: (scope, project) => {
+          const own = scope.task === null ? undefined : ctx.sessions.find((each) => each.task === scope.task && each.lamp !== 'finished' && each.cwd !== '')
+          return own?.cwd ?? ctx.configStore.current.projects[project] ?? null
+        },
+        attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
       },
       // `ctx.release` is set after the packages are wired.
       installed(root).version,

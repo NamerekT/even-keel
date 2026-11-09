@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { fail } from '../notice/notice.js'
-import { patchText, type TaskEditor } from '../tracker/editor.js'
+import { EditRefused, fileLinks, patchText, withFileLinks, type TaskEditor, type TaskFiles, type TaskUpload } from '../tracker/editor.js'
 import type { TrackerTask } from '../tracker/model.js'
+import { fileUrl, type BuiltinFiles } from './files.js'
 import type { BuiltinNames } from './source.js'
 import type { BuiltinStore, BuiltinTask } from './store.js'
 
@@ -11,13 +12,15 @@ export interface BuiltinEditorDeps {
   /** The task of this id; throws `builtin.noTask` when there is none. */
   must: (id: string) => Promise<BuiltinTask>
   trackerTask: (task: BuiltinTask) => TrackerTask
+  /** The attachments' store; absent — the tracker takes no files through the tools. */
+  files?: BuiltinFiles
 }
 
 /**
  * The built-in tracker's writes for the tasks MCP server (BTN-768). A short field is set against the value it holds
  * now, so another field changed meanwhile never refuses it; the description goes by its revision or by patches.
  */
-export function builtinEditor({ store, names, must, trackerTask }: BuiltinEditorDeps): TaskEditor {
+export function builtinEditor({ store, names, must, trackerTask, files }: BuiltinEditorDeps): TaskEditor {
   // A parent is of the task's own project.
   const parentOf = async (project: string, id: string): Promise<number> => {
     const parent = await must(id)
@@ -70,6 +73,9 @@ export function builtinEditor({ store, names, must, trackerTask }: BuiltinEditor
           const to = field.to === null ? null : await parentOf(task.project, field.to)
           return changed(task, await store.edit(task, { field: 'parent', from: task.parent, to }))
         }
+        // The built-in tracker keeps no components (BTN-895): a label names the area.
+        case 'component':
+          throw new EditRefused('the built-in tracker has no components; name the area with a label')
       }
     },
     revision: async (id) => (await must(id)).descriptionRev,
@@ -89,5 +95,26 @@ export function builtinEditor({ store, names, must, trackerTask }: BuiltinEditor
     },
     relabel: async (id, change) => store.relabel(await must(id), change),
     comment: async (id, body, model) => store.comment(await must(id), 'agent', body, model),
+    ...(files === undefined ? {} : { files: builtinTaskFiles(files, store, names, must) }),
+  }
+}
+
+// A comment's files are the task's attachments, linked from the comment's body.
+function builtinTaskFiles(files: BuiltinFiles, store: BuiltinStore, names: BuiltinNames, must: (id: string) => Promise<BuiltinTask>): TaskFiles {
+  const add = async (task: BuiltinTask, uploads: readonly TaskUpload[]) => {
+    const added = []
+    for (const upload of uploads) added.push(await files.add(task, upload))
+    return added
+  }
+  return {
+    async attach(id, uploads) {
+      await add(await must(id), uploads)
+    },
+    async comment(id, body, uploads, model) {
+      const task = await must(id)
+      const added = await add(task, uploads)
+      const links = fileLinks(added.map((file) => ({ name: file.name, type: file.type, url: fileUrl(names.name(task), file.sha256) })))
+      return store.comment(task, 'agent', withFileLinks(body, links), model)
+    },
   }
 }

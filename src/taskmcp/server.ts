@@ -68,7 +68,7 @@ export class TasksMcp {
       case 'ping':
         return result({})
       case 'tools/list':
-        return result({ tools: toolSpecs(scope.project !== null) })
+        return result({ tools: toolSpecs(scope.project !== null, await this.tools.fields(scope)) })
       case 'tools/call': {
         const name = typeof params.name === 'string' ? params.name : ''
         const args = typeof params.arguments === 'object' && params.arguments !== null ? (params.arguments as Message) : {}

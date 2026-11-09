@@ -1,14 +1,16 @@
 import { megabytes } from '../notice/en.js'
 import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
-import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
+import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
 import type { Tracker } from '../tracker/source.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
-import type { ChainRules } from '../chain/rules.js'
+import { sameName, type ChainRules } from '../chain/rules.js'
 import { Args } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
+import { readUploads } from './files.js'
+import type { ToolFields } from './tools.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -41,6 +43,13 @@ export interface TasksDeps {
   modelOf(project: string, task: string): string | null
   /** The project's tasks changed: the chain reads them anew. */
   refresh(project: string): Promise<unknown>
+  /**
+   * The folder whose files the session may attach (BTN-895): a chain session's worktree, otherwise the repository of
+   * `project`; `null` — not known, nothing is attached.
+   */
+  folderOf(scope: TasksScope, project: string): string | null
+  /** The attachment size limit, bytes, read per call: the setting is live. */
+  attachmentLimit(): number
 }
 
 const LIST_LIMIT = 200
@@ -74,6 +83,20 @@ export class TasksTools {
       default:
         throw new EditRefused(`there is no tool ${name}`)
     }
+  }
+
+  /**
+   * The fields of a session's tools (BTN-895): a component where a tracker of its project keeps components, files where
+   * one takes them. A session without a project names one per call: it gets both.
+   */
+  async fields(scope: TasksScope): Promise<ToolFields> {
+    if (scope.project === null) return { components: true, attachments: true }
+    const kept = await Promise.all(
+      this.deps.readers(scope.project).map((reader) =>
+        this.deps.run(reader.id, async (tracker) => ({ components: tracker.editor?.components === true, attachments: tracker.editor?.files !== undefined })).catch(() => null),
+      ),
+    )
+    return { components: kept.some((each) => each?.components === true), attachments: kept.some((each) => each?.attachments === true) }
   }
 
   private async list(args: Args, scope: TasksScope): Promise<string> {
@@ -128,6 +151,10 @@ export class TasksTools {
       const editor = editorOf(tracker)
       const terms = await this.termsOf(tracker, project)
       const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix))
+      // Every file is read before anything is created: a refused path refuses the whole batch.
+      const uploads = await Promise.all(
+        planned.map((each) => (each.attach.length === 0 ? [] : this.uploads(each.attach, scope, reader))),
+      )
       const run = async (retry: Retry): Promise<string> => {
         const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
         const notes = planned.map((): string[] => [])
@@ -146,10 +173,13 @@ export class TasksTools {
                 throw new EditRefused(`${createdSoFar(done())}retry progress was not saved before task ${index + 1}: ${refusalText(error)}. A repeat with the same retry creates the rest`)
               }
             }
+            let fresh = false
             try {
               const found = started === undefined || editor.markers === undefined ? null : await editor.markers.find(project, started)
-              if (found === null) retry.ids[index] = await editor.create(project, draft, notes[index], marker)
-              else {
+              if (found === null) {
+                retry.ids[index] = await editor.create(project, draft, notes[index], marker)
+                fresh = true
+              } else {
                 // Labels go on after the create on some trackers: a crash between the two left none.
                 if (draft.labels.length > 0) await editor.relabel(found, { add: draft.labels, remove: [] })
                 notes[index]!.push('found in the tracker after an interrupted call')
@@ -163,6 +193,16 @@ export class TasksTools {
             } catch (error) {
               const after = marker === undefined ? 'Check the created tasks in the tracker before repeating; an unsaved task may be duplicated' : 'A repeat with the same retry finds the unsaved task in the tracker by its marker'
               throw new EditRefused(`${createdSoFar(done())}retry progress was not saved: ${refusalText(error)}. ${after}`)
+            }
+            // After the save: a repeat skips the task, so its files are never attached twice.
+            const files = uploads[index]!
+            if (fresh && files.length > 0) {
+              try {
+                await editor.files!.attach(retry.ids[index]!, files, notes[index])
+                notes[index]!.push(`attached ${files.map((file) => file.name).join(', ')}`)
+              } catch (error) {
+                throw new EditRefused(`${createdSoFar(done())}the files of ${retry.ids[index]} were refused: ${refusalText(error)}. Attach them with task_update`)
+              }
             }
           }
           for (const [index, each] of planned.entries()) {
@@ -203,6 +243,8 @@ export class TasksTools {
     const whole = args.text('description')
     const rev = args.integer('rev')
     const estimate = estimateArg(args)
+    const component = args.nullable('component')
+    const attach = args.texts('attach')
     if (whole !== undefined && (patches.length > 0 || append !== null)) throw new EditRefused('pass either "description" or "replace"/"append", not both')
     if (whole !== undefined && rev === undefined) throw new EditRefused('a whole "description" needs "rev", the description revision task_read shows; a patch with "replace" needs none')
     const others = [...(parent === undefined || parent === null ? [] : [parent]), ...LINKS.flatMap((link) => [...links[link].add, ...links[link].remove])]
@@ -215,8 +257,11 @@ export class TasksTools {
       if (status !== undefined) fields.push({ field: 'status', to: statusName(status, terms) })
       const milestone = args.nullable('milestone')
       if (milestone !== undefined) fields.push({ field: 'milestone', to: milestone === null ? null : milestoneName(milestone, terms) })
+      if (component !== undefined) fields.push({ field: 'component', to: component === null || component.trim() === '' ? null : componentName(component, terms, reader.prefix) })
       const add = labels.add.map((each) => labelName(each, terms))
       const setEstimate = estimate === null ? null : estimateOf(editor, terms)
+      if (attach.length > 0) filesOf(editor, terms, reader.prefix)
+      const files = attach.length === 0 ? [] : await this.uploads(attach, scope, reader)
       const said: string[] = []
       try {
         const notes: string[] = []
@@ -239,6 +284,11 @@ export class TasksTools {
           const delta = [...on.map((each) => `+${each.trim().toUpperCase()}`), ...off.map((each) => `−${each.trim().toUpperCase()}`)]
           if (delta.length > 0) said.push(`${LINK_WORDS[link]} ${delta.join(' ')}`)
         }
+        if (files.length > 0) {
+          const notes: string[] = []
+          await editor.files!.attach(key, files, notes)
+          said.push(`attached ${files.map((file) => file.name).join(', ')}`, ...notes)
+        }
       } catch (error) {
         throw new EditRefused(`${said.length === 0 ? '' : `${key}: ${said.join('; ')}; then `}${refusalText(error)}`)
       } finally {
@@ -253,10 +303,28 @@ export class TasksTools {
     const body = args.required('text')
     const reader = this.readerOfTask(key, scope)
     const model = scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
+    const attach = args.texts('attach')
     const notes: string[] = []
-    await this.deps.run(reader.id, async (tracker) => editorOf(tracker).comment(key, body, model, notes))
+    const attached = await this.deps.run(reader.id, async (tracker) => {
+      const editor = editorOf(tracker)
+      if (attach.length === 0) {
+        await editor.comment(key, body, model, notes)
+        return []
+      }
+      const files = filesOf(editor, await this.termsOf(tracker, reader.id), reader.prefix)
+      const uploads = await this.uploads(attach, scope, reader)
+      await files.comment(key, body, uploads, model, notes)
+      return uploads.map((file) => file.name)
+    })
     await this.deps.refresh(reader.project)
-    return [`${key}: comment added`, ...notes].join('; ')
+    return [`${key}: comment added${attached.length === 0 ? '' : ` with ${attached.join(', ')}`}`, ...notes].join('; ')
+  }
+
+  /** The files `paths` names, read from the session's working folder. */
+  private async uploads(paths: string[], scope: TasksScope, reader: TaskReader) {
+    const folder = this.deps.folderOf(scope, reader.project)
+    if (folder === null) throw new EditRefused("this session's working folder is not known: nothing can be attached; name the file in the text instead")
+    return readUploads(paths, folder, this.deps.attachmentLimit())
   }
 
   private async termsOf(tracker: Tracker, reader: string): Promise<TrackerTerms> {
@@ -312,6 +380,8 @@ const crossRefusal = (key: string) => `${key} is in another tracker; links don't
 interface PlannedTask {
   draft: TaskDraft
   links: Record<TaskLink, string[]>
+  /** The paths of the files to attach once the task is created. */
+  attach: string[]
 }
 
 /** Checks every name and reference of a batch's task before anything is created. */
@@ -334,7 +404,18 @@ function plannedTask(item: Args, index: number, count: number, terms: TrackerTer
   const parent = item.text('parent')
   const estimate = estimateArg(item)
   if (estimate !== null && !terms.estimate) throw new EditRefused(`task ${index + 1}: ${NO_ESTIMATE}`)
+  const component = item.text('component')?.trim()
+  const attach = item.texts('attach')
+  const task = (refuse: () => unknown) => {
+    try {
+      return refuse()
+    } catch (error) {
+      throw new EditRefused(`task ${index + 1}: ${refusalText(error)}`)
+    }
+  }
+  if (attach.length > 0) task(() => filesCheck(terms, prefix))
   return {
+    attach,
     draft: {
       title: item.required('title').trim(),
       description: item.text('description') ?? '',
@@ -344,6 +425,7 @@ function plannedTask(item: Args, index: number, count: number, terms: TrackerTer
       labels: item.texts('labels').map((each) => labelName(each, terms)),
       parent: parent === undefined || parent.trim() === '' ? null : ref(parent, true),
       estimate,
+      ...(component === undefined || component === '' ? {} : { component: task(() => componentName(component, terms, prefix)) as string }),
     },
     links: Object.fromEntries(LINKS.map((link) => [link, item.texts(link).map((each) => ref(each, false))])) as Record<TaskLink, string[]>,
   }
@@ -397,6 +479,26 @@ function labelName(name: string, terms: TrackerTerms): string {
   if (found !== undefined) return found
   if (runLabelOf(name) !== null) return name.trim()
   throw nameRefusal(`there is no label "${name}"; the labels are ${known.labels.join(', ')}. Only the user makes a new one`, terms)
+}
+
+function componentName(name: string, terms: TrackerTerms, prefix: string): string {
+  const list = terms.components
+  if (list === null) throw new EditRefused(`${prefix} has no components; send the task without one, or name the area with a label`)
+  const found = list.find((each) => sameName(each, name))
+  if (found === undefined) {
+    throw nameRefusal(`there is no component "${name.trim()}"; ${list.length === 0 ? 'the project has none' : `the components are ${list.join(', ')}`}. Only the user makes a new one`, terms)
+  }
+  return found
+}
+
+function filesCheck(terms: TrackerTerms, prefix: string): void {
+  if (!terms.attachments) throw new EditRefused(`${prefix} takes no attachments through these tools; name the file in the text instead`)
+}
+
+/** The editor's files, refused for a tracker that takes none. */
+function filesOf(editor: TaskEditor, terms: TrackerTerms, prefix: string): TaskFiles {
+  filesCheck(terms, prefix)
+  return editor.files!
 }
 
 function fieldLine(field: TaskField): string {

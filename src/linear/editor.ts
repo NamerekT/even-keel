@@ -185,6 +185,8 @@ export function linearEditor(deps: LinearEditorDeps): TaskEditor {
           if (parent.id === issue.id) throw new EditRefused(`${issue.identifier} cannot be its own parent`)
           return update(issue, { parentId: parent.id })
         }
+        case 'component':
+          throw new EditRefused('Linear has no components')
       }
     },
     ...descriptionEdits({

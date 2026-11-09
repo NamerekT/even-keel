@@ -19,6 +19,8 @@ const terms = (rules: Partial<ChainRules> = {}, more: Partial<TrackerTerms> = {}
   rules: { ...DEFAULT_RULES, excludedLabels: ['Вручную'], ...rules },
   priority: true,
   estimate: true,
+  components: null,
+  attachments: true,
   ...more,
 })
 
@@ -42,6 +44,12 @@ describe('rolesLine', () => {
 
   it('leaves the milestones out of a short line and says which fields the tracker lacks', () => {
     expect(rolesLine(terms({}, { priority: false, estimate: false }), false)).toBe('chain: into it — Todo; skip — Вручную; question — Вопрос; priority: no; estimate: no')
+  })
+
+  it('names the components of a tracker that keeps them and says when a tracker takes no files', () => {
+    expect(rolesLine(terms({}, { components: ['UI', 'Server'] }), false)).toMatch(/; estimate: yes; components: UI, Server$/)
+    expect(rolesLine(terms({}, { components: [] }), false)).toMatch(/; components: none$/)
+    expect(rolesLine(terms({}, { attachments: false }), false)).toMatch(/; estimate: yes; attachments: no$/)
   })
 
   it('a tracker without a vocabulary says so', () => {

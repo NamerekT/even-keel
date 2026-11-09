@@ -196,6 +196,8 @@ export function hulyEditor(deps: HulyEditorDeps): TaskEditor {
           if (current?.toUpperCase() === field.to?.toUpperCase() || (current === null && field.to === null)) return false
           throw new EditRefused(`Huly: these tools set a parent only on a new task; move ${issue.identifier} under another parent in Huly itself`)
         }
+        case 'component':
+          throw new EditRefused('these tools set no Huly component yet')
       }
     },
     async estimate(id, minutes) {

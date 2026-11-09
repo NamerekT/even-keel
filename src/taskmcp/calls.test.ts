@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
@@ -10,7 +10,7 @@ import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
-import { EditRefused } from '../tracker/editor.js'
+import { EditRefused, type TaskEditor, type TaskField } from '../tracker/editor.js'
 import { TasksTools, cardText, type TaskReader, type TasksScope } from './calls.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
@@ -37,19 +37,26 @@ let refreshed: string[]
 let ran: string[]
 let off: Set<string>
 let rules: Map<string, ChainRules>
+/** A tracker of its own for a reader; the rest go to `tracker`. */
+let trackers: Map<string, Tracker>
+/** The session's working folder the files are read from; `null` — not known. */
+let folder: string | null
+let filesDir: string
 
 const deps = () => ({
   db,
   run: async <T>(reader: string, call: (each: Tracker) => Promise<T>) => {
     ran.push(reader)
     if (off.has(reader)) throw new EditRefused("the project's tracker is off in Even Keel; turn it on on the page")
-    return call(tracker)
+    return call(trackers.get(reader) ?? tracker)
   },
   readers: (project: string) => READERS.filter((each) => each.project === project),
   readerOfPrefix: (prefix: string) => READERS.find((each) => each.prefix === prefix) ?? null,
   rulesOf: (reader: string) => rules.get(reader) ?? DEFAULT_RULES,
   modelOf: () => 'Claude | opus',
   refresh: async (project: string) => void refreshed.push(project),
+  folderOf: () => folder,
+  attachmentLimit: () => 1024 * 1024,
 })
 
 const call = (name: string, args: Record<string, unknown>, scope = CHAIN) => tools.call(name, args, scope)
@@ -69,7 +76,12 @@ beforeAll(async () => {
 afterAll(() => db.close())
 beforeEach(async () => {
   await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
-  tracker = trackerOf(builtinSource(db, PLACES))
+  const root = mkdtempSync(join(tmpdir(), 'ek-taskmcp-'))
+  folder = join(root, 'work')
+  filesDir = join(root, 'files')
+  mkdirSync(join(folder, '.temp'), { recursive: true })
+  trackers = new Map()
+  tracker = trackerOf(builtinSource(db, PLACES, filesDir))
   store = new BuiltinStore(db)
   tools = new TasksTools(deps())
   refreshed = []
@@ -493,6 +505,106 @@ describe("the project's feeds (BTN-892)", () => {
     )
     off.add(ABC)
     expect(await call('tasks_list', { text: 'nothing' }, CHAIN)).toMatch(/^No tasks\.\nABC: unreachable, not searched \(.*\)\nGHI: unreachable, not searched \(.*\)$/)
+  })
+})
+
+describe('components and attachments (BTN-895)', () => {
+  type Props = Record<string, unknown>
+  const toolsOf = async (scope: TasksScope) => {
+    const list = (await new TasksMcp(deps(), '1').handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, scope)) as { result: { tools: { name: string; inputSchema: { properties: Props } }[] } }
+    const props = (name: string) => list.result.tools.find((tool) => tool.name === name)!.inputSchema.properties
+    const item = ((props('tasks_create').tasks as { items: { properties: Props } }).items).properties
+    return { item, update: props('task_update'), comment: props('task_comment') }
+  }
+  /** A tracker like the built-in one with its editor changed. */
+  const like = (change: (editor: TaskEditor) => TaskEditor, components?: string[]): Tracker => {
+    const base = trackerOf(builtinSource(db, PLACES, filesDir))
+    const vocabulary = base.vocabulary!
+    return {
+      ...base,
+      editor: change(base.editor!),
+      vocabulary: async (project) => ({ ...(await vocabulary(project)), ...(components === undefined ? {} : { components }) }),
+    }
+  }
+  const githubLike = () => like(({ files: _files, ...editor }) => editor)
+  const linearLike = () => like((editor) => editor)
+  const withComponents = (set: TaskField[]) =>
+    like(
+      (editor) => ({
+        ...editor,
+        components: true,
+        set: async (id, field) => (field.field === 'component' ? (set.push(field), true) : editor.set(id, field)),
+      }),
+      ['UI', 'Server'],
+    )
+  const file = (path: string, text: string | Buffer) => writeFileSync(join(folder!, path), text)
+
+  it('a GitHub project with a Linear feed has no component field; a project with components has it', async () => {
+    trackers.set(ABC, githubLike())
+    trackers.set(GHI, linearLike())
+    const feeds = await toolsOf(CHAIN)
+    expect(feeds.item).not.toHaveProperty('component')
+    expect(feeds.update).not.toHaveProperty('component')
+    expect(feeds.item).toHaveProperty('attach')
+    expect(feeds.comment).toHaveProperty('attach')
+    trackers.set(XYZ, withComponents([]))
+    const own = await toolsOf({ project: XYZ, task: null })
+    expect(own.item).toHaveProperty('component')
+    expect(own.update).toHaveProperty('component')
+    const hand = await toolsOf(HAND)
+    expect(hand.item).toHaveProperty('component')
+    expect(hand.item).toHaveProperty('attach')
+  })
+
+  it('a tracker with neither has no fields, says attachments: no and refuses both', async () => {
+    trackers.set(ABC, githubLike())
+    trackers.set(GHI, githubLike())
+    const bare = await toolsOf(CHAIN)
+    expect(bare.item).not.toHaveProperty('attach')
+    expect(bare.comment).not.toHaveProperty('attach')
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; estimate: no; attachments: no$/)
+    file('note.txt', 'x')
+    expect(await refusal(call('task_update', { key: 'ABC-1', attach: ['note.txt'] }))).toBe('ABC takes no attachments through these tools; name the file in the text instead')
+    expect(await refusal(call('task_comment', { key: 'ABC-1', text: 'see', attach: ['note.txt'] }))).toBe('ABC takes no attachments through these tools; name the file in the text instead')
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', component: 'UI' }] }))).toBe('task 1: ABC has no components; send the task without one, or name the area with a label')
+    expect(await refusal(call('task_update', { key: 'ABC-1', component: 'UI' }))).toBe('ABC has no components; send the task without one, or name the area with a label')
+    expect((await store.list([ABC])).length).toBe(1)
+  })
+
+  it('sets a component by its name and refuses an unknown one with the list', async () => {
+    const set: TaskField[] = []
+    trackers.set(ABC, withComponents(set))
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; estimate: no; components: UI, Server$/)
+    expect(await call('task_update', { key: 'ABC-1', component: 'ui' })).toBe('ABC-1: component → UI')
+    expect(await call('task_update', { key: 'ABC-1', component: null })).toBe('ABC-1: component → none')
+    expect(set).toEqual([
+      { field: 'component', to: 'UI' },
+      { field: 'component', to: null },
+    ])
+    expect(await refusal(call('task_update', { key: 'ABC-1', component: 'Docs' }))).toMatch(/^there is no component "Docs"; the components are UI, Server\. Only the user makes a new one/)
+  })
+
+  it('attaches files on create, update and comment, and task_read shows them', async () => {
+    file('.temp/shot.png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]))
+    file('notes.txt', 'notes')
+    expect(await call('tasks_create', { tasks: [{ title: 'With a file', attach: ['.temp/shot.png'] }], retry: 'f1' })).toBe('ABC-2 With a file (attached shot.png)')
+    tools = new TasksTools(deps())
+    expect(await call('tasks_create', { tasks: [{ title: 'With a file', attach: ['.temp/shot.png'] }], retry: 'f1' })).toMatch(/^ABC-2 With a file/)
+    expect(await call('task_update', { key: 'ABC-2', attach: [join(folder!, 'notes.txt')] })).toBe('ABC-2: attached notes.txt')
+    expect(await call('task_comment', { key: 'ABC-2', text: 'Look.', attach: ['.temp/shot.png'] })).toBe('ABC-2: comment added with shot.png')
+    const card = await call('task_read', { key: 'ABC-2', comments: true })
+    const attachments = card.split('## Attachments\n\n')[1]!.split('\n\n')[0]!.split('\n')
+    expect(attachments.map((line) => line.split(' (')[0])).toEqual(['- shot.png', '- notes.txt'])
+    expect(card).toMatch(/Look\.\n\n!\[shot\.png\]\(\/api\/tasks\/ABC-2\/files\/[0-9a-f]{64}\)/)
+  })
+
+  it('refuses a file outside the working folder before anything is created, and any file without a folder', async () => {
+    file('note.txt', 'x')
+    writeFileSync(join(folder!, '..', 'secret.txt'), 'x')
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', attach: ['../secret.txt'] }] }))).toMatch(/secret\.txt/)
+    expect((await store.list([ABC])).length).toBe(1)
+    folder = null
+    expect(await refusal(call('task_update', { key: 'ABC-1', attach: ['note.txt'] }))).toMatch(/working folder is not known/)
   })
 })
 

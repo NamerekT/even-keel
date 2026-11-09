@@ -141,6 +141,8 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
           await setParent(issue, id, parent, field.to)
           return true
         }
+        case 'component':
+          throw new EditRefused('GitLab has no components; name the area with a label such as component::ui')
       }
     },
     ...descriptionEdits({

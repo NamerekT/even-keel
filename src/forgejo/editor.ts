@@ -120,6 +120,8 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
         case 'parent':
           if (field.to === null) return false
           throw new EditRefused(NO_PARENT)
+        case 'component':
+          throw new EditRefused('Forgejo has no components')
       }
     },
     ...descriptionEdits({

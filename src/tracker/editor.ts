@@ -15,6 +15,8 @@ export interface TaskDraft {
   parent: string | null
   /** Minutes of the agent's active work (BTN-893), given only to an editor with `estimate`; absent or `null` — none. */
   estimate?: number | null
+  /** A component's name (BTN-895), given only to an editor with `components`; absent or `null` — none. */
+  component?: string | null
 }
 
 /** A short field set to a value, whatever it holds now: a field changed by someone else meanwhile is no conflict. */
@@ -25,6 +27,36 @@ export type TaskField =
   | { field: 'milestone'; to: string | null }
   /** The parent's id; `null` — no parent. */
   | { field: 'parent'; to: string | null }
+  /** Only for an editor with `components`: the task's one component; `null` — none. */
+  | { field: 'component'; to: string | null }
+
+/** A file of the session's working folder the service read for the tracker (BTN-895). */
+export interface TaskUpload {
+  name: string
+  /** MIME type; `application/octet-stream` when the name does not tell. */
+  type: string
+  bytes: Uint8Array
+}
+
+/**
+ * Files on a tracker that takes them (BTN-895). Where a tracker keeps a file only as a link in a text (GitLab), the
+ * link goes into the description or the comment.
+ */
+export interface TaskFiles {
+  /** Attaches the files to the task. */
+  attach(id: string, files: readonly TaskUpload[], notes?: string[]): Promise<void>
+  /** Posts the agent's comment with the files, as `TaskEditor.comment` does, and returns its id. */
+  comment(id: string, body: string, files: readonly TaskUpload[], model: string | null, notes?: string[]): Promise<string>
+}
+
+/** The Markdown links of uploaded files, a line each: an image is shown, any other file is a link. */
+export function fileLinks(files: readonly { name: string; type: string; url: string }[]): string {
+  const label = (name: string) => name.replace(/[[\]\\]/g, '\\$&')
+  return files.map((each) => `${each.type.startsWith('image/') ? '!' : ''}[${label(each.name)}](${each.url.replace(/[()\s]/g, encodeURIComponent)})`).join('\n')
+}
+
+/** A comment's body with the links of its files after it. */
+export const withFileLinks = (body: string, links: string) => (links === '' ? body : `${body.trimEnd()}\n\n${links}`)
 
 /** `blocks` — the task blocks the other; `blockedBy` — the other blocks it; `relates` has no direction. */
 export type TaskLink = 'blocks' | 'blockedBy' | 'relates'
@@ -59,6 +91,13 @@ export interface TaskEditor {
    * the tracker's own unit; `false` — it held that already. Absent — the tools refuse an estimate for the tracker.
    */
   estimate?(id: string, minutes: number): Promise<boolean>
+  /**
+   * The tracker keeps components (Huly, Jira; BTN-895): a draft's `component` and the `component` field are its, the
+   * names are the vocabulary's `components`. Absent — the tools have no component field for it.
+   */
+  components?: true
+  /** Optional: the tracker takes files (BTN-895). Absent — the tools have no `attach` for it. */
+  files?: TaskFiles
   /**
    * Optional, where a priority is one of the project's labels (GitHub, GitLab, Forgejo): whether `labels` hold one.
    * Absent — the tracker has a priority of its own.

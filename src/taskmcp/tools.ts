@@ -13,12 +13,25 @@ const project = { type: 'string', description: 'project key; needed only without
 const estimate = { type: 'integer', minimum: 1, description: 'minutes of your own active work; only where the chain: line says estimate: yes' }
 const tracker = (fallback: string) => ({ type: 'string', description: `one tracker of the project by its key prefix (GH of GH-12); none — ${fallback}` })
 
+const attach = { ...texts, description: 'files of your working folder to attach: paths relative to it or absolute' }
+
+/** The fields only some trackers keep (BTN-895): a session's tools have one only where a tracker of its project keeps it. */
+export interface ToolFields {
+  components: boolean
+  attachments: boolean
+}
+
 /**
  * The five tools (BTN-768): short enough that an agent loads them at once, with no deferred schemas. Names, never ids;
  * no tool deletes anything.
  */
-export function toolSpecs(withProject: boolean): ToolSpec[] {
+export function toolSpecs(withProject: boolean, fields: ToolFields = { components: true, attachments: true }): ToolSpec[] {
   const scoped = (properties: Record<string, unknown>) => (withProject ? properties : { project, ...properties })
+  const extra = (component: unknown) => ({
+    ...(fields.components ? { component } : {}),
+    ...(fields.attachments ? { attach } : {}),
+  })
+  const component = { ...text, description: 'a component of the tracker, where its chain: line names components' }
   return [
     {
       name: 'tasks_list',
@@ -65,6 +78,7 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
                 blocks: ref,
                 blockedBy: ref,
                 relates: ref,
+                ...extra(component),
               },
               required: ['title'],
               additionalProperties: false,
@@ -101,6 +115,7 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
           append: { ...text, description: 'a section added at the end' },
           description: { ...text, description: 'the whole new description; needs rev' },
           rev: { type: 'integer' },
+          ...extra({ ...component, type: ['string', 'null'] }),
         },
         required: ['key'],
         additionalProperties: false,
@@ -109,7 +124,12 @@ export function toolSpecs(withProject: boolean): ToolSpec[] {
     {
       name: 'task_comment',
       description: 'Adds a Markdown comment to a task.',
-      inputSchema: { type: 'object', properties: { key: text, text }, required: ['key', 'text'], additionalProperties: false },
+      inputSchema: {
+        type: 'object',
+        properties: { key: text, text, ...(fields.attachments ? { attach } : {}) },
+        required: ['key', 'text'],
+        additionalProperties: false,
+      },
     },
   ]
 }

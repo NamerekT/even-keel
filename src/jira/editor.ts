@@ -151,6 +151,8 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
           if (current?.toUpperCase() === field.to?.toUpperCase() || (current === null && field.to === null)) return false
           return update(id, { parent: field.to === null ? null : { key: field.to } })
         }
+        case 'component':
+          throw new EditRefused('these tools set no Jira component yet')
       }
     },
     ...descriptionEdits({
