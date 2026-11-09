@@ -41,7 +41,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
 - The README badge: 122 — BTN-919.
 - Background commands of a session stopped under load: 123 — BTN-936.
-- A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02 and 2026-11-07; what is left needs a task due right at the restart, before the first poll answers).
+- A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02, 2026-11-07 and 2026-11-09, the last a launch on a kept snapshot half a second before the first poll; what is left needs a project on an account with a spent window, or a kept snapshot a reset made stale, due right at the restart).
 - Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main on Forgejo from a runner failure), 92 (a watched branch fast-forwarded to an already green commit), 94 (GitHub runners running short again), 109 (the next red main on GitHub or GitLab), 112 (the next green `dev` of Even Keel's own project, whose commands restart the service), 124 (the next held folder after a Done followed by that restart: `removed the worktree folder … once nothing held it` after the start), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
