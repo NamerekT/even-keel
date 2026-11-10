@@ -189,7 +189,7 @@ export function ProjectSessionsTab({
         <ProjectStandards
           className={marks.box('standards')}
           project={project}
-          branch={text('branch').trim() || form.branch}
+          branch={form.git ? text('branch').trim() || form.branch : null}
           trim={state?.trimTools ?? false}
           value={text('standards')}
           onChange={(value) => edit('standards', value)}
@@ -198,8 +198,9 @@ export function ProjectSessionsTab({
           {notes('standards')}
         </ProjectStandards>
       </Section>
-      <Section title={t.settings.gets.title} hint={t.settings.gets.hint(providerName(text('provider') || shared.provider))}>
+      <Section title={t.settings.gets.title} hint={(form.git ? t.settings.gets.hint : t.settings.gets.hintPlain)(providerName(text('provider') || shared.provider))}>
         <SessionGets
+          plain={!form.git}
           project={project}
           agent={text('provider') || shared.provider}
           prompts={{ shared: (shared.prompt ?? '').trim() !== '', project: text('prompt').trim() !== '' }}

@@ -15,7 +15,8 @@ export interface SettingRow {
   values: Partial<Record<ToolScope, string>>
   /**
    * What a session in a task worktree gets; `null` — only `settings.local.json` sets it, and a worktree does not read
-   * the main checkout's one. A Codex rule gets the strictest of its values.
+   * the main checkout's one. A project without git runs its sessions in the folder itself, which reads it (`ToolsView.plain`).
+   * A Codex rule gets the strictest of its values.
    */
   session: string | null
 }
@@ -69,4 +70,9 @@ export interface ToolsView {
   rules: RepoRules | null
   /** The Markdown files committed on the project's branch, the documents a standard may name (BTN-359); `null` — as above. */
   docs: string[] | null
+  /**
+   * A project without git (BTN-883): its sessions run in the folder itself, so `rules`, `docs` and the project's Codex
+   * rules are the folder's files and `settings.local.json` reaches the sessions.
+   */
+  plain?: true
 }

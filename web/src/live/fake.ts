@@ -810,7 +810,7 @@ export function createFakeSource(search: string): LiveSource {
     badgeUrl: (project, theme) => fakeBadgeUrl(current.state, project, theme),
     tools: async (project) => {
       await answer()
-      return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null
+      return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools'), current.state.config.projects[project]?.git === false) : null
     },
     card: async (task) => {
       await answer()

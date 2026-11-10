@@ -6,6 +6,7 @@ const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permissio
 const SCOPES: ToolScope[] = ['user', 'project', 'local', 'chain']
 /** What a worktree session reads, the strongest first: the main checkout's `settings.local.json` is not among them. */
 const SESSION_SCOPES: ToolScope[] = ['chain', 'project', 'user']
+const FOLDER_SCOPES: ToolScope[] = ['chain', 'local', 'project', 'user']
 
 export interface MatrixRow<T> {
   key: string
@@ -51,13 +52,17 @@ export function filterRows<T extends SettingRow>(rows: MatrixRow<T>[], { query, 
 
 export type ScopeEffect = 'wins' | 'same' | 'overridden' | 'unread'
 
-/** The winner is the strongest scope with the session's value: a Codex rule's strictest decision may sit in a weaker one. */
-export function scopeMarks(row: SettingRow): { scope: ToolScope; value: string; effect: ScopeEffect }[] {
-  const winner = SESSION_SCOPES.find((scope) => row.values[scope] !== undefined && row.values[scope] === row.session)
+/**
+ * The winner is the strongest scope with the session's value: a Codex rule's strictest decision may sit in a weaker one.
+ * `readsLocal` — a project without git, whose sessions run in the folder itself and read its `settings.local.json`.
+ */
+export function scopeMarks(row: SettingRow, readsLocal = false): { scope: ToolScope; value: string; effect: ScopeEffect }[] {
+  const scopes = readsLocal ? FOLDER_SCOPES : SESSION_SCOPES
+  const winner = scopes.find((scope) => row.values[scope] !== undefined && row.values[scope] === row.session)
   return SCOPES.flatMap((scope) => {
     const value = row.values[scope]
     if (value === undefined) return []
-    const effect: ScopeEffect = scope === 'local' ? 'unread' : scope === winner ? 'wins' : value === row.session ? 'same' : 'overridden'
+    const effect: ScopeEffect = !scopes.includes(scope) ? 'unread' : scope === winner ? 'wins' : value === row.session ? 'same' : 'overridden'
     return [{ scope, value, effect }]
   })
 }

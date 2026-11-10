@@ -27,7 +27,8 @@ export function ProjectStandards({
   children,
 }: {
   project: string
-  branch: string
+  /** `null` — a project without git: the documents are its folder's files, and there is no merge to hold for shots. */
+  branch: string | null
   trim: boolean
   value: string
   onChange: (value: string) => void
@@ -89,7 +90,7 @@ function Standard({
   row: StandardRow
   docs: string[] | null
   taken: string[]
-  branch: string
+  branch: string | null
   onChange: (patch: Partial<StandardRow>) => void
   onRemove: () => void
 }) {
@@ -121,7 +122,7 @@ function Standard({
   return (
     <div className="standard">
       <div className="standard__field settings__help-scope">
-        <FieldHead label={text.doc} hint={text.docHint} htmlFor={`${id}-doc`} />
+        <FieldHead label={text.doc} hint={branch === null ? text.docHintPlain : text.docHint} htmlFor={`${id}-doc`} />
         <div className="standard__doc">
           <Select
             id={`${id}-doc`}
@@ -139,18 +140,20 @@ function Standard({
           </Tipped>
         </div>
       </div>
-      {gone && <p className="notice notice--warn standard__gone">{text.docGone(branch)}</p>}
+      {gone && <p className="notice notice--warn standard__gone">{branch === null ? text.docGonePlain : text.docGone(branch)}</p>}
       {field('files', text.files, text.filesHint)}
       {field('except', text.except, text.exceptHint)}
-      <div className="standard__foot settings__help-scope">
-        <span className="settings__head-row">
-          <label className="settings__label" htmlFor={`${id}-shots`}>
-            {text.shots}
-          </label>
-          <HelpTip text={text.shotsHint} />
-        </span>
-        <Switch id={`${id}-shots`} checked={row.shots} onChange={(shots) => onChange({ shots })} />
-      </div>
+      {branch !== null && (
+        <div className="standard__foot settings__help-scope">
+          <span className="settings__head-row">
+            <label className="settings__label" htmlFor={`${id}-shots`}>
+              {text.shots}
+            </label>
+            <HelpTip text={text.shotsHint} />
+          </span>
+          <Switch id={`${id}-shots`} checked={row.shots} onChange={(shots) => onChange({ shots })} />
+        </div>
+      )}
     </div>
   )
 }

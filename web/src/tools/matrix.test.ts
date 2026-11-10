@@ -56,6 +56,15 @@ describe('scopeMarks', () => {
     ])
   })
 
+  it('reads the local scope of a project without git: its sessions run in the folder itself', () => {
+    const marks = scopeMarks(row('plugin', 'playwright', { user: 'on', project: 'off', local: 'on' }, 'on'), true)
+    expect(marks).toEqual([
+      { scope: 'user', value: 'on', effect: 'same' },
+      { scope: 'project', value: 'off', effect: 'overridden' },
+      { scope: 'local', value: 'on', effect: 'wins' },
+    ])
+  })
+
   it('lets the strictest Codex rule win wherever it is set', () => {
     expect(scopeMarks(row('codex', 'git push', { user: 'deny', project: 'allow' }, 'deny'))).toEqual([
       { scope: 'user', value: 'deny', effect: 'wins' },

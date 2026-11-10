@@ -56,6 +56,26 @@ describe('readToolsView', () => {
   it('has no rules when git cannot read the branch', async () => {
     expect((await readToolsView('ABC', places)).rules).toBeNull()
   })
+
+  it('reads a project without git from its folder, where its sessions run and settings.local.json reaches them', async () => {
+    const { repo } = places
+    mkdirSync(join(repo, '.claude', 'skills', 'notes'), { recursive: true })
+    mkdirSync(join(repo, '.codex', 'rules'), { recursive: true })
+    mkdirSync(join(repo, 'docs'))
+    mkdirSync(join(repo, 'node_modules', 'pkg'), { recursive: true })
+    writeFileSync(join(repo, '.claude', 'settings.local.json'), JSON.stringify({ permissions: { deny: ['WebFetch'] } }))
+    writeFileSync(join(repo, '.claude', 'skills', 'notes', 'SKILL.md'), '# Notes\n')
+    writeFileSync(join(repo, '.codex', 'rules', 'own.rules'), 'prefix_rule(pattern=["ls"], decision="allow")\n')
+    writeFileSync(join(repo, 'CLAUDE.md'), '# Rules\n')
+    writeFileSync(join(repo, 'docs', 'style.md'), '# Style\n')
+    writeFileSync(join(repo, 'node_modules', 'pkg', 'README.md'), '# Package\n')
+    const view = await readToolsView('ABC', { ...places, plain: true })
+    expect(view.plain).toBe(true)
+    expect(view.settings.find((row) => row.name === 'WebFetch')).toMatchObject({ values: { local: 'deny' }, session: 'deny' })
+    expect(view.settings.find((row) => row.kind === 'codex')).toMatchObject({ name: 'ls', values: { project: 'allow' }, session: 'allow' })
+    expect(view.rules).toEqual({ files: ['CLAUDE.md'], skills: [{ folder: '.claude/skills', names: ['notes'] }] })
+    expect(view.docs).toEqual(['.claude/skills/notes/SKILL.md', 'CLAUDE.md', 'docs/style.md'])
+  })
 })
 
 describe('chainSettings', () => {

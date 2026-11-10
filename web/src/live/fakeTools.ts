@@ -9,11 +9,13 @@ const REACH = { plugins: ['huly@even-keel', 'playwright@claude-plugins-official'
 /**
  * `mode`: `bloated` — a session that got claude.ai skills, accounts that drift; `empty` — no session yet.
  * Projects whose key starts with an odd letter code differ a little, so that the comparison has something to show.
+ * `plain` — a project without git: its sessions run in the folder and read `settings.local.json`.
  */
-export function fakeTools(project: string, trim: boolean, mode: string | null): ToolsView {
+export function fakeTools(project: string, trim: boolean, mode: string | null, plain = false): ToolsView {
   const repo = `D:\\work\\${project.toLowerCase()}`
   const bloated = mode === 'bloated'
   const odd = project.charCodeAt(0) % 2 === 1
+  const row = (kind: SettingRow['kind'], name: string, values: SettingRow['values']) => settingRow(kind, name, values, plain)
   const settings: SettingRow[] = [
     row('sync', 'syncClaudeAiPlugins', { local: 'off', ...(trim ? { chain: 'off' } : {}) }),
     row('sync', 'syncClaudeAiSkills', { local: 'off', ...(trim ? { chain: 'off' } : {}) }),
@@ -57,12 +59,13 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
           : { files: ['CLAUDE.md', 'AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['migrate', 'review'] }] },
     // `docs/api-style.md`, a standard of ABC, is not among them: the editor warns about it.
     docs: mode === 'empty' ? [] : ['AGENTS.md', 'CLAUDE.md', 'README.md', 'docs/design.md', 'docs/setup.md'],
+    ...(plain ? { plain: true as const } : {}),
   }
 }
 
-function row(kind: SettingRow['kind'], name: string, values: SettingRow['values']): SettingRow {
+function settingRow(kind: SettingRow['kind'], name: string, values: SettingRow['values'], readsLocal: boolean): SettingRow {
   const session = kind === 'codex' ? (strictest([values.project, values.user].filter((each) => each !== undefined) as CodexDecision[]) ?? null) : null
-  return { kind, name, values, session: session ?? values.chain ?? values.project ?? values.user ?? null }
+  return { kind, name, values, session: session ?? values.chain ?? (readsLocal ? values.local : undefined) ?? values.project ?? values.user ?? null }
 }
 
 function received(repo: string, project: string, bloated: boolean): ReceivedView {

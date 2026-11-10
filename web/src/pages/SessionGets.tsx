@@ -19,6 +19,7 @@ export function SessionGets({
   packages,
   trim,
   standards,
+  plain,
 }: {
   project: string
   agent: string
@@ -27,10 +28,12 @@ export function SessionGets({
   trim: boolean
   /** The documents of the project's standards (BTN-359), as the form holds them. */
   standards: string[]
+  /** A project without git: read from its folder, not a branch. */
+  plain: boolean
 }) {
   const loaded = useToolsViews([project], trim).get(project)
   return (
-    <Loading busy={loaded === undefined || loaded.state === 'loading'} label={t.settings.gets.loading}>
+    <Loading busy={loaded === undefined || loaded.state === 'loading'} label={plain ? t.settings.gets.loadingPlain : t.settings.gets.loading}>
       {loaded !== undefined && loaded.state !== 'loading' && <Gets loaded={loaded} agent={agent} prompts={prompts} packages={packages} project={project} standards={standards} />}
     </Loading>
   )

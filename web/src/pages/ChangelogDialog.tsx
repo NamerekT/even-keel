@@ -39,10 +39,14 @@ function storedLook(): Look {
   }
 }
 
-/** The milestone head's button: opens the changelog draft of the milestone; next to it, the done tasks closed since it was written. */
+/**
+ * The milestone head's button: opens the changelog draft of the milestone; next to it, the done tasks closed since it was
+ * written. None for a project without git: its folder has no branch to commit the file to, and its tasks change no code.
+ */
 export function ChangelogButton({ project, milestone }: { project: string; milestone: string }) {
   const { state } = useLive()
   const [open, setOpen] = useState(false)
+  if (state?.config.projects[project]?.git === false) return null
   const since = state === null ? null : sinceWritten(state, project, milestone)
   return (
     <>

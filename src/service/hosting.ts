@@ -611,6 +611,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         mode: ctx.agentOf(ctx.homes.find(ctx.claudeAccount()) ?? ctx.homes.global).mode,
         reach: ctx.packages.reach(project),
         codexHome: list.find((home) => home.agent === CODEX && home.key === codexKey)?.dir,
+        plain: isPlain(ctx.configStore.current, project),
       })
       const received = view.received
       return received === null ? view : { ...view, received: { ...received, account: ctx.sessionAccount(received.sessionId, received.at) } }

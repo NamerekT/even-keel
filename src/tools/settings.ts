@@ -26,6 +26,8 @@ const HIDDEN = 'user-invocable-only'
 const SYNC_KEYS = ['syncClaudeAiSkills', 'syncClaudeAiPlugins']
 const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission', 'codex']
 const SESSION_SCOPES: ToolScope[] = ['chain', 'project', 'user']
+/** A session in the project's folder itself, of a project without git, reads `settings.local.json` as the CLI does. */
+const FOLDER_SCOPES: ToolScope[] = ['chain', 'local', 'project', 'user']
 const BEHAVIORS = ['allow', 'deny', 'ask']
 const MCP_RULE = /^mcp__(.+?)(?:__|$)/
 
@@ -53,6 +55,8 @@ export interface SettingSources {
   /** The rules of the project's Codex account folder and of the branch's `.codex/rules/`. */
   codexUser?: CodexRule[]
   codexProject?: CodexRule[]
+  /** The sessions run in the project's folder, not a worktree (a project without git): the local scope reaches them. */
+  readsLocal?: boolean
 }
 
 export function settingRows(sources: SettingSources): SettingRow[] {
@@ -82,8 +86,9 @@ export function settingRows(sources: SettingSources): SettingRow[] {
     }
   }
 
+  const scopes = sources.readsLocal === true ? FOLDER_SCOPES : SESSION_SCOPES
   for (const row of rows.values()) {
-    const values = SESSION_SCOPES.map((scope) => row.values[scope]).filter((value) => value !== undefined)
+    const values = scopes.map((scope) => row.values[scope]).filter((value) => value !== undefined)
     row.session = (row.kind === 'codex' ? strictest(values as CodexDecision[]) : values[0]) ?? null
   }
   return [...rows.values()].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name))

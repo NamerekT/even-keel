@@ -43,6 +43,16 @@ describe('settingRows', () => {
     ])
   })
 
+  it('lets settings.local.json reach a session that runs in the folder itself, under the chain and over the project', () => {
+    const rows = settingRows({
+      project: { permissions: { allow: ['WebFetch'] } },
+      local: { permissions: { deny: ['WebFetch'], allow: ['Agent'] } },
+      chain: { skillOverrides: { dataviz: 'off' } },
+      readsLocal: true,
+    })
+    expect(rows.map(({ name, session }) => [name, session])).toEqual([['dataviz', 'off'], ['Agent', 'allow'], ['WebFetch', 'deny']])
+  })
+
   it('joins permission rules of all places and marks the local-only ones', () => {
     const rows = settingRows({
       user: { permissions: { allow: ['Bash(git *)'], deny: ['Agent'], defaultMode: 'default' } },

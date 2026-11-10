@@ -43,7 +43,7 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
                   <code>{row.name}</code>
                 </th>
                 {row.cells.map((cell, index) => (
-                  <td key={projects[index]}>{cell === null ? <Missing /> : <SettingCell row={cell} scopes={scopes} />}</td>
+                  <td key={projects[index]}>{cell === null ? <Missing /> : <SettingCell row={cell} scopes={scopes} readsLocal={views[index]!.plain === true} />}</td>
                 ))}
               </tr>
             ))}
@@ -117,8 +117,8 @@ function cellText(row: SettingRow): string {
   return localDeny(row) ? t.tools.localDenied(row.values.local!) : valueText(row.session)
 }
 
-function SettingCell({ row, scopes }: { row: SettingRow; scopes: ToolScope[] }) {
-  const marks = scopeMarks(row)
+function SettingCell({ row, scopes, readsLocal }: { row: SettingRow; scopes: ToolScope[]; readsLocal: boolean }) {
+  const marks = scopeMarks(row, readsLocal)
   return (
     <span className="tools__cell">
       <span className="tools__value">

@@ -1,4 +1,4 @@
-import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs'
+import { createReadStream, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
@@ -48,6 +48,8 @@ export interface ToolsPlaces {
   reach: SessionReach
   /** The folder of the project's Codex account (`CODEX_HOME`), whose `rules/` its Codex sessions read; none without one. */
   codexHome?: string
+  /** A project without git: its sessions run in `repo` itself, whose files are read instead of a branch. */
+  plain?: boolean
 }
 
 /**
@@ -96,11 +98,13 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 
+  const plain = places.plain === true
+  const files = plain ? folderFiles(repo) : []
   const [received, rules, docs, codexProject] = await Promise.all([
     readNewest(places.homes, repo),
-    readRepoRules(places.git, repo, places.branch),
-    readBranchDocs(places.git, repo, places.branch),
-    readBranchCodexRules(places.git, repo, places.branch),
+    plain ? repoRulesOf(files) : readRepoRules(places.git, repo, places.branch),
+    plain ? files.filter(isDoc).sort() : readBranchDocs(places.git, repo, places.branch),
+    plain ? readFolderCodexRules(join(repo, CODEX_RULES)) : readBranchCodexRules(places.git, repo, places.branch),
   ])
   const codexUser = places.codexHome === undefined ? [] : readFolderCodexRules(join(places.codexHome, 'rules'))
   const known = { user: new Set(dirNames(join(places.globalDir, 'skills'))), project: new Set(dirNames(join(repo, '.claude', 'skills'))) }
@@ -109,21 +113,50 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     project,
     repo,
     trim: places.trim,
-    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)], codexUser, codexProject }).filter(
+    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)], codexUser, codexProject, readsLocal: plain }).filter(
       (row) => !forPackageOff(row, places.reach),
     ),
     accounts,
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
     rules,
     docs,
+    ...(plain ? { plain: true as const } : {}),
   }
 }
+
+const isDoc = (path: string): boolean => /\.md$/i.test(path)
 
 /** The Markdown files committed on the branch, sorted. */
 export async function readBranchDocs(git: Git, repo: string, branch: string): Promise<string[] | null> {
   // `ls-tree` takes no glob in its paths: the whole tree, filtered here.
   const result = await git(repo, ['ls-tree', '-r', '--name-only', branch])
-  return result.code === 0 ? result.out.split('\n').map((line) => line.trim()).filter((line) => /\.md$/i.test(line)).sort() : null
+  return result.code === 0 ? result.out.split('\n').map((line) => line.trim()).filter(isDoc).sort() : null
+}
+
+/** Folders a project folder's walk skips: dependencies and Even Keel's scratch, never a session's rules or documents. */
+const SKIPPED_FOLDERS = new Set(['node_modules', '.git', '.temp'])
+/** A walk stops here: a folder that big is no notes folder, and the page needs no full list to work. */
+const FOLDER_FILES_LIMIT = 5000
+
+/** The files of a project without git, `/`-separated and relative to it, as `ls-tree` would list a branch's. */
+function folderFiles(root: string): string[] {
+  const found: string[] = []
+  const walk = (dir: string, prefix: string): void => {
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (found.length >= FOLDER_FILES_LIMIT) return
+      if (entry.isDirectory()) {
+        if (!SKIPPED_FOLDERS.has(entry.name)) walk(join(dir, entry.name), `${prefix}${entry.name}/`)
+      } else if (entry.isFile()) found.push(`${prefix}${entry.name}`)
+    }
+  }
+  walk(root, '')
+  return found
 }
 
 /** What the branch a task worktree starts from holds: an uncommitted file never reaches a session. */
