@@ -95,8 +95,11 @@ export function withPrompts(prompt: string, texts: { shared: string | null; proj
   return texts.project === null ? shared : `${shared}\n${PROMPTS[language].project(texts.project)}\n`
 }
 
-export function withUnattended(prompt: string, on: boolean, language: Language): string {
-  return on ? `${prompt}\n${PROMPTS[language].unattended}\n` : prompt
+/** `git: false` — a project without git (BTN-961): the rules that park a task with no commit, branch or hook. */
+export function withUnattended(prompt: string, on: boolean, language: Language, git = true): string {
+  if (!on) return prompt
+  const text = PROMPTS[language]
+  return `${prompt}\n${git ? text.unattended : text.plain.unattended}\n`
 }
 
 export type RelayAction = 'resume' | 'relay'

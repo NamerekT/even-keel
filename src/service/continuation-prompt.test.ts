@@ -41,6 +41,14 @@ describe('continuation prompts', () => {
     expect(plan.model).toBe('sonnet')
   })
 
+  it('gives a project without git the unattended rules without git', () => {
+    const { ctx, planning } = setup()
+    planning.configStore.current.settings = { 'project-1': { git: false } } as typeof planning.configStore.current.settings
+    const plan = ctx.planFor('ABC-1', 'Start', 'project-1')
+    expect(plan.prompt).toContain(PROMPTS.en.plain.unattended)
+    expect(plan.prompt).not.toContain(PROMPTS.en.unattended)
+  })
+
   it.each(['готово', '  Keep the spacing.\n\n', resumePrompt('en')])('resumes with the exact continuation %j', async (prompt) => {
     const { ctx, home, session, resumeIn } = setup()
     await resumeWith(ctx, 'ABC-1', session, prompt)

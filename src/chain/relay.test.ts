@@ -439,6 +439,19 @@ describe('withUnattended', () => {
       expect(text).toMatch(/git status/)
     }
   })
+
+  it('gives a project without git rules that name no commit, branch or hook', () => {
+    for (const language of ['ru', 'en'] as const) {
+      const text = PROMPTS[language].plain.unattended
+      expect(withUnattended(prompt, true, language, false)).toBe(`${prompt}\n${text}\n`)
+      expect(text).toMatch(/AskUserQuestion/)
+      expect(text).toMatch(/Backlog/)
+      expect(text).toMatch(/TASK DONE/)
+      expect(text).not.toMatch(/commit|коммит|branch|ветк|hook|хук|merge|слей|слия|main|worktree/i)
+      expect(text.split('\n').every((line) => line.trim() !== '')).toBe(true)
+    }
+    expect(withUnattended(prompt, false, 'en', false)).toBe(prompt)
+  })
 })
 
 describe('prompts in English', () => {
