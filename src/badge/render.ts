@@ -185,9 +185,8 @@ function drawTask(draw: Drawing, task: BadgeTask, layout: TaskLayout, base: numb
   const meta = metaOf(task, offline ? new Date(layout.at) : layout.now, single)
   const metaWidth = single || meta === '' ? 0 : measure(meta, 'sans', 12) + 16
   const titleSize = single ? 18 : 16
-  const title = task.titleEn ?? (task.state === 'working' ? 'working' : 'waiting')
-  const face: BadgeFace = task.titleEn === undefined ? 'sans' : 'sans-bold'
-  draw.text(x, base, fit(title, face, titleSize, WIDTH - PAD - x - metaWidth), face, titleSize, task.titleEn === undefined ? theme.fgMuted : theme.fg)
+  // No English title — the key alone: a word in its place would read as the task's title (BTN-974).
+  if (task.titleEn !== undefined) draw.text(x, base, fit(task.titleEn, 'sans-bold', titleSize, WIDTH - PAD - x - metaWidth), 'sans-bold', titleSize, theme.fg)
   if (meta !== '') {
     if (single) draw.text(x, base + 24, fit(meta, 'sans', 12.5, WIDTH - PAD - x), 'sans', 12.5, theme.fgMuted)
     else draw.text(WIDTH - PAD, base, meta, 'sans', 12, theme.fgMuted, ' text-anchor="end"')

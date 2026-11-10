@@ -127,6 +127,16 @@ describe('renderBadge', () => {
 
   const texts = (state: BadgeState) => [...renderBadge(state, { theme: 'dark', now, fonts: false }).matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
 
+  it('draws a task without an English title by its key alone, with no word in the title\'s place', () => {
+    const { titleEn: _titleEn, ...untitled } = live.active[0]!
+    for (const state of ['working', 'waiting'] as const) {
+      const drawn = texts({ ...live, active: [{ ...untitled, state }] })
+      expect(drawn).toContain(untitled.key)
+      expect(drawn).not.toContain('working')
+      expect(drawn).not.toContain('waiting')
+    }
+  })
+
   it('says in its header what the chain does, as the mockups do', () => {
     expect(texts(live)).toContain('Example is being built right now')
     expect(texts(two)).toContain('Example is being built right now · 2 tasks at once')

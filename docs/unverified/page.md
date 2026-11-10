@@ -38,9 +38,10 @@ work and the current action" off in the badge's dialog, which stops them at the 
 Unit tests cover every shape of layer 2 with its false alarms, the list of the service's own strings from a made-up
 state, the dropped title and action, the same state in the push, the preview and "Check", the log line and the `NONE`
 answer of the translation. Not checked live: how many descriptions of real sessions the filter drops (a dotted name
-such as `state.tasks` counts as a host, so a badge may show the bare tool more often than it should), the list built
-from a real machine's accounts, profiles and projects, and whether Gemini follows the prompt — replaces names and
-answers `NONE`. BTN-919 owns the run. **If it is wrong:** a badge that shows too little — the log names the field and
+such as `state.tasks` counts as a host, so a badge may show the bare tool more often than it should) and whether
+Gemini follows the prompt — replaces names and answers `NONE`. The list built from a real machine was run over the
+stored English titles ([verified](../verified/page.md), BTN-974: two false alarms found and fixed); the same list
+against real descriptions is still open. BTN-919 owns the run. **If it is wrong:** a badge that shows too little — the log names the field and
 the layer; one that shows too much — turn "Tasks in work and the current action" or English titles off in the badge's dialog.
 
 ## The badge's English titles (BTN-918)

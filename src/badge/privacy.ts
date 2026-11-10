@@ -13,16 +13,21 @@ export type PrivacyLayer = 'identifier' | 'pattern' | 'error' | 'unready'
 export type PrivacyField = 'titleEn' | 'action.text' | 'action.tool' | 'action.status'
 
 const MIN_LENGTH = 3
-/** Words too common to forbid: an account folder called `work` must not empty every badge. */
+/**
+ * Words too common to forbid: an account folder called `work` must not empty every badge. Besides plain words, the
+ * words an account or a profile is labelled with ("OpenRouter Key", "… free", "…'s Organization") and the names of the
+ * products Even Keel works with — a label gives each of its words to the list (BTN-974).
+ */
 const COMMON = new Set([
-  'admin', 'agent', 'api', 'app', 'badge', 'build', 'chain', 'claude', 'code', 'codex', 'copilot', 'default', 'demo', 'dev', 'docs', 'git', 'global', 'home',
-  'local', 'main', 'master', 'node', 'opencode', 'personal', 'project', 'root', 'server', 'service', 'system', 'task', 'tasks', 'test', 'tests', 'user', 'users',
-  'web', 'work',
+  'account', 'accounts', 'admin', 'agent', 'api', 'app', 'badge', 'balance', 'build', 'chain', 'code', 'default', 'demo', 'dev', 'docs', 'free', 'git', 'global',
+  'guid', 'home', 'key', 'keys', 'local', 'main', 'master', 'node', 'organization', 'paid', 'personal', 'plan', 'project', 'root', 'server', 'service', 'system',
+  'task', 'tasks', 'test', 'tests', 'trial', 'user', 'users', 'web', 'work',
+  'anthropic', 'claude', 'codex', 'copilot', 'forgejo', 'gemini', 'gitea', 'github', 'gitlab', 'huly', 'jira', 'linear', 'openai', 'opencode', 'openrouter', 'tally',
 ])
 
 /**
  * The last label of a dotted name that makes it a file, not a host: `x.ts` and `badge.md` would otherwise read as hosts
- * of the `.ts` and `.md` zones. Any other dotted name ending in letters counts as a host.
+ * of the `.ts` and `.md` zones.
  */
 const FILE_ENDINGS = new Set([
   'bat', 'c', 'cfg', 'cjs', 'cmd', 'conf', 'cpp', 'cs', 'css', 'csv', 'dll', 'exe', 'gif', 'go', 'h', 'html', 'ini', 'java', 'jpg', 'js', 'json', 'jsx', 'kt', 'lock',
@@ -61,9 +66,16 @@ function hasColonAddress(text: string): boolean {
   return false
 }
 
+/**
+ * A dotted name is a host unless it ends like a file or in a camel-case word: `chain.excludedLabels` is a setting, and
+ * nobody writes a zone that way.
+ */
 function hasHost(text: string): boolean {
   if (LOCALHOST.test(text)) return true
-  for (const match of text.matchAll(DOTTED)) if (!FILE_ENDINGS.has(match[1]!.toLowerCase())) return true
+  for (const match of text.matchAll(DOTTED)) {
+    const last = match[1]!
+    if (!FILE_ENDINGS.has(last.toLowerCase()) && !/[a-z][A-Z]/.test(last)) return true
+  }
   return false
 }
 

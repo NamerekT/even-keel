@@ -71,11 +71,23 @@ describe('looksPrivate', () => {
     expect(looksPrivate('Check state.tasks')).toBe(true)
     expect(looksPrivate('Open example.io')).toBe(true)
   })
+
+  it('takes a dotted name ending in a camel-case word for a setting, not a host', () => {
+    expect(looksPrivate('Remove the label: empty chain.excludedLabels by default')).toBe(false)
+    expect(looksPrivate('Read config.trackerProjects')).toBe(false)
+    expect(looksPrivate('Open Example.Com')).toBe(true)
+    expect(looksPrivate('Open myBox.example.io')).toBe(true)
+  })
 })
 
 describe('bannedOf', () => {
   it('lowers the case, drops duplicates, short strings, common words and the allowed ones', () => {
     expect(bannedOf(['John', 'john', 'ab', '  ', null, undefined, 'work', 'Global', 'ABC', 'XYZ'], ['abc'])).toEqual(['john', 'xyz'])
+  })
+
+  it('leaves out the words an account or a profile is labelled with and the names of products', () => {
+    const labels = ['OpenRouter', 'Key', 'Free', 'Balance', 'Organization', 'Anthropic', 'OpenAI', 'GitHub', 'Linear', 'Huly', 'Tally', 'Codex', 'GUID']
+    expect(bannedOf([...labels, 'Roe'])).toEqual(['roe'])
   })
 
   it('adds the name of an e-mail, the host of an address and the tailnet of a ts.net host', () => {
@@ -95,6 +107,15 @@ describe('privateLayer', () => {
     expect(privateLayer('Ship ACME ROCKETS site', banned)).toBe('identifier')
     expect(privateLayer('Rename xyzzy', banned)).toBeNull()
     expect(privateLayer('Run the tests', banned)).toBeNull()
+  })
+
+  it('lets a title through that shares only label words with an account, and still catches the owner', () => {
+    const banned = bannedOf(['OpenRouter Key', 'OpenRouter', 'Key', "john.doe@example.com's Organization", "john.doe@example.com's", 'Organization', 'Claude John free', 'Claude', 'John', 'free', 'FAKE-PC'])
+    expect(privateLayer('Badge: statistics always show 0 sessions; project GUID sent to Tally instead of key', banned)).toBeNull()
+    expect(privateLayer('Free the slot of an organization', banned)).toBeNull()
+    expect(privateLayer('Fix the limits of John', banned)).toBe('identifier')
+    expect(privateLayer('Restart fake-pc', banned)).toBe('identifier')
+    expect(privateLayer('Mail john.doe@example.com', banned)).toBe('identifier')
   })
 
   it('names the pattern layer when no string of the service matched', () => {

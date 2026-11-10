@@ -15,7 +15,6 @@
 <rect x="246" y="108.3" width="7.5" height="13.5" fill="#f3d58a" class="blink"/>
 <text x="794" y="119.5" class="m" font-size="12" text-anchor="end"><tspan fill="#9a988f">context </tspan><tspan fill="#f3d58a">48%</tspan></text>
 <text x="32" y="160" class="m" font-size="14" fill="#7ea2ff">ABC-17</text>
-<text x="96.4" y="160" class="s" font-size="16" fill="#9a988f">working</text>
 <text x="808" y="160" class="s" font-size="12" fill="#9a988f" text-anchor="end">Codex · gpt-5 · 8 min</text>
 <rect x="32.5" y="182.5" width="775" height="25" rx="7" fill="#1d1d1b" stroke="#34332f"/><clipPath id="bar-182"><rect x="32" y="182" width="776" height="26" rx="7"/></clipPath><rect x="32" y="182" width="93.1" height="26" fill="#5b92ff" fill-opacity="0.22" clip-path="url(#bar-182)"/><rect x="124.1" y="182" width="2" height="26" fill="#a9c0ff" class="glow"/><g transform="translate(43 188) scale(0.875)" fill="none" stroke="#7ea2ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4l4 4-4 4 M8 12.5h5.5"/></g>
 <text x="62" y="199.5" class="m" font-size="12.5" fill="#a9c0ff">Bash Run the tests</text>

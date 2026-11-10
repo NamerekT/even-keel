@@ -100,9 +100,13 @@ changed setting applies at the next push:
   background at most every 15 min) — a name also by its words, an e-mail also by its part before `@`;
 - the key, name, task prefix and tracker project of every other project.
 
-`bannedOf` lowers the case and leaves out strings shorter than three characters, a short list of common words
-(`COMMON`: an account folder named `work` must not empty the badge) and the badge's own project. A string counts only
-where it stands as a word, in any case: the key `NAM` does not hide "name".
+`bannedOf` lowers the case and leaves out strings shorter than three characters, a list of common words (`COMMON`) and
+the badge's own project. `COMMON` holds plain words (an account folder named `work` must not empty the badge), the
+words accounts and profiles are labelled with (`key`, `free`, `balance`, `organization`: the account "OpenRouter Key"
+gives the list each of its words) and the names of the products Even Keel works with (agents, providers, trackers,
+Tally). Found live: the title "… sent to Tally instead of key" was dropped for the word `key` (BTN-974). A new word
+goes there only when it names nobody. A string counts only where it stands as a word, in any case: the key `NAM` does
+not hide "name".
 
 **Layer 2, shapes** (`looksPrivate`):
 
@@ -113,12 +117,12 @@ where it stands as a word, in any case: the key `NAM` does not hide "name".
 - absolute paths: a drive, a UNC share, `~/`, a slash-led path of two segments or more.
 
 What the tests pin down: a four-part number (`1.2.3.4`) is an IP address, a three-part version is not; a dotted name
-is a host unless its last part is a file ending of `FILE_ENDINGS` or it follows a `/` — so `src/x.ts` and `x.ts` pass
-and `state.tasks` or `example.io` do not; `/stats` passes, `/home/john/x` does not; `vitest@3.2.1` and
+is a host unless its last part is a file ending of `FILE_ENDINGS` or a camel-case word, or it follows a `/` — so
+`src/x.ts`, `x.ts` and `chain.excludedLabels` pass and `state.tasks` or `example.io` do not; `/stats` passes, `/home/john/x` does not; `vitest@3.2.1` and
 `tasks@even-keel` are not e-mails.
 
-**A caught text is left out, never masked**: a title leaves no `titleEn` key, an action keeps only its tool
-(`{ tool, text: tool }`), and an action whose tool itself is caught becomes `null`. Not sure — not published: an
+**A caught text is left out, never masked**: a title leaves no `titleEn` key and the picture draws the task's key
+alone, with no word in the title's place; an action keeps only its tool (`{ tool, text: tool }`), and an action whose tool itself is caught becomes `null`. Not sure — not published: an
 exception inside the filter drops the text, and until the repository's git identity is first read every free text is
 dropped. The log gets one line per project, field and layer for the service's lifetime, without the text:
 `badge: ABC: the action text is left out, it looks like a secret, a contact, an address or a path (layer 2)`.
