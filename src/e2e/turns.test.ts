@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TURN_HANG_MS, TURN_RESTART_MS } from '../sessions/silence.js'
-import { commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
+import { checkpoint, commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 describe('a turn the chain cannot see the end of', { timeout: 60_000 }, () => {
@@ -85,5 +85,21 @@ describe('a turn the chain cannot see the end of', { timeout: 60_000 }, () => {
     await run.until(() => !existsSync(first!.cwd), 'the worktree of ABC-1 removed')
     expect(stops()).toContain(first!.sessionId)
     await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+  })
+
+  it('hands over a task marked CHECKPOINT: whose turn ended on a background command, without waiting for the command', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', async (turn) => {
+      turn.background()
+      return checkpoint('.temp/handoff.md', 'Half of it is done.\n')(turn)
+    }, commitAndMerge())
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell', 'the turn ended on a background command')
+    const [first] = launches()
+
+    await run.until(() => launches().length === 2, 'ABC-1 handed over by its checkpoint')
+    expect(stops()).toContain(first!.sessionId)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
   })
 })

@@ -751,7 +751,9 @@ export function wireAgentStatus(ctx: AccountsContext): (task: string) => import(
     if (view === undefined) return undefined
     if (ctx.monitor.holds.turning(view.sessionId, view.ask?.id ?? null)) return 'busy'
     const agent = ctx.agents.find((each) => each.sessionId === view.sessionId)
-    return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked')
+    const handoff = ctx.monitor.handoff(task)
+    const marked = view.checkpoint || (handoff?.sessionId === view.sessionId && (handoff.pullRequest ?? null) !== null)
+    return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked', marked)
   }
 }
 
