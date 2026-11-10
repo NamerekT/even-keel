@@ -430,7 +430,7 @@ Set it up in the project's settings → **Repository** → **README badge**:
 3. **Preview** — the badge as it looks now, in the dark and the light theme.
 4. **For the README** — the snippet to paste: the light picture for readers with a light theme, the dark one otherwise, linked to the repository's releases page (edit the link if it should lead elsewhere).
 
-Each change applies at once; turning the badge off publishes a stopped chain one last time.
+Each change applies at once; turning the badge off publishes a stopped chain one last time. After Even Keel starts, the badge keeps its last picture until the tracker, the sessions and the numbers are read, two minutes at most.
 
 The statistics cover the last 30 days and refresh at most every 15 minutes. Projects with the same key share their
 statistics, as on the Stats page. An empty period shows `0 sessions` without task medians; unavailable statistics are

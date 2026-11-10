@@ -823,7 +823,12 @@ const branches = chainService.wireBranches(context)
 const getState = hostingService.wireGetState(context)
 
 // The README badge (BTN-915): pushed on a state change, and on a timer for its delayed change and its pulse.
-const badges = wireBadges({ config: () => configStore.current, state: getState, period: (query) => stats.period(query) })
+const badges = wireBadges({
+  config: () => configStore.current,
+  state: getState,
+  period: (query) => stats.period(query),
+  read: (project) => agentsRead && readerIds(configStore.current, project).every((reader) => readerTasks.has(reader)),
+})
 hub.watch('state', () => void badges.tick(), 2_000)
 setInterval(() => void badges.tick(), 30_000).unref()
 

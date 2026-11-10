@@ -3,7 +3,8 @@ import type { BadgeSettings, BadgeState } from '../badge/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import type { EvenKeelState } from '../state.js'
 import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
-import { BADGE_STATS_MS, wireBadges } from './badge.js'
+import { BADGE_PULSE_MS } from '../badge/push.js'
+import { BADGE_STATS_MS, BADGE_WARMUP_MS, wireBadges, type BadgeWiringDeps } from './badge.js'
 import { BadgeTranslations } from '../badge/translate.js'
 import { memoryDatabase } from '../storage/memory.js'
 
@@ -19,7 +20,7 @@ const state = {
 } as unknown as EvenKeelState
 const period = { current: { sessions: 4 }, tasks: [{ done: true, cost: 2, priceEstimate: null, activeS: 600 }] } as unknown as StatsPeriod
 
-function rig(snapshot = state, translations?: BadgeTranslations) {
+function rig(snapshot = state, translations?: BadgeTranslations, over: Partial<Pick<BadgeWiringDeps, 'read' | 'state'>> = {}) {
   let now = Date.parse('2026-11-09T12:00:00Z')
   let badge: BadgeSettings | null = null
   const posts: BadgeState[] = []
@@ -27,6 +28,7 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
   let answer: StatsAnswer<StatsPeriod> = { state: 'ok', data: period }
   let down = false
   let periodDown = false
+  let periodHangs = false
   const lines: string[] = []
   const identities: string[] = []
   const config = {
@@ -36,9 +38,11 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
   const wiring = wireBadges({
     config: () => config,
     state: () => snapshot,
+    ...over,
     translations,
     period: async (query) => {
       queries.push(query)
+      if (periodHangs) return new Promise(() => {})
       if (periodDown) throw new Error('stats unavailable')
       return answer
     },
@@ -66,6 +70,7 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
     identities,
     config,
     failPeriod: () => (periodDown = true),
+    hangPeriod: () => (periodHangs = true),
     down: () => (down = true),
     set: (next: BadgeSettings | null) => (badge = next),
     wait: (ms: number) => (now += ms),
@@ -117,6 +122,8 @@ describe('wireBadges', () => {
     expect(r.posts).toHaveLength(0)
     r.set(on)
     await r.wiring.tick()
+    await settle()
+    await r.wiring.tick()
     expect(r.posts).toHaveLength(1)
     r.set({ ...on, on: false })
     await r.wiring.tick()
@@ -124,11 +131,81 @@ describe('wireBadges', () => {
     expect(r.posts).toHaveLength(2)
   })
 
+  describe('the warm-up after a start (BTN-973)', () => {
+    const live = {
+      ...state,
+      tasks: [
+        { project: ABC, id: 'ABC-1', title: 'Task', status: { category: 'Started' }, milestone: 'v1' },
+        { project: ABC, id: 'ABC-2', title: 'Next', status: { category: 'ToDo' }, milestone: 'v1' },
+      ],
+      chain: { active: [{ project: ABC, current: { task: 'ABC-1', sessionId: 's1', since: '2026-11-09T12:00:00Z' } }], projects: { [ABC]: { order: ['ABC-1', 'ABC-2'] } } },
+      sessions: [{ sessionId: 's1', task: 'ABC-1', agent: 'claude', model: 'fake-model', asking: false, lamp: 'working', contextTokens: 0, contextWindow: null, action: null, feed: [] }],
+    } as unknown as EvenKeelState
+    const bare = { ...live, tasks: [], sessions: [], chain: { ...live.chain, projects: {} } } as unknown as EvenKeelState
+    const fields: BadgeSettings['fields'] = ['agent', 'model', 'chain', 'milestone', 'sessions']
+
+    it('pushes nothing until the tracker and the sessions are read, then the whole state at once', async () => {
+      let read = false
+      const r = rig(bare, undefined, { read: () => read, state: () => (read ? live : bare) })
+      r.set({ ...on, fields })
+      await r.wiring.tick()
+      await settle()
+      r.wait(30_000)
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(0)
+      expect(r.wiring.svg(ABC, 'dark')).toBeDefined()
+      read = true
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(1)
+      expect(r.posts[0]!.active[0]).toMatchObject({ key: 'ABC-1', agent: 'claude', model: 'fake-model' })
+      expect(r.posts[0]!.chain.tasks?.length).toBe(2)
+      expect(r.posts[0]!.milestone).toBeDefined()
+      expect(r.posts[0]!.stats).toEqual({ sessions: 4 })
+    })
+
+    it('waits for the first stats read only when a stats field is picked, and for the git identity', async () => {
+      const r = rig()
+      r.hangPeriod()
+      r.set({ ...on, fields: ['chain'] })
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(0)
+      await settle()
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(1)
+    })
+
+    it('pushes what it has once the wait is over, with one log line, and never waits again', async () => {
+      const r = rig(bare, undefined, { read: () => false })
+      r.hangPeriod()
+      r.set({ ...on, fields })
+      await r.wiring.tick()
+      await settle()
+      r.wait(BADGE_WARMUP_MS - 1)
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(0)
+      r.wait(1)
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(1)
+      expect(r.posts[0]!.stats).toBeUndefined()
+      expect(r.lines.filter((line) => line.includes('warm'))).toEqual(['badge: ABC is pushed before the warm-up ended: the tracker or the sessions, the stats are not read yet'])
+      r.wait(BADGE_PULSE_MS)
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(2)
+    })
+
+    it('checks without waiting', async () => {
+      const r = rig(bare, undefined, { read: () => false })
+      r.set({ ...on, fields })
+      await r.wiring.check(ABC, 'https://other.example.com', 'abc')
+      expect(r.posts).toHaveLength(1)
+    })
+  })
+
   it('reads the project\'s last 30 days from the stats at most every 15 minutes and publishes the picked numbers', async () => {
     const r = rig()
     r.set({ ...on, fields: [...on.fields, 'medianMinutes'] })
     await r.wiring.tick()
-    expect(r.posts[0]?.stats).toBeUndefined()
+    expect(r.posts).toHaveLength(0)
     expect(r.queries).toEqual([{ scope: 'all', account: null, tz: 'UTC', includeTests: true, from: '2026-10-11', to: '2026-11-09', projects: ['ABC'] }])
     await settle()
     r.wait(2 * 60_000)
@@ -249,7 +326,7 @@ describe('wireBadges', () => {
       const r = rig(working([{ text: 'Bash npm test', description: 'Run the tests' }]))
       r.set(fields)
       await r.wiring.tick()
-      expect(r.posts[0]!.active[0]!.action).toBeNull()
+      expect(r.posts).toHaveLength(0)
       expect(r.lines).toEqual([])
       await settle()
       r.wait(2 * 60_000)
@@ -306,6 +383,8 @@ describe('wireBadges', () => {
     const pushed = async (snapshot: EvenKeelState, badge: BadgeSettings | null = fields) => {
       const r = rig(snapshot)
       r.set(badge)
+      await r.wiring.tick()
+      await settle()
       await r.wiring.tick()
       return r
     }

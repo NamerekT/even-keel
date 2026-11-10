@@ -178,6 +178,22 @@ python scripts/badge-fonts.py <Inter-Regular.ttf> <Inter-SemiBold.ttf> <JetBrain
 
 The service ticks on a state change (at most every 2 s) and every 30 s.
 
+### The warm-up after a start (BTN-973)
+
+A service just started knows the chain's current task from its database, but not yet the queue, the milestone, the
+session or the numbers: a push then would show a stump of the state for the 2 min of the gap. So a project's badge is
+not pushed until everything its state is built from was read once (`warmedUp` in `src/service/badge.ts`):
+
+- every tracker the project reads (its own and its feeds) and the sessions (`agentsRead`) — the `read` of `wireBadges`;
+- the stats, when a stats field is picked and the project has a key (an answer `off` or a failure counts as read);
+- the git identity of the filter of private data.
+
+The wait ends after 2 min from the start at the latest (`BADGE_WARMUP_MS`): a tracker that is down or off, or a read
+that hangs, gets one log line and the badge is pushed with what there is. A usual restart with the wait stays under the
+5 min after which the Worker's picture turns `stale`. Meanwhile the Worker keeps the last state. A project once pushed
+never waits again, a badge turned on later waits only inside those first 2 min, and the preview and the dialog's
+"Check" never wait.
+
 ## Stats
 
 `stats` are Tally's numbers over the last 30 local days, all scope, tests included (`src/badge/stats.ts`): the session

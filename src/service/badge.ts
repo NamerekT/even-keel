@@ -18,12 +18,20 @@ import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 
 /** The project's numbers are read from the stats no more often than this. */
 export const BADGE_STATS_MS = 15 * 60_000
+/**
+ * How long after the start a badge waits for its inputs before it is pushed with what there is (BTN-973): the gap a
+ * poor first push used to take to be replaced, and short enough for the Worker's picture not to go stale (5 min).
+ */
+export const BADGE_WARMUP_MS = 2 * 60_000
+const STATS_FIELDS: ReadonlySet<BadgeField> = new Set(['sessions', 'medianCost', 'medianMinutes'])
 
 export interface BadgeWiringDeps {
   config: () => EvenKeelConfig
   state: () => EvenKeelState
   /** The stats reader's period; its answer `off` or a failure leaves the badge without numbers. */
   period: (query: PeriodQuery) => Promise<StatsAnswer<StatsPeriod>>
+  /** Whether the project's trackers and the sessions were read once since the start; none — they always were. */
+  read?: (project: string) => boolean
   now?: () => number
   tz?: string
   post?: BadgePushDeps['post']
@@ -159,14 +167,43 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return withoutPrivate(built, banned, (field, layer) => report(key, field, layer))
   }
 
+  const startedAt = now()
+  const warm = new Set<string>()
+  /**
+   * Whether the project's badge may be pushed (BTN-973): everything its state is built from was read once since the
+   * start, or the wait is over. Asked after `stateOf`, which starts the reads. A project once warm stays so.
+   */
+  const warmedUp = (project: string, fields: readonly BadgeField[]): boolean => {
+    if (warm.has(project)) return true
+    const config = deps.config()
+    const key = config.keys[project]
+    const repo = config.projects[project]
+    const missing = [
+      deps.read === undefined || deps.read(project) ? null : 'the tracker or the sessions',
+      key === undefined || numbers.has(key) || !fields.some((field) => STATS_FIELDS.has(field)) ? null : 'the stats',
+      repo === undefined || identities.has(repo) ? null : 'the git identity',
+    ].filter((each) => each !== null)
+    if (missing.length > 0) {
+      if (now() - startedAt < BADGE_WARMUP_MS) return false
+      log(`badge: ${deps.state().projectKeys[project] ?? project} is pushed before the warm-up ended: ${missing.join(', ')} are not read yet`)
+    }
+    warm.add(project)
+    return true
+  }
+
   const secret = deps.secret ?? (() => process.env[BADGE_SECRET])
   const post = deps.post ?? postBadge
   const fieldsOf = (project: string) => deps.config().settings[project]?.badge?.fields ?? ALL_BADGE_FIELDS
   const pusher = new BadgePusher({
     targets: () =>
-      Object.entries(deps.config().settings).flatMap(([project, { badge }]) =>
-        badgePushes(badge) ? [{ project, settings: badge, state: () => stateOf(project, badge.fields) }] : [],
-      ),
+      Object.entries(deps.config().settings).flatMap(([project, { badge }]) => {
+        if (!badgePushes(badge)) return []
+        const state = () => {
+          const built = stateOf(project, badge.fields)
+          return warmedUp(project, badge.fields) ? built : undefined
+        }
+        return [{ project, settings: badge, state }]
+      }),
     secret,
     post,
     now,
