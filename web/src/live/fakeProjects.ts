@@ -142,6 +142,7 @@ export function fakeProjectCommand(state: EvenKeelState, name: string, body: Rec
   if (name === 'project/feed/add' || name === 'project/feed/remove' || name === 'project/feed/rules') return withFeeds(state, name, body)
   if (name === 'project/moves') return withMoves(state, body)
   if (name === 'project/milestone-order') return withSavedMilestoneOrder(state, body)
+  if (name === 'project/git') return withGit(state, body)
   if (name !== 'project/remove') return null
   const id = String(body.project)
   if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })
@@ -151,6 +152,20 @@ export function fakeProjectCommand(state: EvenKeelState, name: string, body: Rec
   const { [id]: _form, ...projects } = state.config.projects
   const { [id]: _key, ...keys } = state.projectKeys
   return { ...state, projects: state.projects.filter((each) => each !== id), ...mapsOf(keys, projects), config: { ...state.config, projects } }
+}
+
+/** `project/git` turns git on or off between tasks; a running chain refuses as the service would. */
+function withGit(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
+  const id = String(body.project)
+  const form = state.config.projects[id]
+  if (form === undefined) throw fail('config.unknownProject', { key: id })
+  const inHand = state.chain.active.find((chain) => chain.project === id)?.current?.task ?? null
+  if (inHand !== null) {
+    const label = state.projectKeys[id] ?? id
+    throw new NoticeError(notice('project.gitBusy', { project: label }, { items: [notice('project.gitTaskInHand', { task: inHand })] }))
+  }
+  const next: ProjectForm = body.on === true ? { ...form, git: true, slot: typeof body.slot === 'number' ? body.slot : 0 } : { ...form, git: false }
+  return { ...state, config: { ...state.config, projects: { ...state.config.projects, [id]: next } } }
 }
 
 /** `project/feed/add` refuses a key that is no project key or that a project or feed already gives; a locked feed can still go. */

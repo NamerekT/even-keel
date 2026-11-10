@@ -9,7 +9,7 @@ The area is split by subtopic, a file each in `docs/chain/`: read this table, th
 | File | What is in it |
 | --- | --- |
 | [`entry.md`](chain/entry.md) | Entry into the chain; Order; Task feeds; Status moves; Released tasks |
-| [`worktrees.md`](chain/worktrees.md) | Task worktree; Cleanup after Done; "Slot" mode; A project without git |
+| [`worktrees.md`](chain/worktrees.md) | Task worktree; Cleanup after Done; "Slot" mode; A project without git, turning git on and off |
 | [`pr-mode.md`](chain/pr-mode.md) | PR mode |
 | [`main-ci.md`](chain/main-ci.md) | The CI of main; The fix session; The fix task |
 | [`projects.md`](chain/projects.md) | Several chains; One folder, one project; Projects of one remote; Several projects on one tracker project; Carrying a release project forward; The carry session |

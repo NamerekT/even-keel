@@ -191,6 +191,12 @@ export interface SettingsControl {
   add(draft: ProjectDraft): void | Promise<void>
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
   remove(project: string): void
+  /**
+   * Turns git on or off for the project (BTN-884), only between its tasks. On: the folder made a repository on the
+   * project's branch, `slot` — how many slots its tasks take, 0 — a worktree each. Off: refused while task worktrees are
+   * left, unless `force`.
+   */
+  switchGit(project: string, on: boolean, options: { slot: number; force: boolean }): Promise<void>
   /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */
   addFeed(project: string, draft: FeedDraft): void
   /** Drops the project's feed; the archive keeps the closed tasks it gave. */
@@ -364,6 +370,11 @@ const COMMANDS: Record<string, Command> = {
   'project/branch/adopt': ({ settings }, body) => settings.adoptBranch(projectOf(body)),
   'project/branch/restore': ({ settings }, body) => settings.restoreBranch(projectOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
+  'project/git': ({ settings }, body) =>
+    settings.switchGit(projectOf(body), switchOf(body.on, 'on'), {
+      slot: body.slot === undefined ? 0 : numberOf(body.slot, 'slot'),
+      force: body.force === true,
+    }),
   'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),
   'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
   'project/feed/profile': ({ settings }, body) =>

@@ -722,6 +722,11 @@ export const en = {
   'project.removeSessions': (p: { sessions: string[] }) => `live sessions: ${list(p.sessions)}`,
   'project.removePlaces': (p: { tasks: string[] }) => `the chain holds the worktree or slot of ${list(p.tasks)}`,
   'project.removeLeftovers': (p: { tasks: string[] }) => `the cleanup after Done left the place of ${list(p.tasks)}`,
+  // Turning git on or off for a project (BTN-884, `src/projects/git-mode.ts`).
+  'project.gitBusy': (p: { project: string }) => `git of ${p.project} is not switched now: wait until the task ends, or stop the chain`,
+  'project.gitTaskInHand': (p: { task: string }) => `the chain works on ${p.task}`,
+  'project.gitOffWorktrees': (p: { worktrees: string[] }) =>
+    `these worktrees still hold work of tasks, and once git is off Even Keel no longer merges or removes them: ${list(p.worktrees)}`,
   // The event log's entries (BTN-350, `src/event-log/`). The task or project they are about is not in the text: the log
   // shows it in a column of its own, a toast before the text (`subjectOf`, BTN-852).
   'eventLog.limit': (_: { project: string }) => 'the chain stopped on the usage limit',

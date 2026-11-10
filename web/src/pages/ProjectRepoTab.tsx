@@ -5,6 +5,7 @@ import { CommandBlock } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { BadgeButton } from './BadgeButton.js'
 import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
+import { GitOffSection, GitOnSection } from './GitSwitch.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import type { PanelFields } from './projectSettingsFields.js'
 import { ErrorStrip, FieldHead, fieldId, Row, Section, SwitchField, wholeOf } from './settingsParts.js'
@@ -34,7 +35,7 @@ export function ProjectRepoTab({
   const mainProjects = Object.entries(config.projects).flatMap(([key, each]) =>
     key !== project && each.mergeInto === null && (kin === undefined || kin.includes(key)) ? [key] : [],
   )
-  if (!form.git) return <PlainRepoTab fields={fields} project={project} form={form} />
+  if (!form.git) return <PlainRepoTab fields={fields} project={project} form={form} state={state} />
   return (
     <>
       <Section title={t.settings.sections.repository}>
@@ -108,16 +109,17 @@ export function ProjectRepoTab({
         <ColorField fields={fields} />
       </Section>
       <BadgeButton project={project} badge={form.badge} />
+      <GitOffSection state={state} project={project} />
       <ProjectRemove project={project} />
     </>
   )
 }
 
 /**
- * The tab of a project without git: the mode and the folder are read, not edited — the mode is chosen when the project
- * is added — and the slots are shown off with the reason, so that nothing is ignored in silence.
+ * The tab of a project without git: the mode and the folder are read, not edited — "Turn on git" switches the mode
+ * (BTN-884) — and the slots are shown off with the reason, so that nothing is ignored in silence.
  */
-function PlainRepoTab({ fields, project, form }: { fields: PanelFields; project: string; form: ProjectForm }) {
+function PlainRepoTab({ fields, project, form, state }: { fields: PanelFields; project: string; form: ProjectForm; state: EvenKeelState | null }) {
   const { on, edit, marks, notes } = fields
   const text = t.settings.plain
   return (
@@ -141,6 +143,7 @@ function PlainRepoTab({ fields, project, form }: { fields: PanelFields; project:
         <Row className="settings__field" label={t.settings.slot} hint={text.slotHint} control={<span>{text.slotValue}</span>} />
         <ColorField fields={fields} />
       </Section>
+      <GitOnSection state={state} project={project} />
       <BadgeButton project={project} badge={form.badge} />
       <ProjectRemove project={project} />
     </>

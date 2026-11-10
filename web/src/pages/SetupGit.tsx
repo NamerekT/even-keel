@@ -47,6 +47,17 @@ export function GitStep({ state, save, sending, onPicked }: StepProps) {
 
 /** Whether git starts, how to install it, and the name and e-mail of its commits. */
 function GitCheck({ state }: { state: EvenKeelState }) {
+  const git = state.git
+  return (
+    <>
+      <GitInstall state={state} />
+      {git !== undefined && git.version !== null && <Identity key={`${git.name}\n${git.email}`} git={git} />}
+    </>
+  )
+}
+
+/** Whether git starts from the service and, where not, how to install it; also the first step of turning git on for a project (BTN-884). */
+export function GitInstall({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const git = state.git
   const text = t.setup.git
@@ -58,32 +69,29 @@ function GitCheck({ state }: { state: EvenKeelState }) {
     </a>
   )
   return (
-    <>
-      <Section title={t.setup.titles.git} mark={<PartDot check={git === undefined ? 'empty' : installed ? 'passed' : 'failed'} first />} className="project-add__step">
-        <p className="setup__lead">{text.lead}</p>
-        {git === undefined && <p className="setup-account__note">{text.checking}</p>}
-        {installed && <Status ok>{text.installed(git.version!)}</Status>}
-        {git !== undefined && !installed && (
-          <>
-            <Status>{text.absent}</Status>
-            {git.restart !== undefined && <p className="setup-account__note">{restartHint(git.restart)}</p>}
-            <div className="setup-git__commands">
-              {/* "Check again" stands beside the first line, the command or the link alone, not beside both. */}
-              <div className="cli-source__install">
-                {command !== undefined ? <CommandBlock command={command} /> : <span>{download(text.downloadOnly)}</span>}
-                <button type="button" className="button button--small" disabled={sending} onClick={() => void send('git/check')}>
-                  {text.again}
-                </button>
-              </div>
-              {state.platform === 'darwin' && <p className="setup-account__note">{text.macTools}</p>}
-              {command !== undefined && download(text.download)}
+    <Section title={t.setup.titles.git} mark={<PartDot check={git === undefined ? 'empty' : installed ? 'passed' : 'failed'} first />} className="project-add__step">
+      <p className="setup__lead">{text.lead}</p>
+      {git === undefined && <p className="setup-account__note">{text.checking}</p>}
+      {installed && <Status ok>{text.installed(git.version!)}</Status>}
+      {git !== undefined && !installed && (
+        <>
+          <Status>{text.absent}</Status>
+          {git.restart !== undefined && <p className="setup-account__note">{restartHint(git.restart)}</p>}
+          <div className="setup-git__commands">
+            {/* "Check again" stands beside the first line, the command or the link alone, not beside both. */}
+            <div className="cli-source__install">
+              {command !== undefined ? <CommandBlock command={command} /> : <span>{download(text.downloadOnly)}</span>}
+              <button type="button" className="button button--small" disabled={sending} onClick={() => void send('git/check')}>
+                {text.again}
+              </button>
             </div>
-          </>
-        )}
-        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      </Section>
-      {installed && <Identity key={`${git.name}\n${git.email}`} git={git} />}
-    </>
+            {state.platform === 'darwin' && <p className="setup-account__note">{text.macTools}</p>}
+            {command !== undefined && download(text.download)}
+          </div>
+        </>
+      )}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </Section>
   )
 }
 
@@ -97,8 +105,8 @@ function restartHint(start: WindowsStart): string {
   return start.by === 'service' ? text.restartService(start.name) : text.restartConsole
 }
 
-/** Two fields filled with what git has, and "Save" once both are filled and one of them changed. */
-function Identity({ git }: { git: GitSetupView }) {
+/** Two fields filled with what git has, and "Save" once both are filled and one of them changed; keyed by them where shown. */
+export function Identity({ git }: { git: GitSetupView }) {
   const { send, sending, failure } = useCommand()
   const [name, setName] = useState(git.name ?? '')
   const [email, setEmail] = useState(git.email ?? '')

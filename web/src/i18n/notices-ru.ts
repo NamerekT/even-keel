@@ -689,6 +689,10 @@ export const noticesRu: NoticeTexts = {
   'project.removeSessions': (p) => `живые сессии: ${list(p.sessions)}`,
   'project.removePlaces': (p) => `цепочка держит worktree или слот задач ${list(p.tasks)}`,
   'project.removeLeftovers': (p) => `после Done остались несобранные места задач ${list(p.tasks)}`,
+  'project.gitBusy': (p) => `git у ${p.project} сейчас не переключить: дождитесь конца задачи или остановите цепочку`,
+  'project.gitTaskInHand': (p) => `цепочка работает над ${p.task}`,
+  'project.gitOffWorktrees': (p) =>
+    `в этих worktree ещё лежит работа задач, а без git Even Keel их больше не смержит и не уберёт: ${list(p.worktrees)}`,
   'eventLog.limit': () => 'цепочка встала на лимите',
   'eventLog.red': (p) => `main красный на ${p.commit}${p.cis.length > 0 ? ` (${list(p.cis.map((ci) => FORGES[ci]))})` : ''}`,
   'eventLog.ciRed': (p) => `${list(p.cis.map((ci) => FORGES[ci]))} красный на ${p.commit}, цепочка идёт дальше`,

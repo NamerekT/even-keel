@@ -1,0 +1,4 @@
+/* The "Turn on git" dialog (BTN-884): its width, not the window's, decides whether a pick fits beside its name (projectAdd.css). */
+.git-on__body {
+  container-type: inline-size;
+}
