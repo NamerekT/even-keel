@@ -37,6 +37,54 @@ title (`translate.ts`); without it the badge shows the key alone.
 The text is cut to 60 characters. A line of an agent whose parser sets no `badge` (Codex and the rest) shows the first
 word of its feed line, the tool.
 
+## The filter of private data
+
+The badge is the one place where the chain's state leaves the machine for a public picture, and two of its texts are
+free: a command's `description` (the agent writes it) and `titleEn` (a model translates it). `stateOf` in
+`src/service/badge.ts` — the one state the push, the preview and "Check" all take — passes it through `withoutPrivate`
+(`src/badge/privacy.ts`, BTN-931), so the preview shows exactly what would be pushed. A new free text of the state gets a
+`PrivacyField` and a branch there.
+
+**Layer 1, the service's own strings** (`bannedFor`, `src/service/badge-private.ts`), built anew for each state, so a
+changed setting applies at the next push:
+
+- the agents' account folders, their names, e-mails and organisations, the apps' accounts and folders, the pool entries;
+- the machine's user and name, the user's folder of the home path and of the projects' paths (a service running as
+  another user still has it), `CLAUDE_CONFIG_DIR` and `CODEX_HOME`;
+- every tracker and CI profile: its name, login and each field that is not a secret, the tracker link templates,
+  `EVEN_KEEL_HOST` and `allowedHosts` — an address also gives its host, a `*.ts.net` host its tailnet;
+- `user.name` and `user.email` of the service's git and of the project's repository (`git config --get`, read in the
+  background at most every 15 min) — a name also by its words, an e-mail also by its part before `@`;
+- the key, name, task prefix and tracker project of every other project.
+
+`bannedOf` lowers the case and leaves out strings shorter than three characters, a short list of common words
+(`COMMON`: an account folder named `work` must not empty the badge) and the badge's own project. A string counts only
+where it stands as a word, in any case: the key `NAM` does not hide "name".
+
+**Layer 2, shapes** (`looksPrivate`):
+
+- secrets by prefix (`sk-`, `gh?_`, `github_pat_`, `glpat-`, `xox?-`, `AKIA`, `eyJ`), `name=value` and
+  `password: …`-like pairs, `Bearer …`;
+- any URL, e-mails, phone numbers (`+` and seven digits, or ten digits; dates and times are not counted), IPv4, IPv6 and
+  MAC addresses, `localhost`, hosts;
+- absolute paths: a drive, a UNC share, `~/`, a slash-led path of two segments or more.
+
+What the tests pin down: a four-part number (`1.2.3.4`) is an IP address, a three-part version is not; a dotted name
+is a host unless its last part is a file ending of `FILE_ENDINGS` or it follows a `/` — so `src/x.ts` and `x.ts` pass
+and `state.tasks` or `example.io` do not; `/stats` passes, `/home/john/x` does not; `vitest@3.2.1` and
+`tasks@even-keel` are not e-mails.
+
+**A caught text is left out, never masked**: a title leaves no `titleEn` key, an action keeps only its tool
+(`{ tool, text: tool }`), and an action whose tool itself is caught becomes `null`. Not sure — not published: an
+exception inside the filter drops the text, and until the repository's git identity is first read every free text is
+dropped. The log gets one line per project, field and layer for the service's lifetime, without the text:
+`badge: ABC: the action text is left out, it looks like a secret, a contact, an address or a path (layer 2)`.
+
+What it does not catch: a person's, a company's or a client's name the service does not know. Only the translation
+prompt asks for those to be replaced, and only in the title; an action's description goes as the agent wrote it. The
+project's own key and name, the milestone's name and the agent's and model's names are not filtered: the project
+picks those fields itself.
+
 ## Modes
 
 `badgeMode` (`src/badge/render.ts`) by the state's age and the chain:
@@ -101,8 +149,11 @@ task's key is available. The next push follows the usual two-minute minimum gap.
 It uses the classifier's live `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL` (`llmSettings`,
 `tally/src/classify.ts`): `POST <url>/chat/completions`, bearer key, `temperature: 0`, the default model
 `google-gemini-3.1-flash-lite`. LiteLLM owns model fallbacks. The system prompt asks for concise English within 90
-characters and unchanged code and file names; the user message is **only the title**, never the task's description,
-comments or question. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
+characters and unchanged code and file names, and to replace names of people, companies and clients, addresses and
+e-mails with general words — or to answer `NONE` where the title makes no sense without them (BTN-931). `NONE` is kept
+as an empty title: the badge shows the key alone and the title is not asked again, even after a change of the LLM
+settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
+task's description, comments or question. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
 formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
 
 Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use

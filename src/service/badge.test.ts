@@ -27,6 +27,7 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
   let answer: StatsAnswer<StatsPeriod> = { state: 'ok', data: period }
   let down = false
   const lines: string[] = []
+  const identities: string[] = []
   const wiring = wireBadges({
     config: () => ({ projects: { [ABC]: 'C:/repos/example' }, keys: { [ABC]: 'ABC' }, trackers: { [ABC]: 'builtin' }, trackerProjects: {}, feeds: {}, settings: { [ABC]: { badge } } }) as unknown as EvenKeelConfig,
     state: () => snapshot,
@@ -45,12 +46,18 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
     },
     get: async () => ({ status: 200, type: 'image/svg+xml' }),
     log: (line) => lines.push(line),
+    machine: { user: 'jdoe', host: 'FAKE-PC', home: null, env: {} },
+    identity: async (repo) => {
+      identities.push(repo)
+      return { name: 'John Doe', email: 'john@example.com' }
+    },
   })
   return {
     wiring,
     posts,
     queries,
     lines,
+    identities,
     down: () => (down = true),
     set: (next: BadgeSettings | null) => (badge = next),
     wait: (ms: number) => (now += ms),
@@ -147,6 +154,64 @@ describe('wireBadges', () => {
     expect(r.posts[0]!.chain.tasks).toEqual([])
     expect(r.posts[0]!.milestone).toBeUndefined()
     await expect(r.wiring.check('22222222-2222-4222-8222-222222222222', 'https://other.example.com', 'abc')).rejects.toThrow()
+  })
+
+  describe('the filter of private data', () => {
+    const working = (lines: { text: string; description?: string }[]): EvenKeelState => ({
+      ...state,
+      tasks: [{ project: ABC, id: 'ABC-1', title: 'Task', status: { category: 'Started' }, milestone: null }],
+      chain: { ...state.chain, active: [{ project: ABC, current: { task: 'ABC-1', sessionId: 's1', since: '2026-11-09T12:00:00Z' } }] },
+      sessions: [{
+        sessionId: 's1', task: 'ABC-1', agent: 'claude', model: null, asking: false, lamp: 'working', contextTokens: 0, contextWindow: null, action: null,
+        feed: lines.map((line) => ({ kind: 'tool', text: line.text, badge: { tool: 'Bash', text: line.description === undefined ? 'Bash' : `Bash ${line.description}` } })),
+      }],
+    }) as unknown as EvenKeelState
+    const fields: BadgeSettings = { ...on, fields: ['action'] }
+
+    it('publishes nothing free until the repository\'s git identity is read, and reads it at most every 15 minutes', async () => {
+      const r = rig(working([{ text: 'Bash npm test', description: 'Run the tests' }]))
+      r.set(fields)
+      await r.wiring.tick()
+      expect(r.posts[0]!.active[0]!.action).toBeNull()
+      expect(r.lines).toEqual([])
+      await settle()
+      r.wait(2 * 60_000)
+      await r.wiring.tick()
+      expect(r.posts.at(-1)!.active[0]!.action).toEqual({ tool: 'Bash', text: 'Bash Run the tests' })
+      r.wait(BADGE_STATS_MS - 2 * 60_000 - 1)
+      r.wiring.svg(ABC, 'dark')
+      expect(r.identities).toEqual(['C:/repos/example'])
+      r.wait(1)
+      r.wiring.svg(ABC, 'dark')
+      expect(r.identities).toHaveLength(2)
+    })
+
+    it('pushes and previews the same filtered state, and logs a reason once without the text', async () => {
+      const r = rig(working([{ text: 'Bash ssh', description: 'Copy the build to FAKE-PC for John' }]))
+      r.set(fields)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      const svg = r.wiring.svg(ABC, 'dark')!
+      await r.wiring.tick()
+      r.wait(2 * 60_000)
+      await r.wiring.tick()
+      await r.wiring.check(ABC, 'https://other.example.com', 'abc')
+      for (const post of r.posts) expect(post.active[0]!.action).toEqual({ tool: 'Bash', text: 'Bash' })
+      expect(svg).not.toContain('FAKE-PC')
+      expect(svg).not.toContain('redacted')
+      const logged = r.lines.filter((line) => line.includes('left out'))
+      expect(logged).toEqual(['badge: ABC: the action text is left out, it names this machine, an account, a profile or another project (layer 1)'])
+      expect(r.lines.join('\n')).not.toContain('FAKE-PC')
+    })
+
+    it('names the pattern layer in the log', async () => {
+      const r = rig(working([{ text: 'Bash curl', description: 'Ping 192.168.1.10' }]))
+      r.set(fields)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.wiring.svg(ABC, 'dark')).not.toContain('192.168')
+      expect(r.lines).toEqual(['badge: ABC: the action text is left out, it looks like a secret, a contact, an address or a path (layer 2)'])
+    })
   })
 
   it('logs why a Worker did not answer and gives the page only the notice', async () => {

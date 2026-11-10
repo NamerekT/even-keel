@@ -7,6 +7,9 @@ import { renderBadge } from '../badge/render.js'
 import { badgePushes } from '../badge/settings.js'
 import { badgeStatsOf, badgeStatsRange } from '../badge/stats.js'
 import { BadgeTranslations } from '../badge/translate.js'
+import { withoutPrivate, type PrivacyField, type PrivacyLayer } from '../badge/privacy.js'
+import { runGit } from '../git/run.js'
+import { bannedFor, machineFacts, type GitIdentity, type MachineFacts } from './badge-private.js'
 import { readerOf, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
 import { keptDatabase } from '../storage/owner.js'
 import type { EvenKeelState } from '../state.js'
@@ -27,6 +30,24 @@ export interface BadgeWiringDeps {
   secret?: () => string | undefined
   log?: (line: string) => void
   translations?: BadgeTranslations
+  machine?: MachineFacts
+  /** The name and e-mail the repository commits as (`git config`). */
+  identity?: (repo: string) => Promise<GitIdentity>
+}
+
+const LEFT_OUT: Record<PrivacyField, string> = { titleEn: 'the English title', 'action.text': 'the action text', 'action.tool': 'the action' }
+const LAYERS: Record<Exclude<PrivacyLayer, 'unready'>, string> = {
+  identifier: 'it names this machine, an account, a profile or another project (layer 1)',
+  pattern: 'it looks like a secret, a contact, an address or a path (layer 2)',
+  error: 'the filter failed',
+}
+
+async function readIdentity(repo: string): Promise<GitIdentity> {
+  const [name, email] = await Promise.all(['user.name', 'user.email'].map(async (key) => {
+    const read = await runGit(repo, ['config', '--get', key])
+    return read.code === 0 && read.out.trim() !== '' ? read.out.trim() : null
+  }))
+  return { name: name ?? null, email: email ?? null }
 }
 
 export interface BadgeWiring {
@@ -78,15 +99,53 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return known?.stats ?? null
   }
 
+  const log = deps.log ?? ((line: string) => console.log(line))
+  const machine = deps.machine ?? machineFacts()
+  const identities = new Map<string, { at: number; identity: GitIdentity | undefined }>()
+  const identifying = new Set<string>()
+
+  /** The repository's git identity, read in the background at most every 15 min; `undefined` — never read yet. */
+  const identityOf = (repo: string | undefined): GitIdentity | undefined => {
+    if (repo === undefined) return { name: null, email: null }
+    const known = identities.get(repo)
+    if ((known === undefined || now() - known.at >= BADGE_STATS_MS) && !identifying.has(repo)) {
+      identifying.add(repo)
+      void (deps.identity ?? readIdentity)(repo)
+        .then((identity) => identities.set(repo, { at: now(), identity }))
+        .catch(() => identities.set(repo, { at: now(), identity: known?.identity }))
+        .finally(() => identifying.delete(repo))
+    }
+    return known?.identity
+  }
+
+  const reported = new Set<string>()
+  /** One line per project, field and layer, never the text itself. */
+  const report = (key: string, field: PrivacyField, layer: PrivacyLayer) => {
+    if (layer === 'unready') return
+    const line = `badge: ${key}: ${LEFT_OUT[field]} is left out, ${LAYERS[layer]}`
+    if (reported.has(line)) return
+    reported.add(line)
+    log(line)
+  }
+
+  /** The one state of a project: the push, the preview and the check all take it filtered (BTN-931). */
   const stateOf = (project: string, fields: readonly BadgeField[]) => {
     const state = deps.state()
     if (!state.projects.includes(project)) return undefined
-    return badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id) })
+    const built = badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id) })
+    const config = deps.config()
+    const identity = identityOf(config.projects[project])
+    let banned: string[] | null = null
+    try {
+      if (identity !== undefined) banned = bannedFor(state, config, project, machine, identity)
+    } catch {
+      report(built.project.key, 'action.text', 'error')
+    }
+    return withoutPrivate(built, banned, (field, layer) => report(built.project.key, field, layer))
   }
 
   const secret = deps.secret ?? (() => process.env[BADGE_SECRET])
   const post = deps.post ?? postBadge
-  const log = deps.log ?? ((line: string) => console.log(line))
   const fieldsOf = (project: string) => deps.config().settings[project]?.badge?.fields ?? ALL_BADGE_FIELDS
   const pusher = new BadgePusher({
     targets: () =>

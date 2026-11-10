@@ -48,6 +48,31 @@ describe('badge title translations', () => {
     expect(request).toHaveBeenCalledTimes(3)
   })
 
+  it('asks to replace names and addresses, and keeps a NONE answer as no title without asking again', async () => {
+    const db = await memoryDatabase()
+    let now = 1_800_000
+    const lines: string[] = []
+    const request = vi.fn(async () => response(' "None." '))
+    const options = { env: () => env, request, now: () => now, log: (line: string) => lines.push(line) }
+    const translations = new BadgeTranslations(db, options)
+    translations.title(task, true)
+    await translations.settle()
+    const [, init] = request.mock.calls[0] as unknown as [string, RequestInit]
+    const prompt = JSON.parse(init.body as string).messages[0].content as string
+    expect(prompt).toContain('Replace names of people, companies and clients, addresses and e-mails with general words')
+    expect(prompt).toContain('answer NONE')
+    expect(translations.title(task, true)).toBeUndefined()
+    expect(lines).toEqual(['badge: English title unavailable (the model answered NONE)'])
+    now += TRANSLATION_RETRY_MS
+    translations.title(task, true)
+    await translations.settle()
+    const restarted = new BadgeTranslations(db, options)
+    restarted.title(task, true)
+    await restarted.settle()
+    expect(restarted.title(task, true)).toBeUndefined()
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['network', 'empty', 'http', 'json', 'settings'])('keeps %s failures through a restart for 30 minutes and logs each reason once', async (failure) => {
     const db = await memoryDatabase()
     let now = 1_800_000
