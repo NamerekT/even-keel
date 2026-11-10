@@ -65,6 +65,32 @@ describe('chain store', { timeout: 30_000 }, () => {
     expect(await loadChainState(store)).toEqual(next)
   })
 
+  it('rewrites only the rows a save changed', async () => {
+    const store = await db()
+    const chain = (project: string, task: string) => ({ project, current: { task, sessionId: 's1', since: 't' }, paused: false, error: null })
+    const before: ChainState = { ...emptyChainState(), active: [chain('ABC', 'ABC-1'), chain('DEF', 'DEF-1')], queue: ['XYZ', 'QRS'], orders: { ABC: ['ABC-1'], DEF: ['DEF-1'] }, skipped: { ABC: ['ABC-3'] } }
+    const versions = async () => {
+      const rows: string[] = []
+      for (const [table, key] of [['chains', 'position'], ['chain_queue', 'position'], ['chain_lists', "list || ' ' || project_id"]]) {
+        const { rows: found } = await store.query<{ key: string; version: string }>(`select ${key} as key, xmin::text || ctid::text as version from ${table}`)
+        rows.push(...found.map((row) => `${table} ${row.key} ${row.version}`))
+      }
+      return rows
+    }
+    await saveChainState(store, before)
+    const first = await versions()
+    await saveChainState(store, structuredClone(before))
+    expect(await versions()).toEqual(first)
+
+    const after: ChainState = { ...before, active: [chain('ABC', 'ABC-1'), chain('DEF', 'DEF-2')], queue: ['XYZ'], orders: { ABC: ['ABC-1'], DEF: ['DEF-2'] }, skipped: {} }
+    await saveChainState(store, after)
+    expect(await loadChainState(store)).toEqual(after)
+    const second = await versions()
+    const kept = second.filter((row) => first.includes(row)).map((row) => row.split(' ').slice(0, -1).join(' '))
+    expect(kept.sort()).toEqual(['chain_lists orders ABC', 'chain_queue 0', 'chains 0'])
+    expect(second).toHaveLength(5)
+  })
+
   it('keeps the order of saves nobody waited for', async () => {
     const store = await db()
     const writes = new Writes(() => {})

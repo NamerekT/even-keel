@@ -1,5 +1,5 @@
 import { asNotice, type Notice } from '../notice/notice.js'
-import { insertList, inTransaction, type Db, type Queryable } from '../storage/database.js'
+import { insertList, inTransaction, replaceRows, type Db, type Queryable } from '../storage/database.js'
 import { isRecord } from '../storage/projects.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
@@ -92,15 +92,19 @@ async function readChainRecord(db: Queryable): Promise<Record<string, unknown>> 
   return record
 }
 
-/** Writes the whole chain state but its switches (`readChainRecord`), projects by id, in place of the stored one. */
+/**
+ * Writes the whole chain state but its switches (`readChainRecord`), projects by id, in place of the stored one;
+ * only the rows that differ from the stored ones are rewritten (`replaceRows`).
+ */
 export function writeChainRecord(db: Db, state: ChainState): Promise<void> {
   return inTransaction(db, async (tx) => {
-    await tx.exec('delete from chains; delete from chain_queue; delete from chain_lists')
-    await insertList(tx, 'chains', state.active.map(({ project, ...rest }, position) => ({ position, project_id: project, chain: JSON.stringify(rest) })))
-    await insertList(tx, 'chain_queue', state.queue.map((project, position) => ({ position, project_id: project })))
-    await insertList(
+    await replaceRows(tx, 'chains', ['position'], ['project_id', 'chain'], state.active.map(({ project, ...rest }, position) => ({ position, project_id: project, chain: JSON.stringify(rest) })))
+    await replaceRows(tx, 'chain_queue', ['position'], ['project_id'], state.queue.map((project, position) => ({ position, project_id: project })))
+    await replaceRows(
       tx,
       'chain_lists',
+      ['project_id', 'list'],
+      ['value'],
       LISTS.flatMap((list) => Object.entries(state[list] as Record<string, unknown>).map(([project, value]) => ({ project_id: project, list, value: JSON.stringify(value) }))),
     )
   })

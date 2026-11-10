@@ -60,6 +60,7 @@ import { importForgejo, importProfiles } from './profiles/store.js'
 import type { ProjectForm, SessionView } from './state.js'
 import { Writes } from './storage/database.js'
 import { dropLeftFolder, loadLeftFolders, saveLeftFolder } from './storage/left-folders.js'
+import { VACUUM_EVERY_MS, vacuumDatabase } from './storage/vacuum.js'
 import { loadContextWindows, loadSessionWindows } from './storage/context-windows.js'
 import { keptDatabase } from './storage/owner.js'
 import { stateValue } from './storage/service-state.js'
@@ -871,6 +872,7 @@ setInterval(() => settleMail(mailRelay), 15_000).unref()
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
 setInterval(sweepFiles, SWEEP_EVERY_MS).unref()
+setInterval(() => writes.add('the vacuum', vacuumDatabase(db)), VACUUM_EVERY_MS).unref()
 setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 

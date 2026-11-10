@@ -12,6 +12,7 @@ import { prepareSettings } from './settings/import.js'
 import { upgradeStorage } from './storage/migrations.js'
 import { keepDatabase, keptDatabase } from './storage/owner.js'
 import { IMPORTED_SUFFIX, prepareDatabase } from './storage/state-files.js'
+import { compactDatabase } from './storage/vacuum.js'
 
 // The storage is brought to the current schema before the service reads any of it; when it cannot be, the service
 // starts nothing and writes nothing, and the page shows why.
@@ -27,6 +28,7 @@ try {
   upgradeStorage({ configFile: configPath(), stateDir: stateDirOf(), log: (line) => console.log(line) })
   const database = await prepareDatabase({ stateDir: stateDirOf(), log: (line) => console.log(line) })
   keepDatabase(database)
+  await compactDatabase(database.db, (line) => console.log(line))
   await prepareSettings({ db: database.db, file: configPath(), log: (line) => console.log(line) })
 } catch (error) {
   blocked = noticeWithCause(error)

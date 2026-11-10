@@ -636,6 +636,24 @@ export async function insertList(db: Db, table: string, rows: Record<string, unk
   await db.query(`insert into "${table}" select * from json_populate_recordset(null::"${table}", $1)`, [JSON.stringify(rows)])
 }
 
+/**
+ * Makes the table hold exactly `rows`, in one statement, touching only what differs: a row whose `values` changed
+ * is updated, a key that is gone deleted, a new one inserted. A delete and an insert of the whole table left every
+ * row dead at every save (BTN-952). `keys` are the primary key's columns, `values` the rest.
+ */
+export async function replaceRows(db: Db, table: string, keys: string[], values: string[], rows: Record<string, unknown>[]): Promise<void> {
+  const list = (columns: string[], of: string) => columns.map((column) => `${of}."${column}"`).join(', ')
+  const assigned = values.map((column) => `"${column}" = excluded."${column}"`).join(', ')
+  await db.query(
+    `with fresh as (select * from json_populate_recordset(null::"${table}", $1)),
+          gone as (delete from "${table}" old where not exists (select 1 from fresh where (${list(keys, 'fresh')}) = (${list(keys, 'old')})))
+     insert into "${table}" as kept select * from fresh
+       on conflict (${keys.map((key) => `"${key}"`).join(', ')}) do update set ${assigned}
+       where (${list(values, 'kept')}) is distinct from (${list(values, 'excluded')})`,
+    [JSON.stringify(rows)],
+  )
+}
+
 /** Runs `body` in one transaction: all of its writes or none. A call inside another one joins it. */
 export function inTransaction<T>(db: Db, body: (tx: Transaction) => Promise<T>): Promise<T> {
   return 'transaction' in db ? db.transaction(body) : body(db)

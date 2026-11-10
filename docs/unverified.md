@@ -46,6 +46,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 130 | [The state database's vacuum in the running service](unverified/platforms.md#the-state-databases-vacuum-in-the-running-service-btn-952) | every installation | the start is over a second slower or the page stalls once an hour; the log has the compaction's time and `storage: the vacuum failed` |
 | 129 | [The badge's English titles](unverified/page.md#the-badges-english-titles-btn-918) | projects with badge title translation on | Gemini refuses or returns an unexpected model name, the title stays absent or usage is not priced at zero; turn English titles off |
 | 128 | [Context windows through a restart](unverified/sessions.md#context-windows-through-a-restart-btn-946) | Claude chains whose sessions run on a window other than the shared `context.window` | after a restart the cards and the checkpoint threshold measure against `context.window` for a minute, as before; wait for the recheck |
 | 127 | [The README badge dialog](unverified/page.md#the-readme-badge-dialog-btn-917) | projects that set their badge up from the page | "Check" passes or fails against a real Worker otherwise than it says, or the copied snippet shows no picture on GitHub; set `badge` and the secret by hand and write the `<picture>` from `docs/badge.md` |
