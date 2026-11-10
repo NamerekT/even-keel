@@ -26,10 +26,10 @@ even-keel-badge`, `npx wrangler deploy`, `deploy/badge/README.md`).
 
 Unit tests cover when the service asks (no badge, a badge without the action, no push yet, a failed push, a session the
 chain does not run, a badge turned off mid-task, once per two minutes), the hook's output, the transcript's fold (a
-line asked for, one nobody asked for, one of an earlier turn) and the filter. Not checked live: whether a Claude Code
-session writes the line at all on a request in `additionalContext`, how often it ignores it, answers it in other words
-or keeps writing `status:` unasked, whether the request's mark reaches the transcript in a `hook_additional_context`
-attachment when it comes alone and next to mail, and what the line costs in output tokens over a task. BTN-919 owns
+line asked for, one nobody asked for, one of an earlier turn) and the filter. Seen live on Opus and Fable (2026-11-10,
+[verified](../verified/page.md)): the request reaches the transcript, each one gets a line, and Fable keeps writing
+`status:` unasked after its first. Not checked live: the request's mark next to mail, and what the line costs in output
+tokens over a task. BTN-919 owns
 the run. **If it is wrong:** the badge shows the default action; a session distracted by the requests — turn "Tasks in
 work and the current action" off in the badge's dialog, which stops them at the next tool call.
 
