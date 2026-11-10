@@ -74,11 +74,17 @@ describe('runtime dependencies', () => {
   })
 
   it('overrides every Tiptap package the Huly client takes, so none stays at a vulnerable version', () => {
-    const text = JSON.parse(readFileSync(join(root, 'node_modules', '@hcengineering', 'text', 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+    // The lock file, not `node_modules`: a task's worktree has no install of its own.
+    const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8')) as {
+      packages: Record<string, { version: string; dependencies?: Record<string, string> }>
+    }
+    const text = lock.packages['node_modules/@hcengineering/text']
     const patched = HULY_CLIENT_OVERRIDES['@hcengineering/text']
-    expect(Object.keys(text.dependencies).filter((name) => name.startsWith('@tiptap/') && !(name in patched))).toEqual([])
-    const core = JSON.parse(readFileSync(join(root, 'node_modules', '@tiptap', 'core', 'package.json'), 'utf8')) as { version: string }
-    expect(core.version).toBe(patched['@tiptap/core'])
+    const taken = Object.keys(text.dependencies ?? {}).filter((name) => name.startsWith('@tiptap/'))
+    expect(taken).not.toEqual([])
+    expect(taken.filter((name) => !(name in patched))).toEqual([])
+    const installed = Object.entries(lock.packages).filter(([path]) => path.endsWith('node_modules/@tiptap/core'))
+    expect(installed.map(([path, entry]) => [path, entry.version])).toEqual([['node_modules/@tiptap/core', patched['@tiptap/core']]])
   })
 
   it('declares nothing the service never loads', () => {
