@@ -9,7 +9,8 @@ beforeAll(async () => {
     set timezone = 'UTC';
     create table sample(session_id text, task text, at timestamptz, model text, cost float, agent_id text, message_id text, project text, entrypoint text);
     create table messages(message_id text, session_id text, agent_id text, at timestamptz, input int, cache_write_5m int, cache_write_1h int, cache_read int);
-    create table spans(session_id text, agent_id text, from_at timestamptz, to_at timestamptz);
+    create table spans(id text, session_id text, agent_id text, from_at timestamptz, to_at timestamptz);
+    create table span_reasons(span_id text, reason text);
     create table tool_calls(session_id text, is_error bool, error_kind text);
     create table audit_sessions(task text, model text);
     create table task_estimates(task text, first_at timestamptz, done bool, cost float, active_min float, fact_ratio float);

@@ -94,7 +94,9 @@ const SIDE_SESSIONS = `${SIDED}
 select x.side, count(distinct x.session_id) as sessions, coalesce(sum(p.cost), 0) as cost,
   coalesce(sum(p.cost) filter (where exists (
     select 1 from spans sp
+    left join span_reasons sr on sr.span_id = sp.id
     where sp.session_id = p.session_id and sp.agent_id = p.agent_id and p.at between sp.from_at and sp.to_at
+      and sr.reason is distinct from 'normal'
   )), 0) as stuck_cost
 from sided x
 join picked p on p.session_id = x.session_id

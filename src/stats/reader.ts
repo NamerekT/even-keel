@@ -105,7 +105,9 @@ select r.cur, coalesce(sum(r.cost), 0) as cost, count(*) as messages, count(dist
   count(distinct r.task) as tasks, count(*) filter (where r.cost is null) as unpriced, sum(sv.share) as limit_share,
   coalesce(sum(r.cost) filter (where exists (
     select 1 from spans sp
+    left join span_reasons sr on sr.span_id = sp.id
     where sp.session_id = r.session_id and sp.agent_id = r.agent_id and r.at between sp.from_at and sp.to_at
+      and sr.reason is distinct from 'normal'
   )), 0) as stuck_cost
 from ranged r
 left join seven sv on sv.message_id = r.message_id
@@ -139,7 +141,7 @@ const TASKS = `${PERIOD}, cur as (
   from stuck_spans sp
   join (select distinct session_id, task from cur) t on t.session_id = sp.session_id
   cross join bounds
-  where sp.to_at >= bounds.lo and sp.from_at < bounds.hi
+  where sp.to_at >= bounds.lo and sp.from_at < bounds.hi and sp.reason is distinct from 'normal'
   group by t.task
 ), compacted as (
   select t.task,

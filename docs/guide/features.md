@@ -380,6 +380,8 @@ A built-in collector (Tally) reads the session transcripts every five minutes in
 
 Statistics include history from existing account folders, including the global Claude and Codex folders even if you have not added those accounts in Even Keel. A folder left out of a scan keeps its reading progress while its files still exist, so changing the scan does not force that history to reload.
 
+Spend while stuck and task stuck counts exclude spans the classifier marked `normal` (a false alarm). Spans without a reason, or marked `other`, still count. The span lists and weekly breakdown keep every span and its reason; reclassification updates the totals on the next uncached read.
+
 An hour after a done task's last turn, its active agent time goes into the tracker's own time tracking, once, signed "Tally: активное время агента по ходам транскриптов": a time report in Huly, spent time in GitLab, a worklog in Jira, in whole minutes. GitHub and Linear have no time tracking and get none. On GitLab the profile's account needs to be at least Reporter in the project; on Jira it needs the **Work on issues** right and time tracking switched on for the site. Without them the task gets no time, the service log names the project, and the task is not tried again.
 
 Task time includes Codex, OpenCode and Copilot turns from their own session records, including older sessions whose records are still available, so their tasks get a time report too. For Codex, visible synchronous question waits are excluded from active time; waits the session file does not show remain included. OpenCode and Copilot sessions ask in their final text rather than through a question tool, so their turns have no question waits to exclude.
