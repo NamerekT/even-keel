@@ -430,6 +430,10 @@ Set it up in the project's settings → **Repository** → **README badge**:
 
 Each change applies at once; turning the badge off publishes a stopped chain one last time.
 
+The statistics cover the last 30 days and refresh at most every 15 minutes. Projects with the same key share their
+statistics, as on the Stats page. An empty period shows `0 sessions` without task medians; unavailable statistics are
+left out until a successful refresh.
+
 ## A check without CI
 
 A project with no CI, or whose CI does not answer, can name its own check commands, such as `npm run typecheck && npm test`. A session's merge into `main` waits until they pass in the task's worktree (a hook of the [checkpoint](../../plugins/checkpoint) plugin), and a failure goes back to the session to fix. If `main` moved while the task ran, Even Keel runs the check again on `main` in the next task's worktree before that task starts; a failure there is handled like a red CI.

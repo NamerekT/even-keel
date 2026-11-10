@@ -26,14 +26,20 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
   const queries: PeriodQuery[] = []
   let answer: StatsAnswer<StatsPeriod> = { state: 'ok', data: period }
   let down = false
+  let periodDown = false
   const lines: string[] = []
   const identities: string[] = []
+  const config = {
+    projects: { [ABC]: 'C:/repos/example' }, keys: { [ABC]: 'ABC' }, trackers: { [ABC]: 'builtin' }, trackerProjects: {}, feeds: {},
+    get settings() { return { [ABC]: { badge } } },
+  } as unknown as EvenKeelConfig
   const wiring = wireBadges({
-    config: () => ({ projects: { [ABC]: 'C:/repos/example' }, keys: { [ABC]: 'ABC' }, trackers: { [ABC]: 'builtin' }, trackerProjects: {}, feeds: {}, settings: { [ABC]: { badge } } }) as unknown as EvenKeelConfig,
+    config: () => config,
     state: () => snapshot,
     translations,
     period: async (query) => {
       queries.push(query)
+      if (periodDown) throw new Error('stats unavailable')
       return answer
     },
     now: () => now,
@@ -58,6 +64,8 @@ function rig(snapshot = state, translations?: BadgeTranslations) {
     queries,
     lines,
     identities,
+    config,
+    failPeriod: () => (periodDown = true),
     down: () => (down = true),
     set: (next: BadgeSettings | null) => (badge = next),
     wait: (ms: number) => (now += ms),
@@ -118,14 +126,14 @@ describe('wireBadges', () => {
 
   it('reads the project\'s last 30 days from the stats at most every 15 minutes and publishes the picked numbers', async () => {
     const r = rig()
-    r.set(on)
+    r.set({ ...on, fields: [...on.fields, 'medianMinutes'] })
     await r.wiring.tick()
     expect(r.posts[0]?.stats).toBeUndefined()
-    expect(r.queries).toEqual([{ scope: 'all', account: null, tz: 'UTC', includeTests: true, from: '2026-10-11', to: '2026-11-09', projects: [ABC] }])
+    expect(r.queries).toEqual([{ scope: 'all', account: null, tz: 'UTC', includeTests: true, from: '2026-10-11', to: '2026-11-09', projects: ['ABC'] }])
     await settle()
     r.wait(2 * 60_000)
     await r.wiring.tick()
-    expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2 })
+    expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2, medianMinutes: 10 })
     r.wait(BADGE_STATS_MS - 2 * 60_000 - 1)
     r.wiring.svg(ABC, 'dark')
     expect(r.queries).toHaveLength(1)
@@ -137,6 +145,75 @@ describe('wireBadges', () => {
     await r.wiring.tick()
     expect(r.queries).toHaveLength(2)
     expect(r.posts.at(-1)?.stats).toBeUndefined()
+  })
+
+  it('shares the stats key with /stats for projects with the same key, regardless of their folders', async () => {
+    const other = '22222222-2222-4222-8222-222222222222'
+    const r = rig({ ...state, projects: [ABC, other], projectKeys: { [ABC]: 'ABC', [other]: 'ABC' } })
+    r.config.keys[other] = 'ABC'
+    r.config.projects[other] = 'C:/repos/another-example'
+    r.wiring.svg(ABC, 'dark')
+    r.wiring.svg(other, 'dark')
+    await settle()
+    expect(r.queries.map((query) => query.projects)).toEqual([['ABC']])
+    expect(r.wiring.svg(ABC, 'dark')).toContain('4 sessions')
+    expect(r.wiring.svg(other, 'dark')).toContain('4 sessions')
+  })
+
+  it('uses the live config key and never shows cached numbers of the previous key', async () => {
+    const r = rig()
+    r.wiring.svg(ABC, 'dark')
+    await settle()
+    expect(r.wiring.svg(ABC, 'dark')).toContain('4 sessions')
+    r.config.keys[ABC] = 'DEF'
+    r.answer({ state: 'ok', data: { ...period, current: { ...period.current, sessions: 9 } } })
+    expect(r.wiring.svg(ABC, 'dark')).not.toContain('4 sessions')
+    await settle()
+    expect(r.queries.map((query) => query.projects)).toEqual([['ABC'], ['DEF']])
+    expect(r.wiring.svg(ABC, 'dark')).toContain('9 sessions')
+  })
+
+  it('omits stats without a configured key instead of querying a GUID or all projects', async () => {
+    const r = rig()
+    delete r.config.keys[ABC]
+    expect(r.wiring.svg(ABC, 'dark')).not.toContain('0 sessions')
+    await settle()
+    expect(r.queries).toEqual([])
+    r.config.keys[ABC] = 'ABC'
+    r.wiring.svg(ABC, 'dark')
+    await settle()
+    expect(r.wiring.svg(ABC, 'dark')).toContain('4 sessions')
+  })
+
+  it.each<StatsAnswer<StatsPeriod>>([
+    { state: 'off', reason: 'off' },
+    { state: 'error', error: 'unavailable' },
+    { state: 'newer', version: 999, known: 1 },
+  ])('omits stats instead of showing a false zero on $state', async (answer) => {
+    const r = rig()
+    r.answer(answer)
+    r.wiring.svg(ABC, 'dark')
+    await settle()
+    expect(r.wiring.svg(ABC, 'dark')).not.toContain('0 sessions')
+  })
+
+  it('omits stats when the period read rejects', async () => {
+    const r = rig()
+    r.failPeriod()
+    r.wiring.svg(ABC, 'dark')
+    await settle()
+    expect(r.wiring.svg(ABC, 'dark')).not.toContain('0 sessions')
+  })
+
+  it('keeps a factual zero for a successfully read empty period, without medians', async () => {
+    const r = rig()
+    r.answer({ state: 'ok', data: { ...period, current: { ...period.current, sessions: 0 }, tasks: [] } })
+    r.set({ ...on, fields: ['sessions', 'medianCost', 'medianMinutes'] })
+    r.wiring.svg(ABC, 'dark')
+    await settle()
+    await r.wiring.tick()
+    expect(r.posts.at(-1)?.stats).toEqual({ sessions: 0 })
+    expect(r.wiring.svg(ABC, 'dark')).toContain('0 sessions')
   })
 
   it('previews a project\'s badge with its picked fields, every field without a setting, none for an unknown project', () => {

@@ -167,7 +167,11 @@ The service ticks on a state change (at most every 2 s) and every 30 s.
 
 `stats` are Tally's numbers over the last 30 local days, all scope, tests included (`src/badge/stats.ts`): the session
 count, the median cost of done tasks at API list prices (`priceEstimate`, else `cost`) and their median active minutes.
-They are read in the background at most every 15 min; with Tally off the badge has none.
+They are read in the background at most every 15 min, cached by the project's current key rather than its GUID.
+The key comes from the live config; projects sharing it use the same numbers and the stats reader's `firstByKey`
+repository mapping, just like `/stats`. A changed key never shows the previous key's cached numbers. Without a configured
+key, with Tally off or after a failed read the badge has no numbers; a successfully read empty period shows `0 sessions`
+without medians. The cache is in memory and read anew after a restart.
 
 ## English titles
 

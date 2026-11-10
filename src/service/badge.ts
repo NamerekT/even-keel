@@ -92,16 +92,18 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   }
 
   const statsOf = (project: string): BadgeStats | null => {
-    const known = numbers.get(project)
-    if ((known === undefined || now() - known.at >= BADGE_STATS_MS) && !reading.has(project)) {
-      reading.add(project)
-      const query: PeriodQuery = { scope: 'all', account: null, tz, includeTests: true, ...badgeStatsRange(new Date(now()), tz), projects: [project] }
+    const key = deps.config().keys[project]
+    if (key === undefined) return null
+    const known = numbers.get(key)
+    if ((known === undefined || now() - known.at >= BADGE_STATS_MS) && !reading.has(key)) {
+      reading.add(key)
+      const query: PeriodQuery = { scope: 'all', account: null, tz, includeTests: true, ...badgeStatsRange(new Date(now()), tz), projects: [key] }
       void deps
         .period(query)
         .then((answer) => (answer.state === 'ok' ? badgeStatsOf(answer.data) : null))
         .catch(() => null)
-        .then((stats) => numbers.set(project, { at: now(), stats }))
-        .finally(() => reading.delete(project))
+        .then((stats) => numbers.set(key, { at: now(), stats }))
+        .finally(() => reading.delete(key))
     }
     return known?.stats ?? null
   }
