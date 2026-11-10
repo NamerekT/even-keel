@@ -10,6 +10,7 @@ import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
 import { expandFolder, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
+import { projectsDir } from './own-folder.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
@@ -30,6 +31,8 @@ export interface CheckDeps {
   platform?: NodeJS.Platform
   /** The machine's answer about the typed folder; the real one by default. */
   folders?: Folders
+  /** Where a project without git that names no folder gets its own; `projectsDir()` by default. */
+  projectsDir?: string
   /** The user the service runs as. */
   user: string
   /** Even Keel runs as a system service (`ProjectCheck.service`). */
@@ -48,7 +51,9 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
   const adapter = deps.adapters[draft.tracker]
-  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env, deps.folders)
+  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env, deps.folders, deps.projectsDir)
+  // A project without git that names no folder gets one only when it is added: nothing to trust yet.
+  const unmade = draft.git === false && draft.repo.trim() === ''
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
@@ -71,7 +76,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
   const root = repo.root
   // Run labels can give any task to Claude, whatever the project's own agent (BTN-429).
-  const trusted = root === null || (provider !== CLAUDE && !labels) ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
+  const trusted = root === null || unmade || (provider !== CLAUDE && !labels) ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
   return { repo, entry, yields, tracker, trusted, platform, user: deps.user, service: deps.service }
 }
 
@@ -83,13 +88,21 @@ export async function checkRepo(
   adapter?: TrackerAdapter,
   env: Readonly<Record<string, string | undefined>> = {},
   folders: Folders = REAL_FOLDERS,
+  ownDir: string = projectsDir(),
 ): Promise<ProjectCheck['repo']> {
   const typed = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
-  if (typed === '') return { ...none, notice: null }
+  const plain = draft.git === false
+  if (typed === '') return { ...none, root: plain ? ownDir : null, notice: null }
   const path = expandFolder(typed, folders.home, platform)
   const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ ...none, notice: notice(code, { path: typed }) })
   if (!isFullPath(path, platform)) return refuse(platform === 'win32' && /%[^%]+%/.test(path) ? 'wizard.noFolder' : 'wizard.relativePath')
+  if (plain) {
+    // The folder may lie inside a repository that is not the project's: git is not asked about it.
+    const folder = pathsOf(platform).normalize(path)
+    const taken = projectOfRepo(raw, folder, platform)
+    return { ...none, root: folder, notice: taken === undefined ? null : notice('wizard.folderTaken', { project: taken }) }
+  }
   if (!folders.isFolder(path)) return refuse('wizard.noFolder')
   const top = await git(path, ['rev-parse', '--show-toplevel'])
   if (top.missing === true) return { ...none, notice: notice('git.missing', {}) }

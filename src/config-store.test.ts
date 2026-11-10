@@ -116,6 +116,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       remoteProfiles: { github: 'org' },
       standards: [],
       mergeInto: null,
+      git: true,
       carryAgent: true,
       pullRequests: false,
       testProject: false,

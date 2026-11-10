@@ -325,6 +325,12 @@ describe('withNewProject', () => {
     expect(parseConfig(withNewProject({ projects: [] }, { ...draft, provider: 'codex' }, 'id-new')).settings['id-new']?.provider).toBe('codex')
   })
 
+  it('writes a project without git with neither a branch nor slots (BTN-883)', () => {
+    const next = withNewProject({ projects: [] }, { ...draft, git: false, branch: 'master', slot: 2 }, 'id-new')
+    expect(next.projects).toEqual([{ id: 'id-new', key: 'NEW', repo: 'D:\\new', git: false, tracker: 'huly', color: 1 }])
+    expect(parseConfig(next).settings['id-new']?.git).toBe(false)
+  })
+
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }
     const next = withNewProject(raw, draft, 'id-new')

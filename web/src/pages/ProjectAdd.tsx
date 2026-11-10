@@ -126,7 +126,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const check = fresh ? { ...checked.result, tracker } : null
   // The folder's lines depend on the folder and the branch only: they hold while another field is checked again.
   const repoCheck =
-    checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch
+    checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch && checked.draft.git === draft.git
       ? checked.result
       : null
   const set = (change: Partial<WizardFields>) => setFields((before) => ({ ...before, ...change }))
@@ -139,7 +139,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   }, [fields, tableDraft])
 
   useEffect(() => {
-    if (draft === undefined || draft.repo === '' || basis === null) return
+    if (draft === undefined || (draft.repo === '' && draft.git !== false) || basis === null) return
     const askTracker = tracker === null
     let live = true
     const timer = setTimeout(() => {
@@ -189,7 +189,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   // A bad branch name, or one that moves the checkout, opens the field, and it stays open while the branch is typed again (BTN-754).
   const branches = repo?.branches ?? null
   const badBranch = repoCheck?.repo.notice?.code === 'wizard.branchName'
-  const moves = branches !== null && fields.branch.trim() !== '' && fields.branch.trim() !== current
+  const moves = fields.git && branches !== null && fields.branch.trim() !== '' && fields.branch.trim() !== current
   useEffect(() => {
     if (badBranch || moves) setBranchOpen(true)
   }, [badBranch, moves])
@@ -222,7 +222,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
-  const branchShown = branchOpen || badBranch || moves || (root !== null && current === null)
+  const branchShown = fields.git && (branchOpen || badBranch || moves || (root !== null && current === null))
+  const found = repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null ? repoCheck.repo.root : null
   const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent), tracker)
   const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
   const dot = (step: WizardStepId) => {
@@ -265,9 +266,26 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               <AgentReady state={state} provider={agent} />
             </Row>
           </Section>
-          <Section title={t.wizard.stepRepo} mark={dot('repo')} className="project-add__step">
+          <Section title={fields.git ? t.wizard.stepRepo : t.wizard.stepFolder} mark={dot('repo')} className="project-add__step">
+            <Row
+              className="settings__field project-add__pick"
+              label={t.wizard.mode}
+              control={
+                <Segmented
+                  label={t.wizard.mode}
+                  options={[
+                    ['git', t.wizard.modeGit],
+                    ['plain', t.wizard.modePlain],
+                  ]}
+                  value={fields.git ? 'git' : 'plain'}
+                  onChange={(mode) => set({ git: mode === 'git' })}
+                />
+              }
+            >
+              <span className="settings__hint">{t.wizard.modeHints[fields.git ? 'git' : 'plain']}</span>
+            </Row>
             <div className="settings__field">
-              <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
+              <FieldHead label={t.wizard.path} hint={fields.git ? t.wizard.repoHint : t.wizard.folderHint} htmlFor="wizard-repo" />
               <input
                 id="wizard-repo"
                 className="settings__text settings__text--mono"
@@ -275,13 +293,14 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 spellCheck={false}
                 autoFocus
                 value={fields.repo}
-                placeholder={examplePaths(state.platform).repo}
+                placeholder={fields.git ? examplePaths(state.platform).repo : t.wizard.folderPlaceholder}
                 aria-invalid={repoCheck?.repo.notice != null}
                 onChange={(event) => set({ repo: event.target.value })}
               />
-              {repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null && (
+              {found !== null && !fields.git && <Status ok>{fields.repo.trim() === '' ? t.wizard.folderOwn(found) : t.wizard.folderChosen(found)}</Status>}
+              {found !== null && fields.git && (
                 <Status ok>
-                  {t.wizard.repoFound(repoCheck.repo.root)}
+                  {t.wizard.repoFound(found)}
                   {!branchShown && (
                     <>
                       {' · '}
@@ -296,7 +315,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               {repoCheck?.repo.notice != null && (
                 <Status>
                   {say(repoCheck.repo.notice)}
-                  {repoCheck.repo.notice.code === 'wizard.repoTaken' && (
+                  {(repoCheck.repo.notice.code === 'wizard.repoTaken' || repoCheck.repo.notice.code === 'wizard.folderTaken') && (
                     <>
                       {' '}
                       <Link to={projectPath(repoCheck.repo.notice.params.project)}>{t.wizard.openProject}</Link>
@@ -391,24 +410,27 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             )}
           </Section>
           <Section title={t.wizard.stepPlace} mark={dot('place')} className="project-add__step">
-            <Row
-              className="settings__field project-add__pick"
-              label={t.wizard.place}
-              control={
-                <Segmented
-                  label={t.wizard.place}
-                  options={[
-                    ['worktree', t.wizard.placeWorktree],
-                    ['slots', t.wizard.placeSlots],
-                  ]}
-                  value={fields.place}
-                  onChange={(place) => set({ place })}
-                />
-              }
-            >
-              <span className="settings__hint">{t.wizard.placeHints[fields.place]}</span>
-            </Row>
-            {fields.place === 'slots' && (
+            {!fields.git && <p className="settings__hint">{t.wizard.placePlain}</p>}
+            {fields.git && (
+              <Row
+                className="settings__field project-add__pick"
+                label={t.wizard.place}
+                control={
+                  <Segmented
+                    label={t.wizard.place}
+                    options={[
+                      ['worktree', t.wizard.placeWorktree],
+                      ['slots', t.wizard.placeSlots],
+                    ]}
+                    value={fields.place}
+                    onChange={(place) => set({ place })}
+                  />
+                }
+              >
+                <span className="settings__hint">{t.wizard.placeHints[fields.place]}</span>
+              </Row>
+            )}
+            {fields.git && fields.place === 'slots' && (
               <Row
                 className="settings__field"
                 label={t.wizard.placeCount}
@@ -453,7 +475,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               ) : (
                 missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
               )}
-              {draft !== undefined && draft.repo !== '' && (
+              {draft !== undefined && (draft.repo !== '' || draft.git === false) && (
                 <button
                   type="button"
                   className="wizard__skip"
@@ -480,8 +502,10 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 function firstFields(state: EvenKeelState): WizardFields {
   const trackers = new Set(state.profiles.kinds.filter((kind) => kind.tracker).map((kind) => kind.kind))
   const own = state.profiles.profiles.filter((profile) => trackers.has(profile.kind))
-  if (own.length === 0) return switchBuiltin(EMPTY_FIELDS)
-  return own.length === 1 ? switchProfile(EMPTY_FIELDS, own[0]!) : EMPTY_FIELDS
+  // The Git step was skipped and git does not start: only a project without git can be added.
+  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.git?.version !== null }
+  if (own.length === 0) return switchBuiltin(empty)
+  return own.length === 1 ? switchProfile(empty, own[0]!) : empty
 }
 
 function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields, state: EvenKeelState): string {
@@ -491,5 +515,6 @@ function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields
   if (missing === 'project' && shapeOf(choice) === 'within') return t.wizard.missing.field(t.wizard.team)
   if (missing === 'place' || missing === 'project') return t.wizard.missing.field(t.settings.trackerProject(fields.tracker, title))
   if (missing === 'key') return t.wizard.missing.field(t.wizard.prefix)
+  if (missing === 'repoError' && !fields.git) return t.wizard.missing.folderError
   return t.wizard.missing[missing]
 }

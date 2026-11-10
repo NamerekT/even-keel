@@ -11,7 +11,19 @@ import type { Value } from './settingsDraft.js'
 import { FieldHead, fieldId, FieldNote, minutesOf, Row, Section, shown, SwitchField } from './settingsParts.js'
 
 /** The "CI" tab of the project settings panel: the guard of the main branch and pull requests. */
-export function ProjectCiTab({ fields, project, state, shared }: { fields: PanelFields; project: string; state: EvenKeelState | null; shared: SharedForm }) {
+export function ProjectCiTab({ fields, project, state, shared, plain }: { fields: PanelFields; project: string; state: EvenKeelState | null; shared: SharedForm; plain: boolean }) {
+  // A project without git has neither: said in one line, not shown as switches that do nothing.
+  if (plain) {
+    return (
+      <Section title={t.settings.sections.guard}>
+        <p className="settings__hint">{t.settings.plain.ci}</p>
+      </Section>
+    )
+  }
+  return <GitCiTab fields={fields} project={project} state={state} shared={shared} />
+}
+
+function GitCiTab({ fields, project, state, shared }: { fields: PanelFields; project: string; state: EvenKeelState | null; shared: SharedForm }) {
   const { draft, saved, text, on, edit, marks, errorOf, notes, pick, inheritedSwitch, lines, ownEdit, ownInherit, flagNote, number } = fields
   // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
   const pullReadiness = state?.pullReadiness[project] ?? null

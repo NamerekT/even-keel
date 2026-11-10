@@ -146,10 +146,11 @@ export function Band({ tone, action, children, className }: { tone: BandTone; ac
 const COPIED_MS = 2000
 
 /**
- * A command for a person to run, apart from the text around it, with a copy button in its corner.
+ * A command for a person to run, apart from the text around it, with a copy button in its corner; `copyLabel` names
+ * the button where the text is no command (a folder's path).
  * Plain HTTP from another host has no clipboard: there the block is only selectable text.
  */
-export function CommandBlock({ command, className }: { command: string; className?: string }) {
+export function CommandBlock({ command, className, copyLabel = t.common.copyCommand }: { command: string; className?: string; copyLabel?: string }) {
   const [copied, setCopied] = useState(false)
   const canCopy = typeof navigator !== 'undefined' && navigator.clipboard !== undefined
 
@@ -165,7 +166,7 @@ export function CommandBlock({ command, className }: { command: string; classNam
       () => undefined,
     )
   }
-  const label = copied ? t.common.commandCopied : t.common.copyCommand
+  const label = copied ? t.common.commandCopied : copyLabel
   return (
     <div className={join('ui-command', canCopy && 'ui-command--copy', className)}>
       <pre className="ui-command__text">

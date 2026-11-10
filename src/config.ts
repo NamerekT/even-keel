@@ -239,7 +239,7 @@ function checkShared(config: EvenKeelConfig, adapters: AdapterShapes): EvenKeelC
     seen.set(shared, [...others, project])
   }
   for (const [project, { mergeInto: into }] of Object.entries(config.settings)) {
-    if (into !== null && (into === project || config.settings[into] === undefined || config.settings[into].mergeInto !== null)) {
+    if (into !== null && (into === project || config.settings[into] === undefined || config.settings[into].mergeInto !== null || !config.settings[into].git)) {
       throw fail('config.mergeInto', { project: label(project), into: config.keys[into] === undefined ? into : label(into) })
     }
   }
@@ -292,7 +292,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     chain: rulesOf(shared),
     rules: byId((record, project) => checkRules(rulesOf(project), record.key)),
     ownRules: byId((_, __, ownRows) => ownRulesOf(ownRows)),
-    slots: byId((_, { slot }) => (slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
+    slots: byId((_, { slot, git }) => (git === false ? undefined : slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
     colors: colorsOf(
       records.map((record) => record.id),
       byId((_, { color }) => color as number | undefined),
@@ -305,7 +305,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     briefs: byId((_, project) => project.brief as boolean | null),
     settings: byId((record, project, ownRows) => ({
       ...settingsOf(record, project, ownRows),
-      mergeInto: mergeTargetOf(records, record.id, project.mergeInto as string | null),
+      mergeInto: project.git === false ? null : mergeTargetOf(records, record.id, project.mergeInto as string | null),
       promptLanguage: promptLanguage(project),
     })),
     context,
@@ -373,19 +373,23 @@ function sharesOf(values: Values, project: string | null): CheckpointShares {
   return shares
 }
 
+/** A project without git (BTN-883) has no PR mode, no release carry and no guard of main, whatever its entry says. */
 function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<ProjectSettings, 'promptLanguage'> {
+  const git = values.git as boolean
+  const ci = ciOf(values)
   return {
     branch: record.branch,
     prompt: (own.prompt as string | undefined) ?? null,
     beforeStart: values['commands.beforeStart'] as string[],
     check: values['commands.check'] as string[],
     afterGreen: values['commands.afterGreen'] as string[],
-    ci: ciOf(values),
+    ci: git ? ci : { ...ci, guard: false },
     remoteProfiles: values.remoteProfiles as RemoteProfiles,
-    pullRequests: values.pullRequests as boolean,
+    pullRequests: git && (values.pullRequests as boolean),
+    git,
     testProject: values.testProject as boolean,
     intakeLabel: values.intakeLabel as string | null,
-    mergeInto: values.mergeInto as string | null,
+    mergeInto: git ? (values.mergeInto as string | null) : null,
     carryAgent: values.carryAgent as boolean,
     fillMilestone: values.fillMilestone as boolean,
     milestoneOrder: values.milestoneOrder as string[],
@@ -636,6 +640,14 @@ export function projectsByAccount(config: Parameters<typeof runSettings>[0], pro
 /** The providers sessions run on (`runSettings`): the shared one and each project's own. */
 export function providersInUse(config: Parameters<typeof runSettings>[0], projects: string[]): Set<string> {
   return new Set([runSettings(config, undefined).provider, ...projects.map((project) => runSettings(config, project).provider)])
+}
+
+/** Whether the project's folder is no repository (BTN-883): nothing may call git in it — it may sit inside another repository. */
+export const isPlain = (config: Pick<EvenKeelConfig, 'settings'>, project: string): boolean => config.settings[project]?.git === false
+
+/** The projects whose folder is a repository, by id: what the git, CI and remote readers go over. */
+export function gitProjects(config: Pick<EvenKeelConfig, 'projects' | 'settings'>): Record<string, string> {
+  return Object.fromEntries(Object.entries(config.projects).filter(([project]) => !isPlain(config, project)))
 }
 
 /** The config of the file, an entry without an id given one in memory only: for readers that do not write the file. */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { statusRequest } from '../badge/status.js'
 import { mailMessage } from './mail.js'
 import { shareOf } from './share.js'
-import { noChangesOf, TranscriptFold } from './transcript.js'
+import { noChangesOf, TranscriptFold, withoutMark } from './transcript.js'
 
 const CWD = 'C:\\repos\\example-project'
 let clock = 0
@@ -636,6 +636,21 @@ describe('TranscriptFold', () => {
       expect(noChangesOf('NO CHANGES:')).toBe('')
       expect(noChangesOf('NO CHANGES: done\nAnd a word after.')).toBeNull()
       expect(noChangesOf('There were NO CHANGES: none')).toBeNull()
+    })
+
+    it('reads the mark of a project without git, with a summary or bare', () => {
+      expect(noChangesOf('The answer.\n\nTASK DONE')).toBe('')
+      expect(noChangesOf('TASK DONE: three sources compared')).toBe('three sources compared')
+      expect(noChangesOf('**TASK DONE**')).toBe('')
+      expect(noChangesOf('`TASK DONE: found`')).toBe('found')
+      expect(noChangesOf('TASK DONE soon')).toBeNull()
+      expect(noChangesOf('The TASK DONE')).toBeNull()
+    })
+
+    it('gives a marked message without its mark line', () => {
+      expect(withoutMark('The answer.\n\nSecond line.\n\nTASK DONE: found\n')).toBe('The answer.\n\nSecond line.')
+      expect(withoutMark('NO CHANGES: nothing to do')).toBe('')
+      expect(withoutMark(' An answer cut before its mark ')).toBe('An answer cut before its mark')
     })
 
     it('forgets the mark once the session calls a tool or someone writes to it', () => {

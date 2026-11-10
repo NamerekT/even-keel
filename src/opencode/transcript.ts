@@ -7,6 +7,7 @@ import {
   callFacts,
   checkpointOf,
   failureText,
+  MESSAGE_LIMIT,
   noChangesOf,
   pullRequestOf,
   stageOfCommand,
@@ -41,7 +42,6 @@ export interface PartRow {
 
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
-const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota|too many requests/i
 const LIMIT_TYPE = /FreeUsageLimitError/

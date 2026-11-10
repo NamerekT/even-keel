@@ -145,13 +145,15 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   const entry: Record<string, unknown> = { id, key: draft.key.trim(), repo: draft.repo.trim() }
   const name = draft.name.trim()
   if (name !== '') entry.name = name
+  const plain = draft.git === false
   const branch = draft.branch.trim()
-  if (branch !== '' && branch !== DEFAULT_BRANCH) entry.branch = branch
+  if (!plain && branch !== '' && branch !== DEFAULT_BRANCH) entry.branch = branch
+  if (plain) entry.git = false
   entry.tracker = draft.tracker
   const own = adapters[draft.tracker]?.projectKey?.key
   const value = trackerValue(adapters, draft.tracker, draft.trackerProject, entry.key as string)
   if (own !== undefined && value !== undefined) entry[own] = value
-  if (draft.slot > 0) entry.slot = draft.slot
+  if (!plain && draft.slot > 0) entry.slot = draft.slot
   if (draft.provider !== null && draft.provider !== shared.provider) entry.provider = draft.provider
   const milestones = names(draft.milestones)
   if (milestones.length > 0) entry.chain = { requiredMilestones: milestones }

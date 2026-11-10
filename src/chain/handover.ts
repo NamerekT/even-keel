@@ -348,11 +348,12 @@ export class Handovers {
    */
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const report = isOwnName(task) ? withReport(task, '', this.reportOf(task)) : ''
-    const located = await this.deps.locate(session)
+    // A project without git: its folder may sit inside another repository, whose worktree is not the session's.
+    const located = this.deps.plain?.(task) === true ? session : await this.deps.locate(session)
     const { source, failed } = this.sourceOf(task, located)
     const { transcript, recent, lastMessage, checkpoint } = source
     const from = source === located ? located : { ...located, transcript, recent, lastMessage, checkpoint }
-    const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed)
+    const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed, this.deps.plain?.(task) !== true)
     const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
     const sessionId = await this.deps.relay(task, from, told + report, reason)
     this.sources.set(task, { sessionId, source, failed })

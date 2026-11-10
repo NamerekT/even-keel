@@ -39,6 +39,20 @@ export interface UnchangedTexts {
   comment: (reason: string) => string
   /** The tracker comment on the task the user closed by "Accept as answer" (BTN-885): the session's last message whole. */
   accepted: (message: string) => string
+  /**
+   * The tracker comment on a task of a project without git closed by its mark (BTN-883): the session's last message
+   * whole, `''` — it wrote only the mark; `cut` — the message is longer than what is kept.
+   */
+  answered: (message: string, cut: boolean) => string
+}
+
+/** A project without git (BTN-883): its lines in place of the worktree, branch, merge and git ones. */
+export interface PlainTexts {
+  folder: (path: string) => string
+  /** In place of `cleanup`: the answer is the turn's last message, ended by the mark. */
+  answer: string
+  /** In place of `begin` in a handoff. */
+  begin: string
 }
 
 /** `main` in the texts is the project's main branch, whatever it is called. */
@@ -47,6 +61,7 @@ export interface PromptTexts {
   /** Out of PR mode: the session merges its branch itself, or marks a task with nothing to merge. */
   cleanup: (main: string) => string
   unchanged: UnchangedTexts
+  plain: PlainTexts
   /** In PR mode, in place of `cleanup`: the session marks its turn's end, Even Keel pushes and opens the pull request. */
   pullRequest: (main: string) => string
   review: ReviewTexts
@@ -118,6 +133,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`Задача не закрыта: в worktree есть незакоммиченные изменения. Если они нужны — закоммить их и влей ветку в ${main} основного чекаута, как обычно. Если нет — убери их, чтобы git status был пуст, и снова закончи ход строкой \`NO CHANGES: <почему>\`.`,
       comment: (reason) => (reason === '' ? 'Задача закрыта без изменений в репозитории.' : fill`Задача закрыта без изменений в репозитории: ${reason}`),
       accepted: (message) => fill`Ответ сессии, принятый в Even Keel кнопкой «Принять как ответ»:\n\n${message}`,
+      answered: (message, cut) =>
+        message === ''
+          ? 'Задача закрыта сессией без текста ответа.'
+          : fill`Ответ сессии:\n\n${message}` + (cut ? '\n\n(Ответ обрезан: он длиннее, чем Even Keel записывает в комментарий. Целиком — в сессии.)' : ''),
+    },
+    plain: {
+      folder: (path) =>
+        fill`- Папка проекта: ${path} — работай в ней. Это не git-репозиторий: веток, коммитов, worktree и слияния здесь нет, git не вызывай. Папка общая для всех задач проекта: заметки прошлых задач в ней — не твои изменения.`,
+      answer:
+        '- Когда задача сделана, напиши результат целиком в последнем сообщении хода и закончи ход последней строкой `TASK DONE`. Even Keel запишет это сообщение комментарием к задаче и закроет её; статус задачи сам не трогай. Если без ответа пользователя не обойтись — задай вопрос и закончи ход без этой строки: задача останется ждать ответа.',
+      begin: '- Начни с описания задачи.',
     },
     pullRequest: (main) =>
       [
@@ -241,6 +267,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`The task is not closed: the worktree has uncommitted changes. If they are needed, commit them and merge the branch into ${main} of the main checkout as usual. If not, remove them so that git status is clean, and end the turn with the line \`NO CHANGES: <why>\` again.`,
       comment: (reason) => (reason === '' ? 'The task is closed with no change in the repository.' : fill`The task is closed with no change in the repository: ${reason}`),
       accepted: (message) => fill`The session's answer, accepted in Even Keel with "Accept as answer":\n\n${message}`,
+      answered: (message, cut) =>
+        message === ''
+          ? 'The session closed the task without an answer text.'
+          : fill`The session's answer:\n\n${message}` + (cut ? '\n\n(The answer is cut: it is longer than Even Keel puts in a comment. The whole of it is in the session.)' : ''),
+    },
+    plain: {
+      folder: (path) =>
+        fill`- Project folder: ${path} — work in it. It is not a git repository: there are no branches, commits, worktrees or merges here, do not call git. The folder is shared by all the project's tasks: notes of earlier tasks in it are not your changes.`,
+      answer:
+        '- When the task is done, write the whole result in the last message of the turn and end the turn with the last line `TASK DONE`. Even Keel puts that message on the task as a comment and closes it; do not move the task\'s status yourself. If you cannot go on without the user\'s answer, ask the question and end the turn without that line: the task stays waiting for the answer.',
+      begin: '- Start with the task description.',
     },
     pullRequest: (main) =>
       [

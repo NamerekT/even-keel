@@ -15,6 +15,8 @@ export const STOP_RETRY_MS = 5 * 60_000
  * Stops the task's sessions that are not mid-turn; the rest are kept in `lingering`, to be stopped once their turn ends
  * (BTN-616). A stop that timed out waiting for the account folder's queue is kept too, to be tried again (EKR-99):
  * `retrying` says so, and the cleanup then leaves the worktree folder the session holds to `deferLeftFolder`.
+ * `shared` — a project without git (BTN-883): every task works in `repo` itself, so only the sessions the launch log
+ * gives the task are its own.
  */
 export async function stopTaskSessions(
   ctx: ChainContext,
@@ -22,15 +24,15 @@ export async function stopTaskSessions(
   repo: string,
   task: string,
   count: number,
+  shared = false,
 ): Promise<{ warnings: Notice[]; retrying: boolean }> {
   const own = new Set(ctx.launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
-  const sessions = ctx.agents.filter(
-    (agent) =>
-      agent.id !== undefined &&
-      isLive(agent) &&
-      (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))),
-  )
+  const inPlace = (agent: AgentEntry) =>
+    shared
+      ? isInside(agent.cwd, repo) && own.has(agent.sessionId)
+      : isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))
+  const sessions = ctx.agents.filter((agent) => agent.id !== undefined && isLive(agent) && inPlace(agent))
   const warnings: Notice[] = []
   let retrying = false
   for (const agent of sessions) {

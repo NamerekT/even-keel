@@ -76,5 +76,7 @@ export const FULL = {
       carryAgent: true,
       chain: { requiredMilestones: ['v1.0.1'], excludedMilestones: [] },
     },
+    // Without git: its slots, PR mode and guard of main are read as off.
+    { id: '55555555-5555-4555-8555-555555555555', key: 'NOTE', repo: 'C:\\data\\projects\\note-55555555', tracker: 'github', github: 'octo-org/notes', git: false, slot: 2, pullRequests: true },
   ],
 }

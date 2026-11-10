@@ -26,6 +26,8 @@ const TRACKER_TIMEOUT_MS = 15_000
 export interface TrackerStartDeps {
   /** Path to the main checkout of the project. */
   repoOf: (project: string) => string
+  /** A reader of a project without git (BTN-883): no branch of its folder is ever a task's, so no merge closes one. */
+  plain?: (project: string) => boolean
   rulesOf: (project: string) => ChainRules
   links: Map<string, TrackerLink>
   tasksByProject: { get(project: string): Task[] | undefined; has(project: string): boolean; set(project: string, tasks: Task[]): void }
@@ -97,7 +99,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({
-    merged: (project, task) => mergedCommits(runGit, repoOf(project), task, mainBranch(project)),
+    merged: async (project, task) => (deps.plain?.(project) === true ? [] : mergedCommits(runGit, repoOf(project), task, mainBranch(project))),
     complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
     done: (project) => deps.doneOf?.(project),
     onError: report,

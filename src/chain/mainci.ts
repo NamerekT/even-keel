@@ -32,6 +32,8 @@ export interface MainCiDeps {
   /** The other projects whose checkout has a remote in common with this one's and the same main branch. */
   peers: (project: string) => string[]
   repo: (project: string) => string
+  /** A project without git (BTN-883): no git runs in its folder, so its main has no commit, tree or merged branch. */
+  plain?: (project: string) => boolean
   /** The project's main branch. */
   main: (project: string) => string
   git: Git
@@ -75,6 +77,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     const { guard, kinds } = deps.settings(project)
     return guard ? (deps.watches(project)?.filter((watch) => kinds.includes(watch.view.kind)) ?? null) : []
   }
+  const plain = (project: string) => deps.plain?.(project) === true
   const revision = async (cwd: string, rev: string) => {
     const read = await deps.git(cwd, ['rev-parse', '--verify', '--quiet', rev])
     return read.code === 0 ? read.out.trim() : null
@@ -83,7 +86,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
   return {
     // A project with the guard off neither holds nor is held by the others.
     peers: (project) => (deps.settings(project).guard ? deps.peers(project).filter((peer) => deps.settings(peer).guard) : []),
-    head: (project) => revision(deps.repo(project), `refs/heads/${deps.main(project)}`),
+    head: async (project) => (plain(project) ? null : revision(deps.repo(project), `refs/heads/${deps.main(project)}`)),
     verdict(project, commit, since) {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
       const watches = counted(project)
@@ -144,12 +147,13 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     comment: deps.comment,
     prepare: deps.prepare,
     async taskTree(project, task) {
+      if (plain(project)) return null
       const repo = deps.repo(project)
       const refs = await deps.git(repo, ['for-each-ref', '--format=%(objectname)', `refs/heads/${task.toLowerCase()}`])
       const commit = refs.code === 0 ? refs.out.split(/\r?\n/).find((line) => line.trim() !== '') : undefined
       return commit === undefined ? null : revision(repo, `${commit.trim()}^{tree}`)
     },
-    tree: (project, commit) => revision(deps.repo(project), `${commit}^{tree}`),
+    tree: async (project, commit) => (plain(project) ? null : revision(deps.repo(project), `${commit}^{tree}`)),
     checking(project) {
       const { guard, recheckMain } = deps.settings(project)
       return { commands: guard ? deps.commands(project) : [], recheck: recheckMain }
@@ -166,7 +170,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     },
     fixTask: (project) => deps.settings(project).fixTask,
     fixName: deps.fixName,
-    merged: (project, task) => branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
+    merged: async (project, task) => !plain(project) && branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
     afterGreen: (project) => deps.settings(project).guard && deps.afterGreen(project).length > 0,
     // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
     async runAfterGreen(project, commit) {

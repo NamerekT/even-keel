@@ -427,6 +427,11 @@ export interface DispatcherDeps {
   mainBranch: (task: string) => string
   /** Whether the task's project is in PR mode, which the prompts name; absent — it is not. */
   pullRequests?: (task: string) => boolean
+  /**
+   * Whether the task's project has no git (BTN-883): its folder is shared by its tasks, the prompts name no branch or
+   * merge, and the mark at a turn's end closes the task with the session's last message as the comment. Absent — it has.
+   */
+  plain?: (task: string) => boolean
   resume:(task: string, session: LimitedSession) => Promise<string>
   /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>

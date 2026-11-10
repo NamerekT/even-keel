@@ -669,6 +669,7 @@ export const noticesRu: NoticeTexts = {
   'config.checkpointShareOrder': (p) => `${p.where}: нужно first < late < hard, а не ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p) => `${p.path} — не папка git-репозитория`,
   'wizard.repoTaken': (p) => `этот репозиторий уже подключён как проект ${p.project}`,
+  'wizard.folderTaken': (p) => `эта папка уже подключена как проект ${p.project}`,
   'wizard.keyTaken': (p) => `ключ ${p.key} уже у проекта ${p.project} на другом репозитории, и ID задач у них совпадут — выберите другой`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов, и его ветка не родилась: сделайте первый коммит',
   'wizard.noFolder': (p) => `${p.path} — не папка`,

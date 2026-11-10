@@ -11,6 +11,8 @@ import { PROMPTS, type HandoffReason } from './prompts.js'
 export type { HandoffReason } from './prompts.js'
 
 const HANDOFF_STEPS = 10
+/** How much of the previous session's last message a handoff prompt carries. */
+const HANDOFF_MESSAGE = 6000
 const RESET_MARGIN_MS = 60_000
 const STALE_RESET_PAUSE_MS = 10 * 60_000
 
@@ -18,9 +20,13 @@ export function resumePrompt(language: Language): string {
   return PROMPTS[language].resume
 }
 
-/** `pullRequests` — PR mode: the session does not merge, it marks its turn's end for Even Keel to open a pull request. */
-export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main', pullRequests = false): string {
+/**
+ * `pullRequests` — PR mode: the session does not merge, it marks its turn's end for Even Keel to open a pull request.
+ * `git: false` — a project without git (BTN-883): the folder and the answer's mark, nothing of git.
+ */
+export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main', pullRequests = false, git = true): string {
   const text = PROMPTS[language]
+  if (!git) return [fill`${task}`, '', text.plain.folder(place.path), text.plain.answer].join('\n') + '\n'
   const lines = [fill`${task}`, '', text.worktree(place.path)]
   if (place.branch !== null) lines.push(text.branch(place.branch))
   lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
@@ -225,20 +231,21 @@ export function handoffPrompt(
   main = 'main',
   pullRequests = false,
   failed: FailedSession[] = [],
+  git = true,
 ): string {
   const text = PROMPTS[language]
-  const lines = [fill`${task}`, '', text.why[reason], text.workdir(session.workdir)]
-  if (session.branch !== null) lines.push(text.branch(session.branch))
-  lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
+  const lines = [fill`${task}`, '', text.why[reason], git ? text.workdir(session.workdir) : text.plain.folder(session.workdir)]
+  if (git && session.branch !== null) lines.push(text.branch(session.branch))
+  lines.push(!git ? text.plain.answer : pullRequests ? text.pullRequest(main) : text.cleanup(main))
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
   for (const empty of failed) lines.push(text.failed(empty.error, empty.transcript))
   const note = noteOf(session)
   if (note !== null) lines.push(text.note(note))
-  lines.push(text.begin(main))
+  lines.push(git ? text.begin(main) : text.plain.begin)
   if (note !== null) return lines.join('\n') + '\n'
   const steps = session.recent.filter(isStep).slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
-  if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage}`)
+  if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage.slice(0, HANDOFF_MESSAGE)}`)
   return lines.join('\n') + '\n'
 }
 

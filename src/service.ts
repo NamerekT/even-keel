@@ -30,7 +30,7 @@ import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { ProtectionAudit } from './ci/protection-audit.js'
 import { type CiTarget, type Remote } from './ci/remote.js'
 import type { IntakeEntry } from './intake/model.js'
-import { DEFAULT_BRANCH, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, gitProjects, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { type SlotUse } from './git/slot.js'
@@ -415,7 +415,7 @@ const importedProfiles = await importForgejo({
   db,
   env: process.env,
   webs: async () => {
-    const targets = await Promise.all(Object.values(configStore.current.projects).map((repo) => projectTargets(runGit, repo, trackerProfiles.profiles).catch(() => [])))
+    const targets = await Promise.all(Object.values(gitProjects(configStore.current)).map((repo) => projectTargets(runGit, repo, trackerProfiles.profiles).catch(() => [])))
     return targets.flat().flatMap((target) => (target.kind === 'forgejo' ? [target.web] : []))
   },
   log: (line) => console.log(line),
@@ -551,7 +551,7 @@ const trackers = trackersService.wireTrackers(context)
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
   ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
-const protectionAudit = new ProtectionAudit({ config: () => configStore.current, git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: stateChanged })
+const protectionAudit = new ProtectionAudit({ config: () => ({ ...configStore.current, projects: gitProjects(configStore.current) }), git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: stateChanged })
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -810,7 +810,7 @@ function slotUse(slot: string, task: string): SlotUse { return chainService.slot
 
 function vacateSlot(slot: string, task: string): Promise<void> { return chainService.vacateSlot(context, slot, task) }
 
-function stopTaskSessions(project: string, repo: string, task: string, count: number): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count) }
+function stopTaskSessions(project: string, repo: string, task: string, count: number, shared = false): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count, shared) }
 
 function stopLingering(): Promise<void> { return chainService.stopLingering(context) }
 
@@ -877,7 +877,7 @@ setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unr
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 
 const applyCi = () =>
-  void Promise.all([ciWatches.apply(configStore.current.projects), remotes.apply(configStore.current.projects)]).then(() => {
+  void Promise.all([ciWatches.apply(gitProjects(configStore.current)), remotes.apply(gitProjects(configStore.current))]).then(() => {
     dispatcher.check()
     stateChanged()
   })
@@ -896,7 +896,7 @@ pollWorks()
 setInterval(pollWorks, WORK_TICK_MS).unref()
 setInterval(
   () =>
-    void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {
+    void Promise.all([ciWatches.refresh(), remotes.apply(gitProjects(configStore.current))]).then(([changed, moved]) => {
       if (changed || moved) dispatcher.check()
       if (changed || moved) stateChanged()
     }),

@@ -41,6 +41,7 @@ export const en: Messages = {
     noData: 'no data',
     reading: 'Reading the transcript…',
     copyCommand: 'Copy the command',
+    copyPath: 'Copy the path',
     commandCopied: 'Copied',
   },
   units: {

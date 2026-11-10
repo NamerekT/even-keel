@@ -35,17 +35,19 @@ export function ProjectSummary({ state, fields, shape, draft, root, current }: S
         <Fact label={t.wizard.summary.tracker}>
           <Value text={fields.profile === '' && !own ? '' : place === '' ? tracker : `${tracker} · ${place}`} />
         </Fact>
-        <Fact label={t.wizard.summary.branch}>
-          <Value text={fields.branch.trim() || current || ''} mono />
-        </Fact>
+        {fields.git && (
+          <Fact label={t.wizard.summary.branch}>
+            <Value text={fields.branch.trim() || current || ''} mono />
+          </Fact>
+        )}
         <Fact label={t.wizard.summary.folder} wide>
-          <Value text={root ?? fields.repo.trim()} mono />
+          <Value text={!fields.git && fields.repo.trim() === '' && root !== null ? t.wizard.folderOwn(root) : (root ?? fields.repo.trim())} mono={fields.git || fields.repo.trim() !== ''} />
         </Fact>
-        <Fact label={t.wizard.summary.tasks} className="project-summary__wide">
+        <Fact label={fields.git ? t.wizard.summary.tasks : t.wizard.summary.task} className="project-summary__wide">
           <Value text={taskExample(shape, fields) ?? ''} mono />
         </Fact>
         <Fact label={t.wizard.summary.places}>
-          <Value text={draft === undefined ? '' : t.wizard.placeNow(draft.slot)} />
+          <Value text={!fields.git ? t.wizard.placePlainNow : draft === undefined ? '' : t.wizard.placeNow(draft.slot)} />
         </Fact>
       </FactList>
     </Card>

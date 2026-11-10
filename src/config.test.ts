@@ -3,6 +3,7 @@ import { DEFAULT_RULES } from './chain/rules.js'
 import { DEFAULT_PROTECTION } from './sessions/protection.js'
 import {
   DEFAULT_CI,
+  gitProjects,
   idPrefixOf,
   ignoredKeys,
   listenOf,
@@ -110,7 +111,7 @@ describe('parseConfig', () => {
       moves: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, openCodeAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, git: true, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, openCodeAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -337,6 +338,7 @@ describe('parseConfig', () => {
         intakeLabel: null,
         mergeInto: null,
         carryAgent: false,
+        git: true,
         fillMilestone: false,
         milestoneOrder: [],
         badge: null,
@@ -359,10 +361,20 @@ describe('parseConfig', () => {
         own: {},
       },
       XYZ: {
-        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [] },
+        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, git: true, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [] },
         ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, openCodeAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} },
       },
     })
+  })
+
+  it('switches off what needs a repository for a project without git (BTN-883)', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\notes', git: false, slot: 2, pullRequests: true, mergeInto: 'XYZ', ci: { guard: true } }, XYZ: 'C:\\xyz' } })
+    expect(config.settings.ABC).toMatchObject({ git: false, pullRequests: false, mergeInto: null })
+    expect(config.settings.ABC?.ci.guard).toBe(false)
+    expect(config.settings.XYZ?.git).toBe(true)
+    expect(config.slots).toEqual({})
+    expect(gitProjects(config)).toEqual({ XYZ: 'C:\\xyz' })
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\notes', git: 'no' } } })).toThrow(/ABC.git/)
   })
 
   it('takes the changelog file inside the repository with any slashes and refuses one outside it', () => {

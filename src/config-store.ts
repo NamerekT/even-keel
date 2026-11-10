@@ -203,10 +203,10 @@ export class ConfigStore {
 
   /**
    * Adds the wizard's project last, with a new id, by the same rule as `saveProject`; returns the id. `own` — settings
-   * the project's entry carries from the start, as the demo's `testProject` (BTN-776).
+   * the project's entry carries from the start, as the demo's `testProject` (BTN-776); `id` — one the caller made,
+   * where the entry names it (the own folder of a project without git).
    */
-  addProject(draft: ProjectDraft, own: Record<string, unknown> = {}): string {
-    const id = randomUUID()
+  addProject(draft: ProjectDraft, own: Record<string, unknown> = {}, id: string = randomUUID()): string {
     const next = withNewProject(this.raw(), draft, id)
     Object.assign((next.projects as Record<string, unknown>[]).at(-1)!, own)
     this.write(next)

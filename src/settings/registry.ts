@@ -383,6 +383,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   { key: 'carryAgent', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('carryAgent') },
   { key: 'testProject', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('testProject') },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
+  // `false` — a project without git (BTN-883): its folder is no repository, one session works in it, a task closes by the `TASK DONE` mark.
+  { key: 'git', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: true, check: boolean('git') },
   // The GitHub label whose issues the project takes into its tracker (BTN-262); `null` — none.
   { key: 'intakeLabel', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {
     if (value !== null && typeof value !== 'string') throw fail('config.intakeLabel', { where: at(place, 'intakeLabel') })

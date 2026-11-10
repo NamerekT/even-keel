@@ -29,7 +29,7 @@ import { chainWindowOf, type WindowKey } from '../codex/window.js'
 import { OPENCODE } from '../opencode/name.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
-import { idPrefixOf, localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
+import { idPrefixOf, isPlain, localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
@@ -773,7 +773,7 @@ export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string
   }
 }
 
-type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow'>
+type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow' | 'outsideRepo'>
 
 /** The agents whose chain sessions take a window through `SessionStart.contextWindow`; Claude's goes in its settings. */
 const WINDOW_KEYS: Readonly<Record<string, WindowKey>> = { [CODEX]: 'codexAutoCompactWindow', [OPENCODE]: 'openCodeAutoCompactWindow' }
@@ -788,6 +788,7 @@ export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, proje
       ...(home.agent !== CLAUDE && ctx.configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
       ...(project === undefined ? {} : ctx.packages.startOf(project, task, home.agent)),
       ...(window === undefined ? {} : { contextWindow: window }),
+      ...(project !== undefined && isPlain(ctx.configStore.current, project) ? { outsideRepo: true } : {}),
     }
   }
 }

@@ -5,7 +5,7 @@ import { saveQuestions } from '../chain/store.js'
 import { parseRemote } from '../ci/remote.js'
 import { intakeRepo } from '../intake/github.js'
 import { Intake, type IntakePlace } from '../intake/intake.js'
-import { feedRules, idPrefixOf, ownerOf, projectLabel, readerIds, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
+import { feedRules, idPrefixOf, isPlain, ownerOf, projectLabel, readerIds, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
 import { profileFor } from '../profiles/model.js'
 import { projectRules } from '../profiles/rules.js'
@@ -121,6 +121,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
     start: (view, setup) =>
       startTracker(view, setup, {
         repoOf: (reader) => ctx.configStore.current.projects[ctx.ownerOfReader(reader)]!,
+        plain: (reader) => isPlain(ctx.configStore.current, ctx.ownerOfReader(reader)),
         rulesOf: ctx.readerRules,
         links: ctx.links,
         tasksByProject: ctx.readerTasks,

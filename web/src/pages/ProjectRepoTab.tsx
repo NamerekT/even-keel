@@ -1,6 +1,7 @@
 import type { BranchDrift, ConfigView, EvenKeelState, ProjectForm, RepoBranches } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { PROJECT_SLOTS, projectLabel } from '../state.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { BadgeButton } from './BadgeButton.js'
 import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
@@ -33,6 +34,7 @@ export function ProjectRepoTab({
   const mainProjects = Object.entries(config.projects).flatMap(([key, each]) =>
     key !== project && each.mergeInto === null && (kin === undefined || kin.includes(key)) ? [key] : [],
   )
+  if (!form.git) return <PlainRepoTab fields={fields} project={project} form={form} />
   return (
     <>
       <Section title={t.settings.sections.repository}>
@@ -103,27 +105,68 @@ export function ProjectRepoTab({
             {notes('carryAgent')}
           </SwitchField>
         )}
-        <div className={marks.box('color')}>
-          <FieldHead label={t.settings.color} hint={t.settings.colorHint} mark={marks.note('color')} />
-          <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
-            {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
-              <button
-                key={color}
-                type="button"
-                role="radio"
-                aria-checked={text('color') === color}
-                aria-label={t.settings.colorSlot(Number(color))}
-                className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
-                style={seriesStyle(Number(color))}
-                onClick={() => edit('color', color)}
-              />
-            ))}
-          </div>
-          {notes('color')}
-        </div>
+        <ColorField fields={fields} />
       </Section>
       <BadgeButton project={project} badge={form.badge} />
       <ProjectRemove project={project} />
     </>
+  )
+}
+
+/**
+ * The tab of a project without git: the mode and the folder are read, not edited — the mode is chosen when the project
+ * is added — and the slots are shown off with the reason, so that nothing is ignored in silence.
+ */
+function PlainRepoTab({ fields, project, form }: { fields: PanelFields; project: string; form: ProjectForm }) {
+  const { on, edit, marks, notes } = fields
+  const text = t.settings.plain
+  return (
+    <>
+      <Section title={text.section}>
+        <Row className="settings__field" label={text.mode} hint={text.modeHint} control={<span>{text.modeValue}</span>} />
+        <div className="settings__field">
+          <FieldHead label={text.folder} hint={text.folderHint} />
+          <CommandBlock command={form.repo} copyLabel={t.common.copyPath} />
+        </div>
+        <SwitchField
+          className={marks.box('testProject')}
+          label={t.settings.testProject}
+          hint={t.settings.testProjectHint}
+          checked={on('testProject')}
+          mark={marks.note('testProject')}
+          onChange={(checked) => edit('testProject', checked)}
+        >
+          {notes('testProject')}
+        </SwitchField>
+        <Row className="settings__field" label={t.settings.slot} hint={text.slotHint} control={<span>{text.slotValue}</span>} />
+        <ColorField fields={fields} />
+      </Section>
+      <BadgeButton project={project} badge={form.badge} />
+      <ProjectRemove project={project} />
+    </>
+  )
+}
+
+function ColorField({ fields }: { fields: PanelFields }) {
+  const { text, edit, marks, notes } = fields
+  return (
+    <div className={marks.box('color')}>
+      <FieldHead label={t.settings.color} hint={t.settings.colorHint} mark={marks.note('color')} />
+      <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
+        {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
+          <button
+            key={color}
+            type="button"
+            role="radio"
+            aria-checked={text('color') === color}
+            aria-label={t.settings.colorSlot(Number(color))}
+            className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
+            style={seriesStyle(Number(color))}
+            onClick={() => edit('color', color)}
+          />
+        ))}
+      </div>
+      {notes('color')}
+    </div>
   )
 }

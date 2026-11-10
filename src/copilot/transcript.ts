@@ -6,6 +6,7 @@ import {
   callFacts,
   checkpointOf,
   failureText,
+  MESSAGE_LIMIT,
   noChangesOf,
   pullRequestOf,
   stageOfCommand,
@@ -27,7 +28,6 @@ import {
  */
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
-const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /rate limit|quota|premium request|too many requests/i
 const CREDIT_TEXT = /billing|ai credits|budget/i

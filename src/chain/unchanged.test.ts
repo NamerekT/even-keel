@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Changes } from '../git/types.js'
 import { textNotice, fail } from '../notice/notice.js'
+import { MESSAGE_LIMIT } from '../sessions/transcript.js'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import type { ReviewDeps, UnchangedDeps } from './model.js'
@@ -167,5 +168,61 @@ describe('Dispatcher on a task marked NO CHANGES', () => {
     const { launched } = await running(reviewed.deps, handoff(), { reviews: forge })
     expect(reviewed.looked).toEqual([])
     expect(launched).toEqual([])
+  })
+})
+
+describe('Dispatcher on a marked task of a project without git', () => {
+  const answering = () => {
+    const accepted: { task: string; comment: string }[] = []
+    const marks = tracker()
+    const deps: UnchangedDeps = {
+      ...marks.deps,
+      accept: async (_project, task, comment) => {
+        accepted.push({ task, comment })
+      },
+    }
+    return { deps, accepted, marks }
+  }
+  const answer = (lastMessage: string, noChanges = ''): HandoffSession => ({ ...handoff(noChanges), workdir: 'D:/work/notes', branch: null, lastMessage })
+
+  it('puts the whole last message without the mark on the task, closes it without asking git and starts the next one', async () => {
+    const { deps, accepted, marks } = answering()
+    const { launched, finished, log } = await running(deps, answer('Three sources agree.\n\n- one\n- two\n\nTASK DONE'), { plain: true })
+
+    expect(marks.looked).toEqual([])
+    expect(marks.completed).toEqual([])
+    expect(accepted).toEqual([{ task: 'ABC-1', comment: PROMPTS.ru.unchanged.answered('Three sources agree.\n\n- one\n- two', false) }])
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(log).toContain('chain: ABC-1 is marked as done by its session; its last message goes on the task and the task is done')
+  })
+
+  it('comments the summary of a message that is only the mark, and says so of a mark alone', async () => {
+    const summed = answering()
+    await running(summed.deps, answer('TASK DONE: the note is in notes/found.md', 'the note is in notes/found.md'), { plain: true })
+    expect(summed.accepted[0]!.comment).toBe(PROMPTS.ru.unchanged.answered('the note is in notes/found.md', false))
+
+    const bare = answering()
+    await running(bare.deps, answer('TASK DONE'), { plain: true })
+    expect(bare.accepted[0]!.comment).toBe(PROMPTS.ru.unchanged.answered('', false))
+  })
+
+  it('notes a message cut at the kept length', async () => {
+    const { deps, accepted } = answering()
+    const long = 'a'.repeat(MESSAGE_LIMIT)
+    await running(deps, answer(long), { plain: true })
+    expect(accepted[0]!.comment).toBe(PROMPTS.ru.unchanged.answered(long, true))
+    expect(accepted[0]!.comment).toContain('Ответ обрезан')
+  })
+
+  it('pauses the chain on its task when the comment does not reach the tracker', async () => {
+    const { deps } = answering()
+    deps.accept = async () => {
+      throw textNotice('the tracker is down')
+    }
+    const { dispatcher, launched, finished } = await running(deps, answer('Found.\n\nTASK DONE'), { plain: true })
+    expect(finished).toEqual([])
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: { task: 'ABC-1' }, error: { code: 'chain.unchangedNotCompleted' } })
   })
 })

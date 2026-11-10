@@ -105,6 +105,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   ci: CI_ALL,
   remoteProfiles: {},
   pullRequests: false,
+  git: true,
   intakeLabel: null,
   mergeInto: null,
   carryAgent: false,

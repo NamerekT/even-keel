@@ -53,10 +53,11 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
   // The stats step goes on by its cards; skipped, it is asked again once there is a project, so with one it is not skipped.
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
-  const skippable = OPTIONAL_STEPS.includes(step) && ahead === null && !(step === 'stats' && own > 0)
+  const gitHeld = step === 'git' && !gitReady(state.git)
+  const skippable = OPTIONAL_STEPS.includes(step) && (ahead === null || gitHeld) && !(step === 'stats' && own > 0)
   const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
   const held =
-    (step === 'git' && !gitReady(state.git)) ||
+    gitHeld ||
     (step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? ''))
   // The Git and agent steps are parts of their own, each in its card with a dot, as in the project wizard (BTN-603).
   const parts = step === 'agent' || step === 'git'

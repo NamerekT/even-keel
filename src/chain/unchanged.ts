@@ -1,5 +1,6 @@
 import type { Changes } from '../git/types.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
+import { MESSAGE_LIMIT, withoutMark } from '../sessions/transcript.js'
 import { isFixName } from './fix.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, CurrentTask, DispatcherDeps } from './model.js'
@@ -34,9 +35,16 @@ export class Unchanged {
     this.clean.delete(task)
     const main = this.deps.mainBranch(task)
     const texts = PROMPTS[this.deps.promptLanguage(task)].unchanged
-    this.deps.log(`chain: ${task} needs no change and its branch has nothing beyond ${main}; the task is done`)
     try {
-      await this.deps.unchanged!.complete(project, task, texts.comment(mark.reason))
+      if (this.deps.plain?.(task) === true) {
+        // The comment is the answer, so it goes first and a failed one leaves the task open, as "Accept as answer" does.
+        const message = this.deps.handoff(task)?.lastMessage ?? ''
+        this.deps.log(`chain: ${task} is marked as done by its session; its last message goes on the task and the task is done`)
+        await this.deps.unchanged!.accept(project, task, texts.answered(withoutMark(message) || mark.reason, message.length >= MESSAGE_LIMIT))
+      } else {
+        this.deps.log(`chain: ${task} needs no change and its branch has nothing beyond ${main}; the task is done`)
+        await this.deps.unchanged!.complete(project, task, texts.comment(mark.reason))
+      }
     } catch (error) {
       this.hold(chain, notice('chain.unchangedNotCompleted', { task }, { cause: noticeOf(error) }))
       return true
@@ -59,7 +67,7 @@ export class Unchanged {
     if (unchanged === undefined) throw fail('accept.notChecked', { task })
     let changes: Changes
     try {
-      changes = await unchanged.changes(project, session.workdir)
+      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await unchanged.changes(project, session.workdir)
     } catch (error) {
       throw fail('accept.notChecked', { task }, { cause: noticeOf(error) })
     }
@@ -102,7 +110,8 @@ export class Unchanged {
 
     let changes: Changes
     try {
-      changes = await unchanged.changes(project, session.workdir)
+      // A folder without git has nothing to count: the mark alone closes the task (BTN-883).
+      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await unchanged.changes(project, session.workdir)
     } catch (error) {
       this.hold(chain, notice('chain.unchangedNotChecked', { task }, { cause: noticeOf(error) }))
       return 'acted'

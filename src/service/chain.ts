@@ -1,6 +1,6 @@
 import { deferLeftFolder, midTurn, type stopTaskSessions } from './cleanup.js'
 export { deferLeftFolder, STOP_RETRY_MS, stopLingering, stopTaskSessions } from './cleanup.js'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type AccountHome } from '../account/homes.js'
 import { accountAt } from '../account/ledger.js'
@@ -25,7 +25,7 @@ import { TaskWorks, worksOf } from '../git/work.js'
 import { commitChangelog } from '../git/changelog.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, mergeTargetOf, projectLabel, readerIds } from '../config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
 import { promptLines } from '../taskmcp/vocabulary.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
@@ -177,10 +177,12 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
       return { path, text: text?.replace(/\r\n/g, '\n') ?? null }
     },
     tags: async (project) => {
+      if (isPlain(ctx.configStore.current, project)) return []
       const listed = await runGit(ctx.configStore.current.projects[project]!, ['tag', '--list'])
       return listed.code === 0 ? listed.out.split('\n').map((tag) => tag.trim()).filter(Boolean) : []
     },
     commit: async (project, path, message, change) => {
+      if (isPlain(ctx.configStore.current, project)) throw fail('branch.noRepo', { project: projectLabel(ctx.configStore.current, project) })
       const sha = await commitChangelog(runGit, ctx.configStore.current.projects[project]!, { branch: ctx.branchOf(project), path, message, change })
       console.log(sha === null ? `changelog: ${project} ${path} is already as written` : `changelog: ${project} committed ${path} as ${sha.slice(0, 7)}`)
       return sha
@@ -216,8 +218,13 @@ export function wirePlaces(ctx: ChainContext): TaskPlaces {
   return new TaskPlaces({
     git: runGit,
     main: ctx.branchOf,
+    plain: (project) => isPlain(ctx.configStore.current, project),
     place: async (project, task, { ahead = false, at } = {}) => {
       const repo = ctx.configStore.current.projects[project]!
+      if (isPlain(ctx.configStore.current, project)) {
+        await mkdir(repo, { recursive: true })
+        return { path: repo, branch: null }
+      }
       const main = ctx.branchOf(project)
       await requireBranch(runGit, repo, project, main)
       if (!ahead) await requireCheckedOut(runGit, repo, project, main)
@@ -269,6 +276,7 @@ export function taskRun(ctx: ChainContext, task: string, cwd: string, account: s
 
 export async function syncProject(ctx: ChainContext, project: string): Promise<Notice | null> {
   const repo = ctx.configStore.current.projects[project]!
+  if (isPlain(ctx.configStore.current, project)) return null
   const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
   return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project))
 }
@@ -307,7 +315,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
       const place = await ctx.places.ready(project, task)
-      const started = ctx.withProject(await ctx.briefed(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project)), project), project)
+      const started = ctx.withProject(await ctx.briefed(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), project), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
       const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
@@ -416,6 +424,10 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const project = ctx.projectOf(task)
       return project !== undefined && ctx.pullRequestsOn(project)
     },
+    plain: (task) => {
+      const project = ctx.projectOf(task)
+      return project !== undefined && isPlain(ctx.configStore.current, project)
+    },
     resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
     reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
     relay: async (task, session, handoff, reason) => {
@@ -462,6 +474,13 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     finish: async (project, task, pull) => {
       if (!isOwnName(task) && pull?.unmerged !== true) ctx.archiveClosed(project, task)
       const repo = ctx.configStore.current.projects[project]!
+      if (isPlain(ctx.configStore.current, project)) {
+        // The folder is the project's and stays: only the task's own sessions and packages go.
+        const { warnings } = await ctx.stopTaskSessions(project, repo, task, 0, true)
+        ctx.packages.release(project, task)
+        for (const warning of warnings) console.warn(`cleanup: ${task}: ${englishOf(warning)}`)
+        return { warnings, syncError: null }
+      }
       const span = isOwnName(task) ? 0 : ctx.slotSpan(project)
       let stopped: Awaited<ReturnType<typeof stopTaskSessions>>
       let finished: Awaited<ReturnType<typeof finishWorktree>>
@@ -527,6 +546,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       projects: () => Object.keys(ctx.configStore.current.projects),
       peers: (project) => remotePeers(ctx.remotes.view, ctx.branchOf, project),
       repo: (project) => ctx.configStore.current.projects[project]!,
+      plain: (project) => isPlain(ctx.configStore.current, project),
       main: ctx.branchOf,
       git: runGit,
       watches: (project) => (ctx.ciWatches.found ? ctx.ciWatches.shown(project) : null),
@@ -564,8 +584,10 @@ export async function checkMergeTarget(ctx: ChainContext, project: string, form:
 
 export function wireWorks(ctx: ChainContext): TaskWorks {
   return new TaskWorks({
-    read: (project) =>
-      worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)),
+    read: async (project) =>
+      isPlain(ctx.configStore.current, project)
+        ? {}
+        : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)),
     ttlMs: ctx.WORK_TTL_MS,
     now: () => Date.now(),
     activity: (task) => {
@@ -709,7 +731,8 @@ export function branchBusy(ctx: ChainContext, project: string): boolean {
 export function wireBranches(ctx: ChainContext): BranchControl {
   return new BranchControl({
     git: runGit,
-    repo: (project) => ctx.configStore.current.projects[project],
+    // A project without git has no checkout to stand off its branch.
+    repo: (project) => (isPlain(ctx.configStore.current, project) ? undefined : ctx.configStore.current.projects[project]),
     branch: ctx.branchOf,
     key: (project) => ctx.configStore.current.keys[project] ?? project,
     busy: (project) => branchBusy(ctx, project),

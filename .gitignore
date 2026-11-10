@@ -4,6 +4,8 @@ dist/
 .env
 *.log
 /state/
+# Folders of projects without git that Even Keel makes in a clone's data folder (docs/chain/worktrees.md).
+/projects/
 /even-keel.config.json
 /even-keel.config.json.v*.bak
 /even-keel.config.json.imported

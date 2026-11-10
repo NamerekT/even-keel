@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { Git } from '../git/types.js'
 import { TaskPlaces } from './places.js'
 
-function setup(options: { behind?: string; failSetUp?: boolean; main?: string; movedAway?: boolean } = {}) {
+function setup(options: { behind?: string; failSetUp?: boolean; main?: string; movedAway?: boolean; plain?: boolean } = {}) {
   const calls: string[] = []
   let failSetUp = options.failSetUp ?? false
   const main = options.main ?? 'main'
   const git: Git = async (_cwd, args) => {
     const command = args.join(' ')
+    if (options.plain) calls.push(`git ${command}`)
     if (command === `rev-list --count HEAD..${main}`) return { code: 0, out: options.behind ?? '0' }
     if (command.startsWith('rev-list')) return { code: 0, out: '0' }
     if (command.startsWith('merge')) calls.push(command)
@@ -16,6 +17,7 @@ function setup(options: { behind?: string; failSetUp?: boolean; main?: string; m
   const places = new TaskPlaces({
     git,
     main: () => main,
+    plain: () => options.plain === true,
     place: async (_project, task, { ahead = false, at } = {}) => {
       calls.push(`place ${task}${ahead ? ' ahead' : ''}${at === undefined ? '' : ` at ${at}`}`)
       const path = options.movedAway && !ahead ? `D:/w2/${task}` : `D:/w/${task}`
@@ -33,6 +35,13 @@ function setup(options: { behind?: string; failSetUp?: boolean; main?: string; m
 }
 
 describe('TaskPlaces', () => {
+  it('runs no git in the folder of a project without git and sets it up at every launch (BTN-883)', async () => {
+    const { places, calls } = setup({ plain: true, behind: '2' })
+    await places.ready('ABC', 'ABC-2')
+    await places.ready('ABC', 'ABC-3')
+    expect(calls).toEqual(['place ABC-2', 'setUp ABC-2 in D:/w/ABC-2', 'place ABC-3', 'setUp ABC-3 in D:/w/ABC-3'])
+  })
+
   it('sets a place up at the launch when nothing was prepared ahead', async () => {
     const { places, calls } = setup()
     expect(await places.ready('ABC', 'ABC-2')).toEqual({ path: 'D:/w/ABC-2', branch: 'ABC-2/task' })

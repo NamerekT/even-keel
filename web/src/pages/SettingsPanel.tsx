@@ -62,8 +62,8 @@ export function SettingsPanel({
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const shared = config.shared
-  const next = formOf(outgoing.form, form.name, shared)
-  const base = formOf(outgoing.base, form.name, shared)
+  const next = formOf(outgoing.form, form.name, shared, form.git)
+  const base = formOf(outgoing.base, form.name, shared, form.git)
   const errorOf = useFieldErrors(project, [failure, configError], config)
   const fields = panelFields(draft, setDraft, saved, errorOf)
   const { text, editAll, revert } = fields
@@ -135,7 +135,7 @@ export function SettingsPanel({
       />
     ),
     sessions: () => <ProjectSessionsTab fields={fields} project={project} form={form} state={state} shared={shared} offered={offered} rowAccount={rowAccount} models={models} />,
-    ci: () => <ProjectCiTab fields={fields} project={project} state={state} shared={shared} />,
+    ci: () => <ProjectCiTab fields={fields} project={project} state={state} shared={shared} plain={!form.git} />,
     notices: () => <NoticeSettings project={project} />,
   }
 

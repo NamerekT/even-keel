@@ -8,6 +8,8 @@ type Suggested = 'key' | 'name' | 'trackerProject'
 
 /** The wizard's fields as typed; `slots` counts only while the place is a pool of slots. */
 export interface WizardFields {
+  /** `false` — a project without git: the folder may be blank, the branch and the tasks' folders are not asked. */
+  git: boolean
   repo: string
   branch: string
   key: string
@@ -29,6 +31,7 @@ export interface WizardFields {
 }
 
 export const EMPTY_FIELDS: WizardFields = {
+  git: true,
   repo: '',
   branch: '',
   key: '',
@@ -122,14 +125,14 @@ const KEY_LENGTH = 5
 /** The draft the service checks and adds; `undefined` — the pool size is not a whole number above zero. */
 export function draftOfFields(fields: WizardFields, defaultProfile = false): ProjectDraft | undefined {
   let slot = 0
-  if (fields.place === 'slots') {
+  if (fields.git && fields.place === 'slots') {
     const text = fields.slots.trim()
     slot = /^\d+$/.test(text) ? Number(text) : 0
     if (slot < 1) return undefined
   }
   return {
     repo: fields.repo.trim(),
-    branch: fields.branch.trim(),
+    branch: fields.git ? fields.branch.trim() : '',
     key: fields.key.trim(),
     name: fields.name.trim(),
     tracker: fields.tracker,
@@ -141,6 +144,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
       .map((line) => line.trim())
       .filter((line) => line !== ''),
     provider: fields.provider === '' ? null : fields.provider,
+    ...(fields.git ? {} : { git: false }),
   }
 }
 
@@ -193,7 +197,7 @@ export function pickProject(fields: WizardFields, shape: TrackerShape, project: 
  * value its remote names, the key and the name from the repository's name (or the folder's).
  */
 export function suggestOfRepo(fields: WizardFields, shape: TrackerShape, repo: Pick<ProjectCheck['repo'], 'root' | 'current' | 'suggested'>): WizardFields {
-  if (repo.root === null) return fields
+  if (repo.root === null || !fields.git) return fields
   const branched = { ...fields, branch: fields.branch || (repo.current ?? '') }
   if (shape !== 'place') return branched
   const place = fields.typed.trackerProject ? fields.trackerProject : (repo.suggested ?? fields.trackerProject)
@@ -211,7 +215,7 @@ export function readyToAdd(check: ProjectCheck | null): boolean {
 export type Missing = 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'
 
 export function missingOf(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null): Missing | null {
-  if (fields.repo.trim() === '') return 'repo'
+  if (fields.git && fields.repo.trim() === '') return 'repo'
   if (check?.repo.notice != null) return 'repoError'
   if (!trackerChosen(fields)) return 'profile'
   if (shape === 'place' && fields.trackerProject.trim() === '') return 'place'
@@ -224,11 +228,12 @@ export function missingOf(fields: WizardFields, shape: TrackerShape, check: Proj
   return null
 }
 
-/** What the project's twelfth task will be called and its branch; `null` — no key to name it by yet. */
+/** What the project's twelfth task will be called and its branch (none without git); `null` — no key to name it by yet. */
 export function taskExample(shape: TrackerShape, fields: WizardFields): string | null {
   const prefix = idPrefix(shape, fields) || fields.key.trim()
   if (prefix === '') return null
-  const named = `${prefix}-12 → ${prefix.toLowerCase()}-12/task`
+  if (!fields.git) return shape === 'place' ? `#12 → ${prefix}-12` : `${prefix}-12`
+  const named =`${prefix}-12 → ${prefix.toLowerCase()}-12/task`
   return shape === 'place' ? `#12 → ${named}` : named
 }
 
@@ -260,7 +265,7 @@ export function stepChecks(
   const key = fields.key.trim()
   const entry = check?.entry ?? null
   const refused = entryField(fields, shape, entry)
-  const repo = fields.repo.trim() === '' ? 'empty' : repoCheck?.repo.notice != null ? 'failed' : repoCheck?.repo.root != null ? 'passed' : 'empty'
+  const repo = fields.git && fields.repo.trim() === '' ? 'empty' : repoCheck?.repo.notice != null ? 'failed' : repoCheck?.repo.root != null ? 'passed' : 'empty'
   const trackerAnswer = tracker === null ? 'empty' : tracker.ok ? 'passed' : 'failed'
   const trackerStep = !trackerChosen(fields) ? 'empty' : refused === 'tracker' ? 'failed' : trackerAnswer
   const project =

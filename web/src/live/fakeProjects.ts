@@ -47,6 +47,7 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const host = { platform: state.platform, user: 'EvenKeelSvc', service: true }
+  if (draft.git === false) return plainCheck(state, draft, mode, host)
   if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   if (path.includes('nope')) {
     return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
@@ -65,6 +66,22 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const trusted = claude ? mode !== 'untrusted' : null
   if (entry !== null || repo.notice !== null) return { repo, entry, yields, tracker: null, trusted, ...host }
   return { repo, entry, yields, tracker: trackerOf(draft.tracker, mode), trusted, ...host }
+}
+
+/** A draft without git: any full path passes, a relative one and a folder another project has do not; blank — Even Keel's own folder. */
+function plainCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null, host: Pick<ProjectCheck, 'platform' | 'user' | 'service'>): ProjectCheck {
+  const path = draft.repo.trim().replace(/\\/g, '/').replace(/\/+$/, '')
+  const none = { current: null, suggested: null, branches: null }
+  const failed = (notice: ProjectCheck['repo']['notice']): ProjectCheck => ({ repo: { ...none, root: null, notice }, entry: null, yields: [], tracker: null, trusted: null, ...host })
+  if (path !== '' && !/^(?:[A-Za-z]:)?\/|^~/.test(path)) return failed(notice('wizard.relativePath', { path }))
+  const taken = Object.entries(state.config.projects).find(([, form]) => form.repo.toLowerCase() === path.toLowerCase())
+  const root = path === '' ? 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects' : path
+  const repo = { ...none, root, notice: taken === undefined ? null : notice('wizard.folderTaken', { project: taken[0] }) }
+  const entry = entryNotice(state, draft)
+  const claude = (draft.provider ?? state.config.shared.provider) === 'claude'
+  const trusted = claude && path !== '' ? mode !== 'untrusted' : null
+  if (entry !== null || repo.notice !== null) return { repo, entry, yields: [], tracker: null, trusted, ...host }
+  return { repo, entry, yields: [], tracker: trackerOf(draft.tracker, mode), trusted, ...host }
 }
 
 /** The labels of the Huly projects that read the draft's Huly project: its own value, or its key. */
@@ -187,7 +204,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
   const form: ProjectForm = {
     testProject: false,
     name: draft.name.trim() || null,
-    repo: draft.repo.trim().replace(/\\/g, '/'),
+    repo: draft.repo.trim().replace(/\\/g, '/') || `C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects/${key.toLowerCase()}-3f9a1c2e`,
     branch: draft.branch.trim() || 'main',
     tracker: draft.tracker,
     trackerProject: draft.trackerProject.trim() || null,
@@ -203,6 +220,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     ci: state.config.shared.ci,
     remoteProfiles: {},
     pullRequests: false,
+    git: draft.git !== false,
     intakeLabel: null,
     mergeInto: null,
     carryAgent: false,

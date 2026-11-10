@@ -46,6 +46,7 @@ export const ru = {
     noData: 'нет данных',
     reading: 'Читаю транскрипт…',
     copyCommand: 'Скопировать команду',
+    copyPath: 'Скопировать путь',
     commandCopied: 'Скопировано',
   },
   units: {

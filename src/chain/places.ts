@@ -12,6 +12,8 @@ export interface TaskPlacesDeps {
   git: Git
   /** The project's main branch. */
   main: (project: string) => string
+  /** A project without git (BTN-883): its place is the project's folder, never caught up with a main. */
+  plain?: (project: string) => boolean
   /** The task's worktree or slot, made or found; asking again for the same task finds the same place. */
   place: (project: string, task: string, options?: PlaceOptions) => Promise<TaskPlace>
   /** The project's commands before start, in the place. */
@@ -55,7 +57,7 @@ export class TaskPlaces {
 
   private async settle(project: string, task: string, at: string | undefined, options: PlaceOptions): Promise<TaskPlace> {
     const place = await this.deps.place(project, task, at === undefined ? options : { ...options, at })
-    const moved = await catchUp(this.deps.git, place.path, this.deps.main(project))
+    const moved = this.deps.plain?.(project) !== true && (await catchUp(this.deps.git, place.path, this.deps.main(project)))
     if (at !== place.path || moved) await this.deps.setUp(project, task, place.path)
     return place
   }

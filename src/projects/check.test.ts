@@ -185,6 +185,45 @@ describe('checkDraft', () => {
     expect(check.tracker).toBeNull()
   })
 
+  describe('a project without git', () => {
+    const plain: ProjectDraft = { ...draft, git: false }
+    const silent = () => {
+      const base = deps({ projectsDir: 'D:\\data\\projects' })
+      const git = vi.fn(base.git)
+      return { base: { ...base, git }, git }
+    }
+
+    it('takes a folder that is no repository or does not exist yet, without asking git, and asks the tracker', async () => {
+      const { base, git } = silent()
+      const check = await checkDraft(base, { ...plain, repo: 'D:\\nowhere' })
+      expect(check.repo).toEqual({ root: 'D:\\nowhere', current: null, suggested: null, branches: null, notice: null })
+      expect(check.entry).toBeNull()
+      expect(check.tracker?.ok).toBe(true)
+      expect(git).not.toHaveBeenCalled()
+    })
+
+    it("names Even Keel's folder of projects for a blank folder, and asks no trust of a folder not made yet", async () => {
+      const { base, git } = silent()
+      const check = await checkDraft(base, { ...plain, repo: ' ' })
+      expect(check.repo).toEqual({ root: 'D:\\data\\projects', current: null, suggested: null, branches: null, notice: null })
+      expect(check.tracker?.ok).toBe(true)
+      expect(check.trusted).toBeNull()
+      expect(git).not.toHaveBeenCalled()
+    })
+
+    it('still refuses a relative folder and one another project has', async () => {
+      const { base } = silent()
+      expect((await checkDraft(base, { ...plain, repo: 'notes' })).repo.notice).toMatchObject({ code: 'wizard.relativePath' })
+      const taken = await checkDraft(base, { ...plain, repo: 'c:\\ABC\\' })
+      expect(taken.repo.notice).toMatchObject({ code: 'wizard.folderTaken', params: { project: 'id-abc' } })
+    })
+
+    it('ignores a branch name git would refuse', async () => {
+      const { base } = silent()
+      expect((await checkDraft(base, { ...plain, repo: 'D:\\notes', branch: 'bad..name' })).entry).toBeNull()
+    })
+  })
+
   it('takes a branch the repository does not have: adding creates it, the page reads what will happen from the branches (BTN-754)', async () => {
     const check = await checkDraft(deps(), { ...draft, branch: 'main' })
     expect(check.repo).toEqual({ root: 'D:\\new', current: 'trunk', suggested: null, branches: BRANCHES, notice: null })

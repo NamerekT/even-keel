@@ -3,6 +3,17 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { Lingering } from '../sessions/lingering.js'
 import { stopLingering, stopTaskSessions } from './cleanup.js'
 
+describe('the cleanup of a project without git (BTN-883)', () => {
+  it("stops only the task's own sessions in the folder all the project's tasks share", async () => {
+    const agent = (sessionId: string): AgentEntry => ({ id: `job-${sessionId}`, sessionId, cwd: '/notes', kind: 'bg', startedAt: 0, pid: 1234, status: 'idle' })
+    const stopIn = vi.fn(async () => {})
+    const launches = [{ task: 'ABC-1', sessionId: 'own' }, { task: 'ABC-2', sessionId: 'next' }]
+    const ctx = { agents: [agent('own'), agent('next'), agent('by-hand')], launches, lingering: new Lingering(), homeOf: () => ({}), stopIn } as unknown as Parameters<typeof stopTaskSessions>[0]
+    await stopTaskSessions(ctx, 'project-1', '/notes', 'ABC-1', 1, true)
+    expect(stopIn.mock.calls.map((call) => (call as unknown[])[1])).toEqual([{ agentId: 'job-own', sessionId: 'own' }])
+  })
+})
+
 describe('rare cleanup observations', () => {
   it.each(['busy', 'waiting'] as const)('reports one deferral for %s and its eventual stop result', async (status) => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})

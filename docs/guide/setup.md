@@ -30,6 +30,8 @@ If downloading fails, **CLI version** switches to **Yours** for that provider an
 
 ## Projects
 
+Git is needed only for projects that live in a repository. If every project of yours is [a project without git](features.md#the-chain), press **Skip for now** on the setup's **Git** step and choose "Without git" in the project wizard; the step can be finished later.
+
 On macOS, the setup's **Git** step always offers `xcode-select --install`, even when Homebrew is installed.
 It installs only Command Line Tools; Xcode from the App Store is not needed. After installation, press **Check again**.
 If full Xcode is already installed but its license has not been accepted, run `sudo xcodebuild -license accept`.

@@ -143,13 +143,16 @@ export interface TranscriptSummary {
 
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
-const MESSAGE_LIMIT = 6000
+/** The most of a session's last message that is kept: an answer goes to the tracker as one comment (BTN-883). */
+export const MESSAGE_LIMIT = 30_000
 const ERROR_LIMIT = 2000
 const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const PULL_REQUEST_LINE = /^[`*_]*PULL REQUEST:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const NO_CHANGES_LINE = /^([`*_]*)NO CHANGES:([`*_]*)(.*)$/
+// The mark of a project without git (BTN-883); what follows it is optional.
+const TASK_DONE_LINE = /^([`*_]*)TASK DONE(?::|(?=[`*_]*$))([`*_]*)(.*)$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
 const ASK_TOOL = 'AskUserQuestion'
 const SHELLS =new Set(['Bash', 'PowerShell'])
@@ -549,9 +552,13 @@ export function pullRequestOf(text: string): string | null {
   return lastLineMark(text, PULL_REQUEST_LINE)
 }
 
-/** The reason a response's last line `NO CHANGES: <why>` gives, without the markdown wrapped around the line. */
+/**
+ * The reason a response's last line `NO CHANGES: <why>` gives, without the markdown wrapped around the line. The last
+ * line `TASK DONE` of a project without git (BTN-883) is the same mark, with or without `: <summary>`.
+ */
 export function noChangesOf(text: string): string | null {
-  const found = NO_CHANGES_LINE.exec(lastLine(text))
+  const line = lastLine(text)
+  const found = NO_CHANGES_LINE.exec(line) ?? TASK_DONE_LINE.exec(line)
   if (found === null) return null
   const [, open = '', close = '', rest = ''] = found
   const reason = rest.trim()
@@ -560,6 +567,11 @@ export function noChangesOf(text: string): string | null {
 
 function lastLineMark(text: string, mark: RegExp): string | null {
   return mark.exec(lastLine(text))?.[1] ?? null
+}
+
+/** A marked message without its mark line: the answer a project without git puts on the task (BTN-883). */
+export function withoutMark(text: string): string {
+  return noChangesOf(text) === null ? text.trim() : text.trimEnd().split('\n').slice(0, -1).join('\n').trim()
 }
 
 function lastLine(text: string): string {

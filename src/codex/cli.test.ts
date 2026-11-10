@@ -51,6 +51,10 @@ describe('warmArgs', () => {
     expect(warmArgs({ model: null }, ID).slice(-4)).toEqual(['project_doc_fallback_filenames=["CLAUDE.md"]', 'fork', ID, '-'])
   })
 
+  it('forks in a folder that is no repository', () => {
+    expect(warmArgs({ model: null, outsideRepo: true }, ID).slice(0, 4)).toEqual(['exec', '--json', '--skip-git-repo-check', '--ephemeral'])
+  })
+
   it('forks with the window the session was started with', () => {
     expect(warmArgs({ model: null, contextWindow: 250_000 }, ID).slice(-7)).toEqual(['-c', 'model_context_window=250000', '-c', 'model_auto_compact_token_limit=218000', 'fork', ID, '-'])
   })
@@ -141,6 +145,11 @@ describe('turnArgs', () => {
 
   it("starts a session in the chain mode with the JSON stream, reading the project's CLAUDE.md without an AGENTS.md", () => {
     expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'BTN-1'])
+  })
+
+  it('runs in a folder that is no repository, on a resumed turn too', () => {
+    expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1')).toEqual(['exec', '--json', '--skip-git-repo-check', '--approve-for-me', ...fallback, 'NOTE-1'])
+    expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1', 'thread-1').slice(-3)).toEqual(['resume', 'thread-1', 'NOTE-1'])
   })
 
   it('runs without the sandbox and the reviewer when the execution mode bypasses them', () => {

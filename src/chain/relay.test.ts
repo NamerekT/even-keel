@@ -325,6 +325,20 @@ describe('startPrompt', () => {
     expect(() => start('ABC-1', { path: '', branch: 'abc-1/task' })).toThrow(/Worktree готов/)
   })
 
+  it('names only the folder and the mark of the answer for a project without git', () => {
+    const place = { path: 'D:/work/notes', branch: null }
+    const ru = startPrompt('ABC-1', place, 'ru', 'main', false, false)
+    expect(ru.split('\n')[0]).toBe('ABC-1')
+    expect(ru).toContain('Папка проекта: D:/work/notes')
+    expect(ru).toContain('`TASK DONE`')
+    expect(ru).not.toMatch(/Worktree готов|влей ветку|NO CHANGES|git merge/)
+    const en = startPrompt('ABC-1', place, 'en', 'main', false, false)
+    expect(en).toContain('Project folder: D:/work/notes')
+    expect(en).toContain('`TASK DONE`')
+    expect(en).not.toMatch(/Worktree is ready|merge the branch|NO CHANGES/)
+    expect(() => startPrompt('ABC-1', { path: '', branch: null }, 'en', 'main', false, false)).toThrow(/Project folder/)
+  })
+
   it('in PR mode asks for a reviewer only where the project has one and keeps the description out of the commits', () => {
     const place = { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: 'abc-1/task' }
     const ru = startPrompt('ABC-1', place, 'ru', 'main', true)

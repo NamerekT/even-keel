@@ -9,6 +9,7 @@ import {
   callFacts,
   checkpointOf,
   failureText,
+  MESSAGE_LIMIT,
   noChangesOf,
   pullRequestOf,
   stageOfCommand,
@@ -30,7 +31,6 @@ import { rolloutImagePath, rolloutImages } from './rolloutImages.js'
  */
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
-const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota/i
 // An OpenAI key out of money: the API's 429 `insufficient_quota`, which codex-cli 0.162.1 words as its `QuotaExceeded`.

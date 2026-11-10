@@ -139,8 +139,11 @@ function ownOf(values: Values): OwnValues | undefined {
 /** The project's own value of a key, else the shared one. */
 const ownOr = <K extends OwnKey>(own: OwnValues, key: K, shared: Exclude<OwnValues[K], undefined>) => (key in own ? (own[key] as typeof shared) : shared)
 
-/** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
-export function formOf(values: Values, name: string | null, shared: SharedForm): ProjectForm | undefined {
+/**
+ * What the service gets; `undefined` while a number field holds something else. The name and the git mode are not the
+ * panel's: they go as they came.
+ */
+export function formOf(values: Values, name: string | null, shared: SharedForm, git = true): ProjectForm | undefined {
   const text = (key: string) => values[key] as string
   if (text('protection') !== '' && protectionOf(text('protection')) === undefined) return undefined
   const on = (key: string) => values[key] as boolean
@@ -175,6 +178,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm):
     },
     remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
     pullRequests: on('pullRequests'),
+    git,
     intakeLabel: text('intakeLabel').trim() === '' ? null : text('intakeLabel').trim(),
     mergeInto: text('mergeInto') === '' ? null : text('mergeInto'),
     carryAgent: on('carryAgent'),

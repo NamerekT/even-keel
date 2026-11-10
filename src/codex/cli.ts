@@ -49,15 +49,19 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv, pinned?: string): str
   return existsSync(native) ? native : 'codex'
 }
 
+/** `codex exec` refuses a folder outside a repository without the flag: a project without git works in one. */
+const repoCheckArgs = (outsideRepo: boolean | undefined): string[] => (outsideRepo === true ? ['--skip-git-repo-check'] : [])
+
 /**
  * Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`.
  * A project with a `CLAUDE.md` and no `AGENTS.md` still gives the session its rules (BTN-340, checked on 0.164.0).
  */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
+export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow' | 'outsideRepo'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
     '--json',
+    ...repoCheckArgs(start.outsideRepo),
     `--${bypassSandbox === true ? BYPASS_MODE : SESSION_MODE}`,
     '-c',
     'project_doc_fallback_filenames=["CLAUDE.md"]',
@@ -77,11 +81,12 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
  * servers and plugins, so that its prompt is the session's and reads its cache. Read-only refuses a tool call; the
  * hooks are off, so that a package's Stop hook takes no mail meant for the waiting session (checked on 0.164.0, BTN-677).
  */
-export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp' | 'contextWindow'>, sessionId: string, plugins: string[] = []): string[] {
+export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp' | 'contextWindow' | 'outsideRepo'>, sessionId: string, plugins: string[] = []): string[] {
   const { model, mcp = [] } = start
   return [
     'exec',
     '--json',
+    ...repoCheckArgs(start.outsideRepo),
     '--ephemeral',
     '--sandbox',
     'read-only',
@@ -197,7 +202,7 @@ export class CodexCli {
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     const { name, cwd } = start
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch, start.outsideRepo === true)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     const window = start.contextWindow === undefined ? {} : { contextWindow: start.contextWindow }
@@ -209,7 +214,7 @@ export class CodexCli {
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch)
+    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch, start.outsideRepo === true)
     const plugins = await this.pluginArgs(home, start, cwd)
     const own = { ...start, contextWindow: session.contextWindow }
     const turn = await this.turn(home, start, turnArgs(own, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))

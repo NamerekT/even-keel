@@ -698,6 +698,7 @@ export const en = {
     `config: ${p.where} must go first < late < hard, got ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
+  'wizard.folderTaken': (p: { project: string }) => `this folder is already the project ${p.project}`,
   'wizard.keyTaken': (p: { key: string; project: string }) =>
     `the key ${p.key} is already the project ${p.project} on another repository, and the task ids of both would be the same: pick another one`,
   'wizard.noCommits': () => 'the repository has no commits yet, so its branch is not born: make the first commit',

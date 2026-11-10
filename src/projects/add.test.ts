@@ -1,3 +1,4 @@
+import { existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConfigStore } from '../config-store.js'
@@ -118,6 +119,39 @@ describe('project addition', () => {
   it('puts the checkout back and drops the branch it made when the config refuses the entry', async () => {
     await expect(Promise.resolve().then(() => addProject(deps(), { ...draft, branch: 'next', key: 'bad key' }))).rejects.toMatchObject({ notice: { code: 'config.projectKey' } })
     expect(switches).toEqual([['switch', '-c', 'next'], ['switch', 'trunk'], ['branch', '-D', 'next']])
+  })
+
+  describe('a project without git', () => {
+    const noGit: Git = async () => {
+      throw new Error('git must not be asked')
+    }
+    const projectsDir = join(root, 'data', 'projects')
+    const plainDeps = () => ({ ...deps(), git: noGit, projectsDir, folders: { home: join(root, 'home'), isFolder: () => false } })
+
+    afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+    it('makes the typed folder and writes the entry without a branch or slots', async () => {
+      const folder = join(root, 'notes')
+      await addProject(plainDeps(), { ...draft, repo: folder, git: false, branch: 'next', slot: 2 })
+      expect(existsSync(folder)).toBe(true)
+      const [entry] = ((await read()) as { projects: Record<string, unknown>[] }).projects
+      expect(entry).toMatchObject({ repo: folder, git: false })
+      expect(entry).not.toHaveProperty('branch')
+      expect(entry).not.toHaveProperty('slot')
+      expect(link).toHaveBeenCalledWith(entry!.id, 'profile')
+    })
+
+    it("makes a folder of its own in Even Keel's data folder, named by the key and the id, when none is typed", async () => {
+      await addProject(plainDeps(), { ...draft, repo: '', git: false })
+      const [id, folder] = Object.entries(configStore.current.projects)[0]!
+      expect(folder).toBe(join(projectsDir, `new-${id.slice(0, 8)}`))
+      expect(existsSync(folder)).toBe(true)
+    })
+
+    it('makes no folder when the config refuses the entry', async () => {
+      await expect(addProject(plainDeps(), { ...draft, repo: '', git: false, key: 'bad key' })).rejects.toMatchObject({ notice: { code: 'config.projectKey' } })
+      expect(existsSync(projectsDir)).toBe(false)
+    })
   })
 
   it('adds with the default profile without creating a profile link', async () => {

@@ -74,6 +74,7 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     projects: () => ['ABC'],
     peers: () => ['XYZ'],
     repo: () => 'D:/repos/abc',
+    plain: (project) => project === 'NOTE',
     main: () => main,
     git,
     watches: () => watches,
@@ -224,6 +225,15 @@ describe('mainCheckDeps', () => {
   it('reads from the project settings whether a red main gets a fix task', () => {
     expect(setup(all([]), []).deps.fixTask('ABC')).toBe(false)
     expect(setup({ ...all([]), fixTask: true }, []).deps.fixTask('ABC')).toBe(true)
+  })
+
+  it('runs no git in the folder of a project without git (BTN-883)', async () => {
+    const { deps, gitCalls } = setup(unguarded([]), [])
+    expect(await deps.head('NOTE')).toBeNull()
+    expect(await deps.taskTree('NOTE', 'NOTE-1')).toBeNull()
+    expect(await deps.tree('NOTE', 'c2')).toBeNull()
+    expect(await deps.merged('NOTE', 'NOTE-1')).toBe(false)
+    expect(gitCalls).toEqual([])
   })
 
   it('reads the tree of the task branch, whatever its tail', async () => {

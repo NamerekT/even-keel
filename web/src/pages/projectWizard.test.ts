@@ -113,6 +113,31 @@ describe('readyToAdd', () => {
   })
 })
 
+describe('a project without git', () => {
+  const plain = fields({ git: false, profile: 'p-1', key: 'NOTE' })
+  const check: ProjectCheck = { ...passed, repo: { root: 'D:/data/projects', current: null, suggested: null, branches: null, notice: null }, trusted: null }
+
+  it('sends the mode, and neither a branch nor slots', () => {
+    expect(draftOfFields(fields({ git: false, repo: ' ', branch: 'dev', place: 'slots', slots: 'x' }))).toMatchObject({ git: false, repo: '', branch: '', slot: 0 })
+    expect(draftOfFields(fields({}))).not.toHaveProperty('git')
+  })
+
+  it('needs no folder: Even Keel makes one', () => {
+    expect(missingOf(fields({ git: false }), 'key', null)).toBe('profile')
+    expect(missingOf(plain, 'key', check)).toBeNull()
+    expect(stepChecks(plain, 'key', check, check, 'passed').repo).toBe('passed')
+    expect(stepChecks(plain, 'key', null, null, 'passed').repo).toBe('empty')
+  })
+
+  it('names a task without a branch', () => {
+    expect(taskExample('key', plain)).toBe('NOTE-12')
+  })
+
+  it("suggests nothing from the folder: its name is Even Keel's, and it has no branch", () => {
+    expect(suggestOfRepo(fields({ git: false, tracker: 'github' }), 'place', check.repo)).toMatchObject({ branch: '', key: '', name: '' })
+  })
+})
+
 describe('taskExample', () => {
   it('names a task by the key and its branch in lower case', () => {
     expect(taskExample('key', fields({ key: 'ABC' }))).toBe('ABC-12 → abc-12/task')

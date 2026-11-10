@@ -89,7 +89,8 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
   const fields = { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject') }
   // A page open since before the agent field sends none: the shared provider.
   const provider = body.provider === undefined || body.provider === null ? null : text('provider')
-  return { ...fields, profile, slot: slot as number, milestones: milestones as string[], provider }
+  if (body.git !== undefined && typeof body.git !== 'boolean') throw fail('request.required', { field: 'git' })
+  return { ...fields, profile, slot: slot as number, milestones: milestones as string[], provider, ...(body.git === false ? { git: false } : {}) }
 }
 
 export function feedDraftOf(body: Record<string, unknown>): FeedDraft {
@@ -134,6 +135,8 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     intakeLabel: intakeLabel?.trim() || null,
     mergeInto: mergeInto?.trim() || null,
     carryAgent: carryAgent ?? false,
+    // Read only: the form shows the mode and never writes it.
+    git: body.git !== false,
     fillMilestone,
     changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
     standards: (standards ?? []) as Standard[],

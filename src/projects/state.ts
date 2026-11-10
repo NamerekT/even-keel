@@ -21,6 +21,11 @@ export interface ProjectDraft {
   milestones: string[]
   /** The agent the project's sessions run on (BTN-310); `null` — the shared provider. */
   provider: string | null
+  /**
+   * `false` — a project without git (BTN-883): `repo` may be blank (Even Keel makes a folder in its data folder) or
+   * name a folder that is no repository or does not exist yet; `branch` and `slot` are not read.
+   */
+  git?: boolean
 }
 
 /** What the wizard's check found for a draft; a step that could not be checked yet is `null`. */

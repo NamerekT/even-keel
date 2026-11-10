@@ -87,6 +87,8 @@ export interface SetupOptions {
   unchanged?: UnchangedDeps
   /** PR mode without the review's deps; `reviews` turns it on too. */
   pullRequests?: boolean
+  /** Every project is one without git (BTN-883). */
+  plain?: boolean
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -226,6 +228,7 @@ export function setup(options: SetupOptions = {}) {
     ...(options.reviews === undefined ? {} : { reviews: options.reviews, pullRequests: () => true }),
     ...(options.unchanged === undefined ? {} : { unchanged: options.unchanged }),
     ...(options.pullRequests === true ? { pullRequests: () => true } : {}),
+    ...(options.plain === true ? { plain: () => true } : {}),
   })
   return {
     dispatcher,
