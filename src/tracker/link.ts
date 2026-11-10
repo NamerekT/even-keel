@@ -193,7 +193,7 @@ class CallTimeout extends Error {}
  * The tracker did not answer: the call timed out, the request of the adapter timed out or the connection failed. Node's
  * `fetch` says only "fetch failed" and keeps the reason (refused, connect timeout) in `cause` (BTN-825).
  */
-function didNotAnswer(error: unknown): boolean {
+export function didNotAnswer(error: unknown): boolean {
   if (error instanceof CallTimeout) return true
   let each: unknown = error
   while (each instanceof Error) {

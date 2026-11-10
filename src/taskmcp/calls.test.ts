@@ -430,6 +430,108 @@ describe('task_update of fields', () => {
   })
 })
 
+describe('task_update of several tasks (BTN-957)', () => {
+  beforeEach(async () => {
+    await store.create({ project: ABC, title: 'Second' })
+    await store.create({ project: ABC, title: 'Third' })
+  })
+
+  it('makes one change to every key and answers a line a task', async () => {
+    await call('task_update', { key: 'ABC-2', milestone: 'v0.3' })
+    refreshed = []
+    ran = []
+    expect(await call('task_update', { keys: ['abc-1', 'ABC-2', 'ABC-3', 'ABC-1'], milestone: 'v0.3', labels: { add: ['question'] } })).toBe(
+      'ABC-1: milestone → v0.3; labels +Question\nABC-2: labels +Question\nABC-3: milestone → v0.3; labels +Question',
+    )
+    expect(ran).toEqual([ABC])
+    expect(refreshed).toEqual([ABC])
+    expect(await call('task_update', { keys: ['ABC-1', 'ABC-2'], milestone: 'v0.3' })).toBe('ABC-1: already so\nABC-2: already so')
+    expect(refreshed).toEqual([ABC])
+  })
+
+  it('a task that fails gets its own line and does not stop the rest', async () => {
+    const answer = await call('task_update', { keys: ['ABC-1', 'ABC-99', 'XYZ-1', 'nonsense', 'ABC-3'], priority: 'high' })
+    const lines = answer.split('\n')
+    expect(lines).toHaveLength(5)
+    expect(lines[0]).toBe('ABC-1: priority → high')
+    expect(lines[1]).toMatch(/^ABC-99: .+/)
+    expect(lines[2]).toBe('XYZ-1 is not a task of this project; its trackers give ABC, GHI keys')
+    expect(lines[3]).toBe('"NONSENSE" is not a task key such as ABC-12')
+    expect(lines[4]).toBe('ABC-3: priority → high')
+  })
+
+  it('refuses the whole batch on an unknown name before anything is written', async () => {
+    const refused = await refusal(call('task_update', { keys: ['ABC-1', 'ABC-2'], priority: 'high', milestone: 'v1' }))
+    expect(refused).toMatch(/^there is no milestone "v1"/)
+    expect(refused).toMatch(/\nchain: into it — Todo/)
+    expect(await call('task_read', { key: 'ABC-1' })).not.toContain('priority high')
+    expect(refreshed).toEqual([])
+  })
+
+  it('takes no text of one task, and either key or keys', async () => {
+    for (const edit of [{ title: 'Same' }, { append: '## Notes' }, { replace: [{ old: 'a', new: 'b' }] }, { description: 'whole', rev: 1 }]) {
+      expect(await refusal(call('task_update', { keys: ['ABC-1', 'ABC-2'], ...edit }))).toMatch(/one task a call/)
+    }
+    expect(await refusal(call('task_update', { key: 'ABC-1', keys: ['ABC-2'], priority: 'low' }))).toBe('pass either "key" or "keys", not both')
+    expect(await refusal(call('task_update', { priority: 'low' }))).toBe('"key" is required')
+    expect(await refusal(call('task_update', { keys: [], priority: 'low' }))).toBe('"key" is required')
+    expect(await call('task_update', { keys: ['ABC-1'], append: '## Notes' })).toBe('ABC-1: description patched')
+  })
+
+  it("sends each key to its own tracker and checks every tracker's names first", async () => {
+    await store.create({ project: GHI, title: 'Feed task' })
+    expect(await call('task_update', { keys: ['GHI-1', 'ABC-2', 'ABC-3'], priority: 'low' })).toBe('GHI-1: priority → low\nABC-2: priority → low\nABC-3: priority → low')
+    expect(refreshed).toEqual([ABC])
+    expect(await refusal(call('task_update', { keys: ['ABC-2', 'GHI-1'], priority: 'high', milestone: 'v0.3' }))).toMatch(/^GHI: there is no milestone "v0.3"/)
+    expect(await call('task_read', { key: 'ABC-2' })).toContain('priority low')
+    expect(await refusal(call('task_update', { keys: ['ABC-2', 'GHI-1'], relates: { add: ['ABC-1'] } }))).toBe(
+      "ABC-1 is in another tracker; links don't cross trackers; name the key in the description",
+    )
+  })
+
+  it('stops when the tracker breaks the call off and names what was done and what was not reached', async () => {
+    const editor = tracker.editor!
+    let breakOff!: (error: Error) => void
+    const broken = new Promise<never>((_, reject) => { breakOff = reject })
+    let sets = 0
+    tracker.editor = {
+      ...editor,
+      set: async (key, field) => {
+        if (++sets === 1) return editor.set(key, field)
+        breakOff(new Error('gitlab: update got no answer for 15000 ms'))
+        return new Promise<never>(() => {})
+      },
+    }
+    const writes: (string | undefined)[] = []
+    tools = new TasksTools({
+      ...deps(),
+      run: async <T>(_: string, work: (each: Tracker) => Promise<T>, write?: string) => {
+        writes.push(write)
+        return Promise.race([work(tracker), broken])
+      },
+    })
+    expect(await refusal(call('task_update', { keys: ['ABC-1', 'ABC-2', 'ABC-3'], priority: 'high' }))).toBe(
+      'ABC-1: priority → high\nThen the call broke off: gitlab: update got no answer for 15000 ms. Not done: ABC-2, ABC-3. Repeat the call: a task already changed answers "already so"',
+    )
+    expect(writes).toEqual(['update'])
+    expect(refreshed).toEqual([ABC])
+  })
+
+  it('stops on a connection that failed inside a task instead of going through the rest', async () => {
+    const editor = tracker.editor!
+    let sets = 0
+    tracker.editor = {
+      ...editor,
+      set: async (key, field) => {
+        if (++sets === 2) throw new TypeError('fetch failed')
+        return editor.set(key, field)
+      },
+    }
+    expect(await refusal(call('task_update', { keys: ['ABC-1', 'ABC-2', 'ABC-3'], priority: 'high' }))).toMatch(/^ABC-1: priority → high\nThen the call broke off: fetch failed\. Not done: ABC-2, ABC-3\./)
+    expect(sets).toBe(2)
+  })
+})
+
 describe('the rest', () => {
   it('lists open tasks by default and filters by status, parent and words', async () => {
     await call('tasks_create', { tasks: [{ title: 'Child', parent: 'ABC-1' }, { title: 'Closed', status: 'Done' }] })

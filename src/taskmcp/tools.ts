@@ -93,11 +93,12 @@ export function toolSpecs(withProject: boolean, fields: ToolFields = { component
     {
       name: 'task_update',
       description:
-        'Changes any fields at once. Description: patches replace [{old, new}] (old found exactly once) and append need no revision; a whole description needs rev from task_read.',
+        'Changes any fields at once; keys instead of key makes the same change to several tasks in one call, a line a task. Description: patches replace [{old, new}] (old found exactly once) and append need no revision; a whole description needs rev from task_read.',
       inputSchema: {
         type: 'object',
         properties: {
           key: text,
+          keys: { ...texts, description: 'several tasks instead of key: the same fields, labels and links for each; no title or description edits' },
           title: text,
           status: text,
           priority: { type: 'string', enum: ['urgent', 'high', 'medium', 'low', 'none'] },
@@ -117,7 +118,6 @@ export function toolSpecs(withProject: boolean, fields: ToolFields = { component
           rev: { type: 'integer' },
           ...extra({ ...component, type: ['string', 'null'] }),
         },
-        required: ['key'],
         additionalProperties: false,
       },
     },

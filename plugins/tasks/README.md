@@ -20,7 +20,7 @@ Every limit in detail: [`docs/trackers.md`](../../docs/trackers.md), "The tasks 
 | `tasks_list` | one line per task: key, status, milestone, title; open tasks unless `status` says otherwise; every tracker of the project, `tracker` narrows it to one |
 | `task_read` | Markdown: a short head with the description revision, the description, comments on request |
 | `tasks_create` | a batch of tasks with every field at once; links inside the batch as `#1`, `#2`; `retry` makes a repeat safe; `tracker` picks another tracker of the project |
-| `task_update` | any fields at once; labels and links by `add`/`remove`; the description by `replace` patches, `append` or whole with `rev` |
+| `task_update` | any fields at once, for one task (`key`) or the same change to several (`keys`); labels and links by `add`/`remove`; the description by `replace` patches, `append` or whole with `rev` |
 | `task_comment` | a comment |
 
 Nothing is deleted. Labels and milestones that do not exist are refused with the list of the existing ones, never created.

@@ -48,6 +48,8 @@ Even Keel runs the chain: it starts a session on the first open task, closes it 
 
 One `tasks_create` call per batch, every field at once: `title`, `description`, `status`, `priority`, `milestone`, `labels`, `parent`, `blocks`/`blockedBy`/`relates`, `estimate`. Inside the call refer to another task of it as `#1`, `#2`; a parent must come earlier. Pass `retry` (any unique string): a repeat after a lost answer returns the tasks already created instead of duplicates.
 
+The same change to several tasks (a milestone, a status, a priority, labels, links) is one `task_update(keys: [...], …)` call, never a call a task. It answers a line a task; a task that fails gets its own line and the rest go on. `title` and the description edits stay one task a call. When the call breaks off, repeat it as it was: a task already changed answers `already so`.
+
 - **Status** — leave the default unless the user says the task goes into the chain now: then the "into it" status of the `chain:` line.
 - **Priority** — `high` for a bug that breaks current work or stops the chain; `medium` ordinary; `low` ideas and polish. Never `urgent` yourself.
 - **Order** — `blocks` links, not prose. A blocker must not sit in a later milestone than the task it blocks.

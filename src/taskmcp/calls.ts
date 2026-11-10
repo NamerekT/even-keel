@@ -3,6 +3,7 @@ import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
 import type { Tracker } from '../tracker/source.js'
+import { didNotAnswer } from '../tracker/link.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
 import { sameName, type ChainRules } from '../chain/rules.js'
 import { Args } from './args.js'
@@ -245,16 +246,15 @@ export class TasksTools {
   }
 
   private async update(args: Args, scope: TasksScope): Promise<string> {
-    const key = args.required('key').trim().toUpperCase()
-    const reader = this.readerOfTask(key, scope)
-    const project = reader.id
-    const fields: TaskField[] = []
+    const keys = keysArg(args)
+    const several = keys.length > 1
+    const base: TaskField[] = []
     const title = args.text('title')
-    if (title !== undefined) fields.push({ field: 'title', to: title })
+    if (title !== undefined) base.push({ field: 'title', to: title })
     const priority = args.priority('priority')
-    if (priority !== undefined) fields.push({ field: 'priority', to: priority })
+    if (priority !== undefined) base.push({ field: 'priority', to: priority })
     const parent = args.nullable('parent')
-    if (parent !== undefined) fields.push({ field: 'parent', to: parent === null ? null : parent.trim().toUpperCase() })
+    if (parent !== undefined) base.push({ field: 'parent', to: parent === null ? null : parent.trim().toUpperCase() })
     const labels = args.change('labels')
     const links = Object.fromEntries(LINKS.map((link) => [link, args.change(link)])) as Record<TaskLink, { add: string[]; remove: string[] }>
     const patches = args.patches('replace')
@@ -264,66 +264,133 @@ export class TasksTools {
     const estimate = estimateArg(args)
     const component = args.nullable('component')
     const attach = args.texts('attach')
+    const status = args.text('status')
+    const milestone = args.nullable('milestone')
     if (whole !== undefined && (patches.length > 0 || append !== null)) throw new EditRefused('pass either "description" or "replace"/"append", not both')
     if (whole !== undefined && rev === undefined) throw new EditRefused('a whole "description" needs "rev", the description revision task_read shows; a patch with "replace" needs none')
-    const others = [...(parent === undefined || parent === null ? [] : [parent]), ...LINKS.flatMap((link) => [...links[link].add, ...links[link].remove])]
-    const foreign = others.map((each) => each.trim().toUpperCase()).find((each) => crossesTrackers(each, reader.prefix))
-    if (foreign !== undefined) throw new EditRefused(crossRefusal(foreign))
-    return this.deps.run(project, async (tracker) => {
+    if (several && (title !== undefined || whole !== undefined || patches.length > 0 || append !== null)) {
+      throw new EditRefused('"title", "replace", "append" and "description" are the text of one task: they go one task a call; "keys" takes the fields, labels and links')
+    }
+    // A key no tracker of the project gives is that task's line; the rest of the batch goes on.
+    const lines: (string | undefined)[] = keys.map(() => undefined)
+    const groups = new Map<string, { reader: TaskReader; at: number[] }>()
+    for (const [index, key] of keys.entries()) {
+      try {
+        const reader = this.readerOfTask(key, scope)
+        const group = groups.get(reader.id) ?? { reader, at: [] }
+        group.at.push(index)
+        groups.set(reader.id, group)
+      } catch (error) {
+        if (!several) throw error
+        lines[index] = refusalText(error)
+      }
+    }
+    const others = [...(parent === undefined || parent === null ? [] : [parent]), ...LINKS.flatMap((link) => [...links[link].add, ...links[link].remove])].map((each) => each.trim().toUpperCase())
+    for (const { reader } of groups.values()) {
+      const foreign = others.find((each) => crossesTrackers(each, reader.prefix))
+      if (foreign !== undefined) throw new EditRefused(crossRefusal(foreign))
+    }
+    /** Everything checked against the tracker's names and the files read: nothing is written yet. */
+    const prepare = async (tracker: Tracker, reader: TaskReader): Promise<UpdatePlan> => {
       const editor = editorOf(tracker)
-      const terms = await this.termsOf(tracker, project)
+      const terms = await this.termsOf(tracker, reader.id)
       if (!terms.blocking && BLOCKING.some((link) => links[link].add.length > 0)) throw new EditRefused(NO_BLOCKING)
       // A link kind the tracker does not keep (GitHub, Forgejo: "relates") refuses before anything is written (BTN-930).
       const kept = editor.linkTypes ?? LINKS
       const unsupported = LINKS.find((link) => (links[link].add.length > 0 || links[link].remove.length > 0) && !kept.includes(link))
       if (unsupported !== undefined) throw new EditRefused(`this tracker keeps no "${unsupported}" link; name the other task in the description or a comment`)
-      const status = args.text('status')
+      const fields = [...base]
       if (status !== undefined) fields.push({ field: 'status', to: statusName(status, terms) })
-      const milestone = args.nullable('milestone')
       if (milestone !== undefined) fields.push({ field: 'milestone', to: milestone === null ? null : milestoneName(milestone, terms) })
       if (component !== undefined) fields.push({ field: 'component', to: component === null || component.trim() === '' ? null : componentName(component, terms, reader.prefix) })
       const add = labels.add.map((each) => labelName(each, terms))
-      const setEstimate = estimate === null ? null : estimateOf(editor, terms)
+      if (estimate !== null) estimateOf(editor, terms)
       if (attach.length > 0) filesOf(editor, terms, reader.prefix)
-      const files = attach.length === 0 ? [] : await this.uploads(attach, scope, reader)
-      const said: string[] = []
-      try {
-        const notes: string[] = []
-        if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
-        if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append, notes))) said.push('description patched', ...notes)
-        for (const field of fields) if (await editor.set(key, field)) said.push(fieldLine(field))
-        if (setEstimate !== null && (await setEstimate(key, estimate!))) said.push(`estimate → ${estimate} min`)
-        if (add.length > 0 || labels.remove.length > 0) {
-          const before = (await tracker.tasks([key]))[0]?.labels ?? []
-          const after = await editor.relabel(key, { add, remove: labels.remove })
-          const lower = (list: string[]) => new Set(list.map((each) => each.toLocaleLowerCase()))
-          const [was, is] = [lower(before), lower(after)]
-          const delta = [...after.filter((each) => !was.has(each.toLocaleLowerCase())).map((each) => `+${each}`), ...before.filter((each) => !is.has(each.toLocaleLowerCase())).map((each) => `−${each}`)]
-          if (delta.length > 0) said.push(`labels ${delta.join(' ')}`)
-        }
-        for (const link of LINKS) {
-          for (const other of links[link].remove) await editor.link(key, other.trim().toUpperCase(), link, false)
-        }
-        for (const link of LINKS) {
-          for (const other of links[link].add) await editor.link(key, other.trim().toUpperCase(), link, true)
-        }
-        for (const link of LINKS) {
-          const { add: on, remove: off } = links[link]
-          const delta = [...on.map((each) => `+${each.trim().toUpperCase()}`), ...off.map((each) => `−${each.trim().toUpperCase()}`)]
-          if (delta.length > 0) said.push(`${LINK_WORDS[link]} ${delta.join(' ')}`)
-        }
-        if (files.length > 0) {
-          const notes: string[] = []
-          await editor.files!.attach(key, files, notes)
-          said.push(`attached ${files.map((file) => file.name).join(', ')}`, ...notes)
-        }
-      } catch (error) {
-        throw new EditRefused(`${said.length === 0 ? '' : `${key}: ${said.join('; ')}; then `}${refusalText(error)}`)
-      } finally {
-        if (said.length > 0) await this.deps.refresh(reader.project)
+      return { fields, add, terms, files: attach.length === 0 ? [] : await this.uploads(attach, scope, reader) }
+    }
+    /** The writes of one task; `said` holds what changed, also when a later write throws. */
+    const apply = async (tracker: Tracker, key: string, plan: UpdatePlan, said: string[]): Promise<void> => {
+      const editor = editorOf(tracker)
+      const notes: string[] = []
+      if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
+      if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append, notes))) said.push('description patched', ...notes)
+      for (const field of plan.fields) if (await editor.set(key, field)) said.push(fieldLine(field))
+      if (estimate !== null && (await estimateOf(editor, plan.terms)(key, estimate))) said.push(`estimate → ${estimate} min`)
+      if (plan.add.length > 0 || labels.remove.length > 0) {
+        const before = (await tracker.tasks([key]))[0]?.labels ?? []
+        const after = await editor.relabel(key, { add: plan.add, remove: labels.remove })
+        const lower = (list: string[]) => new Set(list.map((each) => each.toLocaleLowerCase()))
+        const [was, is] = [lower(before), lower(after)]
+        const delta = [...after.filter((each) => !was.has(each.toLocaleLowerCase())).map((each) => `+${each}`), ...before.filter((each) => !is.has(each.toLocaleLowerCase())).map((each) => `−${each}`)]
+        if (delta.length > 0) said.push(`labels ${delta.join(' ')}`)
       }
-      return said.length === 0 ? `${key}: already so` : `${key}: ${said.join('; ')}`
-    }, 'update')
+      for (const link of LINKS) {
+        for (const other of links[link].remove) await editor.link(key, other.trim().toUpperCase(), link, false)
+      }
+      for (const link of LINKS) {
+        for (const other of links[link].add) await editor.link(key, other.trim().toUpperCase(), link, true)
+      }
+      for (const link of LINKS) {
+        const { add: on, remove: off } = links[link]
+        const delta = [...on.map((each) => `+${each.trim().toUpperCase()}`), ...off.map((each) => `−${each.trim().toUpperCase()}`)]
+        if (delta.length > 0) said.push(`${LINK_WORDS[link]} ${delta.join(' ')}`)
+      }
+      if (plan.files.length > 0) {
+        const notes: string[] = []
+        await editor.files!.attach(key, plan.files, notes)
+        said.push(`attached ${plan.files.map((file) => file.name).join(', ')}`, ...notes)
+      }
+    }
+    const list = [...groups.values()]
+    const plans = new Map<string, UpdatePlan>()
+    const changed = new Set<string>()
+    let writing = false
+    // Set once the tracker broke the call off: the work left behind the answer must not go on to the next task.
+    let stopped = false
+    try {
+      // Several trackers: every one checks the names before the first of them is written to.
+      if (list.length > 1) {
+        for (const { reader } of list) {
+          const checked = this.deps.run(reader.id, (tracker) => prepare(tracker, reader), 'update')
+          plans.set(reader.id, await checked.catch((error: unknown) => {
+            throw new EditRefused(`${reader.prefix}: ${refusalText(error)}`)
+          }))
+        }
+      }
+      for (const { reader, at } of list) {
+        await this.deps.run(reader.id, async (tracker) => {
+          const plan = plans.get(reader.id) ?? (await prepare(tracker, reader))
+          writing = true
+          for (const index of at) {
+            if (stopped) return
+            const key = keys[index]!
+            const said: string[] = []
+            try {
+              await apply(tracker, key, plan, said)
+              lines[index] = `${key}: ${said.length === 0 ? 'already so' : said.join('; ')}`
+            } catch (error) {
+              const done = said.length === 0 ? '' : `${key}: ${said.join('; ')}; then `
+              if (!several) throw new EditRefused(`${done}${refusalText(error)}`)
+              if (didNotAnswer(error)) throw error
+              lines[index] = `${done === '' ? `${key}: ` : done}${refusalText(error)}`
+            } finally {
+              if (said.length > 0) changed.add(reader.project)
+            }
+          }
+        }, 'update')
+      }
+    } catch (error) {
+      stopped = true
+      if (!several || !writing) throw error
+      const left = keys.filter((_, index) => lines[index] === undefined)
+      const done = lines.filter((line) => line !== undefined)
+      throw new EditRefused(
+        [...done, `${done.length === 0 ? 'The' : 'Then the'} call broke off: ${refusalText(error)}. Not done: ${left.join(', ')}. Repeat the call: a task already changed answers "already so"`].join('\n'),
+      )
+    } finally {
+      for (const project of changed) await this.deps.refresh(project)
+    }
+    return lines.join('\n')
   }
 
   private async comment(args: Args, scope: TasksScope): Promise<string> {
@@ -395,6 +462,24 @@ function trackerArg(args: Args, readers: TaskReader[]): TaskReader | null {
   const found = readers.find((each) => each.prefix === prefix)
   if (found === undefined) throw new EditRefused(`the project has no tracker ${prefix}; its trackers are ${readers.map((each) => each.prefix).join(', ')}`)
   return found
+}
+
+/** A `task_update` checked against one tracker's names (BTN-957): the same for every key of that tracker. */
+interface UpdatePlan {
+  fields: TaskField[]
+  /** The labels to add, in the tracker's spelling. */
+  add: string[]
+  terms: TrackerTerms
+  files: Awaited<ReturnType<typeof readUploads>>
+}
+
+/** The tasks of a `task_update`: `key`, or `keys` for the same change to several; upper case, each once. */
+function keysArg(args: Args): string[] {
+  if (args.has('key') && args.has('keys')) throw new EditRefused('pass either "key" or "keys", not both')
+  const keys = args.has('keys') ? args.texts('keys') : [args.required('key')]
+  const unique = [...new Set(keys.map((each) => each.trim().toUpperCase()).filter((each) => each !== ''))]
+  if (unique.length === 0) throw new EditRefused('"key" is required')
+  return unique
 }
 
 /** A key of another tracker than the one of `prefix`: links and parents never cross trackers. */
