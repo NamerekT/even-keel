@@ -59,7 +59,7 @@ describe('Dispatcher and the commands after a green main', () => {
     const { dispatcher, launched, ci } = await afterDone(null, (ci) => {
       ci.verdict = { state: 'none' }
       ci.commands = ['npm test']
-      ci.taskTrees = { 'ABC-1': 'tree-bbbbbbbbbb' }
+      ci.reportedTrees = { 'ABC-1': 'tree-bbbbbbbbbb' }
       ci.afterGreen = true
     })
     await settled(dispatcher)

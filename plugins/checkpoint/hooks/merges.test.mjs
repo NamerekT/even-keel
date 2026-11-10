@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -84,6 +84,32 @@ describe("mergeRefusal", () => {
     expect(await mergeRefusal(merge, repo, checkOf([node("process.exit(0)")]))).toBeNull();
     expect(await mergeRefusal(merge, repo, checkOf([]))).toBeNull();
     expect(await mergeRefusal(merge, repo, checkOf([node("process.exit(1)")], "abc-12/task"))).toBeNull();
+  });
+
+  it("reports the tree a passed check ran on, and nothing for a failed one, none or a worktree with changes", async () => {
+    const committed = taskRepo();
+    try {
+      const git = (...args) => execFileSync("git", ["-c", "user.name=John Doe", "-c", "user.email=john@example.com", ...args], { cwd: committed, encoding: "utf8" }).trim();
+      writeFileSync(join(committed, "tracked.txt"), "work\n");
+      git("add", "tracked.txt");
+      git("commit", "-q", "-m", "work");
+      const reports = [];
+      const report = async (tree, commands) => {
+        reports.push({ tree, commands });
+      };
+      const passing = [node("process.exit(0)")];
+      expect(await mergeRefusal(merge, committed, checkOf(passing), report)).toBeNull();
+      expect(reports).toEqual([{ tree: git("rev-parse", "HEAD^{tree}"), commands: passing }]);
+
+      await mergeRefusal(merge, committed, checkOf([node("process.exit(1)")]), report);
+      await mergeRefusal(merge, committed, checkOf([]), report);
+      writeFileSync(join(committed, "tracked.txt"), "changed\n");
+      expect(await mergeRefusal(merge, committed, checkOf(passing), report)).toBeNull();
+      expect(reports).toHaveLength(1);
+      expect(await mergeRefusal(merge, committed, checkOf(passing), () => Promise.reject(new Error("refused")))).toBeNull();
+    } finally {
+      rmSync(committed, { recursive: true, force: true });
+    }
   });
 
   it("asks Even Keel nothing for other commands, outside git, and lets the merge go when it does not answer", async () => {

@@ -65,6 +65,7 @@ type HostingContext = Pick<ServiceContext,
   | 'chainControl'
   | 'changelogs'
   | 'checkMergeTarget'
+  | 'checkReports'
   | 'ciWatches'
   | 'claudeAccount'
   | 'claudeConfigs'
@@ -464,6 +465,12 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const views = ctx.ciWatches.shown(run.project).map((watch) => watch.view)
       const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
       return { commands, branch: ctx.branchOf(run.project), standards: settings?.standards ?? [] }
+    },
+    checkReport: (sessionId, report) => {
+      const run = handoffsOf(ctx.launches, sessionId)
+      if (run === undefined) return false
+      ctx.checkReports.report(run.project, run.task, report)
+      return true
     },
     tools: async (project) => {
       const repo = ctx.configStore.current.projects[project]

@@ -86,6 +86,16 @@ export async function checkOf(sessionId) {
   return { commands, standards: standardsIn(body), main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main" };
 }
 
+/** Tells Even Keel the project's check before the merge passed on `tree` (EKR-103); a failure is the caller's to swallow. */
+export async function reportCheck(sessionId, tree, commands) {
+  await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/check`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tree, commands }),
+    signal: AbortSignal.timeout(2000),
+  });
+}
+
 function standardsIn(body) {
   if (!Array.isArray(body?.standards)) return [];
   return body.standards.filter((standard) => typeof standard?.doc === "string" && standard.doc !== "" && Array.isArray(standard.files));

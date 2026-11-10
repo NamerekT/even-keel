@@ -53,7 +53,6 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       return branch === '' ? { code: 1, out: '' } : { code: 0, out: `${branch}\n` }
     }
     if (args[0] === 'merge-base') return { code: heads[`${cwd} ${args[2]} not before ${args[3]}`] === undefined ? 0 : 1, out: '' }
-    if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
   const watches: MainCiWatch[] | null =
@@ -72,6 +71,8 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     watches: () => watches,
     settings: () => settings,
     commands: () => ['npm test'],
+    reported: (_project, task) =>
+      ({ 'ABC-1': { tree: 'tree-b1', commands: ['npm test'] }, 'ABC-3': { tree: 'tree-b3', commands: ['npm run lint'] } })[task],
     language: () => 'en',
     promptLanguage: () => 'ru',
     create: async () => 'ABC-9',
@@ -200,11 +201,11 @@ describe('mainCheckDeps', () => {
     expect(setup({ ...all([]), fixTask: true }, []).deps.fixTask('ABC')).toBe(true)
   })
 
-  it('reads the tree of the task branch, whatever its tail', async () => {
-    const { deps, gitCalls } = setup(all([]), [])
-    expect(await deps.taskTree('ABC', 'ABC-1')).toBe('tree-b1')
-    expect(gitCalls[0]).toEqual(['for-each-ref', '--format=%(objectname)', 'refs/heads/abc-1'])
-    expect(await deps.taskTree('ABC', 'ABC-2')).toBeNull()
+  it('takes the tree the check before the merge reported only for the commands the project checks with now', async () => {
+    const { deps } = setup(all([]), [])
+    expect(deps.reportedTree('ABC', 'ABC-1')).toBe('tree-b1')
+    expect(deps.reportedTree('ABC', 'ABC-2')).toBeNull()
+    expect(deps.reportedTree('ABC', 'ABC-3')).toBeNull()
     expect(await deps.tree('ABC', 'c2')).toBe('tree-c2')
   })
 

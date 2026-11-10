@@ -3,14 +3,15 @@
 // what the hook commands of Claude Code and Codex ask (../hooks/evenkeel.mjs) — the checkpoint nudge due and the
 // chat's waiting messages — and puts them after the tool's output, the only way into the context in the middle of
 // a turn. A delivered message is also kept in the call's metadata, where Even Keel's feed finds it. Before a shell
-// call that merges the task branch it runs the project's check, and an error thrown there keeps the call from running.
+// call that merges the task branch it runs the project's check, and an error thrown there keeps the call from running;
+// a passed check is reported to Even Keel with the tree it ran on, as the hook command does.
 // The project's standards (../hooks/standards.mjs) work as in the hook commands: a read of a guarded file gets the
 // document after its output, a first edit before it is refused by an error, and a compaction forgets what was given.
 // `opencode run` has no Stop to block, so a turn that wrote the handoff note and ends without the CHECKPOINT line gets
 // the line added to its text as it completes; for the same reason PR mode's mark is not held for the standards. A
 // subagent runs in a session of its own, which Even Keel does not know, so it is left alone. Only `server` is
 // exported: OpenCode takes the module's exports for plugins.
-import { checkOf, checkpointNote, mailOf, noteAtEnd, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
+import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
 import { hasMark } from "../hooks/handoff.mjs";
 import { mergeRefusal } from "../hooks/merges.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt } from "../hooks/standards.mjs";
@@ -52,7 +53,12 @@ export const server = async ({ directory }) => {
         return;
       }
       // Even Keel not answering, or git failing, must never block a merge.
-      const text = await mergeRefusal(output?.args?.command, directory, () => checkOf(input.sessionID)).catch(() => null);
+      const text = await mergeRefusal(
+        output?.args?.command,
+        directory,
+        () => checkOf(input.sessionID),
+        (tree, commands) => reportCheck(input.sessionID, tree, commands),
+      ).catch(() => null);
       if (text !== null) throw new Error(text);
     },
     "tool.execute.after": async (input, output) => {

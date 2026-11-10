@@ -63,16 +63,16 @@ export class MainCheck {
     return run === undefined ? undefined : { commit: run.commit, since: run.since }
   }
 
-  /** The tree of the task's branch, read before its cleanup deletes the branch; `null` — unknown. */
-  async taskTree(project: string, task: string): Promise<string | null> {
+  /** The tree the check before the task's merge reported, read before its cleanup; `null` — no report. */
+  reportedTree(project: string, task: string): string | null {
     try {
-      return await this.deps.taskTree(project, task)
+      return this.deps.reportedTree(project, task)
     } catch {
       return null
     }
   }
 
-  /** After the cleanup of a done task synced main: the CI's verdict on the commit is awaited. */
+  /** After the cleanup of a done task synced main: the CI's verdict on the commit is awaited; `tree` — `reportedTree`. */
   async pushed(project: string, task: string, tree: string | null): Promise<void> {
     let commit: string | null
     try {
@@ -93,7 +93,13 @@ export class MainCheck {
     const checked = tree !== null && (await this.deps.tree(project, commit).catch(() => null)) === tree
     const earlier = [...(gate.local?.tasks ?? []), ...(gate.check?.tasks ?? [])]
     delete gate.local
-    const push: MainPush = { commit, at: this.now().toISOString(), tasks: [...earlier, task], ...(checked ? { checked: true as const } : {}) }
+    const push: MainPush = {
+      commit,
+      at: this.now().toISOString(),
+      tasks: [...earlier, task],
+      ...(checked ? { checked: true as const } : {}),
+      ...(tree === null && this.deps.checking(project).commands.length > 0 ? { unreported: true as const } : {}),
+    }
     if (this.deps.verdict(project, commit, push.at).state === 'none') {
       delete gate.check
       this.withoutCi(project, gate, push, [])
@@ -332,11 +338,13 @@ export class MainCheck {
       return
     }
     if (reasons.length > 0) this.log(`ci: ${project}: the CI cannot judge ${commit} (${why}); the project's check takes it`)
-    if (push.checked === true) this.passed(project, gate, push, 'is the tree the check passed before the merge')
-    else if (!recheck) this.unchecked(project, gate, push, 'main moved past the checked branch, and the check of main is off')
+    if (push.checked === true) this.passed(project, gate, push, 'is the tree the check before the merge reported')
+    // Without a report nothing shows the check ran, whatever the trees: the check of main is not the user's to skip then.
+    else if (!recheck && push.unreported !== true) this.unchecked(project, gate, push, 'main moved past the checked branch, and the check of main is off')
     else {
       gate.local = push
-      this.log(`ci: ${project}: ${commit} is checked in the next task's place before it starts`)
+      const why = push.unreported === true ? ': the check before the merge did not report' : ''
+      this.log(`ci: ${project}: ${commit} is checked in the next task's place before it starts${why}`)
     }
   }
 

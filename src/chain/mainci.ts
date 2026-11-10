@@ -6,6 +6,7 @@ import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { CiSettings } from '../state.js'
 import type { NewTask } from '../tracker/source.js'
+import type { CheckReport } from './checkreports.js'
 import type { CheckFailure, MainCheckDeps } from './model.js'
 
 /** The commits a fix task lists, from the last green commit; without one, the latest of main. */
@@ -34,6 +35,8 @@ export interface MainCiDeps {
   settings: (project: string) => CiSettings
   /** The project's check commands (`commands.check`). */
   commands: (project: string) => string[]
+  /** What the check before the task's merge reported (`CheckReports`). */
+  reported: (project: string, task: string) => CheckReport | undefined
   language: () => Language
   promptLanguage: (project: string) => Language
   /** `null` — the tracker cannot create tasks. */
@@ -122,11 +125,12 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     create: (project, task) => deps.create({ project, ...task }),
     comment: deps.comment,
     prepare: deps.prepare,
-    async taskTree(project, task) {
-      const repo = deps.repo(project)
-      const refs = await deps.git(repo, ['for-each-ref', '--format=%(objectname)', `refs/heads/${task.toLowerCase()}`])
-      const commit = refs.code === 0 ? refs.out.split(/\r?\n/).find((line) => line.trim() !== '') : undefined
-      return commit === undefined ? null : revision(repo, `${commit.trim()}^{tree}`)
+    // A check of other commands than the project's now proves nothing about them.
+    reportedTree(project, task) {
+      const report = deps.reported(project, task)
+      const commands = deps.commands(project)
+      const same = report !== undefined && report.commands.length === commands.length && report.commands.every((command, at) => command === commands[at])
+      return same ? report.tree : null
     },
     tree: (project, commit) => revision(deps.repo(project), `${commit}^{tree}`),
     checking(project) {
