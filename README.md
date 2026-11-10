@@ -5,6 +5,8 @@
   </picture>
 </h1>
 
+<a href="https://github.com/NamerekT/even-keel/releases"><picture><source media="(prefers-color-scheme: light)" srcset="https://even-keel-badge.nykolai-tymchenko.workers.dev/even-keel.svg?theme=light"><img alt="Even Keel: what the chain is building now" src="https://even-keel-badge.nykolai-tymchenko.workers.dev/even-keel.svg?theme=dark"></picture></a>
+
 **You write the tickets. It takes the night shift.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time with [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) or [GitHub Copilot](https://github.com/github/copilot-cli) while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
 
 **Already inside, so you don't glue five tools together:**
