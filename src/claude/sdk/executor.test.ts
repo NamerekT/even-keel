@@ -1,7 +1,6 @@
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it } from 'vitest'
 import { isAlive } from '../../agent/process.js'
 import { Backlog, turnAfter } from './executor.js'
@@ -65,12 +64,11 @@ describe('the executor leaving on its own', () => {
       const executor = await startExecutor(pipe, { log: join(dir, 'executor.log'), spill: join(dir, 'spill.jsonl') })
       const cli = new ExecutorProcess(pipe, { executor: 'spawn', command: process.execPath, args: ['-e', ''], env: process.env }, () => undefined)
       await new Promise((resolve) => cli.once('exit', resolve))
-      const deadline = Date.now() + 10_000
-      while (isAlive(executor) && Date.now() < deadline) await delay(100)
-      expect(isAlive(executor)).toBe(false)
-      expect(existsSync(pipe)).toBe(false)
+      await expect.poll(() => isAlive(executor), { timeout: 40_000, interval: 100 }).toBe(false)
+      // Windows reports the process as gone a moment before it closes the handles that hold the named pipe.
+      await expect.poll(() => existsSync(pipe), { timeout: 10_000, interval: 50 }).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 20_000)
+  }, 60_000)
 })

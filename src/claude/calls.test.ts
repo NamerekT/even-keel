@@ -28,15 +28,19 @@ const span = (stdout: string): [number, number] => JSON.parse(stdout) as [number
 const sameOne = process.platform === 'win32' ? '\\Accounts\\One' : '/accounts/./one/'
 
 describe('FolderCalls', () => {
-  it('runs the calls of one folder one after another and of different folders together', async () => {
+  // No bound on how fast a child starts: a full parallel run takes seconds to start one. The first call ends only once
+  // the call of the other folder has run, so it ends at all only if the two folders run together.
+  it('runs the calls of one folder one after another and of different folders together', { timeout: 60_000 }, async () => {
     const calls = new FolderCalls()
-    const [a, b, c] = await Promise.all([
-      calls.run('/accounts/one', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
-      calls.run(sameOne, NODE, sleeper(300), { env, timeoutMs: 5_000 }),
-      calls.run('/accounts/two', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
+    const marker = join(await mkdtemp(join(tmpdir(), 'even-keel-calls-')), 'ran')
+    const file = JSON.stringify(marker)
+    const waiter = ['-e', `const s=Date.now();setInterval(()=>{if(require("fs").existsSync(${file})){console.log(JSON.stringify([s,Date.now()]));process.exit(0)}},20)`]
+    const [a, b] = await Promise.all([
+      calls.run('/accounts/one', NODE, waiter, { env, timeoutMs: 40_000 }),
+      calls.run(sameOne, NODE, sleeper(0), { env, timeoutMs: 40_000 }),
+      calls.run('/accounts/two', NODE, ['-e', `require("fs").writeFileSync(${file}, "")`], { env, timeoutMs: 40_000 }),
     ])
     expect(span(b.stdout)[0]).toBeGreaterThanOrEqual(span(a.stdout)[1])
-    expect(span(c.stdout)[0]).toBeLessThan(span(a.stdout)[1])
   })
 
   it('gives up on a call past its timeout without killing it, and the folder waits for it', async () => {
@@ -60,12 +64,14 @@ describe('FolderCalls', () => {
     expect(existsSync(marker)).toBe(false)
   })
 
-  it('kills a call that outlives the kill limit', async () => {
+  // The next call gets the folder only after the kill: left alone, the first one holds it past the next one's timeout.
+  // The kill limit is the next call's too, and a child slow to start under a full parallel run is killed by it: either
+  // way it got the folder, so only a timeout in the queue is a failure.
+  it('kills a call that outlives the kill limit', { timeout: 60_000 }, async () => {
     const calls = new FolderCalls(300)
-    const started = Date.now()
-    await expect(calls.run('/accounts/one', NODE, sleeper(10_000), { env, timeoutMs: 100 })).rejects.toBeInstanceOf(CallTimeout)
-    await calls.run('/accounts/one', NODE, sleeper(0), { env, timeoutMs: 5_000 })
-    expect(Date.now() - started).toBeLessThan(3_000)
+    await expect(calls.run('/accounts/one', NODE, sleeper(120_000), { env, timeoutMs: 100 })).rejects.toBeInstanceOf(CallTimeout)
+    const next = await calls.run('/accounts/one', NODE, sleeper(0), { env, timeoutMs: 30_000 }).catch((error: unknown) => error)
+    expect(isCallTimeout(next)).toBe(false)
   })
 
   it('starts a priority call right after the running one, ahead of the waiting ordinary calls', async () => {

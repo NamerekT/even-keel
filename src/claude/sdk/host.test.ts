@@ -46,11 +46,12 @@ describe('SdkSessions.stop', () => {
       sessions.registry.save({ sessionId: 'session-1', name: 'ABC-1', cwd: dir, account: 'global', startedAt: 1, executor, pipe, model: null })
       await sessions.stop('session-1')
       expect(isAlive(executor)).toBe(false)
-      expect(existsSync(pipe)).toBe(false)
+      // Windows reports the process as gone a moment before it closes the handles that hold the named pipe.
+      await expect.poll(() => existsSync(pipe), { timeout: 10_000, interval: 50 }).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 20_000)
+  }, 60_000)
 })
 
 describe('sessionOptions', () => {
